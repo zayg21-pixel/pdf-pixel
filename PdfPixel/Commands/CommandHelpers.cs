@@ -61,14 +61,20 @@ internal static class CommandHelpers
     }
 
     /// <summary>
-    /// Returns the user-space stroke width whose image under the current device matrix
-    /// measures exactly one device pixel along its narrowest axis. Clamping a stroke width
-    /// to at least this value keeps thin lines visible at low zoom, matching the minimum-line-width
-    /// behavior of other PDF viewers.
+    /// Returns the stroke width to assign to an <see cref="SKPaint"/> for <paramref name="paint"/>: unchanged
+    /// for fill paints and hairlines (<see cref="PdfStrokeStyle.LineWidth"/> &lt;= 0), otherwise the paint's
+    /// line width clamped to the user-space width whose image under the current device matrix measures exactly
+    /// one device pixel along its narrowest axis. Clamping keeps thin lines visible at low zoom, matching the
+    /// minimum-line-width behavior of other PDF viewers.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetMinimumStrokeWidth(PdfCommandExecutionContext executionContext)
+    public static float GetMinimumStrokeWidth(PdfCommandExecutionContext executionContext, PdfPaint paint)
     {
+        if (paint.Style != PdfPaintStyle.Stroke || paint.RequireStrokeStyle().LineWidth <= 0)
+        {
+            return 0f;
+        }
+
         PdfMatrix matrix = GetScaledMatrix(executionContext);
         PdfPoint origin = matrix.MapPoint(PdfPoint.Empty);
         PdfPoint mappedX = matrix.MapPoint(new PdfPoint(1, 0));
@@ -83,12 +89,9 @@ internal static class CommandHelpers
         float normY = MathF.Sqrt((axisYx * axisYx) + (axisYy * axisYy));
         float absDeterminant = Math.Abs((axisXx * axisYy) - (axisXy * axisYx));
 
-        if (absDeterminant <= 0)
-        {
-            return 1f;
-        }
+        float minimumStrokeWidth = (absDeterminant <= 0) ? 1f : Math.Max(normX, normY) / absDeterminant;
 
-        return Math.Max(normX, normY) / absDeterminant;
+        return Math.Max(paint.RequireStrokeStyle().LineWidth, minimumStrokeWidth);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

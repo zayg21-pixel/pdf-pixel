@@ -34,15 +34,7 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
         using SKPaint paint = Paint.ToSkiaPaint();
         CommandHelpers.ApplyModifiers(paint, executionContext);
         paint.IsAntialias = CommandHelpers.GetPathIsAntialias(path, executionContext, paint);
-
-        if ((paint.Style == SKPaintStyle.Stroke || paint.Style == SKPaintStyle.StrokeAndFill) && paint.StrokeWidth > 0)
-        {
-            float minimumStrokeWidth = CommandHelpers.GetMinimumStrokeWidth(executionContext);
-            if (paint.StrokeWidth < minimumStrokeWidth)
-            {
-                paint.StrokeWidth = minimumStrokeWidth;
-            }
-        }
+        paint.StrokeWidth = CommandHelpers.GetMinimumStrokeWidth(executionContext, Paint);
 
         executionContext.Canvas.DrawPath(path, paint);
     }

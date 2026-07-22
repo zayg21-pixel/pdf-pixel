@@ -42,7 +42,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
 
         if (_pattern != null)
         {
-            processor.Process(new ClipStrokePathCommand(_path, _state.StrokePaint, PdfClipOperation.Intersect));
+            processor.Process(new ClipPathCommand(_path, PdfClipOperation.Intersect, _state.StrokePaint));
             processor.Process(new SaveLayerCommand(Bounds));
         }
     }

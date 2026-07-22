@@ -98,7 +98,7 @@ public class PathRenderer : IPathRenderer
                 if (overlapAffectsCompositing)
                 {
                     processor.Process(SaveStateCommand.Instance);
-                    processor.Process(new ClipStrokePathCommand(path, state.StrokePaint, PdfClipOperation.Difference));
+                    processor.Process(new ClipPathCommand(path, PdfClipOperation.Difference, state.StrokePaint));
 
                     PathFillRenderTarget clippedFillTarget = new(path, state);
                     clippedFillTarget.Render(processor);

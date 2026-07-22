@@ -14,27 +14,28 @@ public sealed class ClipRectangleCommand : PdfCommand
     /// </summary>
     public ClipRectangleCommand(in PdfRectangle rect, PdfClipOperation operation)
     {
-        Rect = rect.ToSkRect();
-        Operation = operation.ToSkClipOperation();
+        Rect = rect;
+        Operation = operation;
     }
 
     /// <summary>
     /// Gets the rectangle applied as a clip to the canvas.
     /// </summary>
-    public SKRect Rect { get; }
+    public PdfRectangle Rect { get; }
 
     /// <summary>
     /// Gets the clip operation applied to the canvas.
     /// </summary>
-    public SKClipOperation Operation { get; }
+    public PdfClipOperation Operation { get; }
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        SKRect snappedRect = CommandHelpers.GetPixelSnappedRect(Rect, executionContext);
+        SKRect snappedRect = CommandHelpers.GetPixelSnappedRect(Rect.ToSkRect(), executionContext);
+        SKClipOperation skOperation = Operation.ToSkClipOperation();
         bool antialias = CommandHelpers.GetRectIsAntialias(snappedRect, executionContext);
-        executionContext.Canvas.ClipRect(snappedRect, Operation, antialias);
-        executionContext.Frames.OnClipRect(snappedRect, Operation, antialias);
+        executionContext.Canvas.ClipRect(snappedRect, skOperation, antialias);
+        executionContext.Frames.OnClipRect(snappedRect, skOperation, antialias);
     }
 
     /// <inheritdoc />

@@ -35,7 +35,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipStrokePathCommand(_path, _state.StrokePaint, PdfClipOperation.Intersect));
+        processor.Process(new ClipPathCommand(_path, PdfClipOperation.Intersect, _state.StrokePaint));
         processor.Process(new SaveLayerCommand(Bounds));
     }
 
