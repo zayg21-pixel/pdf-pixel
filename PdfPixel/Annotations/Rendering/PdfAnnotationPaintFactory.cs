@@ -66,7 +66,7 @@ internal static class PdfAnnotationPaintFactory
     /// <summary>
     /// Stroke paint from a fully resolved stroke style plus a parsed annotation border effect (BE entry).
     /// </summary>
-    public static PdfPaint CreateStrokePaint(in PdfColor color, PdfStrokeStyle strokeStyle, PdfAnnotationBorderEffect borderEffect)
+    public static PdfPaint CreateStrokePaint(in PdfColor color, PdfStrokeStyle strokeStyle, in PdfAnnotationBorderEffect borderEffect)
     {
         PdfStrokeEffectType effectType = (borderEffect.Type == PdfAnnotationBorderEffectType.Cloudy)
             ? PdfStrokeEffectType.Cloudy

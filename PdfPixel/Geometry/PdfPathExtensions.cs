@@ -20,6 +20,16 @@ public static class PdfPathExtensions
     /// </summary>
     public static PdfRectangle GetStrokeBounds(this PdfPath path, PdfPaint strokePaint)
     {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        if (strokePaint == null)
+        {
+            throw new ArgumentNullException(nameof(strokePaint));
+        }
+
         PdfStrokeStyle style = strokePaint.RequireStrokeStyle();
         float halfWidth = style.LineWidth / 2f;
         float inflate = (style.LineJoin == PdfStrokeJoin.Miter) ? halfWidth * Math.Max(style.MiterLimit, 1f) : halfWidth;
@@ -33,6 +43,11 @@ public static class PdfPathExtensions
     /// </summary>
     public static void AddRect(this PdfPathBuilder path, in PdfRectangle rect)
     {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
         path.MoveTo(rect.Left, rect.Top);
         path.LineTo(rect.Right, rect.Top);
         path.LineTo(rect.Right, rect.Bottom);
@@ -45,6 +60,11 @@ public static class PdfPathExtensions
     /// </summary>
     public static void AddOval(this PdfPathBuilder path, in PdfRectangle rect)
     {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
         float centerX = rect.MidX;
         float centerY = rect.MidY;
         float radiusX = rect.Width / 2f;
@@ -77,6 +97,11 @@ public static class PdfPathExtensions
     /// </summary>
     public static void AddRoundRect(this PdfPathBuilder path, in PdfRectangle rect, float cornerRadiusX, float cornerRadiusY)
     {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
         float radiusX = Math.Min(cornerRadiusX, rect.Width / 2f);
         float radiusY = Math.Min(cornerRadiusY, rect.Height / 2f);
         float offsetX = radiusX * OvalKappa;
@@ -106,6 +131,11 @@ public static class PdfPathExtensions
     /// </summary>
     public static void AddArc(this PdfPathBuilder path, in PdfRectangle oval, float startAngleDegrees, float sweepAngleDegrees)
     {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
         if (sweepAngleDegrees == 0)
         {
             return;

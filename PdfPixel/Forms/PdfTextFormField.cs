@@ -225,7 +225,7 @@ public class PdfTextFormField : PdfFormField
     /// This is a simplified implementation. A complete implementation would need
     /// to measure the actual text layout using the field's font and appearance.
     /// </remarks>
-    private int GetCharacterIndexAtPosition(PdfPoint position)
+    private int GetCharacterIndexAtPosition(in PdfPoint position)
     {
         string text = GetTextValue();
         var estimatedIndex = (int)(position.X / 10);

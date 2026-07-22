@@ -16,7 +16,7 @@ public sealed class PdfTypeface
     /// Creates a typeface from raw font program bytes (TrueType, OpenType, CFF-wrapped, etc.).
     /// </summary>
     /// <param name="fontBytes">The font program bytes.</param>
-    public PdfTypeface(ReadOnlyMemory<byte> fontBytes)
+    public PdfTypeface(in ReadOnlyMemory<byte> fontBytes)
     {
         using SKData data = SKData.CreateCopy(fontBytes.ToArray());
         _skTypeface = SKTypeface.FromData(data) ?? throw new InvalidOperationException("Failed to create typeface from font data.");

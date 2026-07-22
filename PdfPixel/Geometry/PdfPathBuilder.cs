@@ -83,6 +83,11 @@ public sealed class PdfPathBuilder
     /// </summary>
     public void AddPath(PdfPath other)
     {
+        if (other == null)
+        {
+            throw new ArgumentNullException(nameof(other));
+        }
+
         ReadOnlySpan<byte> otherBuffer = other.Buffer.Span;
         EnsureCapacity(_length + otherBuffer.Length);
 

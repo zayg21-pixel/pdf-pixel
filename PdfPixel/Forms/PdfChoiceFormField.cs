@@ -370,7 +370,7 @@ public class PdfChoiceFormField : PdfFormField
     /// This is a simplified implementation. A complete implementation would need
     /// to measure the actual option layout using the field's font and appearance.
     /// </remarks>
-    private int GetOptionIndexAtPosition(PdfPoint position)
+    private int GetOptionIndexAtPosition(in PdfPoint position)
     {
         if (Options == null || Options.Count == 0)
         {

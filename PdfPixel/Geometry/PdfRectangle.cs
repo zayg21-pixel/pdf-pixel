@@ -119,7 +119,7 @@ public readonly struct PdfRectangle
     /// </summary>
     public static PdfRectangle Union(in PdfRectangle a, in PdfRectangle b)
     {
-        return new PdfRectangle(
+        return new(
             Math.Min(a.Left, b.Left),
             Math.Min(a.Top, b.Top),
             Math.Max(a.Right, b.Right),

@@ -4,6 +4,8 @@ namespace PdfPixel.Geometry;
 /// Identifies the kind of a <see cref="PdfPathSegment"/>. The numeric value doubles as the tag byte
 /// written into <see cref="PdfPath"/>'s internal binary buffer ahead of each segment's points.
 /// </summary>
+#pragma warning disable CA1008 // No zero/"None" value: every tag byte written to the buffer is meaningful.
+#pragma warning disable CA1028 // byte is the wire format for the buffer's tag byte, not an implementation detail.
 public enum PdfPathSegmentType : byte
 {
     /// <summary>
@@ -26,3 +28,5 @@ public enum PdfPathSegmentType : byte
     /// </summary>
     Close = 4
 }
+#pragma warning restore CA1028
+#pragma warning restore CA1008

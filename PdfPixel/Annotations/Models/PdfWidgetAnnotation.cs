@@ -127,7 +127,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <param name="position">Mouse position in PDF page coordinates.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled by the field.</returns>
-    public bool HandleMouseDown(PdfPoint position, FormFieldPointerState state)
+    public bool HandleMouseDown(in PdfPoint position, FormFieldPointerState state)
     {
         if (Field == null)
         {
@@ -144,7 +144,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <param name="position">Mouse position in PDF page coordinates.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled by the field.</returns>
-    public bool HandleMouseUp(PdfPoint position, FormFieldPointerState state)
+    public bool HandleMouseUp(in PdfPoint position, FormFieldPointerState state)
     {
         if (Field == null)
         {
@@ -161,7 +161,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <param name="position">Mouse position in PDF page coordinates.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled by the field.</returns>
-    public bool HandleMouseMove(PdfPoint position, FormFieldPointerState state)
+    public bool HandleMouseMove(in PdfPoint position, FormFieldPointerState state)
     {
         if (Field == null)
         {
@@ -263,7 +263,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// use top-left origin with Y increasing downward (like UI elements).
     /// This method converts from PDF page coordinates to field-relative UI coordinates.
     /// </remarks>
-    private PdfPoint GetRelativePosition(PdfPoint pagePosition)
+    private PdfPoint GetRelativePosition(in PdfPoint pagePosition)
     {
         return new(
             pagePosition.X - Rectangle.Left,
