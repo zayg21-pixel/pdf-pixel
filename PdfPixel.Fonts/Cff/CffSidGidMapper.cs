@@ -109,7 +109,7 @@ public class CffSidGidMapper
             ReadOnlyMemory<byte> topDictBytes = cffBytes.Slice(topDictStart, topDictEnd - topDictStart);
 
             CffTopDictReader topDictReader = new(_loggerFactory.CreateLogger<CffTopDictReader>());
-            CffTopDictData topDictData = topDictReader.ParseTopDict(topDictBytes.Span);
+            CffTopDict topDictData = topDictReader.ParseTopDict(topDictBytes.Span);
 
             if (!topDictData.CharStringsOffset.HasValue || topDictData.CharStringsOffset.Value >= cffBytes.Length)
             {
@@ -142,7 +142,7 @@ public class CffSidGidMapper
                 {
                     ReadOnlyMemory<byte> privateDictBytes = cffBytes.Slice(privateDictStart, privateDictSize);
                     CffPrivateDictParser privateDictParser = new(_loggerFactory.CreateLogger<CffPrivateDictParser>());
-                    CffPrivateDictData privateDictData = privateDictParser.ParsePrivateDict(privateDictBytes.Span);
+                    CffPrivateDict privateDictData = privateDictParser.ParsePrivateDict(privateDictBytes.Span);
 
                     defaultWidthX = privateDictData.DefaultWidthX ?? 0;
                     nominalWidthX = privateDictData.NominalWidthX ?? 0;

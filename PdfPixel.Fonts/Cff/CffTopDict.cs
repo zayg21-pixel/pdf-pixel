@@ -3,7 +3,7 @@ namespace PdfPixel.Fonts.Cff;
 /// <summary>
 /// Parsed data from a CFF Top DICT.
 /// </summary>
-internal sealed class CffTopDictData
+internal sealed class CffTopDict
 {
     public int? CharsetOffset { get; set; }
 

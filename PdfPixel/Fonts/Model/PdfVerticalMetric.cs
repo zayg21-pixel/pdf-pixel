@@ -4,7 +4,7 @@ namespace PdfPixel.Fonts.Model;
 /// Vertical metrics for a single CID in vertical writing mode.
 /// Stores vertical advance (W1y), vertical origin displacement (V1y), and optional horizontal origin displacement (V1x).
 /// </summary>
-public readonly struct VerticalMetric
+public readonly struct PdfVerticalMetric
 {
     /// <summary>
     /// Initializes a new instance of the VerticalMetric struct.
@@ -12,7 +12,7 @@ public readonly struct VerticalMetric
     /// <param name="w1">Vertical advance (W1y) for the glyph.</param>
     /// <param name="v1">Vertical displacement (V1y) to the vertical origin.</param>
     /// <param name="v1x">Optional horizontal displacement (V1x) to the vertical origin.</param>
-    public VerticalMetric(float w1, float v1, float? v1x = null)
+    public PdfVerticalMetric(float w1, float v1, float? v1x = null)
     {
         W1 = w1;
         V1 = v1;

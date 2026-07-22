@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts.Model;
 /// W2 defines per-CID vertical metrics using groups [W1y, V1x, V1y] or ranged entries.
 /// All values are converted to user space units using VerticalToUserSpaceCoeff.
 /// </summary>
-public class CidFontVerticalMetrics
+public class PdfCidFontVerticalMetrics
 {
     /// <summary>
     /// Conversion coefficient from glyph units to user space units.
@@ -18,12 +18,12 @@ public class CidFontVerticalMetrics
     public const float VerticalToUserSpaceCoeff = 0.001f;
 
     /// <summary>
-    /// Initializes a new <see cref="CidFontVerticalMetrics"/> instance with the given default metrics and per-CID overrides.
+    /// Initializes a new <see cref="PdfCidFontVerticalMetrics"/> instance with the given default metrics and per-CID overrides.
     /// </summary>
     /// <param name="defaultW1">Default vertical advance (W1y) applied to CIDs without an explicit W2 entry.</param>
     /// <param name="defaultV1">Default vertical origin Y displacement (V1y) applied to CIDs without an explicit W2 entry.</param>
     /// <param name="cidVerticalMetrics">Dictionary mapping CID values to their specific vertical metrics.</param>
-    public CidFontVerticalMetrics(float defaultW1, float defaultV1, Dictionary<uint, VerticalMetric> cidVerticalMetrics)
+    public PdfCidFontVerticalMetrics(float defaultW1, float defaultV1, Dictionary<uint, PdfVerticalMetric> cidVerticalMetrics)
     {
         DefaultW1 = defaultW1;
         DefaultV1 = defaultV1;
@@ -43,19 +43,19 @@ public class CidFontVerticalMetrics
     /// <summary>
     /// Per-CID vertical metrics map. Stores W1y, V1y and optional V1x when provided by W2.
     /// </summary>
-    public Dictionary<uint, VerticalMetric> CidVerticalMetrics { get; }
+    public Dictionary<uint, PdfVerticalMetric> CidVerticalMetrics { get; }
 
     /// <summary>
     /// Returns vertical metrics for the specified CID. Falls back to defaults when no per-CID entry exists.
     /// </summary>
-    public VerticalMetric GetMetrics(uint cid)
+    public PdfVerticalMetric GetMetrics(uint cid)
     {
-        if (CidVerticalMetrics.TryGetValue(cid, out VerticalMetric m))
+        if (CidVerticalMetrics.TryGetValue(cid, out PdfVerticalMetric m))
         {
             return m;
         }
 
-        return new VerticalMetric(DefaultW1, DefaultV1);
+        return new PdfVerticalMetric(DefaultW1, DefaultV1);
     }
 
     /// <summary>
@@ -63,9 +63,9 @@ public class CidFontVerticalMetrics
     /// DW2: [V1y, W1y]
     /// W2: c [W1y V1x V1y] ... or cFirst cLast W1y V1x V1y
     /// </summary>
-    internal static CidFontVerticalMetrics Parse(PdfDictionary fontDictionary)
+    internal static PdfCidFontVerticalMetrics Parse(PdfDictionary fontDictionary)
     {
-        Dictionary<uint, VerticalMetric> metrics = [];
+        Dictionary<uint, PdfVerticalMetric> metrics = [];
 
         // DW2 defaults
         PdfArray? dw2Array = fontDictionary.GetArray(PdfTokens.DW2Key);
@@ -119,7 +119,7 @@ public class CidFontVerticalMetrics
                         float w1y = arr.GetFloatOrDefault(j++) * VerticalToUserSpaceCoeff; // W1y
                         float v1x = arr.GetFloatOrDefault(j++) * VerticalToUserSpaceCoeff; // V1x
                         float v1y = arr.GetFloatOrDefault(j++) * VerticalToUserSpaceCoeff; // V1y
-                        metrics[currentCid++] = new VerticalMetric(w1y, v1y, v1x);
+                        metrics[currentCid++] = new PdfVerticalMetric(w1y, v1y, v1x);
                     }
                 }
                 else
@@ -137,12 +137,12 @@ public class CidFontVerticalMetrics
 
                     for (uint cid = firstCid; cid <= lastCid; cid++)
                     {
-                        metrics[cid] = new VerticalMetric(w1y, v1y, v1x);
+                        metrics[cid] = new PdfVerticalMetric(w1y, v1y, v1x);
                     }
                 }
             }
         }
 
-        return new CidFontVerticalMetrics(defaultW1, defaultV1, metrics);
+        return new PdfCidFontVerticalMetrics(defaultW1, defaultV1, metrics);
     }
 }

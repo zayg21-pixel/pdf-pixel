@@ -3,7 +3,7 @@ namespace PdfPixel.Fonts.Cff;
 /// <summary>
 /// Parsed data from a CFF Private DICT.
 /// </summary>
-internal sealed class CffPrivateDictData
+internal sealed class CffPrivateDict
 {
     public double? DefaultWidthX { get; set; }
 

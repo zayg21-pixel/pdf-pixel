@@ -93,8 +93,8 @@ public class PdfCompositeFont : PdfFontBase
     /// Returns the default metric when horizontal writing mode is active or no descendant font is present.
     /// </summary>
     /// <param name="code">The character code to retrieve vertical metrics for.</param>
-    /// <returns>The <see cref="VerticalMetric"/> for the character code.</returns>
-    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
+    /// <returns>The <see cref="PdfVerticalMetric"/> for the character code.</returns>
+    public override PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
     {
         if (_writingMode == CMapWMode.Horizontal)
         {

@@ -87,6 +87,7 @@ public sealed class PdfTypeface
         return true;
     }
 
-    /// <inheritdoc/>
-    ~PdfTypeface() => _skTypeface.Dispose();
+    // TODO: [HIGH] causes crash, no typeface disposed so far
+    ///// <inheritdoc/>
+    //~PdfTypeface() => _skTypeface?.Dispose();
 }

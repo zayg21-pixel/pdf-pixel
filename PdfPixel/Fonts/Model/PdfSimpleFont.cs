@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts;
 using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Resources;
 using PdfPixel.Fonts.TrueType;
 using PdfPixel.Fonts.Type1;
 using PdfPixel.Models;
-using PdfPixel.Text;
 using System;
 
 namespace PdfPixel.Fonts.Model;
@@ -21,7 +20,7 @@ public class PdfSimpleFont : PdfSingleByteFont
     private readonly PdfTypeface? _typeface;
     private readonly IByteCodeToGidMapper? _mapper;
     private readonly bool _isSubstituted;
-    private readonly SingleByteFontWidths? _standardFontWidths;
+    private readonly PdfSingleByteFontWidths? _standardFontWidths;
 
     internal PdfSimpleFont(PdfObject fontObject)
         : base(fontObject)
@@ -32,7 +31,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         PdfStandardFontName? standardFontName = SubstitutionInfo.GetStandardName();
         if (standardFontName.HasValue)
         {
-            _standardFontWidths = SingleByteFontWidths.FromStandardFont(standardFontName.Value, SubstitutionInfo.IsBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
+            _standardFontWidths = PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, SubstitutionInfo.IsBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
         }
     }
 
@@ -78,20 +77,24 @@ public class PdfSimpleFont : PdfSingleByteFont
                 case PdfFontFileFormat.Type1:
                 {
                     ReadOnlyMemory<byte> type1RawData = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    CffInfo? cffInfo = Type1ToCffConverter.GetCffFont(
-                        type1RawData,
-                        FontDescriptor.FontFileLength1,
-                        FontDescriptor.FontFileLength2,
-                        FontDescriptor.FontName.ToPdfFontString(),
+                    CffTypeface? cffTypeface = Type1ToCffConverter.GetCffFont(
+                        new Type1RawFontProgram(type1RawData, FontDescriptor.FontFileLength1, FontDescriptor.FontFileLength2),
                         Document.LoggerFactory);
 
+                    if (cffTypeface == null)
+                    {
+                        _logger.LogWarning("Failed to get CFF font info for font '{FontName}'", BaseFont);
+                        throw new InvalidOperationException("Failed to get CFF font info for font.");
+                    }
+
+                    CffInfo? cffInfo = CffTypefaceToCffInfoConverter.Convert(cffTypeface, ReadOnlyMemory<byte>.Empty);
                     if (cffInfo == null)
                     {
                         _logger.LogWarning("Failed to get CFF font info for font '{FontName}'", BaseFont);
                         throw new InvalidOperationException("Failed to get CFF font info for font.");
                     }
 
-                    byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor.ToPdfFontMetrics(), cffInfo);
+                    byte[]? typefaceData = PdfPixel.Fonts.CffV2.CffOpenTypeWrapper.Wrap(cffTypeface);
                     PdfTypeface typeface = new(typefaceData);
 
                     if (Encoding.BaseEncoding == PdfEncoding.Unknown)
@@ -170,9 +173,17 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// <param name="cffBytes">The raw CFF font program bytes.</param>
     private (PdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
     {
-        CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
+        CffTypefaceReader cffTypefaceReader = new(Document.LoggerFactory);
+        CffTypeface? cffTypeface = cffTypefaceReader.Read(cffBytes);
 
-        if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo) || cffInfo == null)
+        if (cffTypeface == null)
+        {
+            _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
+            throw new InvalidOperationException("Failed to parse embedded CFF font data.");
+        }
+
+        CffInfo? cffInfo = CffTypefaceToCffInfoConverter.Convert(cffTypeface, cffBytes);
+        if (cffInfo == null)
         {
             _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
             throw new InvalidOperationException("Failed to parse embedded CFF font data.");
@@ -180,12 +191,12 @@ public class PdfSimpleFont : PdfSingleByteFont
 
         if (Encoding.BaseEncoding == PdfEncoding.Unknown)
         {
-            Encoding.UpdateEncoding(cffInfo.Encoding.ToPdfEncoding());
+            Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
         }
 
         Encoding.MergeCodeToName(cffInfo.CodeToName);
 
-        byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor?.ToPdfFontMetrics(), cffInfo);
+        byte[]? typefaceData = PdfPixel.Fonts.CffV2.CffOpenTypeWrapper.Wrap(cffTypeface);
         PdfTypeface typeface = new(typefaceData);
 
         CffByteCodeToGidMapper mapper = new(cffInfo, Encoding);

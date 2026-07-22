@@ -23,9 +23,9 @@ internal sealed class CffPrivateDictParser
     /// </summary>
     /// <param name="privateDictBytes">The Private DICT data bytes.</param>
     /// <returns>Parsed Private DICT data (never null).</returns>
-    public CffPrivateDictData ParsePrivateDict(in ReadOnlySpan<byte> privateDictBytes)
+    public CffPrivateDict ParsePrivateDict(in ReadOnlySpan<byte> privateDictBytes)
     {
-        CffPrivateDictData data = new();
+        CffPrivateDict data = new();
         CffDictionaryReader dictReader = new(privateDictBytes, _logger);
 
         while (dictReader.TryReadNextOperator(out byte @operator, out decimal[] operands))

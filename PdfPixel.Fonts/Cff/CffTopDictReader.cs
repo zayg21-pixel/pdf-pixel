@@ -26,9 +26,9 @@ internal sealed class CffTopDictReader
     /// </summary>
     /// <param name="topDictBytes">The Top DICT data bytes.</param>
     /// <returns>Parsed Top DICT data (never null).</returns>
-    public CffTopDictData ParseTopDict(in ReadOnlySpan<byte> topDictBytes)
+    public CffTopDict ParseTopDict(in ReadOnlySpan<byte> topDictBytes)
     {
-        CffTopDictData result = new();
+        CffTopDict result = new();
         CffDictionaryReader dictReader = new(topDictBytes, _logger);
 
         while (dictReader.TryReadNextOperator(out byte @operator, out decimal[] operands))

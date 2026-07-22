@@ -1,23 +1,22 @@
-using PdfPixel.Fonts.Cff;
+using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Resources;
 using PdfPixel.PostScript.Tokens;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using PdfPixel.Fonts.Resources;
 
 namespace PdfPixel.Fonts.Type1;
 
 /// <summary>
-/// Converts a Type1 font represented as a PostScript dictionary into CFF font data.
+/// Converts a Type1 font represented as a PostScript dictionary into a structured CFF typeface.
 /// </summary>
 internal static class Type1DictionaryToCffConverter
 {
     private const int FirstCustomSid = 391; // CFF spec: custom strings start at SID391.
-    private const byte OpEndChar = 14;
+    private const string FallbackFontName = "UnnamedFont";
 
-    public static CffInfo? GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, in PdfFontString fallbackFontName)
+    public static CffTypeface? GenerateCffTypefaceFromDictionary(PostScriptDictionary fontDictionary, ILoggerFactory loggerFactory)
     {
         if (fontDictionary == null)
         {
@@ -25,255 +24,134 @@ internal static class Type1DictionaryToCffConverter
         }
 
         Dictionary<PdfFontString, byte[]> type1CharStrings = Type1FontDictionaryUtilities.GetCharStrings(fontDictionary);
-        Dictionary<int, byte[]> type1Subrs = Type1FontDictionaryUtilities.GetSubroutines(fontDictionary); // Source local subrs for flattening.
+        Dictionary<int, byte[]> type1Subrs = Type1FontDictionaryUtilities.GetSubroutines(fontDictionary);
         float[] fontMatrix = Type1FontDictionaryUtilities.GetFontMatrix(fontDictionary) ?? [0.001f, 0f, 0f, 0.001f, 0f, 0f];
-        float[] effectiveFontBBox = Type1FontDictionaryUtilities.GetFontBBox(fontDictionary) ?? [0f, 0f, 0f, 0f];
+        float[] fontBBox = Type1FontDictionaryUtilities.GetFontBBox(fontDictionary) ?? [0f, 0f, 0f, 0f];
 
-        string? fontName = Type1FontDictionaryUtilities.GetFontName(fontDictionary);
-        if (string.IsNullOrEmpty(fontName) && !fallbackFontName.IsEmpty)
-        {
-            fontName = fallbackFontName.ToString();
-        }
-
-        if (string.IsNullOrEmpty(fontName))
-        {
-            fontName = "UnnamedFont";
-        }
-
-        Type1ConverterContext parameters = new()
-        {
-            Source = type1CharStrings,
-            LocalSubrs = type1Subrs
-        };
-
-        Dictionary<PdfFontString, byte[]> type2CharStrings = Type1CharStringConverter.ConvertAllCharStringsToType2Flatten(parameters);
-
+        string fontName = Type1FontDictionaryUtilities.GetFontName(fontDictionary) ?? FallbackFontName;
         PdfFontString[] encodingVector = Type1FontDictionaryUtilities.GetEncodingVector(fontDictionary) ?? Array.Empty<PdfFontString>();
 
-        GlyphCollections glyphCollections = BuildGlyphCollections(type2CharStrings);
-        List<byte[]> orderedCharStrings = glyphCollections.OrderedCharStrings;
-        ushort[] sids = glyphCollections.Sids;
-        List<byte[]> customStrings = glyphCollections.CustomStrings;
-        Dictionary<PdfFontString, ushort> nameToGid = glyphCollections.NameToGid;
+        GlyphCollections glyphCollections = BuildGlyphCollections(type1CharStrings.Keys);
 
-        byte[] charStringsIndex = CffIndexBuilder.BuildIndex(orderedCharStrings);
-        byte[] stringIndex = CffIndexBuilder.BuildIndex(customStrings); // May be empty.
-        byte[] charsetData = BuildCharsetFormat0(sids); // Skips GID0 when writing.
+        PdfFontMatrix matrix = PdfFontMatrix.FromArray(fontMatrix) ?? PdfFontMatrix.Default;
+        Type1CharStringEvaluator evaluator = new(loggerFactory.CreateLogger<Type1CharStringEvaluator>());
 
-        byte[] header = CffIndexBuilder.BuildHeader();
-        byte[] nameIndex = CffIndexBuilder.BuildSingleObjectIndex(Encoding.ASCII.GetBytes(fontName));
-        byte[] globalSubrsIndex = CffIndexBuilder.BuildEmptyIndex();
-        byte[] encodingData = BuildCustomEncoding(encodingVector.Length);
-
-        int topDictIndexSize = 0;
-        int iterationCount = 0;
-        const int maxIterations = 10;
-        byte[] topDictIndex;
-        int encodingOffset;
-        int charsetOffset;
-
-        while (true)
+        var characters = new CffCharacter[glyphCollections.OrderedNames.Count];
+        for (int gid = 0; gid < characters.Length; gid++)
         {
-            iterationCount++;
-            int offset = 0;
-            offset += header.Length;
-            offset += nameIndex.Length;
-            int topDictDataStart = offset;
-            int stringIndexOffset = topDictDataStart + topDictIndexSize;
-            int globalSubrsOffset = stringIndexOffset + stringIndex.Length;
-            encodingOffset = globalSubrsOffset + globalSubrsIndex.Length;
-            charsetOffset = encodingOffset + encodingData.Length;
-            int charStringsOffset = charsetOffset + charsetData.Length;
-            int privateDictOffset = charStringsOffset + charStringsIndex.Length;
-            byte[] topDictData = BuildTopDict(effectiveFontBBox, fontMatrix, encodingOffset, charsetOffset, charStringsOffset, privateSize: 0, privateDictOffset);
-            topDictIndex = CffIndexBuilder.BuildSingleObjectIndex(topDictData);
-            int newSize = topDictIndex.Length;
-            if (newSize == topDictIndexSize || iterationCount >= maxIterations)
+            PdfFontString glyphName = glyphCollections.OrderedNames[gid];
+            if (type1CharStrings.TryGetValue(glyphName, out byte[]? sourceCharString))
             {
-                break;
+                characters[gid] = evaluator.Evaluate(sourceCharString, type1Subrs, type1CharStrings, matrix);
             }
-
-            topDictIndexSize = newSize;
+            else
+            {
+                characters[gid] = new CffCharacter(ReadOnlyMemory<byte>.Empty, ReadOnlyMemory<byte>.Empty, width: 0f, dict: null);
+            }
         }
 
-        using MemoryStream ms = new();
-        ms.Write(header, 0, header.Length);
-        ms.Write(nameIndex, 0, nameIndex.Length);
-        ms.Write(topDictIndex, 0, topDictIndex.Length);
-        ms.Write(stringIndex, 0, stringIndex.Length);
-        ms.Write(globalSubrsIndex, 0, globalSubrsIndex.Length);
-        ms.Write(encodingData, 0, encodingData.Length);
-        ms.Write(charsetData, 0, charsetData.Length);
-        ms.Write(charStringsIndex, 0, charStringsIndex.Length);
-
-        CffInfo cffInfo = new()
+        CffTopDict topDict = new()
         {
-            NameToGid = nameToGid,
-            GidToSid = sids,
-            Encoding = PdfFontEncoding.Unknown,
-            IsCidFont = false,
-            GlyphCount = orderedCharStrings.Count,
-            CodeToName = encodingVector,
-            CffData = ms.ToArray(),
-            FontMatrix = fontMatrix
+            FontMatrix = matrix,
+            FontBBox = fontBBox
         };
 
-        return cffInfo;
+        CffFont font = new()
+        {
+            Name = (PdfFontString)fontName,
+            Dict = new CffFontDict { TopDict = topDict },
+            Charset = new CffCharset { Format = 0, SidsByGid = glyphCollections.Sids },
+            Encoding = BuildEncoding(encodingVector, glyphCollections.NameToGid, characters.Length),
+            Characters = characters
+        };
+
+        return new CffTypeface
+        {
+            MajorVersion = 1,
+            MinorVersion = 0,
+            Fonts = new CffFont[] { font },
+            Strings = [.. glyphCollections.CustomStrings],
+            GlobalSubrs = Array.Empty<ReadOnlyMemory<byte>>()
+        };
     }
 
-    private static GlyphCollections BuildGlyphCollections(Dictionary<PdfFontString, byte[]> convertedType2CharStrings)
+    private static GlyphCollections BuildGlyphCollections(IEnumerable<PdfFontString> glyphNames)
     {
         PdfFontString notdefName = SingleByteEncodings.UndefinedCharacter;
-        int totalCount = convertedType2CharStrings.Count;
-        bool hasNotdef = convertedType2CharStrings.ContainsKey(notdefName);
-        if (!hasNotdef)
-        {
-            totalCount++;
-        }
 
-        List<byte[]> orderedCharStrings = new(totalCount);
-        var sids = new ushort[totalCount];
-        List<byte[]> customStrings = new(totalCount);
-        Dictionary<PdfFontString, ushort> nameToGid = new(totalCount);
+        List<PdfFontString> orderedNames = [notdefName];
+        List<ushort> sids = [0];
+        List<byte[]> customStrings = [];
+        Dictionary<PdfFontString, ushort> nameToGid = new() { [notdefName] = 0 };
         ushort nextSid = FirstCustomSid;
 
-        if (hasNotdef)
+        ushort gid = 1;
+        foreach (PdfFontString name in glyphNames)
         {
-            orderedCharStrings.Add(convertedType2CharStrings[notdefName]);
-        }
-        else
-        {
-            orderedCharStrings.Add([OpEndChar]);
-        }
-
-        sids[0] = 0;
-        nameToGid[notdefName] = 0;
-
-        int gid = 1;
-        foreach (KeyValuePair<PdfFontString, byte[]> kvp in convertedType2CharStrings)
-        {
-            PdfFontString name = kvp.Key;
             if (name == notdefName)
             {
                 continue;
             }
 
-            byte[] program = kvp.Value;
-            orderedCharStrings.Add(program);
+            orderedNames.Add(name);
 
             if (name.IsEmpty)
             {
-                sids[gid] = 0;
+                sids.Add(0);
             }
             else
             {
-                sids[gid] = nextSid;
+                sids.Add(nextSid);
                 customStrings.Add(name.Value.ToArray());
                 nextSid++;
             }
 
-            nameToGid[name] = (ushort)gid;
+            nameToGid[name] = gid;
             gid++;
         }
 
         return new GlyphCollections
         {
-            OrderedCharStrings = orderedCharStrings,
-            Sids = sids,
+            OrderedNames = orderedNames,
+            Sids = [.. sids],
             CustomStrings = customStrings,
             NameToGid = nameToGid
         };
     }
 
-    private static byte[] BuildCustomEncoding(int glyphCount)
+    private static CffEncoding? BuildEncoding(PdfFontString[] encodingVector, Dictionary<PdfFontString, ushort> nameToGid, int glyphCount)
     {
-        if (glyphCount <= 1)
+        if (encodingVector.Length == 0)
         {
-            return new byte[] { 0, 0 }; // Format0, nCodes =0.
+            return null;
         }
 
-        int codeCount = glyphCount - 1; // Number of codes actually stored (exclude code0).
-        using MemoryStream ms = new();
-        ms.WriteByte(0); // format0.
-        ms.WriteByte((byte)codeCount);
-        for (int code = 1; code < glyphCount; code++)
+        var gidByCode = new ushort[256];
+        var mainTableCodes = new byte[Math.Max(0, glyphCount - 1)];
+
+        for (int code = 0; code < encodingVector.Length && code < 256; code++)
         {
-            ms.WriteByte((byte)code);
+            PdfFontString name = encodingVector[code];
+            if (name.IsEmpty || !nameToGid.TryGetValue(name, out ushort gid) || gid == 0)
+            {
+                continue;
+            }
+
+            gidByCode[code] = gid;
+            mainTableCodes[gid - 1] = (byte)code;
         }
 
-        return ms.ToArray();
-    }
-
-    private static byte[] BuildCharsetFormat0(ushort[] sids)
-    {
-        if (sids == null || sids.Length <= 1)
+        return new CffEncoding
         {
-            return new byte[] { 0 };
-        }
-
-        using MemoryStream ms = new();
-        ms.WriteByte(0); // format0.
-        for (int gid = 1; gid < sids.Length; gid++)
-        {
-            ushort sid = sids[gid];
-            ms.WriteByte((byte)(sid >> 8));
-            ms.WriteByte((byte)(sid & 0xFF));
-        }
-
-        return ms.ToArray();
-    }
-
-    private static byte[] BuildTopDict(
-        float[] fontBBox,
-        float[] fontMatrix,
-        int encodingOffset,
-        int charsetOffset,
-        int charStringsOffset,
-        int privateSize,
-        int privateOffset)
-    {
-        using MemoryStream ms = new();
-
-        // FontBBox
-        for (int i = 0; i < 4; i++)
-        {
-            CffNumberConverter.EncodeDictFloat(ms, fontBBox[i]);
-        }
-
-        ms.WriteByte(5);
-
-        // FontMatrix
-        for (int i = 0; i < 6; i++)
-        {
-            CffNumberConverter.EncodeDictFloat(ms, fontMatrix[i]);
-        }
-
-        ms.WriteByte(12);
-        ms.WriteByte(7);
-
-        // Encoding
-        CffNumberConverter.EncodeDictInteger(ms, encodingOffset);
-        ms.WriteByte(13);
-
-        // Charset
-        CffNumberConverter.EncodeDictInteger(ms, charsetOffset);
-        ms.WriteByte(15);
-
-        // CharStrings
-        CffNumberConverter.EncodeDictInteger(ms, charStringsOffset);
-        ms.WriteByte(17);
-
-        // Private
-        CffNumberConverter.EncodeDictInteger(ms, privateSize);
-        CffNumberConverter.EncodeDictInteger(ms, privateOffset);
-        ms.WriteByte(18);
-
-        return ms.ToArray();
+            Format = 0,
+            MainTableCodes = mainTableCodes,
+            GidByCode = gidByCode
+        };
     }
 
     private struct GlyphCollections
     {
-        public List<byte[]> OrderedCharStrings;
+        public List<PdfFontString> OrderedNames;
         public ushort[] Sids;
         public List<byte[]> CustomStrings;
         public Dictionary<PdfFontString, ushort> NameToGid;

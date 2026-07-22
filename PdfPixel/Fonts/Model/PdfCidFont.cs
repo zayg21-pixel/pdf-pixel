@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.TrueType;
 using PdfPixel.Models;
@@ -28,8 +29,8 @@ public class PdfCidFont : PdfFontBase
         : base(fontObject)
     {
         _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfCidFont>();
-        Widths = CidFontWidths.Parse(Dictionary);
-        VerticalMetrics = CidFontVerticalMetrics.Parse(Dictionary);
+        Widths = PdfCidFontWidths.Parse(Dictionary);
+        VerticalMetrics = PdfCidFontVerticalMetrics.Parse(Dictionary);
         CidSystemInfo = LoadCidSystemInfo();
         CidToGidMap = LoadCidToGidMap();
         (PdfTypeface? Typeface, CffInfo? CffInfo) typefaceInfo = GetTypeface();
@@ -64,12 +65,12 @@ public class PdfCidFont : PdfFontBase
     /// Character width information for CID-based characters
     /// Initialized during construction
     /// </summary>
-    public CidFontWidths Widths { get; }
+    public PdfCidFontWidths Widths { get; }
 
     /// <summary>
     /// Gets the vertical metrics for the CID font.
     /// </summary>
-    public CidFontVerticalMetrics VerticalMetrics { get; }
+    public PdfCidFontVerticalMetrics VerticalMetrics { get; }
 
     /// <summary>
     /// Loaded CID-to-GID mapping.
@@ -92,8 +93,8 @@ public class PdfCidFont : PdfFontBase
     /// Returns the vertical displacement metrics for the specified CID, falling back to the font defaults when no per-CID entry is present.
     /// </summary>
     /// <param name="cid">The CID for which to retrieve vertical metrics.</param>
-    /// <returns>The <see cref="VerticalMetric"/> for the given CID.</returns>
-    public VerticalMetric GetVerticalDisplacementByCid(uint cid) => VerticalMetrics.GetMetrics(cid);
+    /// <returns>The <see cref="PdfVerticalMetric"/> for the given CID.</returns>
+    public PdfVerticalMetric GetVerticalDisplacementByCid(uint cid) => VerticalMetrics.GetMetrics(cid);
 
     /// <summary>
     /// Get character width for a given character code
@@ -104,8 +105,8 @@ public class PdfCidFont : PdfFontBase
     /// Returns the vertical displacement metrics for the given character code, mapping it to a CID and delegating to <see cref="GetVerticalDisplacementByCid"/>.
     /// </summary>
     /// <param name="code">The character code to retrieve vertical metrics for.</param>
-    /// <returns>The <see cref="VerticalMetric"/> for the character code.</returns>
-    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => VerticalMetrics.GetMetrics((uint)code);
+    /// <returns>The <see cref="PdfVerticalMetric"/> for the character code.</returns>
+    public override PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => VerticalMetrics.GetMetrics((uint)code);
 
     /// <summary>
     /// Convert Character ID (CID) to Glyph ID (GID) for font rendering.
@@ -178,15 +179,23 @@ public class PdfCidFont : PdfFontBase
     /// <param name="cffBytes">The raw CFF font program bytes.</param>
     private (PdfTypeface? Typeface, CffInfo? CffInfo) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
     {
-        CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
+        CffTypefaceReader cffTypefaceReader = new(Document.LoggerFactory);
+        CffTypeface? cffTypeface = cffTypefaceReader.Read(cffBytes);
 
-        if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo))
+        if (cffTypeface == null)
         {
             _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
             throw new InvalidOperationException("Failed to parse embedded CFF font data.");
         }
 
-        byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor?.ToPdfFontMetrics(), cffInfo);
+        CffInfo? cffInfo = CffTypefaceToCffInfoConverter.Convert(cffTypeface, cffBytes);
+        if (cffInfo == null)
+        {
+            _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
+            throw new InvalidOperationException("Failed to parse embedded CFF font data.");
+        }
+
+        byte[]? typefaceData = PdfPixel.Fonts.CffV2.CffOpenTypeWrapper.Wrap(cffTypeface);
         PdfTypeface typeface = new(typefaceData);
 
         return (typeface, cffInfo);

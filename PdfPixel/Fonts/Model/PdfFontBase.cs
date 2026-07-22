@@ -101,7 +101,7 @@ public abstract class PdfFontBase : IDisposable
     /// Returns the vertical displacement vector for the specified character code.
     /// </summary>
     /// <param name="code"></param>
-    public abstract VerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
+    public abstract PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
 
     /// <summary>
     /// Returns the typeface for this PDF font.
@@ -180,7 +180,7 @@ public abstract class PdfFontBase : IDisposable
         ushort gid = GetGid(characterCode);
         float width = GetWidth(characterCode);
         string? unicode = GetUnicodeString(characterCode);
-        VerticalMetric displacement = GetVerticalDisplacement(characterCode);
+        PdfVerticalMetric displacement = GetVerticalDisplacement(characterCode);
 
         if (gid != 0 && width != 0)
         {
@@ -222,7 +222,7 @@ public abstract class PdfFontBase : IDisposable
         return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [0], 0, [0], 1, PdfPoint.Empty, default);
     }
 
-    private (float xScale, PdfPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
+    private (float xScale, PdfPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in PdfVerticalMetric verticalMetric, float originalWidth, float[] widths)
     {
         float totalWidth = widths.Sum();
         float xScale;

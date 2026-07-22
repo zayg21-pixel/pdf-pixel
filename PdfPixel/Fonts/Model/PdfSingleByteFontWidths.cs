@@ -9,7 +9,7 @@ namespace PdfPixel.Fonts.Model;
 /// Font width information for single-byte fonts (Type1, TrueType, MMType1, Type3).
 /// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
 /// </summary>
-public class SingleByteFontWidths
+public class PdfSingleByteFontWidths
 {
     /// <summary>
     /// Coefficient to convert PDF font units to user space units.
@@ -71,7 +71,7 @@ public class SingleByteFontWidths
     /// </summary>
     /// <param name="fontDictionary">PDF dictionary containing the font definition.</param>
     /// <returns>Parsed SingleByteFontWidths instance.</returns>
-    internal static SingleByteFontWidths Parse(PdfDictionary fontDictionary)
+    internal static PdfSingleByteFontWidths Parse(PdfDictionary fontDictionary)
     {
         var firstChar = (uint?)fontDictionary.GetInteger(PdfTokens.FirstCharKey);
         var lastChar = (uint?)fontDictionary.GetInteger(PdfTokens.LastCharKey);
@@ -85,7 +85,7 @@ public class SingleByteFontWidths
             }
         }
 
-        return new SingleByteFontWidths
+        return new PdfSingleByteFontWidths
         {
             FirstChar = firstChar,
             LastChar = lastChar,
@@ -102,7 +102,7 @@ public class SingleByteFontWidths
     /// <param name="italic">Whether to resolve the italic/oblique style variant.</param>
     /// <param name="encoding">The font's actual encoding, matching what the glyph-ID resolution path uses.</param>
     /// <returns>The resolved widths, or <see langword="null"/> if the family or style variant is unknown.</returns>
-    internal static SingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
+    internal static PdfSingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
     {
         int[]? widths = Standard14Metrics.GetWidths(fontName, bold, italic, encoding);
         if (widths == null)
@@ -116,7 +116,7 @@ public class SingleByteFontWidths
             widthsArray[i] = widths[i] * WidthToUserSpaceCoeff;
         }
 
-        return new SingleByteFontWidths
+        return new PdfSingleByteFontWidths
         {
             FirstChar = 0,
             LastChar = (uint)(widths.Length - 1),

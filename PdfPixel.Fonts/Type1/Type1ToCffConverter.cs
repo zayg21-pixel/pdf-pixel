@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Model;
 using PdfPixel.PostScript;
 using PdfPixel.PostScript.Tokens;
@@ -18,46 +18,44 @@ public static class Type1ToCffConverter
     /// <summary>
     /// Retrieves the CFF font data from a raw Type1 font program.
     /// </summary>
-    /// <param name="rawData">The raw (PFA-style) Type1 font program bytes.</param>
-    /// <param name="length1">Length of the clear-text portion of <paramref name="rawData"/>.</param>
-    /// <param name="length2">Length of the eexec-encrypted portion of <paramref name="rawData"/>.</param>
-    /// <param name="fallbackFontName">Font name to use when the Type1 program itself does not declare one.</param>
+    /// <param name="rawProgram">The raw Type1 font program, either PFA-style or (spec violation, but
+    /// tolerated) PFB-wrapped -- for a PFB-wrapped program, <see cref="Type1RawFontProgram.Length1"/>/
+    /// <see cref="Type1RawFontProgram.Length2"/> are ignored in favor of its own segment lengths.</param>
     /// <param name="loggerFactory">Logger factory for PostScript evaluation diagnostics.</param>
-    /// <returns>CFF font bytes.</returns>
+    /// <returns>The parsed Type1 font as a structured CFF typeface.</returns>
     /// <exception cref="InvalidDataException">Invalid font data.</exception>
-    public static CffInfo? GetCffFont(in ReadOnlyMemory<byte> rawData, int length1, int length2, in PdfFontString fallbackFontName, ILoggerFactory loggerFactory)
+    public static CffTypeface? GetCffFont(in Type1RawFontProgram rawProgram, ILoggerFactory loggerFactory)
     {
-        if (rawData.IsEmpty)
+        if (rawProgram.Data.IsEmpty)
         {
             throw new InvalidDataException("Empty Type1 font stream.");
         }
 
-        // Reject binary PFB wrapper (PDF should embed PFA style only).
-        bool isBinaryPfb = rawData.Length >= 6 && rawData.Span[0] == 0x80 && rawData.Span[1] == 0x01;
-        if (isBinaryPfb)
-        {
-            throw new InvalidDataException("Unsupported embedded binary PFB Type1 font stream; PDF requires PFA-style embedding.");
-        }
+        ReadOnlySpan<byte> rawSpan = rawProgram.Data.Span;
+        bool isBinaryPfb = rawSpan.Length >= 6 && rawSpan[0] == 0x80 && rawSpan[1] == 0x01;
+        Type1RawFontProgram program = isBinaryPfb
+            ? Type1PfbSegmentReader.ExtractSegments(rawProgram.Data)
+            : rawProgram;
 
-        if (length1 <= 0 || length1 > rawData.Length)
+        if (program.Length1 <= 0 || program.Length1 > program.Data.Length)
         {
             throw new InvalidDataException("Invalid Length1 for Type1 font stream (spec compliance required).");
         }
 
-        if (length2 <= 0 || length1 + length2 > rawData.Length)
+        if (program.Length2 <= 0 || program.Length1 + program.Length2 > program.Data.Length)
         {
             throw new InvalidDataException("Invalid Length2 for Type1 font stream (spec compliance required).");
         }
 
-        PostScriptDictionary parsedDictionary = ParseFontProgram(rawData, length1, length2, loggerFactory);
+        PostScriptDictionary parsedDictionary = ParseFontProgram(program, loggerFactory);
 
-        return Type1DictionaryToCffConverter.GenerateCffFontDataFromDictionary(parsedDictionary, fallbackFontName);
+        return Type1DictionaryToCffConverter.GenerateCffTypefaceFromDictionary(parsedDictionary, loggerFactory);
     }
 
-    private static PostScriptDictionary ParseFontProgram(in ReadOnlyMemory<byte> rawData, int length1, int length2, ILoggerFactory loggerFactory)
+    private static PostScriptDictionary ParseFontProgram(in Type1RawFontProgram program, ILoggerFactory loggerFactory)
     {
         Stack<PostScriptToken> operandStack = [];
-        ReadOnlySpan<byte> headerSpan = rawData.Span.Slice(0, length1);
+        ReadOnlySpan<byte> headerSpan = program.Data.Span.Slice(0, program.Length1);
 
         PostScriptEvaluator headerEvaluator = new(headerSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
         PostScriptDictionary fontDirectory = new();
@@ -70,7 +68,7 @@ public static class Type1ToCffConverter
 
         headerEvaluator.EvaluateTokens(operandStack);
 
-        ReadOnlySpan<byte> encryptedSpan = rawData.Span.Slice(length1, length2);
+        ReadOnlySpan<byte> encryptedSpan = program.Data.Span.Slice(program.Length1, program.Length2);
         ReadOnlySpan<byte> decryptedSpan = Type1Decryptor.DecryptEexecBinary(encryptedSpan);
 
         PostScriptEvaluator eexecEvaluator = new(decryptedSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());

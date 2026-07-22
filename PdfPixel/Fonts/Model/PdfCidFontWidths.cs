@@ -9,7 +9,7 @@ namespace PdfPixel.Fonts.Model;
 /// Handles both individual and ranged widths as per PDF spec.
 /// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
 /// </summary>
-public class CidFontWidths
+public class PdfCidFontWidths
 {
     /// <summary>
     /// Coefficient to convert PDF font units to user space units.
@@ -17,13 +17,13 @@ public class CidFontWidths
     public const float WidthToUserSpaceCoeff = 0.001f;
 
     /// <summary>
-    /// Initializes a new <see cref="CidFontWidths"/> instance with the given default width and per-CID width overrides.
+    /// Initializes a new <see cref="PdfCidFontWidths"/> instance with the given default width and per-CID width overrides.
     /// </summary>
     /// <param name="defaultWidth">
     /// The default advance width in user space units applied to CIDs without an explicit entry, or <see langword="null"/> when the DW entry is absent.
     /// </param>
     /// <param name="cidWidths">Dictionary mapping CID values to their explicit advance widths in user space units.</param>
-    public CidFontWidths(float? defaultWidth, Dictionary<uint, float> cidWidths)
+    public PdfCidFontWidths(float? defaultWidth, Dictionary<uint, float> cidWidths)
     {
         DefaultWidth = defaultWidth;
         CidWidths = cidWidths;
@@ -62,7 +62,7 @@ public class CidFontWidths
     /// </summary>
     /// <param name="fontDictionary">PDF dictionary containing the font definition.</param>
     /// <returns>Parsed CidFontWidths instance.</returns>
-    internal static CidFontWidths Parse(PdfDictionary fontDictionary)
+    internal static PdfCidFontWidths Parse(PdfDictionary fontDictionary)
     {
         Dictionary<uint, float> cidWidths = [];
         PdfArray? wArray = fontDictionary.GetArray(PdfTokens.WKey);
@@ -118,6 +118,6 @@ public class CidFontWidths
             defaultWidth *= WidthToUserSpaceCoeff;
         }
 
-        return new CidFontWidths(defaultWidth, cidWidths);
+        return new PdfCidFontWidths(defaultWidth, cidWidths);
     }
 }

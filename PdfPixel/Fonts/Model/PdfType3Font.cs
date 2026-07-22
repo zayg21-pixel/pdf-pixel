@@ -47,8 +47,12 @@ public class PdfType3Font : PdfSingleByteFont
         // Used as the recording bounds for d0 glyphs that do not specify a per-glyph bounding box
         FontBBox = PdfRectangle.FromArray(Dictionary.GetArray(PdfTokens.FontBBoxKey));
 
+        // TODO [HIGH]: stop reducing FontMatrix to ScaleX here. Keep Widths in raw glyph
+        // space, and at draw time compute the advancement vector as (Width, 0) transformed by the
+        // full FontMatrix, then feed that vector (not a scalar) through Tfs/Tc/Tw/Th into Tm. This
+        // requires PdfCharacterInfo.Advancement to become a vector rather than a scalar.
         // Rescale width to glyph space
-        Widths.RescaleWidths(FontMatrix.ScaleX / SingleByteFontWidths.WidthToUserSpaceCoeff);
+        Widths.RescaleWidths(FontMatrix.ScaleX / PdfSingleByteFontWidths.WidthToUserSpaceCoeff);
 
         if (Encoding.BaseEncoding == PdfEncoding.Unknown)
         {

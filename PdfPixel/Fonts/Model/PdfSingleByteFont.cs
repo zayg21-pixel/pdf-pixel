@@ -20,7 +20,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
     protected PdfSingleByteFont(PdfObject fontObject)
         : base(fontObject)
     {
-        Widths = SingleByteFontWidths.Parse(fontObject.Dictionary);
+        Widths = PdfSingleByteFontWidths.Parse(fontObject.Dictionary);
         Encoding = PdfFontEncodingParser.ParseSingleByteEncoding(fontObject.Dictionary);
     }
 
@@ -33,7 +33,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// Character width information
     /// Initialized during construction
     /// </summary>
-    public SingleByteFontWidths Widths { get; }
+    public PdfSingleByteFontWidths Widths { get; }
 
     /// <summary>
     /// Get character width from font metrics
@@ -54,8 +54,8 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// Single-byte fonts do not support vertical writing; always returns the default (zero) metric.
     /// </summary>
     /// <param name="code">The character code (unused).</param>
-    /// <returns>The default <see cref="VerticalMetric"/>.</returns>
-    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => default;
+    /// <returns>The default <see cref="PdfVerticalMetric"/>.</returns>
+    public override PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => default;
 
     /// <summary>
     /// Converts a character code to its Unicode string representation.
