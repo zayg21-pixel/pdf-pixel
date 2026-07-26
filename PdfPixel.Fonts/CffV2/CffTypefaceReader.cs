@@ -133,6 +133,7 @@ public class CffTypefaceReader
         CffCharset? charset = _charsetReader.Read(cffData.Span, topDict.CharsetOffset ?? 0, charStrings.Length);
 
         var characters = new CffCharacter[charStrings.Length];
+        Dictionary<PdfFontString, ushort>? fontNameToGid = null;
 
         if (fdArray.Length > 0 && fdSelect != null)
         {
@@ -168,6 +169,7 @@ public class CffTypefaceReader
         else
         {
             Dictionary<PdfFontString, ushort> nameToGid = BuildNameToGid(charset, strings);
+            fontNameToGid = nameToGid;
             ReadOnlyMemory<byte>[] localSubrs = ReadLocalSubrs(topDict, privateDict, cffData);
             for (int glyphIndex = 0; glyphIndex < charStrings.Length; glyphIndex++)
             {
@@ -185,8 +187,32 @@ public class CffTypefaceReader
             FdSelect = fdSelect,
             Charset = charset,
             Encoding = encoding,
+            CodeToName = BuildCodeToName(encoding, charset, strings),
+            NameToGid = fontNameToGid,
             Characters = characters
         };
+    }
+
+    private static PdfFontString[]? BuildCodeToName(CffEncoding? encoding, CffCharset? charset, ReadOnlyMemory<byte>[] strings)
+    {
+        if (encoding == null || charset == null)
+        {
+            return null;
+        }
+
+        var codeToName = new PdfFontString[256];
+        for (int code = 0; code < codeToName.Length; code++)
+        {
+            ushort gid = encoding.GidByCode[code];
+            if (gid >= charset.SidsByGid.Length)
+            {
+                continue;
+            }
+
+            codeToName[code] = ResolveGlyphName(charset.SidsByGid[gid], strings);
+        }
+
+        return codeToName;
     }
 
     private CffEncoding? ReadEncoding(CffTopDict topDict, CffFontDict[] fdArray, CffCharset? charset, in ReadOnlyMemory<byte> cffData)

@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts;
-using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Fonts.TrueType;
+using PdfPixel.Fonts.Sfnt;
+using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
@@ -18,7 +17,7 @@ namespace PdfPixel.Fonts.Model;
 public class PdfCidFont : PdfFontBase
 {
     private readonly ILogger<PdfCidFont> _logger;
-    private readonly PdfTypeface? _typeface;
+    private readonly IPdfTypeface? _typeface;
     private readonly float[]? _widths;
 
     /// <summary>
@@ -33,20 +32,22 @@ public class PdfCidFont : PdfFontBase
         VerticalMetrics = PdfCidFontVerticalMetrics.Parse(Dictionary);
         CidSystemInfo = LoadCidSystemInfo();
         CidToGidMap = LoadCidToGidMap();
-        (PdfTypeface? Typeface, CffInfo? CffInfo) typefaceInfo = GetTypeface();
-        _typeface = typefaceInfo.Typeface;
+        _typeface = GetTypeface();
 
-        if (typefaceInfo.CffInfo != null && CidToGidMap == null)
+        if (_typeface is CffPdfTypeface cffPdfTypeface)
         {
-            _widths = typefaceInfo.CffInfo.GidWidths;
-            CidToGidMap = PdfCidToGidMap.FromCffFont(typefaceInfo.CffInfo);
+            CffFont cffFont = cffPdfTypeface.CffTypeface.Fonts[0];
+
+            if (CidToGidMap == null)
+            {
+                _widths = BuildGidWidths(cffPdfTypeface, cffFont.Characters.Length);
+                CidToGidMap = PdfCidToGidMap.FromCffFont(cffFont);
+            }
         }
-
-        if (FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null && _typeface != null)
+        else if (_typeface is TrueTypePdfTypeface trueTypePdfTypeface && FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null)
         {
-            SfntFontTables tables = SfntFontTablesParser.GetSfntFontTables(_typeface.GetTypeface());
-            _widths = tables.GidWidths;
-
+            int glyphCount = trueTypePdfTypeface.SfntFont.Maxp?.NumGlyphs ?? 0;
+            _widths = BuildGidWidths(trueTypePdfTypeface, glyphCount);
         }
     }
 
@@ -54,7 +55,7 @@ public class PdfCidFont : PdfFontBase
     /// The embedded or substituted typeface for this CID font.
     /// May be <see langword="null"/> when no embedded font data is present and no substitution has been applied.
     /// </summary>
-    protected internal override PdfTypeface? Typeface => _typeface;
+    protected internal override IPdfTypeface? Typeface => _typeface;
 
     /// <summary>
     /// CID system information (Registry, Ordering, Supplement)
@@ -133,7 +134,7 @@ public class PdfCidFont : PdfFontBase
         return 0;
     }
 
-    private (PdfTypeface? Typeface, CffInfo? CffInfo) GetTypeface()
+    private IPdfTypeface? GetTypeface()
     {
         try
         {
@@ -147,18 +148,20 @@ public class PdfCidFont : PdfFontBase
                 case PdfFontFileFormat.OpenType:
                 {
                     ReadOnlyMemory<byte> openTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
+                    SfntFontProcessor sfntFontProcessor = new(Document.LoggerFactory);
+                    SfntFont? sfntFont = sfntFontProcessor.Read(openTypeBytes);
 
-                    if (OpenTypeCffTableReader.TryExtractCffTable(openTypeBytes, out ReadOnlyMemory<byte> cffTableBytes))
+                    if (sfntFont?.CffTypeface != null)
                     {
-                        return LoadFromCffBytes(cffTableBytes);
+                        return new CffPdfTypeface(sfntFont.CffTypeface);
                     }
 
-                    return (new PdfTypeface(openTypeBytes), null);
+                    return new TrueTypePdfTypeface(openTypeBytes, Document.LoggerFactory);
                 }
                 case PdfFontFileFormat.TrueType:
                 {
                     ReadOnlyMemory<byte> trueTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    return (new PdfTypeface(trueTypeBytes), null);
+                    return new TrueTypePdfTypeface(trueTypeBytes, Document.LoggerFactory);
                 }
             }
         }
@@ -169,15 +172,15 @@ public class PdfCidFont : PdfFontBase
         }
 #pragma warning restore CA1031
 
-        return default;
+        return null;
     }
 
     /// <summary>
-    /// Parses raw (unwrapped) CFF font data, rebuilds it into a minimal OpenType container, and loads it as
-    /// the font's typeface. Shared by CIDFontType0C and CFF-flavored OpenType FontFile3 data.
+    /// Parses raw (unwrapped) CFF font data and loads it as the font's typeface. Shared by CIDFontType0C and
+    /// CFF-flavored OpenType FontFile3 data.
     /// </summary>
     /// <param name="cffBytes">The raw CFF font program bytes.</param>
-    private (PdfTypeface? Typeface, CffInfo? CffInfo) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
+    private CffPdfTypeface LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
     {
         CffTypefaceReader cffTypefaceReader = new(Document.LoggerFactory);
         CffTypeface? cffTypeface = cffTypefaceReader.Read(cffBytes);
@@ -188,17 +191,18 @@ public class PdfCidFont : PdfFontBase
             throw new InvalidOperationException("Failed to parse embedded CFF font data.");
         }
 
-        CffInfo? cffInfo = CffTypefaceToCffInfoConverter.Convert(cffTypeface, cffBytes);
-        if (cffInfo == null)
+        return new CffPdfTypeface(cffTypeface);
+    }
+
+    private static float[] BuildGidWidths(IPdfTypeface typeface, int glyphCount)
+    {
+        var gidWidths = new float[glyphCount];
+        for (int gid = 0; gid < glyphCount; gid++)
         {
-            _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
-            throw new InvalidOperationException("Failed to parse embedded CFF font data.");
+            gidWidths[gid] = typeface.GetWidth((ushort)gid);
         }
 
-        byte[]? typefaceData = PdfPixel.Fonts.CffV2.CffOpenTypeWrapper.Wrap(cffTypeface);
-        PdfTypeface typeface = new(typefaceData);
-
-        return (typeface, cffInfo);
+        return gidWidths;
     }
 
     private PdfCidSystemInfo? LoadCidSystemInfo()

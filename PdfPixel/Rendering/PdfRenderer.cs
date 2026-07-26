@@ -12,7 +12,6 @@ using PdfPixel.Rendering.Shading;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
-using System.Collections.Generic;
 
 namespace PdfPixel.Rendering;
 
@@ -48,7 +47,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw text with positioning adjustments (if any) and return total advancement.
     /// </summary>
-    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, ShapedGlyph[] glyphs, PdfGraphicsState state, PdfFontBase? font)
         => _textRenderer.DrawTextSequence(processor, glyphs, state, font);
 
     /// <summary>

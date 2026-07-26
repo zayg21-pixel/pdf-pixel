@@ -375,7 +375,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
-        PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs, graphicsState, graphicsState.CurrentFont);
+        PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs.ToArray(), graphicsState, graphicsState.CurrentFont);
         PdfMatrix advanceMatrix = PdfMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = PdfMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }

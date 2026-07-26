@@ -29,9 +29,9 @@ internal interface IPdfDocumentInternal : IPdfDocument
     PdfObject? RootObject { get; set; }
 
     /// <summary>
-    /// Gets the document-level font substitution engine.
+    /// Gets the document-level font provider.
     /// </summary>
-    SkiaFontSubstitutor FontSubstitutor { get; }
+    IFontProvider FontProvider { get; }
 
     /// <summary>
     /// Gets the object cache for PDF objects in the document.

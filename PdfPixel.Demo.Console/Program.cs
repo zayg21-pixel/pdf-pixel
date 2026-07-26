@@ -27,7 +27,7 @@ namespace PdfPixel.Console.Demo
             ILogger logger = loggerFactory.CreateLogger<Program>();
 
             // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
-            ISkiaFontProvider fontProvider = new WindowsSkiaFontProvider();
+            IFontProvider fontProvider = new WindowsFontProvider(loggerFactory);
 
             // PdfDocumentReader is the entry point for parsing PDF files.
             PdfDocumentReader reader = new(loggerFactory, fontProvider);

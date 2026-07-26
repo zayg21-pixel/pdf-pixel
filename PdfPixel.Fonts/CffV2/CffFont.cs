@@ -1,5 +1,6 @@
 using PdfPixel.Fonts.Model;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.CffV2;
 
@@ -42,6 +43,19 @@ public class CffFont
     /// encoding was structurally malformed.
     /// </summary>
     public CffEncoding? Encoding { get; set; }
+
+    /// <summary>
+    /// Gets or sets this font's built-in code-to-glyph-name table (indexed 0-255), derived from
+    /// <see cref="Encoding"/> and <see cref="Charset"/>. Null for a CID-keyed font, which has no
+    /// Encoding, or one whose Encoding failed to parse.
+    /// </summary>
+    public PdfFontString[]? CodeToName { get; set; }
+
+    /// <summary>
+    /// Gets or sets this font's glyph-name-to-GID table, derived from <see cref="Charset"/>. Null for
+    /// a CID-keyed font, which has no glyph names.
+    /// </summary>
+    public IReadOnlyDictionary<PdfFontString, ushort>? NameToGid { get; set; }
 
     /// <summary>
     /// Gets or sets this font's evaluated characters (one per glyph, indexed by GID): outline,

@@ -31,9 +31,9 @@ public class PdfFileLocation
 
 public class MainWindowsViewModel : ObservableObject
 {
-    private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider("Times New Roman");
     private static readonly Dictionary<int, List<PdfWord>> _extractedWords = new Dictionary<int, List<PdfWord>>();
     private readonly PdfTextChunker _chunker = new PdfTextChunker();
+    private readonly IFontProvider _fontProvider;
     private readonly PdfDocumentReader _reader;
     private readonly ObservableLoggerFactory _loggerFactory;
     private readonly object _logMessagesLock = new object();
@@ -50,7 +50,8 @@ public class MainWindowsViewModel : ObservableObject
         LogMessages = new ObservableCollection<LogMessage>();
         System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, _logMessagesLock);
         _loggerFactory = new ObservableLoggerFactory(LogMessages, _logMessagesLock);
-        _reader = new PdfDocumentReader(_loggerFactory, FontProvider);
+        _fontProvider = new WindowsFontProvider(_loggerFactory, "Times New Roman");
+        _reader = new PdfDocumentReader(_loggerFactory, _fontProvider);
 
         PanelInterface = new WpfPdfPanelInterface();
         PanelInterface.OnAfterDraw = OnAfterDraw;

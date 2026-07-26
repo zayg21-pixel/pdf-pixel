@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
@@ -40,7 +39,6 @@ public partial class PdfPanelInterop
 {
     private static bool _isInitialized = false;
 
-    private static readonly InMemorySkiaFontProvider FontProvider = new();
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
     private static Dictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new Dictionary<string, TaskCompletionSource<byte[]>>();
 

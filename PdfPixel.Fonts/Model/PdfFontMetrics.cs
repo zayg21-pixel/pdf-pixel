@@ -3,6 +3,11 @@ namespace PdfPixel.Fonts.Model;
 /// <summary>
 /// Font metrics and style information, expressed in terms found in real font formats
 /// (TrueType/OpenType OS/2, CFF, Type1) rather than PDF font-descriptor semantics.
+/// <see cref="Ascent"/>, <see cref="Descent"/>, <see cref="CapHeight"/>, <see cref="XHeight"/>,
+/// the bounding box, and <see cref="AvgWidth"/> are all pre-divided by the font's design units per
+/// em square, so they are already em-relative (1.0 = one em) - callers never need to know or divide
+/// by the font's own units-per-em to use them. <see cref="IPdfTypeface.GetWidth(ushort)"/> is the only
+/// value on the typeface still in raw design units, since it is inherently per-glyph.
 /// </summary>
 public sealed class PdfFontMetrics
 {
@@ -12,22 +17,29 @@ public sealed class PdfFontMetrics
     public PdfFontString FontName { get; set; }
 
     /// <summary>
-    /// Maximum height above baseline for glyphs in the font.
+    /// Design units per em square. Every other size on this type is already divided by this value;
+    /// it is exposed only so callers can convert a raw <see cref="IPdfTypeface.GetWidth(ushort)"/>
+    /// result (still in design units, being per-glyph) to the same em-relative units.
+    /// </summary>
+    public float UnitsPerEm { get; set; }
+
+    /// <summary>
+    /// Maximum height above baseline for glyphs in the font, in em-relative units.
     /// </summary>
     public float Ascent { get; set; }
 
     /// <summary>
-    /// Maximum depth below baseline for glyphs in the font.
+    /// Maximum depth below baseline for glyphs in the font, in em-relative units.
     /// </summary>
     public float Descent { get; set; }
 
     /// <summary>
-    /// Height of uppercase glyphs.
+    /// Height of uppercase glyphs, in em-relative units.
     /// </summary>
     public float CapHeight { get; set; }
 
     /// <summary>
-    /// Height of lowercase x glyph.
+    /// Height of lowercase x glyph, in em-relative units.
     /// </summary>
     public float XHeight { get; set; }
 
@@ -37,27 +49,27 @@ public sealed class PdfFontMetrics
     public float ItalicAngle { get; set; }
 
     /// <summary>
-    /// Left edge of the font bounding box in glyph design units.
+    /// Left edge of the font bounding box, in em-relative units.
     /// </summary>
     public float BoundingBoxLeft { get; set; }
 
     /// <summary>
-    /// Bottom edge of the font bounding box in glyph design units.
+    /// Bottom edge of the font bounding box, in em-relative units.
     /// </summary>
     public float BoundingBoxBottom { get; set; }
 
     /// <summary>
-    /// Right edge of the font bounding box in glyph design units.
+    /// Right edge of the font bounding box, in em-relative units.
     /// </summary>
     public float BoundingBoxRight { get; set; }
 
     /// <summary>
-    /// Top edge of the font bounding box in glyph design units.
+    /// Top edge of the font bounding box, in em-relative units.
     /// </summary>
     public float BoundingBoxTop { get; set; }
 
     /// <summary>
-    /// Average glyph width.
+    /// Average glyph width, in em-relative units.
     /// </summary>
     public float AvgWidth { get; set; }
 

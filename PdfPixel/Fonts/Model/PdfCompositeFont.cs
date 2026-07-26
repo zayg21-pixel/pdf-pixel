@@ -35,7 +35,7 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// The typeface provided by the primary descendant CID font, or <see langword="null"/> when unavailable.
     /// </summary>
-    protected internal override PdfTypeface? Typeface => PrimaryDescendant?.Typeface;
+    protected internal override IPdfTypeface? Typeface => PrimaryDescendant?.Typeface;
 
     /// <summary>
     /// The writing mode (horizontal or vertical) determined from the CMap's WMode entry.
@@ -45,7 +45,7 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// The substitution info inherited from the primary descendant CID font, or the default value when no descendant is present.
     /// </summary>
-    protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? PdfSubstitutionInfo.Detault;
+    protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? PdfSubstitutionInfo.Default;
 
     /// <summary>
     /// Descendant CID fonts that contain the actual font data.

@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
-using PdfPixel.Fonts;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Fonts.Resources;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -46,12 +44,6 @@ public class PdfType3Font : PdfSingleByteFont
         // Get FontBBox (required for Type3 fonts per PDF spec §9.6.5, Table 110)
         // Used as the recording bounds for d0 glyphs that do not specify a per-glyph bounding box
         FontBBox = PdfRectangle.FromArray(Dictionary.GetArray(PdfTokens.FontBBoxKey));
-
-        // TODO [HIGH]: stop reducing FontMatrix to ScaleX here. Keep Widths in raw glyph
-        // space, and at draw time compute the advancement vector as (Width, 0) transformed by the
-        // full FontMatrix, then feed that vector (not a scalar) through Tfs/Tc/Tw/Th into Tm. This
-        // requires PdfCharacterInfo.Advancement to become a vector rather than a scalar.
-        // Rescale width to glyph space
         Widths.RescaleWidths(FontMatrix.ScaleX / PdfSingleByteFontWidths.WidthToUserSpaceCoeff);
 
         if (Encoding.BaseEncoding == PdfEncoding.Unknown)
@@ -65,7 +57,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// Type 3 fonts do not use an embedded typeface; always returns <see langword="null"/>.
     /// Glyphs are rendered from PDF content streams rather than a conventional typeface.
     /// </summary>
-    protected internal override PdfTypeface? Typeface => null;
+    protected internal override IPdfTypeface? Typeface => null;
 
     /// <summary>
     /// Character procedures dictionary containing glyph definitions

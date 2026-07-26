@@ -1,12 +1,13 @@
-using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Model;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Mapping;
 
 /// <summary>
 /// Provides mapping from PDF character codes to glyph IDs (GIDs) for CFF (Type 1C) fonts using parsed CFF metadata.
-/// For single-byte fonts, resolves code to glyph name using encoding and differences, then maps name to GID via CFF metadata.
+/// For single-byte fonts, resolves code to glyph name using encoding and differences, then maps name to GID via the CFF charset.
 /// Name-to-GID is the only mapping available for CFF fonts; code-to-GID is achieved through encoding-to-name resolution.
 /// </summary>
 internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
@@ -15,30 +16,43 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
     private readonly float[] _codeToWidth = new float[256];
 
     /// <summary>
-    /// Initializes a new instance of <see cref="CffByteCodeToGidMapper"/> for the specified CFF font info.
+    /// Initializes a new instance of <see cref="CffByteCodeToGidMapper"/> for the specified CFF typeface.
     /// </summary>
-    /// <param name="cffInfo">The parsed CFF font metadata.</param>
+    /// <param name="cffTypeface">The parsed CFF typeface.</param>
     /// <param name="encodingInfo">The PDF font encoding.</param>
     public CffByteCodeToGidMapper(
-        CffInfo cffInfo,
+        CffTypeface cffTypeface,
         PdfFontEncodingInfo encodingInfo)
     {
-        if (cffInfo == null)
+        if (cffTypeface == null)
         {
-            throw new ArgumentNullException(nameof(cffInfo));
+            throw new ArgumentNullException(nameof(cffTypeface));
+        }
+
+        if (cffTypeface.Fonts.Length == 0)
+        {
+            return;
+        }
+
+        CffFont font = cffTypeface.Fonts[0];
+        IReadOnlyDictionary<PdfFontString, ushort>? nameToGid = font.NameToGid;
+
+        if (nameToGid == null)
+        {
+            return;
         }
 
         for (int code = 0; code < 256; code++)
         {
             PdfFontString glyphName = encodingInfo.GetNameByCode((byte)code);
 
-            if (cffInfo.NameToGid != null && !glyphName.IsEmpty && cffInfo.NameToGid.TryGetValue(glyphName, out ushort gid))
+            if (!glyphName.IsEmpty && nameToGid.TryGetValue(glyphName, out ushort gid))
             {
                 _codeToGid[code] = gid;
 
-                if (cffInfo.GidWidths != null && gid < cffInfo.GidWidths.Length)
+                if (gid < font.Characters.Length)
                 {
-                    _codeToWidth[code] = cffInfo.GidWidths[gid];
+                    _codeToWidth[code] = font.Characters[gid].Width;
                 }
             }
         }

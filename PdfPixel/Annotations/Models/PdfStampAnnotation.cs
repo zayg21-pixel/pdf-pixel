@@ -4,10 +4,10 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Annotations.Models;
@@ -80,43 +80,40 @@ public class PdfStampAnnotation : PdfAnnotationBase
 
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in PdfColor color)
     {
-        var substitutionInfo = PdfSubstitutionInfo.Parse(PdfString.FromString("Courier-Bold"), null);
-        PdfTypeface typeface = page.Document.FontSubstitutor.SubstituteTypeface(substitutionInfo, labelText, null);
+        PdfSubstitutionInfo substitutionInfo = new(Fonts.Mapping.PdfStandardFontName.Courier, isBold: true, isItalic: false);
+        IPdfTypeface typeface = page.Document.FontProvider.GetTypeface(substitutionInfo, labelText, null);
 
         float availableWidth = Rectangle.Width * (1f - 2f * MarginFraction);
         float availableHeight = Rectangle.Height * (1f - 2f * MarginFraction);
 
-        SKFont font = new(typeface.GetTypeface(), availableHeight);
-        font.GetFontMetrics(out SKFontMetrics metrics);
+        PdfFontMetrics metrics = typeface.Metrics;
 
-        float glyphHeight = metrics.Descent - metrics.Ascent;
-        if (glyphHeight > 0f)
-        {
-            font.Size *= availableHeight / glyphHeight;
-        }
+        float glyphHeight = metrics.Ascent - metrics.Descent;
+        float fontSize = (glyphHeight > 0f) ? availableHeight / glyphHeight : availableHeight;
 
-        float textWidth = font.MeasureText(labelText);
+        float textWidth = typeface.GetWidth(labelText) * fontSize;
         if (textWidth > availableWidth)
         {
-            font.Size *= availableWidth / textWidth;
+            fontSize *= availableWidth / textWidth;
             textWidth = availableWidth;
         }
 
-        font.GetFontMetrics(out metrics);
+        float scaledAscent = metrics.Ascent * fontSize;
+        float scaledDescent = metrics.Descent * fontSize;
 
         float textX = Rectangle.MidX - textWidth / 2f;
-        float textY = Rectangle.MidY + (metrics.Ascent + metrics.Descent) / 2f;
+        float textY = Rectangle.MidY - (scaledAscent + scaledDescent) / 2f;
 
         PdfMatrix textMatrix = PdfMatrix.Concat(
             PdfMatrix.CreateTranslation(textX, textY),
             PdfMatrix.CreateScale(1f, -1f));
 
-        float shadowOffset = font.Size * 0.05f;
-        float shadowSigma = font.Size * 0.03f;
+        float shadowOffset = fontSize * 0.05f;
+        float shadowSigma = fontSize * 0.03f;
         PdfPaintShadowEffect shadowEffect = new(shadowOffset, shadowOffset, shadowSigma, shadowSigma, PdfColors.Black.WithAlpha(ShadowAlpha / 255f));
         PdfPaint textPaint = new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color).WithShadowEffect(shadowEffect);
 
-        processor.Process(new DrawTextCommand(labelText, textMatrix, font, textPaint));
+        processor.Process(new DrawTextCommand(labelText, textMatrix, typeface, fontSize, textPaint));
     }
 
     private static string GetLabelText(PdfStampName stampName, in PdfString rawName)

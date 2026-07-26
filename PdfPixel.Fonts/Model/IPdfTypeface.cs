@@ -25,7 +25,8 @@ public interface IPdfTypeface
     bool IsGidExists(ushort gid);
 
     /// <summary>
-    /// Gets the advance width of the given glyph id, in font design units.
+    /// Gets the advance width of the given glyph id, in em-relative units (already divided by
+    /// <see cref="PdfFontMetrics.UnitsPerEm"/>; 1.0 = one em).
     /// </summary>
     float GetWidth(ushort gid);
 

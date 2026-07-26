@@ -41,6 +41,11 @@ public class TrueTypePdfTypeface : IPdfTypeface
             throw new ArgumentException("Data is not a valid SFNT font program.", nameof(fontBytes));
         }
 
+        if (font.CffTypeface != null)
+        {
+            throw new ArgumentException("Data is a CFF-flavored OpenType font program; use CffPdfTypeface instead.", nameof(fontBytes));
+        }
+
         _font = font;
         _head = font.Head;
         _maxp = font.Maxp;
@@ -49,6 +54,11 @@ public class TrueTypePdfTypeface : IPdfTypeface
         FontBytes = processor.Write(font);
         Metrics = BuildMetrics(font, _head);
     }
+
+    /// <summary>
+    /// Gets the parsed SFNT font data this instance wraps.
+    /// </summary>
+    public SfntFont SfntFont => _font;
 
     /// <inheritdoc/>
     public PdfFontMetrics Metrics { get; }
@@ -60,7 +70,7 @@ public class TrueTypePdfTypeface : IPdfTypeface
     public bool IsGidExists(ushort gid) => gid < _maxp.NumGlyphs;
 
     /// <inheritdoc/>
-    public float GetWidth(ushort gid) => (_font.Hmtx != null && gid < _font.Hmtx.Metrics.Count) ? _font.Hmtx.Metrics[gid].AdvanceWidth : 0f;
+    public float GetWidth(ushort gid) => (_font.Hmtx != null && gid < _font.Hmtx.Metrics.Count) ? _font.Hmtx.Metrics[gid].AdvanceWidth / _head.UnitsPerEm : 0f;
 
     /// <inheritdoc/>
     public string? GetUnicode(ushort gid) => (_gidToUnicode != null && _gidToUnicode.TryGetValue(gid, out string? unicode)) ? unicode : null;
@@ -149,6 +159,7 @@ public class TrueTypePdfTypeface : IPdfTypeface
         SfntHhea? hhea = font.Hhea;
         SfntPost? post = font.Post;
 
+        float unitsPerEm = head.UnitsPerEm;
         float ascent = os2?.STypoAscender ?? hhea?.Ascender ?? 0f;
         float descent = os2?.STypoDescender ?? hhea?.Descender ?? 0f;
         float italicAngle = post?.ItalicAngle ?? 0f;
@@ -157,16 +168,17 @@ public class TrueTypePdfTypeface : IPdfTypeface
         return new PdfFontMetrics
         {
             FontName = ResolveFontName(font.Name),
-            Ascent = ascent,
-            Descent = descent,
-            CapHeight = os2?.SCapHeight ?? 0f,
-            XHeight = os2?.SxHeight ?? 0f,
+            UnitsPerEm = unitsPerEm,
+            Ascent = ascent / unitsPerEm,
+            Descent = descent / unitsPerEm,
+            CapHeight = (os2?.SCapHeight ?? 0f) / unitsPerEm,
+            XHeight = (os2?.SxHeight ?? 0f) / unitsPerEm,
             ItalicAngle = italicAngle,
-            BoundingBoxLeft = head.XMin,
-            BoundingBoxBottom = head.YMin,
-            BoundingBoxRight = head.XMax,
-            BoundingBoxTop = head.YMax,
-            AvgWidth = os2?.XAvgCharWidth ?? 0f,
+            BoundingBoxLeft = head.XMin / unitsPerEm,
+            BoundingBoxBottom = head.YMin / unitsPerEm,
+            BoundingBoxRight = head.XMax / unitsPerEm,
+            BoundingBoxTop = head.YMax / unitsPerEm,
+            AvgWidth = (os2?.XAvgCharWidth ?? 0f) / unitsPerEm,
             Weight = os2?.UsWeightClass ?? 400,
             IsForceBold = (fsSelection & 0x0020) != 0, // OS/2 fsSelection bit 5: BOLD
             IsItalic = italicAngle != 0f || (fsSelection & 0x0001) != 0, // OS/2 fsSelection bit 0: ITALIC

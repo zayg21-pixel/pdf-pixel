@@ -5,8 +5,7 @@ using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
-using System.Collections.Generic;
+using System;
 
 namespace PdfPixel.Rendering.Text;
 
@@ -19,9 +18,9 @@ internal class TextStrokeRenderTarget : IRenderTarget
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
 
-    public TextStrokeRenderTarget(SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public TextStrokeRenderTarget(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        _path = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+        _path = TextRenderUtilities.GetTextPath(shapingResult, state);
         _state = state;
 
         if (state.StrokePaint.IsPattern)

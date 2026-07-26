@@ -40,7 +40,7 @@ public sealed class WorkerDocumentData
 [SupportedOSPlatform("browser")]
 public partial class PdfContentWorkerInterop
 {
-    private static readonly InMemorySkiaFontProvider FontProvider = new();
+    private static InMemoryFontProvider FontProvider;
     private static bool _isInitialized = false;
     private static readonly Dictionary<string, WorkerDocumentData> _documents = new();
 
@@ -63,6 +63,7 @@ public partial class PdfContentWorkerInterop
 
         LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddEmscriptenConsole());
         Logger = LoggerFactory.CreateLogger<PdfContentWorkerInterop>();
+        FontProvider = new InMemoryFontProvider(LoggerFactory);
         Logger.LogInformation("PdfContentWorkerInterop initialized");
 
         _isInitialized = true;

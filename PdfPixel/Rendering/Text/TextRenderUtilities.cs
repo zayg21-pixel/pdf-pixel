@@ -1,10 +1,11 @@
 ﻿using PdfPixel.Commands;
 using PdfPixel.Commands.Converters;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using SkiaSharp;
-using System.Collections.Generic;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Rendering.Text;
@@ -16,57 +17,62 @@ internal static class TextRenderUtilities
 {
     /// <summary>
     /// Builds the combined glyph outline for <paramref name="shapingResult"/>, transformed into the same
-    /// space as other drawing content. Glyph outlines only exist as <see cref="SKPath"/> (via
-    /// <see cref="SKFont.GetGlyphPath"/>), so this is the single place that boundary is crossed; every
-    /// caller works with the resulting <see cref="PdfPath"/> from here on.
+    /// space as other drawing content. Each glyph's outline comes from its own
+    /// <see cref="PdfCharacterInfo.Typeface"/> in raw, unscaled form, so it is transformed by its
+    /// horizontal <see cref="ShapedGlyph.Scale"/> and position before being combined with the rest.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfPath GetTextPath(List<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
+    public static PdfPath GetTextPath(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        using SKPathBuilder textPathBuilder = new();
+        PdfPathBuilder textPathBuilder = new();
+        ReadOnlySpan<ShapedGlyph> glyphs = shapingResult.Span;
 
-        for (int i = 0; i < shapingResult.Count; i++)
+        for (int i = 0; i < glyphs.Length; i++)
         {
-            uint glyphId = shapingResult[i].GlyphId;
-            if (glyphId != 0)
+            ShapedGlyph shapedGlyph = glyphs[i];
+            uint glyphId = shapedGlyph.GlyphId;
+            if (glyphId == 0)
             {
-                using SKPath glyphPath = font.GetGlyphPath((ushort)glyphId);
-                if (glyphPath != null)
-                {
-                    textPathBuilder.AddPath(glyphPath, SKMatrix.CreateTranslation(shapingResult[i].X, shapingResult[i].Y));
-                }
+                continue;
             }
+
+            IPdfTypeface typeface = shapedGlyph.CharacterInfo.Typeface;
+            ReadOnlyMemory<byte> glyphPathData = typeface.GetPath((ushort)glyphId);
+            if (glyphPathData.IsEmpty)
+            {
+                continue;
+            }
+
+            PdfPath glyphPath = new(glyphPathData, PdfPathFillType.Winding);
+            PdfMatrix glyphMatrix = PdfMatrix.CreateScaleTranslation(shapedGlyph.Scale, 1f, shapedGlyph.X, shapedGlyph.Y);
+            textPathBuilder.AddPath(glyphPath.Transform(glyphMatrix));
         }
 
-        using SKPath textPath = textPathBuilder.Detach();
-
         PdfMatrix matrix = GetFullTextMatrix(state);
-        textPath.Transform(matrix.ToSkMatrix());
-
-        return textPath.ToPdfPath();
+        return textPathBuilder.ToPath().Transform(matrix);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextWidth(List<ShapedGlyph> shapingResult)
+    public static float GetTextWidth(in ReadOnlyMemory<ShapedGlyph> shapingResult)
     {
-        if (shapingResult.Count == 0)
+        if (shapingResult.IsEmpty)
         {
             return 0;
         }
 
-        ShapedGlyph last = shapingResult[shapingResult.Count - 1];
+        ShapedGlyph last = shapingResult.Span[shapingResult.Length - 1];
         return last.X - last.CharacterInfo.Offset.X + last.Advance;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextHeight(List<ShapedGlyph> shapingResult)
+    public static float GetTextHeight(in ReadOnlyMemory<ShapedGlyph> shapingResult)
     {
-        if (shapingResult.Count == 0)
+        if (shapingResult.IsEmpty)
         {
             return 0;
         }
 
-        ShapedGlyph last = shapingResult[shapingResult.Count - 1];
+        ShapedGlyph last = shapingResult.Span[shapingResult.Length - 1];
         return last.Y - last.CharacterInfo.Offset.Y + last.Advance;
     }
 
@@ -88,7 +94,7 @@ internal static class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKTextBlob? BuildTextBlob(ShapedGlyph[] shapingResult, SKFont font)
+    public static SKTextBlob? BuildTextBlob(in ReadOnlySpan<ShapedGlyph> shapingResult, SKFont font)
     {
         // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
         int drawableCount = 0;

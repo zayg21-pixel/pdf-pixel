@@ -1,4 +1,4 @@
-using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.CffV2;
 using System;
 using System.Collections.Generic;
 
@@ -28,24 +28,27 @@ public sealed class PdfCidToGidMap
     }
 
     /// <summary>
-    /// Creates a <see cref="PdfCidToGidMap"/> from the specified CFF font information.
+    /// Creates a <see cref="PdfCidToGidMap"/> from the specified CFF font's charset.
     /// </summary>
-    /// <remarks>If the <paramref name="keyedInfo"/> does not represent a CID font or contains an
-    /// empty GID to SID mapping, a default <see cref="PdfCidToGidMap"/> is returned with no mappings.</remarks>
-    /// <param name="keyedInfo">The CFF font information containing the GID to SID mapping and CID font status.</param>
+    /// <remarks>If <paramref name="font"/> is not CID-keyed or has an empty GID-to-SID charset, a
+    /// default <see cref="PdfCidToGidMap"/> is returned with no mappings.</remarks>
+    /// <param name="font">The CFF font containing the GID-to-SID charset and CID font status.</param>
     /// <returns>A <see cref="PdfCidToGidMap"/> instance representing the mapping from CID to GID.</returns>
-    internal static PdfCidToGidMap FromCffFont(CffInfo keyedInfo)
+    internal static PdfCidToGidMap FromCffFont(CffFont font)
     {
-        if (keyedInfo.GidToSid == null || keyedInfo.GidToSid.Length == 0 || !keyedInfo.IsCidFont)
+        bool isCidFont = font.FdArray.Length > 0;
+        ushort[]? gidToSid = font.Charset?.SidsByGid;
+
+        if (!isCidFont || gidToSid == null || gidToSid.Length == 0)
         {
             return new PdfCidToGidMap(true);
         }
 
         PdfCidToGidMap map = new(false);
 
-        for (uint gid = 0; gid < keyedInfo.GidToSid.Length; gid++)
+        for (uint gid = 0; gid < gidToSid.Length; gid++)
         {
-            ushort sid = keyedInfo.GidToSid[gid];
+            ushort sid = gidToSid[gid];
             map._cidToGidMap[sid] = (ushort)gid;
         }
 

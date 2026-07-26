@@ -21,20 +21,58 @@ public class CffPdfTypeface : IPdfTypeface
     /// <param name="fontBytes">The raw CFF font program bytes.</param>
     /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
     public CffPdfTypeface(in ReadOnlyMemory<byte> fontBytes, ILoggerFactory loggerFactory)
+        : this(ParseTypeface(fontBytes, loggerFactory))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CffPdfTypeface"/> class from an already-parsed
+    /// CFF typeface, repacking it and wrapping it in an OpenType (OTTO) container to produce
+    /// <see cref="FontBytes"/>.
+    /// </summary>
+    /// <param name="typeface">The parsed CFF typeface. Must contain at least one font.</param>
+    public CffPdfTypeface(CffTypeface typeface)
+    {
+        if (typeface == null)
+        {
+            throw new ArgumentNullException(nameof(typeface));
+        }
+
+        if (typeface.Fonts.Length == 0)
+        {
+            throw new ArgumentException("Typeface has no fonts.", nameof(typeface));
+        }
+
+        CffTypeface = typeface;
+        _font = typeface.Fonts[0];
+        _gidToName = BuildGidToName(_font, typeface.Strings);
+
+        byte[]? fontBytes = CffOpenTypeWrapper.Wrap(typeface);
+        if (fontBytes == null)
+        {
+            throw new ArgumentException("Failed to wrap CFF typeface in an OpenType container.", nameof(typeface));
+        }
+
+        FontBytes = fontBytes;
+        Metrics = BuildMetrics(_font);
+    }
+
+    private static CffTypeface ParseTypeface(in ReadOnlyMemory<byte> fontBytes, ILoggerFactory loggerFactory)
     {
         CffTypefaceReader reader = new(loggerFactory);
         CffTypeface? typeface = reader.Read(fontBytes);
-        if (typeface == null || typeface.Fonts.Length == 0)
+        if (typeface == null)
         {
             throw new ArgumentException("Data is not a valid CFF font program.", nameof(fontBytes));
         }
 
-        _font = typeface.Fonts[0];
-        _gidToName = BuildGidToName(_font, typeface.Strings);
-
-        FontBytes = new CffTypefaceWriter().Write(typeface);
-        Metrics = BuildMetrics(_font);
+        return typeface;
     }
+
+    /// <summary>
+    /// Gets the parsed CFF typeface data this instance wraps.
+    /// </summary>
+    public CffTypeface CffTypeface { get; }
 
     /// <inheritdoc/>
     public PdfFontMetrics Metrics { get; }
@@ -46,7 +84,7 @@ public class CffPdfTypeface : IPdfTypeface
     public bool IsGidExists(ushort gid) => gid < _font.Characters.Length;
 
     /// <inheritdoc/>
-    public float GetWidth(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Width : 0f;
+    public float GetWidth(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Width / Metrics.UnitsPerEm : 0f;
 
     /// <inheritdoc/>
     public string? GetUnicode(ushort gid)
@@ -106,22 +144,24 @@ public class CffPdfTypeface : IPdfTypeface
     {
         float[]? fontBBox = font.Dict.TopDict.FontBBox;
         float italicAngle = font.Dict.TopDict.ItalicAngle ?? 0f;
+        float unitsPerEm = CffTopDict.CombineFontMatrix(font.Dict.TopDict, null).UnitsPerEm;
 
         PdfFontMetrics metrics = new()
         {
             FontName = font.Name,
+            UnitsPerEm = unitsPerEm,
             ItalicAngle = italicAngle,
             IsItalic = italicAngle != 0f
         };
 
         if (fontBBox?.Length == 4)
         {
-            metrics.BoundingBoxLeft = fontBBox[0];
-            metrics.BoundingBoxBottom = fontBBox[1];
-            metrics.BoundingBoxRight = fontBBox[2];
-            metrics.BoundingBoxTop = fontBBox[3];
-            metrics.Ascent = fontBBox[3];
-            metrics.Descent = fontBBox[1];
+            metrics.BoundingBoxLeft = fontBBox[0] / unitsPerEm;
+            metrics.BoundingBoxBottom = fontBBox[1] / unitsPerEm;
+            metrics.BoundingBoxRight = fontBBox[2] / unitsPerEm;
+            metrics.BoundingBoxTop = fontBBox[3] / unitsPerEm;
+            metrics.Ascent = fontBBox[3] / unitsPerEm;
+            metrics.Descent = fontBBox[1] / unitsPerEm;
         }
 
         return metrics;

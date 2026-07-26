@@ -69,6 +69,12 @@ public readonly struct PdfFontMatrix
     public bool IsIdentity => Equals(Identity);
 
     /// <summary>
+    /// Design units per em square implied by this matrix's horizontal scale, i.e. the units-per-em a
+    /// CFF/Type1 FontMatrix of <c>[1/unitsPerEm 0 0 1/unitsPerEm 0 0]</c> encodes.
+    /// </summary>
+    public float UnitsPerEm => 1f / ScaleX;
+
+    /// <summary>
     /// Creates a <see cref="PdfFontMatrix"/> from a CFF FontMatrix operand array ([a b c d e f]).
     /// Returns null if the array is null or has fewer than 6 elements.
     /// </summary>
@@ -117,7 +123,14 @@ public readonly struct PdfFontMatrix
     /// Transforms the point <c>(x, y)</c> by this matrix.
     /// </summary>
     public (float X, float Y) MapPoint(float x, float y)
-        => ((ScaleX * x) + (SkewX * y) + TransX, (SkewY * x) + (ScaleY * y) + TransY);
+    {
+        if (IsIdentity)
+        {
+            return (x, y);
+        }
+
+        return ((ScaleX * x) + (SkewX * y) + TransX, (SkewY * x) + (ScaleY * y) + TransY);
+    }
 
     /// <inheritdoc/>
     public override string ToString()

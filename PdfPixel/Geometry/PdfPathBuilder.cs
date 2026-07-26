@@ -23,7 +23,7 @@ public sealed class PdfPathBuilder
     /// <summary>
     /// Determines which regions are considered "inside" when the built path is filled or used as a clip.
     /// </summary>
-    public PdfPathFillType FillType { get; set; } = PdfPathFillType.Winding;
+    public PdfPathFillType FillType { get; set; } = PdfPathFillType.Winding; // TODO: [HIGH] REMOVE!
 
     /// <summary>
     /// Starts a new subpath at the given point.

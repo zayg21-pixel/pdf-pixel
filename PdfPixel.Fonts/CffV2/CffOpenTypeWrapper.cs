@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Sfnt;
 using System;
 using System.Collections.Generic;
@@ -36,9 +37,8 @@ public static class CffOpenTypeWrapper
     private static readonly SfntFontProcessor FontProcessor = new(NullLoggerFactory.Instance);
 
     /// <summary>
-    /// Repacks the typeface via <see cref="CffTypefaceWriter"/> and produces a minimal OpenType font
-    /// byte array wrapping the result, with placeholder metrics. Returns null if the typeface is
-    /// empty or fails to repack.
+    /// Wraps the typeface in a minimal OpenType font byte array with placeholder metrics, repacking
+    /// the CFF data via <see cref="SfntFontProcessor"/>. Returns null if the typeface is empty.
     /// </summary>
     public static byte[]? Wrap(CffTypeface? typeface)
     {
@@ -49,9 +49,7 @@ public static class CffOpenTypeWrapper
 
         CffFont font = typeface.Fonts[0];
 
-        float fontMatrixScaleX = (font.Dict.TopDict.FontMatrix.HasValue && font.Dict.TopDict.FontMatrix.Value.ScaleX > 0)
-            ? font.Dict.TopDict.FontMatrix.Value.ScaleX
-            : (1f / DefaultUnitsPerEm);
+        PdfFontMatrix fontMatrix = CffTopDict.CombineFontMatrix(font.Dict.TopDict, null);
 
         var gidWidths = new float[font.Characters.Length];
         for (int glyphIndex = 0; glyphIndex < font.Characters.Length; glyphIndex++)
@@ -60,20 +58,14 @@ public static class CffOpenTypeWrapper
             gidWidths[glyphIndex] = character.Width * character.GetEffectiveMatrix(font).ScaleX;
         }
 
-        byte[] cffData = new CffTypefaceWriter().Write(typeface);
-        if (cffData.Length == 0)
-        {
-            return null;
-        }
-
         var numGlyphs = (ushort)Math.Max(1, Math.Min(ushort.MaxValue, font.Characters.Length));
-        var unitsPerEm = (ushort)Math.Max(1, Math.Min(ushort.MaxValue, Math.Round(1f / fontMatrixScaleX)));
+        var unitsPerEm = (ushort)Math.Max(1, Math.Min(ushort.MaxValue, Math.Round(fontMatrix.UnitsPerEm)));
         float unitsPerEmScale = unitsPerEm / (float)DefaultUnitsPerEm;
 
         SfntFont sfntFont = new()
         {
             Version = OttoVersion,
-            Tables = new List<SfntTableRecord> { new SfntTableRecord(SfntTableTags.Cff, 0, cffData) },
+            CffTypeface = typeface,
             Head = BuildHead(unitsPerEm, unitsPerEmScale),
             Hhea = BuildHhea(numGlyphs, unitsPerEmScale),
             Maxp = new SfntMaxp { Version = 0.5f, NumGlyphs = numGlyphs },

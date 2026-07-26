@@ -9,9 +9,7 @@ using PdfPixel.Rendering.State;
 using PdfPixel.Rendering.Text;
 using PdfPixel.TextExtraction;
 using PdfPixel.Transparency.Utilities;
-using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Text;
@@ -36,16 +34,11 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     /// <inheritdoc/>
-    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
     {
         if (processor == null)
         {
             throw new ArgumentNullException(nameof(processor));
-        }
-
-        if (glyphs == null)
-        {
-            throw new ArgumentNullException(nameof(glyphs));
         }
 
         if (state == null)
@@ -53,7 +46,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             throw new ArgumentNullException(nameof(state));
         }
 
-        if (font == null || glyphs.Count == 0)
+        if (font == null || glyphs.Length == 0)
         {
             return PdfSize.Empty;
         }
@@ -87,59 +80,25 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ProcessGlyphs(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    private void ProcessGlyphs(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
         if (font is PdfType3Font type3Font)
         {
             ProcessType3(processor, glyphs, state, type3Font);
         }
-        else if (font.IsSubstitutedFont)
+        else if (glyphs.Length > 0)
         {
-            const float scaleTolerancePercent = 0.01f; // 1%
-            List<ShapedGlyph> glyphBuffer = [];
-            SKFont? skFont = null;
-
-            for (int i = 0; i < glyphs.Count; i++)
-            {
-                ShapedGlyph glyph = glyphs[i];
-                PdfTypeface typeface = glyph.CharacterInfo.Typeface;
-                float scale = glyph.Scale;
-
-                if (skFont?.Typeface != typeface.GetTypeface() || Math.Abs(scale - skFont.ScaleX) / skFont.ScaleX >= scaleTolerancePercent)
-                {
-                    if (glyphBuffer.Count > 0 && skFont != null)
-                    {
-                        DrawShapedText(processor, skFont, glyphBuffer, state);
-                    }
-
-                    glyphBuffer.Clear();
-                    skFont?.Dispose();
-
-                    skFont = typeface.CreateTextFont();
-                    skFont.ScaleX = scale;
-                }
-
-                glyphBuffer.Add(glyph);
-            }
-
-            if (glyphBuffer.Count > 0 && skFont != null)
-            {
-                DrawShapedText(processor, skFont, glyphBuffer, state);
-            }
-
-            skFont?.Dispose();
-        }
-        else if (glyphs.Count > 0)
-        {
-            PdfTypeface baseTypeface = glyphs[0].CharacterInfo.Typeface;
-            using SKFont skFont = baseTypeface.CreateTextFont();
-            DrawShapedText(processor, skFont, glyphs, state);
+            // Per-glyph typeface and scale (relevant when the font is substituted) are resolved by
+            // DrawShapedTextCommand itself, grouping into spans only when they actually differ.
+            DrawShapedText(processor, glyphs, state);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ProcessType3(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
+    private void ProcessType3(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
     {
+        ReadOnlySpan<ShapedGlyph> glyphsSpan = glyphs.Span;
+
         if (state.RenderingParameters.RenderText
             && state.TextRenderingMode != PdfTextRenderingMode.Invisible
             && state.TextRenderingMode != PdfTextRenderingMode.Clip)
@@ -149,9 +108,9 @@ public class PdfTextRenderer : IPdfTextRenderer
             PdfMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
             processor.Process(new ConcatMatrixCommand(fullTextMatrix));
 
-            for (int i = 0; i < glyphs.Count; i++)
+            for (int i = 0; i < glyphsSpan.Length; i++)
             {
-                ShapedGlyph glyph = glyphs[i];
+                ShapedGlyph glyph = glyphsSpan[i];
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
                 if (charInfo.IsDefined && charInfo.Recording != null)
                 {
@@ -170,11 +129,11 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (state.RenderingParameters.ExtractText)
         {
-            var characters = new PdfCharacter[glyphs.Count];
+            var characters = new PdfCharacter[glyphsSpan.Length];
 
-            for (int i = 0; i < glyphs.Count; i++)
+            for (int i = 0; i < glyphsSpan.Length; i++)
             {
-                ShapedGlyph glyph = glyphs[i];
+                ShapedGlyph glyph = glyphsSpan[i];
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
                 PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
                 PdfRectangle bounds;
@@ -198,26 +157,26 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawShapedText(IPdfCommandProcessor processor, SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawShapedText(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         if (state.RenderingParameters.RenderText)
         {
             if (ShouldFill(state.TextRenderingMode))
             {
-                TextFillRenderTarget textFillTarget = new(font, shapingResult, state);
+                TextFillRenderTarget textFillTarget = new(shapingResult, state);
                 textFillTarget.Render(processor);
             }
 
             if (ShouldStroke(state.TextRenderingMode))
             {
-                TextStrokeRenderTarget textStrokeTarget = new(font, shapingResult, state);
+                TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
                 textStrokeTarget.Render(processor);
             }
 
             // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
             if (ShouldClip(state.TextRenderingMode))
             {
-                PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+                PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, state);
                 if (!textPath.IsEmpty)
                 {
                     state.TextClipPath ??= new PdfPathBuilder();
@@ -228,15 +187,20 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (state.RenderingParameters.ExtractText)
         {
-            SKFontMetrics metrics = font.Metrics;
-            var characters = new PdfCharacter[shapingResult.Count];
+            ReadOnlySpan<ShapedGlyph> glyphsSpan = shapingResult.Span;
+            var characters = new PdfCharacter[glyphsSpan.Length];
 
-            for (int i = 0; i < shapingResult.Count; i++)
+            for (int i = 0; i < glyphsSpan.Length; i++)
             {
-                ShapedGlyph glyph = shapingResult[i];
+                ShapedGlyph glyph = glyphsSpan[i];
+                PdfFontMetrics metrics = glyph.CharacterInfo.Typeface.Metrics;
+
+                // PdfFontMetrics uses the standard font convention (ascent up positive, descent down
+                // negative), so this is the sign-flipped mirror of the same rectangle built from
+                // Skia's (ascent down positive, descent up negative) SKFontMetrics.
                 characters[i] = new PdfCharacter(
                     glyph.CharacterInfo.Unicode,
-                    new PdfRectangle(glyph.X, glyph.Y + metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y + metrics.Descent));
+                    new PdfRectangle(glyph.X, glyph.Y - metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y - metrics.Descent));
             }
 
             PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);

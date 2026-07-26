@@ -171,6 +171,11 @@ public readonly struct PdfMatrix
     /// </summary>
     public PdfPoint MapPoint(in PdfPoint point)
     {
+        if (IsIdentity)
+        {
+            return point;
+        }
+
         float x = (ScaleX * point.X) + (SkewX * point.Y) + TransX;
         float y = (SkewY * point.X) + (ScaleY * point.Y) + TransY;
 
@@ -183,6 +188,11 @@ public readonly struct PdfMatrix
     /// </summary>
     public PdfRectangle MapRect(in PdfRectangle rect)
     {
+        if (IsIdentity)
+        {
+            return rect;
+        }
+
         PdfPoint topLeft = MapPoint(new PdfPoint(rect.Left, rect.Top));
         PdfPoint topRight = MapPoint(new PdfPoint(rect.Right, rect.Top));
         PdfPoint bottomLeft = MapPoint(new PdfPoint(rect.Left, rect.Bottom));

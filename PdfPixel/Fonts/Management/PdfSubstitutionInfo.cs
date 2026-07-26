@@ -1,7 +1,6 @@
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -9,38 +8,32 @@ namespace PdfPixel.Fonts.Management;
 
 /// <summary>
 /// Holds normalized font substitution hints derived from a PDF font's name and font descriptor.
-/// Used by the font substitutor to select a matching system typeface when the embedded font is unavailable.
+/// Used by the font provider to select a matching typeface when the embedded font is unavailable.
 /// </summary>
-public readonly struct PdfSubstitutionInfo
+public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
 {
-    private static readonly Dictionary<string, SKFontStyleWeight> WeightHints = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, int> WeightHints = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "Black", SKFontStyleWeight.Black },
-        { "Heavy", SKFontStyleWeight.ExtraBold },
-        { "ExtraBold", SKFontStyleWeight.ExtraBold },
-        { "UltraBold", SKFontStyleWeight.ExtraBold },
-        { "Bold", SKFontStyleWeight.Bold },
-        { "SemiBold", SKFontStyleWeight.SemiBold },
-        { "DemiBold", SKFontStyleWeight.SemiBold },
-        { "Medium", SKFontStyleWeight.Medium },
-        { "Regular", SKFontStyleWeight.Normal },
-        { "Book", SKFontStyleWeight.Normal },
-        { "Normal", SKFontStyleWeight.Normal },
-        { "Light", SKFontStyleWeight.Light },
-        { "ExtraLight", SKFontStyleWeight.ExtraLight },
-        { "UltraLight", SKFontStyleWeight.ExtraLight },
-        { "Thin", SKFontStyleWeight.Thin }
+        { "Black", 900 },
+        { "Heavy", 800 },
+        { "ExtraBold", 800 },
+        { "UltraBold", 800 },
+        { "Bold", 700 },
+        { "SemiBold", 600 },
+        { "DemiBold", 600 },
+        { "Medium", 500 },
+        { "Regular", 400 },
+        { "Book", 400 },
+        { "Normal", 400 },
+        { "Light", 300 },
+        { "ExtraLight", 200 },
+        { "UltraLight", 200 },
+        { "Thin", 100 }
     };
 
-    private static readonly Dictionary<string, SKFontStyleSlant> SlantHints = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> SlantHints = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "Italic", SKFontStyleSlant.Italic },
-        { "Oblique", SKFontStyleSlant.Oblique },
-        { "Kursiv", SKFontStyleSlant.Italic },
-        { "Slanted", SKFontStyleSlant.Oblique },
-        { "Inclined", SKFontStyleSlant.Oblique },
-        { "Skewed", SKFontStyleSlant.Oblique },
-        { "Cursive", SKFontStyleSlant.Italic }
+        "Italic", "Oblique", "Kursiv", "Slanted", "Inclined", "Skewed", "Cursive"
     };
 
     private static readonly List<string> StyleHintKeys = CreateStyleHintKeys();
@@ -49,12 +42,13 @@ public readonly struct PdfSubstitutionInfo
     {
         List<string> keys = new(WeightHints.Count + SlantHints.Count);
         keys.AddRange(WeightHints.Keys);
-        keys.AddRange(SlantHints.Keys);
+        keys.AddRange(SlantHints);
         return keys;
     }
 
+    private const int NormalWeight = 400;
+    private const int BoldWeight = 700;
     private const float ItalicAngleObliqueMin = 2.0f;
-    private const float ItalicAngleItalicMin = 10.0f;
 
     /// <summary>
     /// The font family name after stripping style suffixes, subset prefixes (e.g., "ABCDEF+"), and the trailing "MT" suffix.
@@ -62,19 +56,14 @@ public readonly struct PdfSubstitutionInfo
     public string NormalizedStem { get; }
 
     /// <summary>
-    /// The resolved Skia font style (weight, width, slant) inferred from the font name and font descriptor.
+    /// <see langword="true"/> when the font name or descriptor indicates a bold weight.
     /// </summary>
-    public SKFontStyle FontStyle { get; }
+    public bool IsBold { get; }
 
     /// <summary>
-    /// <see langword="true"/> when <see cref="FontStyle"/> indicates a weight heavier than normal.
+    /// <see langword="true"/> when the font name or descriptor indicates an italic or oblique slant.
     /// </summary>
-    public bool IsBold => FontStyle.Weight >= (int)SKFontStyleWeight.Bold;
-
-    /// <summary>
-    /// <see langword="true"/> when <see cref="FontStyle"/> specifies an italic or oblique slant.
-    /// </summary>
-    public bool IsItalic => FontStyle.Slant != SKFontStyleSlant.Upright;
+    public bool IsItalic { get; }
 
     /// <summary>
     /// Resolves <see cref="NormalizedStem"/> to a Standard 14 font family, or <see langword="null"/> if it isn't one.
@@ -87,34 +76,51 @@ public readonly struct PdfSubstitutionInfo
     public PdfSubstitutionInfo()
     {
         NormalizedStem = string.Empty;
-        FontStyle = SKFontStyle.Normal;
+        IsBold = false;
+        IsItalic = false;
+    }
+
+    /// <summary>
+    /// Initializes a new <see cref="PdfSubstitutionInfo"/> from an explicit normalized stem and style.
+    /// </summary>
+    /// <param name="normalizedStem">The normalized font family stem.</param>
+    /// <param name="isBold">Whether the font is bold.</param>
+    /// <param name="isItalic">Whether the font is italic.</param>
+    public PdfSubstitutionInfo(string normalizedStem, bool isBold, bool isItalic)
+    {
+        NormalizedStem = normalizedStem;
+        IsBold = isBold;
+        IsItalic = isItalic;
+    }
+
+    /// <summary>
+    /// Initializes a new <see cref="PdfSubstitutionInfo"/> for a Standard 14 font family and style.
+    /// </summary>
+    /// <param name="standardFontName">The standard font family.</param>
+    /// <param name="isBold">Whether the font is bold.</param>
+    /// <param name="isItalic">Whether the font is italic.</param>
+    public PdfSubstitutionInfo(PdfStandardFontName standardFontName, bool isBold, bool isItalic)
+        : this(standardFontName.ToString(), isBold, isItalic)
+    {
     }
 
     /// <summary>
     /// Returns a default <see cref="PdfSubstitutionInfo"/> with an empty stem and normal style.
     /// </summary>
-    public static PdfSubstitutionInfo Detault { get; } = new();
-
-    private PdfSubstitutionInfo(
-        string normalizedStem,
-        SKFontStyle style)
-    {
-        NormalizedStem = normalizedStem;
-        FontStyle = style;
-    }
+    public static PdfSubstitutionInfo Default { get; } = new();
 
     /// <summary>
     /// Parses a <see cref="PdfSubstitutionInfo"/> from a raw PDF font name string and an optional font descriptor.
-    /// Strips subset prefixes and style tokens from the name, then applies descriptor overrides for weight, slant, and width.
+    /// Strips subset prefixes and style tokens from the name, then applies descriptor overrides for weight and slant.
     /// </summary>
     /// <param name="rawName">The raw font name string from the PDF font dictionary (e.g., the /BaseFont value).</param>
-    /// <param name="descriptor">Optional font descriptor that may override weight, slant, and width derived from the name.</param>
-    /// <returns>A <see cref="PdfSubstitutionInfo"/> containing the normalized stem and resolved font style.</returns>
+    /// <param name="descriptor">Optional font descriptor that may override weight and slant derived from the name.</param>
+    /// <returns>A <see cref="PdfSubstitutionInfo"/> containing the normalized stem and resolved style.</returns>
     public static PdfSubstitutionInfo Parse(in PdfString rawName, PdfFontDescriptor? descriptor)
     {
         if (rawName.IsEmpty)
         {
-            return new PdfSubstitutionInfo(string.Empty, SKFontStyle.Normal);
+            return new PdfSubstitutionInfo(string.Empty, false, false);
         }
 
         string name = rawName.ToString();
@@ -130,9 +136,8 @@ public readonly struct PdfSubstitutionInfo
             name = name.Substring(0, name.Length - 2);
         }
 
-        var weight = SKFontStyleWeight.Normal;
-        var slant = SKFontStyleSlant.Upright;
-        var width = SKFontStyleWidth.Normal;
+        int weight = NormalWeight;
+        bool isItalic = false;
 
         // Single pass over pre-generated keys
         foreach (string key in StyleHintKeys)
@@ -140,14 +145,14 @@ public readonly struct PdfSubstitutionInfo
             int idx = name.IndexOf(key, StringComparison.OrdinalIgnoreCase);
             if (idx >= 0)
             {
-                if (weight == SKFontStyleWeight.Normal && WeightHints.TryGetValue(key, out SKFontStyleWeight w))
+                if (weight == NormalWeight && WeightHints.TryGetValue(key, out int hintWeight))
                 {
-                    weight = w;
+                    weight = hintWeight;
                 }
 
-                if (slant == SKFontStyleSlant.Upright && SlantHints.TryGetValue(key, out SKFontStyleSlant s))
+                if (!isItalic && SlantHints.Contains(key))
                 {
-                    slant = s;
+                    isItalic = true;
                 }
 
                 name = name.Remove(idx, key.Length);
@@ -173,67 +178,47 @@ public readonly struct PdfSubstitutionInfo
         {
             if ((descriptor.Flags & PdfFontFlags.ForceBold) != 0)
             {
-                weight = SKFontStyleWeight.Bold;
+                weight = BoldWeight;
             }
 
             if (descriptor.FontWeight != 0)
             {
-                weight = (SKFontStyleWeight)descriptor.FontWeight;
+                weight = descriptor.FontWeight;
             }
 
             if ((descriptor.Flags & PdfFontFlags.Italic) != 0)
             {
-                slant = SKFontStyleSlant.Italic;
+                isItalic = true;
             }
 
-            SKFontStyleSlant angleSlant = GetSlantFromAngle(descriptor.ItalicAngle);
-            if (angleSlant != SKFontStyleSlant.Upright)
+            if (Math.Abs(descriptor.ItalicAngle) >= ItalicAngleObliqueMin)
             {
-                slant = angleSlant;
+                isItalic = true;
             }
-
-            width = MapWidth(descriptor.FontStretch);
         }
 
-        SKFontStyle style = new(weight, width, slant);
-        return new PdfSubstitutionInfo(basePart, style);
+        return new PdfSubstitutionInfo(basePart, weight >= BoldWeight, isItalic);
     }
 
-    private static SKFontStyleSlant GetSlantFromAngle(float italicAngle)
-    {
-        float absAngle = Math.Abs(italicAngle);
+    /// <inheritdoc/>
+    public bool Equals(PdfSubstitutionInfo other) =>
+        string.Equals(NormalizedStem, other.NormalizedStem, StringComparison.Ordinal)
+        && IsBold == other.IsBold
+        && IsItalic == other.IsItalic;
 
-        if (absAngle >= ItalicAngleItalicMin)
-        {
-            return SKFontStyleSlant.Italic;
-        }
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is PdfSubstitutionInfo other && Equals(other);
 
-        if (absAngle >= ItalicAngleObliqueMin)
-        {
-            return SKFontStyleSlant.Oblique;
-        }
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(NormalizedStem, IsBold, IsItalic);
 
-        return SKFontStyleSlant.Upright;
-    }
+    /// <summary>
+    /// Determines whether two <see cref="PdfSubstitutionInfo"/> values are equal.
+    /// </summary>
+    public static bool operator ==(PdfSubstitutionInfo left, PdfSubstitutionInfo right) => left.Equals(right);
 
-    private static SKFontStyleWidth MapWidth(in PdfString stretch)
-    {
-        if (stretch.IsEmpty)
-        {
-            return SKFontStyleWidth.Normal;
-        }
-
-        string value = stretch.ToString();
-        if (string.IsNullOrEmpty(value))
-        {
-            return SKFontStyleWidth.Normal;
-        }
-
-        if (Enum.TryParse<SKFontStyleWidth>(value, ignoreCase: true, out SKFontStyleWidth parsedWidth))
-        {
-            return parsedWidth;
-        }
-
-        return SKFontStyleWidth.Normal;
-    }
+    /// <summary>
+    /// Determines whether two <see cref="PdfSubstitutionInfo"/> values are not equal.
+    /// </summary>
+    public static bool operator !=(PdfSubstitutionInfo left, PdfSubstitutionInfo right) => !left.Equals(right);
 }

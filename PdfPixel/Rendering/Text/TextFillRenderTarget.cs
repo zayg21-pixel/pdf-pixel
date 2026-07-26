@@ -6,8 +6,7 @@ using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
-using System.Collections.Generic;
+using System;
 
 namespace PdfPixel.Rendering.Text;
 
@@ -16,22 +15,20 @@ namespace PdfPixel.Rendering.Text;
 /// </summary>
 internal class TextFillRenderTarget : IRenderTarget
 {
-    private readonly SKFont _font;
-    private readonly List<ShapedGlyph> _shapingResult;
+    private readonly ReadOnlyMemory<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
     private readonly PdfPath? _clipPath;
 
-    public TextFillRenderTarget(SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public TextFillRenderTarget(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        _font = font;
         _shapingResult = shapingResult;
         _state = state;
 
         if (state.FillPaint.IsPattern)
         {
             _pattern = state.FillPaint.Pattern;
-            _clipPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+            _clipPath = TextRenderUtilities.GetTextPath(shapingResult, state);
         }
 
         Bounds = _clipPath?.GetBounds() ?? PdfRectangle.Empty;
@@ -71,7 +68,7 @@ internal class TextFillRenderTarget : IRenderTarget
         {
             PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
-            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult.ToArray(), PdfFontFactory.CloneFont(_font), _state.FillPaint));
+            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, _state.FillPaint));
         }
     }
 }

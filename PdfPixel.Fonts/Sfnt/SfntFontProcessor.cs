@@ -8,9 +8,9 @@ namespace PdfPixel.Fonts.Sfnt;
 /// <summary>
 /// Reads and writes a full SFNT font through its per-table models: decodes the container via
 /// <see cref="SfntContainerProcessor"/>, then parses every table that has a dedicated processor
-/// (head, hhea, maxp, hmtx, OS/2, name, cmap, post, glyf/loca). Tables without one remain accessible
-/// only as raw bytes on <see cref="SfntFont.Tables"/>, and are passed through unchanged when writing -
-/// as are "cmap" and "post", which are read-only and have no writer of their own.
+/// (head, hhea, maxp, hmtx, OS/2, name, cmap, post, glyf/loca, CFF). Tables without one remain
+/// accessible only as raw bytes on <see cref="SfntFont.Tables"/>, and are passed through unchanged
+/// when writing - as are "cmap" and "post", which are read-only and have no writer of their own.
 /// </summary>
 public class SfntFontProcessor
 {
@@ -26,6 +26,7 @@ public class SfntFontProcessor
     private readonly SfntPostProcessor _postProcessor;
     private readonly SfntLocaProcessor _locaProcessor;
     private readonly SfntGlyfProcessor _glyfProcessor;
+    private readonly SfntCffProcessor _cffProcessor;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SfntFontProcessor"/> class.
@@ -45,6 +46,7 @@ public class SfntFontProcessor
         _postProcessor = new SfntPostProcessor(loggerFactory.CreateLogger<SfntPostProcessor>());
         _locaProcessor = new SfntLocaProcessor(loggerFactory.CreateLogger<SfntLocaProcessor>());
         _glyfProcessor = new SfntGlyfProcessor(loggerFactory);
+        _cffProcessor = new SfntCffProcessor(loggerFactory);
     }
 
     /// <summary>
@@ -115,6 +117,12 @@ public class SfntFontProcessor
             font.Post = _postProcessor.Read(postRecord.Value.Data);
         }
 
+        SfntTableRecord? cffRecord = container.FindTable(SfntTableTags.Cff);
+        if (cffRecord != null)
+        {
+            font.CffTypeface = _cffProcessor.Read(cffRecord.Value.Data);
+        }
+
         SfntTableRecord? locaRecord = container.FindTable(SfntTableTags.Loca);
         SfntTableRecord? glyfRecord = container.FindTable(SfntTableTags.Glyf);
         if (locaRecord != null && glyfRecord != null && font.Head != null && font.Maxp != null)
@@ -133,7 +141,7 @@ public class SfntFontProcessor
     /// Writes a full SFNT font back to bytes. Every table with a dedicated model
     /// (<see cref="SfntFont.Head"/>, <see cref="SfntFont.Hhea"/>, <see cref="SfntFont.Maxp"/>,
     /// <see cref="SfntFont.Hmtx"/>, <see cref="SfntFont.Os2"/>, <see cref="SfntFont.Name"/>,
-    /// <see cref="SfntFont.Glyf"/>) is re-serialized from that model whenever it is set - regardless
+    /// <see cref="SfntFont.CffTypeface"/>, <see cref="SfntFont.Glyf"/>) is re-serialized from that model whenever it is set - regardless
     /// of whether <see cref="SfntFont.Tables"/> already has a raw entry for it, so setting a model is
     /// enough to produce its table even when assembling a brand new font. Every other entry in
     /// <see cref="SfntFont.Tables"/> (e.g. a repacked "CFF " table, or "cmap"/"post" when a model
@@ -185,6 +193,12 @@ public class SfntFontProcessor
         {
             tables.Add(new SfntTableRecord(SfntTableTags.Name, 0, _nameProcessor.Write(font.Name)));
             writtenTags.Add(SfntTableTags.Name.Value);
+        }
+
+        if (font.CffTypeface != null)
+        {
+            tables.Add(new SfntTableRecord(SfntTableTags.Cff, 0, _cffProcessor.Write(font.CffTypeface)));
+            writtenTags.Add(SfntTableTags.Cff.Value);
         }
 
         if (font.Glyf != null && font.Head != null)

@@ -81,6 +81,50 @@ public sealed class PdfPath
         return hasPoint ? new PdfRectangle(minX, minY, maxX, maxY) : PdfRectangle.Empty;
     }
 
+    /// <summary>
+    /// Returns a new <see cref="PdfPath"/> with every point of every segment transformed by
+    /// <paramref name="matrix"/>. This path is unaffected. Returns this same instance, unchanged, when
+    /// <paramref name="matrix"/> is <see cref="PdfMatrix.Identity"/>.
+    /// </summary>
+    public PdfPath Transform(in PdfMatrix matrix)
+    {
+        if (matrix.IsIdentity)
+        {
+            return this;
+        }
+
+        PdfPathBuilder builder = new() { FillType = FillType };
+
+        foreach (PdfPathSegment segment in Segments)
+        {
+            switch (segment.Type)
+            {
+                case PdfPathSegmentType.MoveTo:
+                {
+                    builder.MoveTo(matrix.MapPoint(segment.Points[0]));
+                    break;
+                }
+                case PdfPathSegmentType.LineTo:
+                {
+                    builder.LineTo(matrix.MapPoint(segment.Points[0]));
+                    break;
+                }
+                case PdfPathSegmentType.CubicTo:
+                {
+                    builder.CubicTo(matrix.MapPoint(segment.Points[0]), matrix.MapPoint(segment.Points[1]), matrix.MapPoint(segment.Points[2]));
+                    break;
+                }
+                case PdfPathSegmentType.Close:
+                {
+                    builder.Close();
+                    break;
+                }
+            }
+        }
+
+        return builder.ToPath();
+    }
+
     internal static int GetPointCount(PdfPathSegmentType type)
     {
         return type switch

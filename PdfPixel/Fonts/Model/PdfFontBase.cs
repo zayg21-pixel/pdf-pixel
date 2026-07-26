@@ -36,7 +36,7 @@ public abstract class PdfFontBase : IDisposable
     /// <summary>
     /// Returns the typeface for this PDF font.
     /// </summary>
-    protected internal abstract PdfTypeface? Typeface { get; }
+    protected internal abstract IPdfTypeface? Typeface { get; }
 
     /// <summary>
     /// Writing mode for this font's CMap (horizontal/vertical).
@@ -111,15 +111,15 @@ public abstract class PdfFontBase : IDisposable
     /// </summary>
     /// <param name="unicode">Hint for font substitution.</param>
     /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
-    /// <returns>A <see cref="PdfTypeface"/> instance.</returns>
-    internal PdfTypeface GetTypeface(string? unicode, float? width)
+    /// <returns>A <see cref="IPdfTypeface"/> instance.</returns>
+    internal IPdfTypeface GetTypeface(string? unicode, float? width)
     {
         if (!IsSubstitutedFont && Typeface != null)
         {
             return Typeface;
         }
 
-        return Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode, width);
+        return Document.FontProvider.GetTypeface(SubstitutionInfo, unicode, width);
     }
 
     /// <summary>
@@ -184,15 +184,15 @@ public abstract class PdfFontBase : IDisposable
 
         if (gid != 0 && width != 0)
         {
-            PdfTypeface typeface = GetTypeface(unicode, width);
+            IPdfTypeface typeface = GetTypeface(unicode, width);
             float[] widths = [width];
             (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(unicode, displacement, width, widths);
             return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advancement);
         }
         else if (gid != 0 && unicode?.Length > 0)
         {
-            PdfTypeface typeface = GetTypeface(unicode, width);
-            width = typeface.GetGlyphWidths(unicode).Sum();
+            IPdfTypeface typeface = GetTypeface(unicode, width);
+            width = typeface.GetWidth(unicode);
             float[] widths = [width];
             (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
@@ -200,25 +200,25 @@ public abstract class PdfFontBase : IDisposable
         }
         else if (gid == 0 && width != 0 && unicode?.Length > 0)
         {
-            PdfTypeface typeface = GetTypeface(unicode, width);
+            IPdfTypeface typeface = GetTypeface(unicode, width);
             ushort[] gids = typeface.GetGlyphs(unicode);
-            float[] widths = typeface.GetGlyphWidths(unicode);
+            float[] widths = typeface.GetWidths(gids);
             (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
         else if (unicode?.Length > 0)
         {
-            PdfTypeface typeface = GetTypeface(unicode, width);
+            IPdfTypeface typeface = GetTypeface(unicode, width);
             ushort[] gids = typeface.GetGlyphs(unicode);
-            float[] widths = typeface.GetGlyphWidths(unicode);
+            float[] widths = typeface.GetWidths(gids);
             width = widths.Sum();
             (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
 
-        PdfTypeface fallbackTypeface = GetTypeface(null, null);
+        IPdfTypeface fallbackTypeface = GetTypeface(null, null);
         return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [0], 0, [0], 1, PdfPoint.Empty, default);
     }
 

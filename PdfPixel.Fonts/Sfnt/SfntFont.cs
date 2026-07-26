@@ -1,3 +1,4 @@
+using PdfPixel.Fonts.CffV2;
 using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Sfnt;
@@ -69,4 +70,10 @@ public class SfntFont
     /// or "loca"/"maxp" (which "glyf" depends on to parse) are themselves missing or unparsable.
     /// </summary>
     public SfntGlyf? Glyf { get; set; }
+
+    /// <summary>
+    /// Gets or sets the parsed "CFF " table, or null if the font has none (e.g. a TrueType-flavored
+    /// font) or it failed to parse. A non-null value identifies this font as CFF-flavored OpenType.
+    /// </summary>
+    public CffTypeface? CffTypeface { get; set; }
 }

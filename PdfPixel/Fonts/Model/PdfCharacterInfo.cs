@@ -13,7 +13,7 @@ public struct PdfCharacterInfo
     /// </summary>
     public PdfCharacterInfo(
         PdfCharacterCode characterCode,
-        PdfTypeface typeface,
+        IPdfTypeface typeface,
         string? unicode,
         ushort[] gid,
         float originalWidth,
@@ -41,7 +41,7 @@ public struct PdfCharacterInfo
     /// <summary>
     /// Typeface used to shape this character.
     /// </summary>
-    public PdfTypeface Typeface { get; set; }
+    public IPdfTypeface Typeface { get; set; }
 
     /// <summary>
     /// The Unicode string for this character code.

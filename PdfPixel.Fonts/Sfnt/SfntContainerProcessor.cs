@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace PdfPixel.Fonts.Sfnt;
 
@@ -87,6 +88,94 @@ public class SfntContainerProcessor
         }
 
         return new SfntContainer(version, tables);
+    }
+
+    /// <summary>
+    /// Reads the sfnt header and table directory from <paramref name="stream"/>, seeking to and
+    /// materializing only the tables for which <paramref name="tableFilter"/> returns
+    /// <see langword="true"/>. Unlike <see cref="Read(in ReadOnlyMemory{byte})"/>, this never loads
+    /// the whole font into memory - useful for inspecting a handful of small tables (e.g. "name",
+    /// "OS/2") in a font file that may be many megabytes. Returns null if the header or directory does
+    /// not fit within the stream.
+    /// </summary>
+    public SfntContainer? ReadFiltered(Stream stream, Func<SfntTableTag, bool> tableFilter)
+    {
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
+        if (tableFilter == null)
+        {
+            throw new ArgumentNullException(nameof(tableFilter));
+        }
+
+        var headerBuffer = new byte[HeaderLength];
+        if (!TryReadFully(stream, headerBuffer))
+        {
+            _logger.LogWarning("Failed to read sfnt header: stream is shorter than {ExpectedLength} bytes.", HeaderLength);
+            return null;
+        }
+
+        SfntReader headerReader = new(headerBuffer);
+        uint version = headerReader.ReadUInt32OrDefault();
+        ushort numTables = headerReader.ReadUInt16OrDefault();
+
+        var directoryBuffer = new byte[numTables * DirectoryEntryLength];
+        if (!TryReadFully(stream, directoryBuffer))
+        {
+            _logger.LogWarning("Failed to read sfnt table directory: {NumTables} tables need {ExpectedLength} bytes.", numTables, directoryBuffer.Length);
+            return null;
+        }
+
+        SfntReader directoryReader = new(directoryBuffer);
+        List<SfntTableRecord> tables = [];
+        for (int tableIndex = 0; tableIndex < numTables; tableIndex++)
+        {
+            uint tagValue = directoryReader.ReadUInt32OrDefault();
+            uint checkSum = directoryReader.ReadUInt32OrDefault();
+            uint tableOffset = directoryReader.ReadUInt32OrDefault();
+            uint tableLength = directoryReader.ReadUInt32OrDefault();
+            SfntTableTag tag = new(tagValue);
+
+            if (!tableFilter(tag))
+            {
+                continue;
+            }
+
+            var tableData = new byte[tableLength];
+            stream.Seek(tableOffset, SeekOrigin.Begin);
+            if (!TryReadFully(stream, tableData))
+            {
+                _logger.LogWarning(
+                    "Failed to read sfnt table '{Tag}': offset {Offset} + length {Length} exceeds stream length.",
+                    tag,
+                    tableOffset,
+                    tableLength);
+                continue;
+            }
+
+            tables.Add(new SfntTableRecord(tag, checkSum, tableData));
+        }
+
+        return new SfntContainer(version, tables);
+    }
+
+    private static bool TryReadFully(Stream stream, byte[] buffer)
+    {
+        int totalRead = 0;
+        while (totalRead < buffer.Length)
+        {
+            int read = stream.Read(buffer, totalRead, buffer.Length - totalRead);
+            if (read == 0)
+            {
+                return false;
+            }
+
+            totalRead += read;
+        }
+
+        return true;
     }
 
     /// <summary>

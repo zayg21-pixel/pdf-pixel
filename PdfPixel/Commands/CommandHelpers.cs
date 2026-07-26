@@ -1,4 +1,6 @@
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands.Cache;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
@@ -42,6 +44,28 @@ internal static class CommandHelpers
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void ApplyAntialias(SKFont font, bool antialias) => font.Edging = antialias ? SKFontEdging.SubpixelAntialias : SKFontEdging.Alias;
+
+    /// <summary>
+    /// Returns the <see cref="SKTypeface"/> backing <paramref name="typeface"/>, building it from font
+    /// bytes only once per execution and caching it on <see cref="PdfCommandExecutionContext.Cache"/>
+    /// so every command drawing with the same typeface during a replay reuses the same native typeface.
+    /// </summary>
+    public static SKTypeface GetOrCreateSkTypeface(PdfCommandExecutionContext executionContext, IPdfTypeface typeface)
+    {
+        TypefaceCommandCacheKey key = new(typeface);
+
+        if (executionContext.Cache.GetEntry(key) is SkTypefaceCommandCacheEntry existing)
+        {
+            return existing.Typeface;
+        }
+
+        using SKData data = SKData.CreateCopy(typeface.FontBytes.Span);
+        SKTypeface skTypeface = SKTypeface.FromData(data) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
+
+        executionContext.Cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
+
+        return skTypeface;
+    }
 
     /// <summary>
     /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfCommandExecutionParameters.ScaleFactor"/>.

@@ -17,7 +17,7 @@ internal class PdfDocument : IPdfDocumentInternal
 {
     private readonly ILogger<PdfDocument> _logger;
     private readonly List<IPdfPageInternal> _pages = [];
-    private readonly SkiaFontSubstitutor _fontSubstitutor;
+    private readonly IFontProvider _fontProvider;
     private readonly PdfDocumentObjectCache _objectCache;
     private readonly CMapCache _cMapCache;
     private readonly PdfStreamDecoder _streamDecoder;
@@ -29,12 +29,12 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <param name="loggerFactory">The logger factory for creating loggers.</param>
     /// <param name="fontProvider">The font provider for font substitution and resolution.</param>
     /// <param name="fileStream">The input stream containing the PDF file data.</param>
-    public PdfDocument(ILoggerFactory loggerFactory, ISkiaFontProvider fontProvider, Stream fileStream)
+    public PdfDocument(ILoggerFactory loggerFactory, IFontProvider fontProvider, Stream fileStream)
     {
         LoggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<PdfDocument>();
         _streamDecoder = new PdfStreamDecoder(loggerFactory);
-        _fontSubstitutor = new SkiaFontSubstitutor(fontProvider);
+        _fontProvider = fontProvider;
         _objectCache = new PdfDocumentObjectCache(new PdfObjectParser(this));
         _stream = new BufferedStream(fileStream);
         _cMapCache = new CMapCache(this, _logger);
@@ -59,7 +59,7 @@ internal class PdfDocument : IPdfDocumentInternal
 
     BasePdfDecryptor? IPdfDocumentInternal.Decryptor { get; set; }
 
-    SkiaFontSubstitutor IPdfDocumentInternal.FontSubstitutor => _fontSubstitutor;
+    IFontProvider IPdfDocumentInternal.FontProvider => _fontProvider;
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;
 
