@@ -1,10 +1,7 @@
-﻿using PdfPixel.Commands;
-using PdfPixel.Commands.Converters;
-using PdfPixel.Fonts.Model;
+﻿using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -91,39 +88,5 @@ internal static class TextRenderUtilities
         int verticalFlip = inverse ? -1 : 1;
         PdfMatrix fontScalingMatrix = PdfMatrix.CreateScale(fullHorizontalScale, state.FontSize * verticalFlip);
         return PdfMatrix.Concat(textMatrix, fontScalingMatrix);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKTextBlob? BuildTextBlob(in ReadOnlySpan<ShapedGlyph> shapingResult, SKFont font)
-    {
-        // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
-        int drawableCount = 0;
-        for (int i = 0; i < shapingResult.Length; i++)
-        {
-            if (shapingResult[i].GlyphId != 0)
-            {
-                drawableCount++;
-            }
-        }
-
-        using SKTextBlobBuilder builder = new();
-        SKPositionedRunBuffer run = builder.AllocatePositionedRun(font, drawableCount);
-        System.Span<ushort> glyphSpan = run.Glyphs;
-        System.Span<SKPoint> positionSpan = run.Positions;
-
-        int drawIndex = 0;
-        for (int index = 0; index < shapingResult.Length; index++)
-        {
-            ShapedGlyph shapedGlyph = shapingResult[index];
-            // Record position regardless to advance subsequent glyphs.
-            if (shapedGlyph.GlyphId != 0)
-            {
-                glyphSpan[drawIndex] = (ushort)shapedGlyph.GlyphId;
-                positionSpan[drawIndex] = new SKPoint(shapedGlyph.X, shapedGlyph.Y);
-                drawIndex++;
-            }
-        }
-
-        return builder.Build();
     }
 }

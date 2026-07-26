@@ -1,7 +1,6 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
-using PdfPixel.Rendering.Text;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -110,12 +109,45 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
         using SKFont font = CreateTextFont(skTypeface, scale);
         CommandHelpers.ApplyAntialias(font, antialias);
 
-        using SKTextBlob? blob = TextRenderUtilities.BuildTextBlob(span, font);
+        using SKTextBlob? blob = BuildTextBlob(span, font);
 
         if (blob != null)
         {
             canvas.DrawText(blob, 0f, 0f, paint);
         }
+    }
+
+    private static SKTextBlob? BuildTextBlob(in ReadOnlySpan<ShapedGlyph> shapingResult, SKFont font)
+    {
+        // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
+        int drawableCount = 0;
+        for (int i = 0; i < shapingResult.Length; i++)
+        {
+            if (shapingResult[i].GlyphId != 0)
+            {
+                drawableCount++;
+            }
+        }
+
+        using SKTextBlobBuilder builder = new();
+        SKPositionedRunBuffer run = builder.AllocatePositionedRun(font, drawableCount);
+        System.Span<ushort> glyphSpan = run.Glyphs;
+        System.Span<SKPoint> positionSpan = run.Positions;
+
+        int drawIndex = 0;
+        for (int index = 0; index < shapingResult.Length; index++)
+        {
+            ShapedGlyph shapedGlyph = shapingResult[index];
+            // Record position regardless to advance subsequent glyphs.
+            if (shapedGlyph.GlyphId != 0)
+            {
+                glyphSpan[drawIndex] = (ushort)shapedGlyph.GlyphId;
+                positionSpan[drawIndex] = new SKPoint(shapedGlyph.X, shapedGlyph.Y);
+                drawIndex++;
+            }
+        }
+
+        return builder.Build();
     }
 
     private static SKFont CreateTextFont(SKTypeface skTypeface, float scale)
