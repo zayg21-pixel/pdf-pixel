@@ -19,9 +19,11 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
     /// Initializes a new instance of <see cref="CffByteCodeToGidMapper"/> for the specified CFF typeface.
     /// </summary>
     /// <param name="cffTypeface">The parsed CFF typeface.</param>
+    /// <param name="typeface">The typeface hosting <paramref name="cffTypeface"/>.</param>
     /// <param name="encodingInfo">The PDF font encoding.</param>
     public CffByteCodeToGidMapper(
         CffTypeface cffTypeface,
+        IPdfTypeface typeface,
         PdfFontEncodingInfo encodingInfo)
     {
         if (cffTypeface == null)
@@ -29,9 +31,9 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
             throw new ArgumentNullException(nameof(cffTypeface));
         }
 
-        if (cffTypeface.Fonts.Length == 0)
+        if (typeface == null)
         {
-            return;
+            throw new ArgumentNullException(nameof(typeface));
         }
 
         CffFont font = cffTypeface.Fonts[0];
@@ -49,11 +51,7 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
             if (!glyphName.IsEmpty && nameToGid.TryGetValue(glyphName, out ushort gid))
             {
                 _codeToGid[code] = gid;
-
-                if (gid < font.Characters.Length)
-                {
-                    _codeToWidth[code] = font.Characters[gid].Width;
-                }
+                _codeToWidth[code] = typeface.GetWidth(gid);
             }
         }
     }

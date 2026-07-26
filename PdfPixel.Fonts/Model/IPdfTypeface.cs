@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -7,7 +8,7 @@ namespace PdfPixel.Fonts.Model;
 /// program. Implemented once per font kind (Type1, CFF, CFF2, SFNT), each wrapping that kind's own
 /// parsed data model.
 /// </summary>
-public interface IPdfTypeface
+public interface IPdfTypeface : IDisposable
 {
     /// <summary>
     /// Gets the font metrics and style information for this typeface.
@@ -15,9 +16,11 @@ public interface IPdfTypeface
     PdfFontMetrics Metrics { get; }
 
     /// <summary>
-    /// Gets the final font bytes for this typeface.
+    /// Gets a readable stream over the final font bytes for this typeface. Each call returns an
+    /// independent stream over the same underlying data - the caller disposes it, and doing so never
+    /// affects any other stream returned from this method.
     /// </summary>
-    ReadOnlyMemory<byte> FontBytes { get; }
+    Stream GetFontStream();
 
     /// <summary>
     /// Determines whether the given glyph id exists in this typeface.
@@ -31,15 +34,8 @@ public interface IPdfTypeface
     float GetWidth(ushort gid);
 
     /// <summary>
-    /// Gets the Unicode string mapped to the given glyph id, or null if none is known. A string
-    /// (not a single code point) to match this codebase's Unicode convention elsewhere (ToUnicode
-    /// CMaps, the Adobe Glyph List) - a glyph can map to more than one code point.
-    /// </summary>
-    string? GetUnicode(ushort gid);
-
-    /// <summary>
-    /// Gets the outline of the given glyph id, in font design units, encoded in the format
-    /// <c>PdfPixel.Geometry.PdfPath</c>'s constructor accepts directly (see <see cref="PdfFontPathBuilder"/>).
+    /// Gets the outline of the given glyph id, in em-relative units (1.0 = one em), encoded in the
+    /// format <c>PdfPixel.Geometry.PdfPath</c>'s constructor accepts directly (see <see cref="PdfFontPathBuilder"/>).
     /// </summary>
     ReadOnlyMemory<byte> GetPath(ushort gid);
 

@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Model;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Sfnt;
 
@@ -40,22 +39,34 @@ public class SfntGlyphEvaluator
     public SfntGlyphEvaluator(ILogger<SfntGlyphEvaluator> logger) => _logger = logger;
 
     /// <summary>
-    /// Evaluates a single glyph. Returns null if the glyph or (for a composite glyph) any component
-    /// it references is malformed.
+    /// Evaluates a single glyph. Returns null if the glyph has no outline (e.g. space, an empty
+    /// <paramref name="glyphData"/>) or is malformed, or (for a composite glyph) any component it
+    /// references is malformed.
     /// </summary>
     /// <param name="glyphData">This glyph's raw bytes, as sliced out of "glyf" via "loca".</param>
-    /// <param name="allGlyphs">Every glyph's raw bytes in this font, indexed by glyph ID - used to
-    /// resolve a composite glyph's component references.</param>
+    /// <param name="glyfProcessor">Resolves a component's raw bytes by glyph ID, on demand.</param>
+    /// <param name="loca">This font's parsed "loca" table.</param>
+    /// <param name="source">The stream and table range to read a component's raw bytes from.</param>
     /// <param name="matrix">Transform applied to every point of the resulting path.</param>
-    public SfntGlyphCharacter? Evaluate(in ReadOnlyMemory<byte> glyphData, IReadOnlyList<ReadOnlyMemory<byte>> allGlyphs, in PdfFontMatrix matrix)
+    public SfntGlyphCharacter? Evaluate(
+        in ReadOnlyMemory<byte> glyphData,
+        SfntGlyfProcessor glyfProcessor,
+        SfntLoca loca,
+        in SfntGlyfSource source,
+        in PdfFontMatrix matrix)
     {
-        if (allGlyphs == null)
+        if (glyfProcessor == null)
         {
-            throw new ArgumentNullException(nameof(allGlyphs));
+            throw new ArgumentNullException(nameof(glyfProcessor));
+        }
+
+        if (glyphData.Length == 0)
+        {
+            return null;
         }
 
         PdfFontPathBuilder pathBuilder = new(matrix);
-        if (!EmitPath(glyphData.Span, pathBuilder, GlyphTransform.Identity, allGlyphs, depth: 0))
+        if (!EmitPath(glyphData.Span, pathBuilder, GlyphTransform.Identity, glyfProcessor, loca, source, depth: 0))
         {
             return null;
         }
@@ -69,7 +80,14 @@ public class SfntGlyphEvaluator
         return new SfntGlyphCharacter(pathBuilder.ToPath(), repacked);
     }
 
-    private bool EmitPath(in ReadOnlySpan<byte> data, PdfFontPathBuilder pathBuilder, in GlyphTransform transform, IReadOnlyList<ReadOnlyMemory<byte>> allGlyphs, int depth)
+    private bool EmitPath(
+        in ReadOnlySpan<byte> data,
+        PdfFontPathBuilder pathBuilder,
+        in GlyphTransform transform,
+        SfntGlyfProcessor glyfProcessor,
+        SfntLoca loca,
+        in SfntGlyfSource source,
+        int depth)
     {
         if (depth > MaxComponentNestingDepth)
         {
@@ -87,7 +105,7 @@ public class SfntGlyphEvaluator
             return reader.IsValid;
         }
 
-        return EmitComponents(ref reader, pathBuilder, transform, allGlyphs, depth);
+        return EmitComponents(ref reader, pathBuilder, transform, glyfProcessor, loca, source, depth);
     }
 
     private static void EmitSimpleContours(ref SfntReader reader, short numberOfContours, PdfFontPathBuilder pathBuilder, in GlyphTransform transform)
@@ -244,7 +262,14 @@ public class SfntGlyphEvaluator
         return transform.Apply(xs[wrapped], ys[wrapped]);
     }
 
-    private bool EmitComponents(ref SfntReader reader, PdfFontPathBuilder pathBuilder, in GlyphTransform transform, IReadOnlyList<ReadOnlyMemory<byte>> allGlyphs, int depth)
+    private bool EmitComponents(
+        ref SfntReader reader,
+        PdfFontPathBuilder pathBuilder,
+        in GlyphTransform transform,
+        SfntGlyfProcessor glyfProcessor,
+        SfntLoca loca,
+        in SfntGlyfSource source,
+        int depth)
     {
         bool moreComponents;
         do
@@ -306,7 +331,8 @@ public class SfntGlyphEvaluator
                 continue;
             }
 
-            if (glyphIndex >= allGlyphs.Count)
+            int numGlyphs = Math.Max(0, loca.Offsets.Count - 1);
+            if (glyphIndex >= numGlyphs)
             {
                 _logger.LogWarning("Composite glyph references out-of-range component glyph {GlyphIndex}; skipping this component.", glyphIndex);
                 continue;
@@ -315,8 +341,8 @@ public class SfntGlyphEvaluator
             GlyphTransform componentTransform = new(scaleX, scale01, scale10, scaleY, arg1, arg2);
             GlyphTransform combinedTransform = transform.Combine(componentTransform);
 
-            ReadOnlyMemory<byte> componentData = allGlyphs[glyphIndex];
-            if (componentData.Length > 0 && !EmitPath(componentData.Span, pathBuilder, combinedTransform, allGlyphs, depth + 1))
+            ReadOnlyMemory<byte> componentData = glyfProcessor.FetchRawGlyph(glyphIndex, loca, source);
+            if (componentData.Length > 0 && !EmitPath(componentData.Span, pathBuilder, combinedTransform, glyfProcessor, loca, source, depth + 1))
             {
                 return false;
             }

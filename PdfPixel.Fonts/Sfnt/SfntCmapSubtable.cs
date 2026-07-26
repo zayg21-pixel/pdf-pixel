@@ -1,13 +1,19 @@
 using PdfPixel.Fonts.Model;
-using System.Collections.Generic;
+using System;
 
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
-/// Represents a single subtable within a font's "cmap" table.
+/// Represents a single subtable within a font's "cmap" table. Its mapping is parsed lazily: the
+/// directory only records its format and byte offset - <see cref="SfntCmapProcessor.GetGid"/> parses
+/// it into a sorted set of <see cref="ISfntCmapRange"/>s on first use and caches the result here, so a
+/// subtable nothing ever queries (e.g. a font's 12th cmap subtable when the 1st already answered
+/// everything) is never parsed at all.
 /// </summary>
 public class SfntCmapSubtable
 {
+    private ISfntCmapRange[]? _ranges;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SfntCmapSubtable"/> class.
     /// </summary>
@@ -15,14 +21,14 @@ public class SfntCmapSubtable
     /// <param name="platformId">The subtable record's platform ID.</param>
     /// <param name="encodingId">The subtable record's platform-specific encoding ID.</param>
     /// <param name="encoding">The PDF font encoding implied by <paramref name="platformId"/>/<paramref name="encodingId"/>, or null if unrecognized.</param>
-    /// <param name="codeToGid">The parsed code-to-GID mapping, or null if the format is unsupported.</param>
-    public SfntCmapSubtable(ushort format, ushort platformId, ushort encodingId, PdfFontEncoding? encoding, SortedDictionary<int, ushort>? codeToGid)
+    /// <param name="subtableOffset">This subtable's byte offset within the "cmap" table.</param>
+    public SfntCmapSubtable(ushort format, ushort platformId, ushort encodingId, PdfFontEncoding? encoding, int subtableOffset)
     {
         Format = format;
         PlatformId = platformId;
         EncodingId = encodingId;
         Encoding = encoding;
-        CodeToGid = codeToGid;
+        SubtableOffset = subtableOffset;
     }
 
     /// <summary>
@@ -47,7 +53,60 @@ public class SfntCmapSubtable
     public PdfFontEncoding? Encoding { get; }
 
     /// <summary>
-    /// Gets the parsed code-to-GID mapping, or null if the format is unsupported.
+    /// Gets this subtable's byte offset within the "cmap" table, for <see cref="SfntCmapProcessor.GetGid"/>
+    /// to parse it from on first use.
     /// </summary>
-    public SortedDictionary<int, ushort>? CodeToGid { get; }
+    internal int SubtableOffset { get; }
+
+    /// <summary>
+    /// Gets whether this subtable's ranges have already been parsed.
+    /// </summary>
+    internal bool IsResolved => _ranges != null;
+
+    /// <summary>
+    /// Caches this subtable's parsed ranges, sorted by <see cref="ISfntCmapRange.StartCode"/>.
+    /// </summary>
+    internal void SetRanges(ISfntCmapRange[] ranges)
+    {
+        Array.Sort(ranges, (left, right) => left.StartCode.CompareTo(right.StartCode));
+        _ranges = ranges;
+    }
+
+    /// <summary>
+    /// Resolves a character code to a glyph id via binary search over this subtable's ranges, or null
+    /// if no range covers <paramref name="code"/> or the covering range has no mapping for it. Only
+    /// meaningful once <see cref="IsResolved"/> is <see langword="true"/> - use
+    /// <see cref="SfntCmapProcessor.GetGid"/> instead of calling this directly.
+    /// </summary>
+    internal ushort? GetGid(int code)
+    {
+        if (_ranges == null)
+        {
+            return null;
+        }
+
+        int low = 0;
+        int high = _ranges.Length - 1;
+
+        while (low <= high)
+        {
+            int mid = low + ((high - low) / 2);
+            ISfntCmapRange range = _ranges[mid];
+
+            if (code < range.StartCode)
+            {
+                high = mid - 1;
+            }
+            else if (code > range.EndCode)
+            {
+                low = mid + 1;
+            }
+            else
+            {
+                return range.GetGid(code);
+            }
+        }
+
+        return null;
+    }
 }

@@ -1,6 +1,7 @@
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Resources;
 using PdfPixel.Fonts.Sfnt;
+using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,22 +17,24 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     private readonly float[] _codeToWidth = new float[256];
 
     /// <summary>
-    /// Initializes a new instance of <see cref="SfntByteCodeToGidMapper"/> for the specified font and encoding.
+    /// Initializes a new instance of <see cref="SfntByteCodeToGidMapper"/> for the specified typeface and encoding.
     /// </summary>
-    /// <param name="font">The parsed SFNT font.</param>
+    /// <param name="typeface">The typeface whose font to map. Cmap lookups are resolved through it.</param>
     /// <param name="flags">Flags defined in PDF font.</param>
     /// <param name="substituted">Indicates if the font is substituted.</param>
     /// <param name="encodingInfo">The PDF font encoding.</param>
     public SfntByteCodeToGidMapper(
-        SfntFont font,
+        SfntPdfTypeface typeface,
         PdfFontFlags flags,
         bool substituted,
         PdfFontEncodingInfo encodingInfo)
     {
-        if (font == null)
+        if (typeface == null)
         {
-            throw new ArgumentNullException(nameof(font));
+            throw new ArgumentNullException(nameof(typeface));
         }
+
+        SfntFont font = typeface.SfntFont;
 
         PdfFontEncoding encoding = encodingInfo.BaseEncoding.ToPdfFontEncoding();
         bool hasEncoding = !(encoding == PdfFontEncoding.Unknown && encodingInfo.Differences.Count == 0);
@@ -41,21 +44,20 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         ushort[]? singleByteCodeToGid = null;
         if (!substituted && (flags & PdfFontFlags.Symbolic) != 0)
         {
-            singleByteCodeToGid = ExtractSingleByteCodeToGid(cmapSubtables, hasEncoding);
+            singleByteCodeToGid = ExtractSingleByteCodeToGid(typeface, cmapSubtables, hasEncoding);
         }
 
         IReadOnlyDictionary<PdfFontString, ushort> nameToGid = font.Post?.NameToGid ?? new Dictionary<PdfFontString, ushort>();
-        Dictionary<string, ushort> unicodeToGid = ExtractUnicodeToGid(cmapSubtables);
-        IReadOnlyList<SfntHorizontalMetric>? hmtxMetrics = font.Hmtx?.Metrics;
+        List<SfntCmapSubtable> orderedCmapSubtables = cmapSubtables.OrderBy(GetCMapPriority).ToList();
 
         for (int code = 0; code < 256; code++)
         {
-            ushort gid = ResolveGid((byte)code, singleByteCodeToGid, encoding, encodingInfo, nameToGid, unicodeToGid);
+            ushort gid = ResolveGid(typeface, (byte)code, singleByteCodeToGid, encoding, encodingInfo, nameToGid, orderedCmapSubtables);
             _codeToGid[code] = gid;
 
-            if (gid != 0 && hmtxMetrics != null && gid < hmtxMetrics.Count)
+            if (gid != 0)
             {
-                _codeToWidth[code] = hmtxMetrics[gid].AdvanceWidth;
+                _codeToWidth[code] = typeface.GetWidth(gid);
             }
         }
     }
@@ -75,12 +77,13 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     public float GetWidth(byte code) => _codeToWidth[code];
 
     private static ushort ResolveGid(
+        SfntPdfTypeface typeface,
         byte code,
         ushort[]? singleByteCodeToGid,
         PdfFontEncoding encoding,
         PdfFontEncodingInfo encodingInfo,
         IReadOnlyDictionary<PdfFontString, ushort> nameToGid,
-        Dictionary<string, ushort> unicodeToGid)
+        IReadOnlyList<SfntCmapSubtable> orderedCmapSubtables)
     {
         if (singleByteCodeToGid != null)
         {
@@ -105,7 +108,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         }
 
         if (AdobeGlyphList.GetMap(encoding).TryGetValue(name, out string? unicode)
-            && unicodeToGid.TryGetValue(unicode, out ushort gidByUnicode))
+            && TryGetGidByUnicode(typeface, orderedCmapSubtables, unicode, out ushort gidByUnicode))
         {
             return gidByUnicode;
         }
@@ -113,56 +116,61 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         return 0;
     }
 
-    private static ushort[]? ExtractSingleByteCodeToGid(IReadOnlyList<SfntCmapSubtable> cmapSubtables, bool hasEncoding)
+    private static ushort[]? ExtractSingleByteCodeToGid(SfntPdfTypeface typeface, IReadOnlyList<SfntCmapSubtable> cmapSubtables, bool hasEncoding)
     {
         if (cmapSubtables.Count == 0)
         {
             return null;
         }
 
-        ushort[]? result = ApplyEncoding(cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.SymbolEncoding), PdfFontEncoding.SymbolEncoding);
+        ushort[]? result = ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.SymbolEncoding), PdfFontEncoding.SymbolEncoding);
 
         // Heuristic: a Symbolic font is not supposed to declare an Encoding, looks like 1 particular generator creates ANSI symbolic encoding
         if (result == null && hasEncoding)
         {
-            result = ApplyEncoding(cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.WinAnsiEncoding), PdfFontEncoding.WinAnsiEncoding);
+            result = ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.WinAnsiEncoding), PdfFontEncoding.WinAnsiEncoding);
         }
 
-        return result ?? ApplyEncoding(cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.MacRomanEncoding), PdfFontEncoding.MacRomanEncoding);
+        return result ?? ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.MacRomanEncoding), PdfFontEncoding.MacRomanEncoding);
     }
 
     /// <summary>
-    /// Builds a single-byte code-to-GID array from the given cmap subtables.
-    /// Codes outside 0-255 are dropped rather than truncated, to avoid collisions from a (3,1)
-    /// cmap's full-range Unicode entries. For Symbol (3,0) subtables, codes 0xF000-0xF0FF are
-    /// unwrapped to their low byte per the PDF spec's symbolic TrueType convention (9.6.6.4).
+    /// Builds a single-byte code-to-GID array by querying each matching subtable directly for codes
+    /// 0-255, rather than enumerating its full contents. For Symbol (3,0) subtables, both the raw code
+    /// and its 0xF000-0xF0FF-wrapped form (per the PDF spec's symbolic TrueType convention, 9.6.6.4)
+    /// are tried, the wrapped form taking priority - matching a Symbol cmap's usual encoding.
+    /// If more than one subtable matches <paramref name="tag"/>, the last one with any mapping wins.
     /// </summary>
-    private static ushort[]? ApplyEncoding(IEnumerable<SfntCmapSubtable> subtables, PdfFontEncoding tag)
+    private static ushort[]? ApplyEncoding(SfntPdfTypeface typeface, IEnumerable<SfntCmapSubtable> subtables, PdfFontEncoding tag)
     {
-        ushort[]? result = default;
+        ushort[]? result = null;
         foreach (SfntCmapSubtable subtable in subtables)
         {
-            if (subtable.CodeToGid == null)
+            var candidate = new ushort[256];
+            bool hasAnyMapping = false;
+
+            for (int code = 0; code < 256; code++)
             {
-                continue;
+                ushort? gid;
+                if (tag == PdfFontEncoding.SymbolEncoding)
+                {
+                    gid = typeface.GetGid(subtable, 0xF000 | code) ?? typeface.GetGid(subtable, code);
+                }
+                else
+                {
+                    gid = typeface.GetGid(subtable, code);
+                }
+
+                if (gid != null)
+                {
+                    candidate[code] = gid.Value;
+                    hasAnyMapping = true;
+                }
             }
 
-            result = new ushort[256];
-            foreach (KeyValuePair<int, ushort> kvp in subtable.CodeToGid)
+            if (hasAnyMapping)
             {
-                int code = kvp.Key;
-
-                if (tag == PdfFontEncoding.SymbolEncoding && code >= 0xF000 && code <= 0xF0FF)
-                {
-                    code &= 0xFF;
-                }
-
-                if (code < 0 || code > 255)
-                {
-                    continue;
-                }
-
-                result[code] = kvp.Value;
+                result = candidate;
             }
         }
 
@@ -170,46 +178,61 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     }
 
     /// <summary>
-    /// Extracts a mapping from Unicode codepoints to glyph IDs (GIDs) using CMap formats 0, 4 and 6.
-    /// When multiple subtables map the same codepoint to different GIDs, the first one wins, so
-    /// subtables are visited in cmap subtable priority order: the (3,1) Microsoft Unicode BMP
-    /// subtable (tagged <see cref="PdfFontEncoding.WinAnsiEncoding"/> by <see cref="SnftCMapParser.GetFormatEncoding"/>)
-    /// is the canonical Unicode cmap and takes precedence over the (3,0) Symbol and (1,0) Mac Roman
-    /// subtables, which fonts only carry for legacy/symbolic use.
+    /// Resolves a Unicode string to a glyph id by querying <paramref name="orderedCmapSubtables"/> in
+    /// priority order (see <see cref="GetCMapPriority"/>), returning the first match. A subtable whose
+    /// own codes are already Unicode (WinAnsi-tagged, or untagged) is queried directly; any other
+    /// subtable's native code space isn't Unicode, so its up-to-256 codes are searched for one whose
+    /// converted Unicode value matches, mirroring formats 0/6/10's 256-or-fewer-entry cost.
     /// </summary>
-    private static Dictionary<string, ushort> ExtractUnicodeToGid(IReadOnlyList<SfntCmapSubtable> cmapSubtables)
+    private static bool TryGetGidByUnicode(SfntPdfTypeface typeface, IReadOnlyList<SfntCmapSubtable> orderedCmapSubtables, string unicode, out ushort gid)
     {
-        Dictionary<string, ushort> unicodeToGid = [];
-
-        IEnumerable<SfntCmapSubtable> orderedCmapSubtables = cmapSubtables.OrderBy(GetCMapPriority);
+        int codepoint = char.ConvertToUtf32(unicode, 0);
 
         foreach (SfntCmapSubtable subtable in orderedCmapSubtables)
         {
-            if (subtable.CodeToGid == null)
+            ushort? candidateGid;
+            if (IsUnicodeNative(subtable.Encoding))
+            {
+                candidateGid = typeface.GetGid(subtable, codepoint);
+            }
+            else
+            {
+                candidateGid = FindGidByNativeCode(typeface, subtable, codepoint);
+            }
+
+            if (candidateGid != null)
+            {
+                gid = candidateGid.Value;
+                return true;
+            }
+        }
+
+        gid = 0;
+        return false;
+    }
+
+    private static bool IsUnicodeNative(PdfFontEncoding? encoding) =>
+        encoding == null || encoding == PdfFontEncoding.WinAnsiEncoding || encoding == PdfFontEncoding.Unknown;
+
+    private static ushort? FindGidByNativeCode(SfntPdfTypeface typeface, SfntCmapSubtable subtable, int targetCodepoint)
+    {
+        PdfFontEncoding encoding = subtable.Encoding ?? PdfFontEncoding.Unknown;
+
+        for (int rawCode = 0; rawCode <= 255; rawCode++)
+        {
+            if (ConvertToUnicode(rawCode, encoding) != targetCodepoint)
             {
                 continue;
             }
 
-            foreach (KeyValuePair<int, ushort> kvp in subtable.CodeToGid)
+            ushort? gid = typeface.GetGid(subtable, rawCode);
+            if (gid != null)
             {
-                int unicodeCodepoint = ConvertToUnicode(kvp.Key, subtable.Encoding);
-
-                if (!IsValidUnicodeCodepoint(unicodeCodepoint))
-                {
-                    continue;
-                }
-
-                string unicodeString = char.ConvertFromUtf32(unicodeCodepoint);
-
-                if (!unicodeToGid.ContainsKey(unicodeString))
-                {
-                    unicodeToGid[unicodeString] = kvp.Value;
-                }
+                return gid;
             }
         }
 
-        // TODO: [MEDIUM] Add support for format 10/12
-        return unicodeToGid;
+        return null;
     }
 
     private static int GetCMapPriority(SfntCmapSubtable subtable)
@@ -253,6 +276,4 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
         return code;
     }
-
-    private static bool IsValidUnicodeCodepoint(int codepoint) => codepoint >= 0 && codepoint <= 0x10FFFF && (codepoint < 0xD800 || codepoint > 0xDFFF);
 }

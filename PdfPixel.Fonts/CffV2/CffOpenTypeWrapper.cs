@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Sfnt;
+using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
 
@@ -74,7 +75,7 @@ public static class CffOpenTypeWrapper
             Name = BuildName()
         };
 
-        return FontProcessor.Write(sfntFont);
+        return FontProcessor.Write(sfntFont, ReadOnlyFontStream.Empty);
     }
 
     private static SfntHead BuildHead(ushort unitsPerEm, float unitsPerEmScale)

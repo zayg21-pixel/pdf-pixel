@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Fonts.Sfnt;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
+using System.IO;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -44,10 +44,24 @@ public class PdfCidFont : PdfFontBase
                 CidToGidMap = PdfCidToGidMap.FromCffFont(cffFont);
             }
         }
-        else if (_typeface is TrueTypePdfTypeface trueTypePdfTypeface && FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null)
+        else if (_typeface is SfntPdfTypeface sfntPdfTypeface)
         {
-            int glyphCount = trueTypePdfTypeface.SfntFont.Maxp?.NumGlyphs ?? 0;
-            _widths = BuildGidWidths(trueTypePdfTypeface, glyphCount);
+            CffTypeface? cffTypeface = sfntPdfTypeface.SfntFont.CffTypeface;
+            if (cffTypeface != null)
+            {
+                CffFont cffFont = cffTypeface.Fonts[0];
+
+                if (CidToGidMap == null)
+                {
+                    _widths = BuildGidWidths(sfntPdfTypeface, cffFont.Characters.Length);
+                    CidToGidMap = PdfCidToGidMap.FromCffFont(cffFont);
+                }
+            }
+            else if (FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null)
+            {
+                int glyphCount = sfntPdfTypeface.SfntFont.Maxp?.NumGlyphs ?? 0;
+                _widths = BuildGidWidths(sfntPdfTypeface, glyphCount);
+            }
         }
     }
 
@@ -146,22 +160,10 @@ public class PdfCidFont : PdfFontBase
                     return LoadFromCffBytes(cffBytes);
                 }
                 case PdfFontFileFormat.OpenType:
-                {
-                    ReadOnlyMemory<byte> openTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    SfntFontProcessor sfntFontProcessor = new(Document.LoggerFactory);
-                    SfntFont? sfntFont = sfntFontProcessor.Read(openTypeBytes);
-
-                    if (sfntFont?.CffTypeface != null)
-                    {
-                        return new CffPdfTypeface(sfntFont.CffTypeface);
-                    }
-
-                    return new TrueTypePdfTypeface(openTypeBytes, Document.LoggerFactory);
-                }
                 case PdfFontFileFormat.TrueType:
                 {
-                    ReadOnlyMemory<byte> trueTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    return new TrueTypePdfTypeface(trueTypeBytes, Document.LoggerFactory);
+                    Stream sfntStream = FontDescriptor.FontFileStream?.DecodeAsStream() ?? Stream.Null;
+                    return new SfntPdfTypeface(sfntStream, Document.LoggerFactory);
                 }
             }
         }
@@ -273,5 +275,16 @@ public class PdfCidFont : PdfFontBase
 
         var cid = (uint)code;
         return GetGidByCid(cid);
+    }
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing)
+        {
+            _typeface?.Dispose();
+        }
     }
 }

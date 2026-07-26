@@ -1,16 +1,16 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts.Management.Skia;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
-using System.IO;
 
 namespace PdfPixel.Fonts.Management;
 
 /// <summary>
-/// Windows-specific font provider that resolves standard PDF fonts and named fonts by loading
-/// installed font files directly from disk.
+/// Windows-specific font provider that resolves standard PDF fonts, named fonts, and Unicode
+/// fallback fonts via Skia's own font manager, which on Windows delegates to DirectWrite.
 /// </summary>
 public sealed class WindowsFontProvider : IFontProvider
 {
@@ -28,106 +28,175 @@ public sealed class WindowsFontProvider : IFontProvider
         { PdfStandardFontName.ZapfDingbats, ["Segoe UI Symbol"] }
     };
 
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly WindowsFontDirectoryIndex _fontDirectoryIndex;
-    private readonly Dictionary<PdfSubstitutionInfo, IPdfTypeface> _standardFonts = [];
-    private readonly Dictionary<PdfSubstitutionInfo, IPdfTypeface> _namedFonts = [];
-    private readonly IPdfTypeface _fallback;
+    private readonly SkiaFontSubstitution _skiaFontSubstitution;
+    private readonly Dictionary<PdfSubstitutionInfo, SfntPdfTypeface> _familyTypefaces = [];
+    private readonly Dictionary<PdfSubstitutionInfo, List<SfntPdfTypeface>> _characterFallbackTypefaces = [];
+    private readonly string _fallbackFontName;
+    private readonly SfntPdfTypeface _fallback;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="WindowsFontProvider"/>, eagerly loading every Standard 14
-    /// font family in all four style combinations from the installed Windows fonts.
+    /// Initializes a new instance of <see cref="WindowsFontProvider"/>. Standard 14, named, and fallback
+    /// fonts are all loaded lazily, on first request.
     /// </summary>
     /// <param name="loggerFactory">Logger factory used for structured diagnostics during font parsing.</param>
     /// <param name="fallbackFontName">Family name of the typeface to use when no match is found for a requested font name or glyph.</param>
     public WindowsFontProvider(ILoggerFactory loggerFactory, string fallbackFontName = "Arial")
     {
-        _loggerFactory = loggerFactory;
-        _fontDirectoryIndex = new WindowsFontDirectoryIndex(loggerFactory);
-
-        foreach (KeyValuePair<PdfStandardFontName, string[]> entry in CandidatesMap)
-        {
-            LoadAndStoreStandardFont(entry.Key, entry.Value, isBold: false, isItalic: false);
-            LoadAndStoreStandardFont(entry.Key, entry.Value, isBold: true, isItalic: false);
-            LoadAndStoreStandardFont(entry.Key, entry.Value, isBold: false, isItalic: true);
-            LoadAndStoreStandardFont(entry.Key, entry.Value, isBold: true, isItalic: true);
-        }
-
-        _fallback = LoadTypeface([fallbackFontName], isBold: false, isItalic: false)
-            ?? throw new InvalidOperationException($"Could not load fallback font '{fallbackFontName}'.");
+        _skiaFontSubstitution = new SkiaFontSubstitution(loggerFactory);
+        _fallbackFontName = fallbackFontName;
+        _fallback = _skiaFontSubstitution.GetFallbackFont();
     }
 
     /// <inheritdoc/>
-    public IPdfTypeface GetTypeface(in PdfSubstitutionInfo substitutionInfo, string? unicode, float? width)
+    public SfntPdfTypeface GetTypeface(in PdfSubstitutionInfo substitutionInfo, string? unicode, float? width)
     {
         PdfStandardFontName? standardName = substitutionInfo.GetStandardName();
-        if (standardName.HasValue)
+        if (standardName.HasValue && CandidatesMap.TryGetValue(standardName.Value, out string[]? candidates) && candidates != null)
         {
-            PdfSubstitutionInfo standardKey = new(standardName.Value, substitutionInfo.IsBold, substitutionInfo.IsItalic);
-            if (_standardFonts.TryGetValue(standardKey, out IPdfTypeface? standardTypeface) && standardTypeface.ContainsAllGlyphs(unicode))
+            foreach (string candidate in candidates)
             {
-                return standardTypeface;
+                SfntPdfTypeface? resolved = ResolveByFamilyName(new PdfSubstitutionInfo(candidate, substitutionInfo.IsBold, substitutionInfo.IsItalic), unicode);
+
+                if (resolved != null)
+                {
+                    return resolved;
+                }
             }
         }
 
-        IPdfTypeface? namedTypeface = GetOrLoadNamedFont(substitutionInfo);
-        if (namedTypeface != null && namedTypeface.ContainsAllGlyphs(unicode))
+        if (_skiaFontSubstitution.IsKnownFamilyName(substitutionInfo.NormalizedStem))
         {
-            return namedTypeface;
+            SfntPdfTypeface? resolved = ResolveByFamilyName(substitutionInfo, unicode);
+
+            if (resolved != null)
+            {
+                return resolved;
+            }
         }
 
-        return _fallback;
+        if (unicode != null && unicode.Length > 0)
+        {
+            SfntPdfTypeface? resolved = ResolveByCharacter(substitutionInfo, unicode);
+
+            if (resolved != null)
+            {
+                return resolved;
+            }
+        }
+
+
+        SfntPdfTypeface? resolvedfallback = ResolveByFamilyName(new PdfSubstitutionInfo(_fallbackFontName, substitutionInfo.IsBold, substitutionInfo.IsItalic), unicode);
+        return resolvedfallback ?? _fallback;
     }
 
-    private void LoadAndStoreStandardFont(PdfStandardFontName standardFontName, string[] familyNameCandidates, bool isBold, bool isItalic)
+    private SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo, string? unicode)
     {
-        IPdfTypeface? typeface = LoadTypeface(familyNameCandidates, isBold, isItalic);
+        if (_familyTypefaces.TryGetValue(substitutionInfo, out SfntPdfTypeface? cached))
+        {
+            return cached.ContainsAllGlyphs(unicode) ? cached : null;
+        }
+
+        SfntPdfTypeface? typeface = _skiaFontSubstitution.ResolveByFamilyName(substitutionInfo, unicode);
         if (typeface != null)
         {
-            _standardFonts[new PdfSubstitutionInfo(standardFontName, isBold, isItalic)] = typeface;
-        }
-    }
-
-    private IPdfTypeface? GetOrLoadNamedFont(in PdfSubstitutionInfo substitutionInfo)
-    {
-        if (string.IsNullOrEmpty(substitutionInfo.NormalizedStem))
-        {
-            return null;
-        }
-
-        if (_namedFonts.TryGetValue(substitutionInfo, out IPdfTypeface? cached))
-        {
-            return cached;
-        }
-
-        IPdfTypeface? typeface = LoadTypeface([substitutionInfo.NormalizedStem], substitutionInfo.IsBold, substitutionInfo.IsItalic);
-        if (typeface != null)
-        {
-            _namedFonts[substitutionInfo] = typeface;
+            _familyTypefaces[substitutionInfo] = typeface;
         }
 
         return typeface;
     }
 
-    private IPdfTypeface? LoadTypeface(string[] familyNameCandidates, bool isBold, bool isItalic)
+    private SfntPdfTypeface? ResolveByCharacter(in PdfSubstitutionInfo substitutionInfo, string? unicode)
     {
-        for (int i = 0; i < familyNameCandidates.Length; i++)
+        if (unicode == null || unicode.Length == 0)
         {
-            string? filePath = _fontDirectoryIndex.FindFontFile(familyNameCandidates[i], isBold, isItalic);
-            if (filePath != null)
+            return null;
+        }
+
+        if (_characterFallbackTypefaces.TryGetValue(substitutionInfo, out List<SfntPdfTypeface>? candidates))
+        {
+            foreach (SfntPdfTypeface candidate in candidates)
             {
-                byte[] fontBytes = File.ReadAllBytes(filePath);
-                return PdfTypefaceFactory.Create(fontBytes, PdfTypefaceType.TrueType, _loggerFactory);
+                if (candidate.ContainsAllGlyphs(unicode))
+                {
+                    return candidate;
+                }
             }
         }
 
-        return null;
+        SfntPdfTypeface? typeface = _skiaFontSubstitution.ResolveByCharacter(substitutionInfo, unicode);
+        if (typeface != null)
+        {
+            if (candidates == null)
+            {
+                candidates = [];
+                _characterFallbackTypefaces[substitutionInfo] = candidates;
+            }
+
+            candidates.Add(typeface);
+        }
+
+        return typeface;
+    }
+
+    /// <inheritdoc/>
+    public void Cleanup()
+    {
+        HashSet<string> protectedFamilyNames = new(StringComparer.OrdinalIgnoreCase) { _fallbackFontName };
+        foreach (string[] candidates in CandidatesMap.Values)
+        {
+            foreach (string candidate in candidates)
+            {
+                protectedFamilyNames.Add(candidate);
+            }
+        }
+
+        List<PdfSubstitutionInfo> familyKeysToRemove = [];
+        foreach (KeyValuePair<PdfSubstitutionInfo, SfntPdfTypeface> entry in _familyTypefaces)
+        {
+            if (protectedFamilyNames.Contains(entry.Key.NormalizedStem))
+            {
+                continue;
+            }
+
+            entry.Value.Dispose();
+            familyKeysToRemove.Add(entry.Key);
+        }
+
+        foreach (PdfSubstitutionInfo key in familyKeysToRemove)
+        {
+            _familyTypefaces.Remove(key);
+        }
+
+        foreach (List<SfntPdfTypeface> candidates in _characterFallbackTypefaces.Values)
+        {
+            foreach (SfntPdfTypeface typeface in candidates)
+            {
+                typeface.Dispose();
+            }
+        }
+
+        _characterFallbackTypefaces.Clear();
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
-        _standardFonts.Clear();
-        _namedFonts.Clear();
+        foreach (SfntPdfTypeface typeface in _familyTypefaces.Values)
+        {
+            typeface.Dispose();
+        }
+
+        foreach (List<SfntPdfTypeface> candidates in _characterFallbackTypefaces.Values)
+        {
+            foreach (SfntPdfTypeface typeface in candidates)
+            {
+                typeface.Dispose();
+            }
+        }
+
+        _fallback.Dispose();
+
+        _familyTypefaces.Clear();
+        _characterFallbackTypefaces.Clear();
     }
 }

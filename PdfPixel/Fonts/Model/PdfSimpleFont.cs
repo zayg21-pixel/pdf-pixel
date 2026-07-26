@@ -7,6 +7,7 @@ using PdfPixel.Fonts.Type1;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using System;
+using System.IO;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -106,27 +107,10 @@ public class PdfSimpleFont : PdfSingleByteFont
                     return LoadFromCffBytes(cffBytes);
                 }
                 case PdfFontFileFormat.OpenType:
-                {
-                    ReadOnlyMemory<byte> openTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    SfntFontProcessor sfntFontProcessor = new(Document.LoggerFactory);
-                    SfntFont? sfntFont = sfntFontProcessor.Read(openTypeBytes);
-
-                    if (sfntFont?.CffTypeface != null)
-                    {
-                        if (Encoding.BaseEncoding == PdfEncoding.Unknown)
-                        {
-                            Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
-                        }
-
-                        return BuildFromCffTypeface(sfntFont.CffTypeface);
-                    }
-
-                    return LoadFromSfntBytes(openTypeBytes);
-                }
                 case PdfFontFileFormat.TrueType:
                 {
-                    ReadOnlyMemory<byte> trueTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    return LoadFromSfntBytes(trueTypeBytes);
+                    Stream sfntStream = FontDescriptor.FontFileStream?.DecodeAsStream() ?? Stream.Null;
+                    return LoadFromSfntStream(sfntStream);
                 }
             }
         }
@@ -149,17 +133,10 @@ public class PdfSimpleFont : PdfSingleByteFont
         // different fallback typeface per glyph, which only the generic Unicode shaping path supports.
         if (standard14Encoding != null)
         {
-            IPdfTypeface substituteTypeface = Document.FontProvider.GetTypeface(SubstitutionInfo, null, null);
+            SfntPdfTypeface substituteTypeface = Document.FontProvider.GetTypeface(SubstitutionInfo, null, null);
+            SfntByteCodeToGidMapper substituteMapper = new(substituteTypeface, FontDescriptor?.Flags ?? default, substituted: true, Encoding);
 
-            if (substituteTypeface is not TrueTypePdfTypeface trueTypeSubstituteTypeface)
-            {
-                _logger.LogWarning("Font provider returned a non-TrueType substitute ('{TypefaceType}') for standard 14 font '{FontName}'; falling back to no font.", substituteTypeface.GetType().Name, BaseFont);
-                return (default, default, true);
-            }
-
-            SfntByteCodeToGidMapper substituteMapper = new(trueTypeSubstituteTypeface.SfntFont, FontDescriptor?.Flags ?? default, substituted: true, Encoding);
-
-            return (trueTypeSubstituteTypeface, substituteMapper, true);
+            return (substituteTypeface, substituteMapper, true);
         }
 
         return (default, default, true);
@@ -206,26 +183,42 @@ public class PdfSimpleFont : PdfSingleByteFont
         Encoding.MergeCodeToName(font.CodeToName);
 
         CffPdfTypeface typeface = new(cffTypeface);
-        CffByteCodeToGidMapper mapper = new(cffTypeface, Encoding);
+        CffByteCodeToGidMapper mapper = new(cffTypeface, typeface, Encoding);
 
         return (typeface, mapper, false);
     }
 
     /// <summary>
-    /// Loads a TrueType- or glyf-flavored OpenType font program directly and builds an sfnt-table-based
-    /// code-to-GID mapper from it.
+    /// Loads a TrueType- or CFF-flavored OpenType font program and builds the matching code-to-GID
+    /// mapper: an sfnt cmap-based mapper for TrueType outlines, or a CFF built-in-encoding-based mapper
+    /// for CFF outlines.
     /// </summary>
-    /// <param name="sfntBytes">The raw sfnt font program bytes.</param>
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntBytes(in ReadOnlyMemory<byte> sfntBytes)
+    /// <param name="sfntStream">Stream containing the raw sfnt font program bytes.</param>
+    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntStream(Stream sfntStream)
     {
-        TrueTypePdfTypeface typeface = new(sfntBytes, Document.LoggerFactory);
+        SfntPdfTypeface typeface = new(sfntStream, Document.LoggerFactory);
+
+        CffTypeface? cffTypeface = typeface.SfntFont.CffTypeface;
+        if (cffTypeface != null)
+        {
+            if (Encoding.BaseEncoding == PdfEncoding.Unknown)
+            {
+                Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
+            }
+
+            CffFont font = cffTypeface.Fonts[0];
+            Encoding.MergeCodeToName(font.CodeToName);
+
+            CffByteCodeToGidMapper cffMapper = new(cffTypeface, typeface, Encoding);
+            return (typeface, cffMapper, false);
+        }
 
         if (FontDescriptor != null && (FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfEncoding.Unknown)
         {
             Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
         }
 
-        SfntByteCodeToGidMapper mapper = new(typeface.SfntFont, FontDescriptor?.Flags ?? default, substituted: false, Encoding);
+        SfntByteCodeToGidMapper mapper = new(typeface, FontDescriptor?.Flags ?? default, substituted: false, Encoding);
 
         return (typeface, mapper, false);
     }
@@ -249,5 +242,16 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         return _mapper.GetGid((byte)code);
+    }
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing && !_isSubstituted)
+        {
+            _typeface?.Dispose();
+        }
     }
 }

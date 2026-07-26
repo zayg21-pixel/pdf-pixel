@@ -1,3 +1,4 @@
+using PdfPixel.Fonts.Model;
 using System;
 
 namespace PdfPixel.Fonts.CffV2;
@@ -27,4 +28,21 @@ public class CffCharset
     /// fonts) assigned to each glyph, indexed by GID. GID 0 (.notdef) is always SID/CID 0.
     /// </summary>
     public ushort[] SidsByGid { get; set; } = Array.Empty<ushort>();
+
+    /// <summary>
+    /// Resolves a SID to its glyph name: one of the 391 predefined CFF standard strings if the SID
+    /// falls within that range, otherwise an entry from the font's own String INDEX.
+    /// </summary>
+    /// <param name="sid">The string ID to resolve.</param>
+    /// <param name="customStrings">The font's String INDEX entries (<see cref="CffTypeface.Strings"/>).</param>
+    public static PdfFontString ResolveGlyphName(ushort sid, ReadOnlyMemory<byte>[] customStrings)
+    {
+        if (sid < CffStandardStrings.StandardStrings.Length)
+        {
+            return CffStandardStrings.StandardStrings[sid];
+        }
+
+        int customIndex = sid - CffStandardStrings.StandardStrings.Length;
+        return ((uint)customIndex < (uint)customStrings.Length) ? customStrings[customIndex] : default;
+    }
 }

@@ -1,34 +1,36 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Resources;
 using System;
+using System.IO;
 
 namespace PdfPixel.Fonts.Typeface;
 
 /// <summary>
 /// An <see cref="IPdfTypeface"/> backed by a bare CFF font program.
 /// </summary>
-public class CffPdfTypeface : IPdfTypeface
+public sealed class CffPdfTypeface : IPdfTypeface
 {
     private readonly CffFont _font;
-    private readonly PdfFontString[]? _gidToName;
+    private readonly Stream? _fontStream;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CffPdfTypeface"/> class by parsing and repacking
-    /// a CFF font program.
+    /// Initializes a new instance of the <see cref="CffPdfTypeface"/> class by reading a CFF font
+    /// program from a stream, then parsing and repacking it. Takes ownership of <paramref name="fontStream"/>;
+    /// it is disposed together with this instance.
     /// </summary>
-    /// <param name="fontBytes">The raw CFF font program bytes.</param>
+    /// <param name="fontStream">Stream containing the raw CFF font program bytes.</param>
     /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
-    public CffPdfTypeface(in ReadOnlyMemory<byte> fontBytes, ILoggerFactory loggerFactory)
-        : this(ParseTypeface(fontBytes, loggerFactory))
+    public CffPdfTypeface(Stream fontStream, ILoggerFactory loggerFactory)
+        : this(ParseTypeface(ReadAllBytes(fontStream), loggerFactory))
     {
+        _fontStream = fontStream;
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CffPdfTypeface"/> class from an already-parsed
-    /// CFF typeface, repacking it and wrapping it in an OpenType (OTTO) container to produce
-    /// <see cref="FontBytes"/>.
+    /// CFF typeface. Repacking into an OpenType (OTTO) container happens lazily, on every call to
+    /// <see cref="GetFontStream"/>.
     /// </summary>
     /// <param name="typeface">The parsed CFF typeface. Must contain at least one font.</param>
     public CffPdfTypeface(CffTypeface typeface)
@@ -45,16 +47,15 @@ public class CffPdfTypeface : IPdfTypeface
 
         CffTypeface = typeface;
         _font = typeface.Fonts[0];
-        _gidToName = BuildGidToName(_font, typeface.Strings);
 
-        byte[]? fontBytes = CffOpenTypeWrapper.Wrap(typeface);
-        if (fontBytes == null)
-        {
-            throw new ArgumentException("Failed to wrap CFF typeface in an OpenType container.", nameof(typeface));
-        }
-
-        FontBytes = fontBytes;
         Metrics = BuildMetrics(_font);
+    }
+
+    private static byte[] ReadAllBytes(Stream fontStream)
+    {
+        using MemoryStream memoryStream = new();
+        fontStream.CopyTo(memoryStream);
+        return memoryStream.ToArray();
     }
 
     private static CffTypeface ParseTypeface(in ReadOnlyMemory<byte> fontBytes, ILoggerFactory loggerFactory)
@@ -78,25 +79,22 @@ public class CffPdfTypeface : IPdfTypeface
     public PdfFontMetrics Metrics { get; }
 
     /// <inheritdoc/>
-    public ReadOnlyMemory<byte> FontBytes { get; }
+    public Stream GetFontStream()
+    {
+        byte[]? fontBytes = CffOpenTypeWrapper.Wrap(CffTypeface);
+        if (fontBytes == null)
+        {
+            throw new InvalidOperationException("Failed to wrap CFF typeface in an OpenType container.");
+        }
+
+        return new MemoryStream(fontBytes, writable: false);
+    }
 
     /// <inheritdoc/>
     public bool IsGidExists(ushort gid) => gid < _font.Characters.Length;
 
     /// <inheritdoc/>
     public float GetWidth(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Width / Metrics.UnitsPerEm : 0f;
-
-    /// <inheritdoc/>
-    public string? GetUnicode(ushort gid)
-    {
-        if (_gidToName == null || gid >= _gidToName.Length)
-        {
-            return null;
-        }
-
-        PdfFontString name = _gidToName[gid];
-        return (!name.IsEmpty && AdobeGlyphList.CharacterMap.TryGetValue(name, out string? unicode)) ? unicode : null;
-    }
 
     /// <inheritdoc/>
     public ReadOnlyMemory<byte> GetPath(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Path : ReadOnlyMemory<byte>.Empty;
@@ -106,39 +104,6 @@ public class CffPdfTypeface : IPdfTypeface
     /// a CFF typeface never needs a Unicode-to-GID lookup.
     /// </summary>
     public ushort? GetGid(string unicode) => null;
-
-    /// <summary>
-    /// Builds a GID-indexed glyph name table from the font's charset, for <see cref="GetUnicode"/> to
-    /// look up via the Adobe Glyph List. Null for a CID-keyed font, which has no glyph names.
-    /// </summary>
-    private static PdfFontString[]? BuildGidToName(CffFont font, ReadOnlyMemory<byte>[] customStrings)
-    {
-        bool isCidFont = font.FdArray.Length > 0;
-        if (isCidFont || font.Charset == null)
-        {
-            return null;
-        }
-
-        ushort[] sidsByGid = font.Charset.SidsByGid;
-        var gidToName = new PdfFontString[sidsByGid.Length];
-        for (int gid = 0; gid < sidsByGid.Length; gid++)
-        {
-            gidToName[gid] = ResolveName(sidsByGid[gid], customStrings);
-        }
-
-        return gidToName;
-    }
-
-    private static PdfFontString ResolveName(ushort sid, ReadOnlyMemory<byte>[] customStrings)
-    {
-        if (sid < CffStandardStrings.StandardStrings.Length)
-        {
-            return CffStandardStrings.StandardStrings[sid];
-        }
-
-        int customIndex = sid - CffStandardStrings.StandardStrings.Length;
-        return ((uint)customIndex < (uint)customStrings.Length) ? customStrings[customIndex] : default;
-    }
 
     private static PdfFontMetrics BuildMetrics(CffFont font)
     {
@@ -166,4 +131,7 @@ public class CffPdfTypeface : IPdfTypeface
 
         return metrics;
     }
+
+    /// <inheritdoc/>
+    public void Dispose() => _fontStream?.Dispose();
 }

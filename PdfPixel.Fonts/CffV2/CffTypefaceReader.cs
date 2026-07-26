@@ -209,7 +209,7 @@ public class CffTypefaceReader
                 continue;
             }
 
-            codeToName[code] = ResolveGlyphName(charset.SidsByGid[gid], strings);
+            codeToName[code] = CffCharset.ResolveGlyphName(charset.SidsByGid[gid], strings);
         }
 
         return codeToName;
@@ -239,7 +239,7 @@ public class CffTypefaceReader
         ushort[] sidsByGid = charset.SidsByGid;
         for (ushort glyphId = 0; glyphId < sidsByGid.Length; glyphId++)
         {
-            PdfFontString glyphName = ResolveGlyphName(sidsByGid[glyphId], strings);
+            PdfFontString glyphName = CffCharset.ResolveGlyphName(sidsByGid[glyphId], strings);
             if (!glyphName.IsEmpty && !nameToGid.ContainsKey(glyphName))
             {
                 nameToGid[glyphName] = glyphId;
@@ -247,22 +247,6 @@ public class CffTypefaceReader
         }
 
         return nameToGid;
-    }
-
-    private static PdfFontString ResolveGlyphName(ushort sid, ReadOnlyMemory<byte>[] customStrings)
-    {
-        if (sid < CffStandardStrings.StandardStrings.Length)
-        {
-            return CffStandardStrings.StandardStrings[sid];
-        }
-
-        int customIndex = sid - CffStandardStrings.StandardStrings.Length;
-        if ((uint)customIndex < (uint)customStrings.Length)
-        {
-            return customStrings[customIndex];
-        }
-
-        return default;
     }
 
     private CffPrivateDict? ReadPrivateDict(CffTopDict topDict, in ReadOnlyMemory<byte> cffData)

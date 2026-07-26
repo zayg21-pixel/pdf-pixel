@@ -4,6 +4,7 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands;
@@ -59,8 +60,8 @@ internal static class CommandHelpers
             return existing.Typeface;
         }
 
-        using SKData data = SKData.CreateCopy(typeface.FontBytes.Span);
-        SKTypeface skTypeface = SKTypeface.FromData(data) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
+        using Stream fontStream = typeface.GetFontStream();
+        SKTypeface skTypeface = SKTypeface.FromStream(fontStream) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
 
         executionContext.Cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
 

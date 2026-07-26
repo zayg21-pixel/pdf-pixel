@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
 
@@ -50,13 +51,21 @@ public class SfntFontProcessor
     }
 
     /// <summary>
-    /// Reads a full SFNT font from its raw bytes. Returns null if the container itself is
+    /// Reads a full SFNT font from <paramref name="stream"/>. Returns null if the container itself is
     /// unparsable; a table with a dedicated processor that fails to parse is left null on the
     /// result rather than failing the whole read.
     /// </summary>
-    public SfntFont? Read(in ReadOnlyMemory<byte> data)
+    public SfntFont? Read(ReadOnlyFontStream stream) => Read(stream, ttcIndex: 0);
+
+    /// <summary>
+    /// Reads a full SFNT font from <paramref name="stream"/>, at the given font index within a
+    /// TrueType Collection ("ttcf") file. Returns null if the container itself is unparsable; a table
+    /// with a dedicated processor that fails to parse is left null on the result rather than failing
+    /// the whole read.
+    /// </summary>
+    public SfntFont? Read(ReadOnlyFontStream stream, int ttcIndex)
     {
-        SfntContainer? container = _containerProcessor.Read(data);
+        SfntContainer? container = _containerProcessor.Read(stream, ttcIndex);
         if (container == null)
         {
             _logger.LogWarning("Failed to read sfnt font: container is unparsable.");
@@ -72,69 +81,108 @@ public class SfntFontProcessor
         SfntTableRecord? headRecord = container.FindTable(SfntTableTags.Head);
         if (headRecord != null)
         {
-            font.Head = _headProcessor.Read(headRecord.Value.Data);
+            font.Head = _headProcessor.Read(stream.GetMemory(headRecord.Value));
         }
 
         SfntTableRecord? hheaRecord = container.FindTable(SfntTableTags.Hhea);
         if (hheaRecord != null)
         {
-            font.Hhea = _hheaProcessor.Read(hheaRecord.Value.Data);
+            font.Hhea = _hheaProcessor.Read(stream.GetMemory(hheaRecord.Value));
         }
 
         SfntTableRecord? maxpRecord = container.FindTable(SfntTableTags.Maxp);
         if (maxpRecord != null)
         {
-            font.Maxp = _maxpProcessor.Read(maxpRecord.Value.Data);
+            font.Maxp = _maxpProcessor.Read(stream.GetMemory(maxpRecord.Value));
         }
 
         SfntTableRecord? hmtxRecord = container.FindTable(SfntTableTags.Hmtx);
         if (hmtxRecord != null && font.Hhea != null && font.Maxp != null)
         {
-            font.Hmtx = _hmtxProcessor.Read(hmtxRecord.Value.Data, font.Hhea.NumberOfHMetrics, font.Maxp.NumGlyphs);
+            font.Hmtx = _hmtxProcessor.Read(stream.GetMemory(hmtxRecord.Value), font.Hhea.NumberOfHMetrics, font.Maxp.NumGlyphs);
         }
 
         SfntTableRecord? os2Record = container.FindTable(SfntTableTags.Os2);
         if (os2Record != null)
         {
-            font.Os2 = _os2Processor.Read(os2Record.Value.Data);
+            font.Os2 = _os2Processor.Read(stream.GetMemory(os2Record.Value));
         }
 
         SfntTableRecord? nameRecord = container.FindTable(SfntTableTags.Name);
         if (nameRecord != null)
         {
-            font.Name = _nameProcessor.Read(nameRecord.Value.Data);
+            font.Name = _nameProcessor.Read(stream.GetMemory(nameRecord.Value));
         }
 
         SfntTableRecord? cmapRecord = container.FindTable(SfntTableTags.Cmap);
         if (cmapRecord != null)
         {
-            font.Cmap = _cmapProcessor.Read(cmapRecord.Value.Data);
+            font.Cmap = _cmapProcessor.Read(new SfntCmapSource(stream, cmapRecord.Value));
+            font.CmapRecord = cmapRecord;
         }
 
         SfntTableRecord? postRecord = container.FindTable(SfntTableTags.Post);
         if (postRecord != null)
         {
-            font.Post = _postProcessor.Read(postRecord.Value.Data);
+            font.Post = _postProcessor.Read(stream.GetMemory(postRecord.Value));
         }
 
         SfntTableRecord? cffRecord = container.FindTable(SfntTableTags.Cff);
         if (cffRecord != null)
         {
-            font.CffTypeface = _cffProcessor.Read(cffRecord.Value.Data);
+            font.CffTypeface = _cffProcessor.Read(stream.GetMemory(cffRecord.Value));
         }
 
         SfntTableRecord? locaRecord = container.FindTable(SfntTableTags.Loca);
         SfntTableRecord? glyfRecord = container.FindTable(SfntTableTags.Glyf);
         if (locaRecord != null && glyfRecord != null && font.Head != null && font.Maxp != null)
         {
-            SfntLoca? loca = _locaProcessor.Read(locaRecord.Value.Data, font.Maxp.NumGlyphs, font.Head.IndexToLocFormat);
+            SfntLoca? loca = _locaProcessor.Read(stream.GetMemory(locaRecord.Value), font.Maxp.NumGlyphs, font.Head.IndexToLocFormat);
             if (loca != null)
             {
-                font.Glyf = _glyfProcessor.Read(glyfRecord.Value.Data, loca, PdfFontMatrix.Identity);
+                font.Glyf = new SfntGlyf { Loca = loca };
+                font.GlyfRecord = glyfRecord;
             }
         }
 
         return font;
+    }
+
+    /// <summary>
+    /// Resolves a single glyph's outline on demand, caching the result on <see cref="SfntFont.Glyf"/>.
+    /// Returns null if <paramref name="font"/> has no "glyf" table.
+    /// </summary>
+    /// <param name="font">The font to resolve the glyph from.</param>
+    /// <param name="gid">The glyph ID to resolve.</param>
+    /// <param name="stream">The stream <paramref name="font"/> was read from.</param>
+    /// <param name="matrix">Transform applied to every point of the resulting path.</param>
+    public SfntGlyphCharacter? ResolveGlyph(SfntFont font, int gid, ReadOnlyFontStream stream, in PdfFontMatrix matrix)
+    {
+        if (font.Glyf == null || font.GlyfRecord == null)
+        {
+            return null;
+        }
+
+        return _glyfProcessor.ResolveGlyph(font.Glyf, gid, new SfntGlyfSource(stream, font.GlyfRecord.Value), matrix);
+    }
+
+    /// <summary>
+    /// Resolves a character code to a glyph id via <paramref name="subtable"/> (one of <see cref="SfntFont.Cmap"/>'s
+    /// subtables), parsing and caching its ranges on first query. Returns null if <paramref name="font"/>
+    /// has no "cmap" table.
+    /// </summary>
+    /// <param name="font">The font <paramref name="subtable"/> belongs to.</param>
+    /// <param name="subtable">The subtable to query.</param>
+    /// <param name="code">The character code to resolve.</param>
+    /// <param name="stream">The stream <paramref name="font"/> was read from.</param>
+    public ushort? GetCmapGid(SfntFont font, SfntCmapSubtable subtable, int code, ReadOnlyFontStream stream)
+    {
+        if (font.CmapRecord == null)
+        {
+            return null;
+        }
+
+        return _cmapProcessor.GetGid(subtable, code, new SfntCmapSource(stream, font.CmapRecord.Value));
     }
 
     /// <summary>
@@ -145,89 +193,95 @@ public class SfntFontProcessor
     /// of whether <see cref="SfntFont.Tables"/> already has a raw entry for it, so setting a model is
     /// enough to produce its table even when assembling a brand new font. Every other entry in
     /// <see cref="SfntFont.Tables"/> (e.g. a repacked "CFF " table, or "cmap"/"post" when a model
-    /// couldn't be or wasn't parsed) is passed through unchanged. "cmap" and "post" are themselves
-    /// read-only and have no writer of their own - if neither a model nor a raw entry produces one,
-    /// a minimal empty stub is added instead, since both are required for a valid OTTO container.
+    /// couldn't be or wasn't parsed) is passed through unchanged, resolved from <paramref name="sourceStream"/>
+    /// (the stream <paramref name="font"/> was read from). "cmap" and "post" are themselves read-only
+    /// and have no writer of their own - if neither a model nor a raw entry produces one, a minimal
+    /// empty stub is added instead, since both are required for a valid OTTO container.
     /// </summary>
-    public byte[] Write(SfntFont font)
+    /// <param name="font">The font to write.</param>
+    /// <param name="sourceStream">The stream <paramref name="font"/> was read from, used to resolve passthrough tables' bytes.</param>
+    public byte[] Write(SfntFont font, ReadOnlyFontStream sourceStream)
     {
         if (font == null)
         {
             throw new ArgumentNullException(nameof(font));
         }
 
-        List<SfntTableRecord> tables = [];
+        List<SfntTableData> tables = [];
         HashSet<uint> writtenTags = [];
 
         if (font.Head != null)
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Head, 0, _headProcessor.Write(font.Head)));
+            tables.Add(new SfntTableData(SfntTableTags.Head, _headProcessor.Write(font.Head)));
             writtenTags.Add(SfntTableTags.Head.Value);
         }
 
         if (font.Hhea != null)
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Hhea, 0, _hheaProcessor.Write(font.Hhea)));
+            tables.Add(new SfntTableData(SfntTableTags.Hhea, _hheaProcessor.Write(font.Hhea)));
             writtenTags.Add(SfntTableTags.Hhea.Value);
         }
 
         if (font.Maxp != null)
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Maxp, 0, _maxpProcessor.Write(font.Maxp)));
+            tables.Add(new SfntTableData(SfntTableTags.Maxp, _maxpProcessor.Write(font.Maxp)));
             writtenTags.Add(SfntTableTags.Maxp.Value);
         }
 
         if (font.Hmtx != null && font.Hhea != null)
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Hmtx, 0, _hmtxProcessor.Write(font.Hmtx, font.Hhea.NumberOfHMetrics)));
+            tables.Add(new SfntTableData(SfntTableTags.Hmtx, _hmtxProcessor.Write(font.Hmtx, font.Hhea.NumberOfHMetrics)));
             writtenTags.Add(SfntTableTags.Hmtx.Value);
         }
 
         if (font.Os2 != null)
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Os2, 0, _os2Processor.Write(font.Os2)));
+            tables.Add(new SfntTableData(SfntTableTags.Os2, _os2Processor.Write(font.Os2)));
             writtenTags.Add(SfntTableTags.Os2.Value);
         }
 
         if (font.Name != null)
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Name, 0, _nameProcessor.Write(font.Name)));
+            tables.Add(new SfntTableData(SfntTableTags.Name, _nameProcessor.Write(font.Name)));
             writtenTags.Add(SfntTableTags.Name.Value);
         }
 
         if (font.CffTypeface != null)
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Cff, 0, _cffProcessor.Write(font.CffTypeface)));
+            tables.Add(new SfntTableData(SfntTableTags.Cff, _cffProcessor.Write(font.CffTypeface)));
             writtenTags.Add(SfntTableTags.Cff.Value);
         }
 
         if (font.Glyf != null && font.Head != null)
         {
-            SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf);
-            tables.Add(new SfntTableRecord(SfntTableTags.Glyf, 0, glyfResult.GlyfData));
-            writtenTags.Add(SfntTableTags.Glyf.Value);
+            if (font.GlyfRecord != null)
+            {
+                SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value), PdfFontMatrix.Identity);
+                tables.Add(new SfntTableData(SfntTableTags.Glyf, glyfResult.GlyfData));
+                writtenTags.Add(SfntTableTags.Glyf.Value);
 
-            byte[] locaData = _locaProcessor.Write(glyfResult.Loca, font.Head.IndexToLocFormat);
-            tables.Add(new SfntTableRecord(SfntTableTags.Loca, 0, locaData));
-            writtenTags.Add(SfntTableTags.Loca.Value);
+                byte[] locaData = _locaProcessor.Write(glyfResult.Loca, font.Head.IndexToLocFormat);
+                tables.Add(new SfntTableData(SfntTableTags.Loca, locaData));
+                writtenTags.Add(SfntTableTags.Loca.Value);
+            }
         }
 
         foreach (SfntTableRecord table in font.Tables)
         {
             if (writtenTags.Add(table.Tag.Value))
             {
-                tables.Add(table);
+                tables.Add(new SfntTableData(table.Tag, sourceStream.GetMemory(table)));
             }
         }
 
         if (writtenTags.Add(SfntTableTags.Cmap.Value))
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Cmap, 0, SfntCmapProcessor.CreateEmptyStub()));
+            tables.Add(new SfntTableData(SfntTableTags.Cmap, SfntCmapProcessor.CreateEmptyStub()));
         }
 
         if (writtenTags.Add(SfntTableTags.Post.Value))
         {
-            tables.Add(new SfntTableRecord(SfntTableTags.Post, 0, SfntPostProcessor.CreateEmptyStub()));
+            tables.Add(new SfntTableData(SfntTableTags.Post, SfntPostProcessor.CreateEmptyStub()));
         }
 
         return _containerProcessor.Write(font.Version, tables);

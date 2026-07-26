@@ -1,16 +1,18 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts.CffV2;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Sfnt;
 using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace PdfPixel.Fonts.Typeface;
 
 /// <summary>
-/// An <see cref="IPdfTypeface"/> backed by an SFNT font program with TrueType ("glyf") outlines.
+/// An <see cref="IPdfTypeface"/> backed by an SFNT font program, with either TrueType ("glyf") or
+/// CFF-flavored (OpenType "CFF ") outlines.
 /// </summary>
-public class TrueTypePdfTypeface : IPdfTypeface
+public sealed class SfntPdfTypeface : IPdfTypeface
 {
     private static readonly (ushort PlatformId, ushort EncodingId)[] PreferredUnicodeCmapSubtables =
     [
@@ -24,34 +26,52 @@ public class TrueTypePdfTypeface : IPdfTypeface
     private readonly SfntFont _font;
     private readonly SfntHead _head;
     private readonly SfntMaxp _maxp;
-    private readonly Dictionary<ushort, string>? _gidToUnicode;
+    private readonly CffFont? _cffFont;
+    private readonly ReadOnlyFontStream _fontStream;
+    private readonly SfntFontProcessor _processor;
+    private readonly SfntPdfTypefaceParameters _parameters;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TrueTypePdfTypeface"/> class by parsing and
-    /// repacking an SFNT font program.
+    /// Initializes a new instance of the <see cref="SfntPdfTypeface"/> class by reading an SFNT
+    /// font program from a stream, then parsing it, using <see cref="SfntPdfTypefaceParameters.Default"/>.
+    /// Takes ownership of <paramref name="fontStream"/>; it is disposed together with this instance.
     /// </summary>
-    /// <param name="fontBytes">The raw SFNT font program bytes.</param>
+    /// <param name="fontStream">Stream containing the raw SFNT font program bytes.</param>
     /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
-    public TrueTypePdfTypeface(in ReadOnlyMemory<byte> fontBytes, ILoggerFactory loggerFactory)
+    public SfntPdfTypeface(Stream fontStream, ILoggerFactory loggerFactory)
+        : this(fontStream, loggerFactory, SfntPdfTypefaceParameters.Default)
     {
-        SfntFontProcessor processor = new(loggerFactory);
-        SfntFont? font = processor.Read(fontBytes);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SfntPdfTypeface"/> class by reading an SFNT
+    /// font program from a stream, then parsing it. Takes ownership of <paramref name="fontStream"/>;
+    /// it is disposed together with this instance.
+    /// </summary>
+    /// <param name="fontStream">Stream containing the raw SFNT font program bytes.</param>
+    /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
+    /// <param name="parameters">Construction parameters.</param>
+    public SfntPdfTypeface(Stream fontStream, ILoggerFactory loggerFactory, SfntPdfTypefaceParameters parameters)
+    {
+        _fontStream = ReadOnlyFontStream.Create(fontStream, leaveOpen: false);
+        _processor = new SfntFontProcessor(loggerFactory);
+        _parameters = parameters;
+
+        SfntFont? font = _processor.Read(_fontStream, parameters.TtcIndex);
         if (font == null || font.Head == null || font.Maxp == null)
         {
-            throw new ArgumentException("Data is not a valid SFNT font program.", nameof(fontBytes));
-        }
-
-        if (font.CffTypeface != null)
-        {
-            throw new ArgumentException("Data is a CFF-flavored OpenType font program; use CffPdfTypeface instead.", nameof(fontBytes));
+            throw new ArgumentException("Data is not a valid SFNT font program.", nameof(fontStream));
         }
 
         _font = font;
         _head = font.Head;
         _maxp = font.Maxp;
-        _gidToUnicode = BuildGidToUnicode(font.Cmap);
 
-        FontBytes = processor.Write(font);
+        if (font.CffTypeface?.Fonts.Length > 0)
+        {
+            _cffFont = font.CffTypeface.Fonts[0];
+        }
+
         Metrics = BuildMetrics(font, _head);
     }
 
@@ -64,26 +84,39 @@ public class TrueTypePdfTypeface : IPdfTypeface
     public PdfFontMetrics Metrics { get; }
 
     /// <inheritdoc/>
-    public ReadOnlyMemory<byte> FontBytes { get; }
+    public Stream GetFontStream()
+    {
+        if (_parameters.RepackTypeface)
+        {
+            byte[] repackedFontBytes = _processor.Write(_font, _fontStream);
+            return new MemoryStream(repackedFontBytes, writable: false);
+        }
+
+        return ReadOnlyFontStream.Create(_fontStream, leaveOpen: true);
+    }
 
     /// <inheritdoc/>
-    public bool IsGidExists(ushort gid) => gid < _maxp.NumGlyphs;
+    public bool IsGidExists(ushort gid) => (_cffFont != null) ? gid < _cffFont.Characters.Length : gid < _maxp.NumGlyphs;
 
     /// <inheritdoc/>
     public float GetWidth(ushort gid) => (_font.Hmtx != null && gid < _font.Hmtx.Metrics.Count) ? _font.Hmtx.Metrics[gid].AdvanceWidth / _head.UnitsPerEm : 0f;
 
     /// <inheritdoc/>
-    public string? GetUnicode(ushort gid) => (_gidToUnicode != null && _gidToUnicode.TryGetValue(gid, out string? unicode)) ? unicode : null;
-
-    /// <inheritdoc/>
     public ReadOnlyMemory<byte> GetPath(ushort gid)
     {
-        if (_font.Glyf == null || gid >= _font.Glyf.Glyphs.Count)
+        if (_cffFont != null)
         {
-            return ReadOnlyMemory<byte>.Empty;
+            if (gid >= _cffFont.Characters.Length)
+            {
+                return ReadOnlyMemory<byte>.Empty;
+            }
+
+            return _cffFont.Characters[gid].Path;
         }
 
-        SfntGlyphCharacter? glyph = _font.Glyf.Glyphs[gid];
+        float unitsPerEmScale = 1f / _head.UnitsPerEm;
+        PdfFontMatrix matrix = new(unitsPerEmScale, 0, 0, 0, unitsPerEmScale, 0);
+        SfntGlyphCharacter? glyph = _processor.ResolveGlyph(_font, gid, _fontStream, matrix);
         return glyph?.Path ?? ReadOnlyMemory<byte>.Empty;
     }
 
@@ -101,10 +134,13 @@ public class TrueTypePdfTypeface : IPdfTypeface
         {
             foreach (SfntCmapSubtable subtable in _font.Cmap.Subtables)
             {
-                if (subtable.PlatformId == platformId
-                    && subtable.EncodingId == encodingId
-                    && subtable.CodeToGid != null
-                    && subtable.CodeToGid.TryGetValue(codepoint, out ushort gid))
+                if (subtable.PlatformId != platformId || subtable.EncodingId != encodingId)
+                {
+                    continue;
+                }
+
+                ushort? gid = GetGid(subtable, codepoint);
+                if (gid != null)
                 {
                     return gid;
                 }
@@ -115,43 +151,12 @@ public class TrueTypePdfTypeface : IPdfTypeface
     }
 
     /// <summary>
-    /// Builds a GID-to-Unicode reverse lookup from the first cmap subtable found in
-    /// <see cref="PreferredUnicodeCmapSubtables"/> priority order - the ones whose codes are already
-    /// genuine Unicode code points, unlike a Symbol or Mac Roman subtable's.
+    /// Resolves a glyph id for <paramref name="code"/> from <paramref name="subtable"/>, resolving the
+    /// subtable's ranges on first use.
     /// </summary>
-    private static Dictionary<ushort, string>? BuildGidToUnicode(SfntCmap? cmap)
-    {
-        if (cmap == null)
-        {
-            return null;
-        }
-
-        foreach ((ushort platformId, ushort encodingId) in PreferredUnicodeCmapSubtables)
-        {
-            foreach (SfntCmapSubtable subtable in cmap.Subtables)
-            {
-                if (subtable.PlatformId != platformId || subtable.EncodingId != encodingId || subtable.CodeToGid == null)
-                {
-                    continue;
-                }
-
-                Dictionary<ushort, string> gidToUnicode = [];
-                foreach (KeyValuePair<int, ushort> pair in subtable.CodeToGid)
-                {
-                    if (IsValidUnicodeCodepoint(pair.Key) && !gidToUnicode.ContainsKey(pair.Value))
-                    {
-                        gidToUnicode[pair.Value] = char.ConvertFromUtf32(pair.Key);
-                    }
-                }
-
-                return gidToUnicode;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool IsValidUnicodeCodepoint(int codepoint) => codepoint is >= 0 and <= 0x10FFFF && (codepoint < 0xD800 || codepoint > 0xDFFF);
+    /// <param name="subtable">The cmap subtable to query. Must belong to <see cref="SfntFont"/>.</param>
+    /// <param name="code">The subtable-native code to look up.</param>
+    public ushort? GetGid(SfntCmapSubtable subtable, int code) => _processor.GetCmapGid(_font, subtable, code, _fontStream);
 
     private static PdfFontMetrics BuildMetrics(SfntFont font, SfntHead head)
     {
@@ -216,4 +221,7 @@ public class TrueTypePdfTypeface : IPdfTypeface
 
         return null;
     }
+
+    /// <inheritdoc/>
+    public void Dispose() => _fontStream.Dispose();
 }

@@ -72,7 +72,7 @@ public static class CffTypefaceToCffInfoConverter
         ushort[] sidsByGid = charset.SidsByGid;
         for (ushort gid = 0; gid < sidsByGid.Length; gid++)
         {
-            PdfFontString name = ResolveName(sidsByGid[gid], strings);
+            PdfFontString name = CffCharset.ResolveGlyphName(sidsByGid[gid], strings);
             if (!name.IsEmpty && !nameToGid.ContainsKey(name))
             {
                 nameToGid[name] = gid;
@@ -93,20 +93,9 @@ public static class CffTypefaceToCffInfoConverter
                 continue;
             }
 
-            codeToName[code] = ResolveName(charset.SidsByGid[gid], strings);
+            codeToName[code] = CffCharset.ResolveGlyphName(charset.SidsByGid[gid], strings);
         }
 
         return codeToName;
-    }
-
-    private static PdfFontString ResolveName(ushort sid, ReadOnlyMemory<byte>[] customStrings)
-    {
-        if (sid < CffStandardStrings.StandardStrings.Length)
-        {
-            return CffStandardStrings.StandardStrings[sid];
-        }
-
-        int customIndex = sid - CffStandardStrings.StandardStrings.Length;
-        return ((uint)customIndex < (uint)customStrings.Length) ? customStrings[customIndex] : default;
     }
 }

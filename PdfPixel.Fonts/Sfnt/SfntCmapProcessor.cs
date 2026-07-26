@@ -6,10 +6,13 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
-/// Reads the binary form of the SFNT "cmap" table. A parsed <see cref="SfntCmap"/> is read-only -
-/// edits to it are never written back, "cmap" is always passed through unchanged as raw bytes.
-/// <see cref="CreateEmptyStub"/> covers the other case: synthesizing a placeholder "cmap" from
-/// scratch for a brand new font that has none, since a valid OTTO container requires one.
+/// Reads the binary form of the SFNT "cmap" table. <see cref="Read"/> parses only the directory
+/// (format/platform/encoding/offset per subtable); a subtable's actual mapping is parsed lazily by
+/// <see cref="GetGid"/> on first query and cached on the <see cref="SfntCmapSubtable"/> itself, so a
+/// subtable nothing ever queries is never parsed. A parsed <see cref="SfntCmap"/> is read-only - edits
+/// to it are never written back, "cmap" is always passed through unchanged as raw bytes.
+/// <see cref="CreateEmptyStub"/> covers the other case: synthesizing a placeholder "cmap" from scratch
+/// for a brand new font that has none, since a valid OTTO container requires one.
 /// </summary>
 public class SfntCmapProcessor
 {
@@ -61,27 +64,29 @@ public class SfntCmapProcessor
     }
 
     /// <summary>
-    /// Parses a "cmap" table from its raw content bytes. Returns null if it is shorter than the
-    /// fixed 4-byte header. Individual subtable records that don't fit are skipped rather than
-    /// failing the whole table.
+    /// Parses a "cmap" table's directory only: every subtable's format, platform/encoding, and byte
+    /// offset. Returns null if the directory is shorter than the fixed 4-byte header. Individual
+    /// subtable records that don't fit are skipped rather than failing the whole table.
     /// </summary>
-    public SfntCmap? Read(in ReadOnlyMemory<byte> data)
+    public SfntCmap? Read(in SfntCmapSource source)
     {
-        if (data.Length < HeaderLength)
+        if (source.CmapRecord.Length < HeaderLength)
         {
-            _logger.LogWarning("Failed to read 'cmap' table: expected at least {ExpectedLength} bytes, got {ActualLength}.", HeaderLength, data.Length);
+            _logger.LogWarning("Failed to read 'cmap' table: expected at least {ExpectedLength} bytes, got {ActualLength}.", HeaderLength, source.CmapRecord.Length);
             return null;
         }
 
-        SfntReader headerReader = new(data.Span);
+        SfntReader headerReader = new(GetSubtableMemory(source, 0, HeaderLength).Span);
         headerReader.Skip(2); // version
         ushort numSubtables = headerReader.ReadUInt16OrDefault();
+
+        ReadOnlyMemory<byte> directoryData = GetSubtableMemory(source, HeaderLength, numSubtables * RecordLength);
 
         List<SfntCmapSubtable> subtables = new(numSubtables);
         for (int subtableIndex = 0; subtableIndex < numSubtables; subtableIndex++)
         {
-            SfntReader recordReader = new(data.Span);
-            int recordOffset = HeaderLength + (subtableIndex * RecordLength);
+            SfntReader recordReader = new(directoryData.Span);
+            int recordOffset = subtableIndex * RecordLength;
             if (!recordReader.Seek(recordOffset))
             {
                 _logger.LogWarning("Failed to read 'cmap' subtable record {SubtableIndex}: record offset {RecordOffset} is out of bounds.", subtableIndex, recordOffset);
@@ -98,193 +103,212 @@ public class SfntCmapProcessor
                 break;
             }
 
-            SfntReader formatReader = new(data.Span);
-            if (!formatReader.Seek((int)subtableOffset))
+            ReadOnlyMemory<byte> formatBytes = GetSubtableMemory(source, (int)subtableOffset, 2);
+            if (formatBytes.Length < 2)
             {
                 _logger.LogWarning("Failed to read 'cmap' subtable {SubtableIndex}: subtable offset {SubtableOffset} is out of bounds.", subtableIndex, subtableOffset);
                 continue;
             }
 
+            SfntReader formatReader = new(formatBytes.Span);
             ushort format = formatReader.ReadUInt16OrDefault();
             PdfFontEncoding? encoding = GetEncoding(platformId, encodingId);
-            SortedDictionary<int, ushort>? codeToGid = ParseSubtable(data.Span, format, (int)subtableOffset);
 
-            subtables.Add(new SfntCmapSubtable(format, platformId, encodingId, encoding, codeToGid));
+            subtables.Add(new SfntCmapSubtable(format, platformId, encodingId, encoding, (int)subtableOffset));
         }
 
         return new SfntCmap { Subtables = subtables };
     }
 
-    private static SortedDictionary<int, ushort>? ParseSubtable(in ReadOnlySpan<byte> data, ushort format, int offset)
+    /// <summary>
+    /// Resolves a character code to a glyph id via <paramref name="subtable"/>, parsing and caching
+    /// its ranges from <paramref name="source"/> first if this is the first query against it.
+    /// </summary>
+    /// <param name="subtable">The subtable to query.</param>
+    /// <param name="code">The character code to resolve.</param>
+    /// <param name="source">The stream and table range to parse <paramref name="subtable"/> from, if not already resolved.</param>
+    public ushort? GetGid(SfntCmapSubtable subtable, int code, in SfntCmapSource source)
+    {
+        if (!subtable.IsResolved)
+        {
+            subtable.SetRanges(ParseSubtable(source, subtable.Format, subtable.SubtableOffset));
+        }
+
+        return subtable.GetGid(code);
+    }
+
+    private static ISfntCmapRange[] ParseSubtable(in SfntCmapSource source, ushort format, int offset)
     {
         return format switch
         {
-            0 => ParseFormat0(data, offset),
-            4 => ParseFormat4(data, offset),
-            6 => ParseFormat6(data, offset),
-            10 => ParseFormat10(data, offset),
-            12 => ParseFormat12Or13(data, offset, isFormat13: false),
-            13 => ParseFormat12Or13(data, offset, isFormat13: true),
-            _ => null
+            0 => ParseFormat0(source, offset),
+            4 => ParseFormat4(source, offset),
+            6 => ParseFormat6(source, offset),
+            10 => ParseFormat10(source, offset),
+            12 => ParseFormat12Or13(source, offset, isFormat13: false),
+            13 => ParseFormat12Or13(source, offset, isFormat13: true),
+            _ => []
         };
     }
 
-    private static SortedDictionary<int, ushort> ParseFormat0(in ReadOnlySpan<byte> data, int offset)
+    private static ISfntCmapRange[] ParseFormat0(in SfntCmapSource source, int offset)
     {
-        SortedDictionary<int, ushort> codeToGid = [];
-
-        SfntReader reader = new(data);
-        if (!reader.Seek(offset + 6))
+        byte[] array = GetSubtableBytes(source, offset + 6, 256);
+        if (array.Length == 0)
         {
-            return codeToGid;
+            return [];
         }
 
-        for (int code = 0; code < 256; code++)
-        {
-            byte glyphId = reader.ReadByteOrDefault();
-            if (glyphId != 0)
-            {
-                codeToGid[code] = glyphId;
-            }
-        }
-
-        return codeToGid;
+        return [new SfntCmapGlyphArrayRange(0, 255, idDelta: 0, array, entryByteWidth: 1)];
     }
 
-    private static SortedDictionary<int, ushort> ParseFormat4(in ReadOnlySpan<byte> data, int offset)
+    private static ISfntCmapRange[] ParseFormat4(in SfntCmapSource source, int offset)
     {
-        SortedDictionary<int, ushort> unicodeToGid = [];
-
-        SfntReader reader = new(data);
-        if (!reader.Seek(offset + 6))
+        ReadOnlyMemory<byte> segCountBytes = GetSubtableMemory(source, offset + 6, 2);
+        if (segCountBytes.Length < 2)
         {
-            return unicodeToGid;
+            return [];
         }
 
-        int segCount = reader.ReadUInt16OrDefault() / 2;
+        SfntReader segCountReader = new(segCountBytes.Span);
+        int segCount = segCountReader.ReadUInt16OrDefault() / 2;
         if (segCount == 0)
         {
-            return unicodeToGid;
+            return [];
         }
 
         int endCodeOffset = offset + 14;
-        int startCodeOffset = endCodeOffset + 2 + (segCount * 2);
-        int idDeltaOffset = startCodeOffset + (segCount * 2);
-        int idRangeOffsetOffset = idDeltaOffset + (segCount * 2);
-        int glyphIdArrayOffset = idRangeOffsetOffset + (segCount * 2);
+        int headerBlockLength = (segCount * 2 * 4) + 2; // endCode[] + reservedPad + startCode[] + idDelta[] + idRangeOffset[]
 
+        ReadOnlyMemory<byte> headerBlock = GetSubtableMemory(source, endCodeOffset, headerBlockLength);
+        if (headerBlock.Length < headerBlockLength)
+        {
+            return [];
+        }
+
+        int localStartCodeOffset = (segCount * 2) + 2;
+        int localIdDeltaOffset = localStartCodeOffset + (segCount * 2);
+        int localIdRangeOffsetOffset = localIdDeltaOffset + (segCount * 2);
+        int glyphIdArrayOffset = endCodeOffset + headerBlockLength;
+
+        List<ISfntCmapRange> ranges = new(segCount);
         for (int segmentIndex = 0; segmentIndex < segCount; segmentIndex++)
         {
-            SfntReader segmentReader = new(data);
+            SfntReader segmentReader = new(headerBlock.Span);
 
-            segmentReader.Seek(endCodeOffset + (segmentIndex * 2));
+            segmentReader.Seek(segmentIndex * 2);
             ushort endCode = segmentReader.ReadUInt16OrDefault();
 
-            segmentReader.Seek(startCodeOffset + (segmentIndex * 2));
+            segmentReader.Seek(localStartCodeOffset + (segmentIndex * 2));
             ushort startCode = segmentReader.ReadUInt16OrDefault();
 
-            segmentReader.Seek(idDeltaOffset + (segmentIndex * 2));
+            segmentReader.Seek(localIdDeltaOffset + (segmentIndex * 2));
             var idDelta = (short)segmentReader.ReadUInt16OrDefault();
 
-            segmentReader.Seek(idRangeOffsetOffset + (segmentIndex * 2));
+            segmentReader.Seek(localIdRangeOffsetOffset + (segmentIndex * 2));
             ushort idRangeOffset = segmentReader.ReadUInt16OrDefault();
 
-            for (int code = startCode; code <= endCode; code++)
+            if (startCode > endCode)
             {
-                ushort glyphId;
-                if (idRangeOffset == 0)
-                {
-                    glyphId = (ushort)((code + idDelta) & 0xFFFF);
-                }
-                else
-                {
-                    int rangeOffset = idRangeOffset / 2;
-                    int glyphIndex = code - startCode + rangeOffset + (segmentIndex - segCount);
-
-                    SfntReader glyphReader = new(data);
-                    glyphReader.Seek(glyphIdArrayOffset + (glyphIndex * 2));
-                    ushort glyphIdFromArray = glyphReader.ReadUInt16OrDefault();
-                    glyphId = (ushort)((glyphIdFromArray + idDelta) & 0xFFFF);
-                }
-
-                if (glyphId != 0)
-                {
-                    unicodeToGid[code] = glyphId;
-                }
+                continue;
             }
+
+            if (idRangeOffset == 0)
+            {
+                ranges.Add(new SfntCmapDeltaRange(startCode, endCode, idDelta));
+                continue;
+            }
+
+            int rangeOffset = idRangeOffset / 2;
+            int glyphIndexAtStart = rangeOffset + segmentIndex - segCount;
+            int arrayByteOffset = glyphIdArrayOffset + (glyphIndexAtStart * 2);
+            int arrayByteLength = (endCode - startCode + 1) * 2;
+
+            byte[] array = GetSubtableBytes(source, arrayByteOffset, arrayByteLength);
+            if (array.Length == 0)
+            {
+                continue;
+            }
+
+            ranges.Add(new SfntCmapGlyphArrayRange(startCode, endCode, idDelta, array, entryByteWidth: 2));
         }
 
-        return unicodeToGid;
+        return ranges.ToArray();
     }
 
-    private static SortedDictionary<int, ushort> ParseFormat6(in ReadOnlySpan<byte> data, int offset)
+    private static ISfntCmapRange[] ParseFormat6(in SfntCmapSource source, int offset)
     {
-        SortedDictionary<int, ushort> codeToGid = [];
-
-        SfntReader reader = new(data);
-        if (!reader.Seek(offset + 6))
+        ReadOnlyMemory<byte> headerBytes = GetSubtableMemory(source, offset + 6, 4);
+        if (headerBytes.Length < 4)
         {
-            return codeToGid;
+            return [];
         }
 
-        ushort firstCode = reader.ReadUInt16OrDefault();
-        ushort entryCount = reader.ReadUInt16OrDefault();
-
-        for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
+        SfntReader headerReader = new(headerBytes.Span);
+        ushort firstCode = headerReader.ReadUInt16OrDefault();
+        ushort entryCount = headerReader.ReadUInt16OrDefault();
+        if (entryCount == 0)
         {
-            ushort glyphId = reader.ReadUInt16OrDefault();
-            if (glyphId != 0)
-            {
-                codeToGid[firstCode + entryIndex] = glyphId;
-            }
+            return [];
         }
 
-        return codeToGid;
+        byte[] array = GetSubtableBytes(source, offset + 10, entryCount * 2);
+        if (array.Length == 0)
+        {
+            return [];
+        }
+
+        return [new SfntCmapGlyphArrayRange(firstCode, firstCode + entryCount - 1, idDelta: 0, array, entryByteWidth: 2)];
     }
 
-    private static SortedDictionary<int, ushort> ParseFormat10(in ReadOnlySpan<byte> data, int offset)
+    private static ISfntCmapRange[] ParseFormat10(in SfntCmapSource source, int offset)
     {
-        SortedDictionary<int, ushort> codeToGid = [];
-
-        SfntReader reader = new(data);
-        if (!reader.Seek(offset + 12))
+        ReadOnlyMemory<byte> headerBytes = GetSubtableMemory(source, offset + 12, 8);
+        if (headerBytes.Length < 8)
         {
-            return codeToGid;
+            return [];
         }
 
-        uint startCharCode = reader.ReadUInt32OrDefault();
-        uint numChars = reader.ReadUInt32OrDefault();
-
-        for (uint entryIndex = 0; entryIndex < numChars; entryIndex++)
+        SfntReader headerReader = new(headerBytes.Span);
+        uint startCharCode = headerReader.ReadUInt32OrDefault();
+        uint numChars = headerReader.ReadUInt32OrDefault();
+        if (numChars == 0 || startCharCode > int.MaxValue)
         {
-            ushort glyphId = reader.ReadUInt16OrDefault();
-            uint code = startCharCode + entryIndex;
-            if (glyphId != 0 && code <= int.MaxValue)
-            {
-                codeToGid[(int)code] = glyphId;
-            }
+            return [];
         }
 
-        return codeToGid;
+        long arrayByteLength = Math.Min((long)numChars * 2, int.MaxValue);
+        byte[] array = GetSubtableBytes(source, offset + 20, (int)arrayByteLength);
+        if (array.Length == 0)
+        {
+            return [];
+        }
+
+        long endCode = Math.Min((long)startCharCode + numChars - 1, int.MaxValue);
+
+        return [new SfntCmapGlyphArrayRange((int)startCharCode, (int)endCode, idDelta: 0, array, entryByteWidth: 2)];
     }
 
-    private static SortedDictionary<int, ushort> ParseFormat12Or13(in ReadOnlySpan<byte> data, int offset, bool isFormat13)
+    private static ISfntCmapRange[] ParseFormat12Or13(in SfntCmapSource source, int offset, bool isFormat13)
     {
-        SortedDictionary<int, ushort> codeToGid = [];
-
-        SfntReader headerReader = new(data);
-        if (!headerReader.Seek(offset + 12))
+        ReadOnlyMemory<byte> countBytes = GetSubtableMemory(source, offset + 12, 4);
+        if (countBytes.Length < 4)
         {
-            return codeToGid;
+            return [];
         }
 
-        uint groupCount = headerReader.ReadUInt32OrDefault();
-        int groupsOffset = offset + 16;
+        SfntReader countReader = new(countBytes.Span);
+        uint groupCount = countReader.ReadUInt32OrDefault();
+        long groupsByteLength = Math.Min((long)groupCount * 12, int.MaxValue);
 
-        for (uint groupIndex = 0; groupIndex < groupCount; groupIndex++)
+        ReadOnlyMemory<byte> groupsData = GetSubtableMemory(source, offset + 16, (int)groupsByteLength);
+        int availableGroups = groupsData.Length / 12;
+
+        List<ISfntCmapRange> ranges = new(availableGroups);
+        for (int groupIndex = 0; groupIndex < availableGroups; groupIndex++)
         {
-            SfntReader groupReader = new(data);
-            if (!groupReader.Seek(groupsOffset + ((int)groupIndex * 12)))
+            SfntReader groupReader = new(groupsData.Span);
+            if (!groupReader.Seek(groupIndex * 12))
             {
                 break;
             }
@@ -298,17 +322,57 @@ public class SfntCmapProcessor
                 break;
             }
 
-            for (uint charCode = startCharCode; charCode <= endCharCode && charCode <= int.MaxValue; charCode++)
+            if (startCharCode > endCharCode || endCharCode > int.MaxValue)
             {
-                uint glyphId = isFormat13 ? startGlyphId : startGlyphId + (charCode - startCharCode);
-                if (glyphId != 0 && glyphId <= ushort.MaxValue)
+                continue;
+            }
+
+            if (isFormat13)
+            {
+                if (startGlyphId <= ushort.MaxValue)
                 {
-                    codeToGid[(int)charCode] = (ushort)glyphId;
+                    ranges.Add(new SfntCmapConstantRange((int)startCharCode, (int)endCharCode, (ushort)startGlyphId));
                 }
+            }
+            else
+            {
+                ranges.Add(new SfntCmapLinearGidRange((int)startCharCode, (int)endCharCode, (int)startGlyphId));
             }
         }
 
-        return codeToGid;
+        return ranges.ToArray();
+    }
+
+    /// <summary>
+    /// Reads <paramref name="length"/> bytes starting at <paramref name="relativeOffset"/> within the
+    /// "cmap" table, clamped to the table's declared bounds. Returns an empty span if
+    /// <paramref name="relativeOffset"/> itself is out of bounds.
+    /// </summary>
+    private static ReadOnlyMemory<byte> GetSubtableMemory(in SfntCmapSource source, int relativeOffset, int length)
+    {
+        int clampedLength = ClampLength(source, relativeOffset, length);
+        return (clampedLength <= 0) ? ReadOnlyMemory<byte>.Empty : source.Stream.GetMemory(source.CmapRecord.Offset + relativeOffset, clampedLength);
+    }
+
+    /// <summary>
+    /// Reads <paramref name="length"/> bytes starting at <paramref name="relativeOffset"/> within the
+    /// "cmap" table, clamped to the table's declared bounds. Returns an empty array if
+    /// <paramref name="relativeOffset"/> itself is out of bounds.
+    /// </summary>
+    private static byte[] GetSubtableBytes(in SfntCmapSource source, int relativeOffset, int length)
+    {
+        int clampedLength = ClampLength(source, relativeOffset, length);
+        return (clampedLength <= 0) ? [] : source.Stream.GetBytes(source.CmapRecord.Offset + relativeOffset, clampedLength);
+    }
+
+    private static int ClampLength(in SfntCmapSource source, int relativeOffset, int length)
+    {
+        if (relativeOffset < 0 || relativeOffset >= source.CmapRecord.Length)
+        {
+            return 0;
+        }
+
+        return Math.Min(length, source.CmapRecord.Length - relativeOffset);
     }
 
     private static PdfFontEncoding? GetEncoding(ushort platformId, ushort encodingId)

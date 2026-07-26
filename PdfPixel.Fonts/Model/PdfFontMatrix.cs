@@ -61,7 +61,7 @@ public readonly struct PdfFontMatrix
     /// The CFF/Type1 spec's default FontMatrix (a uniform 1/1000 scale), used when a Top DICT or Font
     /// DICT carries no FontMatrix operator of its own.
     /// </summary>
-    public static PdfFontMatrix Default { get; } = new(0.001f, 0, 0, 0.001f, 0, 0);
+    public static PdfFontMatrix Default { get; } = new(0.001f, 0, 0, 0, 0.001f, 0);
 
     /// <summary>
     /// Whether this matrix equals <see cref="Identity"/>.
@@ -134,5 +134,5 @@ public readonly struct PdfFontMatrix
 
     /// <inheritdoc/>
     public override string ToString()
-        => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TransX.ToString(CultureInfo.InvariantCulture)} {TransY.ToString(CultureInfo.InvariantCulture)}]";
+        => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {TransX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TransY.ToString(CultureInfo.InvariantCulture)}]";
 }

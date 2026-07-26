@@ -60,6 +60,12 @@ public class SfntFont
     public SfntCmap? Cmap { get; set; }
 
     /// <summary>
+    /// Gets or sets the "cmap" table's byte range within the stream this font was read from, set
+    /// alongside <see cref="Cmap"/>. Used to lazily parse a subtable's mapping on first query.
+    /// </summary>
+    internal SfntTableRecord? CmapRecord { get; set; }
+
+    /// <summary>
     /// Gets or sets the parsed "post" table, or null if the font has none or it failed to parse.
     /// Read-only: edits here are never written back, "post" is always passed through as raw bytes.
     /// </summary>
@@ -70,6 +76,13 @@ public class SfntFont
     /// or "loca"/"maxp" (which "glyf" depends on to parse) are themselves missing or unparsable.
     /// </summary>
     public SfntGlyf? Glyf { get; set; }
+
+    /// <summary>
+    /// Gets or sets the "glyf" table's byte range within the stream this font was read from, set
+    /// alongside <see cref="Glyf"/>. Used to resolve individual glyphs on demand without re-searching
+    /// <see cref="Tables"/> on every call.
+    /// </summary>
+    internal SfntTableRecord? GlyfRecord { get; set; }
 
     /// <summary>
     /// Gets or sets the parsed "CFF " table, or null if the font has none (e.g. a TrueType-flavored

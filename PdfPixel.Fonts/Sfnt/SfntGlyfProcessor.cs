@@ -6,9 +6,9 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
-/// Reads and writes the binary form of the SFNT "glyf" table. Like "hmtx", it is not self-describing:
-/// <see cref="Read"/> needs "loca" as an input, since "glyf" is simply a concatenation of
-/// variable-length glyph records with no directory of its own. Delegates per-glyph outline extraction
+/// Resolves individual glyphs from the SFNT "glyf" table on demand, caching each result on
+/// <see cref="SfntGlyf"/>, and writes a full "glyf" table back to bytes. Like "hmtx", "glyf" is not
+/// self-describing: a glyph's byte range comes from "loca". Delegates per-glyph outline extraction
 /// and repacking to <see cref="SfntGlyphEvaluator"/>.
 /// </summary>
 public class SfntGlyfProcessor
@@ -27,68 +27,70 @@ public class SfntGlyfProcessor
     }
 
     /// <summary>
-    /// Parses a "glyf" table from its raw content bytes, slicing out each glyph via
-    /// <paramref name="loca"/> and evaluating it. A glyph whose slice is empty has no outline (e.g.
-    /// space) and is left null; a glyph whose slice is out of bounds or malformed is also left null,
-    /// with a logged warning, rather than failing the whole table.
+    /// Resolves a single glyph, returning the cached result if <paramref name="glyf"/> already has one
+    /// for <paramref name="gid"/>. Otherwise fetches the glyph's raw bytes via <paramref name="source"/>
+    /// and <see cref="SfntGlyf.Loca"/>, evaluates it, caches the result on <paramref name="glyf"/>, and
+    /// returns it.
     /// </summary>
-    /// <param name="data">The "glyf" table's raw content bytes.</param>
-    /// <param name="loca">This font's parsed "loca" table.</param>
-    /// <param name="matrix">Transform applied to every point of each glyph's resulting path.</param>
-    public SfntGlyf Read(in ReadOnlyMemory<byte> data, SfntLoca loca, in PdfFontMatrix matrix)
+    /// <param name="glyf">The font's "glyf" table cache.</param>
+    /// <param name="gid">The glyph ID to resolve.</param>
+    /// <param name="source">The stream and table range to read this font's "glyf" table from.</param>
+    /// <param name="matrix">Transform applied to every point of the resulting path.</param>
+    public SfntGlyphCharacter? ResolveGlyph(SfntGlyf glyf, int gid, in SfntGlyfSource source, in PdfFontMatrix matrix)
     {
-        if (loca == null)
+        if (glyf.Contains(gid))
         {
-            throw new ArgumentNullException(nameof(loca));
+            return glyf.Get(gid);
         }
 
-        IReadOnlyList<uint> offsets = loca.Offsets;
-        int numGlyphs = Math.Max(0, offsets.Count - 1);
-        var rawGlyphs = new ReadOnlyMemory<byte>[numGlyphs];
+        ReadOnlyMemory<byte> glyphData = FetchRawGlyph(gid, glyf.Loca, source);
+        SfntGlyphCharacter? glyph = _evaluator.Evaluate(glyphData, this, glyf.Loca, source, matrix);
 
-        for (int glyphId = 0; glyphId < numGlyphs; glyphId++)
-        {
-            uint startOffset = offsets[glyphId];
-            uint endOffset = offsets[glyphId + 1];
-            if (endOffset <= startOffset)
-            {
-                continue; // No outline for this glyph.
-            }
-
-            if (endOffset > (uint)data.Length)
-            {
-                _logger.LogWarning(
-                    "Failed to read glyph {GlyphId}: offset range {StartOffset}-{EndOffset} exceeds 'glyf' table length {ActualLength}.",
-                    glyphId,
-                    startOffset,
-                    endOffset,
-                    data.Length);
-                continue;
-            }
-
-            rawGlyphs[glyphId] = data.Slice((int)startOffset, (int)(endOffset - startOffset));
-        }
-
-        var glyphs = new SfntGlyphCharacter?[numGlyphs];
-        for (int glyphId = 0; glyphId < numGlyphs; glyphId++)
-        {
-            if (rawGlyphs[glyphId].Length == 0)
-            {
-                continue;
-            }
-
-            glyphs[glyphId] = _evaluator.Evaluate(rawGlyphs[glyphId], rawGlyphs, matrix);
-        }
-
-        return new SfntGlyf { Glyphs = glyphs };
+        glyf.Set(gid, glyph);
+        return glyph;
     }
 
     /// <summary>
-    /// Writes a "glyf" table's binary content by concatenating every glyph's already-repacked bytes,
-    /// along with the "loca" table that indexes them. Each glyph is padded to an even byte boundary,
-    /// since a short-format "loca" can only represent even offsets.
+    /// Fetches a single glyph's raw bytes out of "glyf" via "loca", reading only that glyph's byte
+    /// range from the source stream. Returns an empty span if the glyph id is out of range, has no
+    /// outline (e.g. space), or its range doesn't fit within <paramref name="source"/>'s "glyf" table.
     /// </summary>
-    public SfntGlyfWriteResult Write(SfntGlyf glyf)
+    internal ReadOnlyMemory<byte> FetchRawGlyph(int gid, SfntLoca loca, in SfntGlyfSource source)
+    {
+        IReadOnlyList<uint> offsets = loca.Offsets;
+        if (gid < 0 || gid + 1 >= offsets.Count)
+        {
+            return ReadOnlyMemory<byte>.Empty;
+        }
+
+        uint startOffset = offsets[gid];
+        uint endOffset = offsets[gid + 1];
+        if (endOffset <= startOffset)
+        {
+            return ReadOnlyMemory<byte>.Empty;
+        }
+
+        if (endOffset > (uint)source.GlyfRecord.Length)
+        {
+            _logger.LogWarning(
+                "Failed to read glyph {GlyphId}: offset range {StartOffset}-{EndOffset} exceeds 'glyf' table length {ActualLength}.",
+                gid,
+                startOffset,
+                endOffset,
+                source.GlyfRecord.Length);
+            return ReadOnlyMemory<byte>.Empty;
+        }
+
+        return source.Stream.GetMemory(source.GlyfRecord.Offset + (int)startOffset, (int)(endOffset - startOffset));
+    }
+
+    /// <summary>
+    /// Writes a full "glyf" table's binary content, resolving (and caching) every glyph that isn't
+    /// already cached on <paramref name="glyf"/>, along with the "loca" table that indexes them. Each
+    /// glyph is padded to an even byte boundary, since a short-format "loca" can only represent even
+    /// offsets.
+    /// </summary>
+    public SfntGlyfWriteResult Write(SfntGlyf glyf, in SfntGlyfSource source, in PdfFontMatrix matrix)
     {
         if (glyf == null)
         {
@@ -96,13 +98,14 @@ public class SfntGlyfProcessor
         }
 
         SfntWriter writer = new();
-        var offsets = new uint[glyf.Glyphs.Count + 1];
+        int numGlyphs = glyf.NumGlyphs;
+        var offsets = new uint[numGlyphs + 1];
 
-        for (int glyphId = 0; glyphId < glyf.Glyphs.Count; glyphId++)
+        for (int gid = 0; gid < numGlyphs; gid++)
         {
-            offsets[glyphId] = (uint)writer.Length;
+            offsets[gid] = (uint)writer.Length;
 
-            SfntGlyphCharacter? glyph = glyf.Glyphs[glyphId];
+            SfntGlyphCharacter? glyph = ResolveGlyph(glyf, gid, source, matrix);
             if (glyph != null)
             {
                 writer.WriteBytes(glyph.GlyphData.Span);
@@ -113,7 +116,7 @@ public class SfntGlyfProcessor
             }
         }
 
-        offsets[glyf.Glyphs.Count] = (uint)writer.Length;
+        offsets[numGlyphs] = (uint)writer.Length;
 
         return new SfntGlyfWriteResult(writer.ToArray(), new SfntLoca { Offsets = offsets });
     }

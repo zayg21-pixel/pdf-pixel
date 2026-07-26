@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Typeface;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -81,7 +82,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in PdfColor color)
     {
         PdfSubstitutionInfo substitutionInfo = new(Fonts.Mapping.PdfStandardFontName.Courier, isBold: true, isItalic: false);
-        IPdfTypeface typeface = page.Document.FontProvider.GetTypeface(substitutionInfo, labelText, null);
+        SfntPdfTypeface typeface = page.Document.FontProvider.GetTypeface(substitutionInfo, labelText, null);
 
         float availableWidth = Rectangle.Width * (1f - 2f * MarginFraction);
         float availableHeight = Rectangle.Height * (1f - 2f * MarginFraction);

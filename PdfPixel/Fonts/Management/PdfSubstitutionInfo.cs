@@ -202,7 +202,7 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
 
     /// <inheritdoc/>
     public bool Equals(PdfSubstitutionInfo other) =>
-        string.Equals(NormalizedStem, other.NormalizedStem, StringComparison.Ordinal)
+        string.Equals(NormalizedStem, other.NormalizedStem, StringComparison.OrdinalIgnoreCase)
         && IsBold == other.IsBold
         && IsItalic == other.IsItalic;
 

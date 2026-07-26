@@ -45,7 +45,7 @@ internal static class TextRenderUtilities
             textPathBuilder.AddPath(glyphPath.Transform(glyphMatrix));
         }
 
-        PdfMatrix matrix = GetFullTextMatrix(state);
+        PdfMatrix matrix = GetFullTextMatrix(state, inverse: false);
         return textPathBuilder.ToPath().Transform(matrix);
     }
 

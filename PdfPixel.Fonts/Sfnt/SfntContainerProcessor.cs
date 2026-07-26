@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +15,8 @@ public class SfntContainerProcessor
     private const int HeaderLength = 12;
     private const int DirectoryEntryLength = 16;
     private const uint ChecksumAdjustmentMagic = 0xB1B0AFBA;
+    private const uint TtcTag = 0x74746366; // 'ttcf'
+    private const int TtcHeaderLength = 12;
 
     private readonly ILogger<SfntContainerProcessor> _logger;
 
@@ -40,65 +43,30 @@ public class SfntContainerProcessor
     public SfntContainerProcessor(ILogger<SfntContainerProcessor> logger) => _logger = logger;
 
     /// <summary>
-    /// Parses the sfnt header and table directory from <paramref name="data"/>, slicing out each
-    /// table's raw content. Returns null if the header, directory, or any table does not fit within
-    /// <paramref name="data"/>.
+    /// Parses the sfnt header and table directory from <paramref name="stream"/>, at the given font
+    /// index within a TrueType Collection ("ttcf") file - ignored if <paramref name="stream"/> is a
+    /// plain (non-collection) sfnt file. Records every table's byte range without reading its content.
+    /// Returns null if the header, directory, or any table's range does not fit within <paramref name="stream"/>.
     /// </summary>
-    public SfntContainer? Read(in ReadOnlyMemory<byte> data)
-    {
-        if (data.Length < HeaderLength)
-        {
-            _logger.LogWarning("Failed to read sfnt header: expected at least {ExpectedLength} bytes, got {ActualLength}.", HeaderLength, data.Length);
-            return null;
-        }
-
-        SfntReader reader = new(data.Span);
-        uint version = reader.ReadUInt32OrDefault();
-        ushort numTables = reader.ReadUInt16OrDefault();
-        reader.Skip(6); // searchRange, entrySelector, rangeShift
-
-        long directoryEnd = HeaderLength + ((long)numTables * DirectoryEntryLength);
-        if (directoryEnd > data.Length)
-        {
-            _logger.LogWarning("Failed to read sfnt table directory: {NumTables} tables need {DirectoryEnd} bytes, only {ActualLength} available.", numTables, directoryEnd, data.Length);
-            return null;
-        }
-
-        var tables = new SfntTableRecord[numTables];
-        for (int tableIndex = 0; tableIndex < numTables; tableIndex++)
-        {
-            uint tagValue = reader.ReadUInt32OrDefault();
-            uint checkSum = reader.ReadUInt32OrDefault();
-            uint tableOffset = reader.ReadUInt32OrDefault();
-            uint tableLength = reader.ReadUInt32OrDefault();
-
-            if ((long)tableOffset + tableLength > data.Length)
-            {
-                _logger.LogWarning(
-                    "Failed to read sfnt table '{Tag}': offset {Offset} + length {Length} exceeds font data length {ActualLength}.",
-                    new SfntTableTag(tagValue),
-                    tableOffset,
-                    tableLength,
-                    data.Length);
-                return null;
-            }
-
-            ReadOnlyMemory<byte> tableData = data.Slice((int)tableOffset, (int)tableLength);
-            tables[tableIndex] = new SfntTableRecord(new SfntTableTag(tagValue), checkSum, tableData);
-        }
-
-        return new SfntContainer(version, tables);
-    }
+    public SfntContainer? Read(ReadOnlyFontStream stream, int ttcIndex) => Read(stream, AllTables, ttcIndex);
 
     /// <summary>
-    /// Reads the sfnt header and table directory from <paramref name="stream"/>, seeking to and
-    /// materializing only the tables for which <paramref name="tableFilter"/> returns
-    /// <see langword="true"/>. Unlike <see cref="Read(in ReadOnlyMemory{byte})"/>, this never loads
-    /// the whole font into memory - useful for inspecting a handful of small tables (e.g. "name",
-    /// "OS/2") in a font file that may be many megabytes. Returns null if the header or directory does
-    /// not fit within the stream.
+    /// Parses the sfnt header and table directory from <paramref name="stream"/>, recording the byte
+    /// range of each table for which <paramref name="tableFilter"/> returns <see langword="true"/>,
+    /// without reading its content. Returns null if the header, directory, or any recorded table's
+    /// range does not fit within <paramref name="stream"/>.
     /// </summary>
-    public SfntContainer? ReadFiltered(Stream stream, Func<SfntTableTag, bool> tableFilter)
+    public SfntContainer? Read(ReadOnlyFontStream stream, Func<SfntTableTag, bool> tableFilter) => Read(stream, tableFilter, ttcIndex: 0);
+
+    /// <summary>
+    /// Parses the sfnt header and table directory from <paramref name="stream"/>, at the given font
+    /// index within a TrueType Collection ("ttcf") file - ignored if <paramref name="stream"/> is a
+    /// plain (non-collection) sfnt file. Records the byte range of each table for which
+    /// <paramref name="tableFilter"/> returns <see langword="true"/>, without reading its content.
+    /// Returns null if the header, directory, or any recorded table's range does not fit within
+    /// <paramref name="stream"/>.
+    /// </summary>
+    public SfntContainer? Read(ReadOnlyFontStream stream, Func<SfntTableTag, bool> tableFilter, int ttcIndex)
     {
         if (stream == null)
         {
@@ -110,26 +78,43 @@ public class SfntContainerProcessor
             throw new ArgumentNullException(nameof(tableFilter));
         }
 
-        var headerBuffer = new byte[HeaderLength];
-        if (!TryReadFully(stream, headerBuffer))
+        int headerStart = 0;
+        if (stream.Length >= TtcHeaderLength)
         {
-            _logger.LogWarning("Failed to read sfnt header: stream is shorter than {ExpectedLength} bytes.", HeaderLength);
+            SfntReader tagReader = new(stream.GetMemory(0, 4).Span);
+            if (tagReader.ReadUInt32OrDefault() == TtcTag)
+            {
+                int? fontOffset = ReadTtcFontOffset(stream, ttcIndex);
+                if (fontOffset == null)
+                {
+                    return null;
+                }
+
+                headerStart = fontOffset.Value;
+            }
+        }
+
+        if (stream.Length < headerStart + HeaderLength)
+        {
+            _logger.LogWarning("Failed to read sfnt header: expected at least {ExpectedLength} bytes, got {ActualLength}.", headerStart + HeaderLength, stream.Length);
             return null;
         }
 
-        SfntReader headerReader = new(headerBuffer);
+        SfntReader headerReader = new(stream.GetMemory(headerStart, HeaderLength).Span);
         uint version = headerReader.ReadUInt32OrDefault();
         ushort numTables = headerReader.ReadUInt16OrDefault();
+        headerReader.Skip(6); // searchRange, entrySelector, rangeShift
 
-        var directoryBuffer = new byte[numTables * DirectoryEntryLength];
-        if (!TryReadFully(stream, directoryBuffer))
+        int directoryStart = headerStart + HeaderLength;
+        long directoryEnd = directoryStart + ((long)numTables * DirectoryEntryLength);
+        if (directoryEnd > stream.Length)
         {
-            _logger.LogWarning("Failed to read sfnt table directory: {NumTables} tables need {ExpectedLength} bytes.", numTables, directoryBuffer.Length);
+            _logger.LogWarning("Failed to read sfnt table directory: {NumTables} tables need {DirectoryEnd} bytes, only {ActualLength} available.", numTables, directoryEnd, stream.Length);
             return null;
         }
 
-        SfntReader directoryReader = new(directoryBuffer);
-        List<SfntTableRecord> tables = [];
+        SfntReader directoryReader = new(stream.GetMemory(directoryStart, numTables * DirectoryEntryLength).Span);
+        List<SfntTableRecord> tables = new(numTables);
         for (int tableIndex = 0; tableIndex < numTables; tableIndex++)
         {
             uint tagValue = directoryReader.ReadUInt32OrDefault();
@@ -143,39 +128,49 @@ public class SfntContainerProcessor
                 continue;
             }
 
-            var tableData = new byte[tableLength];
-            stream.Seek(tableOffset, SeekOrigin.Begin);
-            if (!TryReadFully(stream, tableData))
+            if ((long)tableOffset + tableLength > stream.Length)
             {
                 _logger.LogWarning(
-                    "Failed to read sfnt table '{Tag}': offset {Offset} + length {Length} exceeds stream length.",
+                    "Failed to read sfnt table '{Tag}': offset {Offset} + length {Length} exceeds font data length {ActualLength}.",
                     tag,
                     tableOffset,
-                    tableLength);
-                continue;
+                    tableLength,
+                    stream.Length);
+                return null;
             }
 
-            tables.Add(new SfntTableRecord(tag, checkSum, tableData));
+            tables.Add(new SfntTableRecord(tag, checkSum, (int)tableOffset, (int)tableLength));
         }
 
         return new SfntContainer(version, tables);
     }
 
-    private static bool TryReadFully(Stream stream, byte[] buffer)
-    {
-        int totalRead = 0;
-        while (totalRead < buffer.Length)
-        {
-            int read = stream.Read(buffer, totalRead, buffer.Length - totalRead);
-            if (read == 0)
-            {
-                return false;
-            }
+    private static bool AllTables(SfntTableTag tag) => true;
 
-            totalRead += read;
+    private int? ReadTtcFontOffset(ReadOnlyFontStream stream, int ttcIndex)
+    {
+        SfntReader ttcHeaderReader = new(stream.GetMemory(0, TtcHeaderLength).Span);
+        ttcHeaderReader.Skip(8); // ttcTag, majorVersion, minorVersion
+        uint numFonts = ttcHeaderReader.ReadUInt32OrDefault();
+
+        if (ttcIndex < 0 || ttcIndex >= numFonts)
+        {
+            _logger.LogWarning("Failed to read TrueType Collection: index {TtcIndex} is out of range for {NumFonts} fonts.", ttcIndex, numFonts);
+            return null;
         }
 
-        return true;
+        long offsetEntryPosition = TtcHeaderLength + ((long)ttcIndex * 4);
+        if (offsetEntryPosition + 4 > stream.Length)
+        {
+            _logger.LogWarning(
+                "Failed to read TrueType Collection: offset table entry for index {TtcIndex} exceeds font data length {ActualLength}.",
+                ttcIndex,
+                stream.Length);
+            return null;
+        }
+
+        SfntReader offsetReader = new(stream.GetMemory((int)offsetEntryPosition, 4).Span);
+        return (int)offsetReader.ReadUInt32OrDefault();
     }
 
     /// <summary>
@@ -183,14 +178,14 @@ public class SfntContainerProcessor
     /// the header and directory, computes every table's checksum, and - if a "head" table is present -
     /// patches its checkSumAdjustment field once the whole font's checksum is known.
     /// </summary>
-    public byte[] Write(uint version, IReadOnlyList<SfntTableRecord> tables)
+    public byte[] Write(uint version, IReadOnlyList<SfntTableData> tables)
     {
         if (tables == null)
         {
             throw new ArgumentNullException(nameof(tables));
         }
 
-        List<SfntTableRecord> sortedTables = new(tables);
+        List<SfntTableData> sortedTables = new(tables);
         sortedTables.Sort((left, right) => left.Tag.Value.CompareTo(right.Tag.Value));
 
         var tableCount = (ushort)sortedTables.Count;
@@ -221,7 +216,7 @@ public class SfntContainerProcessor
         return fontBytes;
     }
 
-    private static byte[] BuildFontBytes(uint version, List<SfntTableRecord> sortedTables, int[] tableOffsets, in DirectoryParams directoryParams)
+    private static byte[] BuildFontBytes(uint version, List<SfntTableData> sortedTables, int[] tableOffsets, in DirectoryParams directoryParams)
     {
         SfntWriter writer = new();
 
@@ -233,7 +228,7 @@ public class SfntContainerProcessor
 
         for (int tableIndex = 0; tableIndex < sortedTables.Count; tableIndex++)
         {
-            SfntTableRecord table = sortedTables[tableIndex];
+            SfntTableData table = sortedTables[tableIndex];
             writer.WriteUInt32(table.Tag.Value);
             writer.WriteUInt32(CalcChecksum(table.Data.Span));
             writer.WriteUInt32((uint)tableOffsets[tableIndex]);
@@ -242,7 +237,7 @@ public class SfntContainerProcessor
 
         for (int tableIndex = 0; tableIndex < sortedTables.Count; tableIndex++)
         {
-            SfntTableRecord table = sortedTables[tableIndex];
+            SfntTableData table = sortedTables[tableIndex];
             while (writer.Length < tableOffsets[tableIndex])
             {
                 writer.WriteByte(0);

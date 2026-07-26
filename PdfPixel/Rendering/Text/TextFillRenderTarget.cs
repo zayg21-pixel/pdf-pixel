@@ -66,9 +66,11 @@ internal class TextFillRenderTarget : IRenderTarget
         }
         else
         {
-            PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
+            var textPath = TextRenderUtilities.GetTextPath(_shapingResult, _state);
+            processor.Process(new DrawPathCommand(textPath, _state.FillPaint));
 
-            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, _state.FillPaint));
+            //PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
+            //processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, _state.FillPaint));
         }
     }
 }

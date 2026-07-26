@@ -70,5 +70,9 @@ internal class PdfDocument : IPdfDocumentInternal
     BufferedStream IPdfDocumentInternal.Stream => _stream;
 
     /// <inheritdoc/>
-    public void Dispose() => _stream.Dispose();
+    public void Dispose()
+    {
+        _fontProvider.Cleanup();
+        _stream.Dispose();
+    }
 }
