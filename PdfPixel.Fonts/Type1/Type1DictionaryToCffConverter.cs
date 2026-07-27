@@ -62,6 +62,8 @@ internal static class Type1DictionaryToCffConverter
             Dict = new CffFontDict { TopDict = topDict },
             Charset = new CffCharset { Format = 0, SidsByGid = glyphCollections.Sids },
             Encoding = BuildEncoding(encodingVector, glyphCollections.NameToGid, characters.Length),
+            CodeToName = BuildCodeToName(encodingVector),
+            NameToGid = glyphCollections.NameToGid,
             Characters = characters
         };
 
@@ -117,6 +119,22 @@ internal static class Type1DictionaryToCffConverter
             CustomStrings = customStrings,
             NameToGid = nameToGid
         };
+    }
+
+    private static PdfFontString[]? BuildCodeToName(PdfFontString[] encodingVector)
+    {
+        if (encodingVector.Length == 0)
+        {
+            return null;
+        }
+
+        var codeToName = new PdfFontString[256];
+        for (int code = 0; code < encodingVector.Length && code < 256; code++)
+        {
+            codeToName[code] = encodingVector[code];
+        }
+
+        return codeToName;
     }
 
     private static CffEncoding? BuildEncoding(PdfFontString[] encodingVector, Dictionary<PdfFontString, ushort> nameToGid, int glyphCount)
