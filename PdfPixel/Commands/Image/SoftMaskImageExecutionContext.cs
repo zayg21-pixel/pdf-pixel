@@ -63,7 +63,7 @@ internal sealed class SoftMaskImageExecutionContext
         }
 
         PdfIntegerSize defaultTileSize = new(context.DefaultTileSize, context.DefaultTileSize);
-        bool maskMatchesImageSize = maskSize.Equals(imageSize);
+        bool maskMatchesImageSize = maskSize == imageSize;
 
         PdfTileInfo imageTileInfo = maskMatchesImageSize ? new PdfTileInfo(imageSize, defaultTileSize) : new PdfTileInfo(imageSize, imageSize);
         PdfTileInfo maskTileInfo = maskMatchesImageSize ? new PdfTileInfo(maskSize, defaultTileSize) : new PdfTileInfo(maskSize, maskSize);

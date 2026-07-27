@@ -45,54 +45,6 @@ internal static class PdfPathConverter
         return builder.Detach();
     }
 
-    /// <summary>
-    /// Builds a <see cref="PdfPath"/> equivalent to <paramref name="path"/>, for use only on glyph outline
-    /// paths from <c>SKFont.GetGlyphPath</c>. Quadratic segments are elevated to cubic segments, since
-    /// <see cref="PdfPath"/> has no quadratic representation. Conic segments are not supported, since
-    /// glyph outlines never contain them.
-    /// </summary>
-    internal static PdfPath ToPdfPath(this SKPath path)
-    {
-        PdfPathBuilder result = new() { FillType = (path.FillType == SKPathFillType.EvenOdd) ? PdfPathFillType.EvenOdd : PdfPathFillType.Winding };
-
-        using SKPath.Iterator iterator = path.CreateIterator(false);
-        var points = new SKPoint[4];
-        SKPathVerb verb;
-
-        while ((verb = iterator.Next(points)) != SKPathVerb.Done)
-        {
-            switch (verb)
-            {
-                case SKPathVerb.Move:
-                {
-                    result.MoveTo(points[0].X, points[0].Y);
-                    break;
-                }
-                case SKPathVerb.Line:
-                {
-                    result.LineTo(points[1].X, points[1].Y);
-                    break;
-                }
-                case SKPathVerb.Quad:
-                {
-                    AddQuadratic(result, points[0], points[1], points[2]);
-                    break;
-                }
-                case SKPathVerb.Cubic:
-                {
-                    result.CubicTo(points[1].X, points[1].Y, points[2].X, points[2].Y, points[3].X, points[3].Y);
-                    break;
-                }
-                case SKPathVerb.Close:
-                {
-                    result.Close();
-                    break;
-                }
-            }
-        }
-
-        return result.ToPath();
-    }
 
     private static void AddQuadratic(PdfPathBuilder path, SKPoint start, SKPoint control, SKPoint end)
     {

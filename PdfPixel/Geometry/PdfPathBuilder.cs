@@ -21,11 +21,6 @@ public sealed class PdfPathBuilder
     public bool IsEmpty => _length == 0;
 
     /// <summary>
-    /// Determines which regions are considered "inside" when the built path is filled or used as a clip.
-    /// </summary>
-    public PdfPathFillType FillType { get; set; } = PdfPathFillType.Winding; // TODO: [HIGH] REMOVE!
-
-    /// <summary>
     /// Starts a new subpath at the given point.
     /// </summary>
     public void MoveTo(float x, float y) => MoveTo(new PdfPoint(x, y));
@@ -102,14 +97,15 @@ public sealed class PdfPathBuilder
     public void Reset() => _length = 0;
 
     /// <summary>
-    /// Snapshots the segments accumulated so far into a new immutable <see cref="PdfPath"/>. The builder
-    /// remains usable afterward; the returned path is unaffected by further building or a later <see cref="Reset"/>.
+    /// Snapshots the segments accumulated so far into a new immutable <see cref="PdfPath"/> with the given
+    /// fill type. The builder remains usable afterward; the returned path is unaffected by further building
+    /// or a later <see cref="Reset"/>.
     /// </summary>
-    public PdfPath ToPath()
+    public PdfPath ToPath(PdfPathFillType fillType = PdfPathFillType.Winding)
     {
         var snapshot = new byte[_length];
         System.Buffer.BlockCopy(_buffer, 0, snapshot, 0, _length);
-        return new PdfPath(snapshot, FillType);
+        return new PdfPath(snapshot, fillType);
     }
 
     private void WriteSegment(PdfPathSegmentType type, in ReadOnlySpan<PdfPoint> points)

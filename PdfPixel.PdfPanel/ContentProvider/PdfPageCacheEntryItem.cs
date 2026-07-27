@@ -108,7 +108,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         return !ContentPicture.HasContent
             || LastRequest == null
             || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor)
-            || ((Features & PdfCommandFeatures.Region) != 0 && !LastRegionOfInterest.Equals(request.ComputeRegionOfInterest(PageNumber)));
+            || ((Features & PdfCommandFeatures.Region) != 0 && LastRegionOfInterest != request.ComputeRegionOfInterest(PageNumber));
     }
 
     /// <summary>

@@ -1,12 +1,14 @@
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Geometry;
 
 /// <summary>
 /// An integer-valued rectangle defined by its left, top, right, and bottom edges.
 /// </summary>
-public readonly struct PdfIntegerRectangle
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct PdfIntegerRectangle : IEquatable<PdfIntegerRectangle>
 {
     /// <summary>
     /// Initializes a new <see cref="PdfIntegerRectangle"/> from its edges.
@@ -57,7 +59,7 @@ public readonly struct PdfIntegerRectangle
     /// <summary>
     /// Whether this rectangle equals <see cref="Empty"/>.
     /// </summary>
-    public bool IsEmpty => Equals(Empty);
+    public bool IsEmpty => this == Empty;
 
     /// <summary>
     /// Returns the overlapping region of <paramref name="a"/> and <paramref name="b"/>, or <see cref="Empty"/> when they do not overlap.
@@ -78,6 +80,26 @@ public readonly struct PdfIntegerRectangle
 
     private static bool IntersectsWithInclusive(in PdfIntegerRectangle a, in PdfIntegerRectangle b)
         => a.Left <= b.Right && a.Right >= b.Left && a.Top <= b.Bottom && a.Bottom >= b.Top;
+
+    /// <inheritdoc/>
+    public bool Equals(PdfIntegerRectangle other)
+        => Left == other.Left && Top == other.Top && Right == other.Right && Bottom == other.Bottom;
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is PdfIntegerRectangle other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(Left, Top, Right, Bottom);
+
+    /// <summary>
+    /// Determines whether two rectangles have the same edges.
+    /// </summary>
+    public static bool operator ==(in PdfIntegerRectangle left, in PdfIntegerRectangle right) => left.Equals(right);
+
+    /// <summary>
+    /// Determines whether two rectangles have different edges.
+    /// </summary>
+    public static bool operator !=(in PdfIntegerRectangle left, in PdfIntegerRectangle right) => !left.Equals(right);
 
     /// <inheritdoc/>
     public override string ToString()

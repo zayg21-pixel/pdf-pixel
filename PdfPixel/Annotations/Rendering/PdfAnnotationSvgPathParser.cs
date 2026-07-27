@@ -23,7 +23,7 @@ internal static class PdfAnnotationSvgPathParser
     /// </summary>
     public static PdfPath Parse(string data, PdfPathFillType fillType)
     {
-        PdfPathBuilder path = new() { FillType = fillType };
+        PdfPathBuilder path = new();
         int index = 0;
         var command = '\0';
         PdfPoint current = PdfPoint.Empty;
@@ -142,7 +142,7 @@ internal static class PdfAnnotationSvgPathParser
             }
         }
 
-        return path.ToPath();
+        return path.ToPath(fillType);
     }
 
     private static void AddQuadratic(PdfPathBuilder path, in PdfPoint start, in PdfPoint control, in PdfPoint end)

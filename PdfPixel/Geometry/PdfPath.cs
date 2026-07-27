@@ -93,7 +93,7 @@ public sealed class PdfPath
             return this;
         }
 
-        PdfPathBuilder builder = new() { FillType = FillType };
+        PdfPathBuilder builder = new();
 
         foreach (PdfPathSegment segment in Segments)
         {
@@ -122,7 +122,7 @@ public sealed class PdfPath
             }
         }
 
-        return builder.ToPath();
+        return builder.ToPath(FillType);
     }
 
     internal static int GetPointCount(PdfPathSegmentType type)

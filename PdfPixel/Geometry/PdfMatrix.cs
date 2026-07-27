@@ -2,6 +2,7 @@ using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Geometry;
 
@@ -9,7 +10,8 @@ namespace PdfPixel.Geometry;
 /// A 2D affine transformation matrix with 6 operands, structurally compatible with the
 /// first 6 fields of Skia's <c>SKMatrix</c> (its 3 perspective fields are not needed for PDF).
 /// </summary>
-public readonly struct PdfMatrix
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct PdfMatrix : IEquatable<PdfMatrix>
 {
     /// <summary>
     /// Initializes a new <see cref="PdfMatrix"/> from its 6 operands.
@@ -62,7 +64,12 @@ public readonly struct PdfMatrix
     /// <summary>
     /// Whether this matrix equals <see cref="Identity"/>.
     /// </summary>
-    public bool IsIdentity => Equals(Identity);
+    public bool IsIdentity => this == Identity;
+
+    /// <summary>
+    /// Whether this matrix has no skew, i.e. it only scales and translates.
+    /// </summary>
+    public bool IsAxisAligned => SkewX == 0 && SkewY == 0;
 
     /// <summary>
     /// Creates a <see cref="PdfMatrix"/> from a strongly-typed PdfArray of operands.
@@ -145,6 +152,27 @@ public readonly struct PdfMatrix
     /// </summary>
     public static PdfMatrix Concat(in PdfMatrix first, in PdfMatrix second)
     {
+        if (first.IsIdentity)
+        {
+            return second;
+        }
+
+        if (second.IsIdentity)
+        {
+            return first;
+        }
+
+        if (first.IsAxisAligned && second.IsAxisAligned)
+        {
+            float axisAlignedScaleX = first.ScaleX * second.ScaleX;
+            float axisAlignedTransX = (first.ScaleX * second.TransX) + first.TransX;
+
+            float axisAlignedScaleY = first.ScaleY * second.ScaleY;
+            float axisAlignedTransY = (first.ScaleY * second.TransY) + first.TransY;
+
+            return new PdfMatrix(axisAlignedScaleX, 0, axisAlignedTransX, 0, axisAlignedScaleY, axisAlignedTransY);
+        }
+
         float scaleX = (first.ScaleX * second.ScaleX) + (first.SkewX * second.SkewY);
         float skewX = (first.ScaleX * second.SkewX) + (first.SkewX * second.ScaleY);
         float transX = (first.ScaleX * second.TransX) + (first.SkewX * second.TransY) + first.TransX;
@@ -228,6 +256,33 @@ public readonly struct PdfMatrix
 
         return new PdfMatrix(inverseScaleX, inverseSkewX, inverseTransX, inverseSkewY, inverseScaleY, inverseTransY);
     }
+
+    /// <inheritdoc/>
+    public bool Equals(PdfMatrix other)
+    {
+        return ScaleX == other.ScaleX
+            && SkewX == other.SkewX
+            && TransX == other.TransX
+            && SkewY == other.SkewY
+            && ScaleY == other.ScaleY
+            && TransY == other.TransY;
+    }
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is PdfMatrix other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(ScaleX, SkewX, TransX, SkewY, ScaleY, TransY);
+
+    /// <summary>
+    /// Determines whether two matrices have the same operands.
+    /// </summary>
+    public static bool operator ==(in PdfMatrix left, in PdfMatrix right) => left.Equals(right);
+
+    /// <summary>
+    /// Determines whether two matrices have different operands.
+    /// </summary>
+    public static bool operator !=(in PdfMatrix left, in PdfMatrix right) => !left.Equals(right);
 
     /// <inheritdoc/>
     public override string ToString()

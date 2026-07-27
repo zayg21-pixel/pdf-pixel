@@ -1,13 +1,15 @@
 using PdfPixel.Models;
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Geometry;
 
 /// <summary>
 /// A rectangle defined by its left, top, right, and bottom edges.
 /// </summary>
-public readonly struct PdfRectangle
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct PdfRectangle : IEquatable<PdfRectangle>
 {
     /// <summary>
     /// Initializes a new <see cref="PdfRectangle"/> from its edges.
@@ -68,7 +70,7 @@ public readonly struct PdfRectangle
     /// <summary>
     /// Whether this rectangle equals <see cref="Empty"/>.
     /// </summary>
-    public bool IsEmpty => Equals(Empty);
+    public bool IsEmpty => this == Empty;
 
     /// <summary>
     /// Creates a <see cref="PdfRectangle"/> from a PDF bounding box array.
@@ -125,6 +127,26 @@ public readonly struct PdfRectangle
             Math.Max(a.Right, b.Right),
             Math.Max(a.Bottom, b.Bottom));
     }
+
+    /// <inheritdoc/>
+    public bool Equals(PdfRectangle other)
+        => Left == other.Left && Top == other.Top && Right == other.Right && Bottom == other.Bottom;
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is PdfRectangle other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(Left, Top, Right, Bottom);
+
+    /// <summary>
+    /// Determines whether two rectangles have the same edges.
+    /// </summary>
+    public static bool operator ==(in PdfRectangle left, in PdfRectangle right) => left.Equals(right);
+
+    /// <summary>
+    /// Determines whether two rectangles have different edges.
+    /// </summary>
+    public static bool operator !=(in PdfRectangle left, in PdfRectangle right) => !left.Equals(right);
 
     /// <inheritdoc/>
     public override string ToString()
