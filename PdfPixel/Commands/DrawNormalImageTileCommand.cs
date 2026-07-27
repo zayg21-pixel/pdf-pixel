@@ -43,11 +43,6 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc />
     public override string ToString()
         => $"{nameof(DrawNormalImageTileCommand)} tile={_lastTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}";
 }

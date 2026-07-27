@@ -188,11 +188,6 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc />
     public override string ToString()
     {
         string chars = string.Join(" ", ShapingResult.Span.ToArray().Select(glyph => $"{glyph.CharacterInfo.Unicode}/{glyph.GlyphId}"));

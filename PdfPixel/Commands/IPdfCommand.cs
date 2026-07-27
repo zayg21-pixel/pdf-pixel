@@ -1,11 +1,9 @@
-﻿using System;
-
 namespace PdfPixel.Commands;
 
 /// <summary>
 /// Represents a single drawing or state-management operation on a canvas.
 /// </summary>
-public interface IPdfCommand : IDisposable
+public interface IPdfCommand
 {
     /// <summary>
     /// Executes this command. The canvas to draw on is obtained from <see cref="PdfCommandExecutionContext.Canvas"/>.

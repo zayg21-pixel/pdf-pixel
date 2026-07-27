@@ -23,11 +23,6 @@ public sealed class BeginMarkedContentCommand : PdfCommand
         => executionContext.MarkedContent.Push(MarkedContent);
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc />
     public override string ToString()
     {
         if (MarkedContent.OptionalContent == null)

@@ -53,11 +53,6 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc />
     public override string ToString()
     {
         string text = string.Concat(Characters.Select(character => character.Text));

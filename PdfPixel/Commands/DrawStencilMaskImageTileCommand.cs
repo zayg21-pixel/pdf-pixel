@@ -11,15 +11,9 @@ namespace PdfPixel.Commands;
 public sealed class DrawStencilMaskImageTileCommand : PdfCommand
 {
     private readonly StencilMaskImageExecutionContext _context;
-    private readonly SKColorFilter _colorFilter;
     private int? _lastTileIndex;
 
-    internal DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context)
-    {
-        _context = context;
-        SKColor fillColor = _context.DecodingContext.FillColor.ToSkiaColor();
-        _colorFilter = ImageBlending.CreateImageMaskColorFilter(in fillColor, _context.InvertMask);
-    }
+    internal DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context) => _context = context;
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
@@ -37,9 +31,11 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
 
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
 
+        SKColor fillColor = _context.DecodingContext.FillColor.ToSkiaColor();
+        using SKColorFilter colorFilter = ImageBlending.CreateImageMaskColorFilter(in fillColor, _context.InvertMask);
         using SKImage skImage = tile.Image.ToSkImage();
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
-        paint.ColorFilter = _colorFilter;
+        paint.ColorFilter = colorFilter;
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
@@ -47,9 +43,6 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
         executionContext.Canvas.DrawImage(skImage, placement.PlacementRectangle, placement.Sampling, paint);
         executionContext.Canvas.Restore();
     }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing) => _colorFilter.Dispose();
 
     /// <inheritdoc />
     public override string ToString()

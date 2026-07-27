@@ -62,12 +62,12 @@ internal sealed class Program
             // yet at this point; PdfCommandRecorder just collects the commands for later replay.
             // Content and annotations are recorded into separate recorders so they can be dumped
             // and replayed independently.
-            using PdfCommandRecorder contentRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
+            PdfCommandRecorder contentRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
             RecordPageTransform(contentRecorder, page, scale);
             page.Render(contentRecorder, new PdfRenderingParameters(), executionObserver);
             contentRecorder.Process(RestoreStateCommand.Instance);
 
-            using PdfCommandRecorder annotationRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
+            PdfCommandRecorder annotationRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
             RecordPageTransform(annotationRecorder, page, scale);
 
             // Annotations (comments, stamps, links, etc.) are recorded separately from page content.

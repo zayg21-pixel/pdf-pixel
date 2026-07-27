@@ -22,9 +22,4 @@ public sealed class RestoreLayerCommand : PdfCommand
     /// Default instance of <see cref="RestoreLayerCommand"/>.
     /// </summary>
     public static RestoreLayerCommand Instance { get; } = new();
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-    }
 }

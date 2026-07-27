@@ -239,11 +239,6 @@ public class PdfType3Font : PdfSingleByteFont
 
         if (disposing)
         {
-            foreach (PdfType3CharacterInfo info in type3Cache.Values)
-            {
-                info.Recording?.Dispose();
-            }
-
             type3Cache.Clear();
         }
     }

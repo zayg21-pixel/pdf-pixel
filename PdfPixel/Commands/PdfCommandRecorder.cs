@@ -17,9 +17,6 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// </summary>
     public PdfCommandRecorder(ILogger<PdfCommandRecorder> logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    /// <inheritdoc/>
-    ~PdfCommandRecorder() => Dispose(disposing: false);
-
     /// <inheritdoc />
     public void Process(IPdfCommand command) => _commands.Add(command);
 
@@ -65,24 +62,5 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
             executionContext.CurrentCommand = command;
             executionContext.ExecutionObserver?.Notify();
         }
-    }
-
-    private void Dispose(bool disposing)
-    {
-        foreach (IPdfCommand command in _commands)
-        {
-            command.Dispose();
-        }
-
-        _commands.Clear();
-    }
-
-    /// <summary>
-    /// Disposes all recorded commands and clears the list.
-    /// </summary>
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
     }
 }

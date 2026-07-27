@@ -235,10 +235,5 @@ public sealed class DrawShadingCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc />
     public override string ToString() => $"{nameof(DrawShadingCommand)} {_shading.ShadingType}";
 }

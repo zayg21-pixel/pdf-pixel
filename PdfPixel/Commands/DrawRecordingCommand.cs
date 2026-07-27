@@ -7,37 +7,32 @@ namespace PdfPixel.Commands;
 /// Replays a recorded set of commands, under its own matrix, with a specified paint modifier.
 /// Owns a save/restore around the replay because it executes nested commands whose state
 /// (matrix, clip) must not leak into commands that run after this one.
-/// When <c>disposeRecording</c> is true (default), the recorder and modifier are disposed with the command.
-/// When false, the caller manages their lifetime (e.g. tiling patterns that replay the same recording many times).
 /// </summary>
 public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
 {
-    private readonly bool _disposeRecording;
-
     /// <summary>
-    /// Initializes the command with a recorder, matrix, an optional paint modifier, and ownership flag.
+    /// Initializes the command with a recorder, matrix, and an optional paint modifier.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, in PdfMatrix matrix, UncoloredPaintModifier? modifier, bool disposeRecording = true)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, in PdfMatrix matrix, UncoloredPaintModifier? modifier)
     {
         Recorder = recorder;
         Matrix = matrix;
         Modifier = modifier;
-        _disposeRecording = disposeRecording;
     }
 
     /// <summary>
-    /// Initializes the command with a recorder, an optional paint modifier, and ownership flag; identity matrix.
+    /// Initializes the command with a recorder and an optional paint modifier; identity matrix.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, UncoloredPaintModifier? modifier, bool disposeRecording = true)
-        : this(recorder, PdfMatrix.Identity, modifier, disposeRecording)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, UncoloredPaintModifier? modifier)
+        : this(recorder, PdfMatrix.Identity, modifier)
     {
     }
 
     /// <summary>
-    /// Initializes the command with a recorder and ownership flag; identity matrix, no paint modifier applied.
+    /// Initializes the command with a recorder; identity matrix, no paint modifier applied.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, bool disposeRecording = true)
-        : this(recorder, PdfMatrix.Identity, null, disposeRecording)
+    public DrawRecordingCommand(PdfCommandRecorder recorder)
+        : this(recorder, PdfMatrix.Identity, null)
     {
     }
 
@@ -105,17 +100,6 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
             executionContext.Canvas.Save();
             frames.OnSaveState();
         }
-    }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (_disposeRecording)
-        {
-            Recorder.Dispose();
-        }
-
-        Modifier?.Dispose();
     }
 
     /// <inheritdoc />

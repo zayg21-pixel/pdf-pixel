@@ -1,11 +1,9 @@
-﻿using System;
-
 namespace PdfPixel.Commands;
 
 /// <summary>
 /// Processes PDF drawing commands against a target.
 /// </summary>
-public interface IPdfCommandProcessor : IDisposable
+public interface IPdfCommandProcessor
 {
     /// <summary>
     /// Submits a command for processing.

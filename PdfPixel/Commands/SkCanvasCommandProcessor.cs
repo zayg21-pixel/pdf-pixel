@@ -34,7 +34,6 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
         if (!_executionContext.MarkedContent.ShouldExecute(command))
         {
-            command.Dispose();
             return;
         }
 
@@ -51,16 +50,9 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 #pragma warning restore CA1031 // Do not catch general exception types
         {
             _logger.LogWarning(exception, "Command {CommandType} failed during execution.", command.GetType().Name);
-            command.Dispose();
             return;
         }
 
         _executionContext.CurrentCommand = command;
-        command.Dispose();
-    }
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
     }
 }

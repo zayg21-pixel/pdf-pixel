@@ -22,9 +22,4 @@ public sealed class SaveStateCommand : PdfCommand
     /// Default instance of <see cref="SaveStateCommand"/>.
     /// </summary>
     public static SaveStateCommand Instance { get; } = new();
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-    }
 }

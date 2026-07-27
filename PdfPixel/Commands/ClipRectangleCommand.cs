@@ -37,9 +37,4 @@ public sealed class ClipRectangleCommand : PdfCommand
         executionContext.Canvas.ClipRect(snappedRect, skOperation, antialias);
         executionContext.Frames.OnClipRect(Rect, Operation);
     }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
 }

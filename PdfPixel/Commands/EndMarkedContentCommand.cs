@@ -10,9 +10,4 @@ public sealed class EndMarkedContentCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
         => executionContext.MarkedContent.Pop();
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
 }

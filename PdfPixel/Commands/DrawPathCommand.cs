@@ -40,10 +40,5 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc />
     public override string ToString() => $"{nameof(DrawPathCommand)} {CommandHelpers.FormatPaint(Paint)}";
 }

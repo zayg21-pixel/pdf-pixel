@@ -175,9 +175,6 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing) => RecordingCommand.Dispose();
-
-    /// <inheritdoc />
     public override string ToString() => $"{nameof(DrawTilingCommand)} {CommandHelpers.FormatMatrix(Matrix)}";
 
     private readonly struct ShaderTilingParameters

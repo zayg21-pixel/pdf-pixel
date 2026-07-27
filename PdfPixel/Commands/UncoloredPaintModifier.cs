@@ -11,13 +11,39 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class UncoloredPaintModifier
 {
-    private readonly SKColorFilter _colorFilter;
+    private readonly PdfColor _color;
 
     /// <summary>
     /// Creates a modifier that tints all paint with the specified color using SrcIn blending.
     /// </summary>
     /// <param name="color">The tint color to apply.</param>
-    public UncoloredPaintModifier(in PdfColor color)
+    public UncoloredPaintModifier(in PdfColor color) => _color = color;
+
+    /// <summary>
+    /// Applies the SrcIn color filter to the paint. When the paint already has a color filter,
+    /// the uncolored filter is composed on top of it.
+    /// </summary>
+    public void ModifyPaint(SKPaint paint)
+    {
+        if (paint == null)
+        {
+            throw new ArgumentNullException(nameof(paint));
+        }
+
+        using SKColorFilter filter = CreateColorFilter(_color);
+
+        if (paint.ColorFilter != null)
+        {
+            using SKColorFilter composed = SKColorFilter.CreateCompose(filter, paint.ColorFilter);
+            paint.ColorFilter = composed;
+        }
+        else
+        {
+            paint.ColorFilter = filter;
+        }
+    }
+
+    private static SKColorFilter CreateColorFilter(in PdfColor color)
     {
         // PDF uncolored semantics (concise):
         // final RGB = paint.rgb * paint.alpha * srcA
@@ -55,25 +81,6 @@ public sealed class UncoloredPaintModifier
             0f
         };
 
-        _colorFilter = SKColorFilter.CreateColorMatrix(matrix);
+        return SKColorFilter.CreateColorMatrix(matrix);
     }
-
-    /// <summary>
-    /// Applies the SrcIn color filter to the paint. When the paint already has a color filter,
-    /// the uncolored filter is composed on top of it.
-    /// </summary>
-    public void ModifyPaint(SKPaint paint)
-    {
-        if (paint == null)
-        {
-            throw new ArgumentNullException(nameof(paint));
-        }
-
-        paint.ColorFilter = (paint.ColorFilter != null)
-            ? SKColorFilter.CreateCompose(_colorFilter, paint.ColorFilter)
-            : _colorFilter;
-    }
-
-    /// <inheritdoc />
-    public void Dispose() => _colorFilter?.Dispose();
 }

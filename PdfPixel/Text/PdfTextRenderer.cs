@@ -120,7 +120,7 @@ public class PdfTextRenderer : IPdfTextRenderer
 
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).
                     PdfMatrix glyphMatrix = PdfMatrix.CreateTranslation(glyph.X, glyph.Y).PreConcat(type3Font.FontMatrix);
-                    processor.Process(new DrawRecordingCommand(charInfo.Recording, glyphMatrix, modifier, disposeRecording: false));
+                    processor.Process(new DrawRecordingCommand(charInfo.Recording, glyphMatrix, modifier));
                 }
             }
 

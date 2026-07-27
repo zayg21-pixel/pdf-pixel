@@ -58,11 +58,6 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc />
     public override string ToString()
         => $"{nameof(DrawSoftMaskImageTileCommand)} imageTile={_lastImageTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}, maskTile={_lastMaskTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}";
 }

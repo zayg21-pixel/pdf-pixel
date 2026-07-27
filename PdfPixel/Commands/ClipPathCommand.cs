@@ -78,9 +78,4 @@ public sealed class ClipPathCommand : PdfCommand, IPathCommand
 
         return strokePaint.GetFillPath(sourcePath) ?? new SKPath(sourcePath);
     }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-    }
 }

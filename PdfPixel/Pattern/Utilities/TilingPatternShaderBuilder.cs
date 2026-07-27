@@ -50,7 +50,6 @@ internal sealed class TilingPatternShaderBuilder
 
         if (recorder.Commands.Count == 0)
         {
-            recorder.Dispose();
             return null;
         }
 
