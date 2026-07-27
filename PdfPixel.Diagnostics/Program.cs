@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Skia;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -62,12 +63,12 @@ internal sealed class Program
             // yet at this point; PdfCommandRecorder just collects the commands for later replay.
             // Content and annotations are recorded into separate recorders so they can be dumped
             // and replayed independently.
-            PdfCommandRecorder contentRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
+            PdfCommandRecorder contentRecorder = new();
             RecordPageTransform(contentRecorder, page, scale);
             page.Render(contentRecorder, new PdfRenderingParameters(), executionObserver);
             contentRecorder.Process(RestoreStateCommand.Instance);
 
-            PdfCommandRecorder annotationRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
+            PdfCommandRecorder annotationRecorder = new();
             RecordPageTransform(annotationRecorder, page, scale);
 
             // Annotations (comments, stamps, links, etc.) are recorded separately from page content.
@@ -106,11 +107,11 @@ internal sealed class Program
                 },
                 contentLocker,
                 document.OptionalContentGroups,
-                executionObserver,
-                canvas);
+                executionObserver);
 
-            contentRecorder.Replay(executionContext);
-            annotationRecorder.Replay(executionContext);
+            SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+            contentRecorder.Replay(processor);
+            annotationRecorder.Replay(processor);
 
             string outputPath = Path.Combine(outputDirectory, $"{page.PageNumber}.png");
             using SKImage image = surface.Snapshot();

@@ -1,10 +1,8 @@
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Cache;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands;
@@ -15,58 +13,6 @@ namespace PdfPixel.Commands;
 internal static class CommandHelpers
 {
     private const float AxisAlignEpsilon = 0.01f;
-
-    /// <summary>
-    /// Applies the modifiers to the given paint.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ApplyModifiers(SKPaint paint, PdfCommandExecutionContext context)
-    {
-        if (context.UncoloredModifier != null)
-        {
-            context.UncoloredModifier.ModifyPaint(paint);
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKColor ApplyAlpha(in SKColor color, float alpha)
-    {
-        // Clamp alpha to valid range
-        alpha = Math.Max(0f, Math.Min(1f, alpha));
-
-        // Convert to byte and apply to the color's alpha channel
-        var alphaBytes = (byte)(alpha * 255);
-
-        return color.WithAlpha(alphaBytes);
-    }
-
-    /// <summary>
-    /// Sets font edging based on the antialias flag.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ApplyAntialias(SKFont font, bool antialias) => font.Edging = antialias ? SKFontEdging.SubpixelAntialias : SKFontEdging.Alias;
-
-    /// <summary>
-    /// Returns the <see cref="SKTypeface"/> backing <paramref name="typeface"/>, building it from font
-    /// bytes only once per execution and caching it on <see cref="PdfCommandExecutionContext.Cache"/>
-    /// so every command drawing with the same typeface during a replay reuses the same native typeface.
-    /// </summary>
-    public static SKTypeface GetOrCreateSkTypeface(PdfCommandExecutionContext executionContext, IPdfTypeface typeface)
-    {
-        TypefaceCommandCacheKey key = new(typeface);
-
-        if (executionContext.Cache.GetEntry(key) is SkTypefaceCommandCacheEntry existing)
-        {
-            return existing.Typeface;
-        }
-
-        using Stream fontStream = typeface.GetFontStream();
-        SKTypeface skTypeface = SKTypeface.FromStream(fontStream) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
-
-        executionContext.Cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
-
-        return skTypeface;
-    }
 
     /// <summary>
     /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfCommandExecutionParameters.ScaleFactor"/>.
@@ -120,7 +66,7 @@ internal static class CommandHelpers
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool GetPathIsAntialias(SKPath path, PdfCommandExecutionContext executionContext, SKPaint? paint = null)
+    public static bool GetPathIsAntialias(SKPath path, PdfCommandExecutionContext executionContext, SKPaint? paint = null) // TODO: move to non-skia model
     {
         if (!executionContext.Parameters.Antialias)
         {
@@ -170,7 +116,7 @@ internal static class CommandHelpers
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool GetRectIsAntialias(SKRect rect, PdfCommandExecutionContext executionContext)
+    public static bool GetRectIsAntialias(SKRect rect, PdfCommandExecutionContext executionContext) // TODO: move to non-skia model
     {
         if (!executionContext.Parameters.Antialias)
         {
@@ -198,7 +144,7 @@ internal static class CommandHelpers
     /// matrix is axis-aligned, returning it unchanged otherwise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRect GetPixelSnappedRect(SKRect rect, PdfCommandExecutionContext executionContext)
+    public static SKRect GetPixelSnappedRect(SKRect rect, PdfCommandExecutionContext executionContext) // TODO: move to non-skia model
     {
         if (!executionContext.Parameters.SnapToDevicePixels)
         {
@@ -243,7 +189,7 @@ internal static class CommandHelpers
     /// device pixel per dimension.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRect SnapToDevicePixels(SKRect deviceRect)
+    public static SKRect SnapToDevicePixels(SKRect deviceRect) // TODO: move to non-skia model
     {
         (float left, float right) = SnapDimensionToWholePixels(deviceRect.Left, deviceRect.Right);
         (float top, float bottom) = SnapDimensionToWholePixels(deviceRect.Top, deviceRect.Bottom);

@@ -12,11 +12,7 @@ public sealed class RestoreLayerCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        executionContext.Canvas.Restore();
-        executionContext.Frames.OnRestoreState();
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.RestoreLayer;
 
     /// <summary>
     /// Default instance of <see cref="RestoreLayerCommand"/>.

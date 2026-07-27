@@ -8,8 +8,14 @@ using System;
 
 namespace PdfPixel.Commands.Image;
 
-internal sealed class StencilMaskImageExecutionContext
+/// <summary>
+/// Constructed context for a <see cref="DrawStencilMaskImageTileCommand"/>: a 1-bit stencil mask blended with the current fill color, drawn tile by tile.
+/// </summary>
+public sealed class StencilMaskImageExecutionContext
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StencilMaskImageExecutionContext"/> class.
+    /// </summary>
     public StencilMaskImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool invertMask, bool interpolate)
     {
         ImageSize = imageSize;
@@ -19,12 +25,24 @@ internal sealed class StencilMaskImageExecutionContext
         Interpolate = interpolate;
     }
 
-    public PdfIntegerSize ImageSize { get;}
+    /// <summary>
+    /// Gets the image's pixel size.
+    /// </summary>
+    public PdfIntegerSize ImageSize { get; }
 
-    public ImageDecodingContext DecodingContext { get;}
+    /// <summary>
+    /// Gets the decoding context (fill color, alpha, blend mode) captured at record time.
+    /// </summary>
+    public ImageDecodingContext DecodingContext { get; }
 
+    /// <summary>
+    /// Gets the tile cache producing decoded tiles for this image.
+    /// </summary>
     public PdfImageTileCacheEntry TileCache { get; }
 
+    /// <summary>
+    /// Gets the tiling layout of <see cref="TileCache"/>.
+    /// </summary>
     public PdfTileInfo TileInfo => TileCache.TileInfo;
 
     /// <summary>
@@ -33,10 +51,26 @@ internal sealed class StencilMaskImageExecutionContext
     /// </summary>
     public bool InvertMask { get; }
 
+    /// <summary>
+    /// Gets whether the image should be interpolated when scaled.
+    /// </summary>
     public bool Interpolate { get; }
 
+    /// <summary>
+    /// Builds the context for <paramref name="pdfImage"/>, resolving its decoder, tile cache, and invert-mask flag.
+    /// </summary>
     public static StencilMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
+        if (pdfImage == null)
+        {
+            throw new ArgumentNullException(nameof(pdfImage));
+        }
+
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
         PdfIntegerSize imageSize = new(pdfImage.Width, pdfImage.Height);
         PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
 

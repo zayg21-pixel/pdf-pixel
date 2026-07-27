@@ -6,7 +6,7 @@ namespace PdfPixel.Commands;
 public abstract class PdfCommand : IPdfCommand
 {
     /// <inheritdoc />
-    public abstract void Execute(PdfCommandExecutionContext executionContext);
+    public abstract PdfCommandKind Kind { get; }
 
     /// <inheritdoc />
     public virtual PdfCommandFeatures Features => PdfCommandFeatures.None;

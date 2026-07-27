@@ -1,63 +1,36 @@
 using PdfPixel.Commands.Image;
-using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System.Globalization;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Draws one tile of an image combined with a soft mask image (/SMask), blending the image through the grayscale mask onto the canvas.
+/// Represents one tile of an image combined with a soft mask image (/SMask), blended through the grayscale mask.
 /// </summary>
 public sealed class DrawSoftMaskImageTileCommand : PdfCommand
 {
-    private readonly SoftMaskImageExecutionContext _context;
-    private int? _lastImageTileIndex;
-    private int? _lastMaskTileIndex;
+    internal DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context, int tileIndex)
+    {
+        Context = context;
+        TileIndex = tileIndex;
+    }
 
-    internal DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context) => _context = context;
+    /// <summary>
+    /// The context this command was constructed with.
+    /// </summary>
+    public SoftMaskImageExecutionContext Context { get; }
+
+    /// <summary>
+    /// The index of the image and mask tile this command draws.
+    /// </summary>
+    public int TileIndex { get; }
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
-        PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
-
-        _lastImageTileIndex = imageTile.TileIndex;
-        _lastMaskTileIndex = maskTile.TileIndex;
-
-        if (imageTile.Image == null || maskTile.Image == null)
-        {
-            return;
-        }
-
-        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
-            executionContext, _context.ImageSize, imageTile.TilePosition, _context.Interpolate);
-
-        SKColor? matte = null;
-        if (_context.MatteArray != null && maskTile.Parameters != null)
-        {
-            matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default).ToSkiaColor();
-        }
-
-        using SKImage skImage = imageTile.Image.ToSkImage();
-        using SKImage skMaskImage = maskTile.Image.ToSkImage();
-        using SKShader imageShader = ImageBlending.BuildImageShader(skImage, placement.DeviceSize, placement.Sampling);
-        using SKShader maskShader = ImageBlending.BuildImageShader(skMaskImage, placement.DeviceSize, placement.Sampling);
-        using SKShader blendingShader = ImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
-        using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
-        CommandHelpers.ApplyModifiers(paint, executionContext);
-
-        executionContext.Canvas.Save();
-        executionContext.Canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        executionContext.Canvas.ClipRect(placement.PlacementRectangle);
-        executionContext.Canvas.DrawPaint(paint);
-        executionContext.Canvas.Restore();
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.DrawSoftMaskImageTile;
 
     /// <inheritdoc />
     public override string ToString()
-        => $"{nameof(DrawSoftMaskImageTileCommand)} imageTile={_lastImageTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}, maskTile={_lastMaskTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}";
+        => $"{nameof(DrawSoftMaskImageTileCommand)} tile={TileIndex.ToString(CultureInfo.InvariantCulture)}";
 }

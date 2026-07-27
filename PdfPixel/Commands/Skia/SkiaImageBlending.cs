@@ -1,17 +1,17 @@
 using SkiaSharp;
 
-namespace PdfPixel.Commands.Image;
+namespace PdfPixel.Commands.Skia;
 
 /// <summary>
 /// Provides SKSL-based image blending with mask, matte, and optional alpha inversion.
 /// </summary>
-internal static class ImageBlending
+internal static class SkiaImageBlending
 {
     private static readonly SKRuntimeEffect _softMaskEffect;
     private static readonly SKRuntimeEffect _imageMaskEffect;
     private static readonly SKRuntimeEffect _imageMaskColorFilterEffect;
 
-    static ImageBlending()
+    static SkiaImageBlending()
     {
         const string softMaskSksl = @"
                 uniform shader image;

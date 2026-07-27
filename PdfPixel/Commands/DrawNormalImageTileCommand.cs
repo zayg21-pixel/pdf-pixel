@@ -1,48 +1,36 @@
 using PdfPixel.Commands.Image;
-using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System.Globalization;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Draws one tile of an image with no mask, placing it directly onto the canvas.
+/// Represents one tile of an image with no mask, placed directly with no blending.
 /// </summary>
 public sealed class DrawNormalImageTileCommand : PdfCommand
 {
-    private readonly NormalImageExecutionContext _context;
-    private int? _lastTileIndex;
+    internal DrawNormalImageTileCommand(NormalImageExecutionContext context, int tileIndex)
+    {
+        Context = context;
+        TileIndex = tileIndex;
+    }
 
-    internal DrawNormalImageTileCommand(NormalImageExecutionContext context) => _context = context;
+    /// <summary>
+    /// The context this command was constructed with.
+    /// </summary>
+    public NormalImageExecutionContext Context { get; }
+
+    /// <summary>
+    /// The index of the tile this command draws.
+    /// </summary>
+    public int TileIndex { get; }
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
-        _lastTileIndex = tile.TileIndex;
-
-        if (tile.IsSkipped || tile.Image == null)
-        {
-            return;
-        }
-
-        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
-            executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
-
-        using SKImage skImage = tile.Image.ToSkImage();
-        using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
-        CommandHelpers.ApplyModifiers(paint, executionContext);
-
-        executionContext.Canvas.Save();
-        executionContext.Canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        executionContext.Canvas.DrawImage(skImage, placement.PlacementRectangle, placement.Sampling, paint);
-        executionContext.Canvas.Restore();
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.DrawNormalImageTile;
 
     /// <inheritdoc />
     public override string ToString()
-        => $"{nameof(DrawNormalImageTileCommand)} tile={_lastTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}";
+        => $"{nameof(DrawNormalImageTileCommand)} tile={TileIndex.ToString(CultureInfo.InvariantCulture)}";
 }

@@ -3,7 +3,7 @@ using PdfPixel.Geometry;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Concatenates a matrix onto the current canvas transformation.
+/// Concatenates a matrix onto the current transformation.
 /// </summary>
 public sealed class ConcatMatrixCommand : PdfCommand, IMatrixCommand
 {
@@ -13,16 +13,12 @@ public sealed class ConcatMatrixCommand : PdfCommand, IMatrixCommand
     public ConcatMatrixCommand(in PdfMatrix matrix) => Matrix = matrix;
 
     /// <summary>
-    /// Gets the matrix that this command concatenates onto the canvas.
+    /// Gets the matrix that this command concatenates onto the current transformation.
     /// </summary>
     public PdfMatrix Matrix { get; }
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        executionContext.Canvas.Concat(Matrix.ToSkMatrix());
-        executionContext.Frames.OnConcatMatrix(Matrix);
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.ConcatMatrix;
 
     /// <inheritdoc />
     public override string ToString() => $"{nameof(ConcatMatrixCommand)} {CommandHelpers.FormatMatrix(Matrix)}";

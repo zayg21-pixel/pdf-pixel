@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Saves the current canvas state onto the state stack.
+/// Saves the current state onto the state stack.
 /// </summary>
 public sealed class SaveStateCommand : PdfCommand
 {
@@ -12,11 +12,7 @@ public sealed class SaveStateCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        executionContext.Canvas.Save();
-        executionContext.Frames.OnSaveState();
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.SaveState;
 
     /// <summary>
     /// Default instance of <see cref="SaveStateCommand"/>.

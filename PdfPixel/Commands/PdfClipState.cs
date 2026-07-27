@@ -5,7 +5,7 @@ using PdfPixel.Models;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Describes a single clip operation applied to the canvas: a fill path, or a stroke path with the
+/// Describes a single applied clip operation: a fill path, or a stroke path with the
 /// paint whose stroke outline was clipped to.
 /// </summary>
 public sealed class PdfClipState

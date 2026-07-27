@@ -6,7 +6,7 @@ namespace PdfPixel.Shading.Model;
 /// <summary>
 /// A batch of tessellated triangles with per-vertex colors, produced by mesh shading decoding.
 /// </summary>
-internal sealed class PdfVertices
+public sealed class PdfVertices
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfVertices"/> class.

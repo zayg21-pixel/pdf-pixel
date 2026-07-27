@@ -61,7 +61,7 @@ foreach (IPdfPage page in document.Pages)
     // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.
     IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
-    // Bundles the canvas, rendering options, and the objects above into the state every
+    // Bundles the rendering options and the objects above into the state every
     // drawing command reads from while the page is replayed.
     using PdfCommandExecutionContext executionContext = new(
         new PdfCommandExecutionParameters
@@ -70,11 +70,10 @@ foreach (IPdfPage page in document.Pages)
         },
         contentLocker,
         optionalContentGroups,
-        executionObserver,
-        canvas);
+        executionObserver);
 
-    // Executes each drawing command immediately against executionContext.Canvas.
-    using SkCanvasCommandProcessor processor = new(executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+    // Executes each drawing command immediately against canvas.
+    SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
     // Save the execution context's state before applying the page transform, so it can be restored afterwards.
     processor.Process(SaveStateCommand.Instance);

@@ -136,7 +136,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         sourceState.RecursionGuard.Add(charObject.Reference.ObjectNumber);
 
-        PdfCommandRecorder recorder = new(sourceState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
+        PdfCommandRecorder recorder = new();
 
         // Render glyph content stream without recursion (independent from page rendering)
         FormXObjectPageWrapper glyphPage = new(sourceState.Page, FontObject);

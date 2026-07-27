@@ -5,39 +5,33 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Initializes the tile cache for an image before its per-tile draw commands run, computing the
-/// region of interest and marking the execution context as partial content when the region is
-/// smaller than the full image.
+/// region of interest to decode.
 /// </summary>
 public sealed class InitializeTileCacheCommand : PdfCommand
 {
-    private readonly PdfImageTileCacheEntry _tileCache;
-    private readonly PdfIntegerSize _imageSize;
-
     internal InitializeTileCacheCommand(PdfImageTileCacheEntry tileCache, in PdfIntegerSize imageSize)
     {
-        _tileCache = tileCache;
-        _imageSize = imageSize;
+        TileCache = tileCache;
+        ImageSize = imageSize;
     }
+
+    /// <summary>
+    /// The tile cache this command initializes.
+    /// </summary>
+    public PdfImageTileCacheEntry TileCache { get; }
+
+    /// <summary>
+    /// The full pixel size of the image the tile cache decodes.
+    /// </summary>
+    public PdfIntegerSize ImageSize { get; }
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(CommandHelpers.GetScaledMatrix(executionContext));
-        PdfIntegerRectangle imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext);
-
-        if (imageRegion.Width != _imageSize.Width || imageRegion.Height != _imageSize.Height)
-        {
-            executionContext.SetPartialContent();
-        }
-
-        _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
-        _tileCache.ResetTileIndex();
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.InitializeTileCache;
 
     /// <inheritdoc />
     public override string ToString()
-        => $"{nameof(InitializeTileCacheCommand)} {_tileCache.Decoder.Image.Type}, {_imageSize.Width}x{_imageSize.Height}, {_tileCache.Decoder.Image.BitsPerComponent}bpc, {_tileCache.TileInfo.TotalTiles} tiles";
+        => $"{nameof(InitializeTileCacheCommand)} {TileCache.Decoder.Image.Type}, {ImageSize.Width}x{ImageSize.Height}, {TileCache.Decoder.Image.BitsPerComponent}bpc, {TileCache.TileInfo.TotalTiles} tiles";
 }

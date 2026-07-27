@@ -1,23 +1,19 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
-using PdfPixel.Commands.Converters;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
-using SkiaSharp;
 using System;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Draws PDF shading. Builds expensive data (function sampling, mesh decoding, gradient construction)
-/// once per shading and reuses the result from <see cref="PdfCommandExecutionContext.Cache"/> for every
-/// other command instance drawing the same shading during the same execution.
+/// Represents a PDF shading. <see cref="BuildEntry"/> builds the expensive data (function sampling,
+/// mesh decoding, gradient construction) needed to draw it; callers decide whether and how to
+/// cache the result across other command instances drawing the same shading.
 /// </summary>
 public sealed class DrawShadingCommand : PdfCommand
 {
     private readonly PdfShading _shading;
-    private readonly ShadingDecodingContext _context;
     private readonly PdfShadingBuilder _builder;
     private readonly Color.Sampling.ColorTransformSampler _sampler;
 
@@ -28,68 +24,31 @@ public sealed class DrawShadingCommand : PdfCommand
     /// <param name="loggerFactory">Logger factory for diagnostic output.</param>
     public DrawShadingCommand(ShadingDecodingContext context, ILoggerFactory loggerFactory)
     {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
-        _shading = _context.Shading;
+        Context = context ?? throw new ArgumentNullException(nameof(context));
+        _shading = Context.Shading;
         _builder = new PdfShadingBuilder(loggerFactory);
-        _sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
+        _sampler = Context.Converter.GetRgbaSampler(Context.RenderingIntent, Context.FullTransferFunction);
     }
+
+    /// <summary>
+    /// The context this command was constructed with.
+    /// </summary>
+    public ShadingDecodingContext Context { get; }
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        ShadingCommandCacheEntry entry = GetOrBuildEntry(executionContext);
+    public override PdfCommandKind Kind => PdfCommandKind.DrawShading;
 
-        switch (_shading.ShadingType)
+    /// <summary>
+    /// Builds the rendering primitives for this shading, sampling the shading's function(s) and
+    /// constructing the type-specific gradient, mesh, or image data.
+    /// </summary>
+    public ShadingCommandCacheEntry BuildEntry(PdfCommandExecutionContext executionContext)
+    {
+        if (executionContext == null)
         {
-            case PdfShadingType.FunctionBased:
-            {
-                ExecuteFunctionBased(executionContext, entry);
-                break;
-            }
-            case PdfShadingType.Axial:
-            {
-                ExecuteAxial(executionContext, entry);
-                break;
-            }
-            case PdfShadingType.Radial:
-            {
-                ExecuteRadial(executionContext, entry);
-                break;
-            }
-            case PdfShadingType.FreeFormGouraud:
-            case PdfShadingType.LatticeFormGouraud:
-            {
-                ExecuteGouraud(executionContext, entry);
-                break;
-            }
-            case PdfShadingType.CoonsPatchMesh:
-            case PdfShadingType.TensorProductPatchMesh:
-            {
-                ExecutePatchMesh(executionContext, entry);
-                break;
-            }
+            throw new ArgumentNullException(nameof(executionContext));
         }
-    }
 
-    private ShadingCommandCacheEntry GetOrBuildEntry(PdfCommandExecutionContext executionContext)
-    {
-        ShadingCommandCacheKey key = new(_context);
-
-        lock (executionContext.ContentLocker)
-        {
-            if (executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing && existing.ParametersMatches(executionContext.Parameters))
-            {
-                return existing;
-            }
-
-            ShadingCommandCacheEntry entry = BuildEntry(executionContext);
-            executionContext.Cache.StoreEntry(key, entry);
-            return entry;
-        }
-    }
-
-    private ShadingCommandCacheEntry BuildEntry(PdfCommandExecutionContext executionContext)
-    {
         ShadingCommandCacheEntry entry = new();
 
         switch (_shading.ShadingType)
@@ -134,104 +93,6 @@ public sealed class DrawShadingCommand : PdfCommand
         }
 
         return entry;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ExecuteFunctionBased(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
-    {
-        if (entry.Function == null)
-        {
-            return;
-        }
-
-        using SKImage image = PdfImageConverter.ToSkImage(entry.Function.Image);
-
-        executionContext.Canvas.Save();
-        executionContext.Canvas.Concat(entry.Function.Matrix.ToSkMatrix());
-        executionContext.Canvas.DrawImage(image, SKPoint.Empty, SKSamplingOptions.Default);
-        executionContext.Canvas.Restore();
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ExecuteAxial(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
-    {
-        if (entry.Axial == null)
-        {
-            return;
-        }
-
-        using SKPaint paint = entry.Axial.ToSkiaPaint();
-        DrawPaintToCanvas(executionContext, paint);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ExecuteRadial(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
-    {
-        if (entry.Radial == null)
-        {
-            return;
-        }
-
-        using SKPaint innerPaint = entry.Radial.ToSkiaInnerPaint();
-        DrawPaintToCanvas(executionContext, innerPaint);
-
-        using SKPaint outerPaint = entry.Radial.ToSkiaOuterPaint();
-        DrawPaintToCanvas(executionContext, outerPaint);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ExecuteGouraud(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
-    {
-        if (entry.Gouraud == null)
-        {
-            return;
-        }
-
-        DrawVerticesToCanvas(executionContext, entry.Gouraud);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ExecutePatchMesh(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
-    {
-        if (entry.PatchMesh == null)
-        {
-            return;
-        }
-
-        DrawVerticesToCanvas(executionContext, entry.PatchMesh);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawPaintToCanvas(PdfCommandExecutionContext executionContext, SKPaint paint)
-    {
-        paint.Color = CommandHelpers.ApplyAlpha(paint.Color, _context.FillAlpha);
-        paint.IsAntialias = executionContext.Parameters.Antialias;
-
-        CommandHelpers.ApplyModifiers(paint, executionContext);
-
-        executionContext.Canvas.DrawPaint(paint);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, PdfVertices vertices)
-    {
-        using SKPaint paint = CreateVerticesPaint(executionContext);
-
-        using SKVertices skVertices = PdfShadingConverter.ToSkVertices(vertices);
-        executionContext.Canvas.DrawVertices(skVertices, SKBlendMode.DstIn, paint);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private SKPaint CreateVerticesPaint(PdfCommandExecutionContext executionContext)
-    {
-        SKPaint paint = new()
-        {
-            Color = CommandHelpers.ApplyAlpha(SKColors.Black, _context.FillAlpha),
-            IsAntialias = executionContext.Parameters.Antialias
-        };
-
-        CommandHelpers.ApplyModifiers(paint, executionContext);
-        return paint;
     }
 
     /// <inheritdoc />

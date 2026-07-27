@@ -1,12 +1,10 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
-using SkiaSharp;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Saves a new layer on the canvas. Picks the right <c>canvas.SaveLayer</c> overload
-/// depending on whether bounds and/or paint are supplied.
+/// Saves a new layer, with optional bounds and paint.
 /// </summary>
 public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
 {
@@ -28,23 +26,7 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
     public PdfPaint? Paint { get; }
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        SKRect skBounds = Bounds.ToSkRect();
-
-        if (Paint != null)
-        {
-            using SKPaint paint = Paint.ToSkiaPaint();
-            paint.IsAntialias = executionContext.Parameters.Antialias;
-            executionContext.Canvas.SaveLayer(skBounds, paint);
-        }
-        else
-        {
-            executionContext.Canvas.SaveLayer(skBounds, null);
-        }
-
-        executionContext.Frames.OnSaveLayer();
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.SaveLayer;
 
     /// <inheritdoc />
     public override string ToString()

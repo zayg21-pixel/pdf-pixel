@@ -53,11 +53,6 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     public PdfRectangle LastRegionOfInterest { get; private set; }
 
     /// <summary>
-    /// True when the cached picture covers only a subset of the full content.
-    /// </summary>
-    public bool IsPartialContent { get; private set; }
-
-    /// <summary>
     /// Flattened characters extracted during the last content picture generation, in reading order.
     /// </summary>
     public List<PdfCharacter>? Characters { get; private set; }
@@ -79,7 +74,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent, List<PdfCharacter>? characters = null)
+    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, List<PdfCharacter>? characters = null)
     {
         if (request == null)
         {
@@ -90,7 +85,6 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ContentPicture.SetContent(picture);
         LastRequest = request;
         LastRegionOfInterest = request.ComputeRegionOfInterest(PageNumber);
-        IsPartialContent = isPartialContent;
         Characters = characters;
     }
 
@@ -122,7 +116,6 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ContentPicture.SetContent(default);
         LastRequest = null;
         LastRegionOfInterest = default;
-        IsPartialContent = false;
         Characters = null;
     }
 

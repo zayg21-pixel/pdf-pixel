@@ -7,8 +7,8 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Tracks the total transformation matrix and current clip across a command replay, mirroring
-/// the canvas save/restore stack without depending on the canvas itself. Commands that change
-/// canvas state (matrix, clip, layers, save/restore) notify this class so its values stay in sync.
+/// the save/restore stack independently of how commands are actually drawn. Commands that change
+/// state (matrix, clip, layers, save/restore) notify this class so its values stay in sync.
 /// </summary>
 public sealed class PdfCommandExecutionFrames
 {
@@ -33,7 +33,7 @@ public sealed class PdfCommandExecutionFrames
     public IReadOnlyCollection<PdfCommandFrame> Frames => _frames;
 
     /// <summary>
-    /// Number of currently active saved states, mirroring the depth of the canvas save stack.
+    /// Number of currently active saved states, mirroring the depth of the save stack.
     /// </summary>
     public int SavesCount => _frames.Count;
 

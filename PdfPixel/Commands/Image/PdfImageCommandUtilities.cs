@@ -1,3 +1,4 @@
+using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
@@ -160,32 +161,6 @@ internal static class PdfImageCommandUtilities
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfMatrix GetImageCtm(in PdfMatrix ctm) => ctm.PreConcat(GetImageMatrix());
-
-    // TODO: [MEDIUM] shall go to paint factory with other paints
-    /// <summary>
-    /// Creates a paint that draws <paramref name="shader"/> with the blend mode and fill
-    /// alpha captured in <paramref name="context"/>.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint GetBaseImagePaint(SKShader shader, ImageDecodingContext context)
-    {
-        return new()
-        {
-            Shader = shader,
-            BlendMode = context.BlendMode.ToSkiaBlendMode(),
-            Color = CommandHelpers.ApplyAlpha(SKColors.White, context.FillAlpha)
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint GetBaseImagePaint(ImageDecodingContext context)
-    {
-        return new()
-        {
-            BlendMode = context.BlendMode.ToSkiaBlendMode(),
-            Color = CommandHelpers.ApplyAlpha(SKColors.White, context.FillAlpha)
-        };
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfIntegerRectangle ComputeImageRegionOfInterest(in PdfIntegerSize imageSize, PdfCommandExecutionContext executionContext)

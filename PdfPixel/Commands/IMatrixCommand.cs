@@ -3,12 +3,12 @@ using PdfPixel.Geometry;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Exposes the matrix a command concatenates onto the canvas before performing its own work.
+/// Exposes the matrix a command concatenates onto the current transformation before performing its own work.
 /// </summary>
 public interface IMatrixCommand
 {
     /// <summary>
-    /// Gets the matrix this command concatenates onto the canvas.
+    /// Gets the matrix this command concatenates onto the current transformation.
     /// </summary>
     PdfMatrix Matrix { get; }
 }

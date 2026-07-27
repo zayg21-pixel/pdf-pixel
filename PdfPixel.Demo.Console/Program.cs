@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Skia;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -74,11 +75,10 @@ namespace PdfPixel.Console.Demo
                     },
                     contentLocker,
                     optionalContentGroups,
-                    executionObserver,
-                    canvas);
+                    executionObserver);
 
-                // Executes each drawing command immediately against executionContext.Canvas.
-                using SkCanvasCommandProcessor processor = new(executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+                // Executes each drawing command immediately against canvas.
+                SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
                 // Save the execution context's state before applying the page transform, so it can be restored afterwards.
                 processor.Process(SaveStateCommand.Instance);

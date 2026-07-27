@@ -7,8 +7,14 @@ using System;
 
 namespace PdfPixel.Commands.Image;
 
-internal sealed class SoftMaskImageExecutionContext
+/// <summary>
+/// Constructed context for a <see cref="DrawSoftMaskImageTileCommand"/>: an image blended through a soft mask (/SMask), drawn tile by tile.
+/// </summary>
+public sealed class SoftMaskImageExecutionContext
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SoftMaskImageExecutionContext"/> class.
+    /// </summary>
     public SoftMaskImageExecutionContext(
         in PdfIntegerSize imageSize,
         in PdfIntegerSize maskSize,
@@ -27,17 +33,61 @@ internal sealed class SoftMaskImageExecutionContext
         Interpolate = interpolate;
     }
 
+    /// <summary>
+    /// Gets the image's pixel size.
+    /// </summary>
     public PdfIntegerSize ImageSize { get; }
+
+    /// <summary>
+    /// Gets the soft mask's pixel size.
+    /// </summary>
     public PdfIntegerSize MaskSize { get; }
+
+    /// <summary>
+    /// Gets the decoding context (fill color, alpha, blend mode) captured at record time.
+    /// </summary>
     public ImageDecodingContext DecodingContext { get; }
+
+    /// <summary>
+    /// Gets the tile cache producing decoded tiles for the image.
+    /// </summary>
     public PdfImageTileCacheEntry ImageCache { get; }
+
+    /// <summary>
+    /// Gets the tile cache producing decoded tiles for the soft mask.
+    /// </summary>
     public PdfImageTileCacheEntry MaskCache { get; }
+
+    /// <summary>
+    /// Gets the soft mask's /Matte backdrop color components, or null when not specified.
+    /// </summary>
     public float[]? MatteArray { get; }
+
+    /// <summary>
+    /// Gets whether the image should be interpolated when scaled.
+    /// </summary>
     public bool Interpolate { get; }
+
+    /// <summary>
+    /// Gets the tiling layout of <see cref="ImageCache"/>.
+    /// </summary>
     public PdfTileInfo TileInfo => ImageCache.TileInfo;
 
+    /// <summary>
+    /// Builds the context for <paramref name="pdfImage"/> and its soft mask, resolving their decoders and tile caches.
+    /// </summary>
     public static SoftMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
+        if (pdfImage == null)
+        {
+            throw new ArgumentNullException(nameof(pdfImage));
+        }
+
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
         if (pdfImage.SoftMask == null)
         {
             throw new ArgumentException($"Not defined soft mask for image {pdfImage.SourceReference}.");
@@ -78,4 +128,3 @@ internal sealed class SoftMaskImageExecutionContext
             pdfImage.Interpolate);
     }
 }
-

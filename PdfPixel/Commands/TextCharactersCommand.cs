@@ -1,6 +1,5 @@
 using PdfPixel.Geometry;
 using PdfPixel.TextExtraction;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace PdfPixel.Commands;
@@ -31,26 +30,7 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     public PdfCharacter[] Characters { get; }
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        PdfMatrix matrix = executionContext.Frames.TotalMatrix.PreConcat(Matrix);
-
-        List<PdfCharacter> mapped = new(Characters.Length);
-
-        for (int i = 0; i < Characters.Length; i++)
-        {
-            PdfRectangle pageRect = matrix.MapRect(Characters[i].BoundingBox);
-            if (pageRect.Width != 0)
-            {
-                mapped.Add(new PdfCharacter(Characters[i].Text, pageRect));
-            }
-        }
-
-        if (mapped.Count > 0)
-        {
-            executionContext.MarkedContent.AppendCharacters(mapped);
-        }
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.TextCharacters;
 
     /// <inheritdoc />
     public override string ToString()

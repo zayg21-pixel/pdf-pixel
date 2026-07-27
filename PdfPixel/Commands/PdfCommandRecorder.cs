@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 
@@ -10,12 +9,6 @@ namespace PdfPixel.Commands;
 public sealed class PdfCommandRecorder : IPdfCommandProcessor
 {
     private readonly List<IPdfCommand> _commands = [];
-    private readonly ILogger<PdfCommandRecorder> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PdfCommandRecorder"/> class with the specified logger.
-    /// </summary>
-    public PdfCommandRecorder(ILogger<PdfCommandRecorder> logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc />
     public void Process(IPdfCommand command) => _commands.Add(command);
@@ -26,41 +19,21 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     public IReadOnlyList<IPdfCommand> Commands => _commands;
 
     /// <summary>
-    /// Replays all recorded commands using the canvas and rendering parameters from <paramref name="executionContext"/>.
+    /// Replays all recorded commands by submitting each one to <paramref name="processor"/>.
+    /// Marked-content visibility and error handling are the responsibility of <paramref name="processor"/>'s
+    /// own <see cref="IPdfCommandProcessor.Process"/>.
     /// </summary>
-    /// <param name="executionContext">Execution-time context containing the canvas, rendering parameters, and cancellation.</param>
-    public void Replay(PdfCommandExecutionContext executionContext)
+    /// <param name="processor">Processor each recorded command is submitted to.</param>
+    public void Replay(IPdfCommandProcessor processor)
     {
-        if (executionContext == null)
+        if (processor == null)
         {
-            throw new ArgumentNullException(nameof(executionContext));
+            throw new ArgumentNullException(nameof(processor));
         }
 
         foreach (IPdfCommand command in _commands)
         {
-            if (!executionContext.MarkedContent.ShouldExecute(command))
-            {
-                continue;
-            }
-
-            try
-            {
-                command.Execute(executionContext);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-#pragma warning disable CA1031 // Do not catch general exception types
-            catch (Exception exception)
-#pragma warning restore CA1031 // Do not catch general exception types
-            {
-                _logger.LogWarning(exception, "Command {CommandType} failed during replay.", command.GetType().Name);
-                continue;
-            }
-
-            executionContext.CurrentCommand = command;
-            executionContext.ExecutionObserver?.Notify();
+            processor.Process(command);
         }
     }
 }

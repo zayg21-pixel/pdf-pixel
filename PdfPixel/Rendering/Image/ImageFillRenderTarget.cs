@@ -80,7 +80,7 @@ internal class ImageFillRenderTarget : IRenderTarget
                 processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
                 for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
                 {
-                    processor.Process(new DrawStencilMaskImageTileCommand(ctx));
+                    processor.Process(new DrawStencilMaskImageTileCommand(ctx, i));
                 }
 
                 break;
@@ -92,7 +92,7 @@ internal class ImageFillRenderTarget : IRenderTarget
                 processor.Process(new InitializeTileCacheCommand(ctx.MaskCache, ctx.MaskSize));
                 for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
                 {
-                    processor.Process(new DrawSoftMaskImageTileCommand(ctx));
+                    processor.Process(new DrawSoftMaskImageTileCommand(ctx, i));
                 }
 
                 break;
@@ -118,12 +118,12 @@ internal class ImageFillRenderTarget : IRenderTarget
 
                 for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)
                 {
-                    processor.Process(new DrawNormalImageTileCommand(imageCtx));
+                    processor.Process(new DrawNormalImageTileCommand(imageCtx, i));
                 }
 
                 for (int i = 0; i < maskCtx.TileInfo.TotalTiles; i++)
                 {
-                    processor.Process(new DrawStencilMaskImageTileCommand(maskCtx));
+                    processor.Process(new DrawStencilMaskImageTileCommand(maskCtx, i));
                 }
 
                 processor.Process(RestoreLayerCommand.Instance);
@@ -136,7 +136,7 @@ internal class ImageFillRenderTarget : IRenderTarget
                 processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
                 for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
                 {
-                    processor.Process(new DrawNormalImageTileCommand(ctx));
+                    processor.Process(new DrawNormalImageTileCommand(ctx, i));
                 }
 
                 break;

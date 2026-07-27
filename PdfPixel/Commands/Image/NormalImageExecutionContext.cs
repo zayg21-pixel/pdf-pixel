@@ -7,7 +7,10 @@ using System;
 
 namespace PdfPixel.Commands.Image;
 
-internal sealed class NormalImageExecutionContext
+/// <summary>
+/// Constructed context for a <see cref="DrawNormalImageTileCommand"/>: an image with no mask, drawn tile by tile.
+/// </summary>
+public sealed class NormalImageExecutionContext
 {
     private NormalImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
     {
@@ -17,8 +20,21 @@ internal sealed class NormalImageExecutionContext
         Interpolate = interpolate;
     }
 
+    /// <summary>
+    /// Builds the context for <paramref name="pdfImage"/>, resolving its decoder and tile cache.
+    /// </summary>
     public static NormalImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
+        if (pdfImage == null)
+        {
+            throw new ArgumentNullException(nameof(pdfImage));
+        }
+
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
         PdfIntegerSize imageSize = new(pdfImage.Width, pdfImage.Height);
         PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
 
@@ -31,13 +47,28 @@ internal sealed class NormalImageExecutionContext
         return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), pdfImage.Interpolate);
     }
 
+    /// <summary>
+    /// Gets the image's pixel size.
+    /// </summary>
     public PdfIntegerSize ImageSize { get; }
 
+    /// <summary>
+    /// Gets the decoding context (fill color, alpha, blend mode) captured at record time.
+    /// </summary>
     public ImageDecodingContext DecodingContext { get; }
 
+    /// <summary>
+    /// Gets the tile cache producing decoded tiles for this image.
+    /// </summary>
     public PdfImageTileCacheEntry TileCache { get; }
 
+    /// <summary>
+    /// Gets whether the image should be interpolated when scaled.
+    /// </summary>
     public bool Interpolate { get; }
 
+    /// <summary>
+    /// Gets the tiling layout of <see cref="TileCache"/>.
+    /// </summary>
     public PdfTileInfo TileInfo => TileCache.TileInfo;
 }

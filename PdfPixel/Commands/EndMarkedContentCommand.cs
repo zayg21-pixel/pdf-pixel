@@ -8,6 +8,5 @@ namespace PdfPixel.Commands;
 public sealed class EndMarkedContentCommand : PdfCommand
 {
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-        => executionContext.MarkedContent.Pop();
+    public override PdfCommandKind Kind => PdfCommandKind.EndMarkedContent;
 }

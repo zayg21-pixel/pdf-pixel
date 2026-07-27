@@ -50,7 +50,7 @@ public sealed class PdfShadingPattern : PdfPattern
     {
         PdfMatrix matrix = PdfMatrix.Concat(state.CTM.Invert(), PatternMatrix);
 
-        PdfCommandRecorder recorder = new(state.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
+        PdfCommandRecorder recorder = new();
 
         recorder.Process(SaveStateCommand.Instance);
         recorder.Process(new ConcatMatrixCommand(matrix));

@@ -6,7 +6,7 @@ namespace PdfPixel.Shading.Model;
 /// <summary>
 /// An axial (Type 2) gradient: a linear ramp of colors between two points.
 /// </summary>
-internal sealed class PdfLinearGradient
+public sealed class PdfLinearGradient
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfLinearGradient"/> class.

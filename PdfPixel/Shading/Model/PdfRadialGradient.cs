@@ -6,7 +6,7 @@ namespace PdfPixel.Shading.Model;
 /// <summary>
 /// A radial (Type 3) gradient: a ramp of colors between two circles.
 /// </summary>
-internal sealed class PdfRadialGradient
+public sealed class PdfRadialGradient
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfRadialGradient"/> class.

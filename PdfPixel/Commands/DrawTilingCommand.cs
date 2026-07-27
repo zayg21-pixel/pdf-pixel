@@ -1,14 +1,12 @@
-using PdfPixel.Models;
 using System;
-using SkiaSharp;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Replays a recorded pattern cell across a tiled grid covering the given bounds, under its own matrix.
-/// Owns a save/restore around the replay because it executes a nested <see cref="DrawRecordingCommand"/>
-/// and draws directly onto the canvas in pattern space.
+/// Represents a recorded pattern cell replayed across a tiled grid covering the given bounds, under its own matrix.
+/// A save/restore boundary surrounds the replay because it draws a nested <see cref="DrawRecordingCommand"/>
+/// directly in pattern space, whose state (matrix, clip) must not leak outward.
 /// </summary>
 public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 {
@@ -75,121 +73,8 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     public override PdfCommandFeatures Features => RecordingCommand.Features;
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        executionContext.Canvas.Save();
-        executionContext.Frames.OnSaveState();
-        executionContext.Canvas.Concat(Matrix.ToSkMatrix());
-        executionContext.Frames.OnConcatMatrix(Matrix);
-
-        PdfCommandExecutionParameters childParameters = executionContext.Parameters.Clone();
-        childParameters.SnapToDevicePixels = false;
-
-        SKRect skBBox = BBox.ToSkRect();
-
-        using (SKPictureRecorder recorder = new())
-        {
-            using SKCanvas canvas = recorder.BeginRecording(skBBox);
-            using PdfCommandExecutionContext childContext = new(
-                childParameters,
-                executionContext.ContentLocker,
-                executionContext.OptionalContentGroups,
-                executionContext.ExecutionObserver,
-                canvas);
-
-            // do not apply AA to clip BBox to avoid seams
-            canvas.ClipRect(skBBox, SKClipOperation.Intersect);
-            childContext.Frames.OnConcatMatrix(executionContext.Frames.TotalMatrix);
-            RecordingCommand.Execute(childContext);
-
-            using SKPicture picture = recorder.EndRecording();
-
-            ShaderTilingParameters shaderTilingParameters = GetShaderTilingParameters(executionContext);
-
-            if (shaderTilingParameters.CanUseShaders)
-            {
-                SKRect tileRect = new(
-                    skBBox.Left,
-                    skBBox.Top,
-                    skBBox.Left + shaderTilingParameters.ExactTileWidth,
-                    skBBox.Top + shaderTilingParameters.ExactTileHeight);
-
-                using SKShader shader = picture.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileRect);
-                using SKPaint shaderPaint = new() { Shader = shader };
-
-                executionContext.Canvas.DrawRect(TilingArea.ToSkRect(), shaderPaint);
-            }
-            else
-            {
-                for (int i = 0; i <= XCount; i++)
-                {
-                    float x = TilingArea.Left + (i * XStep);
-                    for (int j = 0; j <= YCount; j++)
-                    {
-                        float y = TilingArea.Top + (j * YStep);
-
-                        SKMatrix translation = SKMatrix.CreateTranslation(x, y);
-
-                        executionContext.Canvas.Save();
-                        executionContext.Canvas.Concat(translation);
-                        executionContext.Canvas.DrawPicture(picture);
-
-                        executionContext.Canvas.Restore();
-                    }
-                }
-            }
-        }
-
-        executionContext.Canvas.Restore();
-        executionContext.Frames.OnRestoreState();
-    }
-
-    private ShaderTilingParameters GetShaderTilingParameters(PdfCommandExecutionContext executionContext)
-    {
-        PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
-        PdfPoint deviceOrigin = deviceMatrix.MapPoint(PdfPoint.Empty);
-        PdfPoint mappedX = deviceMatrix.MapPoint(new PdfPoint(XStep, 0));
-        PdfPoint mappedY = deviceMatrix.MapPoint(new PdfPoint(0, YStep));
-
-        float deviceXAxisX = mappedX.X - deviceOrigin.X;
-        float deviceXAxisY = mappedX.Y - deviceOrigin.Y;
-        float deviceYAxisX = mappedY.X - deviceOrigin.X;
-        float deviceYAxisY = mappedY.Y - deviceOrigin.Y;
-
-        float deviceXAxisLength = MathF.Sqrt((deviceXAxisX * deviceXAxisX) + (deviceXAxisY * deviceXAxisY));
-        float deviceYAxisLength = MathF.Sqrt((deviceYAxisX * deviceYAxisX) + (deviceYAxisY * deviceYAxisY));
-
-        float scaleX = deviceXAxisLength / XStep;
-        float scaleY = deviceYAxisLength / YStep;
-
-        float targetPixelsX = MathF.Round(deviceXAxisLength);
-        float targetPixelsY = MathF.Round(deviceYAxisLength);
-
-        float exactTileWidth = targetPixelsX / scaleX;
-        float exactTileHeight = targetPixelsY / scaleY;
-
-        int maxTileDeviceDimension = executionContext.Parameters.ImageTileSize;
-        bool canUseShaders = deviceXAxisLength <= maxTileDeviceDimension && deviceYAxisLength <= maxTileDeviceDimension;
-
-        return new ShaderTilingParameters(canUseShaders, exactTileWidth, exactTileHeight);
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.DrawTiling;
 
     /// <inheritdoc />
     public override string ToString() => $"{nameof(DrawTilingCommand)} {CommandHelpers.FormatMatrix(Matrix)}";
-
-    private readonly struct ShaderTilingParameters
-    {
-        public ShaderTilingParameters(bool canUseShaders, float exactTileWidth, float exactTileHeight)
-        {
-            CanUseShaders = canUseShaders;
-            ExactTileWidth = exactTileWidth;
-            ExactTileHeight = exactTileHeight;
-        }
-
-        public bool CanUseShaders { get; }
-
-        public float ExactTileWidth { get; }
-
-        public float ExactTileHeight { get; }
-    }
 }

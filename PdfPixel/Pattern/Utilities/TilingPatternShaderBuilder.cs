@@ -37,7 +37,7 @@ internal sealed class TilingPatternShaderBuilder
 
         sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
 
-        PdfCommandRecorder recorder = new(sourceState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
+        PdfCommandRecorder recorder = new();
 
         // Render pattern cell without tint or color filter
         FormXObjectPageWrapper patternPage = new(pattern.SourceObject);

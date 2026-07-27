@@ -1,6 +1,7 @@
 using PdfPixel.Models;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
+using System;
 
 namespace PdfPixel.Commands.Cache;
 
@@ -9,7 +10,7 @@ namespace PdfPixel.Commands.Cache;
 /// every command instance that draws the same shading under equivalent color conversion. Only the
 /// field matching the shading's type is populated; the rest stay null.
 /// </summary>
-internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
+public sealed class ShadingCommandCacheEntry : ICommandCacheItem
 {
     /// <summary>
     /// Function sample count used to build <see cref="Function"/>, <see cref="Axial"/>, or <see cref="Radial"/>. Null when none of those were built.
@@ -21,14 +22,29 @@ internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
     /// </summary>
     public int? TessellationVertices { get; set; }
 
+    /// <summary>
+    /// Sampled image and matrix built for a function-based (Type 1) shading. Null unless this entry holds a function-based shading.
+    /// </summary>
     public FunctionShadingResult? Function { get; set; }
 
+    /// <summary>
+    /// Linear gradient built for an axial (Type 2) shading. Null unless this entry holds an axial shading.
+    /// </summary>
     public PdfLinearGradient? Axial { get; set; }
 
+    /// <summary>
+    /// Radial gradient built for a radial (Type 3) shading. Null unless this entry holds a radial shading.
+    /// </summary>
     public PdfRadialGradient? Radial { get; set; }
 
+    /// <summary>
+    /// Tessellated vertices built for a free-form or lattice-form Gouraud shading. Null unless this entry holds one of those shading types.
+    /// </summary>
     public PdfVertices? Gouraud { get; set; }
 
+    /// <summary>
+    /// Tessellated vertices built for a Coons or tensor-product patch mesh shading. Null unless this entry holds one of those shading types.
+    /// </summary>
     public PdfVertices? PatchMesh { get; set; }
 
     /// <summary>
@@ -37,10 +53,16 @@ internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
     /// </summary>
     public bool ParametersMatches(PdfCommandExecutionParameters parameters)
     {
+        if (parameters == null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
         return (!FunctionSamples.HasValue || FunctionSamples.Value == parameters.DefaultFunctionSamples)
             && (!TessellationVertices.HasValue || TessellationVertices.Value == parameters.MaxTessellationVertices);
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
     }

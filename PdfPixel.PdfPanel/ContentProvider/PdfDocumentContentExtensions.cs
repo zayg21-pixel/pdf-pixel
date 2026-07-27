@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -26,7 +27,7 @@ internal static class PdfDocumentContentExtensions
             return null;
         }
 
-        PdfCommandRecorder recorder = new(document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
+        PdfCommandRecorder recorder = new();
 
         ApplyPageTransformations(pdfPage, recorder);
 
@@ -70,7 +71,7 @@ internal static class PdfDocumentContentExtensions
     {
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
 
-        PdfCommandRecorder commandRecording = new(document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
+        PdfCommandRecorder commandRecording = new();
 
         ApplyPageTransformations(pdfPage, commandRecording);
 
@@ -80,15 +81,16 @@ internal static class PdfDocumentContentExtensions
     }
 
     /// <summary>
-    /// Replays the command recording onto the execution context's canvas.
+    /// Replays the command recording onto <paramref name="canvas"/>.
     /// The caller is responsible for creating the <see cref="SKPictureRecorder"/>,
-    /// beginning recording, constructing the <see cref="PdfCommandExecutionContext"/>
-    /// with the resulting canvas, and calling <see cref="SKPictureRecorder.EndRecording"/>
-    /// after this method returns.
+    /// beginning recording, constructing the <see cref="PdfCommandExecutionContext"/>,
+    /// and calling <see cref="SKPictureRecorder.EndRecording"/> after this method returns.
     /// </summary>
     public static void RecordingToSkPicture(
         PdfCommandRecorder commandRecording,
-        PdfCommandExecutionContext executionContext)
+        PdfCommandExecutionContext executionContext,
+        SKCanvas canvas,
+        ILoggerFactory loggerFactory)
     {
         if (commandRecording == null)
         {
@@ -100,10 +102,22 @@ internal static class PdfDocumentContentExtensions
             throw new ArgumentNullException(nameof(executionContext));
         }
 
-        executionContext.Frames.Reset();
-        commandRecording.Replay(executionContext);
+        if (canvas == null)
+        {
+            throw new ArgumentNullException(nameof(canvas));
+        }
 
-        executionContext.Canvas.Flush();
+        if (loggerFactory == null)
+        {
+            throw new ArgumentNullException(nameof(loggerFactory));
+        }
+
+        executionContext.Frames.Reset();
+
+        SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+        commandRecording.Replay(processor);
+
+        canvas.Flush();
     }
 
     private static void ApplyPageTransformations(IPdfPage pdfPage, PdfCommandRecorder commandRecording)

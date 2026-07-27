@@ -12,7 +12,7 @@ namespace PdfPixel.Commands.Image;
 /// in order. Tiles outside the viewport are left alone. A CTM change that alters the decode size
 /// (images are never upscaled) drops the whole cache, since every tile shares one decode size.
 /// </summary>
-internal sealed class PdfImageTileCacheEntry
+public sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
 
@@ -20,6 +20,9 @@ internal sealed class PdfImageTileCacheEntry
     private int _tileIndex;
     private bool _decoding;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfImageTileCacheEntry"/> class.
+    /// </summary>
     public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo)
     {
         Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
@@ -37,10 +40,15 @@ internal sealed class PdfImageTileCacheEntry
     /// </summary>
     public PdfImageDecoder Decoder { get; }
 
+    /// <summary>
+    /// Gets the tiling layout shared by every tile in this cache.
+    /// </summary>
     public PdfTileInfo TileInfo { get; }
 
-    public void ResetTileIndex() => _tileIndex = 0;
-
+    /// <summary>
+    /// Marks in-viewport tiles without a decoded image as pending and starts decoding them, dropping
+    /// tiles whose decode size has changed and evicting tiles outside <paramref name="imageRegion"/>.
+    /// </summary>
     public void Initialize(in PdfMatrix ctm, in PdfIntegerRectangle imageRegion, object contentLocker, IPdfExecutionObserver observer)
     {
         if (_decoding)
@@ -74,6 +82,9 @@ internal sealed class PdfImageTileCacheEntry
         }
     }
 
+    /// <summary>
+    /// Returns the next tile in iteration order, decoding it first if it is pending an update.
+    /// </summary>
     public PdfImageTile GetNextTile(IPdfExecutionObserver observer)
     {
         if (_tileIndex >= TileInfo.TotalTiles)

@@ -1,11 +1,10 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using SkiaSharp;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Applies a rectangular clip to the canvas.
+/// Represents a rectangular clip operation.
 /// </summary>
 public sealed class ClipRectangleCommand : PdfCommand
 {
@@ -19,22 +18,16 @@ public sealed class ClipRectangleCommand : PdfCommand
     }
 
     /// <summary>
-    /// Gets the rectangle applied as a clip to the canvas.
+    /// Gets the rectangle this command clips to.
     /// </summary>
     public PdfRectangle Rect { get; }
 
     /// <summary>
-    /// Gets the clip operation applied to the canvas.
+    /// Gets the clip operation this command applies.
     /// </summary>
     public PdfClipOperation Operation { get; }
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        SKRect snappedRect = CommandHelpers.GetPixelSnappedRect(Rect.ToSkRect(), executionContext);
-        SKClipOperation skOperation = Operation.ToSkClipOperation();
-        bool antialias = CommandHelpers.GetRectIsAntialias(snappedRect, executionContext);
-        executionContext.Canvas.ClipRect(snappedRect, skOperation, antialias);
-        executionContext.Frames.OnClipRect(Rect, Operation);
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.ClipRectangle;
+
 }

@@ -10,7 +10,7 @@ using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Commands;
+namespace PdfPixel.Commands.Skia;
 
 /// <summary>
 /// Single entry point for converting <c>Pdf*</c> model types to their SkiaSharp equivalents.

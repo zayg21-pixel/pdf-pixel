@@ -86,18 +86,16 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
-                    canvas,
                     _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
-                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, executionContext);
+                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, executionContext, canvas, _document.LoggerFactory);
 
                 SKPicture? contentPicture = recorder.EndRecording();
-                bool isPartialContent = executionContext.IsPartialContent;
                 List<PdfCharacter> characters = PdfTextBlockFlattener.Flatten(executionContext.RootTextBlock);
 
-                CacheEntry.Content.UpdateContent(contentPicture, _request, isPartialContent, characters);
+                CacheEntry.Content.UpdateContent(contentPicture, _request, characters);
                 contentUpdated = true;
-                contentIsPartial = isPartialContent;
+                contentIsPartial = (CacheEntry.Content.Features & PdfCommandFeatures.Region) != 0;
             }
         }
 
@@ -143,15 +141,14 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
-                    annotationCanvas,
                     _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
-                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, annotationContext);
+                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, annotationContext, annotationCanvas, _document.LoggerFactory);
 
                 SKPicture? annotationPicture = annotationRecorder.EndRecording();
-                annotationIsPartial = annotationContext.IsPartialContent;
 
-                CacheEntry.AnnotationContent.UpdateContent(annotationPicture, _request, annotationIsPartial);
+                CacheEntry.AnnotationContent.UpdateContent(annotationPicture, _request);
+                annotationIsPartial = (CacheEntry.AnnotationContent.Features & PdfCommandFeatures.Region) != 0;
             }
 
             _onPageUpdated?.Invoke(

@@ -1,6 +1,5 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
-using SkiaSharp;
 
 namespace PdfPixel.Commands;
 
@@ -28,16 +27,7 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        using SKPath path = Path.ToSkPath();
-        using SKPaint paint = Paint.ToSkiaPaint();
-        CommandHelpers.ApplyModifiers(paint, executionContext);
-        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(path, executionContext, paint);
-        paint.StrokeWidth = CommandHelpers.GetMinimumStrokeWidth(executionContext, Paint);
-
-        executionContext.Canvas.DrawPath(path, paint);
-    }
+    public override PdfCommandKind Kind => PdfCommandKind.DrawPath;
 
     /// <inheritdoc />
     public override string ToString() => $"{nameof(DrawPathCommand)} {CommandHelpers.FormatPaint(Paint)}";

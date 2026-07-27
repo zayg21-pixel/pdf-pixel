@@ -109,7 +109,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        PdfCommandRecorder recorder = new(_graphicsState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
+        PdfCommandRecorder recorder = new();
         recorder.Process(SaveStateCommand.Instance);
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
 
