@@ -69,8 +69,8 @@ public sealed class PdfPanelRenderer : IDisposable
             return;
         }
 
-        _lastRequest = request;
         RenderAll(request);
+        _lastRequest = request;
 
         _contentProvider.UpdateContent(request);
 
@@ -198,12 +198,25 @@ public sealed class PdfPanelRenderer : IDisposable
 
         _tiler.EvictExcept(request.VisiblePages);
 
+        bool scaleChanged = _lastRequest == null
+            || _lastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor;
+
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
-            // When it's scale/region dependent, we will receive OnPageUpdated event and redraw the page 
-            if (!((pictures.ContentFeatures & PdfCommandFeatures.Scale) != 0 || (pictures.ContentFeatures & PdfCommandFeatures.Region) != 0))
+            bool regionChanged = scaleChanged
+                || _lastRequest == null
+                || !_lastRequest.VisiblePages.Any(previousPage => previousPage.PageNumber == page.PageNumber)
+                || _lastRequest.ComputeRegionOfInterest(page.PageNumber) != request.ComputeRegionOfInterest(page.PageNumber);
+
+            // A pending OnPageUpdated is only expected when the request actually invalidated the
+            // cached picture for a feature it depends on; otherwise the cache is already current and
+            // tiles for the newly visible region must be materialized immediately.
+            bool awaitingPageUpdate = ((pictures.ContentFeatures & PdfCommandFeatures.Scale) != 0 && scaleChanged)
+                || ((pictures.ContentFeatures & PdfCommandFeatures.Region) != 0 && regionChanged);
+
+            if (!awaitingPageUpdate)
             {
                 _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, forceClearVisible: false);
             }

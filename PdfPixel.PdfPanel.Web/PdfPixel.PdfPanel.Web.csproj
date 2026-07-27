@@ -27,6 +27,7 @@
     <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\PdfPixel.PostScript\PdfPixel.PostScript.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
