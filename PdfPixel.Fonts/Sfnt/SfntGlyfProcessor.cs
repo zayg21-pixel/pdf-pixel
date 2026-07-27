@@ -13,18 +13,13 @@ namespace PdfPixel.Fonts.Sfnt;
 /// </summary>
 public class SfntGlyfProcessor
 {
-    private readonly ILogger<SfntGlyfProcessor> _logger;
     private readonly SfntGlyphEvaluator _evaluator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SfntGlyfProcessor"/> class.
     /// </summary>
     /// <param name="loggerFactory">Logger factory used for structured diagnostics during evaluation.</param>
-    public SfntGlyfProcessor(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<SfntGlyfProcessor>();
-        _evaluator = new SfntGlyphEvaluator(loggerFactory.CreateLogger<SfntGlyphEvaluator>());
-    }
+    public SfntGlyfProcessor(ILoggerFactory loggerFactory) => _evaluator = new SfntGlyphEvaluator(loggerFactory.CreateLogger<SfntGlyphEvaluator>());
 
     /// <summary>
     /// Resolves a single glyph, returning the cached result if <paramref name="glyf"/> already has one
@@ -57,36 +52,24 @@ public class SfntGlyfProcessor
 
     /// <summary>
     /// Fetches a single glyph's raw bytes out of "glyf" via "loca", reading only that glyph's byte
-    /// range from the source stream. Returns an empty span if the glyph id is out of range, has no
-    /// outline (e.g. space), or its range doesn't fit within <paramref name="source"/>'s "glyf" table.
+    /// range from the source stream. Returns an empty span if the glyph id is out of range or the
+    /// glyph has no outline (e.g. space).
     /// </summary>
     internal ReadOnlyMemory<byte> FetchRawGlyph(int gid, SfntLoca loca, in SfntGlyfSource source)
     {
-        IReadOnlyList<uint> offsets = loca.Offsets;
-        if (gid < 0 || gid + 1 >= offsets.Count)
+        IReadOnlyList<SfntGlyphRange> ranges = loca.Ranges;
+        if (gid < 0 || gid >= ranges.Count)
         {
             return ReadOnlyMemory<byte>.Empty;
         }
 
-        uint startOffset = offsets[gid];
-        uint endOffset = offsets[gid + 1];
-        if (endOffset <= startOffset)
+        SfntGlyphRange range = ranges[gid];
+        if (range.Length == 0)
         {
             return ReadOnlyMemory<byte>.Empty;
         }
 
-        if (endOffset > (uint)source.GlyfRecord.Length)
-        {
-            _logger.LogWarning(
-                "Failed to read glyph {GlyphId}: offset range {StartOffset}-{EndOffset} exceeds 'glyf' table length {ActualLength}.",
-                gid,
-                startOffset,
-                endOffset,
-                source.GlyfRecord.Length);
-            return ReadOnlyMemory<byte>.Empty;
-        }
-
-        return source.Stream.GetMemory(source.GlyfRecord.Offset + (int)startOffset, (int)(endOffset - startOffset));
+        return source.Stream.GetMemory(source.GlyfRecord.Offset + (int)range.Offset, (int)range.Length);
     }
 
     /// <summary>
@@ -104,11 +87,11 @@ public class SfntGlyfProcessor
 
         SfntWriter writer = new();
         int numGlyphs = glyf.NumGlyphs;
-        var offsets = new uint[numGlyphs + 1];
+        var ranges = new SfntGlyphRange[numGlyphs];
 
         for (int gid = 0; gid < numGlyphs; gid++)
         {
-            offsets[gid] = (uint)writer.Length;
+            var startOffset = (uint)writer.Length;
 
             SfntGlyphCharacter? glyph = ResolveGlyph(glyf, gid, source, matrix);
             if (glyph != null)
@@ -119,10 +102,10 @@ public class SfntGlyfProcessor
                     writer.WriteByte(0);
                 }
             }
+
+            ranges[gid] = new SfntGlyphRange(startOffset, (uint)writer.Length - startOffset);
         }
 
-        offsets[numGlyphs] = (uint)writer.Length;
-
-        return new SfntGlyfWriteResult(writer.ToArray(), new SfntLoca { Offsets = offsets });
+        return new SfntGlyfWriteResult(writer.ToArray(), new SfntLoca { Ranges = ranges });
     }
 }

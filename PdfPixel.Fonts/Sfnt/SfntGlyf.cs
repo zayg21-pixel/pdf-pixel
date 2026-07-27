@@ -1,5 +1,3 @@
-using System;
-
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
@@ -21,7 +19,7 @@ public class SfntGlyf
     /// <summary>
     /// Gets the number of glyphs, derived from <see cref="Loca"/>.
     /// </summary>
-    public int NumGlyphs => Math.Max(0, Loca.Offsets.Count - 1);
+    public int NumGlyphs => Loca.Ranges.Count;
 
     /// <summary>
     /// Determines whether the given glyph id has already been resolved (successfully or not).

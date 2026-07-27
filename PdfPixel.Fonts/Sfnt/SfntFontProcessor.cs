@@ -142,7 +142,7 @@ public class SfntFontProcessor
         SfntTableRecord? glyfRecord = container.FindTable(SfntTableTags.Glyf);
         if (locaRecord != null && glyfRecord != null && font.Head != null && font.Maxp != null)
         {
-            SfntLoca? loca = _locaProcessor.Read(stream.GetMemory(locaRecord.Value), font.Maxp.NumGlyphs, font.Head.IndexToLocFormat);
+            SfntLoca? loca = _locaProcessor.Read(stream.GetMemory(locaRecord.Value), font.Maxp.NumGlyphs, font.Head.IndexToLocFormat, glyfRecord.Value.Length);
             if (loca != null)
             {
                 font.Glyf = new SfntGlyf { Loca = loca };

@@ -331,8 +331,7 @@ public class SfntGlyphEvaluator
                 continue;
             }
 
-            int numGlyphs = Math.Max(0, loca.Offsets.Count - 1);
-            if (glyphIndex >= numGlyphs)
+            if (glyphIndex >= loca.Ranges.Count)
             {
                 _logger.LogWarning("Composite glyph references out-of-range component glyph {GlyphIndex}; skipping this component.", glyphIndex);
                 continue;
