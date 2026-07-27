@@ -241,7 +241,9 @@ public abstract class PdfFontBase : IDisposable
         {
             if (unicode?.Length > 0 && char.IsLetterOrDigit(unicode[0]))
             {
-                xScale = originalWidth / totalWidth;
+                // A zero totalWidth means the shaped glyphs carry no advance of their own; any xScale
+                // multiplies out to the same zero-width result, so scale is safely clamped to 1.
+                xScale = (totalWidth != 0) ? originalWidth / totalWidth : 1;
                 offsetX = 0;
             }
             else
