@@ -69,11 +69,11 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         if (response.ContentType == UpdatedContentType.Content)
         {
             List<PdfCharacter> characters = response.Characters?.Select(character => character.ToPdfCharacter()).ToList();
-            _cache[pageIndex].Content.UpdateContent(picture, drawingRequest, response.IsPartialContent, characters);
+            _cache[pageIndex].Content.UpdateContent(picture, drawingRequest, characters);
         }
         else if (response.ContentType == UpdatedContentType.Annotations)
         {
-            _cache[pageIndex].AnnotationContent.UpdateContent(picture, drawingRequest, response.IsPartialContent);
+            _cache[pageIndex].AnnotationContent.UpdateContent(picture, drawingRequest);
         }
 
         PdfRectangle regionOfInterest = response.RegionOfInterest.ToPdfRectangle();
