@@ -38,6 +38,11 @@ public class SfntGlyfProcessor
     /// <param name="matrix">Transform applied to every point of the resulting path.</param>
     public SfntGlyphCharacter? ResolveGlyph(SfntGlyf glyf, int gid, in SfntGlyfSource source, in PdfFontMatrix matrix)
     {
+        if (glyf == null)
+        {
+            throw new ArgumentNullException(nameof(glyf));
+        }
+
         if (glyf.Contains(gid))
         {
             return glyf.Get(gid);

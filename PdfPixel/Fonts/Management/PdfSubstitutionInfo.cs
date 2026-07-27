@@ -137,7 +137,7 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
         }
 
         int weight = NormalWeight;
-        bool isItalic = false;
+        var isItalic = false;
 
         // Single pass over pre-generated keys
         foreach (string key in StyleHintKeys)
@@ -201,10 +201,12 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     }
 
     /// <inheritdoc/>
-    public bool Equals(PdfSubstitutionInfo other) =>
-        string.Equals(NormalizedStem, other.NormalizedStem, StringComparison.OrdinalIgnoreCase)
-        && IsBold == other.IsBold
-        && IsItalic == other.IsItalic;
+    public bool Equals(PdfSubstitutionInfo other)
+    {
+        return string.Equals(NormalizedStem, other.NormalizedStem, StringComparison.OrdinalIgnoreCase)
+            && IsBold == other.IsBold
+            && IsItalic == other.IsItalic;
+    }
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is PdfSubstitutionInfo other && Equals(other);
@@ -215,10 +217,10 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     /// <summary>
     /// Determines whether two <see cref="PdfSubstitutionInfo"/> values are equal.
     /// </summary>
-    public static bool operator ==(PdfSubstitutionInfo left, PdfSubstitutionInfo right) => left.Equals(right);
+    public static bool operator ==(in PdfSubstitutionInfo left, in PdfSubstitutionInfo right) => left.Equals(right);
 
     /// <summary>
     /// Determines whether two <see cref="PdfSubstitutionInfo"/> values are not equal.
     /// </summary>
-    public static bool operator !=(PdfSubstitutionInfo left, PdfSubstitutionInfo right) => !left.Equals(right);
+    public static bool operator !=(in PdfSubstitutionInfo left, in PdfSubstitutionInfo right) => !left.Equals(right);
 }

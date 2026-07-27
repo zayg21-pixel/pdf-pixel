@@ -53,6 +53,11 @@ public sealed class CffPdfTypeface : IPdfTypeface
 
     private static byte[] ReadAllBytes(Stream fontStream)
     {
+        if (fontStream == null)
+        {
+            throw new ArgumentNullException(nameof(fontStream));
+        }
+
         using MemoryStream memoryStream = new();
         fontStream.CopyTo(memoryStream);
         return memoryStream.ToArray();

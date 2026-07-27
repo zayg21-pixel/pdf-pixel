@@ -53,6 +53,11 @@ public sealed class SfntPdfTypeface : IPdfTypeface
     /// <param name="parameters">Construction parameters.</param>
     public SfntPdfTypeface(Stream fontStream, ILoggerFactory loggerFactory, SfntPdfTypefaceParameters parameters)
     {
+        if (parameters == null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
         _fontStream = ReadOnlyFontStream.Create(fontStream, leaveOpen: false);
         _processor = new SfntFontProcessor(loggerFactory);
         _parameters = parameters;

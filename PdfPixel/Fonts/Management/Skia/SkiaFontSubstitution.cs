@@ -90,8 +90,8 @@ internal sealed class SkiaFontSubstitution
     /// <summary>
     /// Resolves Skia's own default typeface, used as the final-resort font when nothing else matches.
     /// </summary>
-    public SfntPdfTypeface GetFallbackFont() =>
-        BuildTypeface(SKTypeface.Default) ?? throw new InvalidOperationException("Could not load Skia's default typeface.");
+    public SfntPdfTypeface GetFallbackFont()
+        => BuildTypeface(SKTypeface.Default) ?? throw new InvalidOperationException("Could not load Skia's default typeface.");
 
     private static SKFontStyle CreateFontStyle(bool isBold, bool isItalic)
     {

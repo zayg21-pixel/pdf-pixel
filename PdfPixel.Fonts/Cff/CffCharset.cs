@@ -37,6 +37,11 @@ public class CffCharset
     /// <param name="customStrings">The font's String INDEX entries (<see cref="CffTypeface.Strings"/>).</param>
     public static PdfFontString ResolveGlyphName(ushort sid, ReadOnlyMemory<byte>[] customStrings)
     {
+        if (customStrings == null)
+        {
+            throw new ArgumentNullException(nameof(customStrings));
+        }
+
         if (sid < CffStandardStrings.StandardStrings.Length)
         {
             return CffStandardStrings.StandardStrings[sid];

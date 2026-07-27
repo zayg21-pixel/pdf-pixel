@@ -65,6 +65,11 @@ public class SfntFontProcessor
     /// </summary>
     public SfntFont? Read(ReadOnlyFontStream stream, int ttcIndex)
     {
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
         SfntContainer? container = _containerProcessor.Read(stream, ttcIndex);
         if (container == null)
         {
@@ -158,6 +163,11 @@ public class SfntFontProcessor
     /// <param name="matrix">Transform applied to every point of the resulting path.</param>
     public SfntGlyphCharacter? ResolveGlyph(SfntFont font, int gid, ReadOnlyFontStream stream, in PdfFontMatrix matrix)
     {
+        if (font == null)
+        {
+            throw new ArgumentNullException(nameof(font));
+        }
+
         if (font.Glyf == null || font.GlyfRecord == null)
         {
             return null;
@@ -177,6 +187,11 @@ public class SfntFontProcessor
     /// <param name="stream">The stream <paramref name="font"/> was read from.</param>
     public ushort? GetCmapGid(SfntFont font, SfntCmapSubtable subtable, int code, ReadOnlyFontStream stream)
     {
+        if (font == null)
+        {
+            throw new ArgumentNullException(nameof(font));
+        }
+
         if (font.CmapRecord == null)
         {
             return null;
@@ -205,6 +220,11 @@ public class SfntFontProcessor
         if (font == null)
         {
             throw new ArgumentNullException(nameof(font));
+        }
+
+        if (sourceStream == null)
+        {
+            throw new ArgumentNullException(nameof(sourceStream));
         }
 
         List<SfntTableData> tables = [];

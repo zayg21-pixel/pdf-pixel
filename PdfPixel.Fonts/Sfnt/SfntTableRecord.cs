@@ -3,7 +3,7 @@ namespace PdfPixel.Fonts.Sfnt;
 /// <summary>
 /// A single SFNT table as extracted from a font's table directory: its tag, its recorded checksum,
 /// and the byte range of its content within the font it was read from. Carries no bytes itself -
-/// resolve the range via the source <see cref="ReadOnlyFontStream"/>'s <c>GetMemory</c> method.
+/// resolve the range via the source <see cref="PdfPixel.Fonts.Typeface.ReadOnlyFontStream"/>'s <c>GetMemory</c> method.
 /// </summary>
 public readonly struct SfntTableRecord
 {

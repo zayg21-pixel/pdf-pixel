@@ -31,6 +31,11 @@ public sealed class ReadOnlyFontStream : Stream
     /// <param name="leaveOpen">If <see langword="true"/>, disposing the returned stream does not dispose <paramref name="source"/>.</param>
     public static ReadOnlyFontStream Create(Stream source, bool leaveOpen)
     {
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         if (source.CanSeek)
         {
             return new ReadOnlyFontStream(source, leaveOpen);
@@ -93,7 +98,7 @@ public sealed class ReadOnlyFontStream : Stream
             return 0;
         }
 
-        int toRead = (int)Math.Min(count, remaining);
+        var toRead = (int)Math.Min(count, remaining);
 
         if (_innerStream.Position != _position)
         {
@@ -144,7 +149,7 @@ public sealed class ReadOnlyFontStream : Stream
             throw new ObjectDisposedException(nameof(ReadOnlyFontStream));
         }
 
-        byte[] buffer = new byte[length];
+        var buffer = new byte[length];
 
         if (_innerStream.Position != start)
         {

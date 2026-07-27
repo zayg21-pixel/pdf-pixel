@@ -15,7 +15,7 @@ public sealed class SfntCmapConstantRange : ISfntCmapRange
     {
         StartCode = startCode;
         EndCode = endCode;
-        Gid = gid;
+        ConstantGid = gid;
     }
 
     /// <inheritdoc/>
@@ -27,8 +27,8 @@ public sealed class SfntCmapConstantRange : ISfntCmapRange
     /// <summary>
     /// Gets the glyph id every code in this range maps to.
     /// </summary>
-    public ushort Gid { get; }
+    public ushort ConstantGid { get; }
 
     /// <inheritdoc/>
-    public ushort? GetGid(int code) => Gid;
+    public ushort? GetGid(int code) => ConstantGid;
 }

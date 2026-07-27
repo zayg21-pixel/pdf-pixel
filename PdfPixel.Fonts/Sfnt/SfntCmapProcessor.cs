@@ -129,6 +129,11 @@ public class SfntCmapProcessor
     /// <param name="source">The stream and table range to parse <paramref name="subtable"/> from, if not already resolved.</param>
     public ushort? GetGid(SfntCmapSubtable subtable, int code, in SfntCmapSource source)
     {
+        if (subtable == null)
+        {
+            throw new ArgumentNullException(nameof(subtable));
+        }
+
         if (!subtable.IsResolved)
         {
             subtable.SetRanges(ParseSubtable(source, subtable.Format, subtable.SubtableOffset));
@@ -156,10 +161,10 @@ public class SfntCmapProcessor
         byte[] array = GetSubtableBytes(source, offset + 6, 256);
         if (array.Length == 0)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
-        return [new SfntCmapGlyphArrayRange(0, 255, idDelta: 0, array, entryByteWidth: 1)];
+        return new ISfntCmapRange[] { new SfntCmapGlyphArrayRange(0, 255, idDelta: 0, array, entryByteWidth: 1) };
     }
 
     private static ISfntCmapRange[] ParseFormat4(in SfntCmapSource source, int offset)
@@ -167,14 +172,14 @@ public class SfntCmapProcessor
         ReadOnlyMemory<byte> segCountBytes = GetSubtableMemory(source, offset + 6, 2);
         if (segCountBytes.Length < 2)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         SfntReader segCountReader = new(segCountBytes.Span);
         int segCount = segCountReader.ReadUInt16OrDefault() / 2;
         if (segCount == 0)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         int endCodeOffset = offset + 14;
@@ -183,7 +188,7 @@ public class SfntCmapProcessor
         ReadOnlyMemory<byte> headerBlock = GetSubtableMemory(source, endCodeOffset, headerBlockLength);
         if (headerBlock.Length < headerBlockLength)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         int localStartCodeOffset = (segCount * 2) + 2;
@@ -241,7 +246,7 @@ public class SfntCmapProcessor
         ReadOnlyMemory<byte> headerBytes = GetSubtableMemory(source, offset + 6, 4);
         if (headerBytes.Length < 4)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         SfntReader headerReader = new(headerBytes.Span);
@@ -249,16 +254,16 @@ public class SfntCmapProcessor
         ushort entryCount = headerReader.ReadUInt16OrDefault();
         if (entryCount == 0)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         byte[] array = GetSubtableBytes(source, offset + 10, entryCount * 2);
         if (array.Length == 0)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
-        return [new SfntCmapGlyphArrayRange(firstCode, firstCode + entryCount - 1, idDelta: 0, array, entryByteWidth: 2)];
+        return new ISfntCmapRange[] { new SfntCmapGlyphArrayRange(firstCode, firstCode + entryCount - 1, idDelta: 0, array, entryByteWidth: 2) };
     }
 
     private static ISfntCmapRange[] ParseFormat10(in SfntCmapSource source, int offset)
@@ -266,7 +271,7 @@ public class SfntCmapProcessor
         ReadOnlyMemory<byte> headerBytes = GetSubtableMemory(source, offset + 12, 8);
         if (headerBytes.Length < 8)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         SfntReader headerReader = new(headerBytes.Span);
@@ -274,19 +279,19 @@ public class SfntCmapProcessor
         uint numChars = headerReader.ReadUInt32OrDefault();
         if (numChars == 0 || startCharCode > int.MaxValue)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         long arrayByteLength = Math.Min((long)numChars * 2, int.MaxValue);
         byte[] array = GetSubtableBytes(source, offset + 20, (int)arrayByteLength);
         if (array.Length == 0)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         long endCode = Math.Min((long)startCharCode + numChars - 1, int.MaxValue);
 
-        return [new SfntCmapGlyphArrayRange((int)startCharCode, (int)endCode, idDelta: 0, array, entryByteWidth: 2)];
+        return new ISfntCmapRange[] { new SfntCmapGlyphArrayRange((int)startCharCode, (int)endCode, idDelta: 0, array, entryByteWidth: 2) };
     }
 
     private static ISfntCmapRange[] ParseFormat12Or13(in SfntCmapSource source, int offset, bool isFormat13)
@@ -294,7 +299,7 @@ public class SfntCmapProcessor
         ReadOnlyMemory<byte> countBytes = GetSubtableMemory(source, offset + 12, 4);
         if (countBytes.Length < 4)
         {
-            return [];
+            return Array.Empty<ISfntCmapRange>();
         }
 
         SfntReader countReader = new(countBytes.Span);

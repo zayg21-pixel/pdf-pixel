@@ -53,8 +53,8 @@ internal sealed class SkStreamAssetStream : Stream
             return (int)_streamAsset.Read(buffer, count);
         }
 
-        byte[] temporaryBuffer = new byte[count];
-        int read = (int)_streamAsset.Read(temporaryBuffer, count);
+        var temporaryBuffer = new byte[count];
+        var read = (int)_streamAsset.Read(temporaryBuffer, count);
         Array.Copy(temporaryBuffer, 0, buffer, offset, read);
         return read;
     }

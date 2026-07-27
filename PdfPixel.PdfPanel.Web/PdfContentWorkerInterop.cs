@@ -125,7 +125,7 @@ public partial class PdfContentWorkerInterop
                         ContentType = args.UpdatedContentType,
                         IsPartialContent = args.IsPartialContent,
                         DrawingRequest = request.DrawingRequest,
-                        RegionOfInterest = WebRect.FromSkRect(args.RegionOfInterest),
+                        RegionOfInterest = WebRect.FromPdfRectangle(args.RegionOfInterest),
                         Characters = characters
                     }, InterfaceJsonContext.Default.UpdateContentResponseHeader);
 

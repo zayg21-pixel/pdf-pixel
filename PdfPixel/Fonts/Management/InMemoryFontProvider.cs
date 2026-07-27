@@ -14,7 +14,7 @@ namespace PdfPixel.Fonts.Management;
 /// Font provider that resolves standard PDF fonts and named fonts from explicitly registered in-memory font data.
 /// Suitable for environments where system fonts are unavailable, such as browser/WASM.
 /// </summary>
-public sealed class InMemoryFontProvider : IFontProvider
+public sealed class InMemoryFontProvider : IFontProvider, IDisposable
 {
     /// <summary>
     /// Maps each <see cref="PdfStandardFontName"/> to the common display names that PDF documents

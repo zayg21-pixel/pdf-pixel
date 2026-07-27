@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;
@@ -75,7 +76,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
             _cache[pageIndex].AnnotationContent.UpdateContent(picture, drawingRequest, response.IsPartialContent);
         }
 
-        SKRect regionOfInterest = response.RegionOfInterest.ToSkRect();
+        PdfRectangle regionOfInterest = response.RegionOfInterest.ToPdfRectangle();
         OnPageUpdated?.Invoke(new PageUpdatedArgs(response.PageNumber, GetExistingContentPictures(response.PageNumber), response.ContentType, response.IsPartialContent, regionOfInterest));
     }
 

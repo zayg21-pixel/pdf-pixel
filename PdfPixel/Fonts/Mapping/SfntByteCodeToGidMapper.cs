@@ -147,7 +147,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         foreach (SfntCmapSubtable subtable in subtables)
         {
             var candidate = new ushort[256];
-            bool hasAnyMapping = false;
+            var hasAnyMapping = false;
 
             for (int code = 0; code < 256; code++)
             {
@@ -211,8 +211,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         return false;
     }
 
-    private static bool IsUnicodeNative(PdfFontEncoding? encoding) =>
-        encoding == null || encoding == PdfFontEncoding.WinAnsiEncoding || encoding == PdfFontEncoding.Unknown;
+    private static bool IsUnicodeNative(PdfFontEncoding? encoding)
+        => encoding == null || encoding == PdfFontEncoding.WinAnsiEncoding || encoding == PdfFontEncoding.Unknown;
 
     private static ushort? FindGidByNativeCode(SfntPdfTypeface typeface, SfntCmapSubtable subtable, int targetCodepoint)
     {

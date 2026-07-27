@@ -93,7 +93,7 @@ public sealed class WindowsFontProvider : IFontProvider
     {
         if (_familyTypefaces.TryGetValue(substitutionInfo, out SfntPdfTypeface? cached))
         {
-            return cached.ContainsAllGlyphs(unicode) ? cached : null;
+            return (cached.ContainsAllGlyphs(unicode)) ? cached : null;
         }
 
         SfntPdfTypeface? typeface = _skiaFontSubstitution.ResolveByFamilyName(substitutionInfo, unicode);
@@ -128,7 +128,7 @@ public sealed class WindowsFontProvider : IFontProvider
         {
             if (candidates == null)
             {
-                candidates = [];
+                candidates = new List<SfntPdfTypeface>();
                 _characterFallbackTypefaces[substitutionInfo] = candidates;
             }
 
