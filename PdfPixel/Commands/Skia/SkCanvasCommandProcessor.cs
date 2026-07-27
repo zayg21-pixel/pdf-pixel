@@ -183,9 +183,10 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private void ExecuteClipPath(ClipPathCommand command)
     {
+        bool antialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint);
+
         using SKPath sourcePath = command.Path.ToSkPath();
         using SKPaint? strokePaint = BuildClipStrokePaint(command);
-        bool antialias = CommandHelpers.GetPathIsAntialias(sourcePath, _executionContext, strokePaint);
         using SKPath clipPath = BuildClipPathGeometry(sourcePath, strokePaint);
         SKClipOperation skOperation = command.Operation.ToSkClipOperation();
 
@@ -225,10 +226,10 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private void ExecuteClipRectangle(ClipRectangleCommand command)
     {
-        SKRect snappedRect = CommandHelpers.GetPixelSnappedRect(command.Rect.ToSkRect(), _executionContext);
+        bool antialias = CommandHelpers.GetRectIsAntialias(command.Rect, _executionContext);
+        PdfRectangle snappedRect = CommandHelpers.GetPixelSnappedRect(command.Rect, _executionContext);
         SKClipOperation skOperation = command.Operation.ToSkClipOperation();
-        bool antialias = CommandHelpers.GetRectIsAntialias(snappedRect, _executionContext);
-        _canvas.ClipRect(snappedRect, skOperation, antialias);
+        _canvas.ClipRect(snappedRect.ToSkRect(), skOperation, antialias);
         _executionContext.Frames.OnClipRect(command.Rect, command.Operation);
     }
 
@@ -251,7 +252,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
         _canvas.Save();
         _canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        _canvas.DrawImage(skImage, placement.PlacementRectangle, placement.Sampling, paint);
+        _canvas.DrawImage(skImage, placement.PlacementRectangle.ToSkRect(), SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate), paint);
         _canvas.Restore();
     }
 
@@ -260,7 +261,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         using SKPath path = command.Path.ToSkPath();
         using SKPaint paint = command.Paint.ToSkiaPaint();
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(path, _executionContext, paint);
+        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint);
         paint.StrokeWidth = CommandHelpers.GetMinimumStrokeWidth(_executionContext, command.Paint);
 
         _canvas.DrawPath(path, paint);
@@ -614,17 +615,19 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
             matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(context.MatteArray, maskTile.Parameters.RenderingIntent, default).ToSkiaColor();
         }
 
+        SKSamplingOptions sampling = SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate);
+
         using SKImage skImage = imageTile.Image.ToSkImage();
         using SKImage skMaskImage = maskTile.Image.ToSkImage();
-        using SKShader imageShader = SkiaImageBlending.BuildImageShader(skImage, placement.DeviceSize, placement.Sampling);
-        using SKShader maskShader = SkiaImageBlending.BuildImageShader(skMaskImage, placement.DeviceSize, placement.Sampling);
+        using SKShader imageShader = SkiaImageBlending.BuildImageShader(skImage, placement.DeviceSize.ToSkSize(), sampling);
+        using SKShader maskShader = SkiaImageBlending.BuildImageShader(skMaskImage, placement.DeviceSize.ToSkSize(), sampling);
         using SKShader blendingShader = SkiaImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
         using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(blendingShader, context.DecodingContext);
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
 
         _canvas.Save();
         _canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        _canvas.ClipRect(placement.PlacementRectangle);
+        _canvas.ClipRect(placement.PlacementRectangle.ToSkRect());
         _canvas.DrawPaint(paint);
         _canvas.Restore();
     }
@@ -650,7 +653,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
         _canvas.Save();
         _canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        _canvas.DrawImage(skImage, placement.PlacementRectangle, placement.Sampling, paint);
+        _canvas.DrawImage(skImage, placement.PlacementRectangle.ToSkRect(), SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate), paint);
         _canvas.Restore();
     }
 

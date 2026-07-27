@@ -1,28 +1,26 @@
 using PdfPixel.Geometry;
-using SkiaSharp;
 
 namespace PdfPixel.Commands.Image;
 
 /// <summary>
-/// Where a tile should be drawn: the device-pixel size its shader should be built for, the
-/// matrix to concat onto the canvas (in place of the usual pixel-space scale/translate) to
-/// place it there, and the sampling options to use.
+/// Where a tile should be drawn: the device-pixel size it should be rendered at, the matrix to
+/// concatenate onto the current transformation (in place of the usual pixel-space scale/translate)
+/// to place it there, and whether it should be interpolated when drawn.
 /// </summary>
 internal readonly struct SnappedTilePlacement
 {
-    public SnappedTilePlacement(SKSize deviceSize, in PdfMatrix placementMatrix, in SKSamplingOptions sampling)
+    public SnappedTilePlacement(in PdfSize deviceSize, in PdfMatrix placementMatrix, bool interpolate)
     {
         DeviceSize = deviceSize;
         PlacementMatrix = placementMatrix;
-        PlacementRectangle = new SKRect(0, 0, deviceSize.Width, deviceSize.Height);
-        Sampling = sampling;
+        Interpolate = interpolate;
     }
 
-    public SKSize DeviceSize { get; }
+    public PdfSize DeviceSize { get; }
 
     public PdfMatrix PlacementMatrix { get; }
 
-    public SKRect PlacementRectangle { get; }
+    public PdfRectangle PlacementRectangle => new(0, 0, DeviceSize.Width, DeviceSize.Height);
 
-    public SKSamplingOptions Sampling { get; }
+    public bool Interpolate { get; }
 }

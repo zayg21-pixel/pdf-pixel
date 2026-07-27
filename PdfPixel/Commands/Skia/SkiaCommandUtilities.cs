@@ -120,7 +120,6 @@ internal static class SkiaCommandUtilities
         return skTypeface;
     }
 
-    // TODO: [MEDIUM] shall go to paint factory with other paints
     /// <summary>
     /// Creates a paint that draws <paramref name="shader"/> with the blend mode and fill
     /// alpha captured in <paramref name="context"/>.
@@ -145,4 +144,11 @@ internal static class SkiaCommandUtilities
             Color = ApplyAlpha(SKColors.White, context.FillAlpha)
         };
     }
+
+    /// <summary>
+    /// Returns the sampling options to draw a tile with, based on whether it should be interpolated.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKSamplingOptions GetSamplingOptions(bool interpolate)
+        => interpolate ? new SKSamplingOptions(SKFilterMode.Linear) : new SKSamplingOptions(SKFilterMode.Nearest);
 }

@@ -18,7 +18,7 @@ public static class PdfPathExtensions
     /// since their tips can extend past a plain half-width inflation). Used for pattern tiling, where an
     /// over-estimate is harmless but an under-estimate would drop visible tiles.
     /// </summary>
-    public static PdfRectangle GetStrokeBounds(this PdfPath path, PdfPaint strokePaint)
+    public static PdfRectangle GetStrokeBounds(this PdfPath path, PdfPaint strokePaint) // TODO: [HIGH] investigate how correct is that for sharp angles
     {
         if (path == null)
         {

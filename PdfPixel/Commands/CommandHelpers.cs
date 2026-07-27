@@ -1,7 +1,5 @@
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
-using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -32,7 +30,7 @@ internal static class CommandHelpers
     }
 
     /// <summary>
-    /// Returns the stroke width to assign to an <see cref="SKPaint"/> for <paramref name="paint"/>: unchanged
+    /// Returns the stroke width to assign for <paramref name="paint"/>: unchanged
     /// for fill paints and hairlines (<see cref="PdfStrokeStyle.LineWidth"/> &lt;= 0), otherwise the paint's
     /// line width clamped to the user-space width whose image under the current device matrix measures exactly
     /// one device pixel along its narrowest axis. Clamping keeps thin lines visible at low zoom, matching the
@@ -66,14 +64,14 @@ internal static class CommandHelpers
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool GetPathIsAntialias(SKPath path, PdfCommandExecutionContext executionContext, SKPaint? paint = null) // TODO: move to non-skia model
+    public static bool GetPathIsAntialias(PdfPath path, PdfCommandExecutionContext executionContext, PdfPaint? paint = null)
     {
         if (!executionContext.Parameters.Antialias)
         {
             return false;
         }
 
-        SKMatrix scaledMatrix = GetScaledMatrix(executionContext).ToSkMatrix();
+        PdfMatrix scaledMatrix = GetScaledMatrix(executionContext);
 
         if (!PathIsAxisAligned(path, scaledMatrix))
         {
@@ -81,10 +79,15 @@ internal static class CommandHelpers
         }
 
         // Stroke pass: thin strokes benefit from antialiasing
-        if (paint != null && (paint.Style == SKPaintStyle.Stroke || paint.Style == SKPaintStyle.StrokeAndFill))
+        if (paint != null && paint.Style == PdfPaintStyle.Stroke)
         {
-            float stroke = (paint.StrokeWidth == 0) ? 1f : paint.StrokeWidth;
-            SKRect scaledStroke = scaledMatrix.MapRect(new SKRect(0, 0, stroke, stroke));
+            float stroke = GetMinimumStrokeWidth(executionContext, paint);
+            if (stroke == 0)
+            {
+                stroke = 1f;
+            }
+
+            PdfRectangle scaledStroke = scaledMatrix.MapRect(new PdfRectangle(0, 0, stroke, stroke));
             if (scaledStroke.Width < 2 || scaledStroke.Height < 2)
             {
                 return executionContext.Parameters.Antialias;
@@ -92,20 +95,11 @@ internal static class CommandHelpers
         }
 
         // Fill pass: small fills benefit from antialiasing
-        if (paint == null || paint.Style == SKPaintStyle.Fill || paint.Style == SKPaintStyle.StrokeAndFill)
+        if (paint == null || paint.Style == PdfPaintStyle.Fill)
         {
-            SKRect bounds;
-            if (paint != null)
-            {
-                using SKPath fillPath = paint.GetFillPath(path);
-                bounds = fillPath?.Bounds ?? path.TightBounds;
-            }
-            else
-            {
-                bounds = path.TightBounds;
-            }
+            PdfRectangle bounds = path.GetBounds();
 
-            SKRect scaledRect = scaledMatrix.MapRect(bounds);
+            PdfRectangle scaledRect = scaledMatrix.MapRect(bounds);
             if (scaledRect.Width < 2 || scaledRect.Height < 2)
             {
                 return executionContext.Parameters.Antialias;
@@ -116,7 +110,7 @@ internal static class CommandHelpers
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool GetRectIsAntialias(SKRect rect, PdfCommandExecutionContext executionContext) // TODO: move to non-skia model
+    public static bool GetRectIsAntialias(in PdfRectangle rect, PdfCommandExecutionContext executionContext)
     {
         if (!executionContext.Parameters.Antialias)
         {
@@ -130,7 +124,7 @@ internal static class CommandHelpers
             return true;
         }
 
-        SKRect scaledRect = scaledMatrix.ToSkMatrix().MapRect(rect);
+        PdfRectangle scaledRect = scaledMatrix.MapRect(rect);
         if (scaledRect.Width < 2 || scaledRect.Height < 2)
         {
             return executionContext.Parameters.Antialias;
@@ -144,7 +138,7 @@ internal static class CommandHelpers
     /// matrix is axis-aligned, returning it unchanged otherwise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRect GetPixelSnappedRect(SKRect rect, PdfCommandExecutionContext executionContext) // TODO: move to non-skia model
+    public static PdfRectangle GetPixelSnappedRect(in PdfRectangle rect, PdfCommandExecutionContext executionContext)
     {
         if (!executionContext.Parameters.SnapToDevicePixels)
         {
@@ -158,11 +152,10 @@ internal static class CommandHelpers
             return rect;
         }
 
-        SKMatrix skScaledMatrix = scaledMatrix.ToSkMatrix();
-        SKRect deviceRect = skScaledMatrix.MapRect(rect);
-        SKRect snappedDeviceRect = SnapToDevicePixels(deviceRect);
+        PdfRectangle deviceRect = scaledMatrix.MapRect(rect);
+        PdfRectangle snappedDeviceRect = SnapToDevicePixels(deviceRect);
 
-        return skScaledMatrix.Invert().MapRect(snappedDeviceRect);
+        return scaledMatrix.Invert().MapRect(snappedDeviceRect);
     }
 
     /// <summary>
@@ -189,12 +182,12 @@ internal static class CommandHelpers
     /// device pixel per dimension.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRect SnapToDevicePixels(SKRect deviceRect) // TODO: move to non-skia model
+    public static PdfRectangle SnapToDevicePixels(in PdfRectangle deviceRect)
     {
         (float left, float right) = SnapDimensionToWholePixels(deviceRect.Left, deviceRect.Right);
         (float top, float bottom) = SnapDimensionToWholePixels(deviceRect.Top, deviceRect.Bottom);
 
-        return new SKRect(left, top, right, bottom);
+        return new PdfRectangle(left, top, right, bottom);
     }
 
     /// <summary>
@@ -217,34 +210,57 @@ internal static class CommandHelpers
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool PathIsAxisAligned(SKPath path, SKMatrix matrix)
+    private static bool PathIsAxisAligned(PdfPath path, in PdfMatrix matrix)
     {
-        using SKPath.Iterator iterator = path.CreateIterator(true); // forceClose ensures implicit closing segments are checked
-        var points = new SKPoint[4];
-        SKPathVerb verb;
+        PdfPoint currentPoint = default;
+        PdfPoint subpathStart = default;
 
-        while ((verb = iterator.Next(points)) != SKPathVerb.Done)
+        foreach (PdfPathSegment segment in path.Segments)
         {
-            switch (verb)
+            switch (segment.Type)
             {
-                case SKPathVerb.Line:
+                case PdfPathSegmentType.MoveTo:
+                {
+                    currentPoint = segment.Points[0];
+                    subpathStart = currentPoint;
+                    break;
+                }
+                case PdfPathSegmentType.LineTo:
+                {
+                    if (!SegmentIsAxisAligned(matrix, currentPoint, segment.Points[0]))
                     {
-                        SKPoint a = matrix.MapPoint(points[0]);
-                        SKPoint b = matrix.MapPoint(points[1]);
-                        if (MathF.Abs(b.X - a.X) > AxisAlignEpsilon && MathF.Abs(b.Y - a.Y) > AxisAlignEpsilon)
-                        {
-                            return false;
-                        }
-
-                        break;
+                        return false;
                     }
-                case SKPathVerb.Quad:
-                case SKPathVerb.Conic:
-                case SKPathVerb.Cubic:
+
+                    currentPoint = segment.Points[0];
+                    break;
+                }
+                case PdfPathSegmentType.CubicTo:
+                {
                     return false;
+                }
+                case PdfPathSegmentType.Close:
+                {
+                    // forceClose: an implicit closing line back to the subpath start must also be axis-aligned.
+                    if (!SegmentIsAxisAligned(matrix, currentPoint, subpathStart))
+                    {
+                        return false;
+                    }
+
+                    currentPoint = subpathStart;
+                    break;
+                }
             }
         }
 
         return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool SegmentIsAxisAligned(in PdfMatrix matrix, in PdfPoint start, in PdfPoint end)
+    {
+        PdfPoint a = matrix.MapPoint(start);
+        PdfPoint b = matrix.MapPoint(end);
+        return MathF.Abs(b.X - a.X) <= AxisAlignEpsilon || MathF.Abs(b.Y - a.Y) <= AxisAlignEpsilon;
     }
 }

@@ -1,6 +1,4 @@
-using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
-using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -18,11 +16,11 @@ internal static class PdfImageCommandUtilities
     {
         PdfMatrix baseCtm = CommandHelpers.GetScaledMatrix(executionContext);
         PdfMatrix ctm = GetImageCtm(baseCtm);
-        SKSamplingOptions sampling = GetSamplingOptions(ctm, imageSize, interpolate);
+        bool shouldInterpolate = ShouldInterpolate(ctm, imageSize, interpolate);
 
         if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsAxisAligned(ctm))
         {
-            return GetUnsnappedTilePlacement(imageSize, tilePosition, sampling);
+            return GetUnsnappedTilePlacement(imageSize, tilePosition, shouldInterpolate);
         }
 
         PdfPoint topLeft = ctm.MapPoint(new PdfPoint(tilePosition.Left / (float)imageSize.Width, tilePosition.Top / (float)imageSize.Height));
@@ -45,23 +43,23 @@ internal static class PdfImageCommandUtilities
             deviceHeight = 1;
         }
 
-        SKSize deviceSize = new(deviceWidth, deviceHeight);
+        PdfSize deviceSize = new(deviceWidth, deviceHeight);
         PdfMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, ctm, roundedLeft, roundedTop);
 
-        return new SnappedTilePlacement(deviceSize, placementMatrix, sampling);
+        return new SnappedTilePlacement(deviceSize, placementMatrix, shouldInterpolate);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SnappedTilePlacement GetUnsnappedTilePlacement(in PdfIntegerSize imageSize, in PdfIntegerRectangle tilePosition, in SKSamplingOptions sampling)
+    private static SnappedTilePlacement GetUnsnappedTilePlacement(in PdfIntegerSize imageSize, in PdfIntegerRectangle tilePosition, bool interpolate)
     {
-        SKSize fallbackDeviceSize = new(tilePosition.Width, tilePosition.Height);
+        PdfSize fallbackDeviceSize = new(tilePosition.Width, tilePosition.Height);
         PdfMatrix fallbackPlacementMatrix = PdfMatrix.Concat(
             GetImageMatrix(),
             PdfMatrix.Concat(
                 PdfMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height),
                 PdfMatrix.CreateTranslation(tilePosition.Left, tilePosition.Top)));
 
-        return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, sampling);
+        return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, interpolate);
     }
 
     /// <summary>
@@ -86,18 +84,11 @@ internal static class PdfImageCommandUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKSamplingOptions GetSamplingOptions(in PdfMatrix ctm, in PdfIntegerSize imageSize, bool interpolate)
+    private static bool ShouldInterpolate(in PdfMatrix ctm, in PdfIntegerSize imageSize, bool interpolate)
     {
         bool isDownscaled = GetScaledSize(ctm, imageSize).HasValue;
 
-        if (isDownscaled || interpolate)
-        {
-            return new SKSamplingOptions(SKFilterMode.Linear);
-        }
-        else
-        {
-            return new SKSamplingOptions(SKFilterMode.Nearest);
-        }
+        return isDownscaled || interpolate;
     }
 
     /// <summary>
@@ -133,7 +124,7 @@ internal static class PdfImageCommandUtilities
             return new PdfIntegerSize(Math.Max(1, scaledWidth), Math.Max(1, scaledHeight));
         }
 
-        SKSize exactSize = new(size.Width * maxScale, size.Height * maxScale);
+        PdfSize exactSize = new(size.Width * maxScale, size.Height * maxScale);
 
         return new PdfIntegerSize(
             Math.Max(1, (int)Math.Round(exactSize.Width)),
@@ -149,8 +140,8 @@ internal static class PdfImageCommandUtilities
     }
 
     /// <summary>
-    /// Returns the matrix that maps PDF image space to Skia canvas space.
-    /// Equivalent to: <c>canvas.Concat(Scale(1,−1))</c> then <c>canvas.Concat(Translate(0,−1))</c>.
+    /// Returns the matrix that maps PDF image space to device space.
+    /// Equivalent to concatenating a (1,−1) scale then a (0,−1) translation onto the current transformation.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfMatrix GetImageMatrix()
