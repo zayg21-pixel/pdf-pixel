@@ -4,7 +4,7 @@ namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
 /// The result of evaluating a single "glyf" glyph: its outline and a repacked glyph with hinting
-/// instructions stripped. Mirrors <c>PdfPixel.Fonts.CffV2.CffCharacter</c>'s role for CFF charstrings.
+/// instructions stripped. Mirrors <c>PdfPixel.Fonts.Cff.CffCharacter</c>'s role for CFF charstrings.
 /// </summary>
 public class SfntGlyphCharacter
 {

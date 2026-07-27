@@ -1,4 +1,4 @@
-using PdfPixel.Fonts.CffV2;
+using PdfPixel.Fonts.Cff;
 using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Sfnt;

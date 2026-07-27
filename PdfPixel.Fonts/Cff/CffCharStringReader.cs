@@ -1,20 +1,18 @@
-using PdfPixel.Fonts.Cff;
 using System;
 
-namespace PdfPixel.Fonts.Type1;
+namespace PdfPixel.Fonts.Cff;
 
 /// <summary>
-/// Reads Type1 charstring data one value at a time. Operand encoding overlaps with Type2 charstrings
-/// for the shared byte ranges (32-254), but byte 255 introduces a plain 32-bit integer here, not a
-/// 16.16 fixed-point real as in Type2, and there is no 3-byte (28) short-int form. Operators occupy the
-/// same 0-31 range with a different meaning set (<c>hsbw</c>, <c>closepath</c>, <c>callothersubr</c>,
-/// <c>seac</c>, <c>sbw</c>, <c>div</c>, and no hint-replacement masks).
+/// Reads Type2 charstring data one value at a time. Operand encoding overlaps with
+/// <see cref="CffDictionaryReader"/> for the shared byte ranges, but the operator range is wider
+/// (0-31 vs. 0-21) and marker byte 255 means a 16.16 fixed-point real here, not an unused/reserved
+/// value as in a DICT.
 /// </summary>
-internal ref struct Type1CharStringReader
+internal ref struct CffCharStringReader
 {
     private readonly ReadOnlySpan<byte> _data;
 
-    public Type1CharStringReader(in ReadOnlySpan<byte> data)
+    public CffCharStringReader(in ReadOnlySpan<byte> data)
     {
         _data = data;
         Position = 0;
@@ -51,6 +49,17 @@ internal ref struct Type1CharStringReader
             return new CffValue<byte>(secondByte, CffValueType.EscapedOperator);
         }
 
+        if (firstByte == CffConstants.OperandShortInt)
+        {
+            if (!TryReadByte(out byte highByte) || !TryReadByte(out byte lowByte))
+            {
+                return null;
+            }
+
+            var value = (short)((highByte << 8) | lowByte);
+            return new CffValue<int>(value, CffValueType.Integer);
+        }
+
         if (firstByte <= CffConstants.CharStringOperatorMax)
         {
             return new CffValue<byte>(firstByte, CffValueType.Operator);
@@ -68,7 +77,9 @@ internal ref struct Type1CharStringReader
                 return null;
             }
 
-            int value = ((firstByte - CffConstants.OperandPositiveIntStart) << 8) + nextByte + CffConstants.TwoByteIntegerBias;
+            int value = ((firstByte - CffConstants.OperandPositiveIntStart) << 8)
+                + nextByte
+                + CffConstants.TwoByteIntegerBias;
             return new CffValue<int>(value, CffValueType.Integer);
         }
 
@@ -79,11 +90,13 @@ internal ref struct Type1CharStringReader
                 return null;
             }
 
-            int value = (-(firstByte - CffConstants.OperandNegativeIntStart) << 8) - nextByte - CffConstants.TwoByteIntegerBias;
+            int value = (-(firstByte - CffConstants.OperandNegativeIntStart) << 8)
+                - nextByte
+                - CffConstants.TwoByteIntegerBias;
             return new CffValue<int>(value, CffValueType.Integer);
         }
 
-        if (firstByte == CffConstants.CharStringOperandFixed) // 255: plain 32-bit integer in Type1 (not a 16.16 fixed-point real as in Type2).
+        if (firstByte == CffConstants.CharStringOperandFixed)
         {
             if (!TryReadByte(out byte firstOctet)
                 || !TryReadByte(out byte secondOctet)
@@ -93,11 +106,27 @@ internal ref struct Type1CharStringReader
                 return null;
             }
 
-            int value = (firstOctet << 24) | (secondOctet << 16) | (thirdOctet << 8) | fourthOctet;
-            return new CffValue<int>(value, CffValueType.Integer);
+            int fixedValue = (firstOctet << 24) | (secondOctet << 16) | (thirdOctet << 8) | fourthOctet;
+            return new CffValue<float>(fixedValue / 65536f, CffValueType.Real);
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Advances past the given number of raw bytes (used for hintmask/cntrmask mask data), without
+    /// interpreting them.
+    /// </summary>
+    /// <returns>True if the bytes were available and skipped, false if not enough data remained.</returns>
+    public bool TrySkipBytes(int count)
+    {
+        if (Position + count > _data.Length)
+        {
+            return false;
+        }
+
+        Position += count;
+        return true;
     }
 
     private bool TryReadByte(out byte value)

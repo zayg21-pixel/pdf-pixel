@@ -1,6 +1,5 @@
 using PdfPixel.Color;
 using PdfPixel.Commands;
-using PdfPixel.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
@@ -66,11 +65,11 @@ internal class TextFillRenderTarget : IRenderTarget
         }
         else
         {
-            var textPath = TextRenderUtilities.GetTextPath(_shapingResult, _state);
-            processor.Process(new DrawPathCommand(textPath, _state.FillPaint));
+            //var textPath = TextRenderUtilities.GetTextPath(_shapingResult, _state);
+            //processor.Process(new DrawPathCommand(textPath, _state.FillPaint));
 
-            //PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
-            //processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, _state.FillPaint));
+            PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
+            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, _state.FillPaint));
         }
     }
 }

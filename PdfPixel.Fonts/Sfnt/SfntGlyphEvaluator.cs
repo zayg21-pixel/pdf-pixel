@@ -9,7 +9,7 @@ namespace PdfPixel.Fonts.Sfnt;
 /// <see cref="PdfFontPathBuilder"/> (recursively flattening composite glyphs' components, converting
 /// TrueType's native quadratic curves to the cubic curves that format stores), and emits a repacked
 /// glyph with hinting instructions stripped. Mirrors
-/// <c>PdfPixel.Fonts.CffV2.CffCharStringEvaluator</c>'s role for CFF charstrings.
+/// <c>PdfPixel.Fonts.Cff.CffCharStringEvaluator</c>'s role for CFF charstrings.
 /// </summary>
 public class SfntGlyphEvaluator
 {

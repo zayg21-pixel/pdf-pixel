@@ -1,226 +1,158 @@
 using System;
-using System.Buffers;
-using System.Collections.Generic;
 using System.Globalization;
-using Microsoft.Extensions.Logging;
 
 namespace PdfPixel.Fonts.Cff;
 
 /// <summary>
-/// High-level reader for CFF DICT structures (both Top DICT and Private DICT).
-/// Handles operand decoding and provides operator/operand pairs.
+/// Reads CFF DICT data one value at a time.
 /// </summary>
 internal ref struct CffDictionaryReader
 {
-    private const byte OperatorEscape = 12;
-
-    private const byte OperandIntLow = 32;
-    private const byte OperandIntHigh = 246;
-    private const byte OperandPositiveIntStart = 247;
-    private const byte OperandPositiveIntEnd = 250;
-    private const byte OperandNegativeIntStart = 251;
-    private const byte OperandNegativeIntEnd = 254;
-    private const byte OperandShortInt = 28;
-    private const byte OperandLongInt = 29;
-    private const byte OperandRealNumber = 30;
-
     private readonly ReadOnlySpan<byte> _dictBytes;
     private int _position;
-    private readonly List<decimal> _operandStack;
-    private readonly ILogger _logger;
 
-    public CffDictionaryReader(in ReadOnlySpan<byte> dictBytes, ILogger logger)
+    public CffDictionaryReader(in ReadOnlySpan<byte> dictBytes)
     {
         _dictBytes = dictBytes;
         _position = 0;
-        _operandStack = new List<decimal>(capacity: 4);
-        _logger = logger;
     }
+
+    public readonly bool IsAtEnd => _position >= _dictBytes.Length;
 
     /// <summary>
-    /// Attempts to read the next operator and its associated operands from the dictionary.
-    /// Returns false when the end of the dictionary is reached or on parse error.
+    /// Reads the next value (operand or operator) from the DICT data.
     /// </summary>
-    /// <param name="operator">The operator byte (may be escaped, returns the second byte after escape).</param>
-    /// <param name="operands">Array of operand values for this operator.</param>
-    /// <returns>True if an operator was read successfully, false otherwise.</returns>
-    public bool TryReadNextOperator(out byte @operator, out decimal[] operands)
+    /// <returns>The next value, or null if the end of the data has been reached or the data is malformed.</returns>
+    public ICffValue? ReadNextValue()
     {
-        @operator = 0;
-        operands = Array.Empty<decimal>();
-
-        _operandStack.Clear();
-
-        while (_position < _dictBytes.Length)
+        if (!TryReadByte(out byte firstByte))
         {
-            byte currentByte = _dictBytes[_position++];
-
-            if (currentByte == OperatorEscape)
-            {
-                if (_position >= _dictBytes.Length)
-                {
-                    return false;
-                }
-
-                @operator = _dictBytes[_position++];
-                operands = _operandStack.ToArray();
-                return true;
-            }
-
-            if (IsOperator(currentByte))
-            {
-                @operator = currentByte;
-                operands = _operandStack.ToArray();
-                return true;
-            }
-
-            // Reserved/unrecognized leading bytes can appear in malformed DICTs; skip them and
-            // keep scanning so a later valid operator is still reached instead of aborting the DICT.
-            if (TryReadOperand(currentByte, out decimal operandValue))
-            {
-                _operandStack.Add(operandValue);
-            }
-            else
-            {
-                _logger.LogWarning("Failed to parse CFF DICT operand starting with byte {ByteValue} at position {Position}; skipping it.", currentByte, _position - 1);
-            }
+            return null;
         }
 
-        return false;
+        if (firstByte == CffConstants.DictOperatorEscape)
+        {
+            if (!TryReadByte(out byte secondByte))
+            {
+                return null;
+            }
+
+            return new CffValue<byte>(secondByte, CffValueType.EscapedOperator);
+        }
+
+        if (firstByte <= CffConstants.DictOperatorMax)
+        {
+            return new CffValue<byte>(firstByte, CffValueType.Operator);
+        }
+
+        if (firstByte >= CffConstants.OperandIntLow && firstByte <= CffConstants.OperandIntHigh)
+        {
+            return new CffValue<int>(firstByte - CffConstants.SingleByteIntegerBias, CffValueType.Integer);
+        }
+
+        if (firstByte >= CffConstants.OperandPositiveIntStart && firstByte <= CffConstants.OperandPositiveIntEnd)
+        {
+            if (!TryReadByte(out byte nextByte))
+            {
+                return null;
+            }
+
+            int value = ((firstByte - CffConstants.OperandPositiveIntStart) << 8)
+                + nextByte
+                + CffConstants.TwoByteIntegerBias;
+            return new CffValue<int>(value, CffValueType.Integer);
+        }
+
+        if (firstByte >= CffConstants.OperandNegativeIntStart && firstByte <= CffConstants.OperandNegativeIntEnd)
+        {
+            if (!TryReadByte(out byte nextByte))
+            {
+                return null;
+            }
+
+            int value = (-(firstByte - CffConstants.OperandNegativeIntStart) << 8)
+                - nextByte
+                - CffConstants.TwoByteIntegerBias;
+            return new CffValue<int>(value, CffValueType.Integer);
+        }
+
+        if (firstByte == CffConstants.OperandShortInt)
+        {
+            if (!TryReadByte(out byte highByte) || !TryReadByte(out byte lowByte))
+            {
+                return null;
+            }
+
+            var value = (short)((highByte << 8) | lowByte);
+            return new CffValue<int>(value, CffValueType.Integer);
+        }
+
+        if (firstByte == CffConstants.OperandLongInt)
+        {
+            if (!TryReadByte(out byte firstOctet)
+                || !TryReadByte(out byte secondOctet)
+                || !TryReadByte(out byte thirdOctet)
+                || !TryReadByte(out byte fourthOctet))
+            {
+                return null;
+            }
+
+            int value = (firstOctet << 24) | (secondOctet << 16) | (thirdOctet << 8) | fourthOctet;
+            return new CffValue<int>(value, CffValueType.Integer);
+        }
+
+        if (firstByte == CffConstants.OperandRealNumber)
+        {
+            return new CffValue<float>(ReadRealNumber(), CffValueType.Real);
+        }
+
+        return null;
     }
 
-    private static bool IsOperator(byte b) => b <= 21 || b == OperatorEscape;
-
-    private bool TryReadOperand(byte firstByte, out decimal value)
+    private bool TryReadByte(out byte value)
     {
-        value = 0;
-
-        if (firstByte >= OperandIntLow && firstByte <= OperandIntHigh)
+        if (IsAtEnd)
         {
-            value = firstByte - 139;
-            return true;
-        }
-
-        if (firstByte >= OperandPositiveIntStart && firstByte <= OperandPositiveIntEnd)
-        {
-            if (_position >= _dictBytes.Length)
-            {
-                return false;
-            }
-
-            byte nextByte = _dictBytes[_position++];
-            int intValue = ((firstByte - 247) * 256) + nextByte + 108;
-            value = intValue;
-            return true;
-        }
-
-        if (firstByte >= OperandNegativeIntStart && firstByte <= OperandNegativeIntEnd)
-        {
-            if (_position >= _dictBytes.Length)
-            {
-                return false;
-            }
-
-            byte nextByte = _dictBytes[_position++];
-            int intValue = (-(firstByte - 251) * 256) - nextByte - 108;
-            value = intValue;
-            return true;
-        }
-
-        if (firstByte == OperandShortInt)
-        {
-            if (_position + 1 >= _dictBytes.Length)
-            {
-                return false;
-            }
-
-            var shortValue = (short)(_dictBytes[_position] << 8 | _dictBytes[_position + 1]);
-            _position += 2;
-            value = shortValue;
-            return true;
-        }
-
-        if (firstByte == OperandLongInt)
-        {
-            if (_position + 3 >= _dictBytes.Length)
-            {
-                return false;
-            }
-
-            int intValue = _dictBytes[_position] << 24
-                | _dictBytes[_position + 1] << 16
-                | _dictBytes[_position + 2] << 8
-                | _dictBytes[_position + 3];
-            _position += 4;
-            value = intValue;
-            return true;
-        }
-
-        if (firstByte == OperandRealNumber)
-        {
-            return TryReadRealNumber(out value);
-        }
-
-        return false;
-    }
-
-    private bool TryReadRealNumber(out decimal value)
-    {
-        value = 0;
-
-        char[] numberChars = ArrayPool<char>.Shared.Rent(64);
-        int charCount = 0;
-
-        try
-        {
-            var finished = false;
-            while (!finished && _position < _dictBytes.Length)
-            {
-                byte nibblePair = _dictBytes[_position++];
-                var highNibble = (byte)((nibblePair >> 4) & 0xF);
-                var lowNibble = (byte)(nibblePair & 0xF);
-
-                TryProcessNibble(highNibble, numberChars, ref charCount, out finished);
-
-                if (finished)
-                {
-                    break;
-                }
-
-                TryProcessNibble(lowNibble, numberChars, ref charCount, out finished);
-            }
-
-            if (charCount > 0)
-            {
-                string numberString = new(numberChars, 0, charCount);
-
-                if (!decimal.TryParse(numberString, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
-                {
-                    _logger.LogWarning("CFF DICT real number \"{NumberString}\" at position {Position} is out of range for decimal; using 0.", numberString, _position);
-                    value = 0;
-                }
-
-                return true;
-            }
-
-            if (finished)
-            {
-                value = 0;
-                return true;
-            }
-
+            value = 0;
             return false;
         }
-        finally
-        {
-            ArrayPool<char>.Shared.Return(numberChars);
-        }
+
+        value = _dictBytes[_position++];
+        return true;
     }
 
-    private static bool TryProcessNibble(byte nibble, char[] buffer, ref int charCount, out bool finished)
+    private float ReadRealNumber()
     {
-        finished = false;
+        Span<char> buffer = stackalloc char[32];
+        int length = 0;
+        var finished = false;
 
+        while (!finished && TryReadByte(out byte nibblePair))
+        {
+            finished = AppendNibble((byte)(nibblePair >> 4), buffer, ref length);
+            if (!finished)
+            {
+                finished = AppendNibble((byte)(nibblePair & 0xF), buffer, ref length);
+            }
+        }
+
+        if (length == 0)
+        {
+            return 0f;
+        }
+
+        string numberString = buffer.Slice(0, length).ToString();
+
+        if (!float.TryParse(numberString, NumberStyles.Float, CultureInfo.InvariantCulture, out float value))
+        {
+            return 0f;
+        }
+
+        return value;
+    }
+
+    private static bool AppendNibble(byte nibble, in Span<char> buffer, ref int length)
+    {
         switch (nibble)
         {
             case 0x0:
@@ -234,66 +166,37 @@ internal ref struct CffDictionaryReader
             case 0x8:
             case 0x9:
                 {
-                    if (charCount >= buffer.Length)
-                    {
-                        return false;
-                    }
-
-                    buffer[charCount++] = (char)('0' + nibble);
-                    return true;
+                    buffer[length++] = (char)('0' + nibble);
+                    return false;
                 }
-            case 0xA:
+            case CffConstants.RealNibbleDecimalPoint:
                 {
-                    if (charCount >= buffer.Length)
-                    {
-                        return false;
-                    }
-
-                    buffer[charCount++] = '.';
-                    return true;
+                    buffer[length++] = '.';
+                    return false;
                 }
-            case 0xB:
+            case CffConstants.RealNibblePositiveExponent:
                 {
-                    if (charCount + 1 >= buffer.Length)
-                    {
-                        return false;
-                    }
-
-                    buffer[charCount++] = 'E';
-                    buffer[charCount++] = '+';
-                    return true;
+                    buffer[length++] = 'E';
+                    buffer[length++] = '+';
+                    return false;
                 }
-            case 0xC:
+            case CffConstants.RealNibbleNegativeExponent:
                 {
-                    if (charCount + 1 >= buffer.Length)
-                    {
-                        return false;
-                    }
-
-                    buffer[charCount++] = 'E';
-                    buffer[charCount++] = '-';
-                    return true;
+                    buffer[length++] = 'E';
+                    buffer[length++] = '-';
+                    return false;
                 }
-            case 0xD:
+            case CffConstants.RealNibbleMinus:
+                {
+                    buffer[length++] = '-';
+                    return false;
+                }
+            case CffConstants.RealNibbleReserved:
                 return false;
 
-            case 0xE:
-                {
-                    if (charCount >= buffer.Length)
-                    {
-                        return false;
-                    }
-
-                    buffer[charCount++] = '-';
-                    return true;
-                }
-            case 0xF:
-                {
-                    finished = true;
-                    return true;
-                }
+            case CffConstants.RealNibbleTerminator:
             default:
-                return false;
+                return true;
         }
     }
 }
