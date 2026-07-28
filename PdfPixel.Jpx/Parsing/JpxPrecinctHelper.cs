@@ -1,5 +1,6 @@
 using PdfPixel.Jpx.Model;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Parsing;
 
@@ -10,13 +11,18 @@ namespace PdfPixel.Jpx.Parsing;
 internal static class JpxPrecinctHelper
 {
     /// <summary>
-    /// Computes the precinct dimensions for a given resolution level.
+    /// Default precinct size exponent used when the coding style specifies no precinct sizes.
     /// </summary>
-    /// <param name="resolutionLevel">The resolution level (0 = full resolution).</param>
+    private const int DefaultPrecinctExponent = 15;
+
+    /// <summary>
+    /// Reads the base-2 exponents of the precinct dimensions for a given resolution level.
+    /// </summary>
+    /// <param name="resolutionLevel">The resolution level (0 = lowest resolution).</param>
     /// <param name="codingStyle">Coding style parameters from the main header.</param>
     /// <param name="componentCodingStyle">Component-specific coding style overrides (optional).</param>
-    /// <returns>Tuple containing precinct width and height in pixels.</returns>
-    public static (int width, int height) GetPrecinctSize(
+    /// <returns>Tuple containing the precinct width and height exponents.</returns>
+    public static (int widthExponent, int heightExponent) GetPrecinctExponents(
         int resolutionLevel,
         JpxCodingStyle codingStyle,
         JpxComponentCodingStyle? componentCodingStyle = null)
@@ -29,66 +35,75 @@ internal static class JpxPrecinctHelper
         // Use component-specific coding style if available
         JpxCodingStyle effectiveCodingStyle = componentCodingStyle?.CodingStyle ?? codingStyle;
 
-        // Check if precinct sizes are explicitly specified in the coding style
         if (effectiveCodingStyle.HasPrecinctSizes
             && resolutionLevel < effectiveCodingStyle.PrecinctSizeExponents.Length)
         {
             byte sizeExponents = effectiveCodingStyle.PrecinctSizeExponents[resolutionLevel];
 
-            // Extract width and height exponents from the byte
             // ITU-T T.800 Table A.21: bits 0-3 = PPx (width), bits 4-7 = PPy (height)
-            int widthExponent = sizeExponents & 0x0F;
-            int heightExponent = (sizeExponents >> 4) & 0x0F;
-
-            // Calculate actual precinct dimensions: 2^exponent
-            int width = 1 << widthExponent;
-            int height = 1 << heightExponent;
-
-            return (width, height);
+            return (sizeExponents & 0x0F, (sizeExponents >> 4) & 0x0F);
         }
 
-        // Default behavior when no explicit precinct sizes are specified
-        // JPEG2000 standard: default precinct size is 2^15 (32768) for all resolution levels
-        return (1 << 15, 1 << 15);
+        return (DefaultPrecinctExponent, DefaultPrecinctExponent);
+    }
+
+    /// <summary>
+    /// Computes the precinct dimensions for a given resolution level.
+    /// </summary>
+    /// <param name="resolutionLevel">The resolution level (0 = lowest resolution).</param>
+    /// <param name="codingStyle">Coding style parameters from the main header.</param>
+    /// <param name="componentCodingStyle">Component-specific coding style overrides (optional).</param>
+    /// <returns>Tuple containing precinct width and height in pixels.</returns>
+    public static (int width, int height) GetPrecinctSize(
+        int resolutionLevel,
+        JpxCodingStyle codingStyle,
+        JpxComponentCodingStyle? componentCodingStyle = null)
+    {
+        (int widthExponent, int heightExponent) = GetPrecinctExponents(resolutionLevel, codingStyle, componentCodingStyle);
+
+        return (1 << widthExponent, 1 << heightExponent);
     }
 
     /// <summary>
     /// Computes the number of precincts for a given tile and resolution level.
     /// </summary>
-    /// <param name="tileWidth">Width of the tile in pixels.</param>
-    /// <param name="tileHeight">Height of the tile in pixels.</param>
+    /// <param name="tileBounds">Bounds of the tile on the reference grid.</param>
     /// <param name="resolutionLevel">The resolution level (0 = full resolution).</param>
     /// <param name="codingStyle">Coding style parameters from the main header.</param>
     /// <param name="componentCodingStyle">Component-specific coding style overrides (optional).</param>
     /// <returns>Tuple containing number of precincts horizontally and vertically.</returns>
     public static (int precinctsX, int precinctsY) ComputePrecinctGrid(
-        int tileWidth,
-        int tileHeight,
+        in JpxRectangle tileBounds,
         int resolutionLevel,
         JpxCodingStyle codingStyle,
         JpxComponentCodingStyle? componentCodingStyle = null)
     {
-        if (tileWidth <= 0 || tileHeight <= 0)
+        if (tileBounds.Width <= 0 || tileBounds.Height <= 0)
         {
             return (0, 0);
         }
 
         (int precinctWidth, int precinctHeight) = GetPrecinctSize(resolutionLevel, codingStyle, componentCodingStyle);
 
-        // Compute resolution-dependent tile dimensions using ITU-T T.800 formula:
-        // trx1 - trx0 = ceil(tileWidth / 2^(NL - r)) for resolution r
-        int decompositionLevels = codingStyle.DecompositionLevels;
-        int shift = decompositionLevels - resolutionLevel;
-        int resolutionTileWidth = (shift <= 0) ? tileWidth : (tileWidth + (1 << shift) - 1) >> shift;
-        int resolutionTileHeight = (shift <= 0) ? tileHeight : (tileHeight + (1 << shift) - 1) >> shift;
+        // Precincts partition the resolution grid from its origin, so the count spans every
+        // partition cell the tile touches rather than the tile's own width.
+        int levels = codingStyle.DecompositionLevels - resolutionLevel;
+        int resolutionX0 = JpxBandGeometry.GetResolutionCoordinate(tileBounds.X, levels);
+        int resolutionY0 = JpxBandGeometry.GetResolutionCoordinate(tileBounds.Y, levels);
+        int resolutionX1 = JpxBandGeometry.GetResolutionCoordinate(tileBounds.Right, levels);
+        int resolutionY1 = JpxBandGeometry.GetResolutionCoordinate(tileBounds.Bottom, levels);
 
-        resolutionTileWidth = Math.Max(1, resolutionTileWidth);
-        resolutionTileHeight = Math.Max(1, resolutionTileHeight);
+        if (resolutionX1 <= resolutionX0 || resolutionY1 <= resolutionY0)
+        {
+            return (0, 0);
+        }
 
-        // Calculate number of precincts needed to cover the tile at this resolution
-        int precinctsX = (resolutionTileWidth + precinctWidth - 1) / precinctWidth;
-        int precinctsY = (resolutionTileHeight + precinctHeight - 1) / precinctHeight;
+        int precinctsX = CeilDivide(resolutionX1, precinctWidth) - (resolutionX0 / precinctWidth);
+        int precinctsY = CeilDivide(resolutionY1, precinctHeight) - (resolutionY0 / precinctHeight);
 
-        return (precinctsX, precinctsY);
+        return (Math.Max(precinctsX, 1), Math.Max(precinctsY, 1));
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int CeilDivide(int value, int divisor) => (value + divisor - 1) / divisor;
 }

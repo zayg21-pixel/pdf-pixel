@@ -19,10 +19,14 @@ internal sealed class JpxPrecinctState
         int codeBlocksY,
         int codeBlockStartX,
         int codeBlockStartY,
-        int subbandX0,
-        int subbandY0,
-        int subbandX1,
-        int subbandY1)
+        int codeBlockWidth,
+        int codeBlockHeight,
+        int bandX0,
+        int bandY0,
+        int precinctX0,
+        int precinctY0,
+        int precinctX1,
+        int precinctY1)
     {
         InclusionTree = inclusionTree;
         ZeroBitPlaneTree = zeroBitPlaneTree;
@@ -31,10 +35,14 @@ internal sealed class JpxPrecinctState
         CodeBlocksY = codeBlocksY;
         CodeBlockStartX = codeBlockStartX;
         CodeBlockStartY = codeBlockStartY;
-        SubbandX0 = subbandX0;
-        SubbandY0 = subbandY0;
-        SubbandX1 = subbandX1;
-        SubbandY1 = subbandY1;
+        CodeBlockWidth = codeBlockWidth;
+        CodeBlockHeight = codeBlockHeight;
+        BandX0 = bandX0;
+        BandY0 = bandY0;
+        PrecinctX0 = precinctX0;
+        PrecinctY0 = precinctY0;
+        PrecinctX1 = precinctX1;
+        PrecinctY1 = precinctY1;
     }
 
     /// <summary>
@@ -63,130 +71,123 @@ internal sealed class JpxPrecinctState
     public int CodeBlocksY { get; }
 
     /// <summary>
-    /// Absolute code-block X index within the subband where this precinct starts.
+    /// Index of this precinct's first code-block column in the subband's code-block partition,
+    /// which is anchored at the subband coordinate origin rather than at the precinct.
     /// </summary>
     public int CodeBlockStartX { get; }
 
     /// <summary>
-    /// Absolute code-block Y index within the subband where this precinct starts.
+    /// Index of this precinct's first code-block row in the subband's code-block partition.
     /// </summary>
     public int CodeBlockStartY { get; }
 
     /// <summary>
-    /// Start X coordinate of the precinct-subband intersection.
+    /// Width of one cell of the code-block partition, in subband coordinates.
     /// </summary>
-    public int SubbandX0 { get; }
+    public int CodeBlockWidth { get; }
 
     /// <summary>
-    /// Start Y coordinate of the precinct-subband intersection.
+    /// Height of one cell of the code-block partition, in subband coordinates.
     /// </summary>
-    public int SubbandY0 { get; }
+    public int CodeBlockHeight { get; }
 
     /// <summary>
-    /// End X coordinate of the precinct-subband intersection.
+    /// Subband coordinate of the subband's left edge, used to place code-blocks relative to it.
     /// </summary>
-    public int SubbandX1 { get; }
+    public int BandX0 { get; }
 
     /// <summary>
-    /// End Y coordinate of the precinct-subband intersection.
+    /// Subband coordinate of the subband's top edge.
     /// </summary>
-    public int SubbandY1 { get; }
+    public int BandY0 { get; }
+
+    /// <summary>
+    /// Left edge of the precinct-subband intersection, in subband coordinates.
+    /// </summary>
+    public int PrecinctX0 { get; }
+
+    /// <summary>
+    /// Top edge of the precinct-subband intersection, in subband coordinates.
+    /// </summary>
+    public int PrecinctY0 { get; }
+
+    /// <summary>
+    /// Right edge of the precinct-subband intersection, in subband coordinates.
+    /// </summary>
+    public int PrecinctX1 { get; }
+
+    /// <summary>
+    /// Bottom edge of the precinct-subband intersection, in subband coordinates.
+    /// </summary>
+    public int PrecinctY1 { get; }
 
     /// <summary>
     /// Creates a precinct state for the given resolution, subband, and precinct position.
-    /// Computes subband dimensions, precinct projection, and code-block grid per ITU-T T.800 Annex B.
+    /// Computes subband bounds, precinct projection, and code-block grid per ITU-T T.800 Annex B,
+    /// all in the subband's own coordinate system so that partitions stay anchored to the
+    /// reference grid rather than to the tile.
     /// </summary>
     public static JpxPrecinctState Create(
         int resolution,
         int subbandIndex,
         int precinctX,
         int precinctY,
-        int tileWidth,
-        int tileHeight,
+        in JpxRectangle tileBounds,
         JpxCodingStyle codingStyle)
     {
         int decompositionLevels = codingStyle.DecompositionLevels;
-        int subbandWidth;
-        int subbandHeight;
+        var subbandType = (JpxSubbandType)subbandIndex;
 
-        if (resolution == 0)
-        {
-            subbandWidth = CeilDiv(tileWidth, 1 << decompositionLevels);
-            subbandHeight = CeilDiv(tileHeight, 1 << decompositionLevels);
-        }
-        else
-        {
-            int level = decompositionLevels - resolution;
-            int resWidth = CeilDiv(tileWidth, 1 << level);
-            int prevResWidth = CeilDiv(tileWidth, 1 << (level + 1));
-            int resHeight = CeilDiv(tileHeight, 1 << level);
-            int prevResHeight = CeilDiv(tileHeight, 1 << (level + 1));
+        int bandLevel = JpxBandGeometry.GetBandLevel(resolution, decompositionLevels);
+        int bandOffsetX = JpxBandGeometry.GetBandOffsetX(resolution, subbandType);
+        int bandOffsetY = JpxBandGeometry.GetBandOffsetY(resolution, subbandType);
 
-            if (subbandIndex == 0) // HL
-            {
-                subbandWidth = resWidth - prevResWidth;
-                subbandHeight = prevResHeight;
-            }
-            else if (subbandIndex == 1) // LH
-            {
-                subbandWidth = prevResWidth;
-                subbandHeight = resHeight - prevResHeight;
-            }
-            else // HH
-            {
-                subbandWidth = resWidth - prevResWidth;
-                subbandHeight = resHeight - prevResHeight;
-            }
-        }
+        int bandX0 = JpxBandGeometry.GetBandCoordinate(tileBounds.X, bandLevel, bandOffsetX);
+        int bandY0 = JpxBandGeometry.GetBandCoordinate(tileBounds.Y, bandLevel, bandOffsetY);
+        int bandX1 = JpxBandGeometry.GetBandCoordinate(tileBounds.Right, bandLevel, bandOffsetX);
+        int bandY1 = JpxBandGeometry.GetBandCoordinate(tileBounds.Bottom, bandLevel, bandOffsetY);
 
-        // Get precinct size at this resolution level
-        (int precinctWidth, int precinctHeight) = JpxPrecinctHelper.GetPrecinctSize(
-            resolution, codingStyle);
+        // Precincts partition the resolution grid; for resolutions above the lowest, one step of
+        // that partition covers two subband samples, so its size halves in subband coordinates.
+        (int precinctWidth, int precinctHeight) = JpxPrecinctHelper.GetPrecinctSize(resolution, codingStyle);
+        int subbandPrecinctWidth = Math.Max((resolution == 0) ? precinctWidth : precinctWidth / 2, 1);
+        int subbandPrecinctHeight = Math.Max((resolution == 0) ? precinctHeight : precinctHeight / 2, 1);
 
-        // For resolution > 0, precinct size in subband coordinates is halved
-        int subbandPrecinctWidth = (resolution == 0) ? precinctWidth : precinctWidth / 2;
-        int subbandPrecinctHeight = (resolution == 0) ? precinctHeight : precinctHeight / 2;
+        // The precinct grid is anchored at the subband origin, so the first precinct starts at
+        // the partition cell containing bandX0 rather than at bandX0 itself.
+        int firstPrecinctX = FloorToMultiple(bandX0, subbandPrecinctWidth);
+        int firstPrecinctY = FloorToMultiple(bandY0, subbandPrecinctHeight);
 
-        // Ensure minimum of 1
-        subbandPrecinctWidth = Math.Max(subbandPrecinctWidth, 1);
-        subbandPrecinctHeight = Math.Max(subbandPrecinctHeight, 1);
+        int precinctStartX = firstPrecinctX + (precinctX * subbandPrecinctWidth);
+        int precinctStartY = firstPrecinctY + (precinctY * subbandPrecinctHeight);
 
-        // Compute precinct projection into subband and clip against subband bounds
-        int p0x = precinctX * subbandPrecinctWidth;
-        int p0y = precinctY * subbandPrecinctHeight;
-        int p1x = p0x + subbandPrecinctWidth;
-        int p1y = p0y + subbandPrecinctHeight;
+        int intersectionX0 = Math.Max(precinctStartX, bandX0);
+        int intersectionY0 = Math.Max(precinctStartY, bandY0);
+        int intersectionX1 = Math.Min(precinctStartX + subbandPrecinctWidth, bandX1);
+        int intersectionY1 = Math.Min(precinctStartY + subbandPrecinctHeight, bandY1);
 
-        int s0x = Math.Max(p0x, 0);
-        int s1x = Math.Min(p1x, subbandWidth);
-        int s0y = Math.Max(p0y, 0);
-        int s1y = Math.Min(p1y, subbandHeight);
+        // A code-block never spans more than one precinct, so the partition cell is clamped to it.
+        int codeBlockWidth = Math.Min(codingStyle.CodeBlockWidth, subbandPrecinctWidth);
+        int codeBlockHeight = Math.Min(codingStyle.CodeBlockHeight, subbandPrecinctHeight);
 
         int codeBlocksX;
         int codeBlocksY;
         int codeBlockStartX = 0;
         int codeBlockStartY = 0;
 
-        if (s1x <= s0x || s1y <= s0y)
+        if (intersectionX1 <= intersectionX0 || intersectionY1 <= intersectionY0)
         {
             codeBlocksX = 0;
             codeBlocksY = 0;
         }
         else
         {
-            // Code-block grid within the precinct-subband intersection
-            int codeBlockWidth = codingStyle.CodeBlockWidth;
-            int codeBlockHeight = codingStyle.CodeBlockHeight;
-
-            int lstart = s0x / codeBlockWidth;
-            int lend = (s1x - 1) / codeBlockWidth;
-            int kstart = s0y / codeBlockHeight;
-            int kend = (s1y - 1) / codeBlockHeight;
-
-            codeBlockStartX = lstart;
-            codeBlockStartY = kstart;
-            codeBlocksX = lend - lstart + 1;
-            codeBlocksY = kend - kstart + 1;
+            // The code-block partition is anchored at the subband origin too, so the leading
+            // block of a precinct that does not start on a cell boundary is a partial one.
+            codeBlockStartX = FloorDivide(intersectionX0, codeBlockWidth);
+            codeBlockStartY = FloorDivide(intersectionY0, codeBlockHeight);
+            codeBlocksX = FloorDivide(intersectionX1 - 1, codeBlockWidth) - codeBlockStartX + 1;
+            codeBlocksY = FloorDivide(intersectionY1 - 1, codeBlockHeight) - codeBlockStartY + 1;
         }
 
         return new JpxPrecinctState(
@@ -197,15 +198,29 @@ internal sealed class JpxPrecinctState
             codeBlocksY,
             codeBlockStartX,
             codeBlockStartY,
-            s0x,
-            s0y,
-            s1x,
-            s1y);
+            codeBlockWidth,
+            codeBlockHeight,
+            bandX0,
+            bandY0,
+            intersectionX0,
+            intersectionY0,
+            intersectionX1,
+            intersectionY1);
     }
 
-    /// <summary>
-    /// Integer ceiling division.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int CeilDiv(int numerator, int denominator) => (numerator + denominator - 1) / denominator;
+    private static int FloorToMultiple(int value, int multiple) => FloorDivide(value, multiple) * multiple;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int FloorDivide(int value, int divisor)
+    {
+        int quotient = value / divisor;
+
+        if (value < 0 && quotient * divisor != value)
+        {
+            quotient--;
+        }
+
+        return quotient;
+    }
 }

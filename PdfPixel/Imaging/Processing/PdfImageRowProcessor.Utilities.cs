@@ -67,7 +67,7 @@ internal sealed partial class PdfImageRowProcessor
             stages |= ProcessingStages.Mask;
         }
 
-        if (!converter.IsDevice || converter.Components != 1 || converter.Components != 3)
+        if (!converter.IsDevice || (converter.Components != 1 && converter.Components != 3))
         {
             stages |= ProcessingStages.SampleColor;
         }

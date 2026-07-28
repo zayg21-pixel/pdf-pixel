@@ -13,9 +13,13 @@
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
     <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="jbig2\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="jpx\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

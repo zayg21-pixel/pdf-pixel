@@ -41,12 +41,10 @@ internal ref partial struct JpxTier1Decoder
                     int magContext = GetMagnitudeRefinementContext(stateVal);
                     int bit = _mqDecoder.DecodeBit(magContext + ContextMrOffset);
 
-                    // Update coefficient: clear old 1/2 approx, set decoded bit + new 1/2 approx
-                    int coeff = coeffPtr;
-                    int signBit = coeff & unchecked((int)0x80000000);
-                    int magnitude = coeff & 0x7FFFFFFF & resetmask;
-                    magnitude |= (bit << bitPosition) | setmask;
-                    coeffPtr = signBit | magnitude;
+                    // Update coefficient: clear old 1/2 approx, set decoded bit + new 1/2 approx.
+                    // The reset mask spans every bit above this plane, so it carries the sign
+                    // through untouched and the decoded bits never reach it.
+                    coeffPtr = (coeffPtr & resetmask) | (bit << bitPosition) | setmask;
 
                     // Mark as coded and refined
                     statePtr |= FlagCoded | FlagRefined;

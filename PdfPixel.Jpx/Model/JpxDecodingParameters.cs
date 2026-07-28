@@ -33,7 +33,7 @@ public readonly struct JpxDecodingParameters
     /// Tiles outside every region are skipped and left as placeholder (zeroed) data.
     /// Null means every tile must be decoded.
     /// </summary>
-    public IReadOnlyList<JpxRegion>? RegionsOfInterest { get; }
+    public IReadOnlyList<JpxRectangle>? RegionsOfInterest { get; }
 
     /// <summary>
     /// Default parameters representing full-resolution decoding of the entire image.
@@ -46,7 +46,7 @@ public readonly struct JpxDecodingParameters
     /// <param name="descaleFactor">Power-of-2 reduction factor. Must be &gt;= 1.</param>
     /// <param name="regionsOfInterest">Regions, in full-resolution image coordinates, that must be decoded. Null means every tile must be decoded.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="descaleFactor"/> is less than 1 or not a power of 2.</exception>
-    public JpxDecodingParameters(int descaleFactor, IReadOnlyList<JpxRegion>? regionsOfInterest = null)
+    public JpxDecodingParameters(int descaleFactor, IReadOnlyList<JpxRectangle>? regionsOfInterest = null)
     {
         if (descaleFactor < 1)
         {

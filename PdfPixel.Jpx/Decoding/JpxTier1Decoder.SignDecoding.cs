@@ -11,15 +11,20 @@ internal ref partial struct JpxTier1Decoder
     /// Uses precomputed lookup tables to eliminate the 9-case switch.
     /// </summary>
     /// <param name="statePtr">Reference positioned at the current sample's state entry.</param>
+    /// <param name="ignoresStripeBelow">
+    /// Whether the row below must be treated as insignificant, which is how vertically causal
+    /// context formation keeps a stripe from seeing the stripe below it (ITU-T T.800 D.7).
+    /// Both the significance and the sign of that neighbour are excluded.
+    /// </param>
     /// <returns>0 for positive, 1 for negative.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int DecodeSign(ref uint statePtr)
+    private int DecodeSign(ref uint statePtr, bool ignoresStripeBelow)
     {
         int stateWidth = _stateWidth;
         uint leftState = Unsafe.Add(ref statePtr, -1);
         uint rightState = Unsafe.Add(ref statePtr, 1);
         uint topState = Unsafe.Add(ref statePtr, -stateWidth);
-        uint bottomState = Unsafe.Add(ref statePtr, stateWidth);
+        uint bottomState = ignoresStripeBelow ? 0 : Unsafe.Add(ref statePtr, stateWidth);
 
         int horizontalContribution = ComputeContribution(leftState, rightState);
         int verticalContribution = ComputeContribution(topState, bottomState);

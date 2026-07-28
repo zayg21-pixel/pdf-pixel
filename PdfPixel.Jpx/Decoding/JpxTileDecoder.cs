@@ -1,6 +1,7 @@
 using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -14,12 +15,23 @@ namespace PdfPixel.Jpx.Decoding;
 /// 5. Inverse Wavelet Transform (5-3 reversible or 9-7 irreversible)
 /// 6. Inverse MCT, Level Shifting, and Clamping
 /// </summary>
+/// <remarks>
+/// One decoder serves every tile of an image, and owns the scratch buffers the stages
+/// work in so that decoding a tile allocates only the tile it returns. Buffers grow to
+/// fit the largest tile seen and are reused from then on.
+/// </remarks>
 internal sealed class JpxTileDecoder
 {
     private readonly JpxHeader _header;
+    private readonly JpxCodingStyle _codingStyle;
     private readonly IJpxPacketParser _packetParser;
-    private readonly JpxSubbandAssembler _assembler;
     private readonly JpxInverseMct _inverseMct;
+
+    // Scratch shared by every tile and component of the image.
+    private readonly JpxSubbandData _subbands;
+    private readonly IJpxInverseDwt[] _inverseDwtByComponent;
+    private int[] _codeBlockCoefficients = [];
+    private uint[] _codeBlockState = [];
 
     public JpxTileDecoder(JpxHeader header, IJpxPacketParser packetParser)
     {
@@ -31,42 +43,205 @@ internal sealed class JpxTileDecoder
             throw new ArgumentException("Header must contain coding style information.", nameof(header));
         }
 
-        _assembler = new JpxSubbandAssembler(_header.CodingStyle);
-        _inverseMct = new JpxInverseMct(_header.CodingStyle);
+        _codingStyle = _header.CodingStyle;
+        _inverseMct = new JpxInverseMct(_codingStyle);
+        _subbands = new JpxSubbandData(_codingStyle.DecompositionLevels);
+
+        _inverseDwtByComponent = new IJpxInverseDwt[_header.ComponentCount];
+        for (int component = 0; component < _inverseDwtByComponent.Length; component++)
+        {
+            _inverseDwtByComponent[component] = JpxInverseDwtFactory.Create(_header, component);
+        }
     }
 
-    public JpxTile DecodeTile(JpxTileHeader tileHeader, in ReadOnlySpan<byte> tileData, in JpxDecodingParameters decodingParameters)
+    /// <summary>
+    /// Decodes a tile-part's codestream into <paramref name="destination"/>, which is
+    /// re-targeted at the tile and fully overwritten. <paramref name="observer"/> is notified
+    /// as each stage progresses so a long decode can be cancelled promptly.
+    /// </summary>
+    public void DecodeTile(
+        JpxTileHeader tileHeader,
+        in ReadOnlySpan<byte> tileData,
+        in JpxDecodingParameters decodingParameters,
+        JpxTile destination,
+        IJpxExectionObserver? observer = default)
     {
         if (tileHeader == null)
         {
             throw new ArgumentNullException(nameof(tileHeader));
         }
 
-        if (_header.CodingStyle == null)
+        if (destination == null)
         {
-            throw new InvalidOperationException("Coding style is not defined.");
+            throw new ArgumentNullException(nameof(destination));
         }
 
-        int decompositionLevels = _header.CodingStyle.DecompositionLevels;
+        int decompositionLevels = _codingStyle.DecompositionLevels;
         int levelsToSkip = Math.Min(decodingParameters.LevelsToSkip, decompositionLevels);
 
-        // Compute full-resolution tile dimensions (needed for subband assembly)
-        int tileStartX = tileHeader.TileX * (int)_header.TileWidth;
-        int tileStartY = tileHeader.TileY * (int)_header.TileHeight;
-        int fullTileWidth = Math.Min((int)_header.TileWidth, (int)_header.Width - tileStartX);
-        int fullTileHeight = Math.Min((int)_header.TileHeight, (int)_header.Height - tileStartY);
+        // Tile bounds on the reference grid. Subband and code-block partitions are anchored
+        // there, so the tile's position matters and not only its size.
+        JpxRectangle tileBounds = JpxPacketEnumerationHelper.CalculateTileBounds(_header, tileHeader);
 
         // Compute reduced tile dimensions (identity when levelsToSkip == 0)
-        int reducedWidth = decodingParameters.ReduceDimension(fullTileWidth);
-        int reducedHeight = decodingParameters.ReduceDimension(fullTileHeight);
+        int reducedWidth = decodingParameters.ReduceDimension(tileBounds.Width);
+        int reducedHeight = decodingParameters.ReduceDimension(tileBounds.Height);
 
-        // Create the output tile with reduced dimensions
-        JpxTile tile = new(_header, tileHeader, reducedWidth, reducedHeight);
+        // Target the output tile at the reduced dimensions
+        destination.Reset(tileHeader, reducedWidth, reducedHeight);
 
-        // Decode the tile through the JPEG2000 pipeline
+        // Stage 1: Parse packets according to progression order. Each code-block is
+        // returned once, carrying the data accumulated across every layer it appears in.
+        IReadOnlyList<JpxCodeBlock> codeBlocks = _packetParser.ParseCodeBlocks(SkipToTileData(tileData), tileHeader);
+        observer?.Notify();
+
+        int sampleCount = destination.SampleCount;
+
+        // Reconstructing only down to levelsToSkip leaves the finest resolutions unused, so
+        // their code-blocks are never entropy decoded. Resolution r lands on DWT level
+        // (levels - r), and the transform reads levels down to levelsToSkip.
+        int highestNeededResolution = decompositionLevels - levelsToSkip;
+
+        for (int component = 0; component < destination.ComponentCount; component++)
+        {
+            _subbands.Reset(tileBounds);
+
+            // Stages 2-3: Entropy decode each of this component's code-blocks and place
+            // its coefficients into the subband it belongs to.
+            bool hasCoefficients = TryDecodeComponentCoefficients(codeBlocks, component, highestNeededResolution, observer);
+
+            // Stages 4-5: Inverse Quantization + Inverse DWT
+            // Dequantization is integrated into the interleaving step of both
+            // the 5-3 (reversible) and 9-7 (irreversible) transforms.
+            // Transforming all-zero subbands only ever produces zeros, which the tile already
+            // holds, so a component no code-block contributed to is left as it is.
+            if (hasCoefficients)
+            {
+                _inverseDwtByComponent[component].Transform(_subbands, destination.ComponentData[component].AsSpan(0, sampleCount), levelsToSkip);
+            }
+
+            observer?.Notify();
+        }
+
+        // Stage 6a: Inverse multi-component transform
+        _inverseMct.Apply(destination);
+        observer?.Notify();
+
+        // Stage 6b: DC level shift and clamp for each component
+        for (int component = 0; component < destination.ComponentCount; component++)
+        {
+            ApplyDcLevelShift(destination.ComponentData[component].AsSpan(0, sampleCount), _header.Components[component]);
+            observer?.Notify();
+        }
+    }
+
+    /// <summary>
+    /// Entropy decodes the code-blocks belonging to <paramref name="component"/> that the
+    /// inverse transform will read, and places their coefficients into the subbands. Each
+    /// block is decoded into shared scratch that the assembler copies out of before the
+    /// next block reuses it.
+    /// </summary>
+    /// <param name="codeBlocks">Every code-block in the tile.</param>
+    /// <param name="component">Component whose code-blocks are decoded.</param>
+    /// <param name="highestNeededResolution">
+    /// Resolutions above this are not reconstructed, so decoding them would be wasted work.
+    /// </param>
+    /// <param name="observer">Observer notified after each code-block is decoded.</param>
+    /// <returns>Whether any code-block contributed coefficients to the component.</returns>
+    private bool TryDecodeComponentCoefficients(
+        IReadOnlyList<JpxCodeBlock> codeBlocks,
+        int component,
+        int highestNeededResolution,
+        IJpxExectionObserver? observer)
+    {
+        var placedAnyCoefficients = false;
+
+        for (int i = 0; i < codeBlocks.Count; i++)
+        {
+            JpxCodeBlock codeBlock = codeBlocks[i];
+
+            if (codeBlock.Component != component || codeBlock.DataOffset == 0)
+            {
+                continue;
+            }
+
+            if (codeBlock.ResolutionLevel > highestNeededResolution)
+            {
+                continue;
+            }
+
+            int sampleCount = codeBlock.Width * codeBlock.Height;
+            if (sampleCount <= 0)
+            {
+                continue;
+            }
+
+            int stateLength = JpxTier1Decoder.GetRequiredStateLength(codeBlock.Width, codeBlock.Height);
+
+            if (_codeBlockCoefficients.Length < sampleCount)
+            {
+                _codeBlockCoefficients = new int[sampleCount];
+            }
+
+            if (_codeBlockState.Length < stateLength)
+            {
+                _codeBlockState = new uint[stateLength];
+            }
+
+            Span<int> coefficients = _codeBlockCoefficients.AsSpan(0, sampleCount);
+            Span<uint> state = _codeBlockState.AsSpan(0, stateLength);
+            coefficients.Clear();
+            state.Clear();
+
+            JpxTier1Decoder tier1Decoder = new(_codingStyle, codeBlock, coefficients, state);
+            tier1Decoder.Decode();
+
+            JpxSubbandAssembler.Place(codeBlock, coefficients, _subbands);
+            placedAnyCoefficients = true;
+
+            observer?.Notify();
+        }
+
+        return placedAnyCoefficients;
+    }
+
+    /// <summary>
+    /// Applies the DC level shift to a component and clamps samples to its nominal range.
+    /// </summary>
+    private static void ApplyDcLevelShift(in Span<int> data, JpxComponent componentInfo)
+    {
+        int tileBitDepth = componentInfo.PrecisionBits;
+        bool isSigned = componentInfo.IsSigned;
+        int maxValue = (1 << tileBitDepth) - 1;
+        int minValue = isSigned ? -(1 << (tileBitDepth - 1)) : 0;
+        int dcOffset = isSigned ? 0 : (1 << (tileBitDepth - 1));
+
+        for (int i = 0; i < data.Length; i++)
+        {
+            int value = data[i] + dcOffset;
+            if (value < minValue)
+            {
+                data[i] = minValue;
+            }
+            else if (value > maxValue)
+            {
+                data[i] = maxValue;
+            }
+            else
+            {
+                data[i] = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Advances past the tile-part's marker segments to the first byte of packet data,
+    /// which follows the SOD (Start of Data) marker.
+    /// </summary>
+    private static ReadOnlySpan<byte> SkipToTileData(in ReadOnlySpan<byte> tileData)
+    {
         JpxSpanReader reader = new(tileData);
 
-        // Skip all marker segments until SOD (Start of Data)
         while (!reader.EndOfSpan && reader.Remaining >= 2)
         {
             ushort marker = reader.PeekUInt16BE();
@@ -81,10 +256,10 @@ internal sealed class JpxTileDecoder
                 reader.Skip(2);
                 if (reader.Remaining >= 2)
                 {
-                    ushort segLen = reader.ReadUInt16BE();
-                    if (reader.Remaining >= segLen - 2)
+                    ushort segmentLength = reader.ReadUInt16BE();
+                    if (reader.Remaining >= segmentLength - 2)
                     {
-                        reader.Skip(segLen - 2);
+                        reader.Skip(segmentLength - 2);
                     }
                 }
             }
@@ -94,85 +269,6 @@ internal sealed class JpxTileDecoder
             }
         }
 
-        // Stage 1: Parse packets according to progression order
-        JpxPacket[] packets = _packetParser.ParsePackets(reader.ReadBytes(reader.Remaining), tileHeader);
-
-        // Stage 2: Entropy decode code-blocks using MQ arithmetic decoder (Tier-1)
-        // Code-blocks are persistent objects that already accumulated data across all layers
-        // during packet parsing (via AppendLayer). Decode each unique block once.
-        foreach (JpxPacket packet in packets)
-        {
-            if (packet.CodeBlocks == null)
-            {
-                continue;
-            }
-
-            foreach (JpxCodeBlock codeBlock in packet.CodeBlocks)
-            {
-                if (codeBlock.Data.Length == 0)
-                {
-                    continue;
-                }
-
-                if (codeBlock.DecodedCoefficients == null)
-                {
-                    JpxTier1Decoder tier1Decoder = new(_header.CodingStyle, codeBlock);
-                    codeBlock.DecodedCoefficients = tier1Decoder.Decode();
-                }
-            }
-        }
-
-        int decompositionLevelsForDwt = decompositionLevels;
-
-        // Stages 3-5: Assembly → Inverse DWT (with integrated quantization for 9-7)
-        for (int component = 0; component < tile.ComponentCount; component++)
-        {
-            // Stage 3: Assemble code-block coefficients into subbands at full resolution
-            JpxSubbandData subbands = new(fullTileWidth, fullTileHeight, decompositionLevelsForDwt);
-            _assembler.Assemble(packets, component, subbands);
-
-            // Stages 4-5: Inverse Quantization + Inverse DWT
-            // Dequantization is integrated into the interleaving step of both
-            // the 5-3 (reversible) and 9-7 (irreversible) transforms.
-            IJpxInverseDwt inverseDwt = JpxInverseDwtFactory.Create(_header, component);
-            inverseDwt.Transform(subbands, tile.ComponentData[component], levelsToSkip);
-        }
-
-        // Stage 6a: Inverse multi-component transform
-        _inverseMct.Apply(tile);
-
-        // Stage 6b: DC level shift and clamp for each component
-        for (int component = 0; component < tile.ComponentCount; component++)
-        {
-            int tileBitDepth = _header.Components[component].PrecisionBits;
-            bool isSigned = _header.Components[component].IsSigned;
-            int[] data = tile.ComponentData[component];
-
-            if (!isSigned)
-            {
-                int dcOffset = 1 << (tileBitDepth - 1);
-                for (int i = 0; i < data.Length; i++)
-                {
-                    data[i] += dcOffset;
-                }
-            }
-
-            int maxValue = (1 << tileBitDepth) - 1;
-            int minValue = isSigned ? -(1 << (tileBitDepth - 1)) : 0;
-
-            for (int i = 0; i < data.Length; i++)
-            {
-                if (data[i] < minValue)
-                {
-                    data[i] = minValue;
-                }
-                else if (data[i] > maxValue)
-                {
-                    data[i] = maxValue;
-                }
-            }
-        }
-
-        return tile;
+        return reader.ReadBytes(reader.Remaining);
     }
 }

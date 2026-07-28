@@ -1,5 +1,6 @@
 using PdfPixel.Jpx.Model;
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Parsing;
@@ -11,8 +12,7 @@ namespace PdfPixel.Jpx.Parsing;
 internal sealed class JpxPacketHeaderParser
 {
     private readonly JpxHeader _header;
-    private readonly int _tileWidth;
-    private readonly int _tileHeight;
+    private readonly JpxRectangle _tileBounds;
 
     // Pre-computed flat array of all precinct states, indexed via resolution/subband offsets
     private readonly JpxPrecinctState[] _precinctStates;
@@ -24,15 +24,11 @@ internal sealed class JpxPacketHeaderParser
     private readonly int _componentCount;
     private readonly int _totalSubbands; // 1 + 3 * decompositionLevels
 
-    /// <summary>
-    /// Represents parsing state for a single packet header.
-    /// </summary>
-    public struct PacketHeaderInfo
-    {
-        public bool IsEmpty;
-        public JpxCodeBlock[] CodeBlocks;
-        public int HeaderLengthBits;
-    }
+    // Every distinct code-block created while parsing this tile's packets, in creation order.
+    private readonly List<JpxCodeBlock> _codeBlocks = [];
+
+    // Reused across packets to hold the blocks included in the packet currently being parsed.
+    private JpxCodeBlock[] _includedBlocks = [];
 
     public JpxPacketHeaderParser(JpxHeader header, JpxTileHeader tileHeader)
     {
@@ -47,8 +43,7 @@ internal sealed class JpxPacketHeaderParser
             throw new InvalidOperationException("Coding style is not defined.");
         }
 
-        _tileWidth = CalculateTileWidth(header, tileHeader);
-        _tileHeight = CalculateTileHeight(header, tileHeader);
+        _tileBounds = JpxPacketEnumerationHelper.CalculateTileBounds(header, tileHeader);
         _componentCount = header.ComponentCount;
 
         int decompositionLevels = header.CodingStyle.DecompositionLevels;
@@ -69,8 +64,7 @@ internal sealed class JpxPacketHeaderParser
             {
                 int layoutIndex = GetSubbandLayoutIndex(resolution, subbandIndex);
 
-                (int precinctsX, int precinctsY) = ComputePrecinctGrid(
-                    resolution, _tileWidth, _tileHeight, header.CodingStyle);
+                (int precinctsX, int precinctsY) = ComputePrecinctGrid(resolution, _tileBounds, header.CodingStyle);
 
                 _subbandLayouts[layoutIndex] = new JpxSubbandLayout
                 {
@@ -88,20 +82,25 @@ internal sealed class JpxPacketHeaderParser
     }
 
     /// <summary>
-    /// Parses a packet header for the specified precinct and layer.
+    /// Every distinct code-block encountered while parsing this tile's packets.
+    /// Each entry accumulates data across all layers it appears in, so the list is
+    /// only complete once every packet has been parsed.
     /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public PacketHeaderInfo ParsePacketHeader(
-    ref JpxBitReader bitReader,
+    public IReadOnlyList<JpxCodeBlock> CodeBlocks => _codeBlocks;
+
+    /// <summary>
+    /// Parses a packet header for the specified precinct and layer, returning the
+    /// code-blocks included in this packet. The returned span points into a buffer
+    /// reused by the next call and must be consumed before parsing the next packet.
+    /// </summary>
+    public ReadOnlySpan<JpxCodeBlock> ParsePacketHeader(
+    scoped ref JpxBitReader bitReader,
     int layer,
     int resolution,
     int component,
     int precinctX,
     int precinctY)
     {
-        PacketHeaderInfo headerInfo = new();
-        int startBitPosition = bitReader.BitsConsumed;
-
         // Skip SOP marker if present (ITU-T T.800 Annex A.8.1)
         if (_header.CodingStyle?.HasSopMarkers == true)
         {
@@ -112,9 +111,9 @@ internal sealed class JpxPacketHeaderParser
         int packetPresent = bitReader.ReadBit();
         if (packetPresent == 0)
         {
-            headerInfo.IsEmpty = true;
-            headerInfo.CodeBlocks = Array.Empty<JpxCodeBlock>();
-            headerInfo.HeaderLengthBits = bitReader.BitsConsumed - startBitPosition;
+            // Per ITU-T T.800 B.10.7 an empty packet's header is the single zero bit padded
+            // to the next byte boundary, and the packet that follows starts there.
+            bitReader.ByteAlign();
 
             // Skip EPH marker if present
             if (_header.CodingStyle?.HasEphMarkers == true)
@@ -122,13 +121,13 @@ internal sealed class JpxPacketHeaderParser
                 SkipEphMarker(ref bitReader);
             }
 
-            return headerInfo;
+            return ReadOnlySpan<JpxCodeBlock>.Empty;
         }
 
         // For resolution 0, there is one subband (LL). For resolution > 0, there are 3 subbands (HL, LH, HH).
         int subbandCount = (resolution == 0) ? 1 : 3;
 
-        // Compute total max code-blocks across all subbands to pre-allocate output array
+        // Compute total max code-blocks across all subbands to size the reusable buffer
         int maxCodeBlocks = 0;
         for (int s = 0; s < subbandCount; s++)
         {
@@ -136,7 +135,11 @@ internal sealed class JpxPacketHeaderParser
             maxCodeBlocks += state.CodeBlocksX * state.CodeBlocksY;
         }
 
-        var codeBlocks = new JpxCodeBlock[maxCodeBlocks];
+        if (_includedBlocks.Length < maxCodeBlocks)
+        {
+            _includedBlocks = new JpxCodeBlock[maxCodeBlocks];
+        }
+
         int count = 0;
 
         for (int subbandIndex = 0; subbandIndex < subbandCount; subbandIndex++)
@@ -147,12 +150,10 @@ internal sealed class JpxPacketHeaderParser
             {
                 for (int cbx = 0; cbx < subbandState.CodeBlocksX; cbx++)
                 {
-                    JpxCodeBlock? codeBlock = ParseCodeBlockHeader(ref bitReader, subbandState, layer, cbx, cby);
+                    JpxCodeBlock? codeBlock = ParseCodeBlockHeader(ref bitReader, subbandState, layer, cbx, cby, component, resolution, subbandIndex);
                     if (codeBlock != null)
                     {
-                        codeBlock.SubbandIndex = subbandIndex;
-                        codeBlock.ResolutionLevel = resolution;
-                        codeBlocks[count++] = codeBlock;
+                        _includedBlocks[count++] = codeBlock;
                     }
                 }
             }
@@ -164,17 +165,11 @@ internal sealed class JpxPacketHeaderParser
             SkipEphMarker(ref bitReader);
         }
 
-        headerInfo.IsEmpty = false;
+        // Per ITU-T T.800 B.10.7 the packet body starts on a byte boundary after the header.
+        // This applies to every present packet, including one that includes no code-blocks.
+        bitReader.ByteAlign();
 
-        if (count < maxCodeBlocks)
-        {
-            Array.Resize(ref codeBlocks, count);
-        }
-
-        headerInfo.CodeBlocks = codeBlocks;
-        headerInfo.HeaderLengthBits = bitReader.BitsConsumed - startBitPosition;
-
-        return headerInfo;
+        return _includedBlocks.AsSpan(0, count);
     }
 
     /// <summary>
@@ -187,7 +182,10 @@ internal sealed class JpxPacketHeaderParser
     JpxPrecinctState state,
     int layer,
     int cbx,
-    int cby)
+    int cby,
+    int component,
+    int resolution,
+    int subbandIndex)
     {
         bool isFirstInclusion;
 
@@ -220,25 +218,28 @@ internal sealed class JpxPacketHeaderParser
         JpxCodeBlock codeBlock = state.CodeBlocks[blockIndex];
         if (codeBlock == null)
         {
-            int nominalCbW = _header.CodingStyle?.CodeBlockWidth ?? 64;
-            int nominalCbH = _header.CodingStyle?.CodeBlockHeight ?? 64;
+            // The code-block partition is anchored at the subband origin, so this block covers
+            // the part of its partition cell that falls inside the precinct-subband intersection.
+            int cellX = (state.CodeBlockStartX + cbx) * state.CodeBlockWidth;
+            int cellY = (state.CodeBlockStartY + cby) * state.CodeBlockHeight;
 
-            // Compute actual code-block dimensions clipped to subband bounds
-            int absX = state.CodeBlockStartX + cbx;
-            int absY = state.CodeBlockStartY + cby;
-            int cbPixelX = absX * nominalCbW;
-            int cbPixelY = absY * nominalCbH;
-            int actualWidth = Math.Min(nominalCbW, state.SubbandX1 - cbPixelX);
-            int actualHeight = Math.Min(nominalCbH, state.SubbandY1 - cbPixelY);
+            int blockX0 = Math.Max(cellX, state.PrecinctX0);
+            int blockY0 = Math.Max(cellY, state.PrecinctY0);
+            int blockX1 = Math.Min(cellX + state.CodeBlockWidth, state.PrecinctX1);
+            int blockY1 = Math.Min(cellY + state.CodeBlockHeight, state.PrecinctY1);
 
             codeBlock = new JpxCodeBlock
             {
-                X = absX,
-                Y = absY,
-                Width = actualWidth,
-                Height = actualHeight
+                SubbandX = blockX0 - state.BandX0,
+                SubbandY = blockY0 - state.BandY0,
+                Width = blockX1 - blockX0,
+                Height = blockY1 - blockY0,
+                Component = component,
+                ResolutionLevel = resolution,
+                SubbandIndex = subbandIndex
             };
             state.CodeBlocks[blockIndex] = codeBlock;
+            _codeBlocks.Add(codeBlock);
         }
 
         // For first inclusion, decode zero bit-planes using tag tree
@@ -340,7 +341,7 @@ internal sealed class JpxPacketHeaderParser
             return state;
         }
 
-        state = JpxPrecinctState.Create(resolution, subbandIndex, precinctX, precinctY, _tileWidth, _tileHeight, _header.CodingStyle);
+        state = JpxPrecinctState.Create(resolution, subbandIndex, precinctX, precinctY, _tileBounds, _header.CodingStyle);
         _precinctStates[flatIndex] = state;
         return state;
     }
@@ -353,17 +354,16 @@ internal sealed class JpxPacketHeaderParser
     private static int GetSubbandLayoutIndex(int resolution, int subbandIndex) => (resolution == 0) ? 0 : 1 + ((resolution - 1) * 3) + subbandIndex;
 
     /// <summary>
-    /// Computes the precinct grid dimensions for a resolution level using tile dimensions.
+    /// Computes the precinct grid dimensions for a resolution level from the tile's bounds.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static (int precinctsX, int precinctsY) ComputePrecinctGrid(
     int resolution,
-    int tileWidth,
-    int tileHeight,
+    in JpxRectangle tileBounds,
     JpxCodingStyle codingStyle)
     {
         (int precinctsX, int precinctsY) = JpxPrecinctHelper.ComputePrecinctGrid(
-            tileWidth, tileHeight, resolution, codingStyle);
+            tileBounds, resolution, codingStyle);
 
         return (Math.Max(precinctsX, 1), Math.Max(precinctsY, 1));
     }

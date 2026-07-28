@@ -1,7 +1,9 @@
 namespace PdfPixel.Jpx.Model;
 
 /// <summary>
-/// Represents parsed packet data for a specific layer/resolution/component/precinct.
+/// Identifies a single packet's position in the progression order.
+/// Packets are the unit the codestream is parsed in; the coefficients they carry are
+/// accumulated into the code-blocks they reference rather than stored on the packet.
 /// </summary>
 internal sealed class JpxPacket
 {
@@ -10,9 +12,4 @@ internal sealed class JpxPacket
     public int Component { get; set; }
     public int PrecinctX { get; set; }
     public int PrecinctY { get; set; }
-
-    /// <summary>
-    /// Code-blocks included in this packet with their entropy-coded data.
-    /// </summary>
-    public JpxCodeBlock[] CodeBlocks { get; set; } = [];
 }

@@ -148,7 +148,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         HashSet<int>? tileIndexesToDecode,
         PdfColorSpaceConverter resolvedConverter)
     {
-        IReadOnlyList<JpxRegion>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
+        IReadOnlyList<JpxRectangle>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
 
         // Indexed samples are palette indices; never reconstruct them at a reduced DWT level.
         if (resolvedConverter is IndexedConverter)
@@ -185,18 +185,18 @@ internal class JpxImageDecoder : PdfImageDecoder
         return new JpxDecodingParameters(descaleFactor, regionsOfInterest);
     }
 
-    private static List<JpxRegion>? ComputeRegionsOfInterest(PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)
+    private static List<JpxRectangle>? ComputeRegionsOfInterest(PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)
     {
         if (tileIndexesToDecode == null)
         {
             return null;
         }
 
-        List<JpxRegion> regionsOfInterest = new(tileIndexesToDecode.Count);
+        List<JpxRectangle> regionsOfInterest = new(tileIndexesToDecode.Count);
         foreach (int tileIndex in tileIndexesToDecode)
         {
             PdfIntegerRectangle tilePosition = tileInfo.GetTilePosition(tileIndex);
-            regionsOfInterest.Add(new JpxRegion(tilePosition.Left, tilePosition.Top, tilePosition.Width, tilePosition.Height));
+            regionsOfInterest.Add(new JpxRectangle(tilePosition.Left, tilePosition.Top, tilePosition.Width, tilePosition.Height));
         }
 
         return regionsOfInterest;

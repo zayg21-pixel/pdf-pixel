@@ -1,6 +1,5 @@
 using PdfPixel.Jpx.Model;
 using System;
-using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -154,12 +153,6 @@ internal ref partial struct JpxTier1Decoder
     private const int OrientHH = 3;
 
     /// <summary>
-    /// Vertically-causal mask applied to the neighbor byte (after shifting bits 4–11 → 0–7).
-    /// Clears bottom(3), bottom-left(6), bottom-right(7) in the shifted representation.
-    /// </summary>
-    private const int VcNeighborMask = 0x37;
-
-    /// <summary>
     /// Precomputed significance context lookup table.
     /// Indexed by [orientation * 256 + neighborMask] where neighborMask is bits 4–11
     /// of the state word, shifted right by 4.
@@ -197,8 +190,8 @@ internal ref partial struct JpxTier1Decoder
     private readonly bool _verticallyCausal;
     private readonly bool _segmentationSymbols;
 
-    private readonly int[] _coefficients;
-    private readonly uint[] _state;
+    private readonly Span<int> _coefficients;
+    private readonly Span<uint> _state;
     private JpxMqDecoder _mqDecoder;
 
     /// <summary>
@@ -207,7 +200,15 @@ internal ref partial struct JpxTier1Decoder
     /// </summary>
     /// <param name="codingStyle">Coding style parameters from the codestream header.</param>
     /// <param name="codeBlock">The code-block containing compressed data and metadata.</param>
-    public JpxTier1Decoder(JpxCodingStyle codingStyle, JpxCodeBlock codeBlock)
+    /// <param name="coefficients">
+    /// Receives the decoded coefficients, row-major [height * width] in sign-magnitude
+    /// format at bit 30. Must be zeroed by the caller.
+    /// </param>
+    /// <param name="state">
+    /// Scratch space for per-sample coding state, at least <see cref="GetRequiredStateLength"/>
+    /// entries for the code-block's dimensions. Must be zeroed by the caller.
+    /// </param>
+    public JpxTier1Decoder(JpxCodingStyle codingStyle, JpxCodeBlock codeBlock, in Span<int> coefficients, in Span<uint> state)
     {
         if (codingStyle == null)
         {
@@ -240,27 +241,27 @@ internal ref partial struct JpxTier1Decoder
         _signContextLabel = SignContextLabelArray;
         _signContextXorBit = SignContextXorBitArray;
 
-        // Allocate working buffers
-        _coefficients = new int[_height * _width];
-        _state = ArrayPool<uint>.Shared.Rent(_stateLength);
-        Array.Clear(_state, 0, _stateLength);
+        _coefficients = coefficients;
+        _state = state.Slice(0, _stateLength);
 
-        // Initialize MQ decoder from code-block data
-        _mqDecoder = new JpxMqDecoder(codeBlock.Data.Span);
+        // Initialize MQ decoder from the data accumulated across every layer
+        _mqDecoder = new JpxMqDecoder(codeBlock.CodedData);
     }
+
+    /// <summary>
+    /// Number of state entries a code-block of the given dimensions needs. The state grid
+    /// carries a one-sample border on each side so neighbour lookups stay in bounds.
+    /// </summary>
+    public static int GetRequiredStateLength(int width, int height) => (width + 2) * (height + 2);
 
     /// <summary>
     /// Decodes the code-block's entropy-coded data into wavelet coefficients.
     /// </summary>
-    /// <returns>
-    /// A flat array of wavelet coefficients [height * width] in row-major sign-magnitude format at bit 30.
-    /// </returns>
-    public int[] Decode()
+    public void Decode()
     {
         if (_width <= 0 || _height <= 0 || _totalPasses == 0)
         {
-            ArrayPool<uint>.Shared.Return(_state);
-            return _coefficients;
+            return;
         }
 
         int currentBitPlane = _startBitPlane;
@@ -291,8 +292,8 @@ internal ref partial struct JpxTier1Decoder
             // Initialize stripe refs at the first stripe position.
             // State: row 1 (skip border), col 1 (skip border) → offset = stateWidth + 1
             // Coeff: row 0, col 0 → offset = 0
-            ref uint stripeStatePtr = ref Unsafe.Add(ref _state[0], _stateWidth + 1);
-            ref int stripeCoeffPtr = ref _coefficients[0];
+            ref uint stripeStatePtr = ref Unsafe.Add(ref MemoryMarshal.GetReference(_state), _stateWidth + 1);
+            ref int stripeCoeffPtr = ref MemoryMarshal.GetReference(_coefficients);
 
             for (int stripeTop = 0; stripeTop < height; stripeTop += 4)
             {
@@ -338,6 +339,11 @@ internal ref partial struct JpxTier1Decoder
 
             if (passInSequence == 2)
             {
+                if (_segmentationSymbols)
+                {
+                    VerifySegmentationSymbol();
+                }
+
                 currentBitPlane--;
             }
 
@@ -354,10 +360,6 @@ internal ref partial struct JpxTier1Decoder
 
             currentPass++;
         }
-
-        ArrayPool<uint>.Shared.Return(_state);
-
-        return _coefficients;
     }
 
     /// <summary>
@@ -365,14 +367,9 @@ internal ref partial struct JpxTier1Decoder
     /// stored in the sample's own state word. Implements ITU-T T.800 Tables D.1–D.3.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private readonly int GetSignificanceContext(uint stateVal, bool verticallyCausal)
+    private readonly int GetSignificanceContext(uint stateVal)
     {
         var mask = (int)((stateVal >> 4) & 0xFF);
-
-        if (verticallyCausal)
-        {
-            mask &= VcNeighborMask;
-        }
 
         return _significanceContextLut[(_orientation * 256) + mask];
     }
@@ -394,20 +391,25 @@ internal ref partial struct JpxTier1Decoder
     /// <summary>
     /// Marks a sample as significant, sets its sign, writes the magnitude bit
     /// with 1/2 LSB approximation, and propagates neighbor-significance bits
-    /// to all 8 adjacent state entries.
+    /// to the adjacent state entries.
     /// </summary>
     /// <param name="coeffRef">Reference already positioned at the target sample's coefficient.</param>
     /// <param name="stateRef">Reference already positioned at the target sample's state entry.</param>
     /// <param name="stateWidth">Row stride of the state array.</param>
     /// <param name="bitPosition">Current bit-plane position.</param>
     /// <param name="sign">Decoded sign (0 = positive, 1 = negative).</param>
+    /// <param name="hiddenFromStripeAbove">
+    /// Whether the row above must not observe this sample, which is how vertically causal
+    /// context formation keeps a stripe from seeing the stripe below it (ITU-T T.800 D.7).
+    /// </param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void SetSignificant(
         ref int coeffRef,
         ref uint stateRef,
         int stateWidth,
         int bitPosition,
-        int sign)
+        int sign,
+        bool hiddenFromStripeAbove)
     {
         uint flags = FlagSignificant;
 
@@ -421,15 +423,21 @@ internal ref partial struct JpxTier1Decoder
         var setmask = (int)(((long)3 << bitPosition) >> 1);
         coeffRef = (sign << 31) | setmask;
 
-        // Propagate neighbor-significance bits to all 8 adjacent entries using relative offsets.
+        // Propagate neighbor-significance bits to the adjacent entries using relative offsets.
         Unsafe.Add(ref stateRef, -1) |= NeighborRight;
         Unsafe.Add(ref stateRef, 1) |= NeighborLeft;
-        Unsafe.Add(ref stateRef, -stateWidth) |= NeighborBottom;
         Unsafe.Add(ref stateRef, stateWidth) |= NeighborTop;
-        Unsafe.Add(ref stateRef, -stateWidth - 1) |= NeighborBottomRight;
-        Unsafe.Add(ref stateRef, -stateWidth + 1) |= NeighborBottomLeft;
         Unsafe.Add(ref stateRef, stateWidth - 1) |= NeighborTopRight;
         Unsafe.Add(ref stateRef, stateWidth + 1) |= NeighborTopLeft;
+
+        if (hiddenFromStripeAbove)
+        {
+            return;
+        }
+
+        Unsafe.Add(ref stateRef, -stateWidth) |= NeighborBottom;
+        Unsafe.Add(ref stateRef, -stateWidth - 1) |= NeighborBottomRight;
+        Unsafe.Add(ref stateRef, -stateWidth + 1) |= NeighborBottomLeft;
     }
 
     /// <summary>
@@ -442,7 +450,7 @@ internal ref partial struct JpxTier1Decoder
         const ulong clearMask64 = 0xFFFF_FFFB_FFFF_FFFBUL;
         const uint clearMask32 = ~FlagCoded;
 
-        ref uint stateRef = ref _state[0];
+        ref uint stateRef = ref MemoryMarshal.GetReference(_state);
         ref ulong longRef = ref Unsafe.As<uint, ulong>(ref stateRef);
         int longCount = _stateLength >> 1;
 

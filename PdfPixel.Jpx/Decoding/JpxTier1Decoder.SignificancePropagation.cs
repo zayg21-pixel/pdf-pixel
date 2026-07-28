@@ -36,8 +36,8 @@ internal ref partial struct JpxTier1Decoder
 
                 if ((stateVal & FlagSignificantOrCoded) == 0)
                 {
-                    bool vcRow = verticallyCausal && row == 0;
-                    int sigContext = GetSignificanceContext(stateVal, vcRow);
+                    bool ignoresStripeBelow = verticallyCausal && row == stripeHeight - 1;
+                    int sigContext = GetSignificanceContext(stateVal);
 
                     if (sigContext != 0)
                     {
@@ -46,8 +46,8 @@ internal ref partial struct JpxTier1Decoder
 
                         if (significant != 0)
                         {
-                            int sign = DecodeSign(ref statePtr);
-                            SetSignificant(ref coeffPtr, ref statePtr, stateWidth, bitPosition, sign);
+                            int sign = DecodeSign(ref statePtr, ignoresStripeBelow);
+                            SetSignificant(ref coeffPtr, ref statePtr, stateWidth, bitPosition, sign, verticallyCausal && row == 0);
                         }
                     }
                 }

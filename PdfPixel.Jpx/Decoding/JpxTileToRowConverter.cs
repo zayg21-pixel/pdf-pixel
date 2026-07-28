@@ -28,12 +28,19 @@ public sealed class JpxTileToRowConverter
     private readonly int _reducedTileHeight;
 
     /// <summary>
-    /// Cached decoded tiles for the current tile row. Indexed by tile column.
+    /// Reusable tile storage, one per tile column. Loading a tile row refills these in place
+    /// rather than allocating sample buffers for every tile of the grid.
     /// </summary>
-    private JpxTile?[] _currentTileRowTiles;
+    private readonly JpxTile[] _tileBuffers;
 
     /// <summary>
-    /// The tile row index that <see cref="_currentTileRowTiles"/> corresponds to, or -1 if none.
+    /// Whether the tile buffer for the matching column holds decoded data for the current
+    /// tile row. Columns left undecoded produce zeroed output samples.
+    /// </summary>
+    private readonly bool[] _tileDecoded;
+
+    /// <summary>
+    /// The tile row index the tile buffers currently hold, or -1 if none.
     /// </summary>
     private int _loadedTileRow = -1;
 
@@ -95,7 +102,13 @@ public sealed class JpxTileToRowConverter
         _reducedTileHeight = _decodingParameters.ReduceDimension((int)header.TileHeight);
 
         _currentRow = 0;
-        _currentTileRowTiles = new JpxTile[_tileProvider.TilesHorizontal];
+        _tileBuffers = new JpxTile[_tileProvider.TilesHorizontal];
+        _tileDecoded = new bool[_tileProvider.TilesHorizontal];
+
+        for (int tileColumn = 0; tileColumn < _tileBuffers.Length; tileColumn++)
+        {
+            _tileBuffers[tileColumn] = tileProvider.CreateTile();
+        }
 
         // Use the JPX header's precision (per spec, ignore PDF BitsPerComponent for JPX).
         int headerBpc = 0;
@@ -170,8 +183,17 @@ public sealed class JpxTileToRowConverter
 
         EnsureTileRowLoaded(tileRow, observer);
 
-        JpxBitWriter writer = new(rowBuffer);
         int outputPixelIndex = 0;
+
+        WriteRowBits(rowBuffer, tileRow, rowWithinTile, ref outputPixelIndex);
+
+        _currentRow++;
+        return true;
+    }
+
+    private void WriteRowBits(in Span<byte> rowBuffer, int tileRow, int rowWithinTile, ref int outputPixelIndex)
+    {
+        JpxBitWriter writer = new(rowBuffer);
 
         for (int tileCol = 0; tileCol < _tileProvider.TilesHorizontal; tileCol++)
         {
@@ -188,8 +210,8 @@ public sealed class JpxTileToRowConverter
                 break;
             }
 
-            JpxTile? tile = _currentTileRowTiles[tileCol];
-            if (tile == null || rowWithinTile >= tile.Height)
+            JpxTile tile = _tileBuffers[tileCol];
+            if (!_tileDecoded[tileCol] || rowWithinTile >= tile.Height)
             {
                 int tileStartX = tileCol * _reducedTileWidth;
                 int missingPixels = Math.Min(_reducedTileWidth, Width - tileStartX);
@@ -239,8 +261,7 @@ public sealed class JpxTileToRowConverter
             }
         }
 
-        _currentRow++;
-        return true;
+        writer.Flush();
     }
 
     /// <summary>
@@ -261,14 +282,14 @@ public sealed class JpxTileToRowConverter
 
             int tileIndex = (tileRow * _tileProvider.TilesHorizontal) + tileCol;
 
-            if (tileIndex < _tileProvider.TotalTiles && ShouldDecodeTile(tileIndex))
+            bool shouldDecode = tileIndex < _tileProvider.TotalTiles && ShouldDecodeTile(tileIndex);
+
+            if (shouldDecode)
             {
-                _currentTileRowTiles[tileCol] = _tileProvider.DecodeTile(tileIndex);
+                _tileProvider.DecodeTile(tileIndex, _tileBuffers[tileCol], observer);
             }
-            else
-            {
-                _currentTileRowTiles[tileCol] = null;
-            }
+
+            _tileDecoded[tileCol] = shouldDecode;
         }
 
         _loadedTileRow = tileRow;
@@ -282,7 +303,7 @@ public sealed class JpxTileToRowConverter
     /// </summary>
     private bool ShouldDecodeTile(int tileIndex)
     {
-        IReadOnlyList<JpxRegion>? regionsOfInterest = _decodingParameters.RegionsOfInterest;
+        IReadOnlyList<JpxRectangle>? regionsOfInterest = _decodingParameters.RegionsOfInterest;
         if (regionsOfInterest == null)
         {
             return true;
@@ -294,7 +315,7 @@ public sealed class JpxTileToRowConverter
         int tileStartY = tileRow * (int)_header.TileHeight;
         int tileWidth = Math.Min((int)_header.TileWidth, (int)_header.Width - tileStartX);
         int tileHeight = Math.Min((int)_header.TileHeight, (int)_header.Height - tileStartY);
-        JpxRegion tileBounds = new(tileStartX, tileStartY, tileWidth, tileHeight);
+        JpxRectangle tileBounds = new(tileStartX, tileStartY, tileWidth, tileHeight);
 
         for (int i = 0; i < regionsOfInterest.Count; i++)
         {

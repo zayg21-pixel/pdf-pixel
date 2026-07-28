@@ -65,25 +65,33 @@ public readonly struct JpxTileProvider
 
 
     /// <summary>
-    /// Decodes a single tile by its index. Returns an empty tile when no data is present
-    /// in the codestream for the requested index.
+    /// Decodes a single tile by its index into <paramref name="destination"/>, which is
+    /// re-targeted at that tile. Produces a zeroed tile when no data is present in the
+    /// codestream for the requested index.
     /// </summary>
     /// <param name="tileIndex">Zero-based tile index in raster order.</param>
-    /// <returns>The decoded <see cref="JpxTile"/>.</returns>
+    /// <param name="destination">Tile storage to decode into.</param>
+    /// <param name="observer">Observer notified as decoding progresses.</param>
     /// <exception cref="InvalidDataException">Thrown when tile decoding fails.</exception>
-    public JpxTile DecodeTile(int tileIndex)
+    public void DecodeTile(int tileIndex, JpxTile destination, IJpxExectionObserver? observer = default)
     {
+        if (destination == null)
+        {
+            throw new ArgumentNullException(nameof(destination));
+        }
+
         ExtractedTileContent extracted = _extractedTiles[tileIndex];
 
         if (extracted.Data == null)
         {
-            return CreateEmptyTile(tileIndex);
+            ResetToEmptyTile(tileIndex, destination);
+            return;
         }
 
-        return _tileDecoder.DecodeTile(extracted.TileHeader, extracted.Data, _decodingParameters);
+        _tileDecoder.DecodeTile(extracted.TileHeader, extracted.Data, _decodingParameters, destination, observer);
     }
 
-    private JpxTile CreateEmptyTile(int tileIndex)
+    private void ResetToEmptyTile(int tileIndex, JpxTile destination)
     {
         JpxTileHeader tileHeader = new()
         {
@@ -102,7 +110,13 @@ public readonly struct JpxTileProvider
         int reducedW = _decodingParameters.ReduceDimension(fullW);
         int reducedH = _decodingParameters.ReduceDimension(fullH);
 
-        // Component data arrays are automatically initialized to zeros by the constructor
-        return new JpxTile(_header, tileHeader, reducedW, reducedH);
+        // Reset zeroes the component data, which is the whole content of an absent tile
+        destination.Reset(tileHeader, reducedW, reducedH);
     }
+
+    /// <summary>
+    /// Creates tile storage sized for this image's components, suitable for passing to
+    /// <see cref="DecodeTile"/> and reusing across tiles.
+    /// </summary>
+    public JpxTile CreateTile() => new(_header);
 }

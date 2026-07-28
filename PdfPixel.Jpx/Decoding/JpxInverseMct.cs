@@ -53,7 +53,7 @@ internal sealed class JpxInverseMct
         int[] comp0 = tile.ComponentData[0];
         int[] comp1 = tile.ComponentData[1];
         int[] comp2 = tile.ComponentData[2];
-        int pixelCount = Math.Min(comp0.Length, Math.Min(comp1.Length, comp2.Length));
+        int pixelCount = tile.SampleCount;
 
         if (_isReversible)
         {

@@ -23,6 +23,7 @@ internal sealed class PdfImageTilingContext
     private readonly float _outputScaleX;
     private readonly float _outputScaleY;
     private readonly int _componentCount;
+    private readonly byte[] _tileRowSliceBuffer;
 
     private int _nextTileRowToOpen;
 
@@ -47,6 +48,18 @@ internal sealed class PdfImageTilingContext
         _columnSampleRanges = ComputeSampleRanges(tileInfo.TilesHorizontal, tileInfo.TileWidth, tileInfo.ImageSize.Width, imageParameters.Width);
         _rowSampleRanges = ComputeSampleRanges(tileInfo.TilesVertical, tileInfo.TileHeight, tileInfo.ImageSize.Height, imageParameters.Height);
         _componentCount = imageParameters.ColorSpaceConverter.Components + ((imageParameters.HasAlphaChannel) ? 1 : 0);
+
+        int maxTilePixelWidth = 0;
+        for (int i = 0; i < _columnSampleRanges.Length; i++)
+        {
+            int width = _columnSampleRanges[i].End - _columnSampleRanges[i].Start;
+            if (width > maxTilePixelWidth)
+            {
+                maxTilePixelWidth = width;
+            }
+        }
+
+        _tileRowSliceBuffer = new byte[(maxTilePixelWidth * _componentCount * imageParameters.BitsPerComponent + 7) / 8];
     }
 
     /// <summary>
@@ -138,7 +151,10 @@ internal sealed class PdfImageTilingContext
                 }
 
                 IndexRange columnRange = _columnSampleRanges[column];
-                byte[] slice = ExtractTileRowSlice(fullWidthRow, columnRange.Start, columnRange.End - columnRange.Start, bitsPerComponent, _componentCount);
+                int tilePixelWidth = columnRange.End - columnRange.Start;
+                int byteCount = (tilePixelWidth * _componentCount * bitsPerComponent + 7) / 8;
+                Span<byte> slice = _tileRowSliceBuffer.AsSpan(0, byteCount);
+                ExtractTileRowSlice(fullWidthRow, columnRange.Start, tilePixelWidth, bitsPerComponent, _componentCount, slice);
                 openTileRow.Processors[column]?.WriteRow(rowWithinTile, slice);
                 observer?.Notify();
             }
@@ -233,23 +249,23 @@ internal sealed class PdfImageTilingContext
     }
 
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
-    private static byte[] ExtractTileRowSlice(
+    private static void ExtractTileRowSlice(
         in ReadOnlySpan<byte> fullWidthRow,
         int tileStartPixel,
         int tilePixelWidth,
         int bitsPerComponent,
-        int componentCount)
+        int componentCount,
+        Span<byte> destination)
     {
         int startBit = tileStartPixel * componentCount * bitsPerComponent;
         int totalBits = tilePixelWidth * componentCount * bitsPerComponent;
         int byteCount = (totalBits + 7) / 8;
-        var tileSlice = new byte[byteCount];
 
         int srcBitOffset = startBit & 7;
         if (srcBitOffset == 0)
         {
-            fullWidthRow.Slice(startBit >> 3, byteCount).CopyTo(tileSlice);
-            return tileSlice;
+            fullWidthRow.Slice(startBit >> 3, byteCount).CopyTo(destination);
+            return;
         }
 
         int srcByteIdx = startBit >> 3;
@@ -278,7 +294,7 @@ internal sealed class PdfImageTilingContext
 
             int bitsThisByte = Math.Min(8, bitsRemaining);
             var topByte = (byte)(window >> 24);
-            tileSlice[dstByteIdx++] = (bitsThisByte == 8)
+            destination[dstByteIdx++] = (bitsThisByte == 8)
                 ? topByte
                 : (byte)(topByte & (0xFF << (8 - bitsThisByte)));
 
@@ -286,8 +302,6 @@ internal sealed class PdfImageTilingContext
             windowBits -= bitsThisByte;
             bitsRemaining -= bitsThisByte;
         }
-
-        return tileSlice;
     }
 
     private readonly struct IndexRange

@@ -13,27 +13,15 @@ namespace PdfPixel.Jpx.Decoding;
 internal static class JpxDequantizer
 {
     /// <summary>
-    /// Parameters for irreversible (9-7) dequantization: the right-shift amount
-    /// and the mantissa multiplier <c>(2048 + mantissa)</c> from the QCD/QCC step size.
+    /// Quantization style signalling one step size that every subband derives its own from
+    /// (ITU-T T.800 Table A.28).
     /// </summary>
-    internal readonly struct IrreversibleStepParams
-    {
-        /// <summary>
-        /// Right-shift applied to the magnitude before the mantissa multiply.
-        /// </summary>
-        public readonly int Shift;
+    private const int ScalarDerivedQuantization = 1;
 
-        /// <summary>
-        /// Fixed-point mantissa factor: <c>2048 + m</c> where <c>m</c> is the 11-bit mantissa.
-        /// </summary>
-        public readonly int MantissaFactor;
-
-        public IrreversibleStepParams(int shift, int mantissaFactor)
-        {
-            Shift = shift;
-            MantissaFactor = mantissaFactor;
-        }
-    }
+    /// <summary>
+    /// Magnitude scale used when the QCD/QCC marker carries no usable step size.
+    /// </summary>
+    private const float FallbackScale = 1f / 2147483648f;
 
     /// <summary>
     /// Computes the right-shift for reversible (5-3) dequantization.
@@ -97,39 +85,43 @@ internal static class JpxDequantizer
     }
 
     /// <summary>
-    /// Computes the dequantization parameters for an irreversible (9-7) subband.
-    /// The true reconstructed value per the reference implementation (CoreJ2K StdDequantizer) is:
-    /// <c>value = magnitude * (1 + m/2048) * 2^(rb + gain + guardBits - 32)</c>
-    /// In <paramref name="fracBits"/> fixed-point the shift on magnitude is
-    /// <c>32 - bitDepth - subbandGain - guardBits - fracBits</c>,
-    /// followed by multiplication with <c>(2048 + mantissa)</c> and <c>&gt;&gt; 11</c>.
+    /// Computes the factor that converts an irreversible (9-7) subband magnitude into its
+    /// reconstructed sample value. Per the reference implementation (CoreJ2K StdDequantizer):
+    /// <c>value = magnitude * (1 + m/2048) * 2^(rb + gain + guardBits - 32)</c>, which folds
+    /// into a single multiplier of <c>(2048 + m) * 2^(rb + gain + guardBits - 43)</c>.
     /// </summary>
     /// <param name="quantization">Quantization parameters from QCD/QCC marker.</param>
     /// <param name="stepIndex">Subband index into the step-size table (0 = LL).</param>
     /// <param name="subbandGain">Subband analysis gain exponent (0 for LL, 1 for HL/LH, 2 for HH).</param>
     /// <param name="bitDepth">Component bit depth from the SIZ marker.</param>
-    /// <param name="fracBits">Number of fractional bits in the fixed-point representation.</param>
-    /// <returns>The shift and mantissa factor for dequantization.</returns>
-    public static IrreversibleStepParams ComputeIrreversibleParams(
+    /// <returns>The scale to multiply the coefficient magnitude by.</returns>
+    public static float ComputeIrreversibleScale(
         JpxQuantization quantization,
         int stepIndex,
         int subbandGain,
-        int bitDepth,
-        int fracBits)
+        int bitDepth)
     {
-        if (quantization?.StepSizes == null || stepIndex >= quantization.StepSizes.Length)
+        if (quantization?.StepSizes == null || quantization.StepSizes.Length == 0)
         {
-            return new IrreversibleStepParams(31 - fracBits, 2048);
+            return FallbackScale;
+        }
+
+        // Scalar derived quantization signals a single step size, for the LL band, and every
+        // other band derives its own from it (ITU-T T.800 E.1.1). Scalar expounded signals one
+        // per subband, so each reads its own entry.
+        bool isDerived = quantization.QuantizationType == ScalarDerivedQuantization;
+        int index = isDerived ? 0 : stepIndex;
+
+        if (index >= quantization.StepSizes.Length)
+        {
+            return FallbackScale;
         }
 
         int guardBits = quantization.GuardBits;
-        ushort encoded = quantization.StepSizes[stepIndex];
+        ushort encoded = quantization.StepSizes[index];
         int mantissa = encoded & 0x7FF;
 
-        // Derived from CoreJ2K: shift = 32 - bitDepth - subbandGain - guardBits - fracBits
-        int shift = 32 - bitDepth - subbandGain - guardBits - fracBits;
-
-        return new IrreversibleStepParams(Math.Max(shift, 0), 2048 + mantissa);
+        return (2048 + mantissa) * MathF.Pow(2f, bitDepth + subbandGain + guardBits - 43);
     }
 
     /// <summary>
@@ -142,47 +134,27 @@ internal static class JpxDequantizer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int DequantizeReversible(int coefficient, int shiftBits)
     {
-        if (coefficient >= 0)
-        {
-            return coefficient >> shiftBits;
-        }
+        // Sign extends to a full mask, which turns the negation into a conditional-free
+        // complement-and-increment rather than a branch on unpredictable data.
+        int sign = coefficient >> 31;
+        int magnitude = (coefficient & 0x7FFFFFFF) >> shiftBits;
 
-        // Negative: sign bit is set, magnitude in lower 31 bits
-        return -((coefficient & 0x7FFFFFFF) >> shiftBits);
+        return (magnitude ^ sign) - sign;
     }
 
     /// <summary>
-    /// Dequantizes a sign-magnitude coefficient into fixed-point representation,
-    /// applying both the right-shift and the quantization step mantissa factor (irreversible path).
+    /// Dequantizes a sign-magnitude coefficient into its reconstructed sample value
+    /// (irreversible path). The Tier-1 decoder stores the sign in bit 31 and the
+    /// magnitude in bits 30..0.
     /// </summary>
     /// <param name="coefficient">Sign-magnitude coefficient from the Tier-1 decoder.</param>
-    /// <param name="stepParams">Dequantization parameters from <see cref="ComputeIrreversibleParams"/>.</param>
-    /// <returns>The dequantized value in fixed-point representation.</returns>
+    /// <param name="scale">Subband scale from <see cref="ComputeIrreversibleScale"/>.</param>
+    /// <returns>The dequantized sample value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int DequantizeIrreversible(int coefficient, in IrreversibleStepParams stepParams)
+    public static float DequantizeIrreversible(int coefficient, float scale)
     {
-        if (coefficient == 0)
-        {
-            return 0;
-        }
+        float magnitude = (coefficient & 0x7FFFFFFF) * scale;
 
-        int sign;
-        int magnitude;
-
-        if (coefficient >= 0)
-        {
-            sign = 1;
-            magnitude = coefficient;
-        }
-        else
-        {
-            sign = -1;
-            magnitude = coefficient & 0x7FFFFFFF;
-        }
-
-        // Right-shift to fixed-point precision, then apply mantissa factor
-        var result = (int)(((long)(magnitude >> stepParams.Shift) * stepParams.MantissaFactor) >> 11);
-
-        return sign * result;
+        return (coefficient < 0) ? -magnitude : magnitude;
     }
 }

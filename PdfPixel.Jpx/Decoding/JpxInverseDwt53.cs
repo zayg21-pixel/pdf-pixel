@@ -1,6 +1,7 @@
-using PdfPixel.Jpx.Model;
+﻿using PdfPixel.Jpx.Model;
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -13,9 +14,6 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
 {
     private readonly JpxQuantization _quantization;
 
-    // Reusable column buffer for cache-friendly column lifting
-    private int[] _columnBuffer = Array.Empty<int>();
-
     // Reusable interleaved buffer to avoid per-level allocation
     private int[] _interleavedBuffer = Array.Empty<int>();
 
@@ -26,21 +24,21 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     public JpxInverseDwt53(JpxQuantization quantization) => _quantization = quantization ?? throw new ArgumentNullException(nameof(quantization));
 
     /// <inheritdoc/>
-    public void Transform(JpxSubbandData subbands, int[] destination, int stopAtLevel = 0)
+    public void Transform(JpxSubbandData subbands, in Span<int> destination, int stopAtLevel = 0)
     {
         if (subbands == null)
         {
             throw new ArgumentNullException(nameof(subbands));
         }
 
-        int fullWidth = subbands.FullWidth;
-        int fullHeight = subbands.FullHeight;
 
         // Compute output dimensions based on how many levels we reconstruct
-        int outputWidth = (stopAtLevel == 0) ? fullWidth : (fullWidth + (1 << stopAtLevel) - 1) >> stopAtLevel;
-        int outputHeight = (stopAtLevel == 0) ? fullHeight : (fullHeight + (1 << stopAtLevel) - 1) >> stopAtLevel;
+        int outputWidth = subbands.GetResolutionWidth(stopAtLevel);
+        int outputHeight = subbands.GetResolutionHeight(stopAtLevel);
 
-        int currentWidth = subbands.LLWidth;
+        Span<int> lowpass = subbands.LL;
+        int lowpassWidth = subbands.LLWidth;
+        int currentWidth = lowpassWidth;
         int currentHeight = subbands.LLHeight;
 
         // Dequantize LL subband (right-shift from MSB-aligned representation)
@@ -49,19 +47,10 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         // Use destination as working buffer directly — no separate allocation needed
         for (int y = 0; y < currentHeight; y++)
         {
-            for (int x = 0; x < currentWidth; x++)
-            {
-                destination[(y * outputWidth) + x] = JpxDequantizer.DequantizeReversible(subbands.LL[(y * subbands.LLWidth) + x], llShift);
-            }
+            DequantizeInto(destination.Slice(y * outputWidth, currentWidth), lowpass.Slice(y * lowpassWidth, currentWidth), llShift);
         }
 
-        // Ensure reusable buffers are large enough
-        int maxDimension = Math.Max(outputWidth, outputHeight);
-        if (_columnBuffer.Length < maxDimension)
-        {
-            _columnBuffer = new int[maxDimension];
-        }
-
+        // Ensure the reusable buffer is large enough
         int maxPixels = outputWidth * outputHeight;
         if (_interleavedBuffer.Length < maxPixels)
         {
@@ -71,8 +60,8 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         // Reconstruct level by level from coarsest to finest
         for (int level = subbands.Levels - 1; level >= stopAtLevel; level--)
         {
-            int nextWidth = (level == 0) ? fullWidth : (fullWidth + (1 << level) - 1) >> level;
-            int nextHeight = (level == 0) ? fullHeight : (fullHeight + (1 << level) - 1) >> level;
+            int nextWidth = subbands.GetResolutionWidth(level);
+            int nextHeight = subbands.GetResolutionHeight(level);
 
             int hlWidth = subbands.GetWidth(level, JpxSubbandType.HL);
             int hlHeight = subbands.GetHeight(level, JpxSubbandType.HL);
@@ -81,9 +70,9 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             int hhWidth = subbands.GetWidth(level, JpxSubbandType.HH);
             int hhHeight = subbands.GetHeight(level, JpxSubbandType.HH);
 
-            int[] hl = subbands.GetSubband(level, JpxSubbandType.HL);
-            int[] lh = subbands.GetSubband(level, JpxSubbandType.LH);
-            int[] hh = subbands.GetSubband(level, JpxSubbandType.HH);
+            Span<int> hl = subbands.GetSubband(level, JpxSubbandType.HL);
+            Span<int> lh = subbands.GetSubband(level, JpxSubbandType.LH);
+            Span<int> hh = subbands.GetSubband(level, JpxSubbandType.HH);
 
             // QCD step size indices: LL=0, then per level (coarsest first) HL, LH, HH
             int qcdBase = 1 + ((subbands.Levels - 1 - level) * 3);
@@ -91,62 +80,81 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             int lhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 1);
             int hhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 2);
 
-            int[] interleaved = _interleavedBuffer;
+            Span<int> interleaved = _interleavedBuffer;
 
-            // LL → even rows, even columns (from destination, already dequantized)
-            for (int y = 0; y < currentHeight && y * 2 < nextHeight; y++)
+            // A resolution starting on an odd reference-grid coordinate begins with a high-pass
+            // sample, which swaps where each subband lands in the interleaved signal.
+            int parityX = subbands.GetResolutionStartX(level) & 1;
+            int parityY = subbands.GetResolutionStartY(level) & 1;
+            int lowColumn = parityX;
+            int highColumn = 1 - parityX;
+            int lowRow = parityY;
+            int highRow = 1 - parityY;
+
+            // The level is held with each row's two sample classes in contiguous halves rather
+            // than interleaved. Nothing before the write-out needs the natural order: the
+            // vertical steps work on whole rows, and the horizontal ones read their neighbours
+            // from the opposite half, so both walk adjacent samples.
+            int lowLength = (nextWidth - parityX + 1) >> 1;
+
+            // Build the level one row at a time. A low-pass row draws its low-pass columns from
+            // the already reconstructed LL and its high-pass columns from HL; a high-pass row
+            // draws them from LH and HH.
+            for (int n = 0; n < nextHeight; n++)
             {
-                for (int x = 0; x < currentWidth && x * 2 < nextWidth; x++)
+                Span<int> targetRow = interleaved.Slice(n * nextWidth, nextWidth);
+                Span<int> lowHalf = targetRow.Slice(0, lowLength);
+                Span<int> highHalf = targetRow.Slice(lowLength);
+
+                if ((n & 1) == lowRow)
                 {
-                    interleaved[(y * 2 * nextWidth) + (x * 2)] = destination[(y * outputWidth) + x];
+                    int sourceY = (n - lowRow) >> 1;
+
+                    if (sourceY < currentHeight)
+                    {
+                        ReadOnlySpan<int> source = destination.Slice(sourceY * outputWidth, currentWidth);
+                        source.Slice(0, Math.Min(source.Length, lowHalf.Length)).CopyTo(lowHalf);
+                    }
+
+                    if (sourceY < hlHeight)
+                    {
+                        DequantizeInto(highHalf, hl.Slice(sourceY * hlWidth, hlWidth), hlShift);
+                    }
                 }
-            }
-
-            // HL → even rows, odd columns (dequantize)
-            for (int y = 0; y < hlHeight && y * 2 < nextHeight; y++)
-            {
-                for (int x = 0; x < hlWidth && (x * 2) + 1 < nextWidth; x++)
+                else
                 {
-                    interleaved[(y * 2 * nextWidth) + ((x * 2) + 1)] = JpxDequantizer.DequantizeReversible(hl[(y * hlWidth) + x], hlShift);
-                }
-            }
+                    int sourceY = (n - highRow) >> 1;
 
-            // LH → odd rows, even columns (dequantize)
-            for (int y = 0; y < lhHeight && (y * 2) + 1 < nextHeight; y++)
-            {
-                for (int x = 0; x < lhWidth && x * 2 < nextWidth; x++)
-                {
-                    interleaved[(((y * 2) + 1) * nextWidth) + (x * 2)] = JpxDequantizer.DequantizeReversible(lh[(y * lhWidth) + x], lhShift);
-                }
-            }
+                    if (sourceY < lhHeight)
+                    {
+                        DequantizeInto(lowHalf, lh.Slice(sourceY * lhWidth, lhWidth), lhShift);
+                    }
 
-            // HH → odd rows, odd columns (dequantize)
-            for (int y = 0; y < hhHeight && (y * 2) + 1 < nextHeight; y++)
-            {
-                for (int x = 0; x < hhWidth && (x * 2) + 1 < nextWidth; x++)
-                {
-                    interleaved[(((y * 2) + 1) * nextWidth) + ((x * 2) + 1)] = JpxDequantizer.DequantizeReversible(hh[(y * hhWidth) + x], hhShift);
+                    if (sourceY < hhHeight)
+                    {
+                        DequantizeInto(highHalf, hh.Slice(sourceY * hhWidth, hhWidth), hhShift);
+                    }
                 }
             }
 
             // Apply 1D inverse 5-3 filter on rows then columns
             for (int y = 0; y < nextHeight; y++)
             {
-                InverseLiftRow(interleaved, nextWidth, y);
+                InverseLiftRow(interleaved.Slice(y * nextWidth, nextWidth), lowLength, parityX);
             }
 
-            for (int x = 0; x < nextWidth; x++)
-            {
-                InverseLiftColumn(interleaved, nextWidth, nextHeight, x, _columnBuffer);
-            }
+            InverseLiftColumns(interleaved.Slice(0, nextWidth * nextHeight), nextWidth, nextHeight, parityY);
 
-            // Copy result for next level
-            for (int y = 0; y < nextHeight; y++)
+            // Copy the result back, returning each class to its interleaved position. A
+            // degenerate tile can reduce to a resolution with no columns at all, which leaves
+            // no class positions to write and no row to slice.
+            for (int y = 0; y < nextHeight && nextWidth > 0; y++)
             {
-                for (int x = 0; x < nextWidth; x++)
-                {
-                    destination[(y * outputWidth) + x] = interleaved[(y * nextWidth) + x];
-                }
+                Span<int> sourceRow = interleaved.Slice(y * nextWidth, nextWidth);
+                Span<int> targetRow = destination.Slice(y * outputWidth, nextWidth);
+
+                Interleave(sourceRow.Slice(0, lowLength), targetRow.Slice(lowColumn));
+                Interleave(sourceRow.Slice(lowLength), targetRow.Slice(highColumn));
             }
 
             currentWidth = nextWidth;
@@ -155,111 +163,290 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     }
 
     /// <summary>
-    /// Applies inverse 5-3 lifting to a single column.
-    /// Uses a contiguous buffer for cache-friendly sequential access.
-    /// Inverse: x(2n) = s(n) - floor((d(n-1) + d(n) + 2) / 4)
-    ///          x(2n+1) = d(n) + floor((x(2n) + x(2n+2)) / 2)
+    /// Dequantizes subband coefficients into consecutive positions of <paramref name="target"/>.
     /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void InverseLiftColumn(int[] data, int stride, int height, int x, int[] buffer)
+    private static void DequantizeInto(in Span<int> target, in ReadOnlySpan<int> source, int shiftBits)
     {
-        if (height <= 1)
-        {
-            return;
-        }
+        int length = Math.Min(source.Length, target.Length);
 
-        int evenCount = (height + 1) >> 1;
-        int oddCount = height >> 1;
+        ref int coefficient = ref MemoryMarshal.GetReference(source);
+        ref int sample = ref MemoryMarshal.GetReference(target);
 
-        if (oddCount == 0)
+        for (int x = 0; x < length; x++)
         {
-            return;
-        }
-
-        // Gather column into contiguous buffer
-        for (int n = 0; n < height; n++)
-        {
-            buffer[n] = data[(n * stride) + x];
-        }
-
-        // Step 1: Undo update lifting on even samples (boundary-peeled)
-        buffer[0] -= (buffer[1] + buffer[1] + 2) >> 2;
-        for (int n = 1; n < evenCount - 1; n++)
-        {
-            buffer[n * 2] -= (buffer[(n * 2) - 1] + buffer[(n * 2) + 1] + 2) >> 2;
-        }
-
-        if (evenCount > 1)
-        {
-            int lastEven = (evenCount - 1) * 2;
-            int dCurr = (evenCount - 1 < oddCount) ? buffer[lastEven + 1] : buffer[height - 2];
-            buffer[lastEven] -= (buffer[lastEven - 1] + dCurr + 2) >> 2;
-        }
-
-        // Step 2: Undo predict lifting on odd samples (boundary-peeled)
-        for (int n = 0; n < oddCount - 1; n++)
-        {
-            buffer[(n * 2) + 1] += (buffer[n * 2] + buffer[(n + 1) * 2]) >> 1;
-        }
-
-        {
-            int lastOdd = ((oddCount - 1) * 2) + 1;
-            int eNext = (oddCount < evenCount) ? buffer[oddCount * 2] : buffer[(oddCount - 1) * 2];
-            buffer[lastOdd] += (buffer[(oddCount - 1) * 2] + eNext) >> 1;
-        }
-
-        // Scatter back to column
-        for (int n = 0; n < height; n++)
-        {
-            data[(n * stride) + x] = buffer[n];
+            sample = JpxDequantizer.DequantizeReversible(coefficient, shiftBits);
+            coefficient = ref Unsafe.Add(ref coefficient, 1);
+            sample = ref Unsafe.Add(ref sample, 1);
         }
     }
 
     /// <summary>
-    /// Applies inverse 5-3 lifting to a single row.
-    /// Boundary conditions are peeled out of main loops to avoid per-iteration branches.
+    /// Returns consecutive samples to every other position of <paramref name="target"/>,
+    /// starting at its first.
+    /// </summary>
+    private static void Interleave(in ReadOnlySpan<int> source, in Span<int> target)
+    {
+        ref int sourceSample = ref MemoryMarshal.GetReference(source);
+        ref int targetSample = ref MemoryMarshal.GetReference(target);
+
+        for (int i = 0; i < source.Length; i++)
+        {
+            targetSample = sourceSample;
+            sourceSample = ref Unsafe.Add(ref sourceSample, 1);
+            targetSample = ref Unsafe.Add(ref targetSample, 2);
+        }
+    }
+
+    /// <summary>
+    /// Applies the inverse 5-3 lifting steps down every column of an interleaved level.
+    /// Each step is pointwise across the row, so whole rows are lifted against their
+    /// neighbouring rows and no column ever has to be gathered into a buffer.
+    /// </summary>
+    /// <param name="samples">Interleaved level, row-major, <paramref name="height"/> rows of <paramref name="width"/>.</param>
+    /// <param name="width">Number of samples per row.</param>
+    /// <param name="height">Number of rows.</param>
+    /// <param name="parity">
+    /// 0 when the first row is a low-pass one, 1 when it is a high-pass one.
+    /// </param>
+    private static void InverseLiftColumns(in Span<int> samples, int width, int height, int parity)
+    {
+        if (height == 1)
+        {
+            // A lone row is passed through when it is low-pass, and halved when it is not.
+            if (parity == 1)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    samples[x] >>= 1;
+                }
+            }
+
+            return;
+        }
+
+        // Undo the update step on the low-pass rows, then the predict step on the high-pass
+        // ones, which reads the low-pass values the first pass has already restored.
+        UpdateRows(samples, width, height, parity);
+        PredictRows(samples, width, height, 1 - parity);
+    }
+
+    private static void UpdateRows(in Span<int> samples, int width, int height, int firstRow)
+    {
+        for (int n = firstRow; n < height; n += 2)
+        {
+            Span<int> current = samples.Slice(n * width, width);
+            ReadOnlySpan<int> above = samples.Slice(MirrorRow(n - 1, height) * width, width);
+            ReadOnlySpan<int> below = samples.Slice(MirrorRow(n + 1, height) * width, width);
+
+            ref int currentSample = ref MemoryMarshal.GetReference(current);
+            ref int aboveSample = ref MemoryMarshal.GetReference(above);
+            ref int belowSample = ref MemoryMarshal.GetReference(below);
+
+            for (int x = 0; x < width; x++)
+            {
+                currentSample -= (aboveSample + belowSample + 2) >> 2;
+                currentSample = ref Unsafe.Add(ref currentSample, 1);
+                aboveSample = ref Unsafe.Add(ref aboveSample, 1);
+                belowSample = ref Unsafe.Add(ref belowSample, 1);
+            }
+        }
+    }
+
+    private static void PredictRows(in Span<int> samples, int width, int height, int firstRow)
+    {
+        for (int n = firstRow; n < height; n += 2)
+        {
+            Span<int> current = samples.Slice(n * width, width);
+            ReadOnlySpan<int> above = samples.Slice(MirrorRow(n - 1, height) * width, width);
+            ReadOnlySpan<int> below = samples.Slice(MirrorRow(n + 1, height) * width, width);
+
+            ref int currentSample = ref MemoryMarshal.GetReference(current);
+            ref int aboveSample = ref MemoryMarshal.GetReference(above);
+            ref int belowSample = ref MemoryMarshal.GetReference(below);
+
+            for (int x = 0; x < width; x++)
+            {
+                currentSample += (aboveSample + belowSample) >> 1;
+                currentSample = ref Unsafe.Add(ref currentSample, 1);
+                aboveSample = ref Unsafe.Add(ref aboveSample, 1);
+                belowSample = ref Unsafe.Add(ref belowSample, 1);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Maps a row index onto the periodic symmetric extension of the signal per ITU-T T.800 F.3.7.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void InverseLiftRow(int[] data, int width, int y)
+    private static int MirrorRow(int index, int height)
     {
-        if (width <= 1)
+        if (index < 0)
+        {
+            return -index;
+        }
+
+        if (index >= height)
+        {
+            return (height << 1) - index - 2;
+        }
+
+        return index;
+    }
+
+    /// <summary>
+    /// Applies the inverse 5-3 lifting steps to one line, per ITU-T T.800 F.3.8.2.
+    /// </summary>
+    /// <remarks>
+    /// The line arrives with its two sample classes already in contiguous halves, so every
+    /// lifting step reads its two neighbours from adjacent positions of the other half rather
+    /// than from alternating positions of the line.
+    /// </remarks>
+    /// <param name="row">Low-pass samples followed by high-pass samples.</param>
+    /// <param name="lowLength">Number of low-pass samples at the front of the row.</param>
+    /// <param name="parity">
+    /// 0 when the line starts on a low-pass sample, 1 when it starts on a high-pass one.
+    /// </param>
+    private static void InverseLiftRow(in Span<int> row, int lowLength, int parity)
+    {
+        if (row.Length == 0)
         {
             return;
         }
 
-        int offset = y * width;
-        int evenCount = (width + 1) >> 1;
-        int oddCount = width >> 1;
+        Span<int> low = row.Slice(0, lowLength);
+        Span<int> high = row.Slice(lowLength);
 
-        if (oddCount == 0)
+        if (row.Length == 1)
         {
+            // A lone sample is passed through when it is low-pass, and halved when it is not.
+            if (low.Length == 0)
+            {
+                high[0] >>= 1;
+            }
+
             return;
         }
 
-        // Step 1: Undo update lifting on even samples (boundary-peeled)
-        data[offset] -= (data[offset + 1] + data[offset + 1] + 2) >> 2;
-        for (int n = 1; n < evenCount - 1; n++)
+        // Undo the update step on the low-pass samples, then the predict step on the high-pass
+        // ones, which reads the low-pass values the first step has already restored. A class
+        // whose samples sit to the right of their neighbours reads the pair ending at its own
+        // index, and the one to the left reads the pair starting there, so the parity of the
+        // line decides which form each step takes.
+        if (parity == 0)
         {
-            data[offset + (n * 2)] -= (data[offset + (n * 2) - 1] + data[offset + (n * 2) + 1] + 2) >> 2;
+            UpdateFromLeft(low, high);
+            PredictFromRight(high, low);
+        }
+        else
+        {
+            UpdateFromRight(low, high);
+            PredictFromLeft(high, low);
+        }
+    }
+
+    /// <summary>
+    /// Undoes the update step for a class whose samples follow their neighbours.
+    /// </summary>
+    private static void UpdateFromLeft(in Span<int> target, in ReadOnlySpan<int> source)
+    {
+        int last = source.Length - 1;
+        int interior = Math.Min(target.Length, source.Length);
+
+        // The neighbour before the first sample mirrors back onto the first source sample.
+        target[0] -= (source[0] + source[0] + 2) >> 2;
+
+        ref int targetSample = ref Unsafe.Add(ref MemoryMarshal.GetReference(target), 1);
+        ref int sourceSample = ref MemoryMarshal.GetReference(source);
+
+        for (int i = 1; i < interior; i++)
+        {
+            targetSample -= (sourceSample + Unsafe.Add(ref sourceSample, 1) + 2) >> 2;
+            targetSample = ref Unsafe.Add(ref targetSample, 1);
+            sourceSample = ref Unsafe.Add(ref sourceSample, 1);
         }
 
-        if (evenCount > 1)
+        // A longer target than source leaves samples whose later neighbour mirrors back.
+        for (int i = interior; i < target.Length; i++)
         {
-            int lastEvenIdx = offset + ((evenCount - 1) * 2);
-            int dCurr = (evenCount - 1 < oddCount) ? data[lastEvenIdx + 1] : data[offset + width - 2];
-            data[lastEvenIdx] -= (data[lastEvenIdx - 1] + dCurr + 2) >> 2;
+            target[i] -= (source[last] + source[last] + 2) >> 2;
+        }
+    }
+
+    /// <summary>
+    /// Undoes the update step for a class whose samples precede their neighbours.
+    /// </summary>
+    private static void UpdateFromRight(in Span<int> target, in ReadOnlySpan<int> source)
+    {
+        int last = source.Length - 1;
+        int interior = Math.Min(target.Length, last);
+
+        ref int targetSample = ref MemoryMarshal.GetReference(target);
+        ref int sourceSample = ref MemoryMarshal.GetReference(source);
+
+        for (int i = 0; i < interior; i++)
+        {
+            targetSample -= (sourceSample + Unsafe.Add(ref sourceSample, 1) + 2) >> 2;
+            targetSample = ref Unsafe.Add(ref targetSample, 1);
+            sourceSample = ref Unsafe.Add(ref sourceSample, 1);
         }
 
-        // Step 2: Undo predict lifting on odd samples (boundary-peeled)
-        for (int n = 0; n < oddCount - 1; n++)
+        // The neighbour after the last sample mirrors back onto the last source sample.
+        for (int i = interior; i < target.Length; i++)
         {
-            data[offset + (n * 2) + 1] += (data[offset + (n * 2)] + data[offset + ((n + 1) * 2)]) >> 1;
+            target[i] -= (source[last] + source[last] + 2) >> 2;
+        }
+    }
+
+    /// <summary>
+    /// Undoes the predict step for a class whose samples follow their neighbours.
+    /// </summary>
+    private static void PredictFromLeft(in Span<int> target, in ReadOnlySpan<int> source)
+    {
+        int last = source.Length - 1;
+        int interior = Math.Min(target.Length, source.Length);
+
+        // The neighbour before the first sample mirrors back onto the first source sample.
+        target[0] += (source[0] + source[0]) >> 1;
+
+        ref int targetSample = ref Unsafe.Add(ref MemoryMarshal.GetReference(target), 1);
+        ref int sourceSample = ref MemoryMarshal.GetReference(source);
+
+        for (int i = 1; i < interior; i++)
+        {
+            targetSample += (sourceSample + Unsafe.Add(ref sourceSample, 1)) >> 1;
+            targetSample = ref Unsafe.Add(ref targetSample, 1);
+            sourceSample = ref Unsafe.Add(ref sourceSample, 1);
         }
 
+        // A longer target than source leaves samples whose later neighbour mirrors back.
+        for (int i = interior; i < target.Length; i++)
         {
-            int lastOddIdx = offset + ((oddCount - 1) * 2) + 1;
-            int eNext = (oddCount < evenCount) ? data[offset + (oddCount * 2)] : data[offset + ((oddCount - 1) * 2)];
-            data[lastOddIdx] += (data[offset + ((oddCount - 1) * 2)] + eNext) >> 1;
+            target[i] += (source[last] + source[last]) >> 1;
+        }
+    }
+
+    /// <summary>
+    /// Undoes the predict step for a class whose samples precede their neighbours.
+    /// </summary>
+    private static void PredictFromRight(in Span<int> target, in ReadOnlySpan<int> source)
+    {
+        int last = source.Length - 1;
+        int interior = Math.Min(target.Length, last);
+
+        ref int targetSample = ref MemoryMarshal.GetReference(target);
+        ref int sourceSample = ref MemoryMarshal.GetReference(source);
+
+        for (int i = 0; i < interior; i++)
+        {
+            targetSample += (sourceSample + Unsafe.Add(ref sourceSample, 1)) >> 1;
+            targetSample = ref Unsafe.Add(ref targetSample, 1);
+            sourceSample = ref Unsafe.Add(ref sourceSample, 1);
+        }
+
+        // The neighbour after the last sample mirrors back onto the last source sample.
+        for (int i = interior; i < target.Length; i++)
+        {
+            target[i] += (source[last] + source[last]) >> 1;
         }
     }
 }

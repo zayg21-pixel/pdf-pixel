@@ -54,7 +54,9 @@ internal ref struct JpxMqDecoder
     private readonly Span<byte> _contexts;
 
     // State table built from ITU-T T.800 Table C.3.
-    private readonly ReadOnlySpan<MqState> _states = BuildStates();
+    // Packed as one uint per entry: bits 31–16 = Qe (pre-shifted as QeShifted = Qe<<16),
+    // bits 15–8 = NextMps, bits 7–0 = NextLpsWithSwitch.
+    private readonly ReadOnlySpan<uint> _states = BuildStates();
 
     /// <summary>
     /// Initializes the MQ decoder for the given code-block data.
@@ -78,7 +80,8 @@ internal ref struct JpxMqDecoder
         // All other contexts: state 0, MPS=0 (default from array init)
 
         // INITDEC procedure (ITU-T T.800 C.2.7)
-        _aRegister = 0x8000;
+        // _aRegister stores A<<16 throughout to avoid shifting in DecodeBit.
+        _aRegister = 0x8000_0000u;
         _lastByte = ReadByte();
         _cRegister = (uint)((_lastByte ^ 0xFF) << 16);
         ByteIn();
@@ -106,69 +109,61 @@ internal ref struct JpxMqDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int DecodeBit(int context)
     {
-        // Direct array element ref — the JIT knows _contexts (readonly field) is invariant
-        // across writes to _aRegister/_cRegister, so the array base stays in a register.
         ref byte ctxRef = ref _contexts[context];
         byte ctx = ctxRef;
         int stateIndex = ctx & 0x3F;
-
-        // Keep MPS in bit-7 position to avoid re-shifting on every write-back.
-        // Only shift down to 0/1 once, for the return value.
         int mpsPacked = ctx & 0x80;
         int mps = mpsPacked >> 7;
 
-        // static readonly field — JIT treats the base address as invariant, single indexed load.
-        ref readonly MqState state = ref _states[stateIndex];
+        // Single 32-bit load: bits 31–16 = QeShifted (= Qe<<16), bits 15–8 = NextMps, bits 7–0 = NextLpsWithSwitch.
+        uint packed = _states[stateIndex];
+        uint qeShifted = packed & 0xFFFF_0000u;
 
-        // Subtract Qe from A
-        _aRegister -= state.Qe;
+        // _aRegister stores A<<16, qeShifted = Qe<<16 — subtraction stays in shifted space.
+        _aRegister -= qeShifted;
 
-        uint cHigh = _cRegister >> 16;
-
-        if (cHigh < _aRegister)
+        if (_cRegister < _aRegister)
         {
-            // MPS sub-interval is selected
-            if (_aRegister >= 0x8000)
+            // MPS sub-interval — no shift of _cRegister needed.
+            if ((_aRegister & 0x8000_0000u) != 0)
             {
-                // No renormalization needed — fast path (most common case)
+                // No renormalization needed — fast path (most common case).
                 return mps;
             }
 
-            // Conditional exchange check
-            if (_aRegister < state.Qe)
+            if (_aRegister < qeShifted)
             {
-                // LPS due to conditional exchange; NextLpsWithSwitch has SwitchBit pre-OR'd into bit 7
-                ctxRef = (byte)(state.NextLpsWithSwitch ^ mpsPacked);
+                // Conditional exchange: LPS decoded.
+                ctxRef = (byte)((byte)packed ^ mpsPacked);
                 Renormalize();
                 return 1 - mps;
             }
             else
             {
-                // MPS, needs renorm
-                ctxRef = (byte)(state.NextMps | mpsPacked);
+                // MPS, needs renorm.
+                ctxRef = (byte)((byte)(packed >> 8) | mpsPacked);
                 Renormalize();
                 return mps;
             }
         }
         else
         {
-            // LPS sub-interval
-            _cRegister -= _aRegister << 16;
+            // LPS sub-interval — _aRegister is already A<<16, no shift needed.
+            _cRegister -= _aRegister;
 
-            // Conditional exchange check
-            if (_aRegister < state.Qe)
+            if (_aRegister < qeShifted)
             {
-                // MPS due to conditional exchange
-                ctxRef = (byte)(state.NextMps | mpsPacked);
-                _aRegister = state.Qe;
+                // Conditional exchange: MPS decoded.
+                ctxRef = (byte)((byte)(packed >> 8) | mpsPacked);
+                _aRegister = qeShifted;
                 Renormalize();
                 return mps;
             }
             else
             {
-                // LPS
-                ctxRef = (byte)(state.NextLpsWithSwitch ^ mpsPacked);
-                _aRegister = state.Qe;
+                // LPS decoded.
+                ctxRef = (byte)((byte)packed ^ mpsPacked);
+                _aRegister = qeShifted;
                 Renormalize();
                 return 1 - mps;
             }
@@ -196,6 +191,8 @@ internal ref struct JpxMqDecoder
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void Renormalize()
     {
+        uint aRegister = _aRegister;
+
         do
         {
             if (_ctCounter == 0)
@@ -203,11 +200,13 @@ internal ref struct JpxMqDecoder
                 ByteIn();
             }
 
-            _aRegister <<= 1;
+            aRegister <<= 1;
             _cRegister <<= 1;
             _ctCounter--;
         }
-        while (_aRegister < 0x8000);
+        while ((aRegister & 0x8000_0000u) == 0);
+
+        _aRegister = aRegister;
     }
 
     /// <summary>
@@ -291,10 +290,11 @@ internal ref struct JpxMqDecoder
     }
 
 
-/// <summary>
-/// Builds the state table from ITU-T T.800 Table C.3.
-/// </summary>
-    private static MqState[] BuildStates()
+    /// <summary>
+    /// Builds the packed state table from ITU-T T.800 Table C.3.
+    /// Each uint: bits 31–16 = Qe&lt;&lt;16, bits 15–8 = NextMps, bits 7–0 = NextLpsWithSwitch (bit 7 = SwitchBit).
+    /// </summary>
+    private static uint[] BuildStates()
     {
         ReadOnlySpan<ushort> qeValues =
         [
@@ -344,11 +344,13 @@ internal ref struct JpxMqDecoder
             0, 0, 0, 0, 0
         ];
 
-        var states = new MqState[StateCount];
+        var states = new uint[StateCount];
 
         for (int i = 0; i < StateCount; i++)
         {
-            states[i] = new MqState(qeValues[i], nextMps[i], (byte)(nextLps[i] | (switchBits[i] << 7)));
+            states[i] = ((uint)qeValues[i] << 16)
+                | ((uint)nextMps[i] << 8)
+                | (uint)(nextLps[i] | (switchBits[i] << 7));
         }
 
         return states;

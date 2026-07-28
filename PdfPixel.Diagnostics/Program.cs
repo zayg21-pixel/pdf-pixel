@@ -6,24 +6,107 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
+using System.CommandLine;
 using System.Diagnostics;
+using System.Linq;
 
 namespace PdfPixel.Diagnostics;
 
 internal sealed class Program
 {
-    private static void Main(string[] args)
+    private static int Main(string[] args)
     {
-        if (args.Length == 0)
+        Argument<FileInfo> pdfArgument = new("pdf")
         {
-            Console.WriteLine("Usage: PdfPixel.Diagnostics <path-to-pdf>");
+            Description = "Path to the PDF to process."
+        };
+
+        Option<float> scaleOption = new("--scale", "-s")
+        {
+            Description = "Multiplies the page size before rendering; above 1 gives a sharper image.",
+            DefaultValueFactory = _ => 4f
+        };
+
+        Option<int> iterationsOption = new("--iterations", "-n")
+        {
+            Description = "Times each page is processed, to get a stable average.",
+            DefaultValueFactory = _ => 10
+        };
+
+        Option<int> minPageOption = new("--min-page", "-f")
+        {
+            Description = "First page to process, 1-based.",
+            DefaultValueFactory = _ => 1
+        };
+
+        Option<int?> maxPageOption = new("--max-page", "-l")
+        {
+            Description = "Last page to process, 1-based. Defaults to the final page."
+        };
+
+        Option<bool> rasterizeOption = new("--rasterize")
+        {
+            Description = "Rasterize the recorded page to a surface. Use --rasterize:false to measure decoding alone.",
+            DefaultValueFactory = _ => true
+        };
+
+        Option<bool> savePngOption = new("--save-png")
+        {
+            Description = "Write a PNG snapshot of each page. Requires rasterization.",
+            DefaultValueFactory = _ => true
+        };
+
+        Option<bool> dumpCommandsOption = new("--dump-commands")
+        {
+            Description = "Print every recorded drawing command."
+        };
+
+        RootCommand rootCommand = new("Records and replays a PDF page, reporting decode and rasterization timings.")
+        {
+            pdfArgument,
+            scaleOption,
+            iterationsOption,
+            minPageOption,
+            maxPageOption,
+            rasterizeOption,
+            savePngOption,
+            dumpCommandsOption
+        };
+
+        rootCommand.SetAction(parseResult =>
+        {
+            Run(
+                parseResult.GetValue(pdfArgument),
+                parseResult.GetValue(scaleOption),
+                parseResult.GetValue(iterationsOption),
+                parseResult.GetValue(minPageOption),
+                parseResult.GetValue(maxPageOption),
+                parseResult.GetValue(rasterizeOption),
+                parseResult.GetValue(savePngOption),
+                parseResult.GetValue(dumpCommandsOption));
+
+            return 0;
+        });
+
+        return rootCommand.Parse(args).Invoke();
+    }
+
+    private static void Run(
+        FileInfo? pdfFile,
+        float scale,
+        int iterationCount,
+        int minPage,
+        int? maxPage,
+        bool rasterize,
+        bool savePng,
+        bool dumpCommands)
+    {
+        if (pdfFile == null)
+        {
             return;
         }
 
-        string pdfPath = args[0];
-
-        // Multiplies the page size before rendering; use a value above 1 for a sharper output image.
-        float scale = 4f;
+        string pdfPath = pdfFile.FullName;
 
         // PdfDocumentReader needs a logger factory for diagnostics during parsing and rendering.
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
@@ -35,22 +118,72 @@ internal sealed class Program
         // PdfDocumentReader is the entry point for parsing PDF files.
         PdfDocumentReader reader = new(loggerFactory, fontProvider);
 
-        // The reader needs a seekable, readable stream; it reads the whole document into memory.
-        using FileStream fileStream = File.OpenRead(pdfPath);
-
-        // Parses the document and returns the page graph used for rendering.
-        using IPdfDocument document = reader.Read(fileStream);
-
         // Each PDF gets its own output subfolder, named after the source file, under pdfs/.
         string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", Path.GetFileNameWithoutExtension(pdfPath));
         Directory.CreateDirectory(outputDirectory);
 
-        // Tracks the total time spent exporting all pages, logged once the export finishes.
-        Stopwatch exportStopwatch = Stopwatch.StartNew();
+        int pageCount = GetPageCount(reader, pdfPath);
+        int firstPage = Math.Max(1, minPage);
+        int lastPage = Math.Min(maxPage ?? pageCount, pageCount);
 
-        // Render every page in the document.
-        foreach (IPdfPage page in document.Pages)
+        if (firstPage > lastPage)
         {
+            logger.LogError("Page range {FirstPage}-{LastPage} is empty; the document has {PageCount} page(s).", firstPage, lastPage, pageCount);
+            return;
+        }
+
+        for (int pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+        {
+            MeasurePage(
+                reader,
+                loggerFactory,
+                logger,
+                pdfPath,
+                outputDirectory,
+                pageNumber,
+                scale,
+                iterationCount,
+                rasterize,
+                savePng,
+                dumpCommands);
+        }
+    }
+
+    private static int GetPageCount(PdfDocumentReader reader, string pdfPath)
+    {
+        using FileStream fileStream = File.OpenRead(pdfPath);
+        using IPdfDocument document = reader.Read(fileStream);
+        return document.Pages.Count;
+    }
+
+    private static void MeasurePage(
+        PdfDocumentReader reader,
+        ILoggerFactory loggerFactory,
+        ILogger logger,
+        string pdfPath,
+        string outputDirectory,
+        int pageNumber,
+        float scale,
+        int iterationCount,
+        bool rasterize,
+        bool savePng,
+        bool dumpCommands)
+    {
+        double[] totalMilliseconds = new double[iterationCount];
+        double[] decodeMilliseconds = new double[iterationCount];
+        double[] rasterMilliseconds = new double[iterationCount];
+
+        for (int iteration = 0; iteration < iterationCount; iteration++)
+        {
+            // Re-open and re-parse the document every iteration so no per-document decode cache
+            // (e.g. PdfDocumentObjectCache.Images) can mask real decode cost on later iterations.
+            using FileStream fileStream = File.OpenRead(pdfPath);
+            using IPdfDocument document = reader.Read(fileStream);
+
+            IPdfPage page = document.Pages[pageNumber - 1];
+
+            Stopwatch decodeStopwatch = Stopwatch.StartNew();
+            Stopwatch rasterStopwatch = new();
 
             // Guards the page's lazily-parsed content stream against concurrent access; use a private
             // object per concurrent render of the same page.
@@ -85,18 +218,22 @@ internal sealed class Program
 
             annotationRecorder.Process(RestoreStateCommand.Instance);
 
-            Console.WriteLine($"Page {page.PageNumber} content commands:");
-            DumpCommands(contentRecorder.Commands);
+            if (dumpCommands && iteration == 0)
+            {
+                Console.WriteLine($"Page {page.PageNumber} content commands:");
+                DumpCommands(contentRecorder.Commands);
 
-            Console.WriteLine($"Page {page.PageNumber} annotation commands:");
-            DumpCommands(annotationRecorder.Commands);
+                Console.WriteLine($"Page {page.PageNumber} annotation commands:");
+                DumpCommands(annotationRecorder.Commands);
+            }
 
-            // Pass 2: replay the recorded commands against a real canvas.
+            // Pass 2: replay the recorded commands against a picture-recording canvas. Decoding
+            // happens here; recording defers the drawing itself to the rasterization pass below,
+            // which keeps the two costs separately measurable.
             // CropBox is the visible page area in PDF units; scale it to get the output image size.
             SKImageInfo imageInfo = new((int)(page.CropBox.Width * scale), (int)(page.CropBox.Height * scale));
-            using SKSurface surface = SKSurface.Create(imageInfo);
-            SKCanvas canvas = surface.Canvas;
-            canvas.Clear(SKColors.White);
+            using SKPictureRecorder pictureRecorder = new();
+            SKCanvas canvas = pictureRecorder.BeginRecording(new SKRect(0, 0, imageInfo.Width, imageInfo.Height));
 
             // Bundles the canvas, rendering options, and the objects above into the state every
             // drawing command reads from while the recordings are replayed.
@@ -113,17 +250,57 @@ internal sealed class Program
             contentRecorder.Replay(processor);
             annotationRecorder.Replay(processor);
 
-            string outputPath = Path.Combine(outputDirectory, $"{page.PageNumber}.png");
-            using SKImage image = surface.Snapshot();
-            using SKData pngData = image.Encode(SKEncodedImageFormat.Png, 100);
-            using FileStream output = File.Create(outputPath);
-            pngData.SaveTo(output);
+            using SKPicture picture = pictureRecorder.EndRecording();
 
-            logger.LogInformation("Exported page {PageNumber} to {OutputPath}", page.PageNumber, outputPath);
+            decodeStopwatch.Stop();
+
+            // Pass 3: rasterize the recorded picture. Everything the page needs has already been
+            // decoded, so this measures Skia's CPU rasterization on its own.
+            if (rasterize)
+            {
+                rasterStopwatch.Start();
+
+                using SKSurface surface = SKSurface.Create(imageInfo);
+                SKCanvas surfaceCanvas = surface.Canvas;
+                surfaceCanvas.Clear(SKColors.White);
+                surfaceCanvas.DrawPicture(picture);
+                surfaceCanvas.Flush();
+
+                rasterStopwatch.Stop();
+
+                if (savePng && iteration == 0)
+                {
+                    SavePageSnapshot(logger, surface, outputDirectory, page.PageNumber);
+                }
+            }
+
+            decodeMilliseconds[iteration] = decodeStopwatch.Elapsed.TotalMilliseconds;
+            rasterMilliseconds[iteration] = rasterStopwatch.Elapsed.TotalMilliseconds;
+            totalMilliseconds[iteration] = decodeMilliseconds[iteration] + rasterMilliseconds[iteration];
         }
 
-        exportStopwatch.Stop();
-        logger.LogInformation("Exported {PageCount} page(s) in {ElapsedMilliseconds} ms", document.Pages.Count, exportStopwatch.ElapsedMilliseconds);
+        logger.LogInformation(
+            "Page {PageNumber} x{IterationCount} at scale {Scale}: total avg {TotalAverage:F1} ms (min {TotalMin:F1} ms) = decode avg {DecodeAverage:F1} ms (min {DecodeMin:F1} ms) + raster avg {RasterAverage:F1} ms (min {RasterMin:F1} ms)",
+            pageNumber,
+            iterationCount,
+            scale,
+            totalMilliseconds.Average(),
+            totalMilliseconds.Min(),
+            decodeMilliseconds.Average(),
+            decodeMilliseconds.Min(),
+            rasterMilliseconds.Average(),
+            rasterMilliseconds.Min());
+    }
+
+    private static void SavePageSnapshot(ILogger logger, SKSurface surface, string outputDirectory, int pageNumber)
+    {
+        string outputPath = Path.Combine(outputDirectory, $"{pageNumber}.png");
+        using SKImage image = surface.Snapshot();
+        using SKData pngData = image.Encode(SKEncodedImageFormat.Png, 100);
+        using FileStream output = File.Create(outputPath);
+        pngData.SaveTo(output);
+
+        logger.LogInformation("Exported page {PageNumber} to {OutputPath}", pageNumber, outputPath);
     }
 
     // Save the execution context's state before applying the page transform, so it can be restored afterwards.

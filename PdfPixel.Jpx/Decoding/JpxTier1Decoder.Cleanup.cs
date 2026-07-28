@@ -63,8 +63,8 @@ internal ref partial struct JpxTier1Decoder
                 // The sample at 'position' is significant
                 ref uint sigStatePtr = ref Unsafe.Add(ref colStatePtr, position * stateWidth);
                 ref int sigCoeffPtr = ref Unsafe.Add(ref stripeCoeffPtr, (position * width) + x);
-                int sign = DecodeSign(ref sigStatePtr);
-                SetSignificant(ref sigCoeffPtr, ref sigStatePtr, stateWidth, bitPosition, sign);
+                int sign = DecodeSign(ref sigStatePtr, verticallyCausal && position == stripeHeight - 1);
+                SetSignificant(ref sigCoeffPtr, ref sigStatePtr, stateWidth, bitPosition, sign, verticallyCausal && position == 0);
                 sigStatePtr |= FlagCoded;
 
                 rowsToSkip = position + 1;
@@ -80,13 +80,14 @@ internal ref partial struct JpxTier1Decoder
 
                 if ((stateVal & FlagSignificantOrCoded) == 0)
                 {
-                    int sigContext = GetSignificanceContext(stateVal, verticallyCausal && row == 0);
+                    bool ignoresStripeBelow = verticallyCausal && row == stripeHeight - 1;
+                    int sigContext = GetSignificanceContext(stateVal);
                     int significant = _mqDecoder.DecodeBit(sigContext + ContextZcOffset);
 
                     if (significant != 0)
                     {
-                        int sign = DecodeSign(ref statePtr);
-                        SetSignificant(ref coeffPtr, ref statePtr, stateWidth, bitPosition, sign);
+                        int sign = DecodeSign(ref statePtr, ignoresStripeBelow);
+                        SetSignificant(ref coeffPtr, ref statePtr, stateWidth, bitPosition, sign, verticallyCausal && row == 0);
                     }
 
                     statePtr |= FlagCoded;
@@ -96,21 +97,25 @@ internal ref partial struct JpxTier1Decoder
                 coeffPtr = ref Unsafe.Add(ref coeffPtr, width);
             }
         }
+    }
 
-        // Verify segmentation symbol if enabled (ITU-T T.800 D.4.1)
-        if (_segmentationSymbols)
+    /// <summary>
+    /// Reads the segmentation symbol that closes a cleanup pass and checks it against the
+    /// fixed value the encoder writes, per ITU-T T.800 D.4.1. One symbol closes the whole
+    /// pass, so this runs after every stripe of the pass has been decoded.
+    /// </summary>
+    private void VerifySegmentationSymbol()
+    {
+        int symbol = 0;
+        symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
+        symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
+        symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
+        symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
+
+        if (symbol != 0x0A)
         {
-            int symbol = 0;
-            symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
-            symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
-            symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
-            symbol = (symbol << 1) | _mqDecoder.DecodeBit(ContextUniform);
-
-            if (symbol != 0x0A)
-            {
-                throw new InvalidOperationException(
-                    $"Segmentation symbol mismatch: expected 0x0A, got 0x{symbol:X2}. Data may be corrupt.");
-            }
+            throw new InvalidOperationException(
+                $"Segmentation symbol mismatch: expected 0x0A, got 0x{symbol:X2}. Data may be corrupt.");
         }
     }
 

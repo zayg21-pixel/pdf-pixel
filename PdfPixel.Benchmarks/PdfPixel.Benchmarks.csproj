@@ -14,5 +14,11 @@
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
     <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="TestData\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

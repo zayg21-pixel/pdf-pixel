@@ -1,5 +1,6 @@
 using PdfPixel.Jpx.Model;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Jpx.Parsing;
 
@@ -22,16 +23,19 @@ internal sealed class JpxPacketCodeBlockParser
     }
 
     /// <summary>
-    /// Parses code-block data into the provided packet array.
-    /// Each packet must already have coordinates set; this method populates CodeBlocks.
+    /// Parses every packet in <paramref name="packets"/>, accumulating each layer's
+    /// entropy-coded bytes into the persistent code-blocks they belong to.
     /// </summary>
     /// <param name="packetData">Raw packet data to parse.</param>
-    /// <param name="packets">Pre-allocated packets with coordinates initialized.</param>
-    public void ParseCodeBlocks(in ReadOnlySpan<byte> packetData, JpxPacket[] packets)
+    /// <param name="packets">Packet coordinates in codestream order.</param>
+    /// <returns>
+    /// Every distinct code-block in the tile, each carrying the data accumulated across all its layers.
+    /// </returns>
+    public IReadOnlyList<JpxCodeBlock> ParseCodeBlocks(in ReadOnlySpan<byte> packetData, JpxPacket[] packets)
     {
         if (packetData.Length == 0 || packets.Length == 0)
         {
-            return;
+            return Array.Empty<JpxCodeBlock>();
         }
 
         ValidateHeader();
@@ -40,17 +44,18 @@ internal sealed class JpxPacketCodeBlockParser
 
         for (int index = 0; index < packets.Length; index++)
         {
-            ParseSinglePacket(ref bitReader, ref packets[index]);
+            ParseSinglePacket(ref bitReader, packets[index]);
         }
+
+        return _headerParser.CodeBlocks;
     }
 
     /// <summary>
-    /// Parses a single packet's code-block data.
+    /// Parses a single packet, appending its layer contribution to the included code-blocks.
     /// </summary>
-    private void ParseSinglePacket(ref JpxBitReader bitReader, ref JpxPacket packet)
+    private void ParseSinglePacket(ref JpxBitReader bitReader, JpxPacket packet)
     {
-        // Parse packet header
-        JpxPacketHeaderParser.PacketHeaderInfo headerInfo = _headerParser.ParsePacketHeader(
+        ReadOnlySpan<JpxCodeBlock> includedBlocks = _headerParser.ParsePacketHeader(
             ref bitReader,
             packet.Layer,
             packet.Resolution,
@@ -58,51 +63,21 @@ internal sealed class JpxPacketCodeBlockParser
             packet.PrecinctX,
             packet.PrecinctY);
 
-        if (!headerInfo.IsEmpty)
-        {
-            // Snapshot per-layer transient values before body parsing overwrites them in future layers
-            JpxCodeBlock[] layerBlocks = headerInfo.CodeBlocks;
-            var layerDataLengths = new int[layerBlocks.Length];
-            var layerPasses = new int[layerBlocks.Length];
-
-            for (int i = 0; i < layerBlocks.Length; i++)
-            {
-                layerDataLengths[i] = layerBlocks[i].DataLength;
-                layerPasses[i] = layerBlocks[i].LayerCodingPasses;
-            }
-
-            // Parse packet body — appends this layer's data to persistent code-blocks
-            ParsePacketBody(ref bitReader, layerBlocks);
-
-            // Create independent snapshot code-blocks for this packet
-            var codeBlocks = new JpxCodeBlock[layerBlocks.Length];
-            for (int i = 0; i < layerBlocks.Length; i++)
-            {
-                codeBlocks[i] = layerBlocks[i].CreateLayerSnapshot(layerDataLengths[i], layerPasses[i]);
-            }
-
-            packet.CodeBlocks = codeBlocks;
-        }
-        else
-        {
-            packet.CodeBlocks = Array.Empty<JpxCodeBlock>();
-        }
+        ParsePacketBody(ref bitReader, includedBlocks);
     }
 
     /// <summary>
     /// Parses the packet body to read and append raw code-block data.
     /// Per ITU-T T.800 B.10.7, code-block data immediately follows the packet header
-    /// (after byte alignment) in the order code-blocks appeared in the header.
+    /// in the order code-blocks appeared in the header; the header parser leaves the
+    /// reader byte-aligned at the start of the body.
     /// Data is appended to the persistent code-block objects via <see cref="JpxCodeBlock.AppendLayer"/>.
     /// </summary>
-    private static void ParsePacketBody(ref JpxBitReader bitReader, JpxCodeBlock[] headerCodeBlocks)
+    private static void ParsePacketBody(ref JpxBitReader bitReader, in ReadOnlySpan<JpxCodeBlock> includedBlocks)
     {
-        // Align to byte boundary before reading code-block data
-        bitReader.ByteAlign();
-
-        for (int i = 0; i < headerCodeBlocks.Length; i++)
+        for (int i = 0; i < includedBlocks.Length; i++)
         {
-            JpxCodeBlock block = headerCodeBlocks[i];
+            JpxCodeBlock block = includedBlocks[i];
             int dataLength = block.DataLength;
 
             if (dataLength > 0 && bitReader.Remaining >= dataLength)

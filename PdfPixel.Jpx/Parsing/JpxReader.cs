@@ -390,7 +390,7 @@ public static class JpxReader
         };
 
         // Parse precinct size parameters only if explicitly present (JPEG2000 spec: Scod bit 0)
-        int remainingBytes = segmentLength - 2 - 12; // 2 for length, 12 for fixed parameters
+        int remainingBytes = segmentLength - 2 - 10; // 2 for length, 10 for Scod, SGcod and SPcod
         bool hasPrecinctSizes = (codingStyle.Style & 0x01) != 0; // Check bit 0 of Scod
 
         if (hasPrecinctSizes && remainingBytes > 0)

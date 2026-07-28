@@ -1,4 +1,4 @@
-using PdfPixel.Jpx.Model;
+using System;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -18,5 +18,5 @@ internal interface IJpxInverseDwt
     /// The finest decomposition level to skip. 0 means full reconstruction;
     /// higher values produce smaller output (each increment halves both dimensions).
     /// </param>
-    void Transform(JpxSubbandData subbands, int[] destination, int stopAtLevel = 0);
+    void Transform(JpxSubbandData subbands, in Span<int> destination, int stopAtLevel = 0);
 }

@@ -12,6 +12,23 @@ internal static class JpxPacketEnumerationHelper
     /// <summary>
     /// Calculates the width of a tile based on SIZ marker information.
     /// </summary>
+    /// <summary>
+    /// Computes the tile's bounds on the reference grid. The subband, precinct, and code-block
+    /// partitions inside a tile are anchored at the reference grid's origin rather than at the
+    /// tile, so consumers need the tile's position and not only its size.
+    /// </summary>
+    public static JpxRectangle CalculateTileBounds(JpxHeader header, JpxTileHeader tileHeader)
+    {
+        int tileX0 = tileHeader.TileX * (int)header.TileWidth;
+        int tileY0 = tileHeader.TileY * (int)header.TileHeight;
+
+        return new JpxRectangle(
+            tileX0,
+            tileY0,
+            Math.Min((int)header.TileWidth, (int)header.Width - tileX0),
+            Math.Min((int)header.TileHeight, (int)header.Height - tileY0));
+    }
+
     public static int CalculateTileWidth(JpxHeader header, JpxTileHeader tileHeader)
     {
         // Use proper SIZ marker information from header

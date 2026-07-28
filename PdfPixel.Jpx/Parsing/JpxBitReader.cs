@@ -110,9 +110,26 @@ internal ref struct JpxBitReader
 
     /// <summary>
     /// Aligns to the next byte boundary by discarding any remaining bits in the current byte.
+    /// When the last byte read is 0xFF, the byte that follows carries a stuffing bit in its
+    /// most significant position and belongs to the bit-stuffed run rather than to whatever
+    /// starts at the boundary, so it is discarded as well (ITU-T T.800 B.10.1).
     /// </summary>
     public void ByteAlign()
     {
+        if (_currentByte == 0xFF)
+        {
+            if (_remaining > 0)
+            {
+                _pos++;
+                _remaining--;
+            }
+
+            _bitsConsumed += _bitsLeft + 8;
+            _bitsLeft = 0;
+            _currentByte = 0;
+            return;
+        }
+
         if (_bitsLeft > 0)
         {
             _bitsConsumed += _bitsLeft;
