@@ -15,6 +15,16 @@ namespace PdfPixel.Jpx.Parsing;
 /// </remarks>
 internal static class JpxBandGeometry
 {
+    // TODO: [HIGH] Take the component's subsampling into account. Per ITU-T T.800 B.5 every grid
+    // below the tile is derived from the tile-component bounds, tcx0 = ceil(tx0 / XRsiz), but
+    // these helpers are handed reference-grid coordinates directly and so compute the geometry of
+    // a component with XRsiz or YRsiz above 1 as though it were sampled at the full rate. That
+    // gives its subbands the wrong bounds and its samples decode to noise. Fixing it means
+    // threading the component through here, through JpxPrecinctState and JpxPacketHeaderParser,
+    // sizing each component's tile buffer to its own sample count, and stretching the samples
+    // back over the reference grid in JpxTileToRowConverter.
+    // Covered by the failing baboon-subsample-uniform and baboon-subsample-chroma corpus files.
+
     /// <summary>
     /// Returns the start of the resolution grid containing the reference-grid coordinate
     /// <paramref name="tileCoordinate"/> reduced by <paramref name="levels"/> decomposition levels.

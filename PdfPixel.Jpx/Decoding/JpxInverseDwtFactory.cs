@@ -32,6 +32,10 @@ internal static class JpxInverseDwtFactory
             throw new InvalidOperationException("Quantization is not defined.");
         }
 
+        // TODO: [HIGH] Use the component's QCC override when it has one. This always takes the
+        // main header's QCD, so a component given its own step sizes is dequantized with the
+        // wrong ones. JpxHeader.ComponentQuantizations is parsed but never read. The same
+        // applies to the transform, which a COC override can change per component.
         if (header.CodingStyle.IsReversibleTransform)
         {
             return new JpxInverseDwt53(header.Quantization);

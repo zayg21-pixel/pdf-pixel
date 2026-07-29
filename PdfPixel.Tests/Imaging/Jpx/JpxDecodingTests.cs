@@ -23,11 +23,9 @@ public class JpxDecodingTests
     private const string DecodedFolder = "jpx/decoded";
 
     /// <summary>
-    /// Largest per-channel difference from the golden image that still counts as a match.
-    /// The reversible 5-3 path is exact and the irreversible 9-7 path differs only by the
-    /// rounding of its floating-point lifting steps.
+    /// Bytes per pixel of the buffers compared, which hold straight RGBA.
     /// </summary>
-    private const int MaximumChannelDifference = 2;
+    private const int BytesPerPixel = 4;
 
     private readonly ITestOutputHelper _output;
 
@@ -110,6 +108,18 @@ public class JpxDecodingTests
     public void ComponentTransform_DecodesCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
 
     /// <summary>
+    /// A subsampled component covers the reference grid in steps larger than one sample, so it
+    /// carries fewer samples than the image has pixels and has to be stretched back over the
+    /// grid on output. The uniform case subsamples every component alike, which makes the
+    /// reference grid larger than any component; the chroma case leaves the first component at
+    /// full rate and halves the other two.
+    /// </summary>
+    [Theory]
+    [InlineData("baboon-subsample-uniform.j2k")]
+    [InlineData("baboon-subsample-chroma.j2k")]
+    public void SubsampledComponents_DecodeCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
+
+    /// <summary>
     /// The COD code-block style bits change how the arithmetic coder is driven within a
     /// code-block.
     /// </summary>
@@ -137,15 +147,42 @@ public class JpxDecodingTests
         Assert.Equal(goldenBitmap.Width, decoded.Width);
         Assert.Equal(goldenBitmap.Height, decoded.Height);
 
-        (int maximumDifference, double meanDifference, int differingPixels) = Compare(decoded, goldenBitmap);
+        if (Matches(decoded, goldenBitmap))
+        {
+            return;
+        }
 
-        _output.WriteLine(
-            $"Difference from golden: max {maximumDifference}, mean {meanDifference:F4}, {differingPixels} pixel(s) differ.");
+        // Only a mismatch pays for measuring how far off the samples are.
+        (int maximumDifference, double meanDifference, int differingPixels) = Measure(decoded, goldenBitmap);
 
-        Assert.True(
-            maximumDifference <= MaximumChannelDifference,
-            $"File '{fileName}' differs from its golden image by up to {maximumDifference} per channel "
-                + $"(allowed: {MaximumChannelDifference}). Inspect {decodedPath} against {goldenPath}.");
+        Assert.Fail(
+            $"File '{fileName}' does not decode to its golden image: up to {maximumDifference} per channel, "
+                + $"mean {meanDifference:F4} over {differingPixels} differing pixel(s). "
+                + $"Inspect {decodedPath} against {goldenPath}.");
+    }
+
+    /// <summary>
+    /// Whether every sample of the decode equals the golden image. Both buffers hold straight
+    /// RGBA, so the rows compare directly.
+    /// </summary>
+    private static bool Matches(DecodedImage decoded, SKBitmap golden)
+    {
+        ReadOnlySpan<byte> goldenPixels = golden.GetPixelSpan();
+        ReadOnlySpan<byte> decodedPixels = decoded.Pixels;
+        int rowBytes = decoded.Width * BytesPerPixel;
+
+        for (int y = 0; y < decoded.Height; y++)
+        {
+            ReadOnlySpan<byte> goldenRow = goldenPixels.Slice(y * golden.RowBytes, rowBytes);
+            ReadOnlySpan<byte> decodedRow = decodedPixels.Slice(y * rowBytes, rowBytes);
+
+            if (!decodedRow.SequenceEqual(goldenRow))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -176,12 +213,13 @@ public class JpxDecodingTests
     }
 
     /// <summary>
-    /// Compares the decoded samples against the golden image, returning the largest and mean
-    /// per-channel difference and how many pixels differ at all.
+    /// Measures how far a mismatching decode is from the golden image, for the failure message.
+    /// The alpha byte is left out, since every sample it compares is opaque.
     /// </summary>
-    private static (int MaximumDifference, double MeanDifference, int DifferingPixels) Compare(DecodedImage decoded, SKBitmap golden)
+    private static (int MaximumDifference, double MeanDifference, int DifferingPixels) Measure(DecodedImage decoded, SKBitmap golden)
     {
         ReadOnlySpan<byte> goldenPixels = golden.GetPixelSpan();
+        ReadOnlySpan<byte> decodedPixels = decoded.Pixels;
 
         int maximumDifference = 0;
         long totalDifference = 0;
@@ -189,14 +227,17 @@ public class JpxDecodingTests
 
         for (int y = 0; y < decoded.Height; y++)
         {
+            int goldenRow = y * golden.RowBytes;
+            int decodedRow = y * decoded.Width * BytesPerPixel;
+
             for (int x = 0; x < decoded.Width; x++)
             {
-                int goldenOffset = ((y * golden.Width) + x) * 4;
-                int decodedOffset = ((y * decoded.Width) + x) * 3;
+                int goldenOffset = goldenRow + (x * BytesPerPixel);
+                int decodedOffset = decodedRow + (x * BytesPerPixel);
 
-                int redDifference = Math.Abs(decoded.Samples[decodedOffset] - goldenPixels[goldenOffset]);
-                int greenDifference = Math.Abs(decoded.Samples[decodedOffset + 1] - goldenPixels[goldenOffset + 1]);
-                int blueDifference = Math.Abs(decoded.Samples[decodedOffset + 2] - goldenPixels[goldenOffset + 2]);
+                int redDifference = Math.Abs(decodedPixels[decodedOffset] - goldenPixels[goldenOffset]);
+                int greenDifference = Math.Abs(decodedPixels[decodedOffset + 1] - goldenPixels[goldenOffset + 1]);
+                int blueDifference = Math.Abs(decodedPixels[decodedOffset + 2] - goldenPixels[goldenOffset + 2]);
 
                 int pixelMaximum = Math.Max(redDifference, Math.Max(greenDifference, blueDifference));
 
@@ -210,7 +251,7 @@ public class JpxDecodingTests
             }
         }
 
-        double meanDifference = (double)totalDifference / (decoded.Width * decoded.Height * 3);
+        double meanDifference = (double)totalDifference / ((long)decoded.Width * decoded.Height * 3);
 
         return (maximumDifference, meanDifference, differingPixels);
     }
@@ -249,19 +290,8 @@ public class JpxDecodingTests
         string decodedPath = Path.GetFullPath(Path.Combine(DecodedFolder, Path.ChangeExtension(fileName, ".png")));
 
         SKImageInfo info = new(decoded.Width, decoded.Height, SKColorType.Rgba8888, SKAlphaType.Opaque);
-        using SKBitmap bitmap = new(info);
 
-        SKColor[] pixels = new SKColor[decoded.Width * decoded.Height];
-
-        for (int i = 0; i < pixels.Length; i++)
-        {
-            int offset = i * 3;
-            pixels[i] = new SKColor(decoded.Samples[offset], decoded.Samples[offset + 1], decoded.Samples[offset + 2]);
-        }
-
-        bitmap.Pixels = pixels;
-
-        using SKImage image = SKImage.FromBitmap(bitmap);
+        using SKImage image = SKImage.FromPixelCopy(info, decoded.Pixels);
         using SKData data = image.Encode(SKEncodedImageFormat.Png, 100);
         using FileStream output = File.Create(decodedPath);
         data.SaveTo(output);
@@ -295,7 +325,7 @@ public class JpxDecodingTests
 
         int rowBytes = ((converter.Width * converter.ComponentCount * converter.BitsPerComponent) + 7) / 8;
         byte[] rowBuffer = new byte[rowBytes];
-        byte[] samples = new byte[converter.Width * converter.Height * 3];
+        byte[] pixels = new byte[converter.Width * converter.Height * BytesPerPixel];
 
         int row = 0;
 
@@ -304,18 +334,23 @@ public class JpxDecodingTests
             for (int x = 0; x < converter.Width; x++)
             {
                 int source = x * converter.ComponentCount;
-                int destination = ((row * converter.Width) + x) * 3;
+                int destination = ((row * converter.Width) + x) * BytesPerPixel;
 
-                samples[destination] = rowBuffer[source];
-                samples[destination + 1] = rowBuffer[source + 1];
-                samples[destination + 2] = rowBuffer[source + 2];
+                pixels[destination] = rowBuffer[source];
+                pixels[destination + 1] = rowBuffer[source + 1];
+                pixels[destination + 2] = rowBuffer[source + 2];
+                pixels[destination + 3] = byte.MaxValue;
             }
 
             row++;
         }
 
-        return new DecodedImage(converter.Width, converter.Height, samples);
+        return new DecodedImage(converter.Width, converter.Height, pixels);
     }
 
-    private sealed record DecodedImage(int Width, int Height, byte[] Samples);
+    /// <summary>
+    /// A decoded corpus image as straight RGBA, the form both the comparison and the PNG
+    /// snapshot consume.
+    /// </summary>
+    private sealed record DecodedImage(int Width, int Height, byte[] Pixels);
 }

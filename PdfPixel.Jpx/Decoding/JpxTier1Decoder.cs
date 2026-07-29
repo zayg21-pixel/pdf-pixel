@@ -153,6 +153,12 @@ internal ref partial struct JpxTier1Decoder
     private const int OrientHH = 3;
 
     /// <summary>
+    /// Coding passes that precede the first switch to raw coding when the arithmetic coder is
+    /// bypassed: the first bit-plane's cleanup pass plus all three passes of the next three.
+    /// </summary>
+    private const int PassesBeforeArithmeticBypass = 10;
+
+    /// <summary>
     /// Precomputed significance context lookup table.
     /// Indexed by [orientation * 256 + neighborMask] where neighborMask is bits 4–11
     /// of the state word, shifted right by 4.
@@ -185,8 +191,8 @@ internal ref partial struct JpxTier1Decoder
     private readonly int _orientation;
     private readonly int _totalPasses;
     private readonly int _startBitPlane;
+    private readonly bool _arithmeticBypass;
     private readonly bool _resetContexts;
-    private readonly bool _terminateOnPass;
     private readonly bool _verticallyCausal;
     private readonly bool _segmentationSymbols;
 
@@ -221,8 +227,8 @@ internal ref partial struct JpxTier1Decoder
             throw new ArgumentNullException(nameof(codeBlock));
         }
 
+        _arithmeticBypass = codingStyle.UsesArithmeticBypass;
         _resetContexts = (codingStyle.CodeBlockStyle & 0x02) != 0;
-        _terminateOnPass = (codingStyle.CodeBlockStyle & 0x04) != 0;
         _verticallyCausal = (codingStyle.CodeBlockStyle & 0x08) != 0;
         _segmentationSymbols = (codingStyle.CodeBlockStyle & 0x20) != 0;
 
@@ -263,7 +269,7 @@ internal ref partial struct JpxTier1Decoder
     /// advancing past any empty ones. Returns false when the code-block has no segment left,
     /// which leaves the remaining passes undecoded.
     /// </summary>
-    private bool TryStartSegment(ref int segmentIndex, ref int segmentDataOffset, out int segmentPasses)
+    private bool TryStartSegment(ref int segmentIndex, ref int segmentDataOffset, bool useRawCoding, out int segmentPasses)
     {
         ReadOnlySpan<byte> codedData = _codeBlock.CodedData;
 
@@ -280,7 +286,17 @@ internal ref partial struct JpxTier1Decoder
                 continue;
             }
 
-            _mqDecoder.Restart(codedData.Slice(segmentDataOffset, available));
+            ReadOnlySpan<byte> segmentData = codedData.Slice(segmentDataOffset, available);
+
+            if (useRawCoding)
+            {
+                _mqDecoder.RestartRaw(segmentData);
+            }
+            else
+            {
+                _mqDecoder.Restart(segmentData);
+            }
+
             segmentDataOffset += available;
             segmentPasses = segment.Passes;
 
@@ -324,10 +340,17 @@ internal ref partial struct JpxTier1Decoder
                 passInSequence = (currentPass - 1) % 3;
             }
 
-            // Every codeword segment starts the arithmetic coder afresh over its own bytes.
+            // Once enough bit-planes have been coded, the bypass coding style reads the
+            // significance propagation and magnitude refinement passes as raw bits and leaves
+            // only the cleanup pass to the arithmetic coder (ITU-T T.800 D.5).
+            bool useRawCoding = _arithmeticBypass
+                && currentPass >= PassesBeforeArithmeticBypass
+                && passInSequence != 2;
+
+            // Every codeword segment restarts the coder over its own bytes.
             if (passesLeftInSegment == 0)
             {
-                if (!TryStartSegment(ref segmentIndex, ref segmentDataOffset, out passesLeftInSegment))
+                if (!TryStartSegment(ref segmentIndex, ref segmentDataOffset, useRawCoding, out passesLeftInSegment))
                 {
                     return;
                 }
@@ -360,7 +383,8 @@ internal ref partial struct JpxTier1Decoder
                                 ref stripeStatePtr,
                                 ref stripeCoeffPtr,
                                 stripeHeight,
-                                currentBitPlane);
+                                currentBitPlane,
+                                useRawCoding);
                             break;
                         }
                     case 1:
@@ -369,7 +393,8 @@ internal ref partial struct JpxTier1Decoder
                                 ref stripeStatePtr,
                                 ref stripeCoeffPtr,
                                 stripeHeight,
-                                currentBitPlane);
+                                currentBitPlane,
+                                useRawCoding);
                             break;
                         }
                     case 2:
@@ -397,12 +422,6 @@ internal ref partial struct JpxTier1Decoder
                 }
 
                 currentBitPlane--;
-            }
-
-            if (_terminateOnPass)
-            {
-                // TODO: [LOW] Implement proper MQ termination per ITU-T T.800 D.4.1 when terminate-on-pass is signalled.
-                // For now, this flag is parsed but termination handling is not yet applied.
             }
 
             if (_resetContexts)

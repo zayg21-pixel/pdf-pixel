@@ -200,6 +200,9 @@ public static class JpxReader
                         ParseChannelDefinitionBox(subBoxContent, header);
                         break;
                     }
+                // TODO: [MEDIUM] Parse the pclr and cmap boxes so palette-indexed images can be
+                // expanded to their colour components. Without them an indexed image's samples
+                // are treated as colour values rather than as palette entries.
                 default:
                     break; // Skip unrecognised child boxes
             }
@@ -323,6 +326,12 @@ public static class JpxReader
                     ParseComSegment(ref reader, header);
                     break;
                 }
+            // TODO: [HIGH] Parse and apply POC (progression order change). Skipping it leaves the
+            // packet parsers enumerating in the COD order, which desynchronises the whole tile.
+            // TODO: [HIGH] Parse PPM and PPT (packed packet headers). Skipping them leaves the
+            // headers where the packet bodies are expected, which desynchronises the whole tile.
+            // TODO: [MEDIUM] Parse and apply RGN (region of interest). Skipping it leaves the
+            // upshifted coefficients inside the region scaled wrongly.
             default:
                 {
                     // Skip unknown markers with length

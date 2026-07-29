@@ -41,6 +41,8 @@ internal ref struct JpxMqDecoder
     private int _pos;
     private byte _lastByte;     // Last byte read (for 0xFF detection in ByteIn)
     private bool _markerFound;  // Whether a marker has been encountered
+    private byte _rawByte;      // Current byte being served bit by bit in bypassed segments
+    private int _rawBitsLeft;   // Bits still unread in _rawByte
 
     // Decoder registers (ITU-T T.800 C.2, software convention)
     private uint _cRegister;   // C register (complement of code value)
@@ -77,9 +79,7 @@ internal ref struct JpxMqDecoder
     /// only the arithmetic coder and not the probability model; use <see cref="Reset"/> when the
     /// coding style asks for the contexts to be reset as well.
     /// </summary>
-#pragma warning disable RCS1231 // Make parameter ref read-only
-    public void Restart(ReadOnlySpan<byte> data)
-#pragma warning restore RCS1231 // Make parameter ref read-only
+    public void Restart(in ReadOnlySpan<byte> data)
     {
         _data = data;
         _pos = 0;
@@ -174,6 +174,54 @@ internal ref struct JpxMqDecoder
                 return 1 - mps;
             }
         }
+    }
+
+    /// <summary>
+    /// Points the decoder at a codeword segment whose passes bypass the arithmetic coder and
+    /// read their bits directly (ITU-T T.800 D.5). Only <see cref="DecodeRawBit"/> may be used
+    /// until the decoder is restarted.
+    /// </summary>
+    public void RestartRaw(in ReadOnlySpan<byte> data)
+    {
+        _data = data;
+        _pos = 0;
+        _rawByte = 0;
+        _rawBitsLeft = 0;
+    }
+
+    /// <summary>
+    /// Reads one bit from a bypassed segment, honouring the bit-stuffing that follows a 0xFF
+    /// byte by taking only seven bits from the byte after it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int DecodeRawBit()
+    {
+        if (_rawBitsLeft == 0)
+        {
+            if (_rawByte == 0xFF)
+            {
+                // A byte above 0x8F after a 0xFF is a marker, so the segment is exhausted.
+                if (PeekByte() > 0x8F)
+                {
+                    _rawByte = 0xFF;
+                    _rawBitsLeft = 8;
+                }
+                else
+                {
+                    _rawByte = ReadByte();
+                    _rawBitsLeft = 7;
+                }
+            }
+            else
+            {
+                _rawByte = ReadByte();
+                _rawBitsLeft = 8;
+            }
+        }
+
+        _rawBitsLeft--;
+
+        return (_rawByte >> _rawBitsLeft) & 1;
     }
 
     /// <summary>
@@ -293,6 +341,20 @@ internal ref struct JpxMqDecoder
         }
 
         return Unsafe.Add(ref MemoryMarshal.GetReference(_data), _pos++);
+    }
+
+    /// <summary>
+    /// Reads the next byte without consuming it, returning 0xFF past the end of the data.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly byte PeekByte()
+    {
+        if (_pos >= _data.Length)
+        {
+            return 0xFF;
+        }
+
+        return Unsafe.Add(ref MemoryMarshal.GetReference(_data), _pos);
     }
 
 

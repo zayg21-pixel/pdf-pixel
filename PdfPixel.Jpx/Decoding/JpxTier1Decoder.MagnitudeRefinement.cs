@@ -14,12 +14,17 @@ internal ref partial struct JpxTier1Decoder
     /// <param name="stripeCoeffPtr">Reference to the first coefficient of the stripe (row 0, col 0).</param>
     /// <param name="stripeHeight">Number of rows in this stripe (1–4).</param>
     /// <param name="bitPosition">Current bit-plane position.</param>
+    /// <param name="useRawCoding">
+    /// Whether this pass bypasses the arithmetic coder, reading each refinement bit directly
+    /// instead of through the context model (ITU-T T.800 D.5).
+    /// </param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ExecuteMagnitudeRefinement(
         ref uint stripeStatePtr,
         ref int stripeCoeffPtr,
         int stripeHeight,
-        int bitPosition)
+        int bitPosition,
+        bool useRawCoding)
     {
         int stateWidth = _stateWidth;
         int width = _width;
@@ -38,8 +43,17 @@ internal ref partial struct JpxTier1Decoder
                 // Only refine samples that are significant and not coded this pass
                 if ((stateVal & (FlagSignificant | FlagCoded)) == FlagSignificant)
                 {
-                    int magContext = GetMagnitudeRefinementContext(stateVal);
-                    int bit = _mqDecoder.DecodeBit(magContext + ContextMrOffset);
+                    int bit;
+
+                    if (useRawCoding)
+                    {
+                        bit = _mqDecoder.DecodeRawBit();
+                    }
+                    else
+                    {
+                        int magContext = GetMagnitudeRefinementContext(stateVal);
+                        bit = _mqDecoder.DecodeBit(magContext + ContextMrOffset);
+                    }
 
                     // Update coefficient: clear old 1/2 approx, set decoded bit + new 1/2 approx.
                     // The reset mask spans every bit above this plane, so it carries the sign

@@ -14,12 +14,17 @@ internal ref partial struct JpxTier1Decoder
     /// <param name="stripeCoeffPtr">Reference to the first coefficient of the stripe (row 0, col 0).</param>
     /// <param name="stripeHeight">Number of rows in this stripe (1–4).</param>
     /// <param name="bitPosition">Current bit-plane position.</param>
+    /// <param name="useRawCoding">
+    /// Whether this pass bypasses the arithmetic coder, reading its significance and sign bits
+    /// directly instead of through the context model (ITU-T T.800 D.5).
+    /// </param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ExecuteSignificancePropagation(
         ref uint stripeStatePtr,
         ref int stripeCoeffPtr,
         int stripeHeight,
-        int bitPosition)
+        int bitPosition,
+        bool useRawCoding)
     {
         int stateWidth = _stateWidth;
         int width = _width;
@@ -41,12 +46,20 @@ internal ref partial struct JpxTier1Decoder
 
                     if (sigContext != 0)
                     {
-                        int significant = _mqDecoder.DecodeBit(sigContext + ContextZcOffset);
+                        int significant = useRawCoding
+                            ? _mqDecoder.DecodeRawBit()
+                            : _mqDecoder.DecodeBit(sigContext + ContextZcOffset);
+
                         statePtr |= FlagCoded;
 
                         if (significant != 0)
                         {
-                            int sign = DecodeSign(ref statePtr, ignoresStripeBelow);
+                            // A bypassed pass carries the sign as a plain bit rather than
+                            // through the sign context model.
+                            int sign = useRawCoding
+                                ? _mqDecoder.DecodeRawBit()
+                                : DecodeSign(ref statePtr, ignoresStripeBelow);
+
                             SetSignificant(ref coeffPtr, ref statePtr, stateWidth, bitPosition, sign, verticallyCausal && row == 0);
                         }
                     }

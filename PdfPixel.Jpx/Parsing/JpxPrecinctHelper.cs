@@ -10,6 +10,11 @@ namespace PdfPixel.Jpx.Parsing;
 /// </summary>
 internal static class JpxPrecinctHelper
 {
+    // TODO: [HIGH] Pass the component's COC override in. Every caller leaves
+    // componentCodingStyle null, so a component whose COC segment gives it its own precinct
+    // sizes, code-block size or decomposition levels is decoded with the main header's COD
+    // instead. JpxHeader.ComponentCodingStyles is parsed but never read.
+
     /// <summary>
     /// Default precinct size exponent used when the coding style specifies no precinct sizes.
     /// </summary>
