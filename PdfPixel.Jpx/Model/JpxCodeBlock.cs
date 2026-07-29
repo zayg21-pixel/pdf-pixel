@@ -11,6 +11,18 @@ namespace PdfPixel.Jpx.Model;
 internal sealed class JpxCodeBlock
 {
     /// <summary>
+    /// Coding passes the first segment holds when the arithmetic coder is bypassed, covering
+    /// every pass of the first four bit-planes before the first switch to raw coding.
+    /// </summary>
+    private const int PassesBeforeFirstBypass = 10;
+
+    /// <summary>
+    /// Coding passes one segment holds when the coding style never terminates early, which is
+    /// more than the most bit-planes a subband can carry can produce.
+    /// </summary>
+    private const int AllPassesInOneSegment = 109;
+
+    /// <summary>
     /// Column of the code-block's first sample within its subband.
     /// </summary>
     public int SubbandX { get; set; }
@@ -60,16 +72,111 @@ internal sealed class JpxCodeBlock
     public int CodingPasses { get; set; }
 
     /// <summary>
-    /// Length of code-block data for the current layer (used during packet body parsing).
-    /// This is a transient value set by the packet header parser for each layer.
+    /// Codeword segments in codestream order. Only the first <see cref="SegmentCount"/>
+    /// entries hold data.
     /// </summary>
-    public int DataLength { get; set; }
+    private JpxCodeBlockSegment[] _segments = [];
 
     /// <summary>
-    /// Number of coding passes for the current layer (transient, used during body parsing).
-    /// After body parsing calls <see cref="AppendLayer"/>, this is added to <see cref="CodingPasses"/>.
+    /// Number of codeword segments this code-block has been split into so far.
     /// </summary>
-    public int LayerCodingPasses { get; set; }
+    public int SegmentCount { get; private set; }
+
+    /// <summary>
+    /// Index of the first segment the layer currently being parsed contributes to.
+    /// </summary>
+    public int LayerFirstSegment { get; private set; }
+
+    /// <summary>
+    /// Accesses a segment by index so its accumulated and per-layer counts can be updated in place.
+    /// </summary>
+    public ref JpxCodeBlockSegment SegmentAt(int index) => ref _segments[index];
+
+    /// <summary>
+    /// Selects the segment this layer's first coding pass belongs to, starting a new one when
+    /// the code-block has no segments yet or the last one is already full, and returns its index.
+    /// </summary>
+    public int BeginLayerSegment(JpxCodingStyle codingStyle)
+    {
+        int index;
+
+        if (SegmentCount == 0)
+        {
+            index = 0;
+            StartSegment(index, codingStyle);
+        }
+        else
+        {
+            index = SegmentCount - 1;
+
+            if (_segments[index].Passes == _segments[index].MaximumPasses)
+            {
+                index++;
+                StartSegment(index, codingStyle);
+            }
+        }
+
+        LayerFirstSegment = index;
+
+        return index;
+    }
+
+    /// <summary>
+    /// Starts the segment at <paramref name="index"/>, sizing it by the coding style's
+    /// termination rules per ITU-T T.800 D.4.
+    /// </summary>
+    public void StartSegment(int index, JpxCodingStyle codingStyle)
+    {
+        if (_segments.Length <= index)
+        {
+            int capacity = Math.Max(index + 1, Math.Max(_segments.Length * 2, 4));
+            var grown = new JpxCodeBlockSegment[capacity];
+            _segments.AsSpan(0, SegmentCount).CopyTo(grown);
+            _segments = grown;
+        }
+
+        _segments[index] = new JpxCodeBlockSegment { MaximumPasses = GetSegmentMaximumPasses(codingStyle, index) };
+
+        SegmentCount = index + 1;
+    }
+
+    /// <summary>
+    /// Commits the layer's contribution to <paramref name="index"/> once its bytes have been read.
+    /// </summary>
+    public void CommitSegment(int index)
+    {
+        ref JpxCodeBlockSegment segment = ref _segments[index];
+        segment.Length += segment.NewLength;
+        segment.Passes += segment.NewPasses;
+        CodingPasses += segment.NewPasses;
+    }
+
+    /// <summary>
+    /// Number of coding passes a segment holds. Terminating on every pass gives one pass per
+    /// segment; bypassing the arithmetic coder gives ten passes before the first switch and
+    /// then alternates between the two raw passes and the single arithmetic one.
+    /// </summary>
+    private int GetSegmentMaximumPasses(JpxCodingStyle codingStyle, int index)
+    {
+        if (codingStyle.UsesTerminationOnEachPass)
+        {
+            return 1;
+        }
+
+        if (codingStyle.UsesArithmeticBypass)
+        {
+            if (index == 0)
+            {
+                return PassesBeforeFirstBypass;
+            }
+
+            int previousMaximum = _segments[index - 1].MaximumPasses;
+
+            return (previousMaximum == 1 || previousMaximum == PassesBeforeFirstBypass) ? 2 : 1;
+        }
+
+        return AllPassesInOneSegment;
+    }
 
     /// <summary>
     /// Component this code-block belongs to.
@@ -95,12 +202,11 @@ internal sealed class JpxCodeBlock
     public int Lblock { get; set; } = 3;
 
     /// <summary>
-    /// Appends a layer's contribution to this code-block.
-    /// Copies the layer data into the internal buffer and adds coding passes to the total.
+    /// Appends one segment's bytes for the layer being parsed. Segments are stored end to end,
+    /// so each one occupies the run of <see cref="CodedData"/> that follows the previous one.
     /// </summary>
-    /// <param name="layerData">Entropy-coded data bytes from this layer.</param>
-    /// <param name="layerPasses">Number of coding passes contributed by this layer.</param>
-    public void AppendLayer(in ReadOnlySpan<byte> layerData, int layerPasses)
+    /// <param name="layerData">Entropy-coded data bytes from this segment.</param>
+    public void AppendSegmentData(in ReadOnlySpan<byte> layerData)
     {
         if (layerData.Length == 0)
         {
@@ -125,6 +231,5 @@ internal sealed class JpxCodeBlock
 
         layerData.CopyTo(Data.Span.Slice(DataOffset));
         DataOffset += layerData.Length;
-        CodingPasses += layerPasses;
     }
 }

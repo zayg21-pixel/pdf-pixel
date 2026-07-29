@@ -258,26 +258,61 @@ internal sealed class JpxPacketHeaderParser
             codeBlock.Lblock++;
         }
 
-        // Read the actual data length using Lblock + floor(log2(codingPasses))
-        int passExtraBits = 0;
-        if (codingPasses > 1)
-        {
-            passExtraBits = (int)Math.Floor(Math.Log(codingPasses, 2));
-        }
-
-        int lengthBitsCount = codeBlock.Lblock + passExtraBits;
-        int dataLength = 0;
-
-        if (lengthBitsCount > 0)
-        {
-            dataLength = (int)bitReader.ReadBits(lengthBitsCount);
-        }
-
-        // Store transient per-layer values for body parsing
-        codeBlock.DataLength = dataLength;
-        codeBlock.LayerCodingPasses = codingPasses;
+        ReadSegmentLengths(ref bitReader, codeBlock, codingPasses);
 
         return codeBlock;
+    }
+
+    /// <summary>
+    /// Distributes this layer's coding passes over the code-block's codeword segments and reads
+    /// a length for each, per ITU-T T.800 B.10.7.2. A coding style that terminates the arithmetic
+    /// coder early splits the layer's passes across several segments, and each one carries its
+    /// own length; otherwise a single segment takes them all.
+    /// </summary>
+    private void ReadSegmentLengths(ref JpxBitReader bitReader, JpxCodeBlock codeBlock, int codingPasses)
+    {
+        if (_header.CodingStyle == null)
+        {
+            throw new InvalidOperationException("Coding style is not defined.");
+        }
+
+        int segmentIndex = codeBlock.BeginLayerSegment(_header.CodingStyle);
+        int remainingPasses = codingPasses;
+
+        do
+        {
+            ref JpxCodeBlockSegment segment = ref codeBlock.SegmentAt(segmentIndex);
+            segment.NewPasses = Math.Min(segment.MaximumPasses - segment.Passes, remainingPasses);
+
+            int lengthBitsCount = codeBlock.Lblock + FloorLog2(segment.NewPasses);
+            segment.NewLength = (lengthBitsCount > 0) ? (int)bitReader.ReadBits(lengthBitsCount) : 0;
+
+            remainingPasses -= segment.NewPasses;
+
+            if (remainingPasses > 0)
+            {
+                segmentIndex++;
+                codeBlock.StartSegment(segmentIndex, _header.CodingStyle);
+            }
+        }
+        while (remainingPasses > 0);
+    }
+
+    /// <summary>
+    /// Floor of the base-2 logarithm, for the extra length bits a multi-pass segment carries.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int FloorLog2(int value)
+    {
+        int result = 0;
+
+        while (value > 1)
+        {
+            value >>= 1;
+            result++;
+        }
+
+        return result;
     }
 
     /// <summary>

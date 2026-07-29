@@ -104,6 +104,17 @@ public sealed class JpxCodingStyle
     public bool IsReversibleTransform => Transform == 1;
 
     /// <summary>
+    /// Gets a value indicating whether significance propagation and magnitude refinement
+    /// passes bypass the arithmetic coder once enough bit-planes have been coded.
+    /// </summary>
+    public bool UsesArithmeticBypass => (CodeBlockStyle & 0x01) != 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the arithmetic coder is terminated on every coding pass.
+    /// </summary>
+    public bool UsesTerminationOnEachPass => (CodeBlockStyle & 0x04) != 0;
+
+    /// <summary>
     /// Gets a value indicating whether precinct sizes are explicitly specified.
     /// </summary>
     public bool HasPrecinctSizes => PrecinctSizeExponents?.Length > 0;

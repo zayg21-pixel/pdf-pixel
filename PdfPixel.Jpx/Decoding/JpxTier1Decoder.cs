@@ -192,6 +192,7 @@ internal ref partial struct JpxTier1Decoder
 
     private readonly Span<int> _coefficients;
     private readonly Span<uint> _state;
+    private readonly JpxCodeBlock _codeBlock;
     private JpxMqDecoder _mqDecoder;
 
     /// <summary>
@@ -244,8 +245,11 @@ internal ref partial struct JpxTier1Decoder
         _coefficients = coefficients;
         _state = state.Slice(0, _stateLength);
 
-        // Initialize MQ decoder from the data accumulated across every layer
-        _mqDecoder = new JpxMqDecoder(codeBlock.CodedData);
+        _codeBlock = codeBlock;
+
+        // Each codeword segment restarts the arithmetic coder over its own bytes, so the
+        // decoder is positioned per segment rather than once over the whole code-block.
+        _mqDecoder = new JpxMqDecoder(ReadOnlySpan<byte>.Empty);
     }
 
     /// <summary>
@@ -253,6 +257,40 @@ internal ref partial struct JpxTier1Decoder
     /// carries a one-sample border on each side so neighbour lookups stay in bounds.
     /// </summary>
     public static int GetRequiredStateLength(int width, int height) => (width + 2) * (height + 2);
+
+    /// <summary>
+    /// Points the arithmetic decoder at the next codeword segment that carries coding passes,
+    /// advancing past any empty ones. Returns false when the code-block has no segment left,
+    /// which leaves the remaining passes undecoded.
+    /// </summary>
+    private bool TryStartSegment(ref int segmentIndex, ref int segmentDataOffset, out int segmentPasses)
+    {
+        ReadOnlySpan<byte> codedData = _codeBlock.CodedData;
+
+        while (segmentIndex < _codeBlock.SegmentCount)
+        {
+            JpxCodeBlockSegment segment = _codeBlock.SegmentAt(segmentIndex);
+            int available = Math.Min(segment.Length, codedData.Length - segmentDataOffset);
+
+            segmentIndex++;
+
+            if (segment.Passes <= 0 || available <= 0)
+            {
+                segmentDataOffset += Math.Max(available, 0);
+                continue;
+            }
+
+            _mqDecoder.Restart(codedData.Slice(segmentDataOffset, available));
+            segmentDataOffset += available;
+            segmentPasses = segment.Passes;
+
+            return true;
+        }
+
+        segmentPasses = 0;
+
+        return false;
+    }
 
     /// <summary>
     /// Decodes the code-block's entropy-coded data into wavelet coefficients.
@@ -267,6 +305,9 @@ internal ref partial struct JpxTier1Decoder
         int currentBitPlane = _startBitPlane;
         int currentPass = 0;
         int height = _height;
+        int segmentIndex = 0;
+        int segmentDataOffset = 0;
+        int passesLeftInSegment = 0;
 
         while (currentPass < _totalPasses)
         {
@@ -282,6 +323,17 @@ internal ref partial struct JpxTier1Decoder
                 // After the first cleanup, passes cycle: sig-prop(0), mag-ref(1), cleanup(2)
                 passInSequence = (currentPass - 1) % 3;
             }
+
+            // Every codeword segment starts the arithmetic coder afresh over its own bytes.
+            if (passesLeftInSegment == 0)
+            {
+                if (!TryStartSegment(ref segmentIndex, ref segmentDataOffset, out passesLeftInSegment))
+                {
+                    return;
+                }
+            }
+
+            passesLeftInSegment--;
 
             // Clear coded flags at the start of each bit-plane group
             if (passInSequence == 0 || currentPass == 0)

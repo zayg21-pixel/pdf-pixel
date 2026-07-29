@@ -70,20 +70,30 @@ internal sealed class JpxPacketCodeBlockParser
     /// Parses the packet body to read and append raw code-block data.
     /// Per ITU-T T.800 B.10.7, code-block data immediately follows the packet header
     /// in the order code-blocks appeared in the header; the header parser leaves the
-    /// reader byte-aligned at the start of the body.
-    /// Data is appended to the persistent code-block objects via <see cref="JpxCodeBlock.AppendLayer"/>.
+    /// reader byte-aligned at the start of the body. A code-block contributes one run of
+    /// bytes per codeword segment the layer's passes were distributed over.
     /// </summary>
     private static void ParsePacketBody(ref JpxBitReader bitReader, in ReadOnlySpan<JpxCodeBlock> includedBlocks)
     {
         for (int i = 0; i < includedBlocks.Length; i++)
         {
             JpxCodeBlock block = includedBlocks[i];
-            int dataLength = block.DataLength;
 
-            if (dataLength > 0 && bitReader.Remaining >= dataLength)
+            for (int segmentIndex = block.LayerFirstSegment; segmentIndex < block.SegmentCount; segmentIndex++)
             {
-                ReadOnlySpan<byte> layerSpan = bitReader.ReadRawSpan(dataLength);
-                block.AppendLayer(layerSpan, block.LayerCodingPasses);
+                int segmentLength = block.SegmentAt(segmentIndex).NewLength;
+
+                if (segmentLength > 0 && bitReader.Remaining < segmentLength)
+                {
+                    break;
+                }
+
+                if (segmentLength > 0)
+                {
+                    block.AppendSegmentData(bitReader.ReadRawSpan(segmentLength));
+                }
+
+                block.CommitSegment(segmentIndex);
             }
         }
     }

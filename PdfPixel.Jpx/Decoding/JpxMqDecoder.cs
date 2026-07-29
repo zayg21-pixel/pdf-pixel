@@ -37,7 +37,7 @@ internal ref struct JpxMqDecoder
     /// </summary>
     internal const int ContextCount = 19;
 
-    private readonly ReadOnlySpan<byte> _data;
+    private ReadOnlySpan<byte> _data;
     private int _pos;
     private byte _lastByte;     // Last byte read (for 0xFF detection in ByteIn)
     private bool _markerFound;  // Whether a marker has been encountered
@@ -66,20 +66,26 @@ internal ref struct JpxMqDecoder
     public JpxMqDecoder(ReadOnlySpan<byte> data)
 #pragma warning restore RCS1231 // Make parameter ref read-only
     {
+        _contexts = new byte[ContextCount];
+        Reset();
+        Restart(data);
+    }
+
+    /// <summary>
+    /// Points the decoder at a new codeword segment, running the INITDEC procedure over it
+    /// (ITU-T T.800 C.2.7). The context states carry over, because a segment boundary restarts
+    /// only the arithmetic coder and not the probability model; use <see cref="Reset"/> when the
+    /// coding style asks for the contexts to be reset as well.
+    /// </summary>
+#pragma warning disable RCS1231 // Make parameter ref read-only
+    public void Restart(ReadOnlySpan<byte> data)
+#pragma warning restore RCS1231 // Make parameter ref read-only
+    {
         _data = data;
         _pos = 0;
-        _contexts = new byte[ContextCount];
+        _markerFound = false;
+        _ctCounter = 0;
 
-        // Initialize contexts per ITU-T T.800 Table D.7
-        // Context 0 (uniform): state 46, MPS=0
-        _contexts[0] = 46;
-        // Context 1 (run-length): state 3, MPS=0
-        _contexts[1] = 3;
-        // Context 2 (first ZC): state 4, MPS=0
-        _contexts[2] = 4;
-        // All other contexts: state 0, MPS=0 (default from array init)
-
-        // INITDEC procedure (ITU-T T.800 C.2.7)
         // _aRegister stores A<<16 throughout to avoid shifting in DecodeBit.
         _aRegister = 0x8000_0000u;
         _lastByte = ReadByte();
