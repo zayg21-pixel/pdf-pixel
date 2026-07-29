@@ -66,6 +66,11 @@ public sealed class JpxTileToRowConverter
         _tileProvider = tileProvider;
         _decodingParameters = (decodingParameters.DescaleFactor >= 1) ? decodingParameters : JpxDecodingParameters.Default;
 
+        // TODO: [HIGH] Account for the reference grid origin. The image spans Xsiz - XOsiz by
+        // Ysiz - YOsiz, but these take Xsiz and Ysiz whole, so an image whose origin is away from
+        // zero comes out too large by the origin and its samples land at the wrong offset. The
+        // tile grid needs the same treatment, since a tile starts at XTOsiz + index * XTsiz.
+        // Covered by the failing baboon-offset-image and baboon-offset-tile corpus files.
         Width = _decodingParameters.ReduceDimension((int)header.Width);
         Height = _decodingParameters.ReduceDimension((int)header.Height);
 

@@ -18,6 +18,30 @@ namespace PdfPixel.Tests.Imaging.Jpx;
 /// </summary>
 public class JpxDecodingTests
 {
+    // The corpus is generated with OpenJPEG's opj_compress, which cannot produce every feature
+    // a decoder has to handle. These axes are therefore uncovered, and the gap is in the corpus
+    // rather than in the code:
+    //
+    // TODO: [HIGH] Cover COC and QCC. opj_compress has no per-component coding style or
+    // quantization options, so it never writes either segment. PdfPixel parses both and applies
+    // neither, so a file that carries them decodes that component with the main header's values.
+    // TODO: [HIGH] Cover POC. opj_compress accepts -POC but writes no marker for any spec tried,
+    // though the library itself has opj_j2k_write_poc.
+    // TODO: [HIGH] Cover PPM and PPT. opj_compress has no flag for packed packet headers.
+    // TODO: [MEDIUM] Cover RGN. opj_compress -ROI produces a codestream that opj_decompress
+    // then fails to decode, so no golden image can be produced from it.
+    // TODO: [MEDIUM] Cover the pclr and cmap boxes. opj_compress writes no palette.
+    //
+    // The ITU conformance codestreams exercise all of the above and are what OpenJPEG's own test
+    // suite runs against. They are not in the openjpeg clone: tests/conformance holds the harness
+    // and the files live in the separate openjpeg-data repository. Cloning it is the single step
+    // that unblocks every entry above.
+    //
+    // TODO: [MEDIUM] Cover component precisions other than 8 bits, grayscale and 4-component
+    // images, and signed samples. opj_compress generates all of these from raw input via -F, so
+    // only the harness is missing: Decode below rejects anything that is not 8-bit RGB, and the
+    // comparison assumes one byte per channel.
+
     private const string JpxFolder = "jpx";
     private const string GoldenFolder = "jpx/golden";
     private const string DecodedFolder = "jpx/decoded";
@@ -26,6 +50,12 @@ public class JpxDecodingTests
     /// Bytes per pixel of the buffers compared, which hold straight RGBA.
     /// </summary>
     private const int BytesPerPixel = 4;
+
+    /// <summary>
+    /// Per-channel difference allowed for the irreversible 9-7 transform, whose floating-point
+    /// lifting steps leave the last step or two of each sample to the implementation's rounding.
+    /// </summary>
+    private const int IrreversibleChannelTolerance = 2;
 
     private readonly ITestOutputHelper _output;
 
@@ -40,7 +70,27 @@ public class JpxDecodingTests
     [InlineData("baboon-tiles-256.j2k")]
     [InlineData("baboon-tiles-ragged.j2k")]
     [InlineData("baboon-tileparts-r.j2k")]
+    [InlineData("baboon-tileparts-l.j2k")]
+    [InlineData("baboon-tileparts-c.j2k")]
     public void TileGrid_DecodesCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
+
+    /// <summary>
+    /// An image or tile origin away from zero leaves the partitions below the tile, which are all
+    /// anchored at the reference grid's origin rather than the tile's, starting part way into
+    /// their first cell.
+    /// </summary>
+    [Theory]
+    [InlineData("baboon-offset-image.j2k")]
+    [InlineData("baboon-offset-tile.j2k")]
+    public void ReferenceGridOffsets_DecodeCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
+
+    /// <summary>
+    /// The length markers carry no coding information, so a decoder has to step over them
+    /// without letting them disturb what follows.
+    /// </summary>
+    [Theory]
+    [InlineData("baboon-markers-tlm-plt.j2k")]
+    public void InformationalMarkers_DecodeCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
 
     /// <summary>
     /// The number of decomposition levels sets how many times the inverse DWT runs.
@@ -108,6 +158,19 @@ public class JpxDecodingTests
     public void ComponentTransform_DecodesCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
 
     /// <summary>
+    /// The irreversible 9-7 transform, the other of the two wavelets ITU-T T.800 defines. It
+    /// reconstructs through floating-point lifting steps rather than the exact integer ones of
+    /// the reversible 5-3, so its samples are compared with a tolerance.
+    /// </summary>
+    [Theory]
+    [InlineData("baboon-irreversible.j2k")]
+    [InlineData("baboon-irreversible-tiles.j2k")]
+    [InlineData("baboon-irreversible-layers.j2k")]
+    [InlineData("baboon-irreversible-precincts.j2k")]
+    public void IrreversibleTransform_DecodesCloseToGolden(string fileName)
+        => AssertDecodesCloseToGolden(fileName, IrreversibleChannelTolerance);
+
+    /// <summary>
     /// A subsampled component covers the reference grid in steps larger than one sample, so it
     /// carries fewer samples than the image has pixels and has to be stretched back over the
     /// grid on output. The uniform case subsamples every component alike, which makes the
@@ -133,7 +196,17 @@ public class JpxDecodingTests
     [InlineData("baboon-mode-all.j2k")]
     public void CodeBlockStyle_DecodesCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
 
-    private void AssertDecodesCloseToGolden(string fileName)
+    /// <summary>
+    /// Decodes a corpus file, writes it out for inspection, and requires it to reproduce its
+    /// golden image sample for sample.
+    /// </summary>
+    /// <param name="fileName">Corpus file to decode.</param>
+    /// <param name="maximumChannelDifference">
+    /// Largest per-channel difference to accept. Zero for the reversible 5-3 transform, which is
+    /// exact; the irreversible 9-7 transform reconstructs through floating-point lifting steps,
+    /// so its samples land within a step or two of another decoder's rounding.
+    /// </param>
+    private void AssertDecodesCloseToGolden(string fileName, int maximumChannelDifference = 0)
     {
         DecodedImage decoded = Decode(fileName);
 
@@ -147,17 +220,21 @@ public class JpxDecodingTests
         Assert.Equal(goldenBitmap.Width, decoded.Width);
         Assert.Equal(goldenBitmap.Height, decoded.Height);
 
-        if (Matches(decoded, goldenBitmap))
+        if (maximumChannelDifference == 0 && Matches(decoded, goldenBitmap))
         {
             return;
         }
 
-        // Only a mismatch pays for measuring how far off the samples are.
+        // Only a decode that is not already known to match pays for measuring how far off it is.
         (int maximumDifference, double meanDifference, int differingPixels) = Measure(decoded, goldenBitmap);
 
-        Assert.Fail(
-            $"File '{fileName}' does not decode to its golden image: up to {maximumDifference} per channel, "
-                + $"mean {meanDifference:F4} over {differingPixels} differing pixel(s). "
+        _output.WriteLine(
+            $"Difference from golden: max {maximumDifference}, mean {meanDifference:F4}, {differingPixels} pixel(s) differ.");
+
+        Assert.True(
+            maximumDifference <= maximumChannelDifference,
+            $"File '{fileName}' differs from its golden image by up to {maximumDifference} per channel "
+                + $"(allowed: {maximumChannelDifference}), mean {meanDifference:F4} over {differingPixels} pixel(s). "
                 + $"Inspect {decodedPath} against {goldenPath}.");
     }
 
@@ -316,6 +393,11 @@ public class JpxDecodingTests
         JpxTileProvider provider = new(header, data.AsSpan(header.CodestreamOffset));
         JpxTileToRowConverter converter = new(header, provider);
 
+        // TODO: [MEDIUM] Accept grayscale, four-component and non-8-bit images so the corpus can
+        // cover them. Each needs mapping onto the RGBA buffer the comparison and the PNG snapshot
+        // use: a single component replicated across the three channels, the fourth component
+        // dropped or carried as alpha, and precisions above or below 8 bits scaled to a byte the
+        // same way the golden PNG's own precision is scaled.
         if (converter.BitsPerComponent != 8 || converter.ColorComponentCount != 3)
         {
             throw new NotSupportedException(
