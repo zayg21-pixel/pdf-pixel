@@ -129,7 +129,14 @@ public ref struct CcittBitReader
     }
 
     /// <summary>
-    /// Attempts to consume a 12-bit EOL marker (0x001). Returns true and advances the stream if found.
+    /// Number of bits not yet consumed, counting those still in the underlying data.
+    /// </summary>
+    private readonly int RemainingBits => ((_data.Length - _byteIndex) * 8) + _bufferedBits;
+
+    /// <summary>
+    /// Attempts to consume a 12-bit EOL marker (0x001), together with any run of fill zeros
+    /// ITU-T T.4 allows an encoder to pad it with. Returns true and advances the stream when a
+    /// marker is found, and leaves the position untouched when it is not.
     /// </summary>
     public bool TryConsumeEol()
     {
@@ -138,6 +145,27 @@ public ref struct CcittBitReader
             DropBits(12);
             return true;
         }
+
+        int saveByteIndex = _byteIndex;
+        int saveBufferedBits = _bufferedBits;
+        ulong saveBuffer = _buffer;
+
+        // Walk the run of fill zeros looking for the marker that ends it. A run reaching the end
+        // of the data is trailing padding rather than a marker, so the scan gives up there.
+        while (PeekBits(12) == 0 && RemainingBits > 12)
+        {
+            DropBits(1);
+
+            if (PeekBits(12) == 0x001)
+            {
+                DropBits(12);
+                return true;
+            }
+        }
+
+        _byteIndex = saveByteIndex;
+        _bufferedBits = saveBufferedBits;
+        _buffer = saveBuffer;
 
         return false;
     }

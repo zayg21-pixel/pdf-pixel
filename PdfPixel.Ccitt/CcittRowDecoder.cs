@@ -196,11 +196,17 @@ public sealed class CcittRowDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool DetermineLineKind(ref CcittBitReader reader)
     {
+        // An encoder may write EOL markers whether or not the image declares them, so one is
+        // consumed here when present. Only a declared EOL is required to be there.
         if (_kParameter == 0)
         {
             if (_endOfLine)
             {
                 ConsumeMandatoryEol(ref reader);
+            }
+            else
+            {
+                ConsumeEolOptional(ref reader);
             }
 
             return true;
@@ -211,6 +217,10 @@ public sealed class CcittRowDecoder
             if (_endOfLine)
             {
                 ConsumeMandatoryEol(ref reader);
+            }
+            else
+            {
+                ConsumeEolOptional(ref reader);
             }
 
             return false;
