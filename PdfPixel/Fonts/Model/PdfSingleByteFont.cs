@@ -76,9 +76,30 @@ public abstract class PdfSingleByteFont : PdfFontBase
         // Fallback to Adobe Glyph List mapping.
         PdfFontString name = Encoding.GetNameByCodeOrUndefined((byte)(uint)code);
 
-        if (AdobeGlyphList.GetMap(Encoding.BaseEncoding.ToPdfFontEncoding()).TryGetValue(name, out string? aglUnicode))
+        if (AdobeGlyphList.TryGetUnicode(Encoding.BaseEncoding.ToPdfFontEncoding(), name, out string? aglUnicode))
         {
             return aglUnicode;
+        }
+
+        // Fallback: treat the character code itself as a Unicode code point.
+        return char.ConvertFromUtf32((int)(uint)code);
+    }
+
+    /// <inheritdoc/>
+    public override string? GetRenderingUnicodeString(PdfCharacterCode code)
+    {
+        PdfFontString name = Encoding.GetNameByCodeOrUndefined((byte)(uint)code);
+
+        if (AdobeGlyphList.TryGetUnicode(Encoding.BaseEncoding.ToPdfFontEncoding(), name, out string? aglUnicode))
+        {
+            return aglUnicode;
+        }
+
+        // The glyph name didn't resolve to a Unicode value; fall back to the font's /ToUnicode CMap.
+        string? toUnicode = base.GetUnicodeString(code);
+        if (toUnicode != null)
+        {
+            return toUnicode;
         }
 
         // Fallback: treat the character code itself as a Unicode code point.

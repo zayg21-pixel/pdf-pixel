@@ -107,7 +107,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return gidByName;
         }
 
-        if (AdobeGlyphList.GetMap(encoding).TryGetValue(name, out string? unicode)
+        if (AdobeGlyphList.TryGetUnicode(encoding, name, out string? unicode)
+            && unicode != null
             && TryGetGidByUnicode(typeface, orderedCmapSubtables, unicode, out ushort gidByUnicode))
         {
             return gidByUnicode;
@@ -274,7 +275,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return code;
         }
 
-        if (AdobeGlyphList.GetMap(encoding.Value).TryGetValue(glyphName, out string? unicode)
+        if (AdobeGlyphList.TryGetUnicode(encoding.Value, glyphName, out string? unicode)
             && unicode != null
             && unicode.Length > 0)
         {

@@ -49,12 +49,8 @@ public sealed class PdfTypefaceLoader
 
     /// <summary>
     /// Decodes <paramref name="fontFileStream"/>'s sfnt font program (TrueType, or CFF-flavored
-    /// OpenType) and returns the typeface it should be loaded as. A CFF-flavored font is read as a
-    /// bare CFF font, bypassing the sfnt wrapper, in the cases where the wrapper isn't needed to make
-    /// sense of it: always for a simple font, and for a composite font only when the wrapper is
-    /// missing one of the tables ("head", "hhea", "maxp", "post") an sfnt font needs to be read as
-    /// one. A CFF program is self-contained - its own INDEX structures carry the glyph count and
-    /// outlines - so it never needs the wrapper to be complete.
+    /// OpenType) and returns the typeface it should be loaded as, unwrapping to a bare CFF typeface
+    /// when the sfnt wrapper isn't needed.
     /// </summary>
     public IPdfTypeface GetTypefaceFromSfnt(PdfObjectStream? fontFileStream)
     {
