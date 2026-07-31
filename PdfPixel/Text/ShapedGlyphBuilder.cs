@@ -131,8 +131,11 @@ internal static class ShapedGlyphBuilder
                 int? id = (info.Gid.Length > 1) ? i : null;
                 uint gid = info.Gid[i];
                 float width = info.Width[i];
-                float glyphRightAdvance = rightEdge - xCursor;
-                float advacementToEnd = isVertical ? -info.Advancement : glyphRightAdvance;
+                bool isLastGid = i == info.Gid.Length - 1;
+
+                float trailingSpacing = isLastGid ? advance : 0f;
+                float glyphRightAdvance = rightEdge - xCursor + trailingSpacing;
+                float advacementToEnd = isVertical ? -(info.Advancement + trailingSpacing) : glyphRightAdvance;
                 output.Add(new ShapedGlyph(info, id, gid, advacementToEnd, info.XScale, xCursor, y + info.Offset.Y));
                 xCursor += width;
             }
