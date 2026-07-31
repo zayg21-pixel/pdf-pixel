@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Resources;
 using PdfPixel.Fonts.Sfnt;
@@ -32,7 +33,8 @@ public class PdfSimpleFont : PdfSingleByteFont
         PdfStandardFontName? standardFontName = SubstitutionInfo.GetStandardName();
         if (standardFontName.HasValue)
         {
-            _standardFontWidths = PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, SubstitutionInfo.IsBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
+            bool isBold = SubstitutionInfo.Weight >= PdfSubstitutionInfo.BoldWeight;
+            _standardFontWidths = PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, isBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
         }
     }
 

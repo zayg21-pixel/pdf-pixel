@@ -31,6 +31,24 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
         { "Thin", 100 }
     };
 
+    // Keys ordered so a longer hint (e.g. "SemiCondensed") is matched before a shorter one it contains
+    // (e.g. "Condensed") - the single-pass loop in Parse removes each match from the name as it goes,
+    // so matching the longer hint first is what keeps the shorter one from also firing.
+    private static readonly Dictionary<string, int> WidthHints = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "UltraCondensed", 1 },
+        { "ExtraCondensed", 2 },
+        { "SemiCondensed", 4 },
+        { "Condensed", 3 },
+        { "Narrow", 3 },
+        { "SemiExpanded", 6 },
+        { "ExtraExpanded", 8 },
+        { "UltraExpanded", 9 },
+        { "Expanded", 7 },
+        { "Wide", 7 },
+        { "Normal", 5 }
+    };
+
     private static readonly HashSet<string> SlantHints = new(StringComparer.OrdinalIgnoreCase)
     {
         "Italic", "Oblique", "Kursiv", "Slanted", "Inclined", "Skewed", "Cursive"
@@ -40,15 +58,37 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
 
     private static List<string> CreateStyleHintKeys()
     {
-        List<string> keys = new(WeightHints.Count + SlantHints.Count);
+        List<string> keys = new(WeightHints.Count + WidthHints.Count + SlantHints.Count);
         keys.AddRange(WeightHints.Keys);
+        keys.AddRange(WidthHints.Keys);
         keys.AddRange(SlantHints);
         return keys;
     }
 
-    private const int NormalWeight = 400;
-    private const int BoldWeight = 700;
+    /// <summary>
+    /// The CSS/OpenType weight class (100-1000) corresponding to normal-weight text.
+    /// </summary>
+    public const int NormalWeight = 400;
+
+    /// <summary>
+    /// The CSS/OpenType weight class (100-1000) at and above which text is considered bold.
+    /// </summary>
+    public const int BoldWeight = 700;
+
+    /// <summary>
+    /// The CSS/OpenType width (stretch) class (1-9, <c>usWidthClass</c>) corresponding to normal-width text.
+    /// </summary>
+    public const int NormalWidth = 5;
+
     private const float ItalicAngleObliqueMin = 2.0f;
+
+    /// <summary>
+    /// The italic angle (in degrees, standard sign convention - see <see cref="ItalicAngle"/>) used for a font
+    /// detected as italic by name or by the <see cref="PdfFontFlags.Italic"/> descriptor flag, when no explicit
+    /// <see cref="PdfFontDescriptor.ItalicAngle"/> is available to use instead. Representative of a typical
+    /// italic/oblique slant, not measured.
+    /// </summary>
+    private const float NominalItalicAngle = 12.0f;
 
     /// <summary>
     /// The font family name after stripping style suffixes, subset prefixes (e.g., "ABCDEF+"), and the trailing "MT" suffix.
@@ -56,14 +96,27 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     public string NormalizedStem { get; }
 
     /// <summary>
-    /// <see langword="true"/> when the font name or descriptor indicates a bold weight.
+    /// The font's weight, on the CSS/OpenType weight class scale (100-1000), derived from the font name or descriptor.
     /// </summary>
-    public bool IsBold { get; }
+    public int Weight { get; }
 
     /// <summary>
-    /// <see langword="true"/> when the font name or descriptor indicates an italic or oblique slant.
+    /// The font's width (stretch), on the CSS/OpenType <c>usWidthClass</c> scale (1-9, Ultra-condensed to Ultra-expanded),
+    /// derived from the font name or descriptor.
     /// </summary>
-    public bool IsItalic { get; }
+    public int Width { get; }
+
+    /// <summary>
+    /// The font's italic angle in degrees, derived from the font name or descriptor. Zero when the font is upright,
+    /// positive for the common rightward-leaning slant. This is the opposite sign from the PDF spec's
+    /// <see cref="PdfFontDescriptor.ItalicAngle"/>, which is negative for that same slant direction.
+    /// </summary>
+    public float ItalicAngle { get; }
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="ItalicAngle"/> is non-zero.
+    /// </summary>
+    public bool IsItalic => ItalicAngle != 0f;
 
     /// <summary>
     /// Resolves <see cref="NormalizedStem"/> to a Standard 14 font family, or <see langword="null"/> if it isn't one.
@@ -76,31 +129,35 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     public PdfSubstitutionInfo()
     {
         NormalizedStem = string.Empty;
-        IsBold = false;
-        IsItalic = false;
+        Weight = NormalWeight;
+        Width = NormalWidth;
+        ItalicAngle = 0f;
     }
 
     /// <summary>
     /// Initializes a new <see cref="PdfSubstitutionInfo"/> from an explicit normalized stem and style.
     /// </summary>
     /// <param name="normalizedStem">The normalized font family stem.</param>
-    /// <param name="isBold">Whether the font is bold.</param>
-    /// <param name="isItalic">Whether the font is italic.</param>
-    public PdfSubstitutionInfo(string normalizedStem, bool isBold, bool isItalic)
+    /// <param name="weight">The font's weight, on the CSS/OpenType weight class scale (100-1000).</param>
+    /// <param name="width">The font's width (stretch), on the CSS/OpenType <c>usWidthClass</c> scale (1-9).</param>
+    /// <param name="italicAngle">The font's italic angle in degrees, or zero when upright.</param>
+    public PdfSubstitutionInfo(string normalizedStem, int weight, int width, float italicAngle)
     {
         NormalizedStem = normalizedStem;
-        IsBold = isBold;
-        IsItalic = isItalic;
+        Weight = weight;
+        Width = width;
+        ItalicAngle = italicAngle;
     }
 
     /// <summary>
     /// Initializes a new <see cref="PdfSubstitutionInfo"/> for a Standard 14 font family and style.
     /// </summary>
     /// <param name="standardFontName">The standard font family.</param>
-    /// <param name="isBold">Whether the font is bold.</param>
-    /// <param name="isItalic">Whether the font is italic.</param>
-    public PdfSubstitutionInfo(PdfStandardFontName standardFontName, bool isBold, bool isItalic)
-        : this(standardFontName.ToString(), isBold, isItalic)
+    /// <param name="weight">The font's weight, on the CSS/OpenType weight class scale (100-1000).</param>
+    /// <param name="width">The font's width (stretch), on the CSS/OpenType <c>usWidthClass</c> scale (1-9).</param>
+    /// <param name="italicAngle">The font's italic angle in degrees, or zero when upright.</param>
+    public PdfSubstitutionInfo(PdfStandardFontName standardFontName, int weight, int width, float italicAngle)
+        : this(standardFontName.ToString(), weight, width, italicAngle)
     {
     }
 
@@ -111,16 +168,16 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
 
     /// <summary>
     /// Parses a <see cref="PdfSubstitutionInfo"/> from a raw PDF font name string and an optional font descriptor.
-    /// Strips subset prefixes and style tokens from the name, then applies descriptor overrides for weight and slant.
+    /// Strips subset prefixes and style tokens from the name, then applies descriptor overrides for weight, width, and slant.
     /// </summary>
     /// <param name="rawName">The raw font name string from the PDF font dictionary (e.g., the /BaseFont value).</param>
-    /// <param name="descriptor">Optional font descriptor that may override weight and slant derived from the name.</param>
+    /// <param name="descriptor">Optional font descriptor that may override weight, width, and slant derived from the name.</param>
     /// <returns>A <see cref="PdfSubstitutionInfo"/> containing the normalized stem and resolved style.</returns>
     public static PdfSubstitutionInfo Parse(in PdfString rawName, PdfFontDescriptor? descriptor)
     {
         if (rawName.IsEmpty)
         {
-            return new PdfSubstitutionInfo(string.Empty, false, false);
+            return new PdfSubstitutionInfo(string.Empty, NormalWeight, NormalWidth, 0f);
         }
 
         string name = rawName.ToString();
@@ -137,7 +194,8 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
         }
 
         int weight = NormalWeight;
-        var isItalic = false;
+        int width = NormalWidth;
+        float italicAngle = 0f;
 
         // Single pass over pre-generated keys
         foreach (string key in StyleHintKeys)
@@ -150,9 +208,14 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
                     weight = hintWeight;
                 }
 
-                if (!isItalic && SlantHints.Contains(key))
+                if (width == NormalWidth && WidthHints.TryGetValue(key, out int hintWidth))
                 {
-                    isItalic = true;
+                    width = hintWidth;
+                }
+
+                if (italicAngle == 0f && SlantHints.Contains(key))
+                {
+                    italicAngle = NominalItalicAngle;
                 }
 
                 name = name.Remove(idx, key.Length);
@@ -186,33 +249,40 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
                 weight = descriptor.FontWeight;
             }
 
-            if ((descriptor.Flags & PdfFontFlags.Italic) != 0)
+            if (!descriptor.FontStretch.IsEmpty && WidthHints.TryGetValue(descriptor.FontStretch.ToString(), out int descriptorWidth))
             {
-                isItalic = true;
+                width = descriptorWidth;
+            }
+
+            if ((descriptor.Flags & PdfFontFlags.Italic) != 0 && italicAngle == 0f)
+            {
+                italicAngle = NominalItalicAngle;
             }
 
             if (Math.Abs(descriptor.ItalicAngle) >= ItalicAngleObliqueMin)
             {
-                isItalic = true;
+                // PDF's /ItalicAngle is negative for a rightward-leaning slant; flip to the standard sign convention.
+                italicAngle = -descriptor.ItalicAngle;
             }
         }
 
-        return new PdfSubstitutionInfo(basePart, weight >= BoldWeight, isItalic);
+        return new PdfSubstitutionInfo(basePart, weight, width, italicAngle);
     }
 
     /// <inheritdoc/>
     public bool Equals(PdfSubstitutionInfo other)
     {
         return string.Equals(NormalizedStem, other.NormalizedStem, StringComparison.OrdinalIgnoreCase)
-            && IsBold == other.IsBold
-            && IsItalic == other.IsItalic;
+            && Weight == other.Weight
+            && Width == other.Width
+            && ItalicAngle == other.ItalicAngle;
     }
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is PdfSubstitutionInfo other && Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(NormalizedStem, IsBold, IsItalic);
+    public override int GetHashCode() => HashCode.Combine(NormalizedStem, Weight, Width, ItalicAngle);
 
     /// <summary>
     /// Determines whether two <see cref="PdfSubstitutionInfo"/> values are equal.

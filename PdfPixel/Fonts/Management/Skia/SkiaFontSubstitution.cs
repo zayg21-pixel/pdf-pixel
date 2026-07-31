@@ -43,7 +43,7 @@ internal sealed class SkiaFontSubstitution
     /// <param name="unicode">The Unicode text whose first codepoint the resolved font must cover, or <see langword="null"/> to skip that check.</param>
     public SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo, string? unicode)
     {
-        SKFontStyle style = CreateFontStyle(substitutionInfo.IsBold, substitutionInfo.IsItalic);
+        SKFontStyle style = CreateFontStyle(substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.IsItalic);
 
         using SKTypeface? matchedTypeface = SKFontManager.Default.MatchFamily(substitutionInfo.NormalizedStem, style);
         if (matchedTypeface == null)
@@ -74,7 +74,7 @@ internal sealed class SkiaFontSubstitution
     public SfntPdfTypeface? ResolveByCharacter(in PdfSubstitutionInfo substitutionInfo, string unicode)
     {
         int codepoint = char.ConvertToUtf32(unicode, 0);
-        SKFontStyle style = CreateFontStyle(substitutionInfo.IsBold, substitutionInfo.IsItalic);
+        SKFontStyle style = CreateFontStyle(substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.IsItalic);
 
         using SKTypeface? matchedTypeface = SKFontManager.Default.MatchCharacter(
             substitutionInfo.NormalizedStem,
@@ -93,11 +93,10 @@ internal sealed class SkiaFontSubstitution
     public SfntPdfTypeface GetFallbackFont()
         => BuildTypeface(SKTypeface.Default) ?? throw new InvalidOperationException("Could not load Skia's default typeface.");
 
-    private static SKFontStyle CreateFontStyle(bool isBold, bool isItalic)
+    private static SKFontStyle CreateFontStyle(int weight, int width, bool isItalic)
     {
-        SKFontStyleWeight weight = isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
         SKFontStyleSlant slant = isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
-        return new SKFontStyle(weight, SKFontStyleWidth.Normal, slant);
+        return new SKFontStyle((SKFontStyleWeight)weight, (SKFontStyleWidth)width, slant);
     }
 
     private SfntPdfTypeface? BuildTypeface(SKTypeface? typeface)

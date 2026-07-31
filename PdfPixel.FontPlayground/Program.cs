@@ -11,26 +11,29 @@ internal static class Program
 {
     private static readonly Process CurrentProcess = Process.GetCurrentProcess();
 
+    private const float ItalicAngle = 12f;
+    private const float Upright = 0f;
+
     private static void Main()
     {
         (PdfSubstitutionInfo SubstitutionInfo, string Unicode, string Description)[] cases =
         [
-            (new PdfSubstitutionInfo(PdfStandardFontName.Times, false, false), "a", "Times Regular"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Times, true, false), "a", "Times Bold"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Times, false, true), "a", "Times Italic"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Times, true, true), "a", "Times BoldItalic"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, false, false), "a", "Helvetica Regular"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, true, false), "a", "Helvetica Bold"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, false, true), "a", "Helvetica Italic"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, true, true), "a", "Helvetica BoldItalic"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, false, false), "a", "Courier Regular"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, true, false), "a", "Courier Bold"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, false, true), "a", "Courier Italic"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, true, true), "a", "Courier BoldItalic"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.Symbol, false, false), "a", "Symbol"),
-            (new PdfSubstitutionInfo(PdfStandardFontName.ZapfDingbats, false, false), "a", "ZapfDingbats"),
-            (new PdfSubstitutionInfo("Verdana", false, false), "a", "non-standard14 char ('a')"),
-            (new PdfSubstitutionInfo("Courier New", false, false), char.ConvertFromUtf32(0x20000), "obscure CJK char (U+20000)")
+            (new PdfSubstitutionInfo(PdfStandardFontName.Times, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "Times Regular"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Times, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "Times Bold"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Times, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, ItalicAngle), "a", "Times Italic"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Times, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, ItalicAngle), "a", "Times BoldItalic"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "Helvetica Regular"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "Helvetica Bold"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, ItalicAngle), "a", "Helvetica Italic"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Helvetica, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, ItalicAngle), "a", "Helvetica BoldItalic"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "Courier Regular"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "Courier Bold"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, ItalicAngle), "a", "Courier Italic"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Courier, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, ItalicAngle), "a", "Courier BoldItalic"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.Symbol, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "Symbol"),
+            (new PdfSubstitutionInfo(PdfStandardFontName.ZapfDingbats, PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "ZapfDingbats"),
+            (new PdfSubstitutionInfo("Verdana", PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, Upright), "a", "non-standard14 char ('a')"),
+            (new PdfSubstitutionInfo("Courier New", PdfSubstitutionInfo.NormalWeight, PdfSubstitutionInfo.NormalWidth, Upright), char.ConvertFromUtf32(0x20000), "obscure CJK char (U+20000)")
         ];
 
         MemorySnapshot memoryBefore = MeasureMemory();

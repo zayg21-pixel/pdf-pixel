@@ -55,7 +55,7 @@ public sealed class WindowsFontProvider : IFontProvider
         {
             foreach (string candidate in candidates)
             {
-                SfntPdfTypeface? resolved = ResolveByFamilyName(new PdfSubstitutionInfo(candidate, substitutionInfo.IsBold, substitutionInfo.IsItalic), unicode);
+                SfntPdfTypeface? resolved = ResolveByFamilyName(new PdfSubstitutionInfo(candidate, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle), unicode);
 
                 if (resolved != null)
                 {
@@ -85,7 +85,7 @@ public sealed class WindowsFontProvider : IFontProvider
         }
 
 
-        SfntPdfTypeface? resolvedfallback = ResolveByFamilyName(new PdfSubstitutionInfo(_fallbackFontName, substitutionInfo.IsBold, substitutionInfo.IsItalic), unicode);
+        SfntPdfTypeface? resolvedfallback = ResolveByFamilyName(new PdfSubstitutionInfo(_fallbackFontName, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle), unicode);
         return resolvedfallback ?? _fallback;
     }
 
