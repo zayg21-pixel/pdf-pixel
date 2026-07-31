@@ -255,7 +255,7 @@ internal sealed class PdfImageTilingContext
         int tilePixelWidth,
         int bitsPerComponent,
         int componentCount,
-        Span<byte> destination)
+        in Span<byte> destination)
     {
         int startBit = tileStartPixel * componentCount * bitsPerComponent;
         int totalBits = tilePixelWidth * componentCount * bitsPerComponent;
