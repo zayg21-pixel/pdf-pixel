@@ -99,18 +99,25 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     // CodeToName for Font1 already contains base encoding vector, so, if Encoding.BaseEncoding is unknown,
                     // it will fallback to correct CodeToName
-                    return BuildFromCffTypeface(cffTypeface);
+                    return BuildFromCffTypeface(new CffPdfTypeface(cffTypeface));
                 }
                 case PdfFontFileFormat.Type1C:
                 {
                     ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    return LoadFromCffBytes(cffBytes);
+                    PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
+                    var typeface = (CffPdfTypeface)loader.GetTypefaceFromCff(cffBytes);
+
+                    if (Encoding.BaseEncoding == PdfEncoding.Unknown)
+                    {
+                        Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
+                    }
+
+                    return BuildFromCffTypeface(typeface);
                 }
                 case PdfFontFileFormat.OpenType:
                 case PdfFontFileFormat.TrueType:
                 {
-                    Stream sfntStream = FontDescriptor.FontFileStream?.DecodeAsStream() ?? Stream.Null;
-                    return LoadFromSfntStream(sfntStream);
+                    return LoadFromSfntFont();
                 }
             }
         }
@@ -143,47 +150,16 @@ public class PdfSimpleFont : PdfSingleByteFont
     }
 
     /// <summary>
-    /// Parses raw (unwrapped) CFF font data and loads it as the font's typeface. Shared by Type1C and
-    /// CFF-flavored OpenType FontFile3 data.
-    /// </summary>
-    /// <param name="cffBytes">The raw CFF font program bytes.</param>
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
-    {
-        CffTypefaceReader cffTypefaceReader = new(Document.LoggerFactory);
-        CffTypeface? cffTypeface = cffTypefaceReader.Read(cffBytes);
-
-        if (cffTypeface == null)
-        {
-            _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
-            throw new InvalidOperationException("Failed to parse embedded CFF font data.");
-        }
-
-        if (Encoding.BaseEncoding == PdfEncoding.Unknown)
-        {
-            Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
-        }
-
-        return BuildFromCffTypeface(cffTypeface);
-    }
-
-    /// <summary>
     /// Builds the typeface and glyph-ID mapper from an already-parsed CFF typeface, merging its
     /// built-in encoding vector into <see cref="PdfSingleByteFont.Encoding"/> as a code-to-name fallback.
     /// </summary>
-    /// <param name="cffTypeface">The parsed CFF typeface.</param>
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) BuildFromCffTypeface(CffTypeface cffTypeface)
+    /// <param name="typeface">The CFF typeface.</param>
+    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) BuildFromCffTypeface(CffPdfTypeface typeface)
     {
-        if (cffTypeface.Fonts.Length == 0)
-        {
-            _logger.LogWarning("Failed to get CFF font info for font '{FontName}'", BaseFont);
-            throw new InvalidOperationException("Failed to get CFF font info for font.");
-        }
-
-        CffFont font = cffTypeface.Fonts[0];
+        CffFont font = typeface.CffTypeface.Fonts[0];
         Encoding.MergeCodeToName(font.CodeToName);
 
-        CffPdfTypeface typeface = new(cffTypeface);
-        CffByteCodeToGidMapper mapper = new(cffTypeface, typeface, Encoding);
+        CffByteCodeToGidMapper mapper = new(typeface.CffTypeface, typeface, Encoding);
 
         return (typeface, mapper, false);
     }
@@ -193,34 +169,38 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// mapper: an sfnt cmap-based mapper for TrueType outlines, or a CFF built-in-encoding-based mapper
     /// for CFF outlines.
     /// </summary>
-    /// <param name="sfntStream">Stream containing the raw sfnt font program bytes.</param>
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntStream(Stream sfntStream)
+    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntFont()
     {
-        SfntPdfTypeface typeface = new(sfntStream, Document.LoggerFactory);
+        PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
+        IPdfTypeface typeface = loader.GetTypefaceFromSfnt(FontDescriptor?.FontFileStream);
 
-        CffTypeface? cffTypeface = typeface.SfntFont.CffTypeface;
-        if (cffTypeface != null)
+        switch (typeface)
         {
-            if (Encoding.BaseEncoding == PdfEncoding.Unknown)
+            case CffPdfTypeface cffPdfTypeface:
             {
-                Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
+                if (Encoding.BaseEncoding == PdfEncoding.Unknown)
+                {
+                    Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
+                }
+
+                return BuildFromCffTypeface(cffPdfTypeface);
             }
+            case SfntPdfTypeface sfntPdfTypeface:
+            {
+                if (FontDescriptor != null && (FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfEncoding.Unknown)
+                {
+                    Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
+                }
 
-            CffFont font = cffTypeface.Fonts[0];
-            Encoding.MergeCodeToName(font.CodeToName);
+                SfntByteCodeToGidMapper mapper = new(sfntPdfTypeface, FontDescriptor?.Flags ?? default, substituted: false, Encoding);
 
-            CffByteCodeToGidMapper cffMapper = new(cffTypeface, typeface, Encoding);
-            return (typeface, cffMapper, false);
+                return (typeface, mapper, false);
+            }
+            default:
+            {
+                throw new InvalidOperationException($"Unexpected typeface type '{typeface.GetType()}' returned by {nameof(PdfTypefaceLoader)}.{nameof(PdfTypefaceLoader.GetTypefaceFromSfnt)}.");
+            }
         }
-
-        if (FontDescriptor != null && (FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfEncoding.Unknown)
-        {
-            Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
-        }
-
-        SfntByteCodeToGidMapper mapper = new(typeface, FontDescriptor?.Flags ?? default, substituted: false, Encoding);
-
-        return (typeface, mapper, false);
     }
 
     /// <summary>

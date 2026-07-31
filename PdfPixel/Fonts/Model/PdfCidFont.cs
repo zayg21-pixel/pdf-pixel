@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.Sfnt;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
-using System.IO;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -157,13 +157,14 @@ public class PdfCidFont : PdfFontBase
                 case PdfFontFileFormat.CIDFontType0C:
                 {
                     ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    return LoadFromCffBytes(cffBytes);
+                    PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
+                    return loader.GetTypefaceFromCff(cffBytes);
                 }
                 case PdfFontFileFormat.OpenType:
                 case PdfFontFileFormat.TrueType:
                 {
-                    Stream sfntStream = FontDescriptor.FontFileStream?.DecodeAsStream() ?? Stream.Null;
-                    return new SfntPdfTypeface(sfntStream, Document.LoggerFactory);
+                    PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
+                    return loader.GetTypefaceFromSfnt(FontDescriptor.FontFileStream);
                 }
             }
         }
@@ -175,25 +176,6 @@ public class PdfCidFont : PdfFontBase
 #pragma warning restore CA1031
 
         return null;
-    }
-
-    /// <summary>
-    /// Parses raw (unwrapped) CFF font data and loads it as the font's typeface. Shared by CIDFontType0C and
-    /// CFF-flavored OpenType FontFile3 data.
-    /// </summary>
-    /// <param name="cffBytes">The raw CFF font program bytes.</param>
-    private CffPdfTypeface LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
-    {
-        CffTypefaceReader cffTypefaceReader = new(Document.LoggerFactory);
-        CffTypeface? cffTypeface = cffTypefaceReader.Read(cffBytes);
-
-        if (cffTypeface == null)
-        {
-            _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
-            throw new InvalidOperationException("Failed to parse embedded CFF font data.");
-        }
-
-        return new CffPdfTypeface(cffTypeface);
     }
 
     private static float[] BuildGidWidths(IPdfTypeface typeface, int glyphCount)

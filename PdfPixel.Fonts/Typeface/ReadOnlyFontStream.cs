@@ -190,7 +190,7 @@ public sealed class ReadOnlyFontStream : Stream
     /// Reads the bytes described by <paramref name="record"/>'s range.
     /// </summary>
     /// <param name="record">The table record describing the range to read.</param>
-    internal ReadOnlyMemory<byte> GetMemory(in SfntTableRecord record) => GetMemory(record.Offset, record.Length);
+    public ReadOnlyMemory<byte> GetMemory(in SfntTableRecord record) => GetMemory(record.Offset, record.Length);
 
     /// <inheritdoc/>
     public override void SetLength(long value) => throw new NotSupportedException("ReadOnlyFontStream is read-only.");
