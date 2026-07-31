@@ -27,6 +27,7 @@ internal static class Program
     private const string GlyphNamesOutputDirectory = "GlyphNames";
     private const string Standard14WidthsOutputDirectory = "Standard14Widths";
     private const string PostGlyphOrderOutputDirectory = "PostGlyphOrder";
+    private const string StandardFontGlyphMapOutputDirectory = "StandardFontGlyphMap";
 
     private static async Task<int> Main()
     {
@@ -39,7 +40,8 @@ internal static class Program
             Cid2CodeOutputDirectory,
             GlyphNamesOutputDirectory,
             Standard14WidthsOutputDirectory,
-            PostGlyphOrderOutputDirectory
+            PostGlyphOrderOutputDirectory,
+            StandardFontGlyphMapOutputDirectory
         })
         {
             if (Directory.Exists(dir))
@@ -93,6 +95,10 @@ internal static class Program
         Console.WriteLine($"Generating post table standard glyph order to {PostGlyphOrderOutputDirectory} ...");
         string postGlyphOrderSourcePath = Path.Combine(AppContext.BaseDirectory, "Encodings", "PostGlyphOrder.txt");
         PostGlyphOrderGenerator.Generate(postGlyphOrderSourcePath, PostGlyphOrderOutputDirectory);
+
+        Console.WriteLine($"Generating standard font glyph maps to {StandardFontGlyphMapOutputDirectory} ...");
+        string standardFontGlyphMapSourceDirectory = Path.Combine(AppContext.BaseDirectory, "Encodings");
+        StandardFontGlyphMapGenerator.GenerateAll(standardFontGlyphMapSourceDirectory, StandardFontGlyphMapOutputDirectory);
 
         Console.WriteLine("Done.");
         return 0;

@@ -26,6 +26,13 @@ public class PdfCMap
     public bool HasCodeSpaceRanges => _codeSpaceRanges.Count > 0;
 
     /// <summary>
+    /// True when this CMap has at least one code-to-Unicode mapping declared via <c>bfchar</c>/<c>bfrange</c>.
+    /// A CMap parsed from a stream that declares only <c>cidchar</c>/<c>cidrange</c> entries (a code/CID
+    /// mapping mislabeled as <c>/ToUnicode</c>) has none, even though it isn't otherwise empty.
+    /// </summary>
+    public bool HasUnicodeMappings => _characterCodeToUnicode.Count > 0 || !IsRangeBucketsEmpty(_unicodeRangesByLength);
+
+    /// <summary>
     /// A read-only view of the codespace ranges declared on this CMap.
     /// </summary>
     public IReadOnlyList<CodeSpaceRange> CodeSpaceRanges => _codeSpaceRanges;

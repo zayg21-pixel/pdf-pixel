@@ -321,4 +321,42 @@ public class PdfCompositeFont : PdfFontBase
         var codePoint = (int)(uint)code;
         return (PdfCMap.IsValidCodePoint(codePoint)) ? char.ConvertFromUtf32(codePoint) : null;
     }
+
+    /// <summary>
+    /// Converts a character code to the Unicode string used to select and shape a substitute glyph.
+    /// When the descendant is a non-embedded CIDFontType2 font with an Identity CID ordering and the
+    /// /ToUnicode CMap has no genuine bfchar/bfrange entries (only cidchar/cidrange, which some
+    /// producers mislabel as /ToUnicode), resolves the CID against the built-in standard-font glyph
+    /// map instead, since such CIDs are commonly raw glyph indices of a well-known non-embedded font.
+    /// Falls back to <see cref="GetUnicodeString"/> in every other case.
+    /// </summary>
+    /// <param name="code">The character code to convert.</param>
+    /// <returns>The Unicode string to shape against, or <see langword="null"/> if none is available.</returns>
+    public override string? GetRenderingUnicodeString(PdfCharacterCode code)
+    {
+        if (ToUnicodeCMap?.HasUnicodeMappings != true
+            && TryMapCodeToCid(code, out uint cid)
+            && TryGetStandardFontGlyphUnicode(cid, out string? standardFontUnicode))
+        {
+            return standardFontUnicode;
+        }
+
+        return base.GetRenderingUnicodeString(code);
+    }
+
+    private bool TryGetStandardFontGlyphUnicode(uint cid, out string? unicode)
+    {
+        PdfCidFont? descendant = PrimaryDescendant;
+        if (descendant == null
+            || descendant.Type != PdfFontSubType.CidFontType2
+            || descendant.Typeface != null
+            || descendant.CidSystemInfo == null
+            || descendant.CidSystemInfo.Ordering != PdfTokens.IdentityKey)
+        {
+            unicode = null;
+            return false;
+        }
+
+        return StandardFontGlyphMapProvider.TryGetUnicode(descendant.BaseFont, cid, out unicode);
+    }
 }
