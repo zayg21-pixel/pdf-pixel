@@ -122,6 +122,18 @@ internal class PdfDocumentObjectCache
         return parsed;
     }
 
+    /// <summary>
+    /// Records an already-parsed object directly, updating both the object index (so later lookups
+    /// know where it lives on disk) and the materialized object cache (so it isn't re-parsed).
+    /// </summary>
+    /// <param name="obj">The already-parsed object.</param>
+    /// <param name="fileOffset">Absolute byte offset in the source file where the object header begins.</param>
+    internal void SetObject(PdfObject obj, long fileOffset)
+    {
+        ObjectIndex[obj.Reference] = PdfObjectInfo.ForUncompressed(obj.Reference, fileOffset, fromXrefStream: false);
+        _objects[obj.Reference] = obj;
+    }
+
     private PdfObject? ResolveIndexedObject(in PdfReference reference)
     {
         if (!ObjectIndex.TryGetValue(reference, out PdfObjectInfo? info))

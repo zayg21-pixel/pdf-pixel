@@ -70,7 +70,7 @@ public class PdfDocumentReader
         }
 
         IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontProvider, stream);
-        using PdfXrefLoader xrefLoader = new(document);
+        PdfXrefLoader xrefLoader = new(document);
 
         try
         {

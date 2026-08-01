@@ -153,11 +153,6 @@ public sealed class PdfObjectInfo
     public bool FromCrossReferenceStream { get; private set; }
 
     /// <summary>
-    /// True if this entry was synthesized by a fallback scanner (no valid xref data).
-    /// </summary>
-    public bool FromFallbackScan { get; internal set; }
-
-    /// <summary>
     /// Optional relative byte offset inside the decoded object stream where this compressed object's bytes start.
     /// Populated on-demand when the containing /ObjStm is first indexed.
     /// </summary>

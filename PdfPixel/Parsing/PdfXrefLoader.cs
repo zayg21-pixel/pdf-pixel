@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Models;
-using System.IO;
-using System.Text;
 using PdfPixel.Text;
 
 namespace PdfPixel.Parsing;
@@ -14,12 +12,11 @@ namespace PdfPixel.Parsing;
 /// Handles incremental updates by following the /Prev chain from the latest trailer backwards.
 /// Newest xref section is parsed first; older revisions never overwrite existing entries.
 /// </summary>
-internal sealed class PdfXrefLoader : IDisposable
+internal sealed class PdfXrefLoader
 {
     private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfXrefLoader> _logger;
     private readonly PdfTrailerParser _trailerParser;
-    private readonly BinaryReader _reader; // Reusable reader for frequent byte access.
 
     public PdfXrefLoader(IPdfDocumentInternal document)
     {
@@ -31,7 +28,6 @@ internal sealed class PdfXrefLoader : IDisposable
         _document = document;
         _logger = document.LoggerFactory.CreateLogger<PdfXrefLoader>();
         _trailerParser = new PdfTrailerParser(document);
-        _reader = new BinaryReader(document.Stream, Encoding.ASCII, leaveOpen: true);
     }
 
     /// <summary>
@@ -434,19 +430,7 @@ internal sealed class PdfXrefLoader : IDisposable
 
     #region Shared Helpers
 
-    private long LocateLastStartXref()
-    {
-        ReadOnlySpan<byte> token = PdfTokens.Startxref;
-        for (long scanIndex = _document.Stream.Length - token.Length; scanIndex >= 0; scanIndex--)
-        {
-            if (MatchSequenceAt(scanIndex, token))
-            {
-                return scanIndex;
-            }
-        }
-
-        return -1;
-    }
+    private long LocateLastStartXref() => PdfByteScanner.LocateLast(_document.Stream, PdfTokens.Startxref);
 
     private int ParseStartXrefOffset(long startxrefPos)
     {
@@ -462,44 +446,7 @@ internal sealed class PdfXrefLoader : IDisposable
         return value.AsInteger();
     }
 
-    /// <summary>
-    /// Match a byte sequence at the specified absolute file position using the underlying FileStream.
-    /// Seeks to the provided position, reads the required bytes and advances the stream; does not restore position.
-    /// </summary>
-    /// <param name="position">Absolute byte offset in the PDF file.</param>
-    /// <param name="sequence">Sequence to compare.</param>
-    /// <returns>True when the bytes at the specified position equal the sequence.</returns>
-    private bool MatchSequenceAt(long position, in ReadOnlySpan<byte> sequence)
-    {
-        if (sequence.Length == 0)
-        {
-            return true;
-        }
-
-        Stream stream = _reader.BaseStream;
-        if (position < 0)
-        {
-            return false;
-        }
-
-        if (position + sequence.Length > stream.Length)
-        {
-            return false;
-        }
-
-        stream.Position = position;
-
-        var buffer = new byte[sequence.Length];
-        int bytesRead = _reader.Read(buffer, 0, buffer.Length);
-        if (bytesRead != buffer.Length)
-        {
-            return false;
-        }
-
-        return new ReadOnlySpan<byte>(buffer).SequenceEqual(sequence);
-    }
+    private bool MatchSequenceAt(long position, in ReadOnlySpan<byte> sequence) => PdfByteScanner.MatchesAt(_document.Stream, position, sequence);
 
     #endregion
-
-    public void Dispose() => _reader.Dispose();
 }
