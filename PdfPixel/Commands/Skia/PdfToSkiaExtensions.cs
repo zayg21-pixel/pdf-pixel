@@ -92,8 +92,6 @@ internal static class PdfToSkiaExtensions
             PdfBlendMode.Color => SKBlendMode.Color,
             PdfBlendMode.Luminosity => SKBlendMode.Luminosity,
             PdfBlendMode.Compatible => SKBlendMode.SrcOver, // Default to normal
-            PdfBlendMode.MaskComposite => SKBlendMode.DstIn, // Internal-only: stencil-mask alpha application
-            PdfBlendMode.LuminosityMaskComposite => SKBlendMode.DstIn, // Internal-only: luminosity soft-mask alpha application
             _ => SKBlendMode.SrcOver // Default fallback
         };
     }

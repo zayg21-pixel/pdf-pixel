@@ -47,7 +47,16 @@ public sealed class ImageDecodingContext
     /// and with explicit compositing overrides. Used for cases such as pattern-layer masking, where the
     /// target image and the desired blend mode and fill colour differ from the original graphics state.
     /// </summary>
-    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, in PdfColor fillColor, float fillAlpha, PdfBlendMode blendMode)
+    /// <param name="source">The context to derive shared values (page, tile sizing, transfer function) from.</param>
+    /// <param name="image">The image this context resolves a color space converter for.</param>
+    /// <param name="fillColor">Fill color override.</param>
+    /// <param name="fillAlpha">Fill alpha override.</param>
+    /// <param name="blendMode">Blend mode override.</param>
+    /// <param name="isStencilMaskComposite">
+    /// True to composite via destination-in (Porter-Duff) regardless of <paramref name="blendMode"/>, for
+    /// the internal stencil-mask alpha application pass. Has no PDF spec equivalent.
+    /// </param>
+    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, in PdfColor fillColor, float fillAlpha, PdfBlendMode blendMode, bool isStencilMaskComposite)
     {
         if (source == null)
         {
@@ -67,6 +76,7 @@ public sealed class ImageDecodingContext
         FillColor = fillColor;
         FillAlpha = fillAlpha;
         BlendMode = blendMode;
+        IsStencilMaskComposite = isStencilMaskComposite;
     }
 
     /// <summary>
@@ -106,11 +116,16 @@ public sealed class ImageDecodingContext
     public float FillAlpha { get; }
 
     /// <summary>
-    /// Blend mode for paint composition. Usually the PDF content blend mode from the graphics state,
-    /// but may be <see cref="PdfBlendMode.MaskComposite"/> or <see cref="PdfBlendMode.LuminosityMaskComposite"/>
-    /// for internal stencil-mask alpha application, which has no PDF spec equivalent.
+    /// Blend mode for paint composition; the PDF content blend mode from the graphics state.
+    /// Superseded by destination-in compositing when <see cref="IsStencilMaskComposite"/> is true.
     /// </summary>
     public PdfBlendMode BlendMode { get; }
+
+    /// <summary>
+    /// True when this context is for the internal stencil-mask alpha application pass, which composites
+    /// via destination-in (Porter-Duff) regardless of <see cref="BlendMode"/>. Has no PDF spec equivalent.
+    /// </summary>
+    public bool IsStencilMaskComposite { get; }
 
     private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Page.Cache.ColorSpace.ResolveByObject(image.ColorSpaceObject, defaultComponents: -1);
 }

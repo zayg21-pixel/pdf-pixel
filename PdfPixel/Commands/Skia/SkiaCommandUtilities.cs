@@ -130,7 +130,7 @@ internal static class SkiaCommandUtilities
         return new()
         {
             Shader = shader,
-            BlendMode = context.BlendMode.ToSkiaBlendMode(),
+            BlendMode = (context.IsStencilMaskComposite) ? SKBlendMode.DstIn : context.BlendMode.ToSkiaBlendMode(),
             Color = ApplyAlpha(SKColors.White, context.FillAlpha)
         };
     }
@@ -140,7 +140,7 @@ internal static class SkiaCommandUtilities
     {
         return new()
         {
-            BlendMode = context.BlendMode.ToSkiaBlendMode(),
+            BlendMode = (context.IsStencilMaskComposite) ? SKBlendMode.DstIn : context.BlendMode.ToSkiaBlendMode(),
             Color = ApplyAlpha(SKColors.White, context.FillAlpha)
         };
     }

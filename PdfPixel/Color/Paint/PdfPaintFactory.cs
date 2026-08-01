@@ -1,3 +1,4 @@
+using PdfPixel.Color.Transform;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
 using System.Runtime.CompilerServices;
@@ -32,17 +33,12 @@ internal static class PdfPaintFactory
 
     /// <summary>
     /// Create paint for soft-mask application: composites the previously-rendered mask content onto
-    /// the layer below via destination-in compositing, adding a luminosity-to-alpha color filter for
-    /// <see cref="PdfSoftMaskSubtype.Luminosity"/> masks.
+    /// the layer below. <paramref name="subtype"/> and <paramref name="transferFunction"/> travel with
+    /// the paint as <see cref="PdfMaskPaintParameters"/>, so the Skia conversion can build the
+    /// subtype-appropriate color filter (luminosity-to-alpha, plus the transfer function) at replay time.
     /// Antialiasing is deferred to command Execute time via <see cref="PdfPixel.Commands.PdfCommandExecutionContext"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfPaint CreateSoftMaskPaint(PdfSoftMaskSubtype subtype)
-    {
-        PdfBlendMode blendMode = (subtype == PdfSoftMaskSubtype.Luminosity)
-            ? PdfBlendMode.LuminosityMaskComposite
-            : PdfBlendMode.MaskComposite;
-
-        return new PdfPaint(PdfPaintStyle.Fill).WithBlendMode(blendMode);
-    }
+    public static PdfPaint CreateSoftMaskPaint(PdfSoftMaskSubtype subtype, TransferFunctionTransform? transferFunction)
+        => new PdfPaint(PdfPaintStyle.Fill).WithMaskParameters(new PdfMaskPaintParameters(subtype, transferFunction));
 }

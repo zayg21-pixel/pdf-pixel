@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
-using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -94,8 +93,9 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
     /// <summary>
     /// Ends the drawing scope. When a soft mask is active, opens a second layer with a mask-compositing
-    /// paint (destination-in, plus a luminosity-to-alpha color filter for luminosity masks), renders the
-    /// mask content into it, then restores both layers so the mask composites onto the content.
+    /// paint (destination-in, plus the subtype-appropriate alpha conversion and transfer function -
+    /// see <see cref="PdfMaskPaintParameters"/>), renders the mask content into it, then restores both
+    /// layers so the mask composites onto the content.
     /// </summary>
     public void EndDrawContent()
     {
@@ -140,16 +140,6 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
                 : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
 
-            // Use TR from soft mask definition as external transfer function for local GS
-            if (maskGs.ExternalTransferFunction == null)
-            {
-                maskGs.ExternalTransferFunction = _softMask.TransferFunction;
-            }
-            else
-            {
-                maskGs.ExternalTransferFunction = new ChainedColorTransform(maskGs.ExternalTransferFunction, _softMask.TransferFunction);
-            }
-
             maskGs.CTM = _worldToMaskForm;
 
             PdfContentStreamRenderer contentRenderer = new(_renderer, page);
@@ -160,7 +150,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         recorder.Process(RestoreStateCommand.Instance);
 
-        PdfPaint maskPaint = PdfPaintFactory.CreateSoftMaskPaint(_softMask.Subtype);
+        PdfPaint maskPaint = PdfPaintFactory.CreateSoftMaskPaint(_softMask.Subtype, _softMask.TransferFunction);
 
         // Position the mask form
         _processor.Process(new SaveLayerCommand(_maskBounds, maskPaint));
