@@ -81,7 +81,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                 {
                     ReadOnlyMemory<byte> type1RawData = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
                     CffTypeface? cffTypeface = Type1ToCffConverter.GetCffFont(
-                        new Type1RawFontProgram(type1RawData, FontDescriptor.FontFileLength1, FontDescriptor.FontFileLength2),
+                        new Type1RawFontProgram(type1RawData, FontDescriptor.FontFileLength1, FontDescriptor.FontFileLength2, FontDescriptor.FontFileLength3),
                         Document.LoggerFactory);
 
                     if (cffTypeface == null)

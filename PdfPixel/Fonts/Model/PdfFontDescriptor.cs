@@ -138,6 +138,11 @@ public class PdfFontDescriptor
     public int FontFileLength2 { get; set; }
 
     /// <summary>
+    /// Type1 font stream segment length for the fixed-content trailer (/Length3).
+    /// </summary>
+    public int FontFileLength3 { get; set; }
+
+    /// <summary>
     /// Reference to the original dictionary this descriptor was created from.
     /// </summary>
     public PdfDictionary? Dictionary { get; private set; }
@@ -203,6 +208,7 @@ public class PdfFontDescriptor
             descriptor.FontFileStream = fontFileObject.Stream;
             descriptor.FontFileLength1 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
             descriptor.FontFileLength2 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
+            descriptor.FontFileLength3 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
         }
 
         // Parse FontBBox array

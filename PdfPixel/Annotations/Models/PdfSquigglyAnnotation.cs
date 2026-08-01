@@ -60,6 +60,11 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
     /// </remarks>
     protected override PdfRectangle GetQuadBounds(PdfPoint[] quad)
     {
+        if (quad == null)
+        {
+            throw new ArgumentNullException(nameof(quad));
+        }
+
         float baselineY = quad[0].Y;
         float amplitude = GetAmplitude(quad);
         float left = Math.Min(quad[0].X, quad[1].X);

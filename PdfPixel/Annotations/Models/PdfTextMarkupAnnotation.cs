@@ -74,6 +74,11 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
     /// </remarks>
     protected virtual PdfRectangle GetQuadBounds(PdfPoint[] quad)
     {
+        if (quad == null)
+        {
+            throw new ArgumentNullException(nameof(quad));
+        }
+
         float left = Math.Min(Math.Min(quad[0].X, quad[1].X), Math.Min(quad[2].X, quad[3].X));
         float right = Math.Max(Math.Max(quad[0].X, quad[1].X), Math.Max(quad[2].X, quad[3].X));
         float minY = Math.Min(Math.Min(quad[0].Y, quad[1].Y), Math.Min(quad[2].Y, quad[3].Y));

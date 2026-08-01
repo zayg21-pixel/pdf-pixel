@@ -65,6 +65,6 @@ internal static class Type1PfbSegmentReader
         headerBytes.CopyTo(combined, 0);
         encryptedBytes.CopyTo(combined, headerBytes.Length);
 
-        return new Type1RawFontProgram(combined, headerBytes.Length, encryptedBytes.Length);
+        return new Type1RawFontProgram(combined, headerBytes.Length, encryptedBytes.Length, length3: 0);
     }
 }

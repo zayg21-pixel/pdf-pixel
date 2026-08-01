@@ -46,6 +46,8 @@ public static class Type1ToCffConverter
             throw new InvalidDataException("Invalid Length1 for Type1 font stream (spec compliance required).");
         }
 
+        program = ResolveMissingLength2(program);
+
         if (program.Length2 <= 0 || program.Length1 + program.Length2 > program.Data.Length)
         {
             throw new InvalidDataException("Invalid Length2 for Type1 font stream (spec compliance required).");
@@ -73,7 +75,9 @@ public static class Type1ToCffConverter
         headerEvaluator.EvaluateTokens(operandStack);
 
         ReadOnlySpan<byte> encryptedSpan = program.Data.Span.Slice(program.Length1, program.Length2);
-        ReadOnlySpan<byte> decryptedSpan = Type1Decryptor.DecryptEexecBinary(encryptedSpan);
+        ReadOnlySpan<byte> decryptedSpan = (Type1Decryptor.IsAsciiHexEncoded(encryptedSpan))
+            ? Type1Decryptor.DecryptEexecAsciiHex(encryptedSpan)
+            : Type1Decryptor.DecryptEexecBinary(encryptedSpan);
 
         PostScriptEvaluator eexecEvaluator = new(decryptedSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
         eexecEvaluator.SetSystemValue(Type1FontDictionaryUtilities.FontDirectoryKey, fontDirectory);
@@ -113,7 +117,21 @@ public static class Type1ToCffConverter
 
         int delta = actualHeaderLength - program.Length1;
 
-        return new Type1RawFontProgram(program.Data, actualHeaderLength, program.Length2 - delta);
+        return new Type1RawFontProgram(program.Data, actualHeaderLength, program.Length2 - delta, program.Length3);
+    }
+
+    // Some PDF producers omit /Length2 (or leave it 0) even though the eexec-encrypted body is
+    // physically present, and /Length3 (the fixed-content trailer length) cannot be trusted either
+    private static Type1RawFontProgram ResolveMissingLength2(in Type1RawFontProgram program)
+    {
+        if (program.Length2 > 0 && program.Length1 + program.Length2 <= program.Data.Length)
+        {
+            return program;
+        }
+
+        int recoveredLength2 = program.Data.Length - program.Length1;
+
+        return new Type1RawFontProgram(program.Data, program.Length1, recoveredLength2, program.Length3);
     }
 
     private static bool EndsWithEexecSignature(in ReadOnlySpan<byte> data, int declaredHeaderLength)
