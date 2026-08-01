@@ -10,6 +10,7 @@ using SkiaSharp;
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -377,18 +378,26 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void HandleUriAction(string uriString)
     {
-        if (string.IsNullOrEmpty(uriString))
+        if (!Uri.TryCreate(uriString, UriKind.Absolute, out Uri uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             return;
         }
 
+        Task.Run(() => LaunchUri(uri));
+    }
+
+    private void LaunchUri(Uri uri)
+    {
         try
         {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = uriString,
-                    UseShellExecute = true
-                });
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = uri.AbsoluteUri,
+                UseShellExecute = true
+            };
+
+            Process.Start(startInfo);
         }
 #if DEBUG
         catch (Exception ex)
