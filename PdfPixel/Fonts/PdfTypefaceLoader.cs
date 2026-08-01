@@ -5,6 +5,7 @@ using PdfPixel.Fonts.Sfnt;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Streams;
 using System;
+using System.Buffers.Binary;
 using System.IO;
 
 namespace PdfPixel.Fonts;
@@ -31,11 +32,20 @@ public sealed class PdfTypefaceLoader
     }
 
     /// <summary>
-    /// Parses a bare (unwrapped) CFF font program - a Type1C or CIDFontType0C embedded font.
+    /// Parses a bare (unwrapped) CFF font program - a Type1C or CIDFontType0C embedded font. Some PDF
+    /// producers mislabel a full sfnt font program (TrueType, or CFF-flavored OpenType) this way; such
+    /// data is detected by its sfnt version tag and parsed as an sfnt font program instead.
     /// </summary>
     /// <param name="cffBytes">The raw CFF font program bytes.</param>
     public IPdfTypeface GetTypefaceFromCff(in ReadOnlyMemory<byte> cffBytes)
     {
+        if (LooksLikeSfnt(cffBytes.Span))
+        {
+            ReadOnlyFontStream mislabeledSfntStream = ReadOnlyFontStream.Create(new MemoryStream(cffBytes.ToArray()), leaveOpen: false);
+
+            return GetTypefaceFromSfnt(mislabeledSfntStream);
+        }
+
         CffTypefaceReader reader = new(_loggerFactory);
         CffTypeface? cffTypeface = reader.Read(cffBytes);
 
@@ -57,6 +67,11 @@ public sealed class PdfTypefaceLoader
         Stream sfntStream = fontFileStream?.DecodeAsStream() ?? Stream.Null;
         ReadOnlyFontStream stream = ReadOnlyFontStream.Create(sfntStream, leaveOpen: false);
 
+        return GetTypefaceFromSfnt(stream);
+    }
+
+    private IPdfTypeface GetTypefaceFromSfnt(ReadOnlyFontStream stream)
+    {
         SfntContainerProcessor containerProcessor = new(_loggerFactory.CreateLogger<SfntContainerProcessor>());
         SfntContainer? container = containerProcessor.Read(stream, ttcIndex: 0);
         SfntTableRecord? cffRecord = container?.FindTable(SfntTableTags.Cff);
@@ -78,5 +93,22 @@ public sealed class PdfTypefaceLoader
             && container.FindTable(SfntTableTags.Hhea) != null
             && container.FindTable(SfntTableTags.Maxp) != null
             && container.FindTable(SfntTableTags.Post) != null;
+    }
+
+    // TrueType (0x00010000), CFF-flavored OpenType ("OTTO"), older Mac TrueType ("true"), and a
+    // TrueType Collection ("ttcf") all start with one of these four-byte sfnt version tags.
+    private static bool LooksLikeSfnt(in ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length < 4)
+        {
+            return false;
+        }
+
+        uint tag = BinaryPrimitives.ReadUInt32BigEndian(bytes);
+
+        return tag == 0x00010000
+            || tag == 0x4F54544F
+            || tag == 0x74727565
+            || tag == 0x74746366;
     }
 }

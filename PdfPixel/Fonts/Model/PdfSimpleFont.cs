@@ -107,14 +107,9 @@ public class PdfSimpleFont : PdfSingleByteFont
                 {
                     ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
                     PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
-                    var typeface = (CffPdfTypeface)loader.GetTypefaceFromCff(cffBytes);
+                    IPdfTypeface typeface = loader.GetTypefaceFromCff(cffBytes);
 
-                    if (Encoding.BaseEncoding == PdfEncoding.Unknown)
-                    {
-                        Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
-                    }
-
-                    return BuildFromCffTypeface(typeface);
+                    return BuildFromTypeface(typeface);
                 }
                 case PdfFontFileFormat.OpenType:
                 case PdfFontFileFormat.TrueType:
@@ -176,6 +171,17 @@ public class PdfSimpleFont : PdfSingleByteFont
         PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
         IPdfTypeface typeface = loader.GetTypefaceFromSfnt(FontDescriptor?.FontFileStream);
 
+        return BuildFromTypeface(typeface);
+    }
+
+    /// <summary>
+    /// Builds the code-to-GID mapper matching the actual kind of typeface that was loaded: an sfnt
+    /// cmap-based mapper for TrueType outlines, or a CFF built-in-encoding-based mapper for CFF
+    /// outlines. Some fonts declare one embedded format but their font program turns out to hold the
+    /// other, so this dispatches on the typeface actually returned rather than the declared format.
+    /// </summary>
+    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) BuildFromTypeface(IPdfTypeface typeface)
+    {
         switch (typeface)
         {
             case CffPdfTypeface cffPdfTypeface:
@@ -200,7 +206,7 @@ public class PdfSimpleFont : PdfSingleByteFont
             }
             default:
             {
-                throw new InvalidOperationException($"Unexpected typeface type '{typeface.GetType()}' returned by {nameof(PdfTypefaceLoader)}.{nameof(PdfTypefaceLoader.GetTypefaceFromSfnt)}.");
+                throw new InvalidOperationException($"Unexpected typeface type '{typeface.GetType()}' returned by {nameof(PdfTypefaceLoader)}.");
             }
         }
     }
