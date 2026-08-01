@@ -137,9 +137,10 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             result = ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.MacRomanEncoding), PdfFontEncoding.MacRomanEncoding);
         }
 
-        // Some subsetted symbolic fonts ship only a platform 0 (Unicode) subtable with no named
-        // PDF encoding; its codes are used directly as raw single-byte character codes.
-        return result ?? ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.PlatformId == 0), PdfFontEncoding.Unknown);
+        // Some subsetted symbolic fonts ship only a platform 0 (Unicode) or WinAnsi-tagged (3,1)
+        // subtable with no named PDF encoding; its codes are used directly as raw single-byte
+        // character codes rather than being discarded for lack of a matching PDF encoding.
+        return result ?? ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.PlatformId == 0 || subtable.Encoding == PdfFontEncoding.WinAnsiEncoding), PdfFontEncoding.Unknown);
     }
 
     /// <summary>
