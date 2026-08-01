@@ -39,11 +39,46 @@ internal static class CommandHelpers
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float GetMinimumStrokeWidth(PdfCommandExecutionContext executionContext, PdfPaint paint)
     {
-        if (paint.Style != PdfPaintStyle.Stroke || paint.RequireStrokeStyle().LineWidth <= 0)
+        if (paint.Style != PdfPaintStyle.Stroke)
         {
             return 0f;
         }
 
+        float lineWidth = paint.RequireStrokeStyle().LineWidth;
+        if (lineWidth <= 0)
+        {
+            return 0f;
+        }
+
+        return Math.Max(lineWidth, GetOneDevicePixelInUserSpace(executionContext));
+    }
+
+    /// <summary>
+    /// Returns the stroke width to draw <paramref name="path"/> as a visible hairline instead of a
+    /// zero-area fill, when <paramref name="paint"/> is a fill and the path's bounds are zero-width
+    /// or zero-height (as produced by degenerate <c>re f</c> rectangles some PDF producers use to
+    /// draw grid lines). Zero otherwise.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float GetMinimumFillStrokeWidth(PdfCommandExecutionContext executionContext, PdfPath path, PdfPaint paint)
+    {
+        if (paint.Style != PdfPaintStyle.Fill)
+        {
+            return 0f;
+        }
+
+        PdfRectangle bounds = path.GetBounds();
+        if (bounds.Width != 0 && bounds.Height != 0)
+        {
+            return 0f;
+        }
+
+        return GetOneDevicePixelInUserSpace(executionContext);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float GetOneDevicePixelInUserSpace(PdfCommandExecutionContext executionContext)
+    {
         PdfMatrix matrix = GetScaledMatrix(executionContext);
         PdfPoint origin = matrix.MapPoint(PdfPoint.Empty);
         PdfPoint mappedX = matrix.MapPoint(new PdfPoint(1, 0));
@@ -58,9 +93,7 @@ internal static class CommandHelpers
         float normY = MathF.Sqrt((axisYx * axisYx) + (axisYy * axisYy));
         float absDeterminant = Math.Abs((axisXx * axisYy) - (axisXy * axisYx));
 
-        float minimumStrokeWidth = (absDeterminant <= 0) ? 1f : Math.Max(normX, normY) / absDeterminant;
-
-        return Math.Max(paint.RequireStrokeStyle().LineWidth, minimumStrokeWidth);
+        return (absDeterminant <= 0) ? 1f : Math.Max(normX, normY) / absDeterminant;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

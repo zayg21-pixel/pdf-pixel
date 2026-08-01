@@ -262,7 +262,17 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         using SKPaint paint = command.Paint.ToSkiaPaint();
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
         paint.IsAntialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint);
-        paint.StrokeWidth = CommandHelpers.GetMinimumStrokeWidth(_executionContext, command.Paint);
+
+        float minimumFillStrokeWidth = CommandHelpers.GetMinimumFillStrokeWidth(_executionContext, command.Path, command.Paint);
+        if (minimumFillStrokeWidth > 0)
+        {
+            paint.Style = SKPaintStyle.Stroke;
+            paint.StrokeWidth = minimumFillStrokeWidth;
+        }
+        else
+        {
+            paint.StrokeWidth = CommandHelpers.GetMinimumStrokeWidth(_executionContext, command.Paint);
+        }
 
         _canvas.DrawPath(path, paint);
     }
