@@ -72,6 +72,11 @@ internal class PdfObjectParser
         if (parsedObject.Reference.ObjectNumber != info.Reference.ObjectNumber
             || parsedObject.Reference.Generation != info.Reference.Generation)
         {
+            _logger.LogWarning(
+                "Xref offset {Offset} for {ExpectedReference} actually contains {ActualReference}; treating the xref entry as invalid.",
+                info.Offset,
+                info.Reference,
+                parsedObject.Reference);
             return null;
         }
 

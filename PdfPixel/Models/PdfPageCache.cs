@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
@@ -7,7 +8,6 @@ using PdfPixel.Pattern.Utilities;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -21,6 +21,7 @@ internal sealed class PdfPageCache
 {
     private readonly IPdfPageInternal _page;
     private readonly IPdfDocumentInternal _document;
+    private readonly ILogger<PdfPageCache> _logger;
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
     private readonly PdfDictionary? _fontDictionary; // captured once
@@ -32,6 +33,7 @@ internal sealed class PdfPageCache
     {
         _page = page;
         _document = document;
+        _logger = document.LoggerFactory.CreateLogger<PdfPageCache>();
         ColorSpace = new ColorSpaceResolver(document, resources);
         _fontDictionary = resources.GetDictionary(PdfTokens.FontKey);
         _patternDictionary = resources.GetDictionary(PdfTokens.PatternKey);
@@ -63,6 +65,7 @@ internal sealed class PdfPageCache
 
         if (pageObject == null)
         {
+            _logger.LogWarning("XObject '{XObjectName}' could not be resolved.", xObjectName);
             return null;
         }
 
@@ -81,10 +84,17 @@ internal sealed class PdfPageCache
 
         if (_fontDictionary == null)
         {
+            _logger.LogWarning("Font '{FontName}' requested but the page has no /Font resources.", fontName);
             return null;
         }
 
         PdfObject? fontObject = _fontDictionary.GetObject(fontName);
+        if (fontObject == null)
+        {
+            _logger.LogWarning("Font '{FontName}' is not present in the page's /Font resources.", fontName);
+            return null;
+        }
+
         return GetFont(fontObject);
     }
 
@@ -106,12 +116,13 @@ internal sealed class PdfPageCache
         }
 
         PdfFontBase? newFont = PdfFontFactory.CreateFont(fontObject);
-        if (newFont != null)
+        if (newFont == null)
         {
-            if (fontObject.Reference.IsValid)
-            {
-                _document.ObjectCache.Fonts[fontObject.Reference] = newFont;
-            }
+            _logger.LogWarning("Font object {Reference} could not be created from its dictionary.", fontObject.Reference);
+        }
+        else if (fontObject.Reference.IsValid)
+        {
+            _document.ObjectCache.Fonts[fontObject.Reference] = newFont;
         }
 
         return newFont;
@@ -135,6 +146,7 @@ internal sealed class PdfPageCache
 
         if (_patternDictionary == null)
         {
+            _logger.LogWarning("Pattern '{PatternName}' requested but the page has no /Pattern resources.", patternName);
             return null;
         }
 
@@ -142,12 +154,17 @@ internal sealed class PdfPageCache
 
         if (patternObject == null)
         {
+            _logger.LogWarning("Pattern '{PatternName}' is not present in the page's /Pattern resources.", patternName);
             return null;
         }
 
         PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject);
 
-        if (parsedPattern != null)
+        if (parsedPattern == null)
+        {
+            _logger.LogWarning("Pattern '{PatternName}' could not be parsed.", patternName);
+        }
+        else
         {
             _patternsByName[patternName] = parsedPattern;
         }
@@ -176,6 +193,7 @@ internal sealed class PdfPageCache
 
         if (_extGStateDictionary == null)
         {
+            _logger.LogWarning("ExtGState '{GraphicsStateName}' requested but the page has no /ExtGState resources.", graphicsStateName);
             return;
         }
 
@@ -184,6 +202,7 @@ internal sealed class PdfPageCache
             PdfDictionary? gsDict = _extGStateDictionary.GetDictionary(graphicsStateName);
             if (gsDict == null)
             {
+                _logger.LogWarning("ExtGState '{GraphicsStateName}' is not present in the page's /ExtGState resources.", graphicsStateName);
                 return;
             }
 

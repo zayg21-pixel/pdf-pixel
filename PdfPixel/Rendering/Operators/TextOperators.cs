@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -43,6 +44,7 @@ internal class TextOperators : IOperatorProcessor
     private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
+    private readonly ILogger<TextOperators> _logger;
 
     public TextOperators(IPdfRenderer renderer, IPdfPageInternal page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack)
     {
@@ -50,6 +52,7 @@ internal class TextOperators : IOperatorProcessor
         _page = page;
         _processor = processor;
         _operandStack = operandStack;
+        _logger = page.Document.LoggerFactory.CreateLogger<TextOperators>();
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -375,6 +378,12 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
+        if (graphicsState.CurrentFont == null)
+        {
+            _logger.LogWarning("Skipping text show operator: no current font is set.");
+            return;
+        }
+
         PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs.ToArray(), graphicsState, graphicsState.CurrentFont);
         PdfMatrix advanceMatrix = PdfMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = PdfMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);

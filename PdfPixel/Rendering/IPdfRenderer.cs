@@ -58,5 +58,5 @@ public interface IPdfRenderer
     /// <param name="state">The current graphics state for rendering.</param>
     /// <param name="font">The font to use for rendering the text.</param>
     /// <returns>The total advancement of the text sequence.</returns>
-    PdfSize DrawTextSequence(IPdfCommandProcessor processor, ShapedGlyph[] glyphs, PdfGraphicsState state, PdfFontBase? font);
+    PdfSize DrawTextSequence(IPdfCommandProcessor processor, ShapedGlyph[] glyphs, PdfGraphicsState state, PdfFontBase font);
 }

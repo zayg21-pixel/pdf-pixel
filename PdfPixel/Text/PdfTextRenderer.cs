@@ -34,7 +34,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     /// <inheritdoc/>
-    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
         if (processor == null)
         {
@@ -46,7 +46,12 @@ public class PdfTextRenderer : IPdfTextRenderer
             throw new ArgumentNullException(nameof(state));
         }
 
-        if (font == null || glyphs.Length == 0)
+        if (font == null)
+        {
+            throw new ArgumentNullException(nameof(font));
+        }
+
+        if (glyphs.Length == 0)
         {
             return PdfSize.Empty;
         }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc.Model;
 using PdfPixel.Color.Transform;
@@ -17,9 +18,17 @@ namespace PdfPixel.Models;
 internal class PdfDocumentObjectCache
 {
     private readonly PdfObjectParser _pdfObjectParser;
+    private readonly PdfXrefRecoveryScanner _recoveryScanner;
+    private readonly ILogger<PdfDocumentObjectCache> _logger;
     private readonly Dictionary<PdfReference, PdfObject> _objects = [];
+    private bool _recoveryScanAttempted;
 
-    public PdfDocumentObjectCache(PdfObjectParser parser) => _pdfObjectParser = parser;
+    public PdfDocumentObjectCache(IPdfDocumentInternal document, PdfObjectParser parser)
+    {
+        _pdfObjectParser = parser;
+        _recoveryScanner = new PdfXrefRecoveryScanner(document);
+        _logger = document.LoggerFactory.CreateLogger<PdfDocumentObjectCache>();
+    }
 
     /// <summary>
     /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
@@ -95,17 +104,31 @@ internal class PdfDocumentObjectCache
             return existing;
         }
 
-        if (!ObjectIndex.TryGetValue(reference, out PdfObjectInfo? info))
+        PdfObject? parsed = ResolveIndexedObject(reference);
+
+        if (parsed == null && !_recoveryScanAttempted)
         {
-            return null;
+            _recoveryScanAttempted = true;
+            _logger.LogWarning("Object {Reference} could not be resolved from the xref table; running a fallback recovery scan.", reference);
+            _recoveryScanner.Scan();
+            parsed = ResolveIndexedObject(reference);
         }
 
-        PdfObject? parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
         if (parsed != null)
         {
             _objects[parsed.Reference] = parsed;
         }
 
         return parsed;
+    }
+
+    private PdfObject? ResolveIndexedObject(in PdfReference reference)
+    {
+        if (!ObjectIndex.TryGetValue(reference, out PdfObjectInfo? info))
+        {
+            return null;
+        }
+
+        return _pdfObjectParser.ParseSingleIndexedObject(info);
     }
 }

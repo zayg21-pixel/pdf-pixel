@@ -47,7 +47,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw text with positioning adjustments (if any) and return total advancement.
     /// </summary>
-    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, ShapedGlyph[] glyphs, PdfGraphicsState state, PdfFontBase? font)
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, ShapedGlyph[] glyphs, PdfGraphicsState state, PdfFontBase font)
         => _textRenderer.DrawTextSequence(processor, glyphs, state, font);
 
     /// <summary>
