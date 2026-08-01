@@ -15,6 +15,8 @@ namespace PdfPixel.Fonts.Type1;
 /// </summary>
 public static class Type1ToCffConverter
 {
+    private static ReadOnlySpan<byte> EexecSignature => "eexec"u8;
+
     /// <summary>
     /// Retrieves the CFF font data from a raw Type1 font program.
     /// </summary>
@@ -36,6 +38,8 @@ public static class Type1ToCffConverter
         Type1RawFontProgram program = isBinaryPfb
             ? Type1PfbSegmentReader.ExtractSegments(rawProgram.Data)
             : rawProgram;
+
+        program = ResolveEexecBoundary(program);
 
         if (program.Length1 <= 0 || program.Length1 > program.Data.Length)
         {
@@ -85,4 +89,66 @@ public static class Type1ToCffConverter
 
         return fontDictionary;
     }
+
+    // Some PDF producers miscount /Length1, landing a few bytes short of where the "eexec" keyword
+    // (plus its trailing whitespace) actually ends. Since eexec is a stream cipher, decrypting from
+    // the wrong offset desyncs the entire rest of the font, so the declared boundary is verified
+    // against where "eexec" is actually found and corrected if they disagree; Length2 shifts by the
+    // same amount so the two lengths still cover exactly the span they did before correction.
+    private static Type1RawFontProgram ResolveEexecBoundary(in Type1RawFontProgram program)
+    {
+        ReadOnlySpan<byte> data = program.Data.Span;
+
+        if (program.Length1 > 0 && program.Length1 <= data.Length && EndsWithEexecSignature(data, program.Length1))
+        {
+            return program;
+        }
+
+        int actualHeaderLength = FindEexecBodyStart(data, 0);
+
+        if (actualHeaderLength < 0)
+        {
+            return program;
+        }
+
+        int delta = actualHeaderLength - program.Length1;
+
+        return new Type1RawFontProgram(program.Data, actualHeaderLength, program.Length2 - delta);
+    }
+
+    private static bool EndsWithEexecSignature(in ReadOnlySpan<byte> data, int declaredHeaderLength)
+    {
+        ReadOnlySpan<byte> declaredHeader = data.Slice(0, declaredHeaderLength);
+        int windowStart = Math.Max(0, declaredHeaderLength - (2 * EexecSignature.Length));
+
+        return FindEexecBodyStart(declaredHeader, windowStart) == declaredHeaderLength;
+    }
+
+    // Locates the byte immediately following "eexec" and any whitespace after it, starting the
+    // search at startIndex. Returns -1 if the signature isn't present.
+    private static int FindEexecBodyStart(in ReadOnlySpan<byte> data, int startIndex)
+    {
+        if (startIndex >= data.Length)
+        {
+            return -1;
+        }
+
+        int index = data.Slice(startIndex).IndexOf(EexecSignature);
+
+        if (index < 0)
+        {
+            return -1;
+        }
+
+        int position = startIndex + index + EexecSignature.Length;
+
+        while (position < data.Length && IsEexecWhitespace(data[position]))
+        {
+            position++;
+        }
+
+        return position;
+    }
+
+    private static bool IsEexecWhitespace(byte value) => value == 0x20 || value == 0x09 || value == 0x0D || value == 0x0A;
 }
