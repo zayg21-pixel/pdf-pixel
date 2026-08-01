@@ -54,6 +54,11 @@ internal interface IPdfDocumentInternal : IPdfDocument
     BasePdfDecryptor? Decryptor { get; set; }
 
     /// <summary>
+    /// Gets or sets the password supplied by the caller for decrypting this document.
+    /// </summary>
+    string? Password { get; set; }
+
+    /// <summary>
     /// Gets the original PDF file stream for internal parser use (lazy object loading).
     /// </summary>
     BufferedStream Stream { get; }

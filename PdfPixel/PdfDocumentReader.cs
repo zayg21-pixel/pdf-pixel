@@ -70,6 +70,7 @@ public class PdfDocumentReader
         }
 
         IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontProvider, stream);
+        document.Password = password;
         PdfXrefLoader xrefLoader = new(document);
 
         try
@@ -99,8 +100,6 @@ public class PdfDocumentReader
 
         try
         {
-            document.Decryptor?.UpdatePassword(password ?? string.Empty);
-
             document.NamedDestinations = namedDestinationParser.ParseNamedDestinations();
             pageExtractor.ExtractPages();
 

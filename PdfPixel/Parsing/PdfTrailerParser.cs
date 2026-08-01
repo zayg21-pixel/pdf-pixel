@@ -108,5 +108,6 @@ internal sealed class PdfTrailerParser
         }
 
         _document.Decryptor = PdfDecryptorFactory.Create(parameters);
+        _document.Decryptor.UpdatePassword(_document.Password ?? string.Empty);
     }
 }

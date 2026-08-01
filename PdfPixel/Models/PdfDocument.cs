@@ -59,6 +59,8 @@ internal class PdfDocument : IPdfDocumentInternal
 
     BasePdfDecryptor? IPdfDocumentInternal.Decryptor { get; set; }
 
+    string? IPdfDocumentInternal.Password { get; set; }
+
     IFontProvider IPdfDocumentInternal.FontProvider => _fontProvider;
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;

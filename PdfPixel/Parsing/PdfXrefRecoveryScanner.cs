@@ -6,12 +6,8 @@ using PdfPixel.Text;
 namespace PdfPixel.Parsing;
 
 /// <summary>
-/// Fallback xref recovery scanner. When normal xref loading fails or produces an incomplete result,
-/// scans the entire file using PdfParser.ReadObject() to rebuild the object index from physical byte
-/// positions. Identifies the document catalog directly from object content so no trailer is needed.
-/// By the time this runs, the existing xref table is known to be untrustworthy, so entries found by
-/// the scan replace whatever PdfXrefLoader indexed; later occurrences in the file (e.g. from
-/// incremental updates) win, since the scan proceeds in physical file order.
+/// Rebuilds the object index and locates the document catalog by scanning the file directly for
+/// <c>N G obj</c> declarations. The last occurrence of a given object reference wins.
 /// </summary>
 internal sealed class PdfXrefRecoveryScanner
 {
@@ -28,10 +24,6 @@ internal sealed class PdfXrefRecoveryScanner
 
     public void Scan()
     {
-        // The decryptor must be recovered before the object-parsing loop below runs, not after --
-        // strings are decrypted at parse time (see PdfParser.String.cs), driven by whatever
-        // Decryptor is set at that moment. Recovering it first lets the single parser instance
-        // below decrypt every object's strings inline as they're read.
         RecoverDecryptor();
 
         PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: true);
@@ -49,11 +41,15 @@ internal sealed class PdfXrefRecoveryScanner
                 continue;
             }
 
+            if (_document.ObjectCache.ObjectIndex.ContainsKey(obj.Reference))
+            {
+                _logger.LogWarning("Recovery scan found object {Reference} declared more than once.", obj.Reference);
+            }
+
             _document.ObjectCache.SetObject(obj, objectStart);
             objectsFound++;
 
-            if (_document.RootObject == null
-                && obj.Dictionary?.GetName(PdfTokens.TypeKey) == PdfTokens.CatalogKey)
+            if (obj.Dictionary?.GetName(PdfTokens.TypeKey) == PdfTokens.CatalogKey)
             {
                 _document.RootObject = obj;
             }
@@ -62,14 +58,6 @@ internal sealed class PdfXrefRecoveryScanner
         _logger.LogInformation("Recovery scanner indexed {Count} object(s).", objectsFound);
     }
 
-    // The classic xref/trailer parse (PdfXrefLoader) is what normally locates /Encrypt and /ID and
-    // wires up the decryptor via PdfTrailerParser.TrySetDecryptor. When that parse fails before ever
-    // reaching the trailer keyword, the decryptor is never set, and every subsequently decoded stream
-    // is fed to its filters (e.g. Flate) still encrypted, producing errors far removed from the real
-    // cause. The trailer dictionary is always literal cleartext -- PDF encryption applies only to
-    // string and stream values inside numbered objects, never to xref/trailer structure -- so it can
-    // still be recovered by scanning for the last "trailer" keyword in the file, independent of
-    // whether the xref table around it parsed correctly.
     private void RecoverDecryptor()
     {
         if (_document.Decryptor != null)
