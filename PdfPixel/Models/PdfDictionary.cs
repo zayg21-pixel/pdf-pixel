@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -277,4 +278,32 @@ public class PdfDictionary
     /// <param name="key">The key to set.</param>
     /// <param name="value">The value to assign.</param>
     internal void Set(in PdfString key, IPdfValue value) => RawValues[key] = value;
+
+    /// <summary>
+    /// Returns a new dictionary combining this dictionary's entries with <paramref name="other"/>'s,
+    /// with entries from <paramref name="other"/> taking precedence for any key present in both.
+    /// </summary>
+    /// <param name="other">The dictionary whose entries take precedence when merging.</param>
+    /// <returns>A new merged <see cref="PdfDictionary"/>.</returns>
+    public PdfDictionary MergeWith(PdfDictionary other)
+    {
+        if (other == null)
+        {
+            throw new ArgumentNullException(nameof(other));
+        }
+
+        PdfDictionary merged = new(Document);
+
+        foreach (KeyValuePair<PdfString, IPdfValue> entry in RawValues)
+        {
+            merged.Set(entry.Key, entry.Value);
+        }
+
+        foreach (KeyValuePair<PdfString, IPdfValue> entry in other.RawValues)
+        {
+            merged.Set(entry.Key, entry.Value);
+        }
+
+        return merged;
+    }
 }
