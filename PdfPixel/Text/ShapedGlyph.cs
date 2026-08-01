@@ -13,7 +13,7 @@ public readonly struct ShapedGlyph
     public ShapedGlyph(
         PdfCharacterInfo pdfCharacterInfo,
         int? groupId,
-        uint glyphId,
+        ushort? glyphId,
         float advance,
         float scale,
         float x,
@@ -34,9 +34,9 @@ public readonly struct ShapedGlyph
     public PdfCharacterInfo CharacterInfo { get; }
 
     /// <summary>
-    /// Gets the glyph identifier.
+    /// Gets the glyph identifier, or <see langword="null"/> if none was found.
     /// </summary>
-    public uint GlyphId { get; }
+    public ushort? GlyphId { get; }
 
     /// <summary>
     /// If appears in the of multiple glyphs for a single character, indicates the group index.

@@ -43,11 +43,11 @@ public static class PdfTypefaceExtensions
 
     /// <summary>
     /// Returns the glyph ID for each Unicode codepoint in <paramref name="unicode"/>, in order.
-    /// A value of 0 indicates the typeface has no glyph for that codepoint.
+    /// A <see langword="null"/> entry indicates the typeface has no glyph for that codepoint.
     /// </summary>
     /// <param name="typeface">The typeface to look up glyphs in.</param>
     /// <param name="unicode">The unicode text to map to glyph IDs.</param>
-    public static ushort[] GetGlyphs(this IPdfTypeface typeface, string unicode)
+    public static ushort?[] GetGlyphs(this IPdfTypeface typeface, string unicode)
     {
         if (typeface == null)
         {
@@ -59,13 +59,13 @@ public static class PdfTypefaceExtensions
             throw new ArgumentNullException(nameof(unicode));
         }
 
-        List<ushort> gids = [];
+        List<ushort?> gids = [];
         int index = 0;
         while (index < unicode.Length)
         {
             int codepointLength = (char.IsSurrogatePair(unicode, index)) ? 2 : 1;
             string character = unicode.Substring(index, codepointLength);
-            gids.Add(typeface.GetGid(character) ?? 0);
+            gids.Add(typeface.GetGid(character));
             index += codepointLength;
         }
 
@@ -105,10 +105,11 @@ public static class PdfTypefaceExtensions
 
     /// <summary>
     /// Returns the advance width, in em-relative units, for each glyph ID in <paramref name="gids"/>, in order.
+    /// A <see langword="null"/> entry contributes a width of 0.
     /// </summary>
     /// <param name="typeface">The typeface to look up widths in.</param>
     /// <param name="gids">The glyph IDs to measure.</param>
-    public static float[] GetWidths(this IPdfTypeface typeface, ushort[] gids)
+    public static float[] GetWidths(this IPdfTypeface typeface, ushort?[] gids)
     {
         if (typeface == null)
         {
@@ -123,7 +124,8 @@ public static class PdfTypefaceExtensions
         var widths = new float[gids.Length];
         for (int i = 0; i < gids.Length; i++)
         {
-            widths[i] = typeface.GetWidth(gids[i]);
+            ushort? gid = gids[i];
+            widths[i] = (gid.HasValue) ? typeface.GetWidth(gid.Value) : 0f;
         }
 
         return widths;

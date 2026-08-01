@@ -564,7 +564,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         int drawableCount = 0;
         for (int i = 0; i < shapingResult.Length; i++)
         {
-            if (shapingResult[i].GlyphId != 0)
+            if (shapingResult[i].GlyphId != null)
             {
                 drawableCount++;
             }
@@ -579,9 +579,9 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         for (int index = 0; index < shapingResult.Length; index++)
         {
             ShapedGlyph shapedGlyph = shapingResult[index];
-            if (shapedGlyph.GlyphId != 0)
+            if (shapedGlyph.GlyphId != null)
             {
-                glyphSpan[drawIndex] = (ushort)shapedGlyph.GlyphId;
+                glyphSpan[drawIndex] = shapedGlyph.GlyphId.Value;
                 positionSpan[drawIndex] = new SKPoint(shapedGlyph.X, shapedGlyph.Y);
                 drawIndex++;
             }

@@ -226,11 +226,11 @@ public class PdfType3Font : PdfSingleByteFont
 
     /// <summary>
     /// Gets the glyph ID (GID) for the specified character code in a Type3 font.
-    /// Type3 fonts do not use GIDs; always returns 0.
+    /// Type3 fonts do not use GIDs; always returns 1.
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
     /// <returns>Always 1 for Type3 fonts.</returns>
-    public override ushort GetGid(PdfCharacterCode code) => 1;
+    public override ushort? GetGid(PdfCharacterCode code) => 1;
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)

@@ -129,7 +129,7 @@ internal static class ShapedGlyphBuilder
             for (int i = 0; i < info.Gid.Length; i++)
             {
                 int? id = (info.Gid.Length > 1) ? i : null;
-                uint gid = info.Gid[i];
+                ushort? gid = info.Gid[i];
                 float width = info.Width[i];
                 bool isLastGid = i == info.Gid.Length - 1;
 

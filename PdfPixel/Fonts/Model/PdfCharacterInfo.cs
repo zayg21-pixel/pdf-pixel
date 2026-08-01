@@ -15,7 +15,7 @@ public struct PdfCharacterInfo
         PdfCharacterCode characterCode,
         IPdfTypeface typeface,
         string? unicode,
-        ushort[] gid,
+        ushort?[] gid,
         float originalWidth,
         float[] width,
         float xScale,
@@ -49,9 +49,10 @@ public struct PdfCharacterInfo
     public string? Unicode { get; }
 
     /// <summary>
-    /// The glyph ID collection for this character code.
+    /// The glyph ID collection for this character code. A <see langword="null"/> entry means no glyph
+    /// was found for that position; it must not be rendered.
     /// </summary>
-    public ushort[] Gid { get; }
+    public ushort?[] Gid { get; }
 
     /// <summary>
     /// Original character width defined in PDF font.

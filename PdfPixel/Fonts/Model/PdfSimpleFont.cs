@@ -221,23 +221,23 @@ public class PdfSimpleFont : PdfSingleByteFont
 
     /// <summary>
     /// Returns the glyph ID (GID) for the specified character code by consulting the byte-code-to-GID mapper.
-    /// Returns 0 when no mapper is available or the code is <see langword="null"/>.
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
-    /// <returns>The glyph ID, or 0 if not found.</returns>
-    public override ushort GetGid(PdfCharacterCode code)
+    /// <returns>The glyph ID, or <see langword="null"/> if not found.</returns>
+    public override ushort? GetGid(PdfCharacterCode code)
     {
         if (code == null)
         {
-            return 0;
+            return null;
         }
 
         if (_mapper == null)
         {
-            return 0;
+            return null;
         }
 
-        return _mapper.GetGid((byte)code);
+        ushort gid = _mapper.GetGid((byte)code);
+        return (gid == 0) ? null : gid;
     }
 
     /// <inheritdoc/>

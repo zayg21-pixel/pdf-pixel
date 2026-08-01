@@ -27,14 +27,14 @@ internal static class TextRenderUtilities
         for (int i = 0; i < glyphs.Length; i++)
         {
             ShapedGlyph shapedGlyph = glyphs[i];
-            uint glyphId = shapedGlyph.GlyphId;
-            if (glyphId == 0)
+            ushort? glyphId = shapedGlyph.GlyphId;
+            if (glyphId == null)
             {
                 continue;
             }
 
             IPdfTypeface typeface = shapedGlyph.CharacterInfo.Typeface;
-            ReadOnlyMemory<byte> glyphPathData = typeface.GetPath((ushort)glyphId);
+            ReadOnlyMemory<byte> glyphPathData = typeface.GetPath(glyphId.Value);
             if (glyphPathData.IsEmpty)
             {
                 continue;

@@ -125,14 +125,14 @@ public class PdfCidFont : PdfFontBase
 
     /// <summary>
     /// Convert Character ID (CID) to Glyph ID (GID) for font rendering.
-    /// Uses lazy-loaded CIDToGIDMap or returns 0 if no mapping exists.
+    /// Uses lazy-loaded CIDToGIDMap, or returns <see langword="null"/> if no mapping exists.
     /// </summary>
-    public ushort GetGidByCid(uint cid)
+    public ushort? GetGidByCid(uint cid)
     {
         // font is substituted, no mapping available
         if (Typeface == null)
         {
-            return 0;
+            return null;
         }
 
         if (CidToGidMap == null)
@@ -145,7 +145,7 @@ public class PdfCidFont : PdfFontBase
             return CidToGidMap.GetGID(cid);
         }
 
-        return 0;
+        return null;
     }
 
     private IPdfTypeface? GetTypeface()
@@ -257,15 +257,14 @@ public class PdfCidFont : PdfFontBase
 
     /// <summary>
     /// Gets the glyph ID (GID) for the specified character code in a CID font.
-    /// Returns 0 if no valid GID is found.
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
-    /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
-    public override ushort GetGid(PdfCharacterCode code)
+    /// <returns>The glyph ID (GID) for the character code, or <see langword="null"/> if not found.</returns>
+    public override ushort? GetGid(PdfCharacterCode code)
     {
         if (code == null)
         {
-            return 0;
+            return null;
         }
 
         var cid = (uint)code;

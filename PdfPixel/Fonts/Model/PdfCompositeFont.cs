@@ -267,31 +267,29 @@ public class PdfCompositeFont : PdfFontBase
 
     /// <summary>
     /// Gets the glyph ID (GID) for the specified character code in a composite font.
-    /// Returns 0 if no valid GID is found.
     /// Follows PDF spec: character code is mapped to CID using encoding/CMap, then CID is mapped to GID by descendant font.
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
-    /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
-    public override ushort GetGid(PdfCharacterCode code)
+    /// <returns>The glyph ID (GID) for the character code, or <see langword="null"/> if not found.</returns>
+    public override ushort? GetGid(PdfCharacterCode code)
     {
         if (code == null)
         {
-            return 0;
+            return null;
         }
 
         PdfCidFont? descendant = PrimaryDescendant;
         if (descendant == null)
         {
-            return 0;
+            return null;
         }
 
         uint cid;
         if (!TryMapCodeToCid(code, out cid))
         {
-            return 0;
+            return null;
         }
 
-        // Call GetGlyphId of CID font directly
         return descendant.GetGidByCid(cid);
     }
 
