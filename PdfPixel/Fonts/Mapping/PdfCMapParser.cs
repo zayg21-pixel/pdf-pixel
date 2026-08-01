@@ -37,7 +37,22 @@ public static class PdfCMapParser
 
         evaluator.SetResourceValue("ProcSet", "CIDInit", new PostScriptDictionary());
         System.Collections.Generic.Stack<PostScriptToken> stack = [];
-        evaluator.EvaluateTokens(stack);
+
+        try
+        {
+            evaluator.EvaluateTokens(stack);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+#pragma warning disable CA1031
+        catch (Exception exception)
+        {
+            loggerFactory.CreateLogger<PdfCMap>()
+                .LogWarning(exception, "CMap PostScript evaluation threw; falling back to scanning the raw CMap stream instead.");
+        }
+#pragma warning restore CA1031
 
         PostScriptDictionary? cmaps = evaluator.GetResourceCategory(PdfTokens.CMapKey.ToString());
         if (cmaps?.Entries.FirstOrDefault().Value is PostScriptDictionary cmapDictionary)
