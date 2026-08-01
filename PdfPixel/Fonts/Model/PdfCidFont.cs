@@ -154,7 +154,12 @@ public class PdfCidFont : PdfFontBase
         {
             switch (FontDescriptor?.FontFileFormat)
             {
+                // A CID-keyed descendant font should never declare /FontFile (Type1) per spec - only
+                // /FontFile3 /CIDFontType0C is valid here. Some producers use /FontFile anyway for a
+                // bare CFF program; GetTypefaceFromCff validates that itself and throws (caught below)
+                // if the bytes genuinely aren't CFF, so no separate check is needed here.
                 case PdfFontFileFormat.CIDFontType0C:
+                case PdfFontFileFormat.Type1:
                 {
                     ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
                     PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
@@ -166,6 +171,14 @@ public class PdfCidFont : PdfFontBase
                     PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
                     return loader.GetTypefaceFromSfnt(FontDescriptor.FontFileStream);
                 }
+            }
+
+            if (FontDescriptor?.FontFileStream != null)
+            {
+                _logger.LogWarning(
+                    "Unsupported embedded font format '{Format}' for font '{FontName}', will attempt substitution",
+                    FontDescriptor.FontFileFormat,
+                    BaseFont);
             }
         }
 #pragma warning disable CA1031

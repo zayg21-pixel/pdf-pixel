@@ -117,6 +117,14 @@ public class PdfSimpleFont : PdfSingleByteFont
                     return LoadFromSfntFont();
                 }
             }
+
+            if (FontDescriptor?.FontFileStream != null)
+            {
+                _logger.LogWarning(
+                    "Unsupported embedded font format '{Format}' for font '{FontName}', will attempt substitution",
+                    FontDescriptor.FontFileFormat,
+                    BaseFont);
+            }
         }
 #pragma warning disable CA1031
         catch (Exception ex)
