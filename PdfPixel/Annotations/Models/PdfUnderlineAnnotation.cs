@@ -36,10 +36,12 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
 
         foreach (PdfPoint[] quad in quads)
         {
+            const float baselineOffset = 1.3f;
+
             float startX = quad[0].X;
-            float startY = quad[0].Y;
+            float startY = quad[0].Y + baselineOffset;
             float endX = quad[1].X;
-            float endY = quad[1].Y;
+            float endY = quad[1].Y + baselineOffset;
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 

@@ -38,13 +38,13 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
 
         foreach (PdfPoint[] quad in quads)
         {
-            float startX = quad[0].X;
-            float startY = quad[0].Y;
-            float endX = quad[1].X;
-            float endY = quad[1].Y;
+            float startX = quad[1].X;
+            float endX = quad[0].X;
+            float baselineY = quad[0].Y;
+            float amplitude = GetAmplitude(quad);
 
             PdfPathBuilder path = new();
-            DrawSquigglyLine(path, startX, startY, endX, endY);
+            DrawSquigglyLine(path, startX, endX, baselineY, amplitude);
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
@@ -54,50 +54,39 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
         return true;
     }
 
-    private static void DrawSquigglyLine(PdfPathBuilder path, float startX, float startY, float endX, float endY)
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Padded by twice <see cref="GetAmplitude"/> above and below the baseline.
+    /// </remarks>
+    protected override PdfRectangle GetQuadBounds(PdfPoint[] quad)
     {
-        var length = (float)Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2));
-        const float waveHeight = 2.0f;
-        const float waveLength = 4.0f;
-        var waveCount = (int)(length / waveLength);
+        float baselineY = quad[0].Y;
+        float amplitude = GetAmplitude(quad);
+        float left = Math.Min(quad[0].X, quad[1].X);
+        float right = Math.Max(quad[0].X, quad[1].X);
 
-        if (waveCount < 1)
+        return new PdfRectangle(left, baselineY - (2f * amplitude), right, baselineY + (2f * amplitude));
+    }
+
+    // Quadrilateral height divided by 6.
+    private static float GetAmplitude(PdfPoint[] quad) => (quad[2].Y - quad[0].Y) / 6f;
+
+    // Draws a wave that starts at (startX, baselineY + amplitude) and zigzags between the baseline
+    // and one amplitude above it every 2 units of X, ending at or past endX.
+    private static void DrawSquigglyLine(PdfPathBuilder path, float startX, float endX, float baselineY, float amplitude)
+    {
+        float x = startX;
+        float shift = amplitude;
+
+        path.MoveTo(x, baselineY + shift);
+
+        do
         {
-            path.MoveTo(startX, startY);
-            path.LineTo(endX, endY);
-            return;
+            x += 2f;
+            shift = (shift == 0f) ? amplitude : 0f;
+            path.LineTo(x, baselineY + shift);
         }
-
-        float dx = (endX - startX) / length;
-        float dy = (endY - startY) / length;
-
-        float perpDx = -dy;
-        float perpDy = dx;
-
-        path.MoveTo(startX, startY);
-
-        for (int i = 0; i < waveCount; i++)
-        {
-            float t1 = (i + 0.5f) * waveLength;
-            float t2 = (i + 1.0f) * waveLength;
-
-            float x1 = startX + (dx * t1);
-            float y1 = startY + (dy * t1);
-            float x2 = startX + (dx * t2);
-            float y2 = startY + (dy * t2);
-
-            int offsetSign = (i % 2 == 0) ? 1 : -1;
-            x1 += perpDx * waveHeight * offsetSign;
-            y1 += perpDy * waveHeight * offsetSign;
-
-            path.LineTo(x1, y1);
-            path.LineTo(x2, y2);
-        }
-
-        if (waveCount * waveLength < length)
-        {
-            path.LineTo(endX, endY);
-        }
+        while (x < endX);
     }
 
     /// <summary>

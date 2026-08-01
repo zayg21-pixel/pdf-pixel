@@ -1,6 +1,7 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
+using System;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -39,6 +40,47 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
     /// rendering or further processing. The order of points in each array determines the shape and orientation of the
     /// quadrilateral.</remarks>
     public PdfPoint[][] Quadrilaterals { get; }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// When there is no appearance stream, this is the union of <see cref="GetQuadBounds"/> across
+    /// <see cref="Quadrilaterals"/>. Otherwise this is the declared /Rect.
+    /// </remarks>
+    public override PdfRectangle Rectangle
+    {
+        get
+        {
+            if (AppearanceDictionary != null || Quadrilaterals.Length == 0)
+            {
+                return base.Rectangle;
+            }
+
+            PdfRectangle bounds = GetQuadBounds(Quadrilaterals[0]);
+
+            for (int index = 1; index < Quadrilaterals.Length; index++)
+            {
+                bounds = PdfRectangle.Union(bounds, GetQuadBounds(Quadrilaterals[index]));
+            }
+
+            return bounds;
+        }
+    }
+
+    /// <summary>
+    /// Returns the bounds of a single quadrilateral's fallback-rendered geometry, in PDF user space.
+    /// </summary>
+    /// <remarks>
+    /// The default is the quadrilateral's own corner bounding box.
+    /// </remarks>
+    protected virtual PdfRectangle GetQuadBounds(PdfPoint[] quad)
+    {
+        float left = Math.Min(Math.Min(quad[0].X, quad[1].X), Math.Min(quad[2].X, quad[3].X));
+        float right = Math.Max(Math.Max(quad[0].X, quad[1].X), Math.Max(quad[2].X, quad[3].X));
+        float minY = Math.Min(Math.Min(quad[0].Y, quad[1].Y), Math.Min(quad[2].Y, quad[3].Y));
+        float maxY = Math.Max(Math.Max(quad[0].Y, quad[1].Y), Math.Max(quad[2].Y, quad[3].Y));
+
+        return new PdfRectangle(left, minY, right, maxY);
+    }
 
     private static PdfPoint[][] GetQuadrilaterals(float[]? quadPoints)
     {
