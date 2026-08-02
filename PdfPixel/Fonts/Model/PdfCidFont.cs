@@ -112,9 +112,10 @@ public class PdfCidFont : PdfFontBase
     public PdfVerticalMetric GetVerticalDisplacementByCid(uint cid) => VerticalMetrics.GetMetrics(cid);
 
     /// <summary>
-    /// Get character width for a given character code
+    /// Get character width for a given character code. A CID font always defines one: the "W" entry
+    /// for the CID, the font's "DW", or the default the specification gives "DW".
     /// </summary>
-    public override float GetWidth(PdfCharacterCode code) => GetWidthByCid((uint)code);
+    public override float? GetWidth(PdfCharacterCode code) => GetWidthByCid((uint)code);
 
     /// <summary>
     /// Returns the vertical displacement metrics for the given character code, mapping it to a CID and delegating to <see cref="GetVerticalDisplacementByCid"/>.

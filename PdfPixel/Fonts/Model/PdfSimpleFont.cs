@@ -25,7 +25,7 @@ public class PdfSimpleFont : PdfSingleByteFont
     private readonly IByteCodeToGidMapper? _mapper;
     private readonly bool _isSubstituted;
     private readonly PdfSingleByteFontWidths? _standardFontWidths;
-    private readonly float _spaceWidth;
+    private readonly float? _spaceWidth;
 
     internal PdfSimpleFont(PdfObject fontObject)
         : base(fontObject)
@@ -54,45 +54,48 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// </summary>
     /// <param name="code">The character code to retrieve the width for.</param>
     /// <returns>The advance width in user space units.</returns>
-    public override float GetWidth(PdfCharacterCode code)
+    public override float? GetWidth(PdfCharacterCode code)
     {
-        float width = GetDefinedWidth(code);
+        float? width = GetDefinedWidth(code);
 
-        if (width == 0 && _spaceWidth != 0 && Encoding.GetNameByCode((byte)(uint)code).IsEmpty)
+        if (width == null && _spaceWidth != null && Encoding.GetNameByCode((byte)(uint)code).IsEmpty)
         {
-            width = _spaceWidth;
+            return _spaceWidth;
         }
 
         return width;
     }
 
-    private float GetDefinedWidth(PdfCharacterCode code)
+    private float? GetDefinedWidth(PdfCharacterCode code)
     {
-        float width = base.GetWidth(code);
+        // None of a simple font's width sources can tell "no entry" from "an entry of zero", so a
+        // zero keeps the fallback chain going instead of ending it.
+        float? width = NullWhenZero(base.GetWidth(code));
 
-        // TODO: [MEDIUM] we need to use same fallaback for CID fonts
-        if (width == 0 && _mapper != null)
+        if (width == null && _mapper != null)
         {
-            width = (float)_mapper.GetWidth((byte)(code));
+            width = NullWhenZero(_mapper.GetWidth((byte)(code)));
         }
 
-        if (width == 0 && _standardFontWidths != null)
+        if (width == null && _standardFontWidths != null)
         {
-            width = _standardFontWidths.GetWidth(code) ?? 0f;
+            width = NullWhenZero(_standardFontWidths.GetWidth(code));
         }
 
         return width;
     }
+
+    private static float? NullWhenZero(float? width) => (width == 0) ? null : width;
 
     /// <summary>
-    /// Returns the width the font gives the code its encoding maps to the space glyph, or 0 when the
-    /// encoding maps no code to it.
+    /// Returns the width the font gives the code its encoding maps to the space glyph, or
+    /// <see langword="null"/> when the encoding maps no code to it.
     /// </summary>
-    private float ResolveSpaceWidth()
+    private float? ResolveSpaceWidth()
     {
         byte? spaceCode = Encoding.GetCodeByName(SpaceGlyphName);
 
-        return (spaceCode.HasValue) ? GetDefinedWidth(spaceCode.Value) : 0f;
+        return (spaceCode.HasValue) ? GetDefinedWidth(spaceCode.Value) : null;
     }
 
     /// <summary>

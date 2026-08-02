@@ -38,17 +38,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// <summary>
     /// Get character width from font metrics
     /// </summary>
-    public override float GetWidth(PdfCharacterCode code)
-    {
-        float? width = Widths.GetWidth(code);
-        if (width.HasValue)
-        {
-            return width.Value;
-        }
-
-        // Fallback: PDF spec recommends 0 if not defined for single-byte fonts
-        return 0f;
-    }
+    public override float? GetWidth(PdfCharacterCode code) => Widths.GetWidth(code);
 
     /// <summary>
     /// Single-byte fonts do not support vertical writing; always returns the default (zero) metric.

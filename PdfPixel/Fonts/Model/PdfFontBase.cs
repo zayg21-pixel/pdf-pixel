@@ -92,10 +92,11 @@ public abstract class PdfFontBase : IDisposable
     public virtual PdfFontDescriptor? FontDescriptor { get; }
 
     /// <summary>
-    /// Get the width of a character/glyph
+    /// Get the width of a character/glyph, or <see langword="null"/> when this font defines none for
+    /// the code - a width the font defines as zero is a width, not an absent one.
     /// Implementation varies by font type
     /// </summary>
-    public abstract float GetWidth(PdfCharacterCode code);
+    public abstract float? GetWidth(PdfCharacterCode code);
 
     /// <summary>
     /// Returns the vertical displacement vector for the specified character code.
@@ -186,45 +187,45 @@ public abstract class PdfFontBase : IDisposable
     protected virtual PdfCharacterInfo ExtractCharacterInfoCore(PdfCharacterCode characterCode)
     {
         ushort? gid = GetGid(characterCode);
-        float width = GetWidth(characterCode);
+        float? width = GetWidth(characterCode);
         string? unicode = GetUnicodeString(characterCode);
         string? renderingUnicode = GetRenderingUnicodeString(characterCode);
         PdfVerticalMetric displacement = GetVerticalDisplacement(characterCode);
 
-        if (gid.HasValue && width != 0)
+        if (gid.HasValue && width.HasValue)
         {
             IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
-            float[] widths = [width];
-            (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, width, widths);
-            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advancement);
+            float[] widths = [width.Value];
+            (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, width.Value, widths);
+            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width.Value, widths, xScale, origin, advancement);
         }
         else if (gid.HasValue && renderingUnicode?.Length > 0)
         {
             IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
-            width = typeface.GetWidth(renderingUnicode);
-            float[] widths = [width];
-            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, width, widths);
+            float typefaceWidth = typeface.GetWidth(renderingUnicode);
+            float[] widths = [typefaceWidth];
+            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, typefaceWidth, widths);
 
-            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advacement);
+            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], typefaceWidth, widths, xScale, origin, advacement);
         }
-        else if (!gid.HasValue && width != 0 && renderingUnicode?.Length > 0)
+        else if (!gid.HasValue && width.HasValue && renderingUnicode?.Length > 0)
         {
             IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
             ushort?[] gids = typeface.GetGlyphs(renderingUnicode);
             float[] widths = typeface.GetWidths(gids);
-            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, width, widths);
+            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, width.Value, widths);
 
-            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
+            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width.Value, widths, xScale, origin, advacement);
         }
         else if (renderingUnicode?.Length > 0)
         {
             IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
             ushort?[] gids = typeface.GetGlyphs(renderingUnicode);
             float[] widths = typeface.GetWidths(gids);
-            width = widths.Sum();
-            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, width, widths);
+            float totalWidth = widths.Sum();
+            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, totalWidth, widths);
 
-            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
+            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, totalWidth, widths, xScale, origin, advacement);
         }
 
         IPdfTypeface fallbackTypeface = GetTypeface(null, null);

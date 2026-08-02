@@ -72,17 +72,17 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// Get character width (delegated to appropriate descendant CID font by CID).
     /// </summary>
-    public override float GetWidth(PdfCharacterCode code)
+    public override float? GetWidth(PdfCharacterCode code)
     {
         PdfCidFont? descendant = PrimaryDescendant;
         if (descendant == null)
         {
-            return 0f;
+            return null;
         }
 
         if (!TryMapCodeToCid(code, out uint cid))
         {
-            return 0f;
+            return null;
         }
 
         return descendant.GetWidthByCid(cid);
