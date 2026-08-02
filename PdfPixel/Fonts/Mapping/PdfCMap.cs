@@ -121,17 +121,37 @@ public class PdfCMap
                 continue;
             }
 
-            uint value = PdfCharacterCode.UnpackBigEndianToUInt(input.Slice(0, range.Length));
-            if (value >= range.Start && value <= range.End)
+            if (range.Length > longestMatch && MatchesEveryBytePosition(input.Slice(0, range.Length), range))
             {
-                if (range.Length > longestMatch)
-                {
-                    longestMatch = range.Length;
-                }
+                longestMatch = range.Length;
             }
         }
 
         return longestMatch;
+    }
+
+    // A codespace range's Start/End bound each byte position independently (as UTF-8's own byte
+    // ranges do), so a candidate code only matches when every one of its bytes falls between the
+    // corresponding bytes of Start and End - not merely when the whole multi-byte value, read as a
+    // single big-endian integer, falls between the packed Start and End values. The latter would
+    // wrongly accept a byte sequence like E0 E0 E0 against the 3-byte UTF-8 range E080800-EFBFBF:
+    // numerically 0xE0E0E0 sits inside [0xE08080, 0xEFBFBF], even though its second byte, E0, is
+    // not a valid UTF-8 continuation byte (which the range restricts to 80-BF at that position).
+    private static bool MatchesEveryBytePosition(in ReadOnlySpan<byte> candidate, in CodeSpaceRange range)
+    {
+        for (int position = 0; position < range.Length; position++)
+        {
+            int shift = 8 * (range.Length - 1 - position);
+            var lowByte = (byte)(range.Start >> shift);
+            var highByte = (byte)(range.End >> shift);
+
+            if (candidate[position] < lowByte || candidate[position] > highByte)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
