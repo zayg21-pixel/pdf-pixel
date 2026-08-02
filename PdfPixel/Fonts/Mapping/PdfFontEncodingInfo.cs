@@ -65,6 +65,24 @@ public class PdfFontEncodingInfo
     }
 
     /// <summary>
+    /// Gets the lowest character code this encoding maps to the given glyph name.
+    /// </summary>
+    /// <param name="name">The glyph name to look up.</param>
+    /// <returns>The character code, or <see langword="null"/> when no code maps to the name.</returns>
+    public byte? GetCodeByName(in PdfFontString name)
+    {
+        for (int code = 0; code <= byte.MaxValue; code++)
+        {
+            if (GetNameByCode((byte)code) == name)
+            {
+                return (byte)code;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Gets the glyph name for a code, consulting <see cref="Differences"/> first and falling back
     /// to the base encoding's standard glyph table, or <see cref="SingleByteEncodings.UndefinedCharacter"/> if not found.
     /// </summary>

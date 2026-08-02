@@ -18,11 +18,14 @@ namespace PdfPixel.Fonts.Model;
 /// </summary>
 public class PdfSimpleFont : PdfSingleByteFont
 {
+    private static readonly PdfFontString SpaceGlyphName = (PdfFontString)"space"u8;
+
     private readonly ILogger<PdfSimpleFont> _logger;
     private readonly IPdfTypeface? _typeface;
     private readonly IByteCodeToGidMapper? _mapper;
     private readonly bool _isSubstituted;
     private readonly PdfSingleByteFontWidths? _standardFontWidths;
+    private readonly float _spaceWidth;
 
     internal PdfSimpleFont(PdfObject fontObject)
         : base(fontObject)
@@ -36,16 +39,34 @@ public class PdfSimpleFont : PdfSingleByteFont
             bool isBold = SubstitutionInfo.Weight >= PdfSubstitutionInfo.BoldWeight;
             _standardFontWidths = PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, isBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
         }
+
+        if (_isSubstituted && (Type == PdfFontSubType.Type1 || Type == PdfFontSubType.MMType1))
+        {
+            _spaceWidth = ResolveSpaceWidth();
+        }
     }
 
     /// <summary>
     /// Returns the advance width for the specified character code.
     /// Uses the font metrics table first, falls back to the glyph-ID mapper when the metrics entry is zero,
-    /// and finally to the Standard 14 AFM widths when the font has no embedded metrics at all.
+    /// then to the Standard 14 AFM widths when the font has no embedded metrics at all, and finally - for a
+    /// code the encoding of a non-embedded Type 1 font leaves undefined - to the font's space width.
     /// </summary>
     /// <param name="code">The character code to retrieve the width for.</param>
     /// <returns>The advance width in user space units.</returns>
     public override float GetWidth(PdfCharacterCode code)
+    {
+        float width = GetDefinedWidth(code);
+
+        if (width == 0 && _spaceWidth != 0 && Encoding.GetNameByCode((byte)(uint)code).IsEmpty)
+        {
+            width = _spaceWidth;
+        }
+
+        return width;
+    }
+
+    private float GetDefinedWidth(PdfCharacterCode code)
     {
         float width = base.GetWidth(code);
 
@@ -61,6 +82,17 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         return width;
+    }
+
+    /// <summary>
+    /// Returns the width the font gives the code its encoding maps to the space glyph, or 0 when the
+    /// encoding maps no code to it.
+    /// </summary>
+    private float ResolveSpaceWidth()
+    {
+        byte? spaceCode = Encoding.GetCodeByName(SpaceGlyphName);
+
+        return (spaceCode.HasValue) ? GetDefinedWidth(spaceCode.Value) : 0f;
     }
 
     /// <summary>

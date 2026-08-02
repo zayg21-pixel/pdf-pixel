@@ -1,6 +1,7 @@
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Text;
@@ -118,8 +119,11 @@ internal static class ShapedGlyphBuilder
         for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)
         {
             PdfCharacterInfo info = font.ExtractCharacterInfo(codes[codeIndex]);
-            string? unicode = info.Unicode;
-            bool isSpace = unicode == " ";
+
+            // Word spacing applies to the single-byte character code 32, never to a byte 32 that is
+            // part of a multi-byte code.
+            ReadOnlySpan<byte> codeBytes = info.CharacterCode.Bytes.Span;
+            bool isSpace = codeBytes.Length == 1 && codeBytes[0] == 0x20;
             float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
             float advance = spacing / state.FontSize;
 
