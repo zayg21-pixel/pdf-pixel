@@ -155,6 +155,23 @@ public sealed class SfntPdfTypeface : IPdfTypeface
             }
         }
 
+        // A symbol font (e.g. Wingdings) has no genuine Unicode cmap subtable; its only subtable is
+        // Windows Symbol (3, 0), whose codes live at 0xF000-0xF0FF per the PDF spec's symbolic
+        // TrueType convention (9.6.6.4). Tried last, after every genuine Unicode subtable has failed.
+        foreach (SfntCmapSubtable subtable in _font.Cmap.Subtables)
+        {
+            if (subtable.Encoding != PdfFontEncoding.SymbolEncoding)
+            {
+                continue;
+            }
+
+            ushort? gid = GetGid(subtable, 0xF000 | codepoint) ?? GetGid(subtable, codepoint);
+            if (gid != null)
+            {
+                return gid;
+            }
+        }
+
         return null;
     }
 

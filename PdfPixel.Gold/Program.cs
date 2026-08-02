@@ -15,7 +15,7 @@ internal sealed class Program
 {
     // A PDF that renders slower than this is registered as a full-run member, so that a short run
     // stays quick enough to be used after every fix.
-    private const double FullRunThresholdSeconds = 0.3;
+    private const double FullRunThresholdSeconds = 1.0;
 
     private static int Main(string[] args)
     {
