@@ -65,7 +65,7 @@ internal class TextFillRenderTarget : IRenderTarget
         }
         else
         {
-            //var textPath = TextRenderUtilities.GetTextPath(_shapingResult, _state);
+            //PdfPath textPath = TextRenderUtilities.GetTextPath(_shapingResult, _state);
             //processor.Process(new DrawPathCommand(textPath, _state.FillPaint));
 
             PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);

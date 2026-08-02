@@ -20,7 +20,10 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         (3, 10), // Windows, Unicode full repertoire
         (0, 4), // Unicode full repertoire
         (0, 3), // Unicode BMP
-        (0, 6) // Unicode full repertoire (variation)
+        (0, 6), // Unicode full repertoire (variation)
+        (0, 2), // Unicode, ISO/IEC 10646 semantics
+        (0, 1), // Unicode, Unicode 1.1 semantics
+        (0, 0) // Unicode, Unicode 1.0 semantics
     ];
 
     private readonly SfntFont _font;
