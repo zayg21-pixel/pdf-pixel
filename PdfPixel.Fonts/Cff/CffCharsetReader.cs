@@ -147,16 +147,15 @@ public class CffCharsetReader
 
         var sidsByGid = new ushort[glyphCount];
 
-        int gid = 1;
-        for (int nameIndex = 0; nameIndex < charsetNames.Length && gid < glyphCount; nameIndex++)
+        for (int gid = 1; gid < glyphCount && gid < charsetNames.Length; gid++)
         {
-            if (!CffStandardStrings.StandardNameToSid.TryGetValue(charsetNames[nameIndex], out ushort sid))
+            if (!CffStandardStrings.StandardNameToSid.TryGetValue(charsetNames[gid], out ushort sid))
             {
                 _logger.LogWarning("Predefined CFF charset references a name outside the standard strings.");
                 continue;
             }
 
-            sidsByGid[gid++] = sid;
+            sidsByGid[gid] = sid;
         }
 
         return new CffCharset { PredefinedId = charsetId, SidsByGid = sidsByGid };
