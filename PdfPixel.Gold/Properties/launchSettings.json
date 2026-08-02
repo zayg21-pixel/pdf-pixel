@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PdfPixel.Gold": {
+      "commandName": "Project",
+      "commandLineArgs": "--fullRun"
+    }
+  }
+}

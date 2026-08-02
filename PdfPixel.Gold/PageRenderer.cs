@@ -21,24 +21,41 @@ internal static class PageRenderer
     private const float Scale = 1f;
 
     /// <summary>
-    /// Renders every page of the document. The caller disposes the returned bitmaps.
+    /// Renders the requested pages of the document one at a time, or every page when no page number
+    /// is given. An encrypted document needs its user password.
     /// </summary>
-    public static List<SKBitmap> RenderPages(PdfDocumentReader reader, string pdfPath)
+    /// <remarks>
+    /// A page is rendered only as the caller asks for it, so that a long document never holds more
+    /// than one page bitmap at a time. The caller disposes each bitmap before taking the next one.
+    /// </remarks>
+    public static IEnumerable<(int PageNumber, SKBitmap Bitmap)> RenderPages(PdfDocumentReader reader, string pdfPath, IReadOnlyList<int> pageNumbers, string? password)
     {
-        // The reader needs a seekable, readable stream; it reads the whole document into memory.
-        using FileStream fileStream = File.OpenRead(pdfPath);
-        using IPdfDocument document = reader.Read(fileStream);
+        // The reader parses lazily from the stream it is given, so the whole document is read into
+        // memory first and never touches the disk again while it renders.
+        using MemoryStream documentStream = new(File.ReadAllBytes(pdfPath));
+        using IPdfDocument document = reader.Read(documentStream, password);
 
-        List<SKBitmap> pages = new();
+        // Checked before anything is rendered, so that a bad page number costs nothing and leaves
+        // no half-written output behind.
+        foreach (int requestedPage in pageNumbers)
+        {
+            if (requestedPage > document.Pages.Count)
+            {
+                throw new InvalidOperationException($"the document has {document.Pages.Count} page(s), which does not cover the requested page {requestedPage}.");
+            }
+        }
 
         foreach (IPdfPage page in document.Pages)
         {
+            if (pageNumbers.Count > 0 && !pageNumbers.Contains(page.PageNumber))
+            {
+                continue;
+            }
+
             // Optional content groups are the PDF's layers; passing the document's groups renders
             // every layer in its default visibility state.
-            pages.Add(RenderPage(page, document.OptionalContentGroups));
+            yield return (page.PageNumber, RenderPage(page, document.OptionalContentGroups));
         }
-
-        return pages;
     }
 
     /// <summary>

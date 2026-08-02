@@ -7,67 +7,92 @@ using System.IO.Enumeration;
 namespace PdfPixel.Gold;
 
 /// <summary>
-/// Renders the PDFs in "source" next to this executable and keeps a golden PNG of every page in
-/// "snapshots\{pdf name}\{page number}_source.png". A comparison writes what it rendered next to
-/// the golden page as "{page number}_result.png", but only when the two differ.
+/// Renders the PDFs registered in "gold.json" next to this executable and keeps a golden PNG of
+/// every page in "snapshots\{pdf name}\{page number}_source.png". A comparison writes what it
+/// rendered next to the golden page as "{page number}_result.png", but only when the two differ.
 /// </summary>
 internal sealed class Program
 {
+    // A PDF that renders slower than this is registered as a full-run member, so that a short run
+    // stays quick enough to be used after every fix.
+    private const double FullRunThresholdSeconds = 0.3;
+
     private static int Main(string[] args)
     {
         EnsureReleaseBuild();
 
         if (args.Length > 0 && (args[0] == "-h" || args[0] == "--help"))
         {
-            Console.WriteLine("Usage: PdfPixel.Gold [generate|compare] [pdf name or wildcard]...");
-            Console.WriteLine("  <no arguments>   compares every PDF in the source folder against its golden snapshot");
-            Console.WriteLine("  a* b             compares the selected PDFs only");
-            Console.WriteLine("  generate         writes a golden snapshot of every page of every PDF in the source folder");
-            Console.WriteLine("  generate a* b    writes golden snapshots for the selected PDFs only");
+            PrintUsage();
 
             return 0;
         }
 
-        // A run compares unless it is asked to generate; every argument that is not the mode selects
-        // the PDFs to process.
-        bool generate = args.Length > 0 && args[0] == "generate";
-        bool hasMode = generate || (args.Length > 0 && args[0] == "compare");
-
         string sourceDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "source");
         string snapshotsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "snapshots");
+        string manifestPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "gold.json");
         Directory.CreateDirectory(sourceDirectory);
         Directory.CreateDirectory(snapshotsDirectory);
 
-        List<string> pdfPaths = GetPdfFiles(sourceDirectory, hasMode ? args.AsSpan(1).ToArray() : args);
-
-        if (pdfPaths.Count == 0)
-        {
-            Write(ConsoleColor.Red, $"No PDF to process in {sourceDirectory}.");
-
-            return 1;
-        }
+        GoldManifest manifest = GoldManifest.Load(manifestPath);
 
         // A font provider is used to substitute system fonts for fonts not embedded in the PDF, and
         // PdfDocumentReader is the entry point for parsing PDF files.
         IFontProvider fontProvider = new WindowsFontProvider(NullLoggerFactory.Instance);
         PdfDocumentReader reader = new(NullLoggerFactory.Instance, fontProvider);
 
+        if (args.Length > 0 && args[0] == "add")
+        {
+            return Add(reader, manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
+        }
+
+        // A run compares unless it is asked to generate; every remaining argument that is not the
+        // full-run switch selects the PDFs to process.
+        bool generate = args.Length > 0 && args[0] == "generate";
+        bool hasMode = generate || (args.Length > 0 && args[0] == "compare");
+        string[] runArguments = hasMode ? args.AsSpan(1).ToArray() : args;
+
+        bool fullRun = false;
+        List<string> filters = new();
+
+        foreach (string argument in runArguments)
+        {
+            if (string.Equals(argument, "--fullRun", StringComparison.OrdinalIgnoreCase))
+            {
+                fullRun = true;
+            }
+            else
+            {
+                filters.Add(argument);
+            }
+        }
+
+        List<GoldEntry> entries = SelectEntries(manifest, fullRun, filters);
+
+        if (entries.Count == 0)
+        {
+            Write(ConsoleColor.Red, $"No PDF to process; {manifest.Files.Count} PDF(s) are registered in {manifestPath}.");
+
+            return 1;
+        }
+
         Stopwatch runStopwatch = Stopwatch.StartNew();
         int differentCount = 0;
         int failedCount = 0;
 
-        foreach (string pdfPath in pdfPaths)
+        foreach (GoldEntry entry in entries)
         {
-            string snapshotDirectory = Path.Combine(snapshotsDirectory, Path.GetFileNameWithoutExtension(pdfPath));
+            string pdfPath = Path.Combine(sourceDirectory, entry.Name);
+            string snapshotDirectory = Path.Combine(snapshotsDirectory, Path.GetFileNameWithoutExtension(entry.Name));
             Directory.CreateDirectory(snapshotDirectory);
 
             try
             {
                 if (generate)
                 {
-                    Generate(reader, pdfPath, snapshotDirectory);
+                    Generate(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
                 }
-                else if (!Compare(reader, pdfPath, snapshotDirectory))
+                else if (!Compare(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password))
                 {
                     differentCount++;
                 }
@@ -75,50 +100,209 @@ internal sealed class Program
             catch (Exception exception)
             {
                 failedCount++;
-                Write(ConsoleColor.Magenta, $"{Path.GetFileName(pdfPath),-60} FAILED {exception.Message}");
+                Write(ConsoleColor.Magenta, $"{entry.Name,-60} FAILED {exception.Message}");
             }
         }
 
         runStopwatch.Stop();
 
         int problemCount = differentCount + failedCount;
+        string scope = filters.Count > 0 ? "selected" : fullRun ? "full" : "short";
         string summary = generate
-            ? $"Generated snapshots for {pdfPaths.Count - failedCount} of {pdfPaths.Count} PDF(s) in {runStopwatch.Elapsed.TotalSeconds:F1} s; {failedCount} failed."
-            : $"{pdfPaths.Count - problemCount} of {pdfPaths.Count} PDF(s) match in {runStopwatch.Elapsed.TotalSeconds:F1} s; {differentCount} differ, {failedCount} failed.";
+            ? $"Generated {scope} snapshots for {entries.Count - failedCount} of {entries.Count} PDF(s) in {runStopwatch.Elapsed.TotalSeconds:F1} s; {failedCount} failed."
+            : $"{entries.Count - problemCount} of {entries.Count} PDF(s) match in the {scope} run in {runStopwatch.Elapsed.TotalSeconds:F1} s; {differentCount} differ, {failedCount} failed.";
 
         Write(problemCount == 0 ? ConsoleColor.Green : ConsoleColor.Red, summary);
 
         return problemCount == 0 ? 0 : 1;
     }
 
-    private static void Generate(PdfDocumentReader reader, string pdfPath, string snapshotDirectory)
+    /// <summary>
+    /// Registers a single PDF. The PDF is rendered once to time it, which decides whether it is a
+    /// full-run member, and golden snapshots are written for the pages that do not have one yet.
+    /// </summary>
+    private static int Add(
+        PdfDocumentReader reader,
+        GoldManifest manifest,
+        string manifestPath,
+        string sourceDirectory,
+        string snapshotsDirectory,
+        string[] arguments)
     {
-        List<SKBitmap> pages = PageRenderer.RenderPages(reader, pdfPath);
+        string? password = null;
+        List<string> positional = new();
 
-        for (int index = 0; index < pages.Count; index++)
+        for (int index = 0; index < arguments.Length; index++)
         {
-            using SKBitmap page = pages[index];
-            int pageNumber = index + 1;
+            if (!string.Equals(arguments[index], "--password", StringComparison.OrdinalIgnoreCase))
+            {
+                positional.Add(arguments[index]);
 
-            PageRenderer.SavePng(page, Path.Combine(snapshotDirectory, $"{pageNumber}_source.png"));
+                continue;
+            }
 
-            // The previous run's comparison output describes the snapshot that was just replaced.
-            File.Delete(Path.Combine(snapshotDirectory, $"{pageNumber}_result.png"));
+            if (index + 1 == arguments.Length)
+            {
+                Write(ConsoleColor.Red, "--password needs the user password of the PDF as its value.");
+
+                return 1;
+            }
+
+            password = arguments[index + 1];
+            index++;
         }
 
-        Write(ConsoleColor.Green, $"{Path.GetFileName(pdfPath),-60} {pages.Count} page(s)");
+        if (positional.Count == 0 || positional.Count > 2)
+        {
+            Write(ConsoleColor.Red, "Usage: add <pdf path or name> [comma separated page numbers] [--password <user password>]");
+
+            return 1;
+        }
+
+        string fileName = Path.GetFileName(positional[0]);
+
+        if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName += ".pdf";
+        }
+
+        string pdfPath = Path.Combine(sourceDirectory, fileName);
+
+        // A PDF given by a path outside the corpus is copied in, so that a later run can find it.
+        if (File.Exists(positional[0])
+            && !string.Equals(Path.GetFullPath(positional[0]), pdfPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(positional[0], pdfPath, overwrite: true);
+        }
+
+        if (!File.Exists(pdfPath))
+        {
+            Write(ConsoleColor.Red, $"{positional[0]} was not found, and {fileName} is not in {sourceDirectory}.");
+
+            return 1;
+        }
+
+        List<int> pages = new();
+
+        if (positional.Count == 2)
+        {
+            foreach (string part in positional[1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!int.TryParse(part, out int pageNumber) || pageNumber < 1)
+                {
+                    Write(ConsoleColor.Red, $"'{part}' is not a page number; pass 1-based page numbers as 1,2,3.");
+
+                    return 1;
+                }
+
+                if (!pages.Contains(pageNumber))
+                {
+                    pages.Add(pageNumber);
+                }
+            }
+
+            pages.Sort();
+        }
+
+        string snapshotDirectory = Path.Combine(snapshotsDirectory, Path.GetFileNameWithoutExtension(fileName));
+
+        // The registration is timed to classify the PDF, so the clock covers the rendering only and
+        // is held while a golden is written — a run never pays that cost.
+        Stopwatch stopwatch = new();
+        int pageCount = 0;
+        int writtenCount = 0;
+
+        try
+        {
+            stopwatch.Start();
+
+            foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
+            {
+                stopwatch.Stop();
+
+                using SKBitmap bitmap = renderedPage.Bitmap;
+                string goldenPath = Path.Combine(snapshotDirectory, $"{renderedPage.PageNumber}_source.png");
+                pageCount++;
+
+                // An existing golden is the baseline a comparison is judged against and is never
+                // replaced here; only the pages that have no golden yet get one.
+                if (!File.Exists(goldenPath))
+                {
+                    Directory.CreateDirectory(snapshotDirectory);
+                    PageRenderer.SavePng(bitmap, goldenPath);
+                    writtenCount++;
+                }
+
+                stopwatch.Start();
+            }
+
+            stopwatch.Stop();
+        }
+        catch (Exception exception)
+        {
+            Write(ConsoleColor.Magenta, $"{fileName,-60} FAILED {exception.Message}");
+
+            return 1;
+        }
+
+        // A document that renders nothing would be registered with no golden at all, and every later
+        // comparison of it would pass without having looked at anything.
+        if (pageCount == 0)
+        {
+            Write(ConsoleColor.Magenta, $"{fileName,-60} FAILED the document rendered no page, so there is nothing to compare against.");
+
+            return 1;
+        }
+
+        bool fullRunOnly = stopwatch.Elapsed.TotalSeconds > FullRunThresholdSeconds;
+
+        GoldEntry entry = new()
+        {
+            Name = fileName,
+            Pages = pages,
+            FullRun = fullRunOnly ? true : null,
+            Password = password,
+        };
+
+        manifest.Files.RemoveAll(existing => string.Equals(existing.Name, fileName, StringComparison.OrdinalIgnoreCase));
+        manifest.Files.Add(entry);
+        manifest.Save(manifestPath);
+
+        string pageScope = pages.Count == 0 ? "all pages" : $"page(s) {string.Join(", ", pages)}";
+        Write(
+            ConsoleColor.Green,
+            $"{fileName,-60} {pageScope}, {stopwatch.Elapsed.TotalSeconds:F2} s, {(fullRunOnly ? "full run only" : "short + full run")}, {writtenCount} golden(s) written");
+
+        return 0;
     }
 
-    private static bool Compare(PdfDocumentReader reader, string pdfPath, string snapshotDirectory)
+    private static void Generate(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
     {
-        List<SKBitmap> pages = PageRenderer.RenderPages(reader, pdfPath);
+        int pageCount = 0;
+
+        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
+        {
+            using SKBitmap bitmap = renderedPage.Bitmap;
+
+            PageRenderer.SavePng(bitmap, Path.Combine(snapshotDirectory, $"{renderedPage.PageNumber}_source.png"));
+
+            // The previous run's comparison output describes the snapshot that was just replaced.
+            File.Delete(Path.Combine(snapshotDirectory, $"{renderedPage.PageNumber}_result.png"));
+            pageCount++;
+        }
+
+        Write(ConsoleColor.Green, $"{Path.GetFileName(pdfPath),-60} {pageCount} page(s)");
+    }
+
+    private static bool Compare(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
+    {
         string pdfName = Path.GetFileName(pdfPath);
         bool matched = true;
 
-        for (int index = 0; index < pages.Count; index++)
+        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
         {
-            using SKBitmap page = pages[index];
-            int pageNumber = index + 1;
+            using SKBitmap page = renderedPage.Bitmap;
+            int pageNumber = renderedPage.PageNumber;
             string sourcePath = Path.Combine(snapshotDirectory, $"{pageNumber}_source.png");
             string resultPath = Path.Combine(snapshotDirectory, $"{pageNumber}_result.png");
 
@@ -162,29 +346,36 @@ internal sealed class Program
         return matched;
     }
 
-    // An empty filter list selects every PDF; otherwise a PDF is selected when a filter matches its
-    // file name with or without the extension, so both "basicapi" and "bug1*.pdf" work.
-    private static List<string> GetPdfFiles(string sourceDirectory, string[] filters)
+    // A short run leaves out the PDFs registered as full-run members; an explicit filter overrides
+    // that and selects registered PDFs by file name with or without the extension, so both
+    // "basicapi" and "bug1*.pdf" work.
+    private static List<GoldEntry> SelectEntries(GoldManifest manifest, bool fullRun, List<string> filters)
     {
-        List<string> pdfPaths = new();
+        List<GoldEntry> entries = new();
 
-        foreach (string pdfPath in Directory.EnumerateFiles(sourceDirectory, "*.pdf"))
+        foreach (GoldEntry entry in manifest.Files)
         {
-            if (filters.Length == 0 || Matches(pdfPath, filters))
+            if (filters.Count == 0)
             {
-                pdfPaths.Add(pdfPath);
+                if (fullRun || entry.FullRun != true)
+                {
+                    entries.Add(entry);
+                }
+            }
+            else if (Matches(entry.Name, filters))
+            {
+                entries.Add(entry);
             }
         }
 
-        pdfPaths.Sort(StringComparer.OrdinalIgnoreCase);
+        entries.Sort(static (left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name));
 
-        return pdfPaths;
+        return entries;
     }
 
-    private static bool Matches(string pdfPath, string[] filters)
+    private static bool Matches(string fileName, List<string> filters)
     {
-        string fileName = Path.GetFileName(pdfPath);
-        string name = Path.GetFileNameWithoutExtension(pdfPath);
+        string name = Path.GetFileNameWithoutExtension(fileName);
 
         foreach (string filter in filters)
         {
@@ -196,6 +387,25 @@ internal sealed class Program
         }
 
         return false;
+    }
+
+    private static void PrintUsage()
+    {
+        Console.WriteLine("Usage: PdfPixel.Gold [add|generate|compare] [options]");
+        Console.WriteLine("  <no arguments>          compares the short set against its golden snapshots");
+        Console.WriteLine("  --fullRun               compares every registered PDF, slow ones included");
+        Console.WriteLine("  a* b                    compares the selected PDFs only, short or full alike");
+        Console.WriteLine("  generate                rewrites the golden snapshots of the short set");
+        Console.WriteLine("  generate --fullRun      rewrites the golden snapshots of every registered PDF");
+        Console.WriteLine("  generate a* b           rewrites the golden snapshots of the selected PDFs only");
+        Console.WriteLine("  add <pdf> [pages] [--password <user password>]");
+        Console.WriteLine("                          registers one PDF in gold.json");
+        Console.WriteLine();
+        Console.WriteLine("The PDF given to add is copied into the source folder when it is a path from elsewhere.");
+        Console.WriteLine($"It is rendered once to time it; slower than {FullRunThresholdSeconds:F1} s registers it as a full-run member.");
+        Console.WriteLine("Pages are 1-based and comma separated, as in \"1,2,5\"; leaving them out registers every page.");
+        Console.WriteLine("An encrypted PDF needs --password; the password is stored in gold.json and reused by every run.");
+        Console.WriteLine("A golden snapshot is written for every registered page that has none; existing goldens are kept.");
     }
 
     // Snapshots taken from a debug build are not comparable with the ones taken from a release build.
