@@ -4,15 +4,24 @@ using System;
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
-/// Reads and writes the binary form of the SFNT "OS/2" table (versions 0 through 5).
+/// Reads and writes the binary form of the SFNT "OS/2" table (versions 0 through 5). Reading never
+/// fails: a field the data is too short to carry falls back to the value the spec treats as
+/// "unspecified" for it, so a truncated table still yields a complete, writable model.
+/// <see cref="CreateEmptyStub"/> covers the other case: synthesizing a placeholder "OS/2" for a font
+/// that carries none at all.
 /// </summary>
 public class SfntOs2Processor
 {
-    private const int BaseLength = 78;
-    private const int Version1Length = BaseLength + 8;
-    private const int Version2Length = Version1Length + 10;
-    private const int Version5Length = Version2Length + 4;
     private const int PanoseLength = 10;
+    private const ushort MaxSupportedVersion = 5;
+
+    private const ushort DefaultWeightClass = 400; // Normal
+    private const ushort DefaultWidthClass = 5; // Medium
+    private const ushort DefaultFsSelection = 0x0040; // REGULAR
+    private const uint DefaultVendorId = 0x20202020; // four spaces: no registered vendor
+    private const ushort DefaultLastCharIndex = 0xFFFF;
+    private const ushort DefaultBreakChar = 32; // space
+    private const ushort DefaultUpperOpticalPointSize = 0xFFFF;
 
     private readonly ILogger<SfntOs2Processor> _logger;
 
@@ -23,109 +32,120 @@ public class SfntOs2Processor
     public SfntOs2Processor(ILogger<SfntOs2Processor> logger) => _logger = logger;
 
     /// <summary>
-    /// Parses an "OS/2" table from its raw content bytes. Returns null if it is shorter than the
-    /// fixed 78-byte version 0 layout, or if its version claims fields that don't fit.
+    /// Parses an "OS/2" table from its raw content bytes. Never fails: once the data runs out every
+    /// remaining field takes the value the spec treats as "unspecified" for it, and a version past
+    /// the newest one this reads is treated as that newest version, since the fields it adds are
+    /// unknown here either way.
     /// </summary>
-    public SfntOs2? Read(in ReadOnlyMemory<byte> data)
+    public SfntOs2 Read(in ReadOnlyMemory<byte> data)
     {
-        if (data.Length < BaseLength)
+        SfntReader reader = new(data.Span);
+
+        ushort version = reader.ReadUInt16() ?? 0;
+        if (version > MaxSupportedVersion)
         {
-            _logger.LogWarning("Failed to read 'OS/2' table: expected at least {ExpectedLength} bytes, got {ActualLength}.", BaseLength, data.Length);
-            return null;
+            _logger.LogWarning(
+                "Reading 'OS/2' table with unsupported version {Version}; reading it as version {SupportedVersion}.",
+                version,
+                MaxSupportedVersion);
+            version = MaxSupportedVersion;
         }
 
-        SfntReader reader = new(data.Span);
         SfntOs2 os2 = new()
         {
-            Version = reader.ReadUInt16OrDefault(),
-            XAvgCharWidth = reader.ReadInt16OrDefault(),
-            UsWeightClass = reader.ReadUInt16OrDefault(),
-            UsWidthClass = reader.ReadUInt16OrDefault(),
-            FsType = reader.ReadUInt16OrDefault(),
-            YSubscriptXSize = reader.ReadInt16OrDefault(),
-            YSubscriptYSize = reader.ReadInt16OrDefault(),
-            YSubscriptXOffset = reader.ReadInt16OrDefault(),
-            YSubscriptYOffset = reader.ReadInt16OrDefault(),
-            YSuperscriptXSize = reader.ReadInt16OrDefault(),
-            YSuperscriptYSize = reader.ReadInt16OrDefault(),
-            YSuperscriptXOffset = reader.ReadInt16OrDefault(),
-            YSuperscriptYOffset = reader.ReadInt16OrDefault(),
-            YStrikeoutSize = reader.ReadInt16OrDefault(),
-            YStrikeoutPosition = reader.ReadInt16OrDefault(),
-            SFamilyClass = reader.ReadInt16OrDefault(),
-            Panose = reader.ReadBytes(PanoseLength).ToArray(),
-            UlUnicodeRange1 = reader.ReadUInt32OrDefault(),
-            UlUnicodeRange2 = reader.ReadUInt32OrDefault(),
-            UlUnicodeRange3 = reader.ReadUInt32OrDefault(),
-            UlUnicodeRange4 = reader.ReadUInt32OrDefault(),
-            AchVendId = new SfntTableTag(reader.ReadUInt32OrDefault()),
-            FsSelection = reader.ReadUInt16OrDefault(),
-            UsFirstCharIndex = reader.ReadUInt16OrDefault(),
-            UsLastCharIndex = reader.ReadUInt16OrDefault(),
-            STypoAscender = reader.ReadInt16OrDefault(),
-            STypoDescender = reader.ReadInt16OrDefault(),
-            STypoLineGap = reader.ReadInt16OrDefault(),
-            UsWinAscent = reader.ReadUInt16OrDefault(),
-            UsWinDescent = reader.ReadUInt16OrDefault()
+            Version = version,
+            XAvgCharWidth = reader.ReadInt16() ?? 0,
+            UsWeightClass = reader.ReadUInt16() ?? DefaultWeightClass,
+            UsWidthClass = reader.ReadUInt16() ?? DefaultWidthClass,
+            FsType = reader.ReadUInt16() ?? 0, // installable embedding
+            YSubscriptXSize = reader.ReadInt16() ?? 0,
+            YSubscriptYSize = reader.ReadInt16() ?? 0,
+            YSubscriptXOffset = reader.ReadInt16() ?? 0,
+            YSubscriptYOffset = reader.ReadInt16() ?? 0,
+            YSuperscriptXSize = reader.ReadInt16() ?? 0,
+            YSuperscriptYSize = reader.ReadInt16() ?? 0,
+            YSuperscriptXOffset = reader.ReadInt16() ?? 0,
+            YSuperscriptYOffset = reader.ReadInt16() ?? 0,
+            YStrikeoutSize = reader.ReadInt16() ?? 0,
+            YStrikeoutPosition = reader.ReadInt16() ?? 0,
+            SFamilyClass = reader.ReadInt16() ?? 0, // no classification
+            Panose = ReadPanose(ref reader),
+            UlUnicodeRange1 = reader.ReadUInt32() ?? 0,
+            UlUnicodeRange2 = reader.ReadUInt32() ?? 0,
+            UlUnicodeRange3 = reader.ReadUInt32() ?? 0,
+            UlUnicodeRange4 = reader.ReadUInt32() ?? 0,
+            AchVendId = new SfntTableTag(reader.ReadUInt32() ?? DefaultVendorId),
+            FsSelection = reader.ReadUInt16() ?? DefaultFsSelection,
+            UsFirstCharIndex = reader.ReadUInt16() ?? 0,
+            UsLastCharIndex = reader.ReadUInt16() ?? DefaultLastCharIndex,
+            STypoAscender = reader.ReadInt16() ?? 0,
+            STypoDescender = reader.ReadInt16() ?? 0,
+            STypoLineGap = reader.ReadInt16() ?? 0,
+            UsWinAscent = reader.ReadUInt16() ?? 0,
+            UsWinDescent = reader.ReadUInt16() ?? 0
         };
 
-        if (os2.Version == 0)
+        if (os2.Version >= 1)
         {
-            return os2;
+            os2.UlCodePageRange1 = reader.ReadUInt32() ?? 0;
+            os2.UlCodePageRange2 = reader.ReadUInt32() ?? 0;
         }
 
-        if (data.Length < Version1Length)
+        if (os2.Version >= 2)
+        {
+            os2.SxHeight = reader.ReadInt16() ?? 0;
+            os2.SCapHeight = reader.ReadInt16() ?? 0;
+            os2.UsDefaultChar = reader.ReadUInt16() ?? 0;
+            os2.UsBreakChar = reader.ReadUInt16() ?? DefaultBreakChar;
+            os2.UsMaxContext = reader.ReadUInt16() ?? 0;
+        }
+
+        if (os2.Version == MaxSupportedVersion)
+        {
+            os2.UsLowerOpticalPointSize = reader.ReadUInt16() ?? 0;
+            os2.UsUpperOpticalPointSize = reader.ReadUInt16() ?? DefaultUpperOpticalPointSize;
+        }
+
+        if (!reader.IsValid)
         {
             _logger.LogWarning(
-                "Failed to read 'OS/2' table: version {Version} claims code page range fields but data is only {ActualLength} bytes, expected at least {ExpectedLength}.",
+                "Reading truncated 'OS/2' table: version {Version} needs more than the {ActualLength} bytes present; the fields past the end took their unspecified-value defaults.",
                 os2.Version,
-                data.Length,
-                Version1Length);
-            return null;
+                data.Length);
         }
-
-        os2.UlCodePageRange1 = reader.ReadUInt32OrDefault();
-        os2.UlCodePageRange2 = reader.ReadUInt32OrDefault();
-
-        if (os2.Version == 1)
-        {
-            return os2;
-        }
-
-        if (data.Length < Version2Length)
-        {
-            _logger.LogWarning(
-                "Failed to read 'OS/2' table: version {Version} claims x-height/cap-height fields but data is only {ActualLength} bytes, expected at least {ExpectedLength}.",
-                os2.Version,
-                data.Length,
-                Version2Length);
-            return null;
-        }
-
-        os2.SxHeight = reader.ReadInt16OrDefault();
-        os2.SCapHeight = reader.ReadInt16OrDefault();
-        os2.UsDefaultChar = reader.ReadUInt16OrDefault();
-        os2.UsBreakChar = reader.ReadUInt16OrDefault();
-        os2.UsMaxContext = reader.ReadUInt16OrDefault();
-
-        if (os2.Version != 5)
-        {
-            return os2;
-        }
-
-        if (data.Length < Version5Length)
-        {
-            _logger.LogWarning(
-                "Failed to read 'OS/2' table: version 5 claims optical point size fields but data is only {ActualLength} bytes, expected at least {ExpectedLength}.",
-                data.Length,
-                Version5Length);
-            return null;
-        }
-
-        os2.UsLowerOpticalPointSize = reader.ReadUInt16OrDefault();
-        os2.UsUpperOpticalPointSize = reader.ReadUInt16OrDefault();
 
         return os2;
+    }
+
+    /// <summary>
+    /// Creates a minimal placeholder "OS/2" table for a font that carries none: version 0, with every
+    /// field at the value the spec treats as "unspecified" for it.
+    /// </summary>
+    public static byte[] CreateEmptyStub()
+    {
+        SfntOs2 os2 = new()
+        {
+            Version = 0,
+            UsWeightClass = DefaultWeightClass,
+            UsWidthClass = DefaultWidthClass,
+            AchVendId = new SfntTableTag(DefaultVendorId),
+            FsSelection = DefaultFsSelection,
+            UsLastCharIndex = DefaultLastCharIndex
+        };
+
+        return WriteTable(os2);
+    }
+
+    /// <summary>
+    /// Reads the 10-byte PANOSE classification, falling back to an all-zero one ("any" for every
+    /// digit) when the data cannot carry it - the field is fixed-width, so a short read cannot be
+    /// written back out as-is.
+    /// </summary>
+    private static byte[] ReadPanose(ref SfntReader reader)
+    {
+        ReadOnlySpan<byte> panose = reader.ReadBytes(PanoseLength);
+
+        return (panose.Length == PanoseLength) ? panose.ToArray() : new byte[PanoseLength];
     }
 
     /// <summary>
@@ -140,6 +160,11 @@ public class SfntOs2Processor
             throw new ArgumentNullException(nameof(os2));
         }
 
+        return WriteTable(os2);
+    }
+
+    private static byte[] WriteTable(SfntOs2 os2)
+    {
         SfntWriter writer = new();
         writer.WriteUInt16(os2.Version);
         writer.WriteInt16(os2.XAvgCharWidth);

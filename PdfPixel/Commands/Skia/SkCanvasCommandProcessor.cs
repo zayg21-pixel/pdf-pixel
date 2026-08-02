@@ -130,11 +130,6 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
                 ExecuteDrawStencilMaskImageTile((DrawStencilMaskImageTileCommand)command);
                 break;
             }
-            case PdfCommandKind.DrawText:
-            {
-                ExecuteDrawText((DrawTextCommand)command);
-                break;
-            }
             case PdfCommandKind.DrawTiling:
             {
                 ExecuteDrawTiling((DrawTilingCommand)command);
@@ -664,23 +659,6 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         _canvas.Save();
         _canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
         _canvas.DrawImage(skImage, placement.PlacementRectangle.ToSkRect(), SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate), paint);
-        _canvas.Restore();
-    }
-
-    private void ExecuteDrawText(DrawTextCommand command)
-    {
-        using SKPaint paint = command.Paint.ToSkiaPaint();
-        bool antialias = _executionContext.Parameters.Antialias;
-        paint.IsAntialias = antialias;
-        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-
-        SKTypeface skTypeface = SkiaCommandUtilities.GetOrCreateSkTypeface(_executionContext, command.Typeface);
-        using SKFont font = new(skTypeface, command.FontSize);
-        SkiaCommandUtilities.ApplyAntialias(font, antialias);
-
-        _canvas.Save();
-        _canvas.Concat(command.Matrix.ToSkMatrix());
-        _canvas.DrawText(command.Text, 0f, 0f, SKTextAlign.Left, font, paint);
         _canvas.Restore();
     }
 

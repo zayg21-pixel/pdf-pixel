@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts.Sfnt;
 /// points, resolving a composite glyph's components - whether they carry an x/y offset or match a
 /// pair of points - into one flat outline, then builds that outline via
 /// <see cref="PdfFontPathBuilder"/> (converting TrueType's native quadratic curves to the cubic
-/// curves that format stores) and repacks it as a simple glyph with hinting instructions stripped.
+/// curves that format stores) and repacks it as a simple glyph.
 /// Mirrors <c>PdfPixel.Fonts.Cff.CffCharStringEvaluator</c>'s role for CFF charstrings.
 /// </summary>
 public class SfntGlyphEvaluator
@@ -445,9 +445,11 @@ public class SfntGlyphEvaluator
         => outline.Points[startPoint + (index % pointCount)];
 
     /// <summary>
-    /// Repacks a glyph, dropping its hinting instructions. A simple glyph's structure is copied
-    /// unchanged; a composite glyph is written as a simple one, its components' contours stored
-    /// inline, so the repacked glyph no longer refers to any other glyph.
+    /// Repacks a glyph. A simple glyph's structure is copied unchanged, hinting instructions
+    /// included, since its points keep the numbers those instructions address; a composite glyph is
+    /// written as a simple one, its components' contours stored inline, so the repacked glyph no
+    /// longer refers to any other glyph - and loses its instructions, which addressed the point
+    /// numbering that flattening replaces.
     /// </summary>
     private byte[]? RepackGlyph(in ReadOnlySpan<byte> data, GlyphOutline outline)
     {
@@ -490,9 +492,11 @@ public class SfntGlyphEvaluator
             writer.WriteUInt16(endPoints[contourIndex]);
         }
 
+        // Points are copied over verbatim below, so the instructions still address the same point
+        // numbers they were compiled against and are carried through with them.
         ushort instructionLength = reader.ReadUInt16OrDefault();
-        reader.Skip(instructionLength);
-        writer.WriteUInt16(0); // instructionLength: hinting instructions are always stripped.
+        writer.WriteUInt16(instructionLength);
+        writer.WriteBytes(reader.ReadBytes(instructionLength));
 
         int numPoints = (numberOfContours > 0) ? endPoints[numberOfContours - 1] + 1 : 0;
 
@@ -584,7 +588,7 @@ public class SfntGlyphEvaluator
             writer.WriteUInt16((ushort)endPoint);
         }
 
-        writer.WriteUInt16(0); // instructionLength: hinting instructions are always stripped.
+        writer.WriteUInt16(0); // instructionLength: flattening renumbers the points the composite's instructions address.
 
         foreach (byte flag in outline.Flags)
         {

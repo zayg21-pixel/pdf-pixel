@@ -10,8 +10,8 @@ namespace PdfPixel.Fonts.Sfnt;
 /// Reads and writes a full SFNT font through its per-table models: decodes the container via
 /// <see cref="SfntContainerProcessor"/>, then parses every table that has a dedicated processor
 /// (head, hhea, maxp, hmtx, OS/2, name, cmap, post, glyf/loca, CFF). Tables without one remain
-/// accessible only as raw bytes on <see cref="SfntFont.Tables"/>, and are passed through unchanged
-/// when writing - as are "cmap" and "post", which are read-only and have no writer of their own.
+/// accessible only as raw bytes on <see cref="SfntFont.Tables"/>; writing passes through just the
+/// hinting tables among them and drops the rest.
 /// </summary>
 public class SfntFontProcessor
 {
@@ -89,22 +89,71 @@ public class SfntFontProcessor
             font.Head = _headProcessor.Read(stream.GetMemory(headRecord.Value));
         }
 
-        SfntTableRecord? hheaRecord = container.FindTable(SfntTableTags.Hhea);
-        if (hheaRecord != null)
-        {
-            font.Hhea = _hheaProcessor.Read(stream.GetMemory(hheaRecord.Value));
-        }
+        SfntTableRecord? cffRecord = container.FindTable(SfntTableTags.Cff);
+        SfntTableRecord? locaRecord = container.FindTable(SfntTableTags.Loca);
+        SfntTableRecord? glyfRecord = container.FindTable(SfntTableTags.Glyf);
 
+        // Every remaining table is sized by the glyph count, so "maxp" is synthesized rather than
+        // left absent - a font without one is otherwise unusable even when its outlines are intact.
+        SfntMaxp maxp;
         SfntTableRecord? maxpRecord = container.FindTable(SfntTableTags.Maxp);
         if (maxpRecord != null)
         {
-            font.Maxp = _maxpProcessor.Read(stream.GetMemory(maxpRecord.Value));
+            maxp = _maxpProcessor.Read(stream.GetMemory(maxpRecord.Value));
+        }
+        else
+        {
+            _logger.LogWarning("Font has no 'maxp' table; synthesizing one from the glyph count 'loca' implies.");
+            maxp = SfntMaxpProcessor.CreateDefault(numGlyphs: 0, hasTrueTypeOutlines: cffRecord == null);
         }
 
-        SfntTableRecord? hmtxRecord = container.FindTable(SfntTableTags.Hmtx);
-        if (hmtxRecord != null && font.Hhea != null && font.Maxp != null)
+        if (maxp.NumGlyphs == 0)
         {
-            font.Hmtx = _hmtxProcessor.Read(stream.GetMemory(hmtxRecord.Value), font.Hhea.NumberOfHMetrics, font.Maxp.NumGlyphs);
+            maxp.NumGlyphs = DeriveNumGlyphs(locaRecord, font.Head);
+        }
+
+        font.Maxp = maxp;
+
+        SfntTableRecord? hmtxRecord = container.FindTable(SfntTableTags.Hmtx);
+
+        // Writing drops "hmtx" when there is no "hhea" to state how many long entries it holds, so a
+        // font whose metrics are intact would still lose them all to a missing header.
+        SfntHhea hhea;
+        SfntTableRecord? hheaRecord = container.FindTable(SfntTableTags.Hhea);
+        if (hheaRecord != null)
+        {
+            hhea = _hheaProcessor.Read(stream.GetMemory(hheaRecord.Value));
+        }
+        else
+        {
+            _logger.LogWarning("Font has no 'hhea' table; synthesizing one from the vertical bounds 'head' states.");
+            hhea = SfntHheaProcessor.CreateDefault(
+                ascender: font.Head?.YMax ?? 0,
+                descender: font.Head?.YMin ?? 0,
+                numberOfHMetrics: 0);
+        }
+
+        ushort longEntryLimit = DeriveLongEntryLimit(hmtxRecord, maxp.NumGlyphs);
+        if (hmtxRecord != null && (hhea.NumberOfHMetrics == 0 || hhea.NumberOfHMetrics > longEntryLimit))
+        {
+            // Recovers a header that states no long entries at all, and caps one that states more
+            // than "hmtx" has the bytes to hold, so the count always describes entries that exist.
+            hhea.NumberOfHMetrics = longEntryLimit;
+        }
+
+        if (hhea.NumberOfHMetrics > maxp.NumGlyphs)
+        {
+            // "hmtx" holds one long entry per glyph at most, so a numberOfHMetrics past numGlyphs
+            // describes entries that cannot exist. Clamping it here - rather than only where "hmtx" is
+            // read - keeps the two tables telling the same story when the font is written back out.
+            hhea.NumberOfHMetrics = maxp.NumGlyphs;
+        }
+
+        font.Hhea = hhea;
+
+        if (hmtxRecord != null)
+        {
+            font.Hmtx = _hmtxProcessor.Read(stream.GetMemory(hmtxRecord.Value), hhea.NumberOfHMetrics, maxp.NumGlyphs);
         }
 
         SfntTableRecord? os2Record = container.FindTable(SfntTableTags.Os2);
@@ -132,25 +181,57 @@ public class SfntFontProcessor
             font.Post = _postProcessor.Read(stream.GetMemory(postRecord.Value));
         }
 
-        SfntTableRecord? cffRecord = container.FindTable(SfntTableTags.Cff);
         if (cffRecord != null)
         {
             font.CffTypeface = _cffProcessor.Read(stream.GetMemory(cffRecord.Value));
         }
 
-        SfntTableRecord? locaRecord = container.FindTable(SfntTableTags.Loca);
-        SfntTableRecord? glyfRecord = container.FindTable(SfntTableTags.Glyf);
         if (locaRecord != null && glyfRecord != null && font.Head != null && font.Maxp != null)
         {
-            SfntLoca? loca = _locaProcessor.Read(stream.GetMemory(locaRecord.Value), font.Maxp.NumGlyphs, font.Head.IndexToLocFormat, glyfRecord.Value.Length);
-            if (loca != null)
-            {
-                font.Glyf = new SfntGlyf { Loca = loca };
-                font.GlyfRecord = glyfRecord;
-            }
+            SfntLoca loca = _locaProcessor.Read(stream.GetMemory(locaRecord.Value), font.Maxp.NumGlyphs, font.Head.IndexToLocFormat, glyfRecord.Value.Length);
+            font.Glyf = new SfntGlyf { Loca = loca };
+            font.GlyfRecord = glyfRecord;
         }
 
         return font;
+    }
+
+    /// <summary>
+    /// Recovers the glyph count from "loca"'s own length, which holds one entry per glyph plus a
+    /// trailing sentinel, at the entry width "head" states. Returns 0 when the font has neither -
+    /// leaving the count unknown rather than guessing one the outlines cannot back.
+    /// </summary>
+    private static ushort DeriveNumGlyphs(SfntTableRecord? locaRecord, SfntHead? head)
+    {
+        if (locaRecord == null || head == null)
+        {
+            return 0;
+        }
+
+        int entryLength = (head.IndexToLocFormat != 0) ? 4 : 2;
+        int entryCount = locaRecord.Value.Length / entryLength;
+        if (entryCount < 2)
+        {
+            return 0;
+        }
+
+        return (ushort)Math.Min(entryCount - 1, ushort.MaxValue);
+    }
+
+    /// <summary>
+    /// Derives the most long entries "hmtx" could hold, from its own length. Every glyph past the
+    /// last long entry carries a side bearing alone, so a conforming table is always at least four
+    /// bytes per long entry - making its length divided by four a ceiling that never cuts into a
+    /// count the table can actually back. Returns 0 when the font has no "hmtx" to size it from.
+    /// </summary>
+    private static ushort DeriveLongEntryLimit(SfntTableRecord? hmtxRecord, ushort numGlyphs)
+    {
+        if (hmtxRecord == null)
+        {
+            return 0;
+        }
+
+        return (ushort)Math.Min(hmtxRecord.Value.Length / 4, numGlyphs);
     }
 
     /// <summary>
@@ -201,17 +282,13 @@ public class SfntFontProcessor
     }
 
     /// <summary>
-    /// Writes a full SFNT font back to bytes. Every table with a dedicated model
-    /// (<see cref="SfntFont.Head"/>, <see cref="SfntFont.Hhea"/>, <see cref="SfntFont.Maxp"/>,
-    /// <see cref="SfntFont.Hmtx"/>, <see cref="SfntFont.Os2"/>, <see cref="SfntFont.Name"/>,
-    /// <see cref="SfntFont.CffTypeface"/>, <see cref="SfntFont.Glyf"/>) is re-serialized from that model whenever it is set - regardless
-    /// of whether <see cref="SfntFont.Tables"/> already has a raw entry for it, so setting a model is
-    /// enough to produce its table even when assembling a brand new font. Every other entry in
-    /// <see cref="SfntFont.Tables"/> (e.g. a repacked "CFF " table, or "cmap"/"post" when a model
-    /// couldn't be or wasn't parsed) is passed through unchanged, resolved from <paramref name="sourceStream"/>
-    /// (the stream <paramref name="font"/> was read from). "cmap" and "post" are themselves read-only
-    /// and have no writer of their own - if neither a model nor a raw entry produces one, a minimal
-    /// empty stub is added instead, since both are required for a valid OTTO container.
+    /// Writes a full SFNT font back to bytes. Tables with a dedicated model are re-serialized from it;
+    /// "fpgm", "prep", "cvt " and "gasp" are passed through unchanged from
+    /// <paramref name="sourceStream"/>; every other source table is dropped. "cmap" and "post" always
+    /// get a minimal empty stub: neither has a writer, and passing the source's own bytes through
+    /// would carry a corrupt subtable into an otherwise sound font - enough for a rasterizer to
+    /// reject the whole font. "OS/2" falls back to a stub of its own when the source carries none,
+    /// since a font written without it is equally rejected.
     /// </summary>
     /// <param name="font">The font to write.</param>
     /// <param name="sourceStream">The stream <paramref name="font"/> was read from, used to resolve passthrough tables' bytes.</param>
@@ -228,48 +305,48 @@ public class SfntFontProcessor
         }
 
         List<SfntTableData> tables = [];
-        HashSet<uint> writtenTags = [];
 
         if (font.Head != null)
         {
             tables.Add(new SfntTableData(SfntTableTags.Head, _headProcessor.Write(font.Head)));
-            writtenTags.Add(SfntTableTags.Head.Value);
         }
 
         if (font.Hhea != null)
         {
             tables.Add(new SfntTableData(SfntTableTags.Hhea, _hheaProcessor.Write(font.Hhea)));
-            writtenTags.Add(SfntTableTags.Hhea.Value);
         }
 
         if (font.Maxp != null)
         {
             tables.Add(new SfntTableData(SfntTableTags.Maxp, _maxpProcessor.Write(font.Maxp)));
-            writtenTags.Add(SfntTableTags.Maxp.Value);
         }
 
         if (font.Hmtx != null && font.Hhea != null)
         {
             tables.Add(new SfntTableData(SfntTableTags.Hmtx, _hmtxProcessor.Write(font.Hmtx, font.Hhea.NumberOfHMetrics)));
-            writtenTags.Add(SfntTableTags.Hmtx.Value);
         }
 
         if (font.Os2 != null)
         {
             tables.Add(new SfntTableData(SfntTableTags.Os2, _os2Processor.Write(font.Os2)));
-            writtenTags.Add(SfntTableTags.Os2.Value);
+        }
+        else
+        {
+            tables.Add(new SfntTableData(SfntTableTags.Os2, SfntOs2Processor.CreateEmptyStub()));
         }
 
         if (font.Name != null)
         {
             tables.Add(new SfntTableData(SfntTableTags.Name, _nameProcessor.Write(font.Name)));
-            writtenTags.Add(SfntTableTags.Name.Value);
+        }
+        else
+        {
+            tables.Add(new SfntTableData(SfntTableTags.Name, SfntNameProcessor.CreateEmptyStub()));
         }
 
         if (font.CffTypeface != null)
         {
             tables.Add(new SfntTableData(SfntTableTags.Cff, _cffProcessor.Write(font.CffTypeface)));
-            writtenTags.Add(SfntTableTags.Cff.Value);
         }
 
         if (font.Glyf != null && font.Head != null)
@@ -278,31 +355,27 @@ public class SfntFontProcessor
             {
                 SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value), PdfFontMatrix.Identity);
                 tables.Add(new SfntTableData(SfntTableTags.Glyf, glyfResult.GlyfData));
-                writtenTags.Add(SfntTableTags.Glyf.Value);
 
                 byte[] locaData = _locaProcessor.Write(glyfResult.Loca, font.Head.IndexToLocFormat);
                 tables.Add(new SfntTableData(SfntTableTags.Loca, locaData));
-                writtenTags.Add(SfntTableTags.Loca.Value);
             }
         }
 
         foreach (SfntTableRecord table in font.Tables)
         {
-            if (writtenTags.Add(table.Tag.Value))
+            bool isPassthroughTable = table.Tag == SfntTableTags.Fpgm
+                || table.Tag == SfntTableTags.Prep
+                || table.Tag == SfntTableTags.Cvt
+                || table.Tag == SfntTableTags.Gasp;
+
+            if (isPassthroughTable)
             {
                 tables.Add(new SfntTableData(table.Tag, sourceStream.GetMemory(table)));
             }
         }
 
-        if (writtenTags.Add(SfntTableTags.Cmap.Value))
-        {
-            tables.Add(new SfntTableData(SfntTableTags.Cmap, SfntCmapProcessor.CreateEmptyStub()));
-        }
-
-        if (writtenTags.Add(SfntTableTags.Post.Value))
-        {
-            tables.Add(new SfntTableData(SfntTableTags.Post, SfntPostProcessor.CreateEmptyStub()));
-        }
+        tables.Add(new SfntTableData(SfntTableTags.Cmap, SfntCmapProcessor.CreateEmptyStub()));
+        tables.Add(new SfntTableData(SfntTableTags.Post, SfntPostProcessor.CreateEmptyStub()));
 
         return _containerProcessor.Write(font.Version, tables);
     }

@@ -62,11 +62,6 @@ public enum PdfCommandKind
     DrawStencilMaskImageTile,
 
     /// <summary>
-    /// <see cref="DrawTextCommand"/>.
-    /// </summary>
-    DrawText,
-
-    /// <summary>
     /// <see cref="DrawTilingCommand"/>.
     /// </summary>
     DrawTiling,

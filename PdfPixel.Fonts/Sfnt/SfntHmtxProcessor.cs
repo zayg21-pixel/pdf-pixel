@@ -21,30 +21,25 @@ public class SfntHmtxProcessor
     public SfntHmtxProcessor(ILogger<SfntHmtxProcessor> logger) => _logger = logger;
 
     /// <summary>
-    /// Parses an "hmtx" table from its raw content bytes, expanding it to one entry per glyph.
-    /// Returns null if the data is shorter than <paramref name="numberOfHMetrics"/> long entries plus
-    /// one leading side bearing per remaining glyph.
+    /// Parses an "hmtx" table from its raw content bytes, expanding it to one entry per glyph. Never
+    /// fails: once the data runs out an advance width falls back to 0 and a trailing side bearing to
+    /// the last long entry's advance width, since the malformed subsetted fonts this table shows up
+    /// in still carry their real per-glyph advance widths in the long entries that are present.
     /// </summary>
     /// <param name="data">The "hmtx" table's raw content bytes.</param>
-    /// <param name="numberOfHMetrics">The "hhea" table's numberOfHMetrics field.</param>
+    /// <param name="numberOfHMetrics">The "hhea" table's numberOfHMetrics field. A value past
+    /// <paramref name="numGlyphs"/> is clamped to it, since no glyph beyond the last one can carry a
+    /// long entry.</param>
     /// <param name="numGlyphs">The "maxp" table's numGlyphs field.</param>
-    public SfntHmtx? Read(in ReadOnlyMemory<byte> data, ushort numberOfHMetrics, ushort numGlyphs)
+    public SfntHmtx Read(in ReadOnlyMemory<byte> data, ushort numberOfHMetrics, ushort numGlyphs)
     {
         if (numberOfHMetrics > numGlyphs)
         {
             _logger.LogWarning(
-                "Failed to read 'hmtx' table: numberOfHMetrics {NumberOfHMetrics} exceeds numGlyphs {NumGlyphs}.",
+                "Reading 'hmtx' table with numberOfHMetrics {NumberOfHMetrics} past numGlyphs {NumGlyphs}; clamped to numGlyphs.",
                 numberOfHMetrics,
                 numGlyphs);
-            return null;
-        }
-
-        int trailingSideBearingCount = numGlyphs - numberOfHMetrics;
-        int expectedLength = (4 * numberOfHMetrics) + (2 * trailingSideBearingCount);
-        if (data.Length < expectedLength)
-        {
-            _logger.LogWarning("Failed to read 'hmtx' table: expected at least {ExpectedLength} bytes, got {ActualLength}.", expectedLength, data.Length);
-            return null;
+            numberOfHMetrics = numGlyphs;
         }
 
         SfntReader reader = new(data.Span);
@@ -53,15 +48,24 @@ public class SfntHmtxProcessor
         ushort lastAdvanceWidth = 0;
         for (int glyphIndex = 0; glyphIndex < numberOfHMetrics; glyphIndex++)
         {
-            lastAdvanceWidth = reader.ReadUInt16OrDefault();
-            short leftSideBearing = reader.ReadInt16OrDefault();
+            lastAdvanceWidth = reader.ReadUInt16() ?? 0;
+            short leftSideBearing = reader.ReadInt16() ?? 0;
             metrics[glyphIndex] = new SfntHorizontalMetric(lastAdvanceWidth, leftSideBearing);
         }
 
         for (int glyphIndex = numberOfHMetrics; glyphIndex < numGlyphs; glyphIndex++)
         {
-            short leftSideBearing = reader.ReadInt16OrDefault();
+            short leftSideBearing = reader.ReadInt16() ?? 0;
             metrics[glyphIndex] = new SfntHorizontalMetric(lastAdvanceWidth, leftSideBearing);
+        }
+
+        if (!reader.IsValid)
+        {
+            _logger.LogWarning(
+                "Reading truncated 'hmtx' table: {NumberOfHMetrics} long entries and {SideBearingCount} trailing side bearings need more than the {ActualLength} bytes present; the metrics past the end took their defaults.",
+                numberOfHMetrics,
+                numGlyphs - numberOfHMetrics,
+                data.Length);
         }
 
         return new SfntHmtx { Metrics = metrics };

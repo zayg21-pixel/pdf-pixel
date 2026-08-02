@@ -10,8 +10,65 @@ namespace PdfPixel.Text;
 /// Utility to convert PDF text operands (string or TJ array) directly into a list of shaped glyphs.
 /// Bypasses PdfTextSequence for direct rendering.
 /// </summary>
-internal static class ShapedGlyphBuilder
+public static class ShapedGlyphBuilder
 {
+    /// <summary>
+    /// Converts plain Unicode text into shaped glyphs laid out along a single horizontal baseline,
+    /// resolving every glyph id and advance through <paramref name="typeface"/> alone, with no PDF
+    /// font dictionary, character codes, or graphics state involved. Positions and advances are in
+    /// em-relative units (1.0 = one em). A codepoint the typeface has no glyph for gets a null glyph
+    /// id and a zero advance.
+    /// </summary>
+    /// <param name="text">The Unicode text to shape.</param>
+    /// <param name="typeface">The typeface resolving glyph ids and advances.</param>
+    /// <param name="buffer">The list to clear and fill with the shaped glyphs.</param>
+    public static void BuildFromText(string text, IPdfTypeface typeface, List<ShapedGlyph> buffer)
+    {
+        if (typeface == null)
+        {
+            throw new ArgumentNullException(nameof(typeface));
+        }
+
+        if (buffer == null)
+        {
+            throw new ArgumentNullException(nameof(buffer));
+        }
+
+        buffer.Clear();
+
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        float x = 0f;
+        int index = 0;
+
+        while (index < text.Length)
+        {
+            int codepointLength = (char.IsSurrogatePair(text, index)) ? 2 : 1;
+            string unicode = text.Substring(index, codepointLength);
+            index += codepointLength;
+
+            ushort? gid = typeface.GetGid(unicode);
+            float width = (gid == null) ? 0f : typeface.GetWidth(gid.Value);
+
+            PdfCharacterInfo info = new(
+                (uint)char.ConvertToUtf32(unicode, 0),
+                typeface,
+                unicode,
+                [gid],
+                width,
+                [width],
+                xScale: 1f,
+                offset: default,
+                advancement: width);
+
+            buffer.Add(new ShapedGlyph(info, groupId: null, gid, width, info.XScale, x, 0f));
+            x += width;
+        }
+    }
+
     /// <summary>
     /// Converts a PDF TJ array operand into a list of shaped glyphs for rendering.
     /// The caller must provide a non-null <paramref name="buffer"/>, which will be cleared and filled.
@@ -23,7 +80,7 @@ internal static class ShapedGlyphBuilder
         List<ShapedGlyph> buffer)
     {
         // Guard: do nothing if arguments are invalid
-        if (arrayOperand == null || arrayOperand.Type != PdfValueType.Array || buffer == null)
+        if (arrayOperand == null || arrayOperand.Type != PdfValueType.Array || state == null || buffer == null)
         {
             return;
         }
@@ -88,7 +145,7 @@ internal static class ShapedGlyphBuilder
         List<ShapedGlyph> buffer)
     {
         // Guard: do nothing if arguments are invalid
-        if (stringOperand == null || stringOperand.Type != PdfValueType.String || buffer == null)
+        if (stringOperand == null || stringOperand.Type != PdfValueType.String || state == null || buffer == null)
         {
             return;
         }

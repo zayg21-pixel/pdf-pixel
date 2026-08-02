@@ -59,4 +59,40 @@ public static class SfntTableTags
     /// TrueType per-glyph offsets into <see cref="Glyf"/>.
     /// </summary>
     public static readonly SfntTableTag Loca = SfntTableTag.FromString("loca");
+
+    /// <summary>
+    /// Control value table read by the TrueType hinting instructions.
+    /// </summary>
+    public static readonly SfntTableTag Cvt = SfntTableTag.FromString("cvt ");
+
+    /// <summary>
+    /// Font program: TrueType instructions run once when the font is first loaded.
+    /// </summary>
+    public static readonly SfntTableTag Fpgm = SfntTableTag.FromString("fpgm");
+
+    /// <summary>
+    /// Control value program: TrueType instructions run whenever the point size changes.
+    /// </summary>
+    public static readonly SfntTableTag Prep = SfntTableTag.FromString("prep");
+
+    /// <summary>
+    /// Glyph definition table: glyph classes, attachment points, and ligature caret positions used by
+    /// OpenType layout.
+    /// </summary>
+    public static readonly SfntTableTag Gdef = SfntTableTag.FromString("GDEF");
+
+    /// <summary>
+    /// Glyph substitution table: ligatures, alternates, and other OpenType layout substitutions.
+    /// </summary>
+    public static readonly SfntTableTag Gsub = SfntTableTag.FromString("GSUB");
+
+    /// <summary>
+    /// Glyph positioning table: kerning, mark attachment, and other OpenType layout adjustments.
+    /// </summary>
+    public static readonly SfntTableTag Gpos = SfntTableTag.FromString("GPOS");
+
+    /// <summary>
+    /// Grid-fitting and scan-conversion procedure: per-ppem-range hinting and smoothing policy.
+    /// </summary>
+    public static readonly SfntTableTag Gasp = SfntTableTag.FromString("gasp");
 }

@@ -21,7 +21,8 @@ public sealed class SfntPdfTypefaceParameters
     public int TtcIndex { get; set; }
 
     /// <summary>
-    /// Gets the default parameters: <see cref="RepackTypeface"/> = <see langword="true"/>, <see cref="TtcIndex"/> = 0.
+    /// Gets the default parameters: <see cref="RepackTypeface"/> = <see langword="true"/>,
+    /// <see cref="TtcIndex"/> = 0.
     /// </summary>
     public static SfntPdfTypefaceParameters Default { get; } = new();
 }

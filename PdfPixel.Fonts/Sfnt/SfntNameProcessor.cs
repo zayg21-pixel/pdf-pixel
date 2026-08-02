@@ -6,7 +6,9 @@ namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
 /// Reads and writes the binary form of the SFNT "name" table (format 0 only - format 1's additional
-/// language-tag records are legacy and effectively unused in practice).
+/// language-tag records are legacy and effectively unused in practice). Reading never fails: a header
+/// too short to state a record count yields no records, just as a table that declares none does.
+/// <see cref="CreateEmptyStub"/> covers the other case: a font carrying no "name" table at all.
 /// </summary>
 public class SfntNameProcessor
 {
@@ -22,22 +24,16 @@ public class SfntNameProcessor
     public SfntNameProcessor(ILogger<SfntNameProcessor> logger) => _logger = logger;
 
     /// <summary>
-    /// Parses a "name" table from its raw content bytes. Returns null if it is shorter than the
-    /// fixed 6-byte header. Individual records that don't fit are skipped rather than failing the
-    /// whole table.
+    /// Parses a "name" table from its raw content bytes. Never fails: a header too short to state a
+    /// record count reads as stating none, and individual records that don't fit are skipped rather
+    /// than failing the whole table - a name the font cannot back is better left out than guessed at.
     /// </summary>
-    public SfntName? Read(in ReadOnlyMemory<byte> data)
+    public SfntName Read(in ReadOnlyMemory<byte> data)
     {
-        if (data.Length < HeaderLength)
-        {
-            _logger.LogWarning("Failed to read 'name' table: expected at least {ExpectedLength} bytes, got {ActualLength}.", HeaderLength, data.Length);
-            return null;
-        }
-
         SfntReader headerReader = new(data.Span);
         headerReader.Skip(2); // format
-        ushort recordCount = headerReader.ReadUInt16OrDefault();
-        ushort storageOffset = headerReader.ReadUInt16OrDefault();
+        ushort recordCount = headerReader.ReadUInt16() ?? 0;
+        ushort storageOffset = headerReader.ReadUInt16() ?? 0;
 
         List<SfntNameRecord> records = new(recordCount);
         for (int recordIndex = 0; recordIndex < recordCount; recordIndex++)
@@ -50,12 +46,12 @@ public class SfntNameProcessor
                 break;
             }
 
-            ushort platformId = recordReader.ReadUInt16OrDefault();
-            ushort encodingId = recordReader.ReadUInt16OrDefault();
-            ushort languageId = recordReader.ReadUInt16OrDefault();
-            ushort nameId = recordReader.ReadUInt16OrDefault();
-            ushort length = recordReader.ReadUInt16OrDefault();
-            ushort valueOffset = recordReader.ReadUInt16OrDefault();
+            ushort platformId = recordReader.ReadUInt16() ?? 0;
+            ushort encodingId = recordReader.ReadUInt16() ?? 0;
+            ushort languageId = recordReader.ReadUInt16() ?? 0;
+            ushort nameId = recordReader.ReadUInt16() ?? 0;
+            ushort length = recordReader.ReadUInt16() ?? 0;
+            ushort valueOffset = recordReader.ReadUInt16() ?? 0;
 
             if (!recordReader.IsValid)
             {
@@ -75,6 +71,23 @@ public class SfntNameProcessor
         }
 
         return new SfntName { Records = records };
+    }
+
+    /// <summary>
+    /// Creates a minimal placeholder "name" table for a font that carries none: format 0 with no
+    /// records at all. Unlike the other tables' stubs this invents no values, because every field it
+    /// could fill is the font's identity - and a fabricated family or PostScript name would flow
+    /// straight into font matching and substitution, where a wrong name is worse than none.
+    /// </summary>
+    public static byte[] CreateEmptyStub()
+    {
+        SfntWriter writer = new();
+
+        writer.WriteUInt16(0); // format
+        writer.WriteUInt16(0); // recordCount
+        writer.WriteUInt16(HeaderLength); // storageOffset: the empty storage area starts past the header
+
+        return writer.ToArray();
     }
 
     /// <summary>

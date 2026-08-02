@@ -22,7 +22,9 @@ public class SfntLocaProcessor
 
     /// <summary>
     /// Parses a "loca" table from its raw content bytes, resolving each glyph's byte range within
-    /// "glyf". Returns null if the data is shorter than <c>numGlyphs + 1</c> entries.
+    /// "glyf". An entry missing past the end of the data defaults to offset 0, which
+    /// <see cref="ResolveRanges"/> already treats as an empty glyph - the same convention a
+    /// conforming font uses to mark one deliberately.
     /// </summary>
     /// <param name="data">The "loca" table's raw content bytes.</param>
     /// <param name="numGlyphs">The "maxp" table's numGlyphs field.</param>
@@ -30,7 +32,7 @@ public class SfntLocaProcessor
     /// UInt16) entries, any other value for long (UInt32) entries.</param>
     /// <param name="glyfDataLength">The "glyf" table's byte length, used both to clamp out-of-range
     /// offsets and as the fallback end for the last glyph.</param>
-    public SfntLoca? Read(in ReadOnlyMemory<byte> data, ushort numGlyphs, short indexToLocFormat, int glyfDataLength)
+    public SfntLoca Read(in ReadOnlyMemory<byte> data, ushort numGlyphs, short indexToLocFormat, int glyfDataLength)
     {
         int entryCount = numGlyphs + 1;
         bool isLongFormat = indexToLocFormat != 0;
@@ -38,8 +40,7 @@ public class SfntLocaProcessor
 
         if (data.Length < expectedLength)
         {
-            _logger.LogWarning("Failed to read 'loca' table: expected at least {ExpectedLength} bytes, got {ActualLength}.", expectedLength, data.Length);
-            return null;
+            _logger.LogWarning("Reading truncated 'loca' table: expected {ExpectedLength} bytes, got {ActualLength}; missing entries default to an empty glyph.", expectedLength, data.Length);
         }
 
         SfntReader reader = new(data.Span);
@@ -147,12 +148,14 @@ public class SfntLocaProcessor
             break;
         }
 
-        // A zero final offset can't yield an end via the successor lookup above; fall back to the
-        // glyf table's total length.
-        int lastGlyphIndex = numGlyphs - 1;
-        if (offsets[lastGlyphIndex] != 0 && endOffsets[lastGlyphIndex] == 0)
+        // Whichever entry holds the single largest offset has no successor to take an end from - that
+        // is normally the trailing sentinel (which needs none), but a missing/zeroed sentinel can
+        // displace the true last glyph into that spot instead. Fall back to the glyf table's total
+        // length for it, unless it turns out to be the sentinel itself (no glyph to fix up).
+        int lastSortedIndex = indicesByOffset[indicesByOffset.Length - 1];
+        if (lastSortedIndex < numGlyphs && offsets[lastSortedIndex] != 0 && endOffsets[lastSortedIndex] == 0)
         {
-            endOffsets[lastGlyphIndex] = glyfDataLength;
+            endOffsets[lastSortedIndex] = glyfDataLength;
         }
 
         var ranges = new SfntGlyphRange[numGlyphs];

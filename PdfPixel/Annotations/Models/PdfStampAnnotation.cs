@@ -10,6 +10,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -105,16 +106,20 @@ public class PdfStampAnnotation : PdfAnnotationBase
         float textX = Rectangle.MidX - textWidth / 2f;
         float textY = Rectangle.MidY - (scaledAscent + scaledDescent) / 2f;
 
+        // Shaped glyph positions are em-relative, so the font size scales them through the matrix.
         PdfMatrix textMatrix = PdfMatrix.Concat(
             PdfMatrix.CreateTranslation(textX, textY),
-            PdfMatrix.CreateScale(1f, -1f));
+            PdfMatrix.CreateScale(fontSize, -fontSize));
 
         float shadowOffset = fontSize * 0.05f;
         float shadowSigma = fontSize * 0.03f;
         PdfPaintShadowEffect shadowEffect = new(shadowOffset, shadowOffset, shadowSigma, shadowSigma, PdfColors.Black.WithAlpha(ShadowAlpha / 255f));
         PdfPaint textPaint = new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color).WithShadowEffect(shadowEffect);
 
-        processor.Process(new DrawTextCommand(labelText, textMatrix, typeface, fontSize, textPaint));
+        List<ShapedGlyph> glyphs = [];
+        ShapedGlyphBuilder.BuildFromText(labelText, typeface, glyphs);
+
+        processor.Process(new DrawShapedTextCommand(textMatrix, glyphs.ToArray(), textPaint));
     }
 
     private static string GetLabelText(PdfStampName stampName, in PdfString rawName)
