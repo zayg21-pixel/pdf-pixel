@@ -53,6 +53,7 @@ internal sealed class Program
         string[] runArguments = hasMode ? args.AsSpan(1).ToArray() : args;
 
         bool fullRun = false;
+        bool inspect = false;
         List<string> filters = new();
 
         foreach (string argument in runArguments)
@@ -60,6 +61,10 @@ internal sealed class Program
             if (string.Equals(argument, "--fullRun", StringComparison.OrdinalIgnoreCase))
             {
                 fullRun = true;
+            }
+            else if (string.Equals(argument, "--inspect", StringComparison.OrdinalIgnoreCase))
+            {
+                inspect = true;
             }
             else
             {
@@ -74,6 +79,22 @@ internal sealed class Program
             Write(ConsoleColor.Red, $"No PDF to process; {manifest.Files.Count} PDF(s) are registered in {manifestPath}.");
 
             return 1;
+        }
+
+        // Every differing page found by this run is collected flat into "Inspect", starting from a
+        // clean slate, so a previous run's leftovers never get mixed in with this one's.
+        string? inspectDirectory = null;
+
+        if (inspect && !generate)
+        {
+            inspectDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Inspect");
+
+            if (Directory.Exists(inspectDirectory))
+            {
+                Directory.Delete(inspectDirectory, recursive: true);
+            }
+
+            Directory.CreateDirectory(inspectDirectory);
         }
 
         Stopwatch runStopwatch = Stopwatch.StartNew();
@@ -92,7 +113,7 @@ internal sealed class Program
                 {
                     Generate(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
                 }
-                else if (!Compare(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password))
+                else if (!Compare(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password, inspectDirectory))
                 {
                     differentCount++;
                 }
@@ -294,7 +315,7 @@ internal sealed class Program
         Write(ConsoleColor.Green, $"{Path.GetFileName(pdfPath),-60} {pageCount} page(s)");
     }
 
-    private static bool Compare(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
+    private static bool Compare(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password, string? inspectDirectory)
     {
         string pdfName = Path.GetFileName(pdfPath);
         bool matched = true;
@@ -341,9 +362,29 @@ internal sealed class Program
             double differentPercentage = differentPixels * 100.0 / ((long)page.Width * page.Height);
             Write(ConsoleColor.Red, $"{pdfName,-60} page {pageNumber} DIFF {differentPixels} pixel(s), {differentPercentage:F2}%");
             matched = false;
+
+            if (inspectDirectory != null)
+            {
+                CopyToInspect(inspectDirectory, pdfPath, pdfName, pageNumber, sourcePath, resultPath, golden, page);
+            }
         }
 
         return matched;
+    }
+
+    // Gathers everything needed to eyeball one differing page - the source PDF and its golden,
+    // result, and diff images - flat into the inspect folder, named by PDF and page so files from
+    // different PDFs never collide.
+    private static void CopyToInspect(string inspectDirectory, string pdfPath, string pdfName, int pageNumber, string sourcePath, string resultPath, SKBitmap golden, SKBitmap rendered)
+    {
+        string stem = Path.GetFileNameWithoutExtension(pdfName);
+
+        File.Copy(pdfPath, Path.Combine(inspectDirectory, pdfName), overwrite: true);
+        File.Copy(sourcePath, Path.Combine(inspectDirectory, $"{stem}_{pageNumber}_source.png"), overwrite: true);
+        File.Copy(resultPath, Path.Combine(inspectDirectory, $"{stem}_{pageNumber}_result.png"), overwrite: true);
+
+        using SKBitmap diff = PageRenderer.CreateDiffImage(golden, rendered);
+        PageRenderer.SavePng(diff, Path.Combine(inspectDirectory, $"{stem}_{pageNumber}_diff.png"));
     }
 
     // A short run leaves out the PDFs registered as full-run members; an explicit filter overrides
@@ -394,6 +435,7 @@ internal sealed class Program
         Console.WriteLine("Usage: PdfPixel.Gold [add|generate|compare] [options]");
         Console.WriteLine("  <no arguments>          compares the short set against its golden snapshots");
         Console.WriteLine("  --fullRun               compares every registered PDF, slow ones included");
+        Console.WriteLine("  --inspect               also collects every differing page into the Inspect folder");
         Console.WriteLine("  a* b                    compares the selected PDFs only, short or full alike");
         Console.WriteLine("  generate                rewrites the golden snapshots of the short set");
         Console.WriteLine("  generate --fullRun      rewrites the golden snapshots of every registered PDF");
@@ -406,6 +448,8 @@ internal sealed class Program
         Console.WriteLine("Pages are 1-based and comma separated, as in \"1,2,5\"; leaving them out registers every page.");
         Console.WriteLine("An encrypted PDF needs --password; the password is stored in gold.json and reused by every run.");
         Console.WriteLine("A golden snapshot is written for every registered page that has none; existing goldens are kept.");
+        Console.WriteLine("With --inspect, the Inspect folder is cleared and refilled with, per differing page,");
+        Console.WriteLine("the source PDF and its golden/result/diff PNGs, flat and named by PDF and page.");
     }
 
     // Snapshots taken from a debug build are not comparable with the ones taken from a release build.

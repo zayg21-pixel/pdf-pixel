@@ -5,6 +5,7 @@ using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Gold;
 
@@ -108,6 +109,34 @@ internal static class PageRenderer
         }
 
         return differentPixels;
+    }
+
+    /// <summary>
+    /// Builds a diff image the same size as <paramref name="golden"/>: white where it matches
+    /// <paramref name="rendered"/>, solid magenta where the two differ.
+    /// </summary>
+    public static SKBitmap CreateDiffImage(SKBitmap golden, SKBitmap rendered)
+    {
+        ReadOnlySpan<byte> goldenPixels = golden.GetPixelSpan();
+        ReadOnlySpan<byte> renderedPixels = rendered.GetPixelSpan();
+
+        var diffPixels = new byte[goldenPixels.Length];
+
+        for (int offset = 0; offset + BytesPerPixel <= goldenPixels.Length; offset += BytesPerPixel)
+        {
+            bool matches = goldenPixels.Slice(offset, BytesPerPixel).SequenceEqual(renderedPixels.Slice(offset, BytesPerPixel));
+
+            diffPixels[offset] = 255;
+            diffPixels[offset + 1] = matches ? (byte)255 : (byte)0;
+            diffPixels[offset + 2] = 255;
+            diffPixels[offset + 3] = 255;
+        }
+
+        SKImageInfo imageInfo = new(golden.Width, golden.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        SKBitmap diff = new(imageInfo);
+        Marshal.Copy(diffPixels, 0, diff.GetPixels(), diffPixels.Length);
+
+        return diff;
     }
 
     private static SKBitmap RenderPage(IPdfPage page, IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
