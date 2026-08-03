@@ -74,34 +74,4 @@ public static class PdfFontExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(fontName), fontName, message: null)
         };
     }
-
-    /// <summary>
-    /// Converts a <see cref="PdfFontDescriptor"/> to a <see cref="PdfFontMetrics"/>.
-    /// </summary>
-    public static PdfFontMetrics ToPdfFontMetrics(this PdfFontDescriptor descriptor)
-    {
-        if (descriptor == null)
-        {
-            throw new ArgumentNullException(nameof(descriptor));
-        }
-
-        return new PdfFontMetrics
-        {
-            FontName = descriptor.FontName.ToPdfFontString(),
-            Ascent = descriptor.Ascent,
-            Descent = descriptor.Descent,
-            CapHeight = descriptor.CapHeight,
-            XHeight = descriptor.XHeight,
-            ItalicAngle = descriptor.ItalicAngle,
-            BoundingBoxLeft = descriptor.FontBBox.Left,
-            BoundingBoxBottom = descriptor.FontBBox.Bottom,
-            BoundingBoxRight = descriptor.FontBBox.Right,
-            BoundingBoxTop = descriptor.FontBBox.Top,
-            AvgWidth = descriptor.AvgWidth,
-            Weight = descriptor.FontWeight,
-            IsForceBold = (descriptor.Flags & PdfFontFlags.ForceBold) != 0,
-            IsItalic = (descriptor.Flags & PdfFontFlags.Italic) != 0,
-            Panose = descriptor.Panose
-        };
-    }
 }

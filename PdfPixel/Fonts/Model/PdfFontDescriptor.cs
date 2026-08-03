@@ -90,7 +90,7 @@ public class PdfFontDescriptor
     /// <summary>
     /// Font weight (PDF 1.5+, /FontWeight).
     /// </summary>
-    public int FontWeight { get; set; }
+    public int? FontWeight { get; set; }
 
     /// <summary>
     /// Leading value (PDF 1.5+, /Leading).
@@ -181,7 +181,7 @@ public class PdfFontDescriptor
             MissingWidth = dict.GetFloatOrDefault(PdfTokens.MissingWidthKey),
             FontFamily = dict.GetString(PdfTokens.FontFamilyKey),
             FontStretch = dict.GetString(PdfTokens.FontStretchKey),
-            FontWeight = dict.GetIntegerOrDefault(PdfTokens.FontWeightKey),
+            FontWeight = dict.GetInteger(PdfTokens.FontWeightKey),
             Leading = dict.GetFloatOrDefault(PdfTokens.LeadingKey),
             CharSet = dict.GetString(PdfTokens.CharSetKey)
         };
