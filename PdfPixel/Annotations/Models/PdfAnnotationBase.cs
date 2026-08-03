@@ -97,6 +97,12 @@ public abstract class PdfAnnotationBase
     protected virtual PdfPoint ContentStart => new(Rectangle.Left, Rectangle.Bottom);
 
     /// <summary>
+    /// Whether fallback rendering is wrapped in a translucent layer carrying <see cref="Opacity"/>, so that
+    /// overlapping parts of the annotation fade as one instead of stacking on each other.
+    /// </summary>
+    protected virtual bool UsesOpacityLayer => Opacity < 1.0f;
+
+    /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
     /// </summary>
     /// <remarks>
@@ -393,15 +399,19 @@ public abstract class PdfAnnotationBase
         }
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
 
-        if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
+        if (AppearanceDictionary != null)
         {
-            processor.Process(RestoreStateCommand.Instance);
-            return true;
+            processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
+
+            if (RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
+            {
+                processor.Process(RestoreStateCommand.Instance);
+                return true;
+            }
         }
 
-        bool useOpacityLayer = Opacity < 1.0f;
+        bool useOpacityLayer = UsesOpacityLayer;
         if (useOpacityLayer)
         {
             processor.Process(new SaveLayerCommand(Rectangle, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));

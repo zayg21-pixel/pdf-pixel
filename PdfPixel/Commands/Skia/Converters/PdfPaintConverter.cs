@@ -160,5 +160,5 @@ internal static class PdfPaintConverter
         => (existing != null) ? SKPathEffect.CreateCompose(outer, existing) : outer;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static PdfColor ApplyAlpha(in PdfColor color, float alpha) => color.WithAlpha(Math.Max(0f, Math.Min(1f, alpha)));
+    private static PdfColor ApplyAlpha(in PdfColor color, float alpha) => color.WithAlpha(color.Alpha * Math.Max(0f, Math.Min(1f, alpha)));
 }

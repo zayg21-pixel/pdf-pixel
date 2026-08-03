@@ -6,6 +6,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
+using System.Linq;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -36,6 +37,33 @@ public class PdfInkAnnotation : PdfAnnotationBase
     /// Gets the starting point for bubble placement, using the first point of the first ink path.
     /// </summary>
     protected override PdfPoint ContentStart => (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// A declared /Rect that misses <see cref="InkList"/> entirely cannot be where the ink is, so the ink
+    /// bounds are used instead, grown to leave room for the stroke around them.
+    /// </remarks>
+    public override PdfRectangle Rectangle
+    {
+        get
+        {
+            if (AppearanceDictionary != null)
+            {
+                return base.Rectangle;
+            }
+
+            PdfRectangle? inkBounds = PdfRectangle.FromPoints(InkList.SelectMany(static path => path));
+
+            if (inkBounds == null)
+            {
+                return base.Rectangle;
+            }
+
+            PdfRectangle strokeBounds = inkBounds.Value.Inflate(2f * StrokeStyle.LineWidth);
+
+            return (PdfRectangle.IntersectsWith(base.Rectangle, strokeBounds)) ? base.Rectangle : strokeBounds;
+        }
+    }
 
     /// <summary>
     /// Gets the parsed ink list as an array of arrays of PdfPoint.

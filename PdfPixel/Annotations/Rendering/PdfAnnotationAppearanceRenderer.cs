@@ -36,13 +36,7 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        if (annotation.AppearanceDictionary == null)
-        {
-            return false;
-        }
-
-        PdfAnnotationVisualStateKind effectiveState = ResolveVisualState(annotation, visualStateKind);
-        PdfObject? appearanceObject = GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
+        PdfObject? appearanceObject = GetAppearanceObject(annotation, visualStateKind);
 
         if (appearanceObject == null)
         {
@@ -84,6 +78,23 @@ internal static class PdfAnnotationAppearanceRenderer
         }
 
         return success;
+    }
+
+    /// <summary>
+    /// Returns the appearance stream object an annotation renders for the given visual state, after falling
+    /// back to the states it does support, or null when it defines no appearance for any of them.
+    /// </summary>
+    /// <param name="annotation">The annotation to resolve the appearance of.</param>
+    /// <param name="visualStateKind">The requested visual state.</param>
+    public static PdfObject? GetAppearanceObject(PdfAnnotationBase annotation, PdfAnnotationVisualStateKind visualStateKind)
+    {
+        if (annotation.AppearanceDictionary == null)
+        {
+            return null;
+        }
+
+        PdfAnnotationVisualStateKind effectiveState = ResolveVisualState(annotation, visualStateKind);
+        return GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
     }
 
     /// <summary>

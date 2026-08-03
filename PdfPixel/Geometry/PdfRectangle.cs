@@ -1,5 +1,6 @@
 using PdfPixel.Models;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
@@ -97,11 +98,49 @@ public readonly struct PdfRectangle : IEquatable<PdfRectangle>
     }
 
     /// <summary>
+    /// Creates the smallest <see cref="PdfRectangle"/> containing every point in <paramref name="points"/>.
+    /// Returns null when <paramref name="points"/> is empty.
+    /// </summary>
+    public static PdfRectangle? FromPoints(IEnumerable<PdfPoint> points)
+    {
+        if (points == null)
+        {
+            throw new ArgumentNullException(nameof(points));
+        }
+
+        var hasBounds = false;
+        float left = 0;
+        float top = 0;
+        float right = 0;
+        float bottom = 0;
+
+        foreach (PdfPoint point in points)
+        {
+            if (!hasBounds)
+            {
+                left = point.X;
+                right = point.X;
+                top = point.Y;
+                bottom = point.Y;
+                hasBounds = true;
+                continue;
+            }
+
+            left = Math.Min(left, point.X);
+            right = Math.Max(right, point.X);
+            top = Math.Min(top, point.Y);
+            bottom = Math.Max(bottom, point.Y);
+        }
+
+        return hasBounds ? new PdfRectangle(left, top, right, bottom) : null;
+    }
+
+    /// <summary>
     /// Returns the overlapping region of <paramref name="a"/> and <paramref name="b"/>, or <see cref="Empty"/> when they do not overlap.
     /// </summary>
     public static PdfRectangle Intersect(in PdfRectangle a, in PdfRectangle b)
     {
-        if (!IntersectsWithInclusive(a, b))
+        if (!IntersectsWith(a, b))
         {
             return Empty;
         }
@@ -113,8 +152,17 @@ public readonly struct PdfRectangle : IEquatable<PdfRectangle>
             Math.Min(a.Bottom, b.Bottom));
     }
 
-    private static bool IntersectsWithInclusive(in PdfRectangle a, in PdfRectangle b)
+    /// <summary>
+    /// Whether <paramref name="a"/> and <paramref name="b"/> overlap, counting rectangles that only
+    /// share an edge as overlapping.
+    /// </summary>
+    public static bool IntersectsWith(in PdfRectangle a, in PdfRectangle b)
         => a.Left <= b.Right && a.Right >= b.Left && a.Top <= b.Bottom && a.Bottom >= b.Top;
+
+    /// <summary>
+    /// Returns this rectangle grown by <paramref name="amount"/> on every edge.
+    /// </summary>
+    public PdfRectangle Inflate(float amount) => new(Left - amount, Top - amount, Right + amount, Bottom + amount);
 
     /// <summary>
     /// Returns the smallest rectangle that contains both <paramref name="a"/> and <paramref name="b"/>.

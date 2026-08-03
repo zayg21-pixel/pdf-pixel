@@ -59,6 +59,33 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// </summary>
     protected override PdfPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// When there is no appearance stream, this is the bounding box of <see cref="Vertices"/>.
+    /// Otherwise this is the declared /Rect.
+    /// </remarks>
+    public override PdfRectangle Rectangle
+    {
+        get
+        {
+            if (AppearanceDictionary != null)
+            {
+                return base.Rectangle;
+            }
+
+            PdfRectangle? vertexBounds = PdfRectangle.FromPoints(Vertices);
+
+            if (vertexBounds == null)
+            {
+                return base.Rectangle;
+            }
+
+            PdfRectangle strokeBounds = vertexBounds.Value.Inflate(2f * StrokeStyle.LineWidth);
+
+            return (PdfRectangle.IntersectsWith(base.Rectangle, strokeBounds)) ? base.Rectangle : strokeBounds;
+        }
+    }
+
     /// <summary>
     /// Gets the vertices array containing coordinates of the polyline vertices.
     /// </summary>

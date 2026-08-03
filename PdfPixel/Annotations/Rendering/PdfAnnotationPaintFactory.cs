@@ -19,10 +19,12 @@ internal static class PdfAnnotationPaintFactory
     public static PdfPaint CreateOpacityLayerPaint(float opacity) => new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(PdfColors.White.WithAlpha(opacity));
 
     /// <summary>
-    /// Fill paint for a Highlight annotation's marked region (Multiply blend so the mark darkens the text beneath it).
+    /// Fill paint for a Highlight annotation's marked region (Multiply blend so the mark darkens the text
+    /// beneath it). Opacity rides on the paint rather than on a layer around it, which would isolate the
+    /// blend from the page it has to darken.
     /// </summary>
-    public static PdfPaint CreateHighlightPaint(in PdfColor color)
-        => new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color).WithBlendMode(PdfBlendMode.Multiply);
+    public static PdfPaint CreateHighlightPaint(in PdfColor color, float opacity)
+        => new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color).WithBlendMode(PdfBlendMode.Multiply).WithAlpha(opacity);
 
     /// <summary>
     /// Border stroke paint for a Stamp annotation's rounded-rectangle frame, with a drop-shadow effect

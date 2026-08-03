@@ -17,6 +17,8 @@ namespace PdfPixel.Annotations.Models;
 /// </remarks>
 public class PdfLineAnnotation : PdfAnnotationBase
 {
+    private readonly bool _hasLineCoordinates;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfLineAnnotation"/> class.
     /// </summary>
@@ -31,6 +33,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
             StartY = lineArray.GetFloatOrDefault(1);
             EndX = lineArray.GetFloatOrDefault(2);
             EndY = lineArray.GetFloatOrDefault(3);
+            _hasLineCoordinates = true;
         }
 
         PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
@@ -51,6 +54,33 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// Gets the starting point for bubble placement, using the line's start coordinates.
     /// </summary>
     protected override PdfPoint ContentStart => new(StartX, StartY);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// When there is no appearance stream, this is the bounding box of the line's endpoints.
+    /// Otherwise this is the declared /Rect.
+    /// </remarks>
+    public override PdfRectangle Rectangle
+    {
+        get
+        {
+            if (AppearanceDictionary != null || !_hasLineCoordinates)
+            {
+                return base.Rectangle;
+            }
+
+            PdfRectangle? lineBounds = PdfRectangle.FromPoints([new PdfPoint(StartX, StartY), new PdfPoint(EndX, EndY)]);
+
+            if (lineBounds == null)
+            {
+                return base.Rectangle;
+            }
+
+            PdfRectangle strokeBounds = lineBounds.Value.Inflate(2f * StrokeStyle.LineWidth);
+
+            return (PdfRectangle.IntersectsWith(base.Rectangle, strokeBounds)) ? base.Rectangle : strokeBounds;
+        }
+    }
 
     /// <summary>
     /// Gets the X coordinate of the line's start point.

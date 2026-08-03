@@ -4,6 +4,8 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Rendering;
+using PdfPixel.Text;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -25,6 +27,38 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     {
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The Multiply blend needs the marked content as its backdrop, which a layer would hide, so the
+    /// highlight paints its opacity directly instead.
+    /// </remarks>
+    protected override bool UsesOpacityLayer => false;
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// A highlight has to darken the content it marks, which takes a blend mode and so an ExtGState. An
+    /// appearance stream declaring no ExtGState in its resources cannot be blending, and would paint over
+    /// that content instead of through it, so it is discarded in favour of the fallback rendering.
+    /// </remarks>
+    internal override bool RenderAppearanceStream(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
+    {
+        PdfObject? appearanceObject = PdfAnnotationAppearanceRenderer.GetAppearanceObject(this, visualStateKind);
+        PdfDictionary? resources = appearanceObject?.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+
+        if (resources == null || !resources.HasKey(PdfTokens.ExtGStateKey))
+        {
+            return false;
+        }
+
+        return base.RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer);
+    }
+
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         PdfPoint[][] quads = Quadrilaterals;
@@ -44,7 +78,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             path.LineTo(quad[3]);
             path.Close();
 
-            PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color);
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color, Opacity);
 
             processor.Process(new DrawPathCommand(path.ToPath(), paint));
         }

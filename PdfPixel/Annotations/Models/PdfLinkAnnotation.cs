@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
+using System;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -81,6 +82,17 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
 
         PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, BorderStyle.StrokeStyle);
 
+        // A border narrower than the rectangle's shorter side outlines it from the inside and already stays
+        // within it. Anything thicker inverts that inset rectangle and would stroke across the surrounding
+        // page, so only then is the border confined to the annotation.
+        bool confineToRectangle = borderWidth > Math.Min(Rectangle.Width, Rectangle.Height);
+
+        if (confineToRectangle)
+        {
+            processor.Process(SaveStateCommand.Instance);
+            processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
+        }
+
         if (BorderStyle.StyleType == PdfAnnotationBorderStyleType.Underline)
         {
             float y = Rectangle.Top - (borderWidth / 2);
@@ -100,6 +112,11 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
             PdfPathBuilder rectPath = new();
             rectPath.AddRect(rect);
             processor.Process(new DrawPathCommand(rectPath.ToPath(), paint));
+        }
+
+        if (confineToRectangle)
+        {
+            processor.Process(RestoreStateCommand.Instance);
         }
 
         return true;

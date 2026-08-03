@@ -39,7 +39,7 @@ public sealed class PdfPaint
     /// when <paramref name="style"/> is <see cref="PdfPaintStyle.Stroke"/>.
     /// </summary>
     public PdfPaint(PdfPaintStyle style)
-        : this(style, default, 1.0f, PdfBlendMode.Normal, false, null, (style == PdfPaintStyle.Stroke) ? new PdfStrokeStyle() : null, null, null)
+        : this(style, PdfColors.Black, 1.0f, PdfBlendMode.Normal, false, null, (style == PdfPaintStyle.Stroke) ? new PdfStrokeStyle() : null, null, null)
     {
     }
 
