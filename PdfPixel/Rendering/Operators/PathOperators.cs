@@ -277,7 +277,10 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        _processor.Process(new ClipPathCommand(_currentPath.ToPath(_pendingClipFillType.Value), PdfClipOperation.Intersect));
+        if (!_currentPath.IsEmpty)
+        {
+            _processor.Process(new ClipPathCommand(_currentPath.ToPath(_pendingClipFillType.Value), PdfClipOperation.Intersect));
+        }
 
         _pendingClipFillType = null;
     }

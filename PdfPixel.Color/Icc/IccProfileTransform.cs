@@ -33,6 +33,13 @@ public sealed class IccProfileTransform
             _hasLut = true;
             _transform = new ChainedColorTransform();
         }
+        else if (profile.GrayTrc != null && profile.Header.Pcs == IccColorSpace.Lab)
+        {
+            // Neutral a*/b* in the ICC 8-bit Lab encoding: 0.5 == 0.
+            _transform = new ChainedColorTransform(
+                new PerChannelTrcTransform([profile.GrayTrc]),
+                new FunctionColorTransform(x => new Vector4(x.X, 0.5f, 0.5f, 1f)));
+        }
         else if (profile.GrayTrc != null)
         {
             _transform = new ChainedColorTransform(
