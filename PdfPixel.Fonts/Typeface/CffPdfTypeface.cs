@@ -99,7 +99,7 @@ public sealed class CffPdfTypeface : IPdfTypeface
     public bool IsGidExists(ushort gid) => gid < _font.Characters.Length;
 
     /// <inheritdoc/>
-    public float GetWidth(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Width / Metrics.UnitsPerEm : 0f;
+    public float? GetWidth(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Width / Metrics.UnitsPerEm : null;
 
     /// <inheritdoc/>
     public ReadOnlyMemory<byte> GetPath(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Path : ReadOnlyMemory<byte>.Empty;

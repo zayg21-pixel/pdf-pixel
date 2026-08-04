@@ -51,7 +51,7 @@ public static class ShapedGlyphBuilder
             index += codepointLength;
 
             ushort? gid = typeface.GetGid(unicode);
-            float width = (gid == null) ? 0f : typeface.GetWidth(gid.Value);
+            float width = (gid == null) ? 0f : typeface.GetWidth(gid.Value) ?? 0f;
 
             PdfCharacterInfo info = new(
                 (uint)char.ConvertToUtf32(unicode, 0),

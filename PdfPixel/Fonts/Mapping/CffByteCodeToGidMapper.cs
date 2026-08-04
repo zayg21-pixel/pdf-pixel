@@ -13,7 +13,7 @@ namespace PdfPixel.Fonts.Mapping;
 internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
 {
     private readonly ushort[] _codeToGid = new ushort[256];
-    private readonly float[] _codeToWidth = new float[256];
+    private readonly float?[] _codeToWidth = new float?[256];
 
     /// <summary>
     /// Initializes a new instance of <see cref="CffByteCodeToGidMapper"/> for the specified CFF typeface.
@@ -65,10 +65,9 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
     public ushort GetGid(byte code) => _codeToGid[code];
 
     /// <summary>
-    /// Gets the glyph width for the specified character code.
-    /// Returns the width from CFF charstring metrics, or 0 if not found.
+    /// Gets the glyph width for the specified character code, from CFF charstring metrics.
     /// </summary>
     /// <param name="code">The PDF character code.</param>
-    /// <returns>The glyph width for the character code, or 0 if not found.</returns>
-    public float GetWidth(byte code) => _codeToWidth[code];
+    /// <returns>The glyph width for the character code, or <see langword="null"/> if not found.</returns>
+    public float? GetWidth(byte code) => _codeToWidth[code];
 }

@@ -107,7 +107,7 @@ public sealed class SfntPdfTypeface : IPdfTypeface
     public bool IsGidExists(ushort gid) => (_cffFont != null) ? gid < _cffFont.Characters.Length : gid < _maxp.NumGlyphs;
 
     /// <inheritdoc/>
-    public float GetWidth(ushort gid) => (_font.Hmtx != null && gid < _font.Hmtx.Metrics.Count) ? _font.Hmtx.Metrics[gid].AdvanceWidth / (float)_head.UnitsPerEm : 0f;
+    public float? GetWidth(ushort gid) => (_font.Hmtx != null && gid < _font.Hmtx.Metrics.Count) ? _font.Hmtx.Metrics[gid].AdvanceWidth / (float)_head.UnitsPerEm : null;
 
     /// <inheritdoc/>
     public ReadOnlyMemory<byte> GetPath(ushort gid)

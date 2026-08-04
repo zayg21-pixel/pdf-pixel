@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Fonts.Sfnt;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -18,7 +17,6 @@ public class PdfCidFont : PdfFontBase
 {
     private readonly ILogger<PdfCidFont> _logger;
     private readonly IPdfTypeface? _typeface;
-    private readonly float[]? _widths;
 
     /// <summary>
     /// Constructor for CID fonts - lightweight operations only
@@ -40,7 +38,6 @@ public class PdfCidFont : PdfFontBase
 
             if (CidToGidMap == null)
             {
-                _widths = BuildGidWidths(cffPdfTypeface, cffFont.Characters.Length);
                 CidToGidMap = PdfCidToGidMap.FromCffFont(cffFont);
             }
         }
@@ -53,14 +50,8 @@ public class PdfCidFont : PdfFontBase
 
                 if (CidToGidMap == null)
                 {
-                    _widths = BuildGidWidths(sfntPdfTypeface, cffFont.Characters.Length);
                     CidToGidMap = PdfCidToGidMap.FromCffFont(cffFont);
                 }
-            }
-            else if (FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null)
-            {
-                int glyphCount = sfntPdfTypeface.SfntFont.Maxp?.NumGlyphs ?? 0;
-                _widths = BuildGidWidths(sfntPdfTypeface, glyphCount);
             }
         }
     }
@@ -190,17 +181,6 @@ public class PdfCidFont : PdfFontBase
 #pragma warning restore CA1031
 
         return null;
-    }
-
-    private static float[] BuildGidWidths(IPdfTypeface typeface, int glyphCount)
-    {
-        var gidWidths = new float[glyphCount];
-        for (int gid = 0; gid < glyphCount; gid++)
-        {
-            gidWidths[gid] = typeface.GetWidth((ushort)gid);
-        }
-
-        return gidWidths;
     }
 
     private PdfCidSystemInfo? LoadCidSystemInfo()

@@ -96,7 +96,7 @@ public static class PdfTypefaceExtensions
             int codepointLength = (char.IsSurrogatePair(unicode, index)) ? 2 : 1;
             string character = unicode.Substring(index, codepointLength);
             ushort gid = typeface.GetGid(character) ?? 0;
-            total += typeface.GetWidth(gid);
+            total += typeface.GetWidth(gid) ?? 0f;
             index += codepointLength;
         }
 
@@ -125,7 +125,7 @@ public static class PdfTypefaceExtensions
         for (int i = 0; i < gids.Length; i++)
         {
             ushort? gid = gids[i];
-            widths[i] = (gid.HasValue) ? typeface.GetWidth(gid.Value) : 0f;
+            widths[i] = (gid.HasValue) ? typeface.GetWidth(gid.Value) ?? 0f : 0f;
         }
 
         return widths;

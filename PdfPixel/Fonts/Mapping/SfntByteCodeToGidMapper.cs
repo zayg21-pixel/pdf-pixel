@@ -14,7 +14,7 @@ namespace PdfPixel.Fonts.Mapping;
 internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 {
     private readonly ushort[] _codeToGid = new ushort[256];
-    private readonly float[] _codeToWidth = new float[256];
+    private readonly float?[] _codeToWidth = new float?[256];
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfntByteCodeToGidMapper"/> for the specified typeface and encoding.
@@ -73,8 +73,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// Gets the glyph width for the specified character code.
     /// </summary>
     /// <param name="code">The PDF character code.</param>
-    /// <returns>The glyph width for the character code, or 0.</returns>
-    public float GetWidth(byte code) => _codeToWidth[code];
+    /// <returns>The glyph width for the character code, or <see langword="null"/> if not found.</returns>
+    public float? GetWidth(byte code) => _codeToWidth[code];
 
     private static ushort ResolveGid(
         SfntPdfTypeface typeface,

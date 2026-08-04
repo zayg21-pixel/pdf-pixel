@@ -48,9 +48,6 @@ public class PdfSimpleFont : PdfSingleByteFont
 
     /// <summary>
     /// Returns the advance width for the specified character code.
-    /// Uses the font metrics table first, falls back to the glyph-ID mapper when the metrics entry is zero,
-    /// then to the Standard 14 AFM widths when the font has no embedded metrics at all, and finally - for a
-    /// code the encoding of a non-embedded Type 1 font leaves undefined - to the font's space width.
     /// </summary>
     /// <param name="code">The character code to retrieve the width for.</param>
     /// <returns>The advance width in user space units.</returns>
@@ -66,26 +63,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         return width;
     }
 
-    private float? GetDefinedWidth(PdfCharacterCode code)
-    {
-        // None of a simple font's width sources can tell "no entry" from "an entry of zero", so a
-        // zero keeps the fallback chain going instead of ending it.
-        float? width = NullWhenZero(base.GetWidth(code));
-
-        if (width == null && _mapper != null)
-        {
-            width = NullWhenZero(_mapper.GetWidth((byte)(code)));
-        }
-
-        if (width == null && _standardFontWidths != null)
-        {
-            width = NullWhenZero(_standardFontWidths.GetWidth(code));
-        }
-
-        return width;
-    }
-
-    private static float? NullWhenZero(float? width) => (width == 0) ? null : width;
+    private float? GetDefinedWidth(PdfCharacterCode code) => base.GetWidth(code) ?? _mapper?.GetWidth((byte)(code)) ?? _standardFontWidths?.GetWidth(code);
 
     /// <summary>
     /// Returns the width the font gives the code its encoding maps to the space glyph, or

@@ -31,7 +31,8 @@ public interface IPdfTypeface : IDisposable
     /// Gets the advance width of the given glyph id, in em-relative units (already divided by
     /// <see cref="PdfFontMetrics.UnitsPerEm"/>; 1.0 = one em).
     /// </summary>
-    float GetWidth(ushort gid);
+    /// <returns>The advance width, or <see langword="null"/> if <paramref name="gid"/> does not exist in this typeface.</returns>
+    float? GetWidth(ushort gid);
 
     /// <summary>
     /// Gets the outline of the given glyph id, in em-relative units (1.0 = one em), encoded in the

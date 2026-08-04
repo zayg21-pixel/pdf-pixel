@@ -16,6 +16,6 @@ public interface IByteCodeToGidMapper
     /// Retrieves the glyph width corresponding to the given byte code.
     /// </summary>
     /// <param name="code">Byte code to retrieve the glyph width for.</param>
-    /// <returns>Glyph width corresponding to the byte code, or 0 if not available.</returns>
-    float GetWidth(byte code);
+    /// <returns>Glyph width corresponding to the byte code, or <see langword="null"/> if the code has no mapped glyph.</returns>
+    float? GetWidth(byte code);
 }
