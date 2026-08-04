@@ -27,9 +27,10 @@ public class PdfSingleByteFontWidths
     public uint? LastChar { get; set; }
 
     /// <summary>
-    /// Widths array for single-byte fonts. Null if not defined.
+    /// Widths array for single-byte fonts. Null if not defined. An individual entry is null when that
+    /// code has no assigned width, as distinct from a code whose width is genuinely zero.
     /// </summary>
-    public float[]? Widths { get; set; }
+    public float?[]? Widths { get; set; }
 
     /// <summary>
     /// Gets the width for the given character code. Returns explicit width if defined, otherwise null.
@@ -75,13 +76,15 @@ public class PdfSingleByteFontWidths
     {
         var firstChar = (uint?)fontDictionary.GetInteger(PdfTokens.FirstCharKey);
         var lastChar = (uint?)fontDictionary.GetInteger(PdfTokens.LastCharKey);
-        float[]? widthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
+        float[]? rawWidthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
 
-        if (widthsArray != null)
+        float?[]? widthsArray = null;
+        if (rawWidthsArray != null)
         {
-            for (int i = 0; i < widthsArray.Length; i++)
+            widthsArray = new float?[rawWidthsArray.Length];
+            for (int i = 0; i < rawWidthsArray.Length; i++)
             {
-                widthsArray[i] *= WidthToUserSpaceCoeff;
+                widthsArray[i] = rawWidthsArray[i] * WidthToUserSpaceCoeff;
             }
         }
 
@@ -104,16 +107,17 @@ public class PdfSingleByteFontWidths
     /// <returns>The resolved widths, or <see langword="null"/> if the family or style variant is unknown.</returns>
     internal static PdfSingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
     {
-        int[]? widths = Standard14Metrics.GetWidths(fontName, bold, italic, encoding);
+        int?[]? widths = Standard14Metrics.GetWidths(fontName, bold, italic, encoding);
         if (widths == null)
         {
             return null;
         }
 
-        var widthsArray = new float[widths.Length];
+        var widthsArray = new float?[widths.Length];
         for (int i = 0; i < widths.Length; i++)
         {
-            widthsArray[i] = widths[i] * WidthToUserSpaceCoeff;
+            int? width = widths[i];
+            widthsArray[i] = (width.HasValue) ? width.Value * WidthToUserSpaceCoeff : null;
         }
 
         return new PdfSingleByteFontWidths

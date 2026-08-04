@@ -60,6 +60,12 @@ public class PdfType3Font : PdfSingleByteFont
     protected internal override IPdfTypeface? Typeface => null;
 
     /// <summary>
+    /// Type 3 glyphs are never shaped against a typeface, substitute or otherwise; always returns
+    /// <see langword="false"/>.
+    /// </summary>
+    protected internal override bool IsSubstitutedFont => false;
+
+    /// <summary>
     /// Character procedures dictionary containing glyph definitions
     /// Each entry maps a character name to a content stream that draws the glyph
     /// Set during construction - lightweight operation

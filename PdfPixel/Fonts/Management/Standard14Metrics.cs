@@ -70,8 +70,10 @@ internal static class Standard14Metrics
     /// The font's actual encoding (as configured by the PDF's <c>/Encoding</c>, matching what the glyph-ID
     /// resolution path uses). Falls back to the family's default encoding when <see cref="PdfEncoding.Unknown"/>.
     /// </param>
-    /// <returns>A 256-entry width vector, or <see langword="null"/> if the family or style variant is unknown.</returns>
-    public static int[]? GetWidths(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
+    /// <returns>A 256-entry width vector, or <see langword="null"/> if the family or style variant is unknown.
+    /// Each entry is <see langword="null"/> when the code has no glyph assigned under <paramref name="encoding"/>
+    /// or the AFM data has no width for that glyph, as distinct from a glyph whose width is genuinely zero.</returns>
+    public static int?[]? GetWidths(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
     {
         if (encoding == PdfEncoding.Unknown)
         {
@@ -87,7 +89,7 @@ internal static class Standard14Metrics
         int? courierWidth = GetCourierWidth(fontName);
         if (courierWidth.HasValue)
         {
-            var widths = new int[byte.MaxValue + 1];
+            var widths = new int?[byte.MaxValue + 1];
             for (int code = 0; code < widths.Length; code++)
             {
                 widths[code] = courierWidth.Value;
@@ -114,9 +116,9 @@ internal static class Standard14Metrics
         };
     }
 
-    private static int[] BuildWidths(PdfEncoding encoding, IReadOnlyDictionary<PdfString, ushort> glyphWidths)
+    private static int?[] BuildWidths(PdfEncoding encoding, IReadOnlyDictionary<PdfString, ushort> glyphWidths)
     {
-        var widths = new int[byte.MaxValue + 1];
+        var widths = new int?[byte.MaxValue + 1];
 
         for (int code = 0; code <= byte.MaxValue; code++)
         {

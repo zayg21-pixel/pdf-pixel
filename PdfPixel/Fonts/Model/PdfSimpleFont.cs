@@ -3,12 +3,10 @@ using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Resources;
-using PdfPixel.Fonts.Sfnt;
 using PdfPixel.Fonts.Type1;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using System;
-using System.IO;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -21,29 +19,48 @@ public class PdfSimpleFont : PdfSingleByteFont
     private static readonly PdfFontString SpaceGlyphName = (PdfFontString)"space"u8;
 
     private readonly ILogger<PdfSimpleFont> _logger;
-    private readonly IPdfTypeface? _typeface;
-    private readonly IByteCodeToGidMapper? _mapper;
-    private readonly bool _isSubstituted;
-    private readonly PdfSingleByteFontWidths? _standardFontWidths;
+    private readonly TypefaceResolution _resolution;
     private readonly float? _spaceWidth;
 
     internal PdfSimpleFont(PdfObject fontObject)
         : base(fontObject)
     {
         _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
-        (_typeface, _mapper, _isSubstituted) = GetTypefaceAndMapper();
+        _resolution = ResolveTypeface();
 
-        PdfStandardFontName? standardFontName = SubstitutionInfo.GetStandardName();
-        if (standardFontName.HasValue)
-        {
-            bool isBold = SubstitutionInfo.Weight >= PdfSubstitutionInfo.BoldWeight;
-            _standardFontWidths = PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, isBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
-        }
-
-        if (_isSubstituted && (Type == PdfFontSubType.Type1 || Type == PdfFontSubType.MMType1))
+        if (_resolution.IsSubstituted && (Type == PdfFontSubType.Type1 || Type == PdfFontSubType.MMType1))
         {
             _spaceWidth = ResolveSpaceWidth();
         }
+    }
+
+    /// <summary>
+    /// The embedded or substituted typeface for this simple font.
+    /// </summary>
+    protected internal override IPdfTypeface? Typeface => _resolution.Typeface;
+
+    /// <inheritdoc/>
+    protected internal override bool IsSubstitutedFont => _resolution.IsSubstituted;
+
+    /// <summary>
+    /// Returns the glyph ID (GID) for the specified character code by consulting the byte-code-to-GID mapper.
+    /// </summary>
+    /// <param name="code">The character code to map to a glyph ID.</param>
+    /// <returns>The glyph ID, or <see langword="null"/> if not found.</returns>
+    public override ushort? GetGid(PdfCharacterCode code)
+    {
+        if (code == null)
+        {
+            return null;
+        }
+
+        if (_resolution.Mapper == null)
+        {
+            return null;
+        }
+
+        ushort gid = _resolution.Mapper.GetGid((byte)code);
+        return (gid == 0) ? null : gid;
     }
 
     /// <summary>
@@ -63,28 +80,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         return width;
     }
 
-    private float? GetDefinedWidth(PdfCharacterCode code) => base.GetWidth(code) ?? _mapper?.GetWidth((byte)(code)) ?? _standardFontWidths?.GetWidth(code);
-
-    /// <summary>
-    /// Returns the width the font gives the code its encoding maps to the space glyph, or
-    /// <see langword="null"/> when the encoding maps no code to it.
-    /// </summary>
-    private float? ResolveSpaceWidth()
-    {
-        byte? spaceCode = Encoding.GetCodeByName(SpaceGlyphName);
-
-        return (spaceCode.HasValue) ? GetDefinedWidth(spaceCode.Value) : null;
-    }
-
-    /// <summary>
-    /// The embedded or substituted typeface for this simple font.
-    /// </summary>
-    protected internal override IPdfTypeface? Typeface => _typeface;
-
-    /// <inheritdoc/>
-    protected internal override bool IsSubstitutedFont => _isSubstituted;
-
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) GetTypefaceAndMapper()
+    private TypefaceResolution ResolveTypeface()
     {
         try
         {
@@ -153,6 +149,8 @@ public class PdfSimpleFont : PdfSingleByteFont
             Encoding.UpdateEncoding(standard14Encoding ?? PdfEncoding.StandardEncoding);
         }
 
+        PdfSingleByteFontWidths? standardFontWidths = BuildStandardFontWidths();
+
         // Standard 14 fonts resolve to a single well-known substitute, so a direct code-to-GID
         // mapper for that one typeface is reliable. Arbitrary non-embedded fonts may need a
         // different fallback typeface per glyph, which only the generic Unicode shaping path supports.
@@ -161,10 +159,10 @@ public class PdfSimpleFont : PdfSingleByteFont
             SfntPdfTypeface substituteTypeface = Document.FontProvider.GetTypeface(SubstitutionInfo, null, null);
             SfntByteCodeToGidMapper substituteMapper = new(substituteTypeface, FontDescriptor?.Flags ?? default, substituted: true, Encoding);
 
-            return (substituteTypeface, substituteMapper, true);
+            return new TypefaceResolution(substituteTypeface, substituteMapper, isSubstituted: true, standardFontWidths);
         }
 
-        return (default, default, true);
+        return new TypefaceResolution(default, default, isSubstituted: true, standardFontWidths);
     }
 
     /// <summary>
@@ -172,14 +170,14 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// built-in encoding vector into <see cref="PdfSingleByteFont.Encoding"/> as a code-to-name fallback.
     /// </summary>
     /// <param name="typeface">The CFF typeface.</param>
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) BuildFromCffTypeface(CffPdfTypeface typeface)
+    private TypefaceResolution BuildFromCffTypeface(CffPdfTypeface typeface)
     {
         CffFont font = typeface.CffTypeface.Fonts[0];
         Encoding.MergeCodeToName(font.CodeToName);
 
         CffByteCodeToGidMapper mapper = new(typeface.CffTypeface, typeface, Encoding);
 
-        return (typeface, mapper, false);
+        return new TypefaceResolution(typeface, mapper, isSubstituted: false, standardFontWidths: null);
     }
 
     /// <summary>
@@ -187,7 +185,7 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// mapper: an sfnt cmap-based mapper for TrueType outlines, or a CFF built-in-encoding-based mapper
     /// for CFF outlines.
     /// </summary>
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntFont()
+    private TypefaceResolution LoadFromSfntFont()
     {
         PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
         IPdfTypeface typeface = loader.GetTypefaceFromSfnt(FontDescriptor?.FontFileStream);
@@ -201,7 +199,7 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// outlines. Some fonts declare one embedded format but their font program turns out to hold the
     /// other, so this dispatches on the typeface actually returned rather than the declared format.
     /// </summary>
-    private (IPdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) BuildFromTypeface(IPdfTypeface typeface)
+    private TypefaceResolution BuildFromTypeface(IPdfTypeface typeface)
     {
         switch (typeface)
         {
@@ -223,7 +221,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                 SfntByteCodeToGidMapper mapper = new(sfntPdfTypeface, FontDescriptor?.Flags ?? default, substituted: false, Encoding);
 
-                return (typeface, mapper, false);
+                return new TypefaceResolution(typeface, mapper, isSubstituted: false, standardFontWidths: null);
             }
             default:
             {
@@ -233,24 +231,32 @@ public class PdfSimpleFont : PdfSingleByteFont
     }
 
     /// <summary>
-    /// Returns the glyph ID (GID) for the specified character code by consulting the byte-code-to-GID mapper.
+    /// Returns the width the font gives the code its encoding maps to the space glyph, or
+    /// <see langword="null"/> when the encoding maps no code to it.
     /// </summary>
-    /// <param name="code">The character code to map to a glyph ID.</param>
-    /// <returns>The glyph ID, or <see langword="null"/> if not found.</returns>
-    public override ushort? GetGid(PdfCharacterCode code)
+    private float? ResolveSpaceWidth()
     {
-        if (code == null)
+        byte? spaceCode = Encoding.GetCodeByName(SpaceGlyphName);
+
+        return (spaceCode.HasValue) ? GetDefinedWidth(spaceCode.Value) : null;
+    }
+
+    private float? GetDefinedWidth(PdfCharacterCode code) => base.GetWidth(code) ?? _resolution.Mapper?.GetWidth((byte)(code)) ?? _resolution.StandardFontWidths?.GetWidth(code);
+
+    /// <summary>
+    /// Builds the AFM-derived width table for the font this instance substitutes, or <see langword="null"/>
+    /// when its name does not match a Standard 14 family.
+    /// </summary>
+    private PdfSingleByteFontWidths? BuildStandardFontWidths()
+    {
+        PdfStandardFontName? standardFontName = SubstitutionInfo.GetStandardName();
+        if (!standardFontName.HasValue)
         {
             return null;
         }
 
-        if (_mapper == null)
-        {
-            return null;
-        }
-
-        ushort gid = _mapper.GetGid((byte)code);
-        return (gid == 0) ? null : gid;
+        bool isBold = SubstitutionInfo.Weight >= PdfSubstitutionInfo.BoldWeight;
+        return PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, isBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
     }
 
     /// <inheritdoc/>
@@ -258,9 +264,32 @@ public class PdfSimpleFont : PdfSingleByteFont
     {
         base.Dispose(disposing);
 
-        if (disposing && !_isSubstituted)
+        if (disposing && !_resolution.IsSubstituted)
         {
-            _typeface?.Dispose();
+            _resolution.Typeface?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Result of resolving this font's typeface and glyph-ID mapper: whether it is embedded or
+    /// substituted, and - only when substituted - the AFM-derived widths for that substitution.
+    /// </summary>
+    private readonly struct TypefaceResolution
+    {
+        public TypefaceResolution(IPdfTypeface? typeface, IByteCodeToGidMapper? mapper, bool isSubstituted, PdfSingleByteFontWidths? standardFontWidths)
+        {
+            Typeface = typeface;
+            Mapper = mapper;
+            IsSubstituted = isSubstituted;
+            StandardFontWidths = standardFontWidths;
+        }
+
+        public IPdfTypeface? Typeface { get; }
+
+        public IByteCodeToGidMapper? Mapper { get; }
+
+        public bool IsSubstituted { get; }
+
+        public PdfSingleByteFontWidths? StandardFontWidths { get; }
     }
 }
