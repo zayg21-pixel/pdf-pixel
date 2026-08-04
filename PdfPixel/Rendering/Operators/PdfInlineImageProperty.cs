@@ -60,5 +60,11 @@ public enum PdfInlineImageProperty
     /// Whether the image is a stencil mask (<c>IM</c>).
     /// </summary>
     [PdfEnumValue("IM")]
-    ImageMask
+    ImageMask,
+
+    /// <summary>
+    /// Whether interpolation should be applied when scaling the image (<c>I</c>).
+    /// </summary>
+    [PdfEnumValue("I")]
+    Interpolate
 }

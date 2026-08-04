@@ -144,6 +144,9 @@ internal partial struct PdfParser
             case PdfInlineImageProperty.ImageMask:
                 return PdfTokens.ImageMaskKey;
 
+            case PdfInlineImageProperty.Interpolate:
+                return PdfTokens.InterpolateKey;
+
             default:
                 return key;
         }
