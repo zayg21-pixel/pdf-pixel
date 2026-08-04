@@ -43,6 +43,12 @@ public class PdfSimpleFont : PdfSingleByteFont
     protected internal override bool IsSubstitutedFont => _resolution.IsSubstituted;
 
     /// <summary>
+    /// <see langword="true"/> when the font's own <c>/Widths</c> array has entries, or - for a
+    /// substituted Standard 14 font with none - the AFM-derived fallback widths do.
+    /// </summary>
+    protected internal override bool HasWidths => base.HasWidths || _resolution.StandardFontWidths?.HasWidths == true;
+
+    /// <summary>
     /// Returns the glyph ID (GID) for the specified character code by consulting the byte-code-to-GID mapper.
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
@@ -150,18 +156,6 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         PdfSingleByteFontWidths? standardFontWidths = BuildStandardFontWidths();
-
-        // Standard 14 fonts resolve to a single well-known substitute, so a direct code-to-GID
-        // mapper for that one typeface is reliable. Arbitrary non-embedded fonts may need a
-        // different fallback typeface per glyph, which only the generic Unicode shaping path supports.
-        if (standard14Encoding != null)
-        {
-            SfntPdfTypeface substituteTypeface = Document.FontProvider.GetTypeface(SubstitutionInfo, null, null);
-            SfntByteCodeToGidMapper substituteMapper = new(substituteTypeface, FontDescriptor?.Flags ?? default, substituted: true, Encoding);
-
-            return new TypefaceResolution(substituteTypeface, substituteMapper, isSubstituted: true, standardFontWidths);
-        }
-
         return new TypefaceResolution(default, default, isSubstituted: true, standardFontWidths);
     }
 
@@ -256,7 +250,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         bool isBold = SubstitutionInfo.Weight >= PdfSubstitutionInfo.BoldWeight;
-        return PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, isBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
+        return PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, isBold, SubstitutionInfo.IsItalic, Encoding);
     }
 
     /// <inheritdoc/>

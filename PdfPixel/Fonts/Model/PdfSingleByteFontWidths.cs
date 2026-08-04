@@ -19,18 +19,24 @@ public class PdfSingleByteFontWidths
     /// <summary>
     /// First character code for single-byte fonts. Null if not defined.
     /// </summary>
-    public uint? FirstChar { get; set; }
+    public uint? FirstChar { get; private set; }
 
     /// <summary>
     /// Last character code for single-byte fonts. Null if not defined.
     /// </summary>
-    public uint? LastChar { get; set; }
+    public uint? LastChar { get; private set; }
 
     /// <summary>
     /// Widths array for single-byte fonts. Null if not defined. An individual entry is null when that
     /// code has no assigned width, as distinct from a code whose width is genuinely zero.
     /// </summary>
-    public float?[]? Widths { get; set; }
+    public float?[]? Widths { get; private set; }
+
+    /// <summary>
+    /// <see langword="true"/> when at least one code in <see cref="Widths"/> has an assigned width.
+    /// Computed once by <see cref="Parse"/>/<see cref="FromStandardFont"/> alongside the array itself.
+    /// </summary>
+    public bool HasWidths { get; private set; }
 
     /// <summary>
     /// Gets the width for the given character code. Returns explicit width if defined, otherwise null.
@@ -79,12 +85,14 @@ public class PdfSingleByteFontWidths
         float[]? rawWidthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
 
         float?[]? widthsArray = null;
+        var hasWidths = false;
         if (rawWidthsArray != null)
         {
             widthsArray = new float?[rawWidthsArray.Length];
             for (int i = 0; i < rawWidthsArray.Length; i++)
             {
                 widthsArray[i] = rawWidthsArray[i] * WidthToUserSpaceCoeff;
+                hasWidths = true;
             }
         }
 
@@ -92,7 +100,8 @@ public class PdfSingleByteFontWidths
         {
             FirstChar = firstChar,
             LastChar = lastChar,
-            Widths = widthsArray
+            Widths = widthsArray,
+            HasWidths = hasWidths
         };
     }
 
@@ -105,7 +114,7 @@ public class PdfSingleByteFontWidths
     /// <param name="italic">Whether to resolve the italic/oblique style variant.</param>
     /// <param name="encoding">The font's actual encoding, matching what the glyph-ID resolution path uses.</param>
     /// <returns>The resolved widths, or <see langword="null"/> if the family or style variant is unknown.</returns>
-    internal static PdfSingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
+    internal static PdfSingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfFontEncodingInfo encoding)
     {
         int?[]? widths = Standard14Metrics.GetWidths(fontName, bold, italic, encoding);
         if (widths == null)
@@ -114,17 +123,20 @@ public class PdfSingleByteFontWidths
         }
 
         var widthsArray = new float?[widths.Length];
+        var hasWidths = false;
         for (int i = 0; i < widths.Length; i++)
         {
             int? width = widths[i];
             widthsArray[i] = (width.HasValue) ? width.Value * WidthToUserSpaceCoeff : null;
+            hasWidths |= width.HasValue;
         }
 
         return new PdfSingleByteFontWidths
         {
             FirstChar = 0,
             LastChar = (uint)(widths.Length - 1),
-            Widths = widthsArray
+            Widths = widthsArray,
+            HasWidths = hasWidths
         };
     }
 }

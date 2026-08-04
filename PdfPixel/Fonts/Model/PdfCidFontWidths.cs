@@ -40,6 +40,12 @@ public class PdfCidFontWidths
     public Dictionary<uint, float> CidWidths { get; }
 
     /// <summary>
+    /// <see langword="true"/> when at least one CID has an explicit width entry from <c>/W</c>.
+    /// The <c>/DW</c> default does not count, since it isn't a per-CID declared width.
+    /// </summary>
+    public bool HasWidths => CidWidths.Count > 0;
+
+    /// <summary>
     /// Gets the width for the given CID. Returns explicit width if defined, otherwise null.
     /// All widths are returned in user space units.
     /// </summary>

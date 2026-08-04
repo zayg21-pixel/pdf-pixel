@@ -48,6 +48,11 @@ public class PdfCompositeFont : PdfFontBase
     protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? PdfSubstitutionInfo.Default;
 
     /// <summary>
+    /// <see langword="true"/> when the primary descendant CID font has widths, <see langword="false"/> when there is no descendant.
+    /// </summary>
+    protected internal override bool HasWidths => PrimaryDescendant?.HasWidths == true;
+
+    /// <summary>
     /// Descendant CID fonts that contain the actual font data.
     /// </summary>
     public List<PdfCidFont> DescendantFonts { get; }

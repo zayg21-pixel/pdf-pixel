@@ -67,15 +67,14 @@ internal static class Standard14Metrics
     /// <param name="bold">Whether to resolve the bold style variant.</param>
     /// <param name="italic">Whether to resolve the italic/oblique style variant.</param>
     /// <param name="encoding">
-    /// The font's actual encoding (as configured by the PDF's <c>/Encoding</c>, matching what the glyph-ID
-    /// resolution path uses). Falls back to the family's default encoding when <see cref="PdfEncoding.Unknown"/>.
+    /// The font's actual encoding. Falls back to the family's default when <see cref="PdfEncoding.Unknown"/>.
     /// </param>
     /// <returns>A 256-entry width vector, or <see langword="null"/> if the family or style variant is unknown.
     /// Each entry is <see langword="null"/> when the code has no glyph assigned under <paramref name="encoding"/>
     /// or the AFM data has no width for that glyph, as distinct from a glyph whose width is genuinely zero.</returns>
-    public static int?[]? GetWidths(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
+    public static int?[]? GetWidths(PdfStandardFontName fontName, bool bold, bool italic, PdfFontEncodingInfo encoding)
     {
-        if (encoding == PdfEncoding.Unknown)
+        if (encoding.BaseEncoding == PdfEncoding.Unknown)
         {
             PdfFontEncoding? defaultEncoding = SingleByteEncodings.GetDefaultEncoding(fontName.ToPdfFontStandardName());
             if (defaultEncoding == null)
@@ -83,7 +82,7 @@ internal static class Standard14Metrics
                 return null;
             }
 
-            encoding = defaultEncoding.Value.ToPdfEncoding();
+            encoding.UpdateEncoding(defaultEncoding.Value.ToPdfEncoding());
         }
 
         int? courierWidth = GetCourierWidth(fontName);
@@ -116,13 +115,13 @@ internal static class Standard14Metrics
         };
     }
 
-    private static int?[] BuildWidths(PdfEncoding encoding, IReadOnlyDictionary<PdfString, ushort> glyphWidths)
+    private static int?[] BuildWidths(PdfFontEncodingInfo encoding, IReadOnlyDictionary<PdfString, ushort> glyphWidths)
     {
         var widths = new int?[byte.MaxValue + 1];
 
         for (int code = 0; code <= byte.MaxValue; code++)
         {
-            PdfString name = SingleByteEncodings.GetNameByCode((byte)code, encoding.ToPdfFontEncoding()).ToPdfString();
+            PdfString name = encoding.GetNameByCode((byte)code).ToPdfString();
             if (glyphWidths.TryGetValue(name, out ushort width))
             {
                 widths[code] = width;

@@ -73,6 +73,9 @@ public class PdfCidFont : PdfFontBase
     /// </summary>
     public PdfCidFontWidths Widths { get; }
 
+    /// <inheritdoc/>
+    protected internal override bool HasWidths => Widths.HasWidths;
+
     /// <summary>
     /// Gets the vertical metrics for the CID font.
     /// </summary>

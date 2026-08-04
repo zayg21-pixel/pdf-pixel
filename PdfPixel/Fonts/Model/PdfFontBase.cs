@@ -55,6 +55,27 @@ public abstract class PdfFontBase : IDisposable
     protected internal virtual bool IsSubstitutedFont => Typeface == null;
 
     /// <summary>
+    /// <see langword="true"/> when this font declares (or derives) explicit per-code advance widths,
+    /// as distinct from relying entirely on a substitute typeface's own metrics.
+    /// </summary>
+    protected internal abstract bool HasWidths { get; }
+
+    /// <summary>
+    /// <see langword="true"/> when a substitute glyph's own shaped width should be rescaled to match this
+    /// font's declared advance width, rather than trusted as-is. Skipped when the substitute resolves to a
+    /// Standard 14 family, since its metrics are already trusted to match.
+    /// </summary>
+    protected internal bool ShouldRescale
+    {
+        get
+        {
+            return IsSubstitutedFont
+                && HasWidths
+                && !SubstitutionInfo.GetStandardName().HasValue;
+        }
+    }
+
+    /// <summary>
     /// Original PDF font object.
     /// </summary>
     public PdfObject FontObject { get; }
@@ -191,11 +212,12 @@ public abstract class PdfFontBase : IDisposable
         string? unicode = GetUnicodeString(characterCode);
         string? renderingUnicode = GetRenderingUnicodeString(characterCode);
         PdfVerticalMetric displacement = GetVerticalDisplacement(characterCode);
+        bool shouldRescale = ShouldRescale;
 
         if (gid.HasValue && width.HasValue)
         {
             IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
-            float[] widths = [width.Value];
+            float[] widths = shouldRescale ? typeface.GetWidths([gid]) : [width.Value];
             (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, width.Value, widths);
             return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width.Value, widths, xScale, origin, advancement);
         }
@@ -213,9 +235,17 @@ public abstract class PdfFontBase : IDisposable
             IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
             ushort?[] gids = typeface.GetGlyphs(renderingUnicode);
             float[] widths = typeface.GetWidths(gids);
+
             (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, width.Value, widths);
 
-            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width.Value, widths, xScale, origin, advacement);
+            if (shouldRescale)
+            {
+                return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width.Value, widths, xScale, origin, advacement);
+            }
+            else
+            {
+                return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width.Value, widths, 1, origin, advacement);
+            }
         }
         else if (renderingUnicode?.Length > 0)
         {

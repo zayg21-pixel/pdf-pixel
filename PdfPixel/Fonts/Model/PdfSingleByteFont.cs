@@ -33,6 +33,9 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// </summary>
     public PdfSingleByteFontWidths Widths { get; }
 
+    /// <inheritdoc/>
+    protected internal override bool HasWidths => Widths.HasWidths;
+
     /// <summary>
     /// Get character width from font metrics
     /// </summary>
