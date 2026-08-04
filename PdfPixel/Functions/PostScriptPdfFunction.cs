@@ -93,7 +93,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
         for (int inputIndex = 0; inputIndex < values.Length; inputIndex++)
         {
             float inputValue = values[inputIndex];
-            float clampedValue = Clamp(inputValue, Range, inputIndex);
+            float clampedValue = Clamp(inputValue, Domain, inputIndex);
             stack.Push(new PostScriptNumber(clampedValue));
         }
 

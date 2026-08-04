@@ -70,7 +70,7 @@ namespace PdfPixel.Color.ColorSpace
             }
 
             PdfString colorantName = colorSpaceArray.GetName(1);
-            PdfColorSpaceConverter? alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
+            PdfColorSpaceConverter? alternateConverter = ResolveByValue(colorSpaceArray.GetValue(2));
             PdfFunction? tintFunction = ResolveTintFunction(colorSpaceArray, 3);
             return new SeparationColorSpaceConverter(colorantName, alternateConverter, tintFunction);
         }
@@ -100,7 +100,7 @@ namespace PdfPixel.Color.ColorSpace
                 colorantNames[i] = namesArray.GetString(i);
             }
 
-            PdfColorSpaceConverter? alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
+            PdfColorSpaceConverter? alternateConverter = ResolveByValue(colorSpaceArray.GetValue(2));
             PdfFunction? tintFunction = ResolveTintFunction(colorSpaceArray, 3);
             return new DeviceNColorSpaceConverter(colorantNames, alternateConverter, tintFunction);
         }
