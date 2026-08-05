@@ -46,7 +46,14 @@ public class PdfImage
             PdfObject? maskObject = dictionary.GetObject(PdfTokens.MaskKey);
             if (maskObject?.HasStream == true)
             {
-                StencilMask = GetImage(maskObject);
+                PdfImage maskImage = GetImage(maskObject);
+
+                // Only an /ImageMask true stream is a stencil mask; any other stream leaves
+                // the base image unmasked.
+                if (maskImage.HasImageMask)
+                {
+                    StencilMask = maskImage;
+                }
             }
         }
 
