@@ -61,7 +61,10 @@ internal sealed class JpgBandPacker
                     break;
                 }
             default:
-                throw new NotSupportedException("Unsupported component count: " + _header.ComponentCount);
+                {
+                    PackInterleaved(fullResBlocks, bandRows, destination);
+                    break;
+                }
         }
     }
 
@@ -299,6 +302,79 @@ internal sealed class JpgBandPacker
                     Unsafe.Add(ref destRef, 2) = (byte)Unsafe.Add(ref yRow, px);
                     Unsafe.Add(ref destRef, 3) = (byte)Unsafe.Add(ref kRow, px);
                     destRef = ref Unsafe.Add(ref destRef, 4);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Packer for any component count, writing one component plane at a time into the interleaved
+    /// destination. Used for images whose component count has no dedicated fast path.
+    /// </summary>
+    private void PackInterleaved(Block8x8F[][] fullResBlocks, int bandRows, byte[] destination)
+    {
+        int componentCount = _header.ComponentCount;
+        int hMax = _parameters.HMax;
+        int vMax = _parameters.VMax;
+        int fullBlocksPerMcu = hMax * vMax;
+        int mcuWidth = _parameters.McuWidth;
+        int outputStride = _parameters.OutputStride;
+        int imageWidth = _header.Width;
+        int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
+
+        for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
+        {
+            int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
+            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
+            int blockRow = blockInColumn / hMax;
+            int blockCol = blockInColumn - (blockRow * hMax);
+
+            int xBase = mcuColumnIndex * mcuWidth;
+            int blockXBase = blockCol * 8;
+            int remainingColumnPixels = imageWidth - xBase;
+            if (remainingColumnPixels <= 0)
+            {
+                break;
+            }
+
+            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
+            if (blockXBase >= effectiveColumnWidth)
+            {
+                continue;
+            }
+
+            int copyPixels = effectiveColumnWidth - blockXBase;
+            if (copyPixels > 8)
+            {
+                copyPixels = 8;
+            }
+
+            int blockYBase = blockRow * 8;
+            if (blockYBase >= bandRows)
+            {
+                continue;
+            }
+
+            int maxRowsInBlock = bandRows - blockYBase;
+            if (maxRowsInBlock > 8)
+            {
+                maxRowsInBlock = 8;
+            }
+
+            for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+            {
+                ref float blockBase = ref Unsafe.As<Block8x8F, float>(ref fullResBlocks[componentIndex][blockLinearIndex]);
+                for (int localRow = 0; localRow < maxRowsInBlock; localRow++)
+                {
+                    ref float sourceRow = ref Unsafe.Add(ref blockBase, localRow * 8);
+                    int destRowOffset = (blockYBase + localRow) * outputStride;
+                    int destPixelOffset = destRowOffset + ((xBase + blockXBase) * componentCount) + componentIndex;
+                    ref byte destRef = ref destination[destPixelOffset];
+                    for (int px = 0; px < copyPixels; px++)
+                    {
+                        destRef = (byte)Unsafe.Add(ref sourceRow, px);
+                        destRef = ref Unsafe.Add(ref destRef, componentCount);
+                    }
                 }
             }
         }
