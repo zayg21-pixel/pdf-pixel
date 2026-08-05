@@ -266,8 +266,9 @@ internal ref partial struct JpxTier1Decoder
 
     /// <summary>
     /// Points the arithmetic decoder at the next codeword segment that carries coding passes,
-    /// advancing past any empty ones. Returns false when the code-block has no segment left,
-    /// which leaves the remaining passes undecoded.
+    /// advancing past any that carry none. A segment with no bytes still starts, decoding from
+    /// an empty span. Returns false when the code-block has no segment left, which leaves the
+    /// remaining passes undecoded.
     /// </summary>
     private bool TryStartSegment(ref int segmentIndex, ref int segmentDataOffset, bool useRawCoding, out int segmentPasses)
     {
@@ -276,13 +277,14 @@ internal ref partial struct JpxTier1Decoder
         while (segmentIndex < _codeBlock.SegmentCount)
         {
             JpxCodeBlockSegment segment = _codeBlock.SegmentAt(segmentIndex);
-            int available = Math.Min(segment.Length, codedData.Length - segmentDataOffset);
+            int remaining = Math.Max(codedData.Length - segmentDataOffset, 0);
+            int available = Math.Min(segment.Length, remaining);
 
             segmentIndex++;
 
-            if (segment.Passes <= 0 || available <= 0)
+            if (segment.Passes <= 0)
             {
-                segmentDataOffset += Math.Max(available, 0);
+                segmentDataOffset += available;
                 continue;
             }
 
