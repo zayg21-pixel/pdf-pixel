@@ -367,14 +367,10 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
             }
             case PdfShadingType.FreeFormGouraud:
             case PdfShadingType.LatticeFormGouraud:
-            {
-                ExecuteShadingGouraud(command, entry);
-                break;
-            }
             case PdfShadingType.CoonsPatchMesh:
             case PdfShadingType.TensorProductPatchMesh:
             {
-                ExecuteShadingPatchMesh(command, entry);
+                ExecuteShadingMesh(command, entry);
                 break;
             }
         }
@@ -437,24 +433,14 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         DrawShadingPaintToCanvas(command, outerPaint);
     }
 
-    private void ExecuteShadingGouraud(DrawShadingCommand command, ShadingCommandCacheEntry entry)
+    private void ExecuteShadingMesh(DrawShadingCommand command, ShadingCommandCacheEntry entry)
     {
-        if (entry.Gouraud == null)
+        if (entry.Mesh == null)
         {
             return;
         }
 
-        DrawShadingVerticesToCanvas(command, entry.Gouraud);
-    }
-
-    private void ExecuteShadingPatchMesh(DrawShadingCommand command, ShadingCommandCacheEntry entry)
-    {
-        if (entry.PatchMesh == null)
-        {
-            return;
-        }
-
-        DrawShadingVerticesToCanvas(command, entry.PatchMesh);
+        DrawShadingVerticesToCanvas(command, entry.Mesh);
     }
 
     private void DrawShadingPaintToCanvas(DrawShadingCommand command, SKPaint paint)

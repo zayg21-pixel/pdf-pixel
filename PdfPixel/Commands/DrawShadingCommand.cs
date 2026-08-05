@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Shading;
+using PdfPixel.Shading.Decoding;
 using PdfPixel.Shading.Model;
 using System;
 
@@ -79,15 +80,17 @@ public sealed class DrawShadingCommand : PdfCommand
             }
             case PdfShadingType.FreeFormGouraud:
             case PdfShadingType.LatticeFormGouraud:
-            {
-                entry.Gouraud = _builder.BuildGouraudVertices(_shading, _sampler);
-                break;
-            }
             case PdfShadingType.CoonsPatchMesh:
             case PdfShadingType.TensorProductPatchMesh:
             {
+                entry.FunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
                 entry.TessellationVertices = executionContext.Parameters.MaxTessellationVertices;
-                entry.PatchMesh = _builder.BuildPatchMeshVertices(_shading, _sampler, executionContext.Parameters.MaxTessellationVertices, executionContext.ExecutionObserver);
+                MeshColorResolver colorResolver = new(_shading, _sampler, executionContext.Parameters.DefaultFunctionSamples);
+                entry.Mesh = _builder.BuildMeshVertices(
+                    _shading,
+                    colorResolver,
+                    executionContext.Parameters.MaxTessellationVertices,
+                    executionContext.ExecutionObserver);
                 break;
             }
         }

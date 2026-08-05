@@ -19,7 +19,7 @@ namespace PdfPixel.Shading.Decoding;
 internal class GouraudMeshDecoder
 {
     private readonly PdfShading _shading;
-    private readonly ColorTransformSampler _sampler;
+    private readonly MeshColorResolver _colorResolver;
     private readonly int _bitsPerFlag;
     private readonly int _bitsPerCoordinate;
     private readonly int _bitsPerComponent;
@@ -32,7 +32,7 @@ internal class GouraudMeshDecoder
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
     private readonly int _verticesPerRow;
 
-    public GouraudMeshDecoder(PdfShading shading, ColorTransformSampler sampler)
+    public GouraudMeshDecoder(PdfShading shading, MeshColorResolver colorResolver)
     {
         if (shading.ShadingType != PdfShadingType.FreeFormGouraud && shading.ShadingType != PdfShadingType.LatticeFormGouraud)
         {
@@ -40,7 +40,7 @@ internal class GouraudMeshDecoder
         }
 
         _shading = shading;
-        _sampler = sampler;
+        _colorResolver = colorResolver;
 
         _bitsPerFlag = shading.BitsPerFlag ?? 0;
         _bitsPerCoordinate = shading.BitsPerCoordinate ?? 0;
@@ -118,10 +118,10 @@ internal class GouraudMeshDecoder
         while (!bitReader.EndOfData)
         {
             PdfPoint[]? previousVertices = previous?.Points;
-            PdfColor[]? previousColors = previous?.CornerColors;
+            MeshVertexColor[]? previousColors = previous?.CornerColors;
 
             var vertices = new PdfPoint[3];
-            var colors = new PdfColor[3];
+            var colors = new MeshVertexColor[3];
             uint flag = bitReader.ReadBits(_bitsPerFlag);
 
             if (flag == 0 || previousVertices == null)
@@ -135,32 +135,32 @@ internal class GouraudMeshDecoder
                     }
 
                     vertices[i] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-                    colors[i] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
+                    colors[i] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _colorResolver);
                     // Skip padding bits for each vertex
                     bitReader.AlignToNextByte();
                 }
             }
             else if (flag == 1 && previousColors != null)
             {
-                // Flag 1: copy last two vertices/colors from previous triangle, read one new
+                // Flag 1: va and vb take the previous triangle's vb and vc, vc is read
                 vertices[0] = previousVertices[1];
                 vertices[1] = previousVertices[2];
                 colors[0] = previousColors[1];
                 colors[1] = previousColors[2];
                 vertices[2] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-                colors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
+                colors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _colorResolver);
                 // Skip padding bits for the new vertex
                 bitReader.AlignToNextByte();
             }
             else if (flag == 2 && previousColors != null)
             {
-                // Flag 2: copy first and last vertices/colors from previous triangle, read one new
+                // Flag 2: va takes the previous triangle's va and vb takes its vc, vc is read
                 vertices[0] = previousVertices[0];
-                vertices[2] = previousVertices[2];
+                vertices[1] = previousVertices[2];
                 colors[0] = previousColors[0];
-                colors[2] = previousColors[2];
-                vertices[1] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-                colors[1] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
+                colors[1] = previousColors[2];
+                vertices[2] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
+                colors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _colorResolver);
                 // Skip padding bits for the new vertex
                 bitReader.AlignToNextByte();
             }
@@ -181,11 +181,11 @@ internal class GouraudMeshDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private List<MeshData> ReadType5(ref UintBitReader bitReader)
     {
-        List<(PdfPoint point, PdfColor color)> vertexList = [];
+        List<(PdfPoint point, MeshVertexColor color)> vertexList = [];
         while (!bitReader.EndOfData)
         {
             PdfPoint point = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-            PdfColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
+            MeshVertexColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _colorResolver);
 
             bitReader.AlignToNextByte();
 

@@ -17,15 +17,50 @@ namespace PdfPixel.Shading;
 internal partial class PdfShadingBuilder
 {
     /// <summary>
+    /// Builds the vertices of any mesh shading: a Gouraud-shaded triangle mesh (Type 4 and Type 5)
+    /// or a patch mesh (Type 6 and Type 7).
+    /// </summary>
+    /// <param name="shading">Parsed shading model.</param>
+    /// <param name="colorResolver">Resolver for the color of an interpolated parametric value.</param>
+    /// <param name="maxTessellationVertices">Maximum subdivisions per triangle edge or patch axis.</param>
+    /// <param name="observer">Execution observer for long-running operations.</param>
+    /// <returns>Batched vertices, or null when the shading's stream decodes to nothing.</returns>
+    public PdfVertices? BuildMeshVertices(
+        PdfShading shading,
+        MeshColorResolver colorResolver,
+        int maxTessellationVertices,
+        IPdfExecutionObserver observer)
+    {
+        switch (shading.ShadingType)
+        {
+            case PdfShadingType.FreeFormGouraud:
+            case PdfShadingType.LatticeFormGouraud:
+            {
+                return BuildGouraudVertices(shading, colorResolver, maxTessellationVertices, observer);
+            }
+            case PdfShadingType.CoonsPatchMesh:
+            case PdfShadingType.TensorProductPatchMesh:
+            {
+                return BuildPatchMeshVertices(shading, colorResolver, maxTessellationVertices, observer);
+            }
+            default:
+            {
+                throw new ArgumentException($"Not a mesh shading type {shading.ShadingType}");
+            }
+        }
+    }
+
+    /// <summary>
     /// Builds Gouraud-shaded triangle mesh vertices (Type 4 and Type 5).
     /// Returns null if no triangles are decoded.
     /// </summary>
-    /// <param name="shading">Parsed shading model.</param>
-    /// <param name="sampler">RGBA sampler for color conversion.</param>
-    /// <returns>Batched triangle vertices, or null on failure.</returns>
-    public PdfVertices? BuildGouraudVertices(PdfShading shading, ColorTransformSampler sampler)
+    private PdfVertices? BuildGouraudVertices(
+        PdfShading shading,
+        MeshColorResolver colorResolver,
+        int maxTessellationVertices,
+        IPdfExecutionObserver observer)
     {
-        GouraudMeshDecoder decoder = new(shading, sampler);
+        GouraudMeshDecoder decoder = new(shading, colorResolver);
         List<MeshData> triangles = decoder.Decode();
         if (triangles.Count == 0)
         {
@@ -33,36 +68,20 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        // Aggregate all triangle points and colors into single arrays for batch drawing
-        int triangleCount = triangles.Count;
-        int vertexCount = triangleCount * 3;
-        var allPoints = new PdfPoint[vertexCount];
-        var allColors = new PdfColor[vertexCount];
-
-        for (int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++)
-        {
-            MeshData triangle = triangles[triangleIndex];
-            int offset = triangleIndex * 3;
-
-            Array.Copy(triangle.Points, 0, allPoints, offset, 3);
-            Array.Copy(triangle.CornerColors, 0, allColors, offset, 3);
-        }
-
-        return new PdfVertices(allPoints, allColors, null);
+        return MeshEvaluator.CreateVerticesForTriangles(triangles, colorResolver, maxTessellationVertices, observer);
     }
 
     /// <summary>
     /// Builds patch mesh vertices for type 6 (Coons) and type 7 (Tensor-product) shadings.
     /// Returns null if no patches are decoded.
     /// </summary>
-    /// <param name="shading">Parsed shading model.</param>
-    /// <param name="sampler">RGBA sampler for color conversion.</param>
-    /// <param name="maxTessellationVertices">Maximum tessellation vertices per patch.</param>
-    /// <param name="observer">Execution observer for long-running operations.</param>
-    /// <returns>Tessellated patch vertices, or null on failure.</returns>
-    public PdfVertices? BuildPatchMeshVertices(PdfShading shading, ColorTransformSampler sampler, int maxTessellationVertices, IPdfExecutionObserver observer)
+    private PdfVertices? BuildPatchMeshVertices(
+        PdfShading shading,
+        MeshColorResolver colorResolver,
+        int maxTessellationVertices,
+        IPdfExecutionObserver observer)
     {
-        MeshDecoder decoder = new(shading, sampler);
+        MeshDecoder decoder = new(shading, colorResolver);
         List<MeshData> patches = decoder.Decode();
         if (patches.Count == 0)
         {
@@ -70,6 +89,6 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        return MeshEvaluator.CreateVerticesForPatches(patches, maxTessellationVertices, observer);
+        return MeshEvaluator.CreateVerticesForPatches(patches, colorResolver, maxTessellationVertices, observer);
     }
 }

@@ -13,12 +13,12 @@ namespace PdfPixel.Commands.Cache;
 public sealed class ShadingCommandCacheEntry : ICommandCacheItem
 {
     /// <summary>
-    /// Function sample count used to build <see cref="Function"/>, <see cref="Axial"/>, or <see cref="Radial"/>. Null when none of those were built.
+    /// Function sample count used to build <see cref="Function"/>, <see cref="Axial"/>, <see cref="Radial"/>, or <see cref="Mesh"/>. Null when none of those were built.
     /// </summary>
     public int? FunctionSamples { get; set; }
 
     /// <summary>
-    /// Tessellation vertex limit used to build <see cref="PatchMesh"/>. Null when it was not built.
+    /// Tessellation vertex limit used to build <see cref="Mesh"/>. Null when it was not built.
     /// </summary>
     public int? TessellationVertices { get; set; }
 
@@ -38,14 +38,11 @@ public sealed class ShadingCommandCacheEntry : ICommandCacheItem
     public PdfRadialGradient? Radial { get; set; }
 
     /// <summary>
-    /// Tessellated vertices built for a free-form or lattice-form Gouraud shading. Null unless this entry holds one of those shading types.
+    /// Tessellated vertices built for a mesh shading: free-form or lattice-form Gouraud (Type 4 and
+    /// Type 5), Coons or tensor-product patch mesh (Type 6 and Type 7). Null unless this entry holds
+    /// one of those shading types.
     /// </summary>
-    public PdfVertices? Gouraud { get; set; }
-
-    /// <summary>
-    /// Tessellated vertices built for a Coons or tensor-product patch mesh shading. Null unless this entry holds one of those shading types.
-    /// </summary>
-    public PdfVertices? PatchMesh { get; set; }
+    public PdfVertices? Mesh { get; set; }
 
     /// <summary>
     /// True when the built primitives were produced with the same sample and tessellation limits

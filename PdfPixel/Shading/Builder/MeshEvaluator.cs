@@ -2,6 +2,7 @@
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
+using PdfPixel.Shading.Decoding;
 using PdfPixel.Shading.Model;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,9 @@ namespace PdfPixel.Shading.Builder;
 /// </summary>
 internal static class MeshEvaluator
 {
+    // One interpolation weight per lane of a Vector4.
+    private const int MaxInterpolatedVertices = 4;
+
     // Spiral index mapping for Type 7 tensor patch control points
     private const int P00 = 0;   // (0,0)
     private const int P10 = 11;  // (1,0)
@@ -51,13 +55,107 @@ internal static class MeshEvaluator
     ];
 
     /// <summary>
+    /// Creates vertices for all Type 4/5 Gouraud triangles in a single batch for efficient rendering.
+    /// </summary>
+    /// <remarks>
+    /// A triangle whose vertices carry a parametric value is subdivided barycentrically, so that the
+    /// parametric value is what gets interpolated and the shading's function is evaluated for every
+    /// interpolated value. Triangles carrying colors directly are emitted unchanged.
+    /// </remarks>
+    /// <param name="triangles">List of decoded triangles, three vertices each.</param>
+    /// <param name="colorResolver">Resolver for the color of an interpolated parametric value.</param>
+    /// <param name="tessellation">Number of subdivisions per triangle edge (higher = smoother).</param>
+    /// <param name="observer">Execution observer for long-running operations.</param>
+    /// <returns>PdfVertices instance containing all triangle vertices, colors, and indices.</returns>
+    public static PdfVertices CreateVerticesForTriangles(
+        List<MeshData> triangles,
+        MeshColorResolver colorResolver,
+        int tessellation,
+        IPdfExecutionObserver observer)
+    {
+        if (triangles == null || triangles.Count == 0)
+        {
+            throw new ArgumentException("triangles must not be null or empty.");
+        }
+
+        if (!colorResolver.IsParametric)
+        {
+            return CreateFlatVerticesForTriangles(triangles);
+        }
+
+        int subdivisions = LimitSubdivisions(tessellation, triangles.Count);
+        int verticesPerTriangle = (subdivisions + 1) * (subdivisions + 2) / 2;
+        int indicesPerTriangle = subdivisions * subdivisions * 3;
+
+        var allVertices = new PdfPoint[verticesPerTriangle * triangles.Count];
+        var allColors = new PdfColor[allVertices.Length];
+        var allIndices = new ushort[indicesPerTriangle * triangles.Count];
+
+        int vertexOffset = 0;
+        int indexOffset = 0;
+        for (int triangleIndex = 0; triangleIndex < triangles.Count; triangleIndex++)
+        {
+            MeshData triangle = triangles[triangleIndex];
+            PdfPoint[] corners = triangle.Points;
+            MeshVertexColor[] cornerColors = triangle.CornerColors;
+
+            int vertexIndex = 0;
+            for (int rowIndex = 0; rowIndex <= subdivisions; rowIndex++)
+            {
+                for (int columnIndex = 0; columnIndex <= rowIndex; columnIndex++)
+                {
+                    float weightC = columnIndex / (float)subdivisions;
+                    float weightB = (rowIndex - columnIndex) / (float)subdivisions;
+                    float weightA = 1f - weightB - weightC;
+
+                    allVertices[vertexOffset + vertexIndex] = new PdfPoint(
+                        (corners[0].X * weightA) + (corners[1].X * weightB) + (corners[2].X * weightC),
+                        (corners[0].Y * weightA) + (corners[1].Y * weightB) + (corners[2].Y * weightC));
+                    allColors[vertexOffset + vertexIndex] = colorResolver.Resolve(
+                        InterpolateVertexColors(weightA, weightB, weightC, cornerColors));
+                    vertexIndex++;
+                }
+
+                observer?.Notify();
+            }
+
+            int index = 0;
+            for (int rowIndex = 1; rowIndex <= subdivisions; rowIndex++)
+            {
+                int upperRowStart = vertexOffset + (rowIndex * (rowIndex - 1) / 2);
+                int lowerRowStart = upperRowStart + rowIndex;
+
+                for (int columnIndex = 0; columnIndex < rowIndex; columnIndex++)
+                {
+                    allIndices[indexOffset + index++] = (ushort)(upperRowStart + columnIndex);
+                    allIndices[indexOffset + index++] = (ushort)(lowerRowStart + columnIndex);
+                    allIndices[indexOffset + index++] = (ushort)(lowerRowStart + columnIndex + 1);
+
+                    if (columnIndex < (rowIndex - 1))
+                    {
+                        allIndices[indexOffset + index++] = (ushort)(upperRowStart + columnIndex);
+                        allIndices[indexOffset + index++] = (ushort)(lowerRowStart + columnIndex + 1);
+                        allIndices[indexOffset + index++] = (ushort)(upperRowStart + columnIndex + 1);
+                    }
+                }
+            }
+
+            vertexOffset += verticesPerTriangle;
+            indexOffset += indicesPerTriangle;
+        }
+
+        return new PdfVertices(allVertices, allColors, allIndices);
+    }
+
+    /// <summary>
     /// Creates tessellated vertices for all Type 6/7 mesh patches in a single batch for efficient rendering.
     /// </summary>
     /// <param name="patches">List of mesh patches to tessellate.</param>
+    /// <param name="colorResolver">Resolver for the color of an interpolated parametric value.</param>
     /// <param name="tessellation">Number of subdivisions per axis (higher = smoother).</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>PdfVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
-    public static PdfVertices CreateVerticesForPatches(List<MeshData> patches, int tessellation, IPdfExecutionObserver observer)
+    public static PdfVertices CreateVerticesForPatches(List<MeshData> patches, MeshColorResolver colorResolver, int tessellation, IPdfExecutionObserver observer)
     {
         if (patches == null || patches.Count == 0)
         {
@@ -115,7 +213,7 @@ internal static class MeshEvaluator
                     }
 
                     allVertices[vertexOffset + vertexIndex] = evaluatedPoint;
-                    allColors[vertexOffset + vertexIndex] = InterpolateCornerColors(u, v, patch.CornerColors);
+                    allColors[vertexOffset + vertexIndex] = colorResolver.Resolve(InterpolateCornerColors(u, v, patch.CornerColors));
                     vertexIndex++;
                 }
 
@@ -288,53 +386,98 @@ internal static class MeshEvaluator
     }
 
     /// <summary>
-    /// Bilinearly interpolates the four corner colors for a patch at (u, v) using vectorized operations.
+    /// Copies the triangles' own vertices and colors into a single batch, without subdivision.
+    /// </summary>
+    private static PdfVertices CreateFlatVerticesForTriangles(List<MeshData> triangles)
+    {
+        var allPoints = new PdfPoint[triangles.Count * 3];
+        var allColors = new PdfColor[allPoints.Length];
+
+        for (int triangleIndex = 0; triangleIndex < triangles.Count; triangleIndex++)
+        {
+            MeshData triangle = triangles[triangleIndex];
+            int offset = triangleIndex * 3;
+
+            Array.Copy(triangle.Points, 0, allPoints, offset, 3);
+            for (int cornerIndex = 0; cornerIndex < 3; cornerIndex++)
+            {
+                allColors[offset + cornerIndex] = triangle.CornerColors[cornerIndex].Color;
+            }
+        }
+
+        return new PdfVertices(allPoints, allColors, null);
+    }
+
+    /// <summary>
+    /// Reduces the requested subdivision count until the barycentric grids of all triangles fit
+    /// into the 16-bit index space.
+    /// </summary>
+    private static int LimitSubdivisions(int tessellation, int triangleCount)
+    {
+        int vertexBudget = (ushort.MaxValue + 1) / triangleCount;
+        var safeSubdivisions = (int)MathF.Floor((MathF.Sqrt((8f * vertexBudget) + 1f) - 3f) / 2f);
+        return Math.Max(1, Math.Min(tessellation, safeSubdivisions));
+    }
+
+    /// <summary>
+    /// Bilinearly interpolates the four corners' color data for a patch at (u, v).
     /// </summary>
     /// <param name="u">Normalized horizontal coordinate (0..1).</param>
     /// <param name="v">Normalized vertical coordinate (0..1).</param>
-    /// <param name="cornerColors">Array of 4 PdfColor values (order: bottom-left, top-left, top-right, bottom-right).</param>
-    /// <returns>Interpolated PdfColor.</returns>
+    /// <param name="cornerColors">Array of 4 corner values (order: bottom-left, top-left, top-right, bottom-right).</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static PdfColor InterpolateCornerColors(float u, float v, PdfColor[] cornerColors)
+    private static MeshVertexColor InterpolateCornerColors(float u, float v, MeshVertexColor[] cornerColors)
     {
-        // Compute bilinear weights for each corner
         float oneMinusU = 1.0f - u;
         float oneMinusV = 1.0f - v;
-        float bottomLeftWeight = oneMinusU * oneMinusV;
-        float topLeftWeight = oneMinusU * v;
-        float topRightWeight = u * v;
-        float bottomRightWeight = u * oneMinusV;
+        Vector4 weights = new(oneMinusU * oneMinusV, oneMinusU * v, u * v, u * oneMinusV);
 
-        Vector4 weights = new(bottomLeftWeight, topLeftWeight, topRightWeight, bottomRightWeight);
+        return InterpolateVertexColors(weights, cornerColors);
+    }
 
-        // Vectorize RGBA channels for the four corners
-        Vector4 redChannel = new(
-            cornerColors[0].Red,
-            cornerColors[1].Red,
-            cornerColors[2].Red,
-            cornerColors[3].Red);
-        Vector4 greenChannel = new(
-            cornerColors[0].Green,
-            cornerColors[1].Green,
-            cornerColors[2].Green,
-            cornerColors[3].Green);
-        Vector4 blueChannel = new(
-            cornerColors[0].Blue,
-            cornerColors[1].Blue,
-            cornerColors[2].Blue,
-            cornerColors[3].Blue);
-        Vector4 alphaChannel = new(
-            cornerColors[0].Alpha,
-            cornerColors[1].Alpha,
-            cornerColors[2].Alpha,
-            cornerColors[3].Alpha);
+    /// <summary>
+    /// Interpolates a triangle's three vertices' color data at the given barycentric weights.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static MeshVertexColor InterpolateVertexColors(float weightA, float weightB, float weightC, MeshVertexColor[] vertexColors)
+        => InterpolateVertexColors(new Vector4(weightA, weightB, weightC, 0f), vertexColors);
 
-        float interpolatedRed = ColorVectorUtilities.CustomDot(redChannel, weights);
-        float interpolatedGreen = ColorVectorUtilities.CustomDot(greenChannel, weights);
-        float interpolatedBlue = ColorVectorUtilities.CustomDot(blueChannel, weights);
-        float interpolatedAlpha = ColorVectorUtilities.CustomDot(alphaChannel, weights);
+    /// <summary>
+    /// Interpolates the color data of up to <see cref="MaxInterpolatedVertices"/> vertices,
+    /// one weight per vertex. Lanes without a vertex keep a zero weight.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static MeshVertexColor InterpolateVertexColors(Vector4 weights, MeshVertexColor[] vertexColors)
+    {
+        if (vertexColors.Length > MaxInterpolatedVertices)
+        {
+            throw new ArgumentException($"At most {MaxInterpolatedVertices} vertices can be interpolated at once.");
+        }
 
-        return new PdfColor(interpolatedRed, interpolatedGreen, interpolatedBlue, interpolatedAlpha);
+        Vector4 red = default;
+        Vector4 green = default;
+        Vector4 blue = default;
+        Vector4 parameter = default;
+        ref float redRef = ref Unsafe.As<Vector4, float>(ref red);
+        ref float greenRef = ref Unsafe.As<Vector4, float>(ref green);
+        ref float blueRef = ref Unsafe.As<Vector4, float>(ref blue);
+        ref float parameterRef = ref Unsafe.As<Vector4, float>(ref parameter);
+
+        for (int vertexIndex = 0; vertexIndex < vertexColors.Length; vertexIndex++)
+        {
+            MeshVertexColor vertexColor = vertexColors[vertexIndex];
+            Unsafe.Add(ref redRef, vertexIndex) = vertexColor.Color.Red;
+            Unsafe.Add(ref greenRef, vertexIndex) = vertexColor.Color.Green;
+            Unsafe.Add(ref blueRef, vertexIndex) = vertexColor.Color.Blue;
+            Unsafe.Add(ref parameterRef, vertexIndex) = vertexColor.Parameter;
+        }
+
+        PdfColor interpolatedColor = new(
+            ColorVectorUtilities.CustomDot(red, weights),
+            ColorVectorUtilities.CustomDot(green, weights),
+            ColorVectorUtilities.CustomDot(blue, weights));
+
+        return new MeshVertexColor(interpolatedColor, ColorVectorUtilities.CustomDot(parameter, weights));
     }
 
     /// <summary>

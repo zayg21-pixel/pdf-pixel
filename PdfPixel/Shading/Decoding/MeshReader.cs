@@ -1,12 +1,6 @@
-using PdfPixel.Color;
-using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Sampling;
-using PdfPixel.Color.Transform;
-using PdfPixel.Functions;
 using PdfPixel.Geometry;
 using PdfPixel.Parsing;
-using System;
-using System.Collections.Generic;
+using PdfPixel.Shading.Model;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Shading.Decoding;
@@ -32,14 +26,16 @@ internal static class MeshReader
         return new PdfPoint(decodedX, decodedY);
     }
 
+    /// <summary>
+    /// Reads one vertex's color data and resolves it through <paramref name="colorResolver"/>.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfColor ReadColorComponents(
+    public static MeshVertexColor ReadColorComponents(
         ref UintBitReader bitReader,
         int bitsPerComponent,
         ColorMinAndScale[] colorComponentMinAndScale,
         int numColorComponents,
-        List<PdfFunction> functions,
-        ColorTransformSampler colorSampler)
+        MeshColorResolver colorResolver)
     {
         var components = new float[numColorComponents];
         for (int componentIndex = 0; componentIndex < numColorComponents; componentIndex++)
@@ -50,23 +46,6 @@ internal static class MeshReader
             components[componentIndex] = decoded;
         }
 
-        return EvaluatePatchColor(components, functions, colorSampler);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfColor EvaluatePatchColor(
-        in ReadOnlySpan<float> input,
-        List<PdfFunction> functions,
-        ColorTransformSampler colorSampler)
-    {
-        if (functions?.Count > 0)
-        {
-            ReadOnlySpan<float> evaluated = PdfFunctions.EvaluateColorFunctions(functions, input);
-            return colorSampler.Sample(evaluated).ToPdfColor();
-        }
-        else
-        {
-            return colorSampler.Sample(input).ToPdfColor();
-        }
+        return colorResolver.CreateVertexColor(components);
     }
 }

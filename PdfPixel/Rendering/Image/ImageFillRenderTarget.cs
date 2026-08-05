@@ -28,7 +28,7 @@ internal class ImageFillRenderTarget : IRenderTarget
         _context = new ImageDecodingContext(image, state);
         _loggerFactory = loggerFactory;
 
-        if (state.FillPaint.IsPattern)
+        if (image.AlphaMode == PdfImageAlphaMode.StencilMask && state.FillPaint.IsPattern)
         {
             _pattern = state.FillPaint.Pattern;
         }
