@@ -301,8 +301,9 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// Converts a character code to its Unicode string representation.
     /// First consults the ToUnicode CMap from the base class; if that yields no result, maps the code to a CID and
-    /// looks it up in the built-in CID-to-Unicode table for the font's CIDSystemInfo; if that also fails, falls
-    /// back to treating the character code itself as a Unicode code point.
+    /// looks it up in the built-in CID-to-Unicode table for the font's CIDSystemInfo; if that also fails, reads the
+    /// CID values of a /ToUnicode CMap that declares no <c>bfchar</c>/<c>bfrange</c> entries as Unicode code points;
+    /// if that also fails, falls back to treating the character code itself as a Unicode code point.
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string for the character code, or <see langword="null"/> if no mapping is found.</returns>
@@ -318,6 +319,11 @@ public class PdfCompositeFont : PdfFontBase
         if (TryMapCodeToCid(code, out uint cid) && _toUnicode != null && _toUnicode.TryGetValue(cid, out string? resultString))
         {
             return resultString;
+        }
+
+        if (TryGetToUnicodeCidAsCodePoint(code, out string? cidCodePoint))
+        {
+            return cidCodePoint;
         }
 
         // Fallback: treat the character code itself as a Unicode code point.
@@ -361,5 +367,24 @@ public class PdfCompositeFont : PdfFontBase
         }
 
         return StandardFontGlyphMapProvider.TryGetUnicode(descendant.BaseFont, cid, out unicode);
+    }
+
+    // A /ToUnicode CMap that declares only cidchar/cidrange entries carries its target values as CIDs
+    // rather than as the byte strings bfchar/bfrange would use; those values are Unicode code points.
+    private bool TryGetToUnicodeCidAsCodePoint(PdfCharacterCode code, out string? unicode)
+    {
+        PdfCMap? toUnicodeCMap = ToUnicodeCMap;
+
+        if (toUnicodeCMap == null
+            || toUnicodeCMap.HasUnicodeMappings
+            || !toUnicodeCMap.TryGetCid(code, out int cid)
+            || !PdfCMap.IsValidCodePoint(cid))
+        {
+            unicode = null;
+            return false;
+        }
+
+        unicode = char.ConvertFromUtf32(cid);
+        return true;
     }
 }
