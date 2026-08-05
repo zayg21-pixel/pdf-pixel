@@ -161,6 +161,7 @@ public sealed class StitchingPdfFunction : PdfFunction
     /// <summary>
     /// For stitching functions, combine sampling points from each sub-function.
     /// Each sub-function is sampled in its Encode range and mapped back to the parent domain segment.
+    /// The combined result is sorted ascending.
     /// </summary>
     public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount)
     {
@@ -199,7 +200,7 @@ public sealed class StitchingPdfFunction : PdfFunction
             }
         }
 
-        // No clamping or sorting; duplicate or unordered positions are acceptable
+        points.Sort();
         return points.ToArray();
     }
 }
