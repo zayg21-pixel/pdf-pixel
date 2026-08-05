@@ -198,19 +198,31 @@ public sealed class PdfStreamDecoder
 
         List<PdfDecodeParameters?> list = [];
 
-        PdfArray? parmsArray = dictionary.GetArray(PdfTokens.DecodeParmsKey);
-        if (parmsArray != null)
+        if (!dictionary.HasKey(PdfTokens.DecodeParmsKey))
         {
-            for (int index = 0; index < parmsArray.Count; index++)
-            {
-                PdfDictionary? dict = parmsArray.GetDictionary(index);
-                list.Add(PdfDecodeParameters.FromDictionary(dict));
-            }
+            return list;
         }
-        else if (dictionary.HasKey(PdfTokens.DecodeParmsKey))
+
+        PdfArray? filterArray = dictionary.GetArray(PdfTokens.FilterKey);
+        PdfArray? parmsArray = null;
+
+        if (filterArray != null)
         {
-            PdfDictionary? single = dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
-            list.Add(PdfDecodeParameters.FromDictionary(single));
+            parmsArray = dictionary.GetArray(PdfTokens.DecodeParmsKey);
+        }
+
+        if (parmsArray == null)
+        {
+            PdfDictionary? singleParms = dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
+            list.Add(PdfDecodeParameters.FromDictionary(singleParms));
+
+            return list;
+        }
+
+        for (int index = 0; index < parmsArray.Count; index++)
+        {
+            PdfDictionary? chainedParms = parmsArray.GetDictionary(index);
+            list.Add(PdfDecodeParameters.FromDictionary(chainedParms));
         }
 
         return list;
