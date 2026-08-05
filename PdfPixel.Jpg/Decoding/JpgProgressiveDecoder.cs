@@ -371,11 +371,13 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         var acDecoders = new JpgHuffmanDecoder[scanComponentCount];
         for (int scanComponentIndex = 0; scanComponentIndex < scanComponentCount; scanComponentIndex++)
         {
-            dcDecoders[scanComponentIndex] = GetDcDecoder(huffTables, currentScan.Components[scanComponentIndex].DcTableId);
-            acDecoders[scanComponentIndex] = GetAcDecoder(huffTables, currentScan.Components[scanComponentIndex].AcTableId);
-            if ((isDcScan && dcDecoders[scanComponentIndex] == null) || (!isDcScan && acDecoders[scanComponentIndex] == null))
+            if (isDcScan)
             {
-                throw new InvalidOperationException($"Missing required Huffman table for scan component {scanComponentIndex}.");
+                dcDecoders[scanComponentIndex] = GetDcDecoder(huffTables, currentScan.Components[scanComponentIndex].DcTableId);
+            }
+            else
+            {
+                acDecoders[scanComponentIndex] = GetAcDecoder(huffTables, currentScan.Components[scanComponentIndex].AcTableId);
             }
         }
 
