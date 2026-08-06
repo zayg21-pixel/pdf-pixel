@@ -128,6 +128,12 @@ internal static class PdfToSkiaExtensions
     public static SKPaint ToSkiaPaint(this PdfPaint paint) => PdfPaintConverter.ToSkiaPaint(paint);
 
     /// <summary>
+    /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/> whose stroke is widened by
+    /// <paramref name="strokeScale"/>.
+    /// </summary>
+    public static SKPaint ToSkiaPaint(this PdfPaint paint, in PdfStrokeScale strokeScale) => PdfPaintConverter.ToSkiaPaint(paint, strokeScale);
+
+    /// <summary>
     /// Converts a <see cref="PdfPath"/> to an <see cref="SKPath"/>.
     /// </summary>
     public static SKPath ToSkPath(this PdfPath path) => PdfPathConverter.ToSkPath(path);

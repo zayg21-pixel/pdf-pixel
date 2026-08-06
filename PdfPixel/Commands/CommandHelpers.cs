@@ -1,4 +1,4 @@
-using PdfPixel.Color.Paint;
+﻿using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using System;
 using System.Runtime.CompilerServices;
@@ -30,74 +30,26 @@ internal static class CommandHelpers
     }
 
     /// <summary>
-    /// Returns the stroke width to assign for <paramref name="paint"/>: unchanged
-    /// for fill paints and hairlines (<see cref="PdfStrokeStyle.LineWidth"/> &lt;= 0), otherwise the paint's
-    /// line width clamped to the user-space width whose image under the current device matrix measures exactly
-    /// one device pixel along its narrowest axis. Clamping keeps thin lines visible at low zoom, matching the
-    /// minimum-line-width behavior of other PDF viewers.
+    /// Returns whether filling <paramref name="path"/> with <paramref name="paint"/> would cover no area
+    /// at all, because the paint fills and the path's bounds are zero-width or zero-height, as produced by
+    /// the degenerate <c>re f</c> rectangles some PDF producers use to draw grid lines. Such a path is
+    /// drawn as a hairline stroke instead, so that it stays visible.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetMinimumStrokeWidth(PdfCommandExecutionContext executionContext, PdfPaint paint)
-    {
-        if (paint.Style != PdfPaintStyle.Stroke)
-        {
-            return 0f;
-        }
-
-        float lineWidth = paint.RequireStrokeStyle().LineWidth;
-        if (lineWidth <= 0)
-        {
-            return 0f;
-        }
-
-        return Math.Max(lineWidth, GetOneDevicePixelInUserSpace(executionContext));
-    }
-
-    /// <summary>
-    /// Returns the stroke width to draw <paramref name="path"/> as a visible hairline instead of a
-    /// zero-area fill, when <paramref name="paint"/> is a fill and the path's bounds are zero-width
-    /// or zero-height (as produced by degenerate <c>re f</c> rectangles some PDF producers use to
-    /// draw grid lines). Zero otherwise.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetMinimumFillStrokeWidth(PdfCommandExecutionContext executionContext, PdfPath path, PdfPaint paint)
+    public static bool IsDegenerateFill(PdfPath path, PdfPaint paint)
     {
         if (paint.Style != PdfPaintStyle.Fill)
         {
-            return 0f;
+            return false;
         }
 
         PdfRectangle bounds = path.GetBounds();
-        if (bounds.Width != 0 && bounds.Height != 0)
-        {
-            return 0f;
-        }
 
-        return GetOneDevicePixelInUserSpace(executionContext);
+        return bounds.Width == 0 || bounds.Height == 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float GetOneDevicePixelInUserSpace(PdfCommandExecutionContext executionContext)
-    {
-        PdfMatrix matrix = GetScaledMatrix(executionContext);
-        PdfPoint origin = matrix.MapPoint(PdfPoint.Empty);
-        PdfPoint mappedX = matrix.MapPoint(new PdfPoint(1, 0));
-        PdfPoint mappedY = matrix.MapPoint(new PdfPoint(0, 1));
-
-        float axisXx = mappedX.X - origin.X;
-        float axisXy = mappedX.Y - origin.Y;
-        float axisYx = mappedY.X - origin.X;
-        float axisYy = mappedY.Y - origin.Y;
-
-        float normX = MathF.Sqrt((axisXx * axisXx) + (axisXy * axisXy));
-        float normY = MathF.Sqrt((axisYx * axisYx) + (axisYy * axisYy));
-        float absDeterminant = Math.Abs((axisXx * axisYy) - (axisXy * axisYx));
-
-        return (absDeterminant <= 0) ? 1f : Math.Max(normX, normY) / absDeterminant;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool GetPathIsAntialias(PdfPath path, PdfCommandExecutionContext executionContext, PdfPaint? paint = null)
+    public static bool GetPathIsAntialias(PdfPath path, PdfCommandExecutionContext executionContext, PdfPaint? paint, in PdfStrokeScale strokeScale)
     {
         if (!executionContext.Parameters.Antialias)
         {
@@ -114,13 +66,7 @@ internal static class CommandHelpers
         // Stroke pass: thin strokes benefit from antialiasing
         if (paint != null && paint.Style == PdfPaintStyle.Stroke)
         {
-            float stroke = GetMinimumStrokeWidth(executionContext, paint);
-            if (stroke == 0)
-            {
-                stroke = 1f;
-            }
-
-            PdfRectangle scaledStroke = scaledMatrix.MapRect(new PdfRectangle(0, 0, stroke, stroke));
+            PdfRectangle scaledStroke = scaledMatrix.MapRect(new PdfRectangle(0, 0, strokeScale.PenWidth * strokeScale.X, strokeScale.PenWidth * strokeScale.Y));
             if (scaledStroke.Width < 2 || scaledStroke.Height < 2)
             {
                 return executionContext.Parameters.Antialias;

@@ -48,6 +48,8 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
             throw new ArgumentNullException(nameof(command));
         }
 
+        _executionContext.ExecutionObserver.Notify();
+
         if (!_executionContext.MarkedContent.ShouldExecute(command))
         {
             return;
@@ -178,11 +180,12 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private void ExecuteClipPath(ClipPathCommand command)
     {
-        bool antialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint);
+        PdfStrokeScale strokeScale = GetStrokeScale(command.Paint);
+        bool antialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint, strokeScale);
 
         using SKPath sourcePath = command.Path.ToSkPath();
-        using SKPaint? strokePaint = BuildClipStrokePaint(command);
-        using SKPath clipPath = BuildClipPathGeometry(sourcePath, strokePaint);
+        using SKPaint? strokePaint = BuildClipStrokePaint(command, strokeScale);
+        using SKPath clipPath = BuildClipPathGeometry(sourcePath, strokePaint, strokeScale);
         SKClipOperation skOperation = command.Operation.ToSkClipOperation();
 
         _canvas.ClipPath(clipPath, skOperation, antialias);
@@ -197,26 +200,36 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         }
     }
 
-    private SKPaint? BuildClipStrokePaint(ClipPathCommand command)
+    private static SKPaint? BuildClipStrokePaint(ClipPathCommand command, in PdfStrokeScale strokeScale)
     {
         if (command.Paint == null || command.Paint.Style != PdfPaintStyle.Stroke)
         {
             return null;
         }
 
-        SKPaint strokePaint = command.Paint.ToSkiaPaint();
-        strokePaint.StrokeWidth = CommandHelpers.GetMinimumStrokeWidth(_executionContext, command.Paint);
-        return strokePaint;
+        return command.Paint.ToSkiaPaint(strokeScale);
     }
 
-    private static SKPath BuildClipPathGeometry(SKPath sourcePath, SKPaint? strokePaint)
+    private SKPath BuildClipPathGeometry(SKPath sourcePath, SKPaint? strokePaint, in PdfStrokeScale strokeScale)
     {
         if (strokePaint == null)
         {
             return new SKPath(sourcePath);
         }
 
-        return strokePaint.GetFillPath(sourcePath) ?? new SKPath(sourcePath);
+        return SkStrokeGeometry.CreateOutline(sourcePath, strokePaint, _executionContext, strokeScale);
+    }
+
+    // A stroke paint widens by the scale its line width and the device matrix produce; anything else has
+    // no pen to widen. A degenerate fill is the exception, and asks for the hairline scale directly.
+    private PdfStrokeScale GetStrokeScale(PdfPaint? paint)
+    {
+        if (paint == null || paint.Style != PdfPaintStyle.Stroke)
+        {
+            return default;
+        }
+
+        return PdfStrokeScale.Create(_executionContext, paint.RequireStrokeStyle().LineWidth);
     }
 
     private void ExecuteClipRectangle(ClipRectangleCommand command)
@@ -253,23 +266,30 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private void ExecuteDrawPath(DrawPathCommand command)
     {
-        using SKPath path = command.Path.ToSkPath();
-        using SKPaint paint = command.Paint.ToSkiaPaint();
-        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint);
+        // A degenerate fill covers no area, so it is painted as a hairline stroke to stay visible.
+        bool isDegenerateFill = CommandHelpers.IsDegenerateFill(command.Path, command.Paint);
+        PdfStrokeScale strokeScale = isDegenerateFill
+            ? PdfStrokeScale.Create(_executionContext, 0f)
+            : GetStrokeScale(command.Paint);
 
-        float minimumFillStrokeWidth = CommandHelpers.GetMinimumFillStrokeWidth(_executionContext, command.Path, command.Paint);
-        if (minimumFillStrokeWidth > 0)
+        using SKPath path = command.Path.ToSkPath();
+        using SKPaint paint = command.Paint.ToSkiaPaint(strokeScale);
+        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
+        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint, strokeScale);
+
+        if (isDegenerateFill)
         {
             paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = minimumFillStrokeWidth;
+            paint.StrokeWidth = (strokeScale.IsUniform) ? strokeScale.UniformWidth : strokeScale.PenWidth;
         }
-        else
+        else if (command.Paint.Style != PdfPaintStyle.Stroke)
         {
-            paint.StrokeWidth = CommandHelpers.GetMinimumStrokeWidth(_executionContext, command.Paint);
+            _canvas.DrawPath(path, paint);
+
+            return;
         }
 
-        _canvas.DrawPath(path, paint);
+        SkStrokeGeometry.Draw(_canvas, path, paint, _executionContext, strokeScale);
     }
 
     private void ExecuteDrawRecording(DrawRecordingCommand command)
