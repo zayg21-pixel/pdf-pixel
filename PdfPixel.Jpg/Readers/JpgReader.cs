@@ -13,7 +13,7 @@ namespace PdfPixel.Jpg.Readers;
 /// metadata needed by our custom decoder (quant tables presence, Huffman presence, components,
 /// APP markers like JFIF/Adobe/ICC). It does not parse entropy-coded data.
 /// Additionally, records the offset to the entropy-coded data in the returned header and parses DRI/SOS.
-/// Also scans after the first SOS for any DQT/DHT/DRI segments that may appear between scans.
+/// Also scans after the first SOS for any DQT/DHT/DRI/DNL segments that may appear between scans.
 /// </summary>
 public static class JpgReader
 {
@@ -24,6 +24,7 @@ public static class JpgReader
     private const byte SOS = 0xDA;
     private const byte DQT = 0xDB;
     private const byte DHT = 0xC4;
+    private const byte DNL = 0xDC;
     private const byte DRI = 0xDD;
     private const byte APP0 = 0xE0;
     private const byte APP1 = 0xE1;
@@ -236,6 +237,20 @@ public static class JpgReader
                         if (payloadLen >= 2)
                         {
                             header.RestartInterval = ReadUInt16BE(payload);
+                        }
+
+                        break;
+                    }
+                case DNL:
+                    {
+                        // The number of lines carried here supersedes the one in the SOF segment.
+                        if (payloadLen >= 2)
+                        {
+                            int numberOfLines = ReadUInt16BE(payload);
+                            if (numberOfLines > 0)
+                            {
+                                header.Height = numberOfLines;
+                            }
                         }
 
                         break;

@@ -72,12 +72,12 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }
 
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(Image.Width, Image.Height));
+        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(header.Width, header.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
             Context,
-            Image.Width,
-            Image.Height,
+            header.Width,
+            header.Height,
             Image.BitsPerComponent,
             Image.RenderingIntent,
             resolvedConverter,
@@ -87,7 +87,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             downscaledSize);
 
         _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
-        _fullWidthRowBuffer = new byte[checked(header.ComponentCount * Image.Width)];
+        _fullWidthRowBuffer = new byte[checked(header.ComponentCount * header.Width)];
         _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
         _currentImageRow = 0;
     }

@@ -46,6 +46,11 @@ internal sealed class Program
             return Add(reader, manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
         }
 
+        if (args.Length > 0 && args[0] == "remove")
+        {
+            return Remove(manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
+        }
+
         // A run compares unless it is asked to generate; every remaining argument that is not the
         // full-run switch selects the PDFs to process.
         bool generate = args.Length > 0 && args[0] == "generate";
@@ -297,6 +302,69 @@ internal sealed class Program
         return 0;
     }
 
+    /// <summary>
+    /// Unregisters a single PDF, and deletes the source file and the golden snapshots that went
+    /// with it.
+    /// </summary>
+    private static int Remove(
+        GoldManifest manifest,
+        string manifestPath,
+        string sourceDirectory,
+        string snapshotsDirectory,
+        string[] arguments)
+    {
+        if (arguments.Length != 1)
+        {
+            Write(ConsoleColor.Red, "Usage: remove <pdf path or name>");
+
+            return 1;
+        }
+
+        string fileName = Path.GetFileName(arguments[0]);
+
+        if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName += ".pdf";
+        }
+
+        string pdfPath = Path.Combine(sourceDirectory, fileName);
+        string snapshotDirectory = Path.Combine(snapshotsDirectory, Path.GetFileNameWithoutExtension(fileName));
+
+        int registrationCount = manifest.Files.RemoveAll(existing => string.Equals(existing.Name, fileName, StringComparison.OrdinalIgnoreCase));
+        bool sourceExists = File.Exists(pdfPath);
+        bool snapshotsExist = Directory.Exists(snapshotDirectory);
+
+        // Nothing of this PDF is in the corpus, so the name is a typo rather than a member to drop.
+        if (registrationCount == 0 && !sourceExists && !snapshotsExist)
+        {
+            Write(ConsoleColor.Red, $"{fileName} is not registered in {manifestPath}, and has neither a source file nor a snapshot.");
+
+            return 1;
+        }
+
+        if (registrationCount > 0)
+        {
+            manifest.Save(manifestPath);
+        }
+
+        if (sourceExists)
+        {
+            File.Delete(pdfPath);
+        }
+
+        if (snapshotsExist)
+        {
+            Directory.Delete(snapshotDirectory, recursive: true);
+        }
+
+        string registration = registrationCount > 0 ? "unregistered" : "was not registered";
+        string source = sourceExists ? "source deleted" : "no source";
+        string snapshots = snapshotsExist ? "snapshots deleted" : "no snapshots";
+        Write(ConsoleColor.Green, $"{fileName,-60} {registration}, {source}, {snapshots}");
+
+        return 0;
+    }
+
     private static void Generate(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
     {
         int pageCount = 0;
@@ -442,6 +510,7 @@ internal sealed class Program
         Console.WriteLine("  generate a* b           rewrites the golden snapshots of the selected PDFs only");
         Console.WriteLine("  add <pdf> [pages] [--password <user password>]");
         Console.WriteLine("                          registers one PDF in gold.json");
+        Console.WriteLine("  remove <pdf>            unregisters one PDF and deletes its source and snapshots");
         Console.WriteLine();
         Console.WriteLine("The PDF given to add is copied into the source folder when it is a path from elsewhere.");
         Console.WriteLine($"It is rendered once to time it; slower than {FullRunThresholdSeconds:F1} s registers it as a full-run member.");
