@@ -33,7 +33,7 @@ internal sealed class PdfXrefRecoveryScanner
         while (!parser.IsAtEnd)
         {
             int objectStart = parser.Position;
-            PdfObject? obj = parser.ReadObject();
+            PdfObject? obj = parser.ScanObject();
 
             if (obj == null)
             {

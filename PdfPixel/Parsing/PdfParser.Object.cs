@@ -25,6 +25,45 @@ internal partial struct PdfParser
             return null;
         }
 
+        return FinishReadObject(first, second, startPos);
+    }
+
+    /// <summary>
+    /// Probes the current position for an <c>N G obj</c> declaration, failing fast when the position
+    /// cannot possibly be one. Used by speculative recovery scanning, which probes every byte offset in
+    /// a file and would otherwise pay for a full value parse (including unbounded array/dictionary
+    /// lookahead) at each failing offset.
+    /// </summary>
+    public PdfObject? ScanObject()
+    {
+        int startPos = Position;
+
+        if (!HasLeadingDigit())
+        {
+            return null;
+        }
+
+        IPdfValue? first = ReadNextValue();
+
+        if (!HasLeadingDigit())
+        {
+            return null;
+        }
+
+        IPdfValue? second = ReadNextValue();
+        IPdfValue? third = ReadNextValue();
+
+        if (third.AsString() != PdfTokens.Obj)
+        {
+            Position = startPos;
+            return null;
+        }
+
+        return FinishReadObject(first, second, startPos);
+    }
+
+    private PdfObject? FinishReadObject(IPdfValue? first, IPdfValue? second, int startPos)
+    {
         var objectNumber = (uint)first.AsInteger();
         int generation = second.AsInteger();
         PdfReference reference = new(objectNumber, generation);
@@ -105,4 +144,13 @@ internal partial struct PdfParser
         return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool HasLeadingDigit()
+    {
+        SkipWhitespacesAndComments();
+
+        return !IsAtEnd
+            && PeekByte() >= Zero
+            && PeekByte() <= Nine;
+    }
 }
