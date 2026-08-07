@@ -193,7 +193,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         {
             case CffPdfTypeface cffPdfTypeface:
             {
-                if (Encoding.BaseEncoding == PdfEncoding.Unknown)
+                if (FontDescriptor != null && (FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfEncoding.Unknown)
                 {
                     Encoding.UpdateEncoding(PdfEncoding.WinAnsiEncoding);
                 }
