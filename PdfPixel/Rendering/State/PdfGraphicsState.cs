@@ -341,11 +341,6 @@ public class PdfGraphicsState
     public PdfRectangle ClipBounds { get; set; }
 
     /// <summary>
-    /// True while inside a text object (between BT and ET).
-    /// </summary>
-    public bool InTextObject { get; set; }
-
-    /// <summary>
     /// Gets or sets the clipping path used to define the area where text can be rendered.
     /// </summary>
     public PdfPathBuilder? TextClipPath { get; set; }
@@ -390,7 +385,6 @@ public class PdfGraphicsState
             TextRenderingMode = TextRenderingMode,
             TextMatrix = TextMatrix,
             TextLineMatrix = TextLineMatrix,
-            InTextObject = InTextObject,
             CTM = CTM,
             ClipBounds = ClipBounds,
             TextClipPath = TextClipPath

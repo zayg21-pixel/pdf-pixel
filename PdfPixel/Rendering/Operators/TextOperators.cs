@@ -153,14 +153,12 @@ internal class TextOperators : IOperatorProcessor
     {
         graphicsState.TextClipPath = null;
 
-        graphicsState.InTextObject = true;
         graphicsState.TextMatrix = PdfMatrix.Identity;
         graphicsState.TextLineMatrix = PdfMatrix.Identity;
     }
 
     private void ProcessEndText(PdfGraphicsState graphicsState)
     {
-        graphicsState.InTextObject = false;
         graphicsState.TextMatrix = PdfMatrix.Identity;
         graphicsState.TextLineMatrix = PdfMatrix.Identity;
 
@@ -269,7 +267,7 @@ internal class TextOperators : IOperatorProcessor
     private void ProcessMoveTextPosition(PdfGraphicsState graphicsState)
     {
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2 || !graphicsState.InTextObject)
+        if (operands.Count < 2)
         {
             return;
         }
@@ -284,7 +282,7 @@ internal class TextOperators : IOperatorProcessor
     private void ProcessMoveTextPositionAndSetLeading(PdfGraphicsState graphicsState)
     {
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2 || !graphicsState.InTextObject)
+        if (operands.Count < 2)
         {
             return;
         }
@@ -300,7 +298,7 @@ internal class TextOperators : IOperatorProcessor
     private void ProcessShowText(PdfGraphicsState graphicsState)
     {
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0 || !graphicsState.InTextObject)
+        if (operands.Count == 0)
         {
             return;
         }
@@ -311,11 +309,6 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowTextNextLine(PdfGraphicsState graphicsState)
     {
-        if (!graphicsState.InTextObject)
-        {
-            return;
-        }
-
         ProcessNextLine(graphicsState);
         ProcessShowText(graphicsState);
     }
@@ -323,7 +316,7 @@ internal class TextOperators : IOperatorProcessor
     private void ProcessShowTextWithPositioning(PdfGraphicsState graphicsState)
     {
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0 || !graphicsState.InTextObject)
+        if (operands.Count == 0)
         {
             return;
         }
@@ -334,11 +327,6 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessNextLine(PdfGraphicsState graphicsState)
     {
-        if (!graphicsState.InTextObject)
-        {
-            return;
-        }
-
         PdfMatrix translation = PdfMatrix.CreateTranslation(0, graphicsState.Leading);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
@@ -347,7 +335,7 @@ internal class TextOperators : IOperatorProcessor
     private void ProcessSetTextMatrix(PdfGraphicsState graphicsState)
     {
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
-        if (operands.Count < 6 || !graphicsState.InTextObject)
+        if (operands.Count < 6)
         {
             return;
         }
@@ -359,15 +347,10 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetSpacingAndShowText(PdfGraphicsState graphicsState)
     {
-        if (!graphicsState.InTextObject)
-        {
-            return;
-        }
-
         ProcessNextLine(graphicsState);
 
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(3, _operandStack);
-        if (operands.Count < 3 || !graphicsState.InTextObject)
+        if (operands.Count < 3)
         {
             return;
         }
