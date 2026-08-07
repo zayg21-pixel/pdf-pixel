@@ -353,7 +353,9 @@ public class SfntFontProcessor
         {
             if (font.GlyfRecord != null)
             {
-                SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value), PdfFontMatrix.Identity);
+                float unitsPerEmScale = 1f / font.Head.UnitsPerEm;
+                PdfFontMatrix glyphMatrix = new(unitsPerEmScale, 0, 0, 0, unitsPerEmScale, 0);
+                SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value), glyphMatrix);
                 tables.Add(new SfntTableData(SfntTableTags.Glyf, glyfResult.GlyfData));
 
                 byte[] locaData = _locaProcessor.Write(glyfResult.Loca, font.Head.IndexToLocFormat);
