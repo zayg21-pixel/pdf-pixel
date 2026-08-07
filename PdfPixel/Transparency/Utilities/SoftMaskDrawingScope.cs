@@ -29,7 +29,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
     private readonly PdfSoftMask? _softMask;
     private readonly PdfGraphicsState _graphicsState;
 
-    private PdfRectangle _maskBounds;
+    private PdfRectangle _layerBounds;
     private PdfMatrix _maskMatrix;
     private PdfMatrix _worldToMaskForm;
     private bool _began;
@@ -83,12 +83,13 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        _worldToMaskForm = PdfMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
-        _maskMatrix = PdfMatrix.Concat(_graphicsState.CTM.Invert(), _worldToMaskForm);
-        _maskBounds = _maskMatrix.MapRect(_softMask.MaskForm.BBox);
+        PdfMatrix inverseCtm = _graphicsState.CTM.Invert();
 
-        _processor.Process(new SaveLayerCommand(_maskBounds));
-        _processor.Process(new ClipRectangleCommand(_maskBounds, PdfClipOperation.Intersect));
+        _worldToMaskForm = PdfMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
+        _maskMatrix = PdfMatrix.Concat(inverseCtm, _worldToMaskForm);
+        _layerBounds = inverseCtm.MapRect(_graphicsState.Page.CropBox);
+
+        _processor.Process(new SaveLayerCommand(_layerBounds));
     }
 
     /// <summary>
@@ -111,7 +112,6 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         PdfCommandRecorder recorder = new();
         recorder.Process(SaveStateCommand.Instance);
-        recorder.Process(new ConcatMatrixCommand(_maskMatrix));
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
@@ -119,10 +119,13 @@ public sealed class SoftMaskDrawingScope : IDisposable
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             PdfPathBuilder rectPath = new();
-            rectPath.AddRect(_softMask.MaskForm.BBox);
+            rectPath.AddRect(_layerBounds);
 
             recorder.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
+
+        recorder.Process(new ConcatMatrixCommand(_maskMatrix));
+        recorder.Process(new ClipRectangleCommand(_softMask.MaskForm.BBox, PdfClipOperation.Intersect));
 
         // Render mask content stream into the recorder (isolated from canvas transforms).
         ReadOnlyMemory<byte> contentData = _softMask.MaskForm.GetFormData();
@@ -153,7 +156,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         PdfPaint maskPaint = PdfPaintFactory.CreateSoftMaskPaint(_softMask.Subtype, _softMask.TransferFunction);
 
         // Position the mask form
-        _processor.Process(new SaveLayerCommand(_maskBounds, maskPaint));
+        _processor.Process(new SaveLayerCommand(_layerBounds, maskPaint));
 
         _processor.Process(new DrawRecordingCommand(recorder));
         _processor.Process(RestoreLayerCommand.Instance);
