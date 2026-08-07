@@ -244,6 +244,19 @@ public class PdfType3Font : PdfSingleByteFont
     /// <returns>Always 1 for Type3 fonts.</returns>
     public override ushort? GetGid(PdfCharacterCode code) => 1;
 
+    /// <summary>
+    /// A Type3 glyph is drawn by running the character procedure its /CharProcs names for the code, so
+    /// no typeface supplies its outline. A typeface is still resolved to carry the character's metrics,
+    /// which come from this font's own /Widths.
+    /// </summary>
+    protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
+    {
+        PdfGlyphResolution resolution = SubstituteByUnicode(renderingUnicode);
+        IPdfTypeface typeface = resolution.Typeface ?? Document.FontProvider.GetFallbackTypeface(SubstitutionInfo);
+
+        return new PdfGlyphResolution(typeface, [GetGid(characterCode)], isMappedByFont: true);
+    }
+
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {

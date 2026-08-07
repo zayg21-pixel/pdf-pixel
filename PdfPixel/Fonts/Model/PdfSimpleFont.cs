@@ -64,6 +64,29 @@ public class PdfSimpleFont : PdfSingleByteFont
     }
 
     /// <summary>
+    /// Resolves glyphs for a single-byte code: the embedded program's own mapping first, then - because
+    /// a simple font's code is a code, not a character - a symbol typeface's built-in encoding, and only
+    /// then the Unicode the code stands for.
+    /// </summary>
+    protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
+    {
+        if (!IsSubstitutedFont)
+        {
+            return ResolveFromFontProgram(characterCode, renderingUnicode);
+        }
+
+        int code = (byte)(uint)characterCode;
+        SfntPdfTypeface? symbolTypeface = Document.FontProvider.GetSymbolTypefaceByCode(SubstitutionInfo, code);
+
+        if (symbolTypeface != null)
+        {
+            return new PdfGlyphResolution(symbolTypeface, [symbolTypeface.GetGidByCode(code)], isMappedByFont: false);
+        }
+
+        return SubstituteByUnicode(renderingUnicode);
+    }
+
+    /// <summary>
     /// Returns the advance width for the specified character code.
     /// </summary>
     /// <param name="code">The character code to retrieve the width for.</param>

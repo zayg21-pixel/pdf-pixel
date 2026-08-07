@@ -59,8 +59,8 @@ public sealed class InMemoryFontProvider : IFontProvider, IDisposable
 
     /// <summary>
     /// Registers font data for a standard PDF font name.
-    /// The typeface is also registered under the standard display names so that <see cref="GetTypeface"/>
-    /// can resolve it by common name strings found in PDF documents.
+    /// The typeface is also registered under the standard display names so that
+    /// <see cref="GetTypefaceByUnicode"/> can resolve it by common name strings found in PDF documents.
     /// </summary>
     /// <param name="standardFont">The standard PDF font to associate with the supplied font data.</param>
     /// <param name="fontData">Raw SFNT font program bytes.</param>
@@ -91,22 +91,56 @@ public sealed class InMemoryFontProvider : IFontProvider, IDisposable
     }
 
     /// <inheritdoc/>
-    public SfntPdfTypeface GetTypeface(in PdfSubstitutionInfo substitutionInfo, string? unicode, float? width)
+    public SfntPdfTypeface GetTypefaceByUnicode(in PdfSubstitutionInfo substitutionInfo, string unicode)
+    {
+        SfntPdfTypeface? familyTypeface = ResolveFamily(substitutionInfo, candidate => candidate.ContainsAllGlyphs(unicode));
+        if (familyTypeface != null)
+        {
+            return familyTypeface;
+        }
+
+        if (!string.IsNullOrEmpty(unicode))
+        {
+            foreach (SfntPdfTypeface typeface in _namedFonts.Values)
+            {
+                if (typeface.ContainsAllGlyphs(unicode))
+                {
+                    return typeface;
+                }
+            }
+        }
+
+        return GetFallbackTypeface(substitutionInfo);
+    }
+
+    /// <inheritdoc/>
+    public SfntPdfTypeface? GetSymbolTypefaceByCode(in PdfSubstitutionInfo substitutionInfo, int characterCode)
+        => ResolveFamily(substitutionInfo, candidate => candidate.IsSymbolEncoded && candidate.GetGidByCode(characterCode) != null);
+
+    /// <inheritdoc/>
+    public SfntPdfTypeface GetFallbackTypeface(in PdfSubstitutionInfo substitutionInfo)
+        => _fallback ?? throw new InvalidOperationException("No fallback font has been registered.");
+
+    /// <summary>
+    /// Returns the registered font standing in for the requested family - the Standard 14 registration
+    /// first, then the named one - when <paramref name="isUsable"/> approves it.
+    /// </summary>
+    private SfntPdfTypeface? ResolveFamily(in PdfSubstitutionInfo substitutionInfo, Func<SfntPdfTypeface, bool> isUsable)
     {
         PdfStandardFontName? standardName = substitutionInfo.GetStandardName();
         if (standardName.HasValue
             && _standardFonts.TryGetValue(standardName.Value, out SfntPdfTypeface? standardTypeface)
-            && standardTypeface.ContainsAllGlyphs(unicode))
+            && isUsable(standardTypeface))
         {
             return standardTypeface;
         }
 
-        if (_namedFonts.TryGetValue(substitutionInfo.NormalizedStem, out SfntPdfTypeface? namedTypeface) && namedTypeface.ContainsAllGlyphs(unicode))
+        if (_namedFonts.TryGetValue(substitutionInfo.NormalizedStem, out SfntPdfTypeface? namedTypeface) && isUsable(namedTypeface))
         {
             return namedTypeface;
         }
 
-        return _fallback ?? throw new InvalidOperationException("No fallback font has been registered.");
+        return null;
     }
 
     /// <inheritdoc/>

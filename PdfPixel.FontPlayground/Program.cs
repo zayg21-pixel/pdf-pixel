@@ -45,7 +45,7 @@ internal static class Program
 
         foreach ((PdfSubstitutionInfo substitutionInfo, string unicode, string description) in cases)
         {
-            IPdfTypeface typeface = fontProvider.GetTypeface(substitutionInfo, unicode, width: null);
+            IPdfTypeface typeface = fontProvider.GetTypefaceByUnicode(substitutionInfo, unicode);
             ushort? gid = typeface.GetGid(unicode);
             bool gidExists = gid.HasValue && typeface.IsGidExists(gid.Value);
 

@@ -83,7 +83,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in PdfColor color)
     {
         PdfSubstitutionInfo substitutionInfo = new(Fonts.Mapping.PdfStandardFontName.Courier, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, italicAngle: 0f);
-        SfntPdfTypeface typeface = page.Document.FontProvider.GetTypeface(substitutionInfo, labelText, null);
+        SfntPdfTypeface typeface = page.Document.FontProvider.GetTypefaceByUnicode(substitutionInfo, labelText);
 
         float availableWidth = Rectangle.Width * (1f - 2f * MarginFraction);
         float availableHeight = Rectangle.Height * (1f - 2f * MarginFraction);

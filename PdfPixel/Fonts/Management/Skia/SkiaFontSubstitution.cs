@@ -35,13 +35,12 @@ internal sealed class SkiaFontSubstitution
     public bool IsKnownFamilyName(string name) => _knownFontFamilies.Contains(name);
 
     /// <summary>
-    /// Resolves the font named by <paramref name="substitutionInfo"/>, or <see langword="null"/> if
-    /// it isn't installed or - when <paramref name="unicode"/> is given - doesn't have a glyph for its
-    /// first codepoint.
+    /// Resolves the font named by <paramref name="substitutionInfo"/>, or <see langword="null"/> if it
+    /// isn't installed. Whether the resolved font covers the character being shaped is the caller's
+    /// decision to make.
     /// </summary>
     /// <param name="substitutionInfo">Names the font family and style to resolve.</param>
-    /// <param name="unicode">The Unicode text whose first codepoint the resolved font must cover, or <see langword="null"/> to skip that check.</param>
-    public SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo, string? unicode)
+    public SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
     {
         SKFontStyle style = CreateFontStyle(substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.IsItalic);
 
@@ -49,16 +48,6 @@ internal sealed class SkiaFontSubstitution
         if (matchedTypeface == null)
         {
             return null;
-        }
-
-        if (!string.IsNullOrEmpty(unicode))
-        {
-            int codepoint = char.ConvertToUtf32(unicode, 0);
-            using SKFont font = new(matchedTypeface);
-            if (font.GetGlyph(codepoint) == 0)
-            {
-                return null;
-            }
         }
 
         return BuildTypeface(matchedTypeface);

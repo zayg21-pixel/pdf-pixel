@@ -299,6 +299,18 @@ public class PdfCompositeFont : PdfFontBase
     }
 
     /// <summary>
+    /// Resolves glyphs for a composite code through the descendant font's CID mapping. A CID addresses
+    /// a glyph in the embedded program alone and means nothing to an installed font, so once that
+    /// program is unavailable the Unicode the code stands for is the only channel left.
+    /// </summary>
+    protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
+    {
+        PdfGlyphResolution resolution = ResolveFromFontProgram(characterCode, renderingUnicode);
+
+        return (!resolution.IsEmpty) ? resolution : SubstituteByUnicode(renderingUnicode);
+    }
+
+    /// <summary>
     /// Converts a character code to its Unicode string representation.
     /// First consults the ToUnicode CMap from the base class; if that yields no result, maps the code to a CID and
     /// looks it up in the built-in CID-to-Unicode table for the font's CIDSystemInfo; if that also fails, reads the

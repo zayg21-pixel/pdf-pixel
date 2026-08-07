@@ -255,6 +255,20 @@ public class PdfCidFont : PdfFontBase
         return GetGidByCid(cid);
     }
 
+    /// <summary>
+    /// Resolves glyphs for a CID through this font's CIDToGIDMap. A CID addresses a glyph in the
+    /// embedded program alone and means nothing to an installed font, so once that program is
+    /// unavailable the Unicode the code stands for is the only channel left. Reached only when a
+    /// malformed file names a descendant font directly; a well-formed one is shown through the
+    /// <see cref="PdfCompositeFont"/> that owns it.
+    /// </summary>
+    protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
+    {
+        PdfGlyphResolution resolution = ResolveFromFontProgram(characterCode, renderingUnicode);
+
+        return (!resolution.IsEmpty) ? resolution : SubstituteByUnicode(renderingUnicode);
+    }
+
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {

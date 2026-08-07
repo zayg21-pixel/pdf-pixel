@@ -81,12 +81,20 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         }
 
         Metrics = BuildMetrics(font, _head);
+        IsSymbolEncoded = DetectSymbolEncoding(font);
     }
 
     /// <summary>
     /// Gets the parsed SFNT font data this instance wraps.
     /// </summary>
     public SfntFont SfntFont => _font;
+
+    /// <summary>
+    /// <see langword="true"/> when this typeface addresses its glyphs only through a Windows Symbol
+    /// (3, 0) "cmap" subtable, with no Unicode subtable at all. Its glyphs are selected by character
+    /// code through <see cref="GetGidByCode"/>; a Unicode value carries no meaning for it.
+    /// </summary>
+    public bool IsSymbolEncoded { get; }
 
     /// <inheritdoc/>
     public PdfFontMetrics Metrics { get; }
@@ -156,8 +164,24 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         }
 
         // A symbol font (e.g. Wingdings) has no genuine Unicode cmap subtable; its only subtable is
-        // Windows Symbol (3, 0), whose codes live at 0xF000-0xF0FF per the PDF spec's symbolic
-        // TrueType convention (9.6.6.4). Tried last, after every genuine Unicode subtable has failed.
+        // Windows Symbol (3, 0). Tried last, after every genuine Unicode subtable has failed.
+        return GetGidByCode(codepoint);
+    }
+
+    /// <summary>
+    /// Gets the glyph id this typeface's Windows Symbol (3, 0) "cmap" subtable maps the given character
+    /// code to, or <see langword="null"/> when it has no such subtable or the subtable does not map the
+    /// code. Both the 0xF000-0xF0FF wrapped form the PDF specification's symbolic TrueType convention
+    /// (9.6.6.4) prescribes and the bare code are tried, the wrapped form first.
+    /// </summary>
+    /// <param name="code">The character code to look up.</param>
+    public ushort? GetGidByCode(int code)
+    {
+        if (_font.Cmap == null)
+        {
+            return null;
+        }
+
         foreach (SfntCmapSubtable subtable in _font.Cmap.Subtables)
         {
             if (subtable.Encoding != PdfFontEncoding.SymbolEncoding)
@@ -165,7 +189,7 @@ public sealed class SfntPdfTypeface : IPdfTypeface
                 continue;
             }
 
-            ushort? gid = GetGid(subtable, 0xF000 | codepoint) ?? GetGid(subtable, codepoint);
+            ushort? gid = GetGid(subtable, 0xF000 | code) ?? GetGid(subtable, code);
             if (gid != null)
             {
                 return gid;
@@ -173,6 +197,38 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Reports whether <paramref name="font"/>'s "cmap" offers a Windows Symbol (3, 0) subtable and no
+    /// Unicode subtable at all.
+    /// </summary>
+    private static bool DetectSymbolEncoding(SfntFont font)
+    {
+        if (font.Cmap == null)
+        {
+            return false;
+        }
+
+        var hasSymbolSubtable = false;
+
+        foreach (SfntCmapSubtable subtable in font.Cmap.Subtables)
+        {
+            foreach ((ushort platformId, ushort encodingId) in PreferredUnicodeCmapSubtables)
+            {
+                if (subtable.PlatformId == platformId && subtable.EncodingId == encodingId)
+                {
+                    return false;
+                }
+            }
+
+            if (subtable.Encoding == PdfFontEncoding.SymbolEncoding)
+            {
+                hasSymbolSubtable = true;
+            }
+        }
+
+        return hasSymbolSubtable;
     }
 
     /// <summary>

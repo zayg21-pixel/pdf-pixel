@@ -48,16 +48,44 @@ public sealed class WindowsFontProvider : IFontProvider
     }
 
     /// <inheritdoc/>
-    public SfntPdfTypeface GetTypeface(in PdfSubstitutionInfo substitutionInfo, string? unicode, float? width)
+    public SfntPdfTypeface GetTypefaceByUnicode(in PdfSubstitutionInfo substitutionInfo, string unicode)
+    {
+        SfntPdfTypeface? familyTypeface = ResolveFamily(substitutionInfo, candidate => candidate.ContainsAllGlyphs(unicode));
+        if (familyTypeface != null)
+        {
+            return familyTypeface;
+        }
+
+        SfntPdfTypeface? characterTypeface = (!string.IsNullOrEmpty(unicode)) ? ResolveByCharacter(substitutionInfo, unicode) : null;
+
+        return characterTypeface ?? GetFallbackTypeface(substitutionInfo);
+    }
+
+    /// <inheritdoc/>
+    public SfntPdfTypeface? GetSymbolTypefaceByCode(in PdfSubstitutionInfo substitutionInfo, int characterCode)
+        => ResolveFamily(substitutionInfo, candidate => candidate.IsSymbolEncoded && candidate.GetGidByCode(characterCode) != null);
+
+    /// <inheritdoc/>
+    public SfntPdfTypeface GetFallbackTypeface(in PdfSubstitutionInfo substitutionInfo)
+    {
+        SfntPdfTypeface? resolved = ResolveByFamilyName(new PdfSubstitutionInfo(_fallbackFontName, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle));
+        return resolved ?? _fallback;
+    }
+
+    /// <summary>
+    /// Walks the families that stand in for the requested one - the Standard 14 candidates first, then
+    /// the requested family itself - returning the first that <paramref name="isUsable"/> approves.
+    /// </summary>
+    private SfntPdfTypeface? ResolveFamily(in PdfSubstitutionInfo substitutionInfo, Func<SfntPdfTypeface, bool> isUsable)
     {
         PdfStandardFontName? standardName = substitutionInfo.GetStandardName();
         if (standardName.HasValue && CandidatesMap.TryGetValue(standardName.Value, out string[]? candidates) && candidates != null)
         {
             foreach (string candidate in candidates)
             {
-                SfntPdfTypeface? resolved = ResolveByFamilyName(new PdfSubstitutionInfo(candidate, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle), unicode);
+                SfntPdfTypeface? resolved = ResolveByFamilyName(new PdfSubstitutionInfo(candidate, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle));
 
-                if (resolved != null)
+                if (resolved != null && isUsable(resolved))
                 {
                     return resolved;
                 }
@@ -66,37 +94,25 @@ public sealed class WindowsFontProvider : IFontProvider
 
         if (_skiaFontSubstitution.IsKnownFamilyName(substitutionInfo.NormalizedStem))
         {
-            SfntPdfTypeface? resolved = ResolveByFamilyName(substitutionInfo, unicode);
+            SfntPdfTypeface? resolved = ResolveByFamilyName(substitutionInfo);
 
-            if (resolved != null)
+            if (resolved != null && isUsable(resolved))
             {
                 return resolved;
             }
         }
 
-        if (unicode != null && unicode.Length > 0)
-        {
-            SfntPdfTypeface? resolved = ResolveByCharacter(substitutionInfo, unicode);
-
-            if (resolved != null)
-            {
-                return resolved;
-            }
-        }
-
-
-        SfntPdfTypeface? resolvedfallback = ResolveByFamilyName(new PdfSubstitutionInfo(_fallbackFontName, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle), unicode);
-        return resolvedfallback ?? _fallback;
+        return null;
     }
 
-    private SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo, string? unicode)
+    private SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
     {
         if (_familyTypefaces.TryGetValue(substitutionInfo, out SfntPdfTypeface? cached))
         {
-            return (cached.ContainsAllGlyphs(unicode)) ? cached : null;
+            return cached;
         }
 
-        SfntPdfTypeface? typeface = _skiaFontSubstitution.ResolveByFamilyName(substitutionInfo, unicode);
+        SfntPdfTypeface? typeface = _skiaFontSubstitution.ResolveByFamilyName(substitutionInfo);
         if (typeface != null)
         {
             _familyTypefaces[substitutionInfo] = typeface;

@@ -126,22 +126,61 @@ public abstract class PdfFontBase : IDisposable
     public abstract PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
 
     /// <summary>
-    /// Returns the typeface for this PDF font.
-    /// When <see cref="IsSubstitutedFont"/> is <see langword="true"/>, re-resolves per glyph using the
-    /// <paramref name="unicode"/>/<paramref name="width"/> hints instead of trusting a single fixed typeface,
-    /// so glyphs missing from the primary substitute can still fall back to a different font.
+    /// Resolves the glyphs <paramref name="characterCode"/> draws as, together with the typeface they
+    /// belong to. Implemented per font type, since what a character code means - and therefore how a
+    /// glyph is found for it - is a property of that font type's code space alone.
     /// </summary>
-    /// <param name="unicode">Hint for font substitution.</param>
-    /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
-    /// <returns>A <see cref="IPdfTypeface"/> instance.</returns>
-    internal IPdfTypeface GetTypeface(string? unicode, float? width)
+    /// <param name="characterCode">The character code to resolve glyphs for.</param>
+    /// <param name="renderingUnicode">The Unicode text the code stands for, for font types that substitute by Unicode.</param>
+    protected abstract PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode);
+
+    /// <summary>
+    /// Resolves glyphs from this font's own program: the mapping the font defines for the code, and
+    /// failing that the program's own "cmap" for the character the code stands for. Identical for every
+    /// font type - the mapping itself is what differs, and each supplies that through
+    /// <see cref="GetGid"/> - so the step is shared. Empty when no font program is available.
+    /// </summary>
+    /// <param name="characterCode">The character code to resolve glyphs for.</param>
+    /// <param name="renderingUnicode">The Unicode text the code stands for.</param>
+    protected PdfGlyphResolution ResolveFromFontProgram(PdfCharacterCode characterCode, string? renderingUnicode)
     {
-        if (!IsSubstitutedFont && Typeface != null)
+        IPdfTypeface? typeface = Typeface;
+
+        if (IsSubstitutedFont || typeface == null)
         {
-            return Typeface;
+            return default;
         }
 
-        return Document.FontProvider.GetTypeface(SubstitutionInfo, unicode, width);
+        ushort? gid = GetGid(characterCode);
+
+        if (gid != null)
+        {
+            return new PdfGlyphResolution(typeface, [gid], isMappedByFont: true);
+        }
+
+        // The program is embedded but maps nothing to this code; its own "cmap" is still the best
+        // source for the character the code stands for.
+        return (renderingUnicode?.Length > 0)
+            ? new PdfGlyphResolution(typeface, typeface.GetGlyphs(renderingUnicode), isMappedByFont: false)
+            : default;
+    }
+
+    /// <summary>
+    /// Resolves glyphs for the Unicode a character code stands for against a substitute typeface.
+    /// Identical for every font type that reaches this point - once a code has been reduced to Unicode,
+    /// nothing about the original code space is left to distinguish them - so the step is shared, while
+    /// deciding whether to reach it at all stays with each <see cref="ResolveGlyphs"/> implementation.
+    /// </summary>
+    /// <param name="renderingUnicode">The Unicode text to shape against a substitute.</param>
+    protected PdfGlyphResolution SubstituteByUnicode(string? renderingUnicode)
+    {
+        if (renderingUnicode == null || renderingUnicode.Length == 0)
+        {
+            return default;
+        }
+
+        IPdfTypeface substitute = Document.FontProvider.GetTypefaceByUnicode(SubstitutionInfo, renderingUnicode);
+        return new PdfGlyphResolution(substitute, substitute.GetGlyphs(renderingUnicode), isMappedByFont: false);
     }
 
     /// <summary>
@@ -201,65 +240,53 @@ public abstract class PdfFontBase : IDisposable
     }
 
     /// <summary>
-    /// Core extraction logic for character info. Override in derived font types.
+    /// Turns the glyphs <see cref="ResolveGlyphs"/> found for a character code into its full rendering
+    /// information, applying the metrics this font declares for the code to whatever typeface supplied
+    /// those glyphs.
     /// </summary>
     /// <param name="characterCode">The character code to extract info for.</param>
     /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
-    protected virtual PdfCharacterInfo ExtractCharacterInfoCore(PdfCharacterCode characterCode)
+    protected PdfCharacterInfo ExtractCharacterInfoCore(PdfCharacterCode characterCode)
     {
-        ushort? gid = GetGid(characterCode);
-        float? width = GetWidth(characterCode);
-        string? unicode = GetUnicodeString(characterCode);
         string? renderingUnicode = GetRenderingUnicodeString(characterCode);
+        PdfGlyphResolution resolution = ResolveGlyphs(characterCode, renderingUnicode);
+        string? unicode = GetUnicodeString(characterCode);
+
+        if (resolution.Typeface == null || resolution.GlyphIds == null)
+        {
+            IPdfTypeface fallbackTypeface = Document.FontProvider.GetFallbackTypeface(SubstitutionInfo);
+            return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [null], 0, [0], 1, PdfPoint.Empty, default);
+        }
+
+        IPdfTypeface typeface = resolution.Typeface;
+        ushort?[] glyphIds = resolution.GlyphIds;
+        float? declaredWidth = GetWidth(characterCode);
         PdfVerticalMetric displacement = GetVerticalDisplacement(characterCode);
         bool shouldRescale = ShouldRescale;
 
-        if (gid.HasValue && width.HasValue)
+        // A glyph the font mapped itself is described by the font's own advance width; a substitute's
+        // glyph has to be measured, since nothing ties its advance to the width declared here.
+        float[] widths;
+        if (declaredWidth.HasValue && resolution.IsMappedByFont && !shouldRescale)
         {
-            IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
-            float[] widths = shouldRescale ? typeface.GetWidths([gid]) : [width.Value];
-            (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, width.Value, widths);
-            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width.Value, widths, xScale, origin, advancement);
+            widths = new float[] { declaredWidth.Value };
         }
-        else if (gid.HasValue && renderingUnicode?.Length > 0)
+        else
         {
-            IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
-            float typefaceWidth = typeface.GetWidth(renderingUnicode);
-            float[] widths = [typefaceWidth];
-            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, typefaceWidth, widths);
-
-            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], typefaceWidth, widths, xScale, origin, advacement);
-        }
-        else if (!gid.HasValue && width.HasValue && renderingUnicode?.Length > 0)
-        {
-            IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
-            ushort?[] gids = typeface.GetGlyphs(renderingUnicode);
-            float[] widths = typeface.GetWidths(gids);
-
-            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, width.Value, widths);
-
-            if (shouldRescale)
-            {
-                return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width.Value, widths, xScale, origin, advacement);
-            }
-            else
-            {
-                return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width.Value, widths, 1, origin, advacement);
-            }
-        }
-        else if (renderingUnicode?.Length > 0)
-        {
-            IPdfTypeface typeface = GetTypeface(renderingUnicode, width);
-            ushort?[] gids = typeface.GetGlyphs(renderingUnicode);
-            float[] widths = typeface.GetWidths(gids);
-            float totalWidth = widths.Sum();
-            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(renderingUnicode, displacement, totalWidth, widths);
-
-            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, totalWidth, widths, xScale, origin, advacement);
+            widths = typeface.GetWidths(glyphIds);
         }
 
-        IPdfTypeface fallbackTypeface = GetTypeface(null, null);
-        return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [null], 0, [0], 1, PdfPoint.Empty, default);
+        float originalWidth = declaredWidth ?? widths.Sum();
+
+        (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, originalWidth, widths);
+
+        // Without rescaling, a substituted glyph keeps its own proportions and is centred instead.
+        if (!resolution.IsMappedByFont && !shouldRescale && declaredWidth.HasValue)
+        {
+            xScale = 1;
+        }
+
+        return new PdfCharacterInfo(characterCode, typeface, unicode, glyphIds, originalWidth, widths, xScale, origin, advancement);
     }
 
     private (float xScale, PdfPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in PdfVerticalMetric verticalMetric, float originalWidth, float[] widths)
