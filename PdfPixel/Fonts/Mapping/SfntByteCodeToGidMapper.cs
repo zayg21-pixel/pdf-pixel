@@ -13,7 +13,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 {
-    private readonly ushort[] _codeToGid = new ushort[256];
+    private readonly ushort?[] _codeToGid = new ushort?[256];
     private readonly float?[] _codeToWidth = new float?[256];
 
     /// <summary>
@@ -41,7 +41,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
         IReadOnlyList<SfntCmapSubtable> cmapSubtables = font.Cmap?.Subtables ?? [];
 
-        ushort[]? singleByteCodeToGid = null;
+        ushort?[]? singleByteCodeToGid = null;
         if (!substituted && (flags & PdfFontFlags.Symbolic) != 0)
         {
             singleByteCodeToGid = ExtractSingleByteCodeToGid(typeface, cmapSubtables, hasEncoding);
@@ -52,12 +52,12 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
         for (int code = 0; code < 256; code++)
         {
-            ushort gid = ResolveGid(typeface, (byte)code, singleByteCodeToGid, encoding, encodingInfo, nameToGid, orderedCmapSubtables);
+            ushort? gid = ResolveGid(typeface, (byte)code, singleByteCodeToGid, encoding, encodingInfo, nameToGid, orderedCmapSubtables);
             _codeToGid[code] = gid;
 
-            if (gid != 0)
+            if (gid != null)
             {
-                _codeToWidth[code] = typeface.GetWidth(gid);
+                _codeToWidth[code] = typeface.GetWidth(gid.Value);
             }
         }
     }
@@ -66,8 +66,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// Gets the glyph ID (GID) for the specified character code.
     /// </summary>
     /// <param name="code">The PDF character code.</param>
-    /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
-    public ushort GetGid(byte code) => _codeToGid[code];
+    /// <returns>The glyph ID (GID) for the character code, or <see langword="null"/> if not found.</returns>
+    public ushort? GetGid(byte code) => _codeToGid[code];
 
     /// <summary>
     /// Gets the glyph width for the specified character code.
@@ -76,10 +76,10 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// <returns>The glyph width for the character code, or <see langword="null"/> if not found.</returns>
     public float? GetWidth(byte code) => _codeToWidth[code];
 
-    private static ushort ResolveGid(
+    private static ushort? ResolveGid(
         SfntPdfTypeface typeface,
         byte code,
-        ushort[]? singleByteCodeToGid,
+        ushort?[]? singleByteCodeToGid,
         PdfFontEncoding encoding,
         PdfFontEncodingInfo encodingInfo,
         IReadOnlyDictionary<PdfFontString, ushort> nameToGid,
@@ -87,9 +87,9 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     {
         if (singleByteCodeToGid != null)
         {
-            ushort gid = singleByteCodeToGid[code];
+            ushort? gid = singleByteCodeToGid[code];
 
-            if (gid != 0)
+            if (gid != null)
             {
                 return gid;
             }
@@ -99,7 +99,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
         if (name.IsEmpty)
         {
-            return 0;
+            return null;
         }
 
         if (nameToGid.TryGetValue(name, out ushort gidByName))
@@ -108,23 +108,22 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         }
 
         if (AdobeGlyphList.TryGetUnicode(encoding, name, out string? unicode)
-            && unicode != null
-            && TryGetGidByUnicode(typeface, orderedCmapSubtables, unicode, out ushort gidByUnicode))
+            && unicode != null)
         {
-            return gidByUnicode;
+            return GetGidByUnicode(typeface, orderedCmapSubtables, unicode);
         }
 
-        return 0;
+        return null;
     }
 
-    private static ushort[]? ExtractSingleByteCodeToGid(SfntPdfTypeface typeface, IReadOnlyList<SfntCmapSubtable> cmapSubtables, bool hasEncoding)
+    private static ushort?[]? ExtractSingleByteCodeToGid(SfntPdfTypeface typeface, IReadOnlyList<SfntCmapSubtable> cmapSubtables, bool hasEncoding)
     {
         if (cmapSubtables.Count == 0)
         {
             return null;
         }
 
-        ushort[]? result = ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.SymbolEncoding), PdfFontEncoding.SymbolEncoding);
+        ushort?[]? result = ApplyEncoding(typeface, cmapSubtables.Where(subtable => subtable.Encoding == PdfFontEncoding.SymbolEncoding), PdfFontEncoding.SymbolEncoding);
 
         // Heuristic: a Symbolic font is not supposed to declare an Encoding, looks like 1 particular generator creates ANSI symbolic encoding
         if (result == null && hasEncoding)
@@ -150,12 +149,12 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// are tried, the wrapped form taking priority - matching a Symbol cmap's usual encoding.
     /// If more than one subtable matches <paramref name="tag"/>, the last one with any mapping wins.
     /// </summary>
-    private static ushort[]? ApplyEncoding(SfntPdfTypeface typeface, IEnumerable<SfntCmapSubtable> subtables, PdfFontEncoding tag)
+    private static ushort?[]? ApplyEncoding(SfntPdfTypeface typeface, IEnumerable<SfntCmapSubtable> subtables, PdfFontEncoding tag)
     {
-        ushort[]? result = null;
+        ushort?[]? result = null;
         foreach (SfntCmapSubtable subtable in subtables)
         {
-            var candidate = new ushort[256];
+            var candidate = new ushort?[256];
             var hasAnyMapping = false;
 
             for (int code = 0; code < 256; code++)
@@ -172,7 +171,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
                 if (gid != null)
                 {
-                    candidate[code] = gid.Value;
+                    candidate[code] = gid;
                     hasAnyMapping = true;
                 }
             }
@@ -193,7 +192,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// subtable's native code space isn't Unicode, so its up-to-256 codes are searched for one whose
     /// converted Unicode value matches, mirroring formats 0/6/10's 256-or-fewer-entry cost.
     /// </summary>
-    private static bool TryGetGidByUnicode(SfntPdfTypeface typeface, IReadOnlyList<SfntCmapSubtable> orderedCmapSubtables, string unicode, out ushort gid)
+    private static ushort? GetGidByUnicode(SfntPdfTypeface typeface, IReadOnlyList<SfntCmapSubtable> orderedCmapSubtables, string unicode)
     {
         int codepoint = char.ConvertToUtf32(unicode, 0);
 
@@ -211,13 +210,11 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
             if (candidateGid != null)
             {
-                gid = candidateGid.Value;
-                return true;
+                return candidateGid;
             }
         }
 
-        gid = 0;
-        return false;
+        return null;
     }
 
     private static bool IsUnicodeNative(PdfFontEncoding? encoding)

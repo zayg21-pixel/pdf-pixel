@@ -6,11 +6,13 @@
 public interface IByteCodeToGidMapper
 {
     /// <summary>
-    /// Retrieves the glyph ID corresponding to the given byte code.
+    /// Retrieves the glyph ID corresponding to the given byte code. Glyph ID 0 is a glyph like any
+    /// other - some subset fonts place a real outline there - so an unmapped code is reported as
+    /// <see langword="null"/> rather than as glyph ID 0.
     /// </summary>
     /// <param name="code">Byte code to retrieve the glyph ID for.</param>
-    /// <returns>Glyph ID corresponding to the byte code.</returns>
-    ushort GetGid(byte code);
+    /// <returns>Glyph ID corresponding to the byte code, or <see langword="null"/> if the code has no mapped glyph.</returns>
+    ushort? GetGid(byte code);
 
     /// <summary>
     /// Retrieves the glyph width corresponding to the given byte code.

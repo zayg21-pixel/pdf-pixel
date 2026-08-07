@@ -60,13 +60,7 @@ public class PdfSimpleFont : PdfSingleByteFont
             return null;
         }
 
-        if (_resolution.Mapper == null)
-        {
-            return null;
-        }
-
-        ushort gid = _resolution.Mapper.GetGid((byte)code);
-        return (gid == 0) ? null : gid;
+        return _resolution.Mapper?.GetGid((byte)code);
     }
 
     /// <summary>
