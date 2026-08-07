@@ -76,6 +76,11 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// <returns>The glyph width for the character code, or <see langword="null"/> if not found.</returns>
     public float? GetWidth(byte code) => _codeToWidth[code];
 
+    /// <summary>
+    /// Resolves a character code to a glyph id, trying in order: the symbolic font's direct
+    /// code-to-GID table, the code's glyph name converted to Unicode and looked up in the "cmap",
+    /// and finally that same glyph name looked up in the "post" table.
+    /// </summary>
     private static ushort? ResolveGid(
         SfntPdfTypeface typeface,
         byte code,
@@ -102,15 +107,20 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return null;
         }
 
-        if (nameToGid.TryGetValue(name, out ushort gidByName))
-        {
-            return gidByName;
-        }
-
         if (AdobeGlyphList.TryGetUnicode(encoding, name, out string? unicode)
             && unicode != null)
         {
-            return GetGidByUnicode(typeface, orderedCmapSubtables, unicode);
+            ushort? gidByUnicode = GetGidByUnicode(typeface, orderedCmapSubtables, unicode);
+
+            if (gidByUnicode != null)
+            {
+                return gidByUnicode;
+            }
+        }
+
+        if (nameToGid.TryGetValue(name, out ushort gidByName))
+        {
+            return gidByName;
         }
 
         return null;
@@ -252,34 +262,27 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         };
     }
 
-    private static int ConvertToUnicode(int code, PdfFontEncoding? encoding)
+    /// <summary>
+    /// Converts a character code in <paramref name="encoding"/>'s code space to the Unicode code point
+    /// of the glyph it names, or <see langword="null"/> when the encoding leaves the code undefined or
+    /// the glyph name has no Unicode value.
+    /// </summary>
+    private static int? ConvertToUnicode(int code, PdfFontEncoding encoding)
     {
-        if (encoding == null
-            || encoding == PdfFontEncoding.WinAnsiEncoding
-            || encoding == PdfFontEncoding.Unknown)
-        {
-            return code;
-        }
-
-        if (code < 0 || code > 255)
-        {
-            return code;
-        }
-
-        PdfFontString glyphName = SingleByteEncodings.GetNameByCode((byte)code, encoding.Value);
+        PdfFontString glyphName = SingleByteEncodings.GetNameByCode((byte)code, encoding);
 
         if (glyphName.IsEmpty)
         {
-            return code;
+            return null;
         }
 
-        if (AdobeGlyphList.TryGetUnicode(encoding.Value, glyphName, out string? unicode)
+        if (AdobeGlyphList.TryGetUnicode(encoding, glyphName, out string? unicode)
             && unicode != null
             && unicode.Length > 0)
         {
             return char.ConvertToUtf32(unicode, 0);
         }
 
-        return code;
+        return null;
     }
 }

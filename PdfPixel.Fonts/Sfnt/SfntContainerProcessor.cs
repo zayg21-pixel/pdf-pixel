@@ -46,15 +46,16 @@ public class SfntContainerProcessor
     /// Parses the sfnt header and table directory from <paramref name="stream"/>, at the given font
     /// index within a TrueType Collection ("ttcf") file - ignored if <paramref name="stream"/> is a
     /// plain (non-collection) sfnt file. Records every table's byte range without reading its content.
-    /// Returns null if the header, directory, or any table's range does not fit within <paramref name="stream"/>.
+    /// Returns null if the header or directory does not fit within <paramref name="stream"/>; a single
+    /// table whose range does not fit is left out of the container.
     /// </summary>
     public SfntContainer? Read(ReadOnlyFontStream stream, int ttcIndex) => Read(stream, AllTables, ttcIndex);
 
     /// <summary>
     /// Parses the sfnt header and table directory from <paramref name="stream"/>, recording the byte
     /// range of each table for which <paramref name="tableFilter"/> returns <see langword="true"/>,
-    /// without reading its content. Returns null if the header, directory, or any recorded table's
-    /// range does not fit within <paramref name="stream"/>.
+    /// without reading its content. Returns null if the header or directory does not fit within
+    /// <paramref name="stream"/>; a single table whose range does not fit is left out of the container.
     /// </summary>
     public SfntContainer? Read(ReadOnlyFontStream stream, Func<SfntTableTag, bool> tableFilter) => Read(stream, tableFilter, ttcIndex: 0);
 
@@ -63,8 +64,8 @@ public class SfntContainerProcessor
     /// index within a TrueType Collection ("ttcf") file - ignored if <paramref name="stream"/> is a
     /// plain (non-collection) sfnt file. Records the byte range of each table for which
     /// <paramref name="tableFilter"/> returns <see langword="true"/>, without reading its content.
-    /// Returns null if the header, directory, or any recorded table's range does not fit within
-    /// <paramref name="stream"/>.
+    /// Returns null if the header or directory does not fit within <paramref name="stream"/>; a single
+    /// table whose range does not fit is left out of the container.
     /// </summary>
     public SfntContainer? Read(ReadOnlyFontStream stream, Func<SfntTableTag, bool> tableFilter, int ttcIndex)
     {
@@ -131,12 +132,12 @@ public class SfntContainerProcessor
             if ((long)tableOffset + tableLength > stream.Length)
             {
                 _logger.LogWarning(
-                    "Failed to read sfnt table '{Tag}': offset {Offset} + length {Length} exceeds font data length {ActualLength}.",
+                    "Skipped sfnt table '{Tag}': offset {Offset} + length {Length} exceeds font data length {ActualLength}.",
                     tag,
                     tableOffset,
                     tableLength,
                     stream.Length);
-                return null;
+                continue;
             }
 
             tables.Add(new SfntTableRecord(tag, checkSum, (int)tableOffset, (int)tableLength));
