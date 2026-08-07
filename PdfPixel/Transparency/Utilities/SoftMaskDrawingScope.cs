@@ -87,9 +87,12 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         _worldToMaskForm = PdfMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
         _maskMatrix = PdfMatrix.Concat(inverseCtm, _worldToMaskForm);
-        _layerBounds = inverseCtm.MapRect(_graphicsState.Page.CropBox);
+        // The backdrop gives the mask a value beyond the mask form too, so the masked area spans
+        // everything still visible rather than just the area the mask form covers.
+        _layerBounds = inverseCtm.MapRect(_graphicsState.ClipBounds);
 
         _processor.Process(new SaveLayerCommand(_layerBounds));
+        _processor.Process(new ClipRectangleCommand(_layerBounds, PdfClipOperation.Intersect));
     }
 
     /// <summary>
@@ -144,6 +147,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
 
             maskGs.CTM = _worldToMaskForm;
+            maskGs.ClipBounds = maskGs.CTM.MapRect(_softMask.MaskForm.BBox);
 
             PdfContentStreamRenderer contentRenderer = new(_renderer, page);
             contentRenderer.RenderContext(recorder, ref parseContext, maskGs);

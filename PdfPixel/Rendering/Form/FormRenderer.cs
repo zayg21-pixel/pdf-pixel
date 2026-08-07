@@ -81,6 +81,7 @@ public class FormRenderer : IFormRenderer
 
             PdfGraphicsState localGs = new(formPage, graphicsState);
             localGs.CTM = formXObject.Matrix;
+            localGs.ClipBounds = localGs.CTM.MapRect(formXObject.BBox);
 
             PdfContentStreamRenderer renderer = new(_renderer, formPage);
             PdfParseContext parseContext = new(content);

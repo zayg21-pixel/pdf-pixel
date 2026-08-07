@@ -50,6 +50,7 @@ public class PdfGraphicsState
         RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
         _fillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
         _strokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        ClipBounds = statePage.CropBox;
     }
 
     internal PdfGraphicsState(IPdfPageInternal statePage, PdfGraphicsState sourceState)
@@ -333,6 +334,13 @@ public class PdfGraphicsState
     public PdfMatrix CTM { get; set; } = PdfMatrix.Identity;
 
     /// <summary>
+    /// Bounding box of the current clipping path, in the same space <see cref="CTM"/> maps to, starting
+    /// at the page's crop box. A non-rectangular clip contributes the bounds of its path, so this is
+    /// always a superset of the area the clip actually keeps.
+    /// </summary>
+    public PdfRectangle ClipBounds { get; set; }
+
+    /// <summary>
     /// True while inside a text object (between BT and ET).
     /// </summary>
     public bool InTextObject { get; set; }
@@ -347,6 +355,12 @@ public class PdfGraphicsState
     /// Consumed and cleared by the next text drawing operation.
     /// </summary>
     public PdfTextMarkup? PendingTextMarkup { get; set; }
+
+    /// <summary>
+    /// Narrows <see cref="ClipBounds"/> by <paramref name="bounds"/>, given in current user space.
+    /// </summary>
+    public void IntersectClipBounds(in PdfRectangle bounds)
+        => ClipBounds = PdfRectangle.Intersect(ClipBounds, CTM.MapRect(bounds));
 
     /// <summary>
     /// Create a copy for stack push (q operator).
@@ -378,6 +392,7 @@ public class PdfGraphicsState
             TextLineMatrix = TextLineMatrix,
             InTextObject = InTextObject,
             CTM = CTM,
+            ClipBounds = ClipBounds,
             TextClipPath = TextClipPath
         };
     }

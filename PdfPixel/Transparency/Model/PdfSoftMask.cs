@@ -40,18 +40,11 @@ public class PdfSoftMask
     /// <returns>Background color.</returns>
     public PdfColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform? postTransform)
     {
-        if (MaskForm == null)
+        if (MaskForm == null || BackgroundColorComponents == null)
         {
             return PdfColors.Black;
         }
 
-        if (BackgroundColorComponents != null)
-        {
-            return MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColorComponents, intent, postTransform) ?? PdfColors.Black;
-        }
-        else
-        {
-            return PdfColors.Black;
-        }
+        return MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColorComponents, intent, postTransform) ?? PdfColors.Black;
     }
 }

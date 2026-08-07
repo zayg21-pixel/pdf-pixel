@@ -153,6 +153,12 @@ public class PdfType3Font : PdfSingleByteFont
 
         PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default, sourceState.RenderingParameters);
 
+        PdfRectangle? glyphBounds = boundingBox ?? FontBBox;
+        if (glyphBounds != null)
+        {
+            charState.ClipBounds = charState.CTM.MapRect(glyphBounds.Value);
+        }
+
         contentRenderer.RenderContext(recorder, ref parseContext, charState);
 
         PdfType3CharacterInfo info = new(recorder, boundingBox, advancement);
