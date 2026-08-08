@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Color.Paint;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Geometry;
 using System;
 using System.Runtime.CompilerServices;
@@ -233,6 +234,57 @@ internal static class CommandHelpers
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Returns whether the pattern is better covered by repeating a recorded tile than by drawing the
+    /// cell once per grid position. A step that does not advance leaves no tile to repeat, and a tile
+    /// wider than a decoding tile is not worth rasterizing.
+    /// </summary>
+    public static bool CanTileByRepeating(DrawTilingCommand command, PdfCommandExecutionContext executionContext)
+    {
+        if (command.XStep <= 0 || command.YStep <= 0)
+        {
+            return false;
+        }
+
+        PdfMatrix deviceMatrix = GetScaledMatrix(executionContext);
+        PdfPoint deviceOrigin = deviceMatrix.MapPoint(PdfPoint.Empty);
+        PdfPoint mappedX = deviceMatrix.MapPoint(new PdfPoint(command.XStep, 0));
+        PdfPoint mappedY = deviceMatrix.MapPoint(new PdfPoint(0, command.YStep));
+
+        float deviceXAxisX = mappedX.X - deviceOrigin.X;
+        float deviceXAxisY = mappedX.Y - deviceOrigin.Y;
+        float deviceYAxisX = mappedY.X - deviceOrigin.X;
+        float deviceYAxisY = mappedY.Y - deviceOrigin.Y;
+
+        float deviceXAxisLength = MathF.Sqrt((deviceXAxisX * deviceXAxisX) + (deviceXAxisY * deviceXAxisY));
+        float deviceYAxisLength = MathF.Sqrt((deviceYAxisX * deviceYAxisX) + (deviceYAxisY * deviceYAxisY));
+
+        int maxTileDeviceDimension = executionContext.Parameters.ImageTileSize;
+
+        return deviceXAxisLength <= maxTileDeviceDimension && deviceYAxisLength <= maxTileDeviceDimension;
+    }
+
+    /// <summary>
+    /// Returns the cached entry built for the shading, building and storing one when the cache holds
+    /// none or holds one built under different parameters.
+    /// </summary>
+    public static ShadingCommandCacheEntry GetOrBuildShadingEntry(DrawShadingCommand command, PdfCommandExecutionContext executionContext)
+    {
+        ShadingCommandCacheKey key = new(command.Context);
+
+        lock (executionContext.ContentLocker)
+        {
+            if (executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing && existing.ParametersMatches(executionContext.Parameters))
+            {
+                return existing;
+            }
+
+            ShadingCommandCacheEntry entry = command.BuildEntry(executionContext);
+            executionContext.Cache.StoreEntry(key, entry);
+            return entry;
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
