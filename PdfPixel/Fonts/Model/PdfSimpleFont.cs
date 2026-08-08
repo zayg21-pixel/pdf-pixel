@@ -20,6 +20,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
     private readonly ILogger<PdfSimpleFont> _logger;
     private readonly TypefaceResolution _resolution;
+    private readonly bool _substitutesUndefinedCodesWithSpace;
     private readonly float? _spaceWidth;
 
     internal PdfSimpleFont(PdfObject fontObject)
@@ -28,7 +29,10 @@ public class PdfSimpleFont : PdfSingleByteFont
         _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
         _resolution = ResolveTypeface();
 
-        if (_resolution.IsSubstituted && (Type == PdfFontSubType.Type1 || Type == PdfFontSubType.MMType1))
+        _substitutesUndefinedCodesWithSpace = _resolution.IsSubstituted
+            && (Type == PdfFontSubType.Type1 || Type == PdfFontSubType.MMType1);
+
+        if (_substitutesUndefinedCodesWithSpace)
         {
             _spaceWidth = ResolveSpaceWidth();
         }
@@ -84,6 +88,18 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         return SubstituteByUnicode(renderingUnicode);
+    }
+
+    /// <inheritdoc/>
+    public override string? GetRenderingUnicodeString(PdfCharacterCode code)
+    {
+        if (_substitutesUndefinedCodesWithSpace
+            && Encoding.GetNameByCodeOrUndefined((byte)(uint)code) == SingleByteEncodings.UndefinedCharacter)
+        {
+            return " ";
+        }
+
+        return base.GetRenderingUnicodeString(code);
     }
 
     /// <summary>
