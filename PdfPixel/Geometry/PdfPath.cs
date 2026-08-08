@@ -82,6 +82,91 @@ public sealed class PdfPath
     }
 
     /// <summary>
+    /// Walks every segment once and reports what that walk found. Recomputed on every call, so that a
+    /// page holding a great many paths pays for the geometry of the ones it draws rather than carrying
+    /// it on all of them.
+    /// </summary>
+    public PdfPathInfo GetPathInfo()
+    {
+        var hasPoint = false;
+        float minX = 0;
+        float minY = 0;
+        float maxX = 0;
+        float maxY = 0;
+
+        var isRectilinear = true;
+        int subpathCount = 0;
+        int edgeCount = 0;
+        PdfPoint currentPoint = default;
+        PdfPoint subpathStart = default;
+
+        foreach (PdfPathSegment segment in Segments)
+        {
+            switch (segment.Type)
+            {
+                case PdfPathSegmentType.MoveTo:
+                {
+                    subpathCount++;
+                    currentPoint = segment.Points[0];
+                    subpathStart = currentPoint;
+                    break;
+                }
+                case PdfPathSegmentType.LineTo:
+                {
+                    isRectilinear = isRectilinear && SegmentIsAxisAligned(currentPoint, segment.Points[0]);
+                    edgeCount += (SegmentIsDegenerate(currentPoint, segment.Points[0])) ? 0 : 1;
+                    currentPoint = segment.Points[0];
+                    break;
+                }
+                case PdfPathSegmentType.CubicTo:
+                {
+                    isRectilinear = false;
+                    edgeCount++;
+                    currentPoint = segment.Points[2];
+                    break;
+                }
+                case PdfPathSegmentType.Close:
+                {
+                    // forceClose: the implicit closing line back to the subpath start runs along an axis too.
+                    isRectilinear = isRectilinear && SegmentIsAxisAligned(currentPoint, subpathStart);
+                    edgeCount += (SegmentIsDegenerate(currentPoint, subpathStart)) ? 0 : 1;
+                    currentPoint = subpathStart;
+                    break;
+                }
+            }
+
+            foreach (PdfPoint point in segment.Points)
+            {
+                if (!hasPoint)
+                {
+                    minX = point.X;
+                    maxX = point.X;
+                    minY = point.Y;
+                    maxY = point.Y;
+                    hasPoint = true;
+                    continue;
+                }
+
+                minX = Math.Min(minX, point.X);
+                minY = Math.Min(minY, point.Y);
+                maxX = Math.Max(maxX, point.X);
+                maxY = Math.Max(maxY, point.Y);
+            }
+        }
+
+        // A subpath left open is closed for filling all the same, so its closing edge counts.
+        if (!SegmentIsDegenerate(currentPoint, subpathStart))
+        {
+            edgeCount++;
+        }
+
+        PdfRectangle bounds = hasPoint ? new PdfRectangle(minX, minY, maxX, maxY) : PdfRectangle.Empty;
+        bool isRectangle = isRectilinear && subpathCount == 1 && edgeCount == 4;
+
+        return new PdfPathInfo(bounds, isRectilinear, isRectangle);
+    }
+
+    /// <summary>
     /// Returns a new <see cref="PdfPath"/> with every point of every segment transformed by
     /// <paramref name="matrix"/>. This path is unaffected. Returns this same instance, unchanged, when
     /// <paramref name="matrix"/> is <see cref="PdfMatrix.Identity"/>.
@@ -124,6 +209,14 @@ public sealed class PdfPath
 
         return builder.ToPath(FillType);
     }
+
+    // Exact rather than tolerant: a path is classified in its own space, where a tolerance carries no
+    // fixed device meaning, and a segment that misses by float noise is better drawn smooth than snapped.
+    private static bool SegmentIsAxisAligned(in PdfPoint start, in PdfPoint end)
+        => start.X == end.X || start.Y == end.Y;
+
+    private static bool SegmentIsDegenerate(in PdfPoint start, in PdfPoint end)
+        => start.X == end.X && start.Y == end.Y;
 
     internal static int GetPointCount(PdfPathSegmentType type)
     {

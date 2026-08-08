@@ -128,10 +128,10 @@ internal static class PdfToSkiaExtensions
     public static SKPaint ToSkiaPaint(this PdfPaint paint) => PdfPaintConverter.ToSkiaPaint(paint);
 
     /// <summary>
-    /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/> whose stroke is widened by
-    /// <paramref name="strokeScale"/>.
+    /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/> that fills the outline a stroke has
+    /// already been widened, dashed, capped, and joined into.
     /// </summary>
-    public static SKPaint ToSkiaPaint(this PdfPaint paint, in PdfStrokeScale strokeScale) => PdfPaintConverter.ToSkiaPaint(paint, strokeScale);
+    public static SKPaint ToSkiaOutlineFillPaint(this PdfPaint paint) => PdfPaintConverter.ToSkiaOutlineFillPaint(paint);
 
     /// <summary>
     /// Converts a <see cref="PdfPath"/> to an <see cref="SKPath"/>.

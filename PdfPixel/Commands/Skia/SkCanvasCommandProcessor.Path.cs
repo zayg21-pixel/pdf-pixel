@@ -6,21 +6,28 @@ namespace PdfPixel.Commands.Skia;
 
 public sealed partial class SkCanvasCommandProcessor
 {
+    // The pen a degenerate fill is painted with. Its width comes from the hairline stroke scale, so the
+    // width here carries no meaning; the caps and joins are the ones Skia stroked such a fill with.
+    private static readonly PdfStrokeStyle HairlineStrokeStyle = new();
+
     private void ExecuteClipPath(ClipPathCommand command)
     {
         PdfStrokeScale strokeScale = GetStrokeScale(command.Paint);
-        bool antialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint, strokeScale);
+        bool antialias = CommandHelpers.GetPathIsAntialias(command.Path.GetPathInfo(), _executionContext, command.Paint, strokeScale);
 
-        using SKPath sourcePath = command.Path.ToSkPath();
-        using SKPaint? strokePaint = BuildClipStrokePaint(command, strokeScale);
-        using SKPath clipPath = BuildClipPathGeometry(sourcePath, strokePaint, strokeScale);
+        PdfPaint? strokePaint = GetStrokePaint(command.Paint);
+        PdfPath clipGeometry = (strokePaint != null)
+            ? PdfStrokeOutline.Build(command.Path, strokePaint.RequireStrokeStyle(), strokeScale)
+            : command.Path;
+
+        using SKPath clipPath = clipGeometry.ToSkPath();
         SKClipOperation skOperation = command.Operation.ToSkClipOperation();
 
         _canvas.ClipPath(clipPath, skOperation, antialias);
 
-        if (strokePaint != null && command.Paint != null)
+        if (strokePaint != null)
         {
-            _executionContext.Frames.OnClipStrokePath(command.Path, command.Operation, command.Paint);
+            _executionContext.Frames.OnClipStrokePath(command.Path, command.Operation, strokePaint);
         }
         else
         {
@@ -39,50 +46,60 @@ public sealed partial class SkCanvasCommandProcessor
 
     private void ExecuteDrawPath(DrawPathCommand command)
     {
+        PdfPathInfo pathInfo = command.Path.GetPathInfo();
+
         // A degenerate fill covers no area, so it is painted as a hairline stroke to stay visible.
-        bool isDegenerateFill = CommandHelpers.IsDegenerateFill(command.Path, command.Paint);
-        PdfStrokeScale strokeScale = isDegenerateFill
-            ? PdfStrokeScale.Create(_executionContext, 0f)
-            : GetStrokeScale(command.Paint);
+        bool isDegenerateFill = CommandHelpers.IsDegenerateFill(pathInfo, command.Paint);
 
-        using SKPath path = command.Path.ToSkPath();
-        using SKPaint paint = command.Paint.ToSkiaPaint(strokeScale);
-        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(command.Path, _executionContext, command.Paint, strokeScale);
+        if (!isDegenerateFill && command.Paint.Style != PdfPaintStyle.Stroke)
+        {
+            // Snapped geometry sits on pixel boundaries, where coverage has nothing left to blend. Only a
+            // rectangle gets here, so its bounds describe it completely.
+            bool snapToPixels = CommandHelpers.CanSnapPath(pathInfo, _executionContext);
+            PdfPath fillGeometry = snapToPixels
+                ? BuildSnappedRectanglePath(pathInfo, command.Path.FillType)
+                : command.Path;
 
-        if (isDegenerateFill)
-        {
-            paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = (strokeScale.IsUniform) ? strokeScale.UniformWidth : strokeScale.PenWidth;
-        }
-        else if (command.Paint.Style != PdfPaintStyle.Stroke)
-        {
-            _canvas.DrawPath(path, paint);
+            using SKPath fillPath = fillGeometry.ToSkPath();
+            using SKPaint fillPaint = command.Paint.ToSkiaPaint();
+            SkiaCommandUtilities.ModifyPaint(fillPaint, _executionContext);
+            fillPaint.IsAntialias = !snapToPixels
+                && CommandHelpers.GetPathIsAntialias(pathInfo, _executionContext, command.Paint, default);
+
+            _canvas.DrawPath(fillPath, fillPaint);
 
             return;
         }
 
-        SkStrokeGeometry.Draw(_canvas, path, paint, _executionContext, strokeScale);
+        PdfStrokeScale strokeScale = isDegenerateFill
+            ? PdfStrokeScale.Create(_executionContext, 0f)
+            : GetStrokeScale(command.Paint);
+
+        PdfStrokeStyle strokeStyle = isDegenerateFill
+            ? HairlineStrokeStyle
+            : command.Paint.RequireStrokeStyle();
+
+        PdfPath outline = PdfStrokeOutline.Build(command.Path, strokeStyle, strokeScale);
+
+        using SKPath outlinePath = outline.ToSkPath();
+        using SKPaint outlinePaint = command.Paint.ToSkiaOutlineFillPaint();
+        SkiaCommandUtilities.ModifyPaint(outlinePaint, _executionContext);
+        outlinePaint.IsAntialias = CommandHelpers.GetPathIsAntialias(pathInfo, _executionContext, command.Paint, strokeScale);
+
+        _canvas.DrawPath(outlinePath, outlinePaint);
     }
 
-    private static SKPaint? BuildClipStrokePaint(ClipPathCommand command, in PdfStrokeScale strokeScale)
+    private static PdfPaint? GetStrokePaint(PdfPaint? paint)
+        => (paint != null && paint.Style == PdfPaintStyle.Stroke) ? paint : null;
+
+    private PdfPath BuildSnappedRectanglePath(in PdfPathInfo pathInfo, PdfPathFillType fillType)
     {
-        if (command.Paint == null || command.Paint.Style != PdfPaintStyle.Stroke)
-        {
-            return null;
-        }
+        PdfRectangle snappedRect = CommandHelpers.SnapRectToDevicePixels(pathInfo.Bounds, CommandHelpers.GetScaledMatrix(_executionContext));
 
-        return command.Paint.ToSkiaPaint(strokeScale);
-    }
+        PdfPathBuilder builder = new();
+        builder.AddRect(snappedRect);
 
-    private SKPath BuildClipPathGeometry(SKPath sourcePath, SKPaint? strokePaint, in PdfStrokeScale strokeScale)
-    {
-        if (strokePaint == null)
-        {
-            return new SKPath(sourcePath);
-        }
-
-        return SkStrokeGeometry.CreateOutline(sourcePath, strokePaint, _executionContext, strokeScale);
+        return builder.ToPath(fillType);
     }
 
     // A stroke paint widens by the scale its line width and the device matrix produce; anything else has
