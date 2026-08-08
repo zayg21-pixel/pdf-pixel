@@ -21,7 +21,6 @@ internal class PdfDocumentObjectCache
     private readonly PdfXrefRecoveryScanner _recoveryScanner;
     private readonly ILogger<PdfDocumentObjectCache> _logger;
     private readonly Dictionary<PdfReference, PdfObject> _objects = [];
-    private bool _recoveryScanAttempted;
 
     public PdfDocumentObjectCache(IPdfDocumentInternal document, PdfObjectParser parser)
     {
@@ -29,6 +28,13 @@ internal class PdfDocumentObjectCache
         _recoveryScanner = new PdfXrefRecoveryScanner(document);
         _logger = document.LoggerFactory.CreateLogger<PdfDocumentObjectCache>();
     }
+
+    /// <summary>
+    /// True once <see cref="Parsing.PdfXrefRecoveryScanner"/> has scanned the document, whichever
+    /// component started it. A scan reads the whole file and produces the same index every time, so
+    /// this keeps later fallbacks from repeating one that has already run.
+    /// </summary>
+    public bool RecoveryScanAttempted { get; set; }
 
     /// <summary>
     /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
@@ -106,9 +112,8 @@ internal class PdfDocumentObjectCache
 
         PdfObject? parsed = ResolveIndexedObject(reference);
 
-        if (parsed == null && !_recoveryScanAttempted)
+        if (parsed == null && !RecoveryScanAttempted)
         {
-            _recoveryScanAttempted = true;
             _logger.LogWarning("Object {Reference} could not be resolved from the xref table; running a fallback recovery scan.", reference);
             _recoveryScanner.Scan();
             parsed = ResolveIndexedObject(reference);
