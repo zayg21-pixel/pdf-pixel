@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace PdfPixel.Geometry;
@@ -35,9 +36,9 @@ internal static partial class PdfStrokeOutlineBuilder
     /// </summary>
     private sealed class CurveLengthBuffer
     {
-        public float[] Distances { get; } = new float[MaxCurveMeasureSamples];
+        public float[] Distances { get; } = new float[MaxCurveMeasureSamples + 1];
 
-        public float[] Parameters { get; } = new float[MaxCurveMeasureSamples];
+        public float[] Parameters { get; } = new float[MaxCurveMeasureSamples + 1];
     }
 
     /// <summary>
@@ -162,11 +163,24 @@ internal static partial class PdfStrokeOutlineBuilder
 
         public LengthLookup CreateLengthLookup(CurveLengthBuffer buffer)
         {
+            int sampleCount = GetSampleCount();
+
             buffer.Distances[0] = 0f;
             buffer.Parameters[0] = 0f;
-            int count = 1;
-            AppendMeasureLeaves(this, 0, MaxCurveMeasureTValue, buffer.Distances, buffer.Parameters, ref count);
-            return new LengthLookup(buffer.Distances, buffer.Parameters, count);
+
+            Vector2 previous = Start;
+
+            for (int index = 1; index <= sampleCount; index++)
+            {
+                float parameter = index / (float)sampleCount;
+                Vector2 point = Evaluate(parameter);
+
+                buffer.Distances[index] = buffer.Distances[index - 1] + Vector2.Distance(previous, point);
+                buffer.Parameters[index] = parameter;
+                previous = point;
+            }
+
+            return new LengthLookup(buffer.Distances, buffer.Parameters, sampleCount + 1);
         }
 
         public IPathSegment Slice(float t0, float t1)
@@ -221,67 +235,27 @@ internal static partial class PdfStrokeOutlineBuilder
         }
 
         /// <summary>
-        /// Appends one arc-length table entry per subdivision leaf, each recording its cumulative chord
-        /// distance and its end <c>t</c>. <paramref name="minT"/> and <paramref name="maxT"/> carry the
-        /// leaf's t-range in <see cref="MaxCurveMeasureTValue"/> units, kept as integers so halving stays
-        /// exact. Subdivision stops on a t-span too small to halve, a full buffer, or a straight enough curve.
+        /// How many even steps in <c>t</c> the curve is measured over. The control polygon is never shorter
+        /// than the curve, so scaling the count by it keeps the samples no further apart than
+        /// <see cref="CurveMeasureStep"/> however long or short the curve turns out to be.
         /// </summary>
-        private static void AppendMeasureLeaves(in CubicPathSegment curve, int minT, int maxT, float[] distances, float[] parameters, ref int count)
+        private int GetSampleCount()
         {
-            bool canSubdivide = ((maxT - minT) >> 10) != 0 && count < distances.Length - 1;
-            if (canSubdivide && IsTooCurvy(curve))
-            {
-                (CubicPathSegment head, CubicPathSegment tail) = curve.SplitAt(0.5f);
-                int midT = (minT + maxT) >> 1;
-                AppendMeasureLeaves(head, minT, midT, distances, parameters, ref count);
-                AppendMeasureLeaves(tail, midT, maxT, distances, parameters, ref count);
-                return;
-            }
+            float polygonLength = Vector2.Distance(Start, Control1)
+                + Vector2.Distance(Control1, Control2)
+                + Vector2.Distance(Control2, End);
 
-            distances[count] = distances[count - 1] + Vector2.Distance(curve.Start, curve.End);
-            parameters[count] = maxT / (float)MaxCurveMeasureTValue;
-            count++;
+            var sampleCount = (int)MathF.Ceiling(polygonLength / CurveMeasureStep);
+
+            return Math.Min(MaxCurveMeasureSamples, Math.Max(MinCurveMeasureSamples, sampleCount));
         }
 
-        // Compares each control point against where it would fall on a uniformly-parameterized straight
-        // chord, so this catches a near-straight cubic whose bunched control points make arc length run
-        // non-linearly in t, not only a geometrically curved one.
-        private static bool IsTooCurvy(in CubicPathSegment curve)
+        private Vector2 Evaluate(float t)
         {
-            Vector2 firstChordThird = Vector2.Lerp(curve.Start, curve.End, 1f / 3f);
-            Vector2 secondChordThird = Vector2.Lerp(curve.Start, curve.End, 2f / 3f);
+            float u = 1f - t;
 
-            return MaxAxisDistance(curve.Control1, firstChordThird) > CurveMeasureTolerance
-                || MaxAxisDistance(curve.Control2, secondChordThird) > CurveMeasureTolerance;
+            return (u * u * u * Start) + (3f * u * u * t * Control1) + (3f * u * t * t * Control2) + (t * t * t * End);
         }
-
-        // Superseded approach, kept for reference. This sampled the cubic at a fixed number of equal steps in
-        // the parameter t and summed the chord lengths between consecutive samples into a cumulative table
-        // indexed uniformly in t. It is mathematically the more accurate arc-length estimate: it converges to
-        // the true arc length as the sample count grows, whereas the adaptive-leaf measure above deliberately
-        // reproduces Skia's coarser chord sum, which systematically underestimates the true length. We switched
-        // to the Skia-matching measure only so dash boundaries land exactly where Skia places them and do not
-        // drift over a long path. That parity is no longer a hard requirement, so if a rendering target does
-        // not need to agree with Skia this uniform-sampling version is the simpler, more accurate choice.
-        //
-        // private void BuildLengthTable(float[] table)
-        // {
-        //     table[0] = 0f;
-        //     Vector2 previous = Start;
-        //     for (int i = 1; i <= LengthSampleCount; i++)
-        //     {
-        //         float t = i / (float)LengthSampleCount;
-        //         Vector2 point = Evaluate(t);
-        //         table[i] = table[i - 1] + Vector2.Distance(previous, point);
-        //         previous = point;
-        //     }
-        // }
-        //
-        // private Vector2 Evaluate(float t)
-        // {
-        //     float u = 1f - t;
-        //     return (u * u * u * Start) + (3f * u * u * t * Control1) + (3f * u * t * t * Control2) + (t * t * t * End);
-        // }
 
         private (CubicPathSegment Head, CubicPathSegment Tail) SplitAt(float t)
         {

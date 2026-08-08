@@ -18,6 +18,10 @@ internal static class PdfImageCommandUtilities
         PdfMatrix ctm = GetImageCtm(baseCtm);
         bool shouldInterpolate = ShouldInterpolate(ctm, imageSize, interpolate);
 
+        // TODO: [MEDIUM] a quarter turn keeps a tile on the pixel grid but is rejected here, so a page
+        // rotated by 90 or 270 degrees never snaps its tiles. Accepting one needs GetSignedPlacementMatrix
+        // reworked first: it recovers the axis signs from Sign(ScaleX)/Sign(ScaleY), both zero on a
+        // quarter turn, which would leave the placement degenerate.
         if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsAxisAligned(ctm))
         {
             return GetUnsnappedTilePlacement(imageSize, tilePosition, shouldInterpolate);

@@ -58,17 +58,6 @@ internal static partial class PdfStrokeOutlineBuilder
         return Direction(r0, r1);
     }
 
-    /// <summary>
-    /// Chebyshev (max-of-axes) distance between two points — the larger of the absolute X and Y differences.
-    /// Skia's cheap curve-flatness metric, avoiding the square root of a true Euclidean distance.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float MaxAxisDistance(Vector2 a, Vector2 b)
-    {
-        Vector2 difference = Vector2.Abs(a - b);
-        return MathF.Max(difference.X, difference.Y);
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool TryIntersectLines(Vector2 p1, Vector2 d1, Vector2 p2, Vector2 d2, out Vector2 intersection)
     {

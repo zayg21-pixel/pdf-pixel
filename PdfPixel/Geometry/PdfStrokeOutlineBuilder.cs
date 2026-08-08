@@ -19,11 +19,12 @@ internal static partial class PdfStrokeOutlineBuilder
     private const int MaxSubdivisionDepth = 24;
     private const float Epsilon = 1e-4f;
 
-    // How far a control point may sit from the straight chord before the cubic is subdivided again while
-    // its length is measured. Each leaf contributes its chord length, so a looser tolerance measures a
-    // curve as shorter than it is, and dash boundaries along it move accordingly.
-    private const float CurveMeasureTolerance = 0.5f;
-    private const int MaxCurveMeasureTValue = 0x3FFFFFFF;
+    // A cubic's length is measured by sampling it at even steps in t and summing the chords between the
+    // samples. How far apart those samples are meant to fall is expressed in the space the path is built
+    // in, which is the space a dash pattern is written in too, so the error stays fixed against the dash
+    // lengths it has to land between rather than against the size of the curve.
+    private const float CurveMeasureStep = 0.25f;
+    private const int MinCurveMeasureSamples = 8;
     private const int MaxCurveMeasureSamples = 256;
 
     /// <summary>
