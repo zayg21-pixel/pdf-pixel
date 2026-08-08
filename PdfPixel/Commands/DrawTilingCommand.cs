@@ -27,8 +27,6 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         float endY = MathF.Ceiling(bounds.Bottom / yStep) * yStep;
 
         TilingArea = new PdfRectangle(startX, startY, endX, endY);
-        XCount = (int)MathF.Ceiling((endX - startX) / xStep);
-        YCount = (int)MathF.Ceiling((endY - startY) / yStep);
     }
 
     /// <inheritdoc />
@@ -53,16 +51,6 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// Gets the vertical spacing between pattern cells.
     /// </summary>
     public float YStep { get; }
-
-    /// <summary>
-    /// Gets the number of tile columns to draw.
-    /// </summary>
-    public int XCount { get; }
-
-    /// <summary>
-    /// Gets the number of tile rows to draw.
-    /// </summary>
-    public int YCount { get; }
 
     /// <summary>
     /// Gets the recorded pattern cell replayed at each tile position.
