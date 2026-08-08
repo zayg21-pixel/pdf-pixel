@@ -159,12 +159,23 @@ internal partial struct PdfParser
             byte current = ReadByte();
             _localBuffer.Add(current);
 
-            if (current == (byte)'~' && !IsAtEnd && PeekByte() == (byte)'>')
+            if (current != (byte)'~')
+            {
+                continue;
+            }
+
+            while (!IsAtEnd && IsWhitespace(PeekByte()))
             {
                 Advance(1);
-                _localBuffer.Add((byte)'>');
-                return SkipToEiOperator();
             }
+
+            if (!IsAtEnd && PeekByte() == (byte)'>')
+            {
+                Advance(1);
+            }
+
+            _localBuffer.Add((byte)'>');
+            return SkipToEiOperator();
         }
 
         return false;
