@@ -20,8 +20,6 @@ namespace PdfPixel.Rendering.State;
 /// </summary>
 public class PdfGraphicsState
 {
-    private IColorTransform? _fullTransferFunction;
-
     private PdfRenderingIntent _renderingIntent = PdfRenderingIntent.RelativeColorimetric;
 
     private PdfColorSpaceConverter _strokeColorConverter;
@@ -31,20 +29,17 @@ public class PdfGraphicsState
     private ColorTransformSampler? _fillRgbaSampler;
 
     private TransferFunctionTransform? _transferFunction;
-    private IColorTransform? _externalTransferFunction;
 
     /// <summary>
     /// Initializes a new graphics state for the given page.
     /// </summary>
     /// <param name="statePage">The page this graphics state is associated with.</param>
     /// <param name="recursionGuard">Guard set used to detect and break XObject recursion cycles.</param>
-    /// <param name="externalTransform">Optional external transfer function applied on top of the page-level transfer function.</param>
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
     /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
-    internal PdfGraphicsState(IPdfPageInternal statePage, HashSet<uint> recursionGuard, IColorTransform? externalTransform, IPdfExecutionObserver? observer, PdfRenderingParameters renderingParameters)
+    internal PdfGraphicsState(IPdfPageInternal statePage, HashSet<uint> recursionGuard, IPdfExecutionObserver? observer, PdfRenderingParameters renderingParameters)
     {
         Page = statePage ?? throw new ArgumentNullException(nameof(statePage));
-        ExternalTransferFunction = externalTransform;
         RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
         ExecutionObserver = observer;
         RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
@@ -54,7 +49,7 @@ public class PdfGraphicsState
     }
 
     internal PdfGraphicsState(IPdfPageInternal statePage, PdfGraphicsState sourceState)
-        : this(statePage, sourceState.RecursionGuard, sourceState.ExternalTransferFunction, sourceState.ExecutionObserver, sourceState.RenderingParameters)
+        : this(statePage, sourceState.RecursionGuard, sourceState.ExecutionObserver, sourceState.RenderingParameters)
     {
     }
 
@@ -95,7 +90,7 @@ public class PdfGraphicsState
     {
         get
         {
-            _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(RenderingIntent, FullTransferFunction);
+            _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(RenderingIntent, TransferFunction);
 
             return _fillRgbaSampler;
         }
@@ -108,7 +103,7 @@ public class PdfGraphicsState
     {
         get
         {
-            _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(RenderingIntent, FullTransferFunction);
+            _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(RenderingIntent, TransferFunction);
             return _strokeRgbaSampler;
         }
     }
@@ -176,57 +171,8 @@ public class PdfGraphicsState
             if (_transferFunction != value)
             {
                 _transferFunction = value;
-                _fullTransferFunction = null;
                 InvalidateRgbaSamplers();
             }
-        }
-    }
-
-    /// <summary>
-    /// Optional external transfer function (TR) provided from caller.
-    /// </summary>
-    public IColorTransform? ExternalTransferFunction
-    {
-        get => _externalTransferFunction;
-
-        set
-        {
-            if (_externalTransferFunction != value)
-            {
-                _externalTransferFunction = value;
-                _fullTransferFunction = null;
-                InvalidateRgbaSamplers();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets the complete color transfer function by combining the internal and external transfer functions, if both
-    /// are available.
-    /// </summary>
-    public IColorTransform? FullTransferFunction
-    {
-        get
-        {
-            if (_fullTransferFunction != null)
-            {
-                return _fullTransferFunction;
-            }
-
-            if (TransferFunction == null && ExternalTransferFunction == null)
-            {
-                return null;
-            }
-            else if (TransferFunction != null && ExternalTransferFunction != null)
-            {
-                _fullTransferFunction = new ChainedColorTransform(TransferFunction, ExternalTransferFunction);
-            }
-            else
-            {
-                _fullTransferFunction = TransferFunction ?? ExternalTransferFunction;
-            }
-
-            return _fullTransferFunction;
         }
     }
 
@@ -360,9 +306,17 @@ public class PdfGraphicsState
     /// <summary>
     /// Create a copy for stack push (q operator).
     /// </summary>
-    public PdfGraphicsState Clone()
+    public PdfGraphicsState Clone() => CloneForPage(Page);
+
+    /// <summary>
+    /// Create a copy that resolves resources against <paramref name="statePage"/>, for a nested content
+    /// stream that carries its own resource dictionary while inheriting the caller's graphics state.
+    /// </summary>
+    /// <param name="statePage">The page the copy resolves resources against.</param>
+    /// <returns>The copied graphics state.</returns>
+    internal PdfGraphicsState CloneForPage(IPdfPageInternal statePage)
     {
-        return new(Page, this)
+        return new(statePage, this)
         {
             StrokePaint = StrokePaint,
             FillPaint = FillPaint,

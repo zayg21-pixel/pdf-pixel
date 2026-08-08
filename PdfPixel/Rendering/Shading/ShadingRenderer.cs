@@ -77,7 +77,7 @@ public class ShadingRenderer : IShadingRenderer
         if (shading.Background != null && shading.BBox.HasValue)
         {
             PdfColorSpaceConverter colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
-            PdfColor backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
+            PdfColor backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.TransferFunction);
 
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 

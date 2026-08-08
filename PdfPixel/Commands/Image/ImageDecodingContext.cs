@@ -36,7 +36,7 @@ public sealed class ImageDecodingContext
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = state.RenderingParameters.ImageTileSize;
         MaxTileCacheSizeBytes = state.RenderingParameters.MaxTileCacheSizeBytes;
-        FullTransferFunction = state.FullTransferFunction;
+        TransferFunction = state.TransferFunction;
         FillColor = state.FillPaint.Color;
         FillAlpha = state.FillPaint.Alpha;
         BlendMode = state.FillPaint.BlendMode;
@@ -72,7 +72,7 @@ public sealed class ImageDecodingContext
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = source.DefaultTileSize;
         MaxTileCacheSizeBytes = source.MaxTileCacheSizeBytes;
-        FullTransferFunction = source.FullTransferFunction;
+        TransferFunction = source.TransferFunction;
         FillColor = fillColor;
         FillAlpha = fillAlpha;
         BlendMode = blendMode;
@@ -101,9 +101,9 @@ public sealed class ImageDecodingContext
     public long MaxTileCacheSizeBytes { get; }
 
     /// <summary>
-    /// Combined transfer function (internal + external) for color conversion.
+    /// Transfer function (TR) from the graphics state, applied during color conversion.
     /// </summary>
-    public IColorTransform? FullTransferFunction { get; }
+    public TransferFunctionTransform? TransferFunction { get; }
 
     /// <summary>
     /// Fill color from the graphics state, used for stencil mask rendering.

@@ -63,7 +63,7 @@ public sealed class PdfShadingPattern : PdfPattern
         if (Shading.Background != null && Shading.BBox.HasValue)
         {
             PdfColorSpaceConverter? colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
-            PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
+            PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.TransferFunction);
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             PdfPathBuilder rectPath = new();

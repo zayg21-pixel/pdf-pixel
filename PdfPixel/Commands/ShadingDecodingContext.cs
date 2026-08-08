@@ -23,7 +23,7 @@ public sealed class ShadingDecodingContext
         Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
         FillAlpha = state.FillPaint.Alpha;
         RenderingIntent = state.RenderingIntent;
-        FullTransferFunction = state.FullTransferFunction;
+        TransferFunction = state.TransferFunction;
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public sealed class ShadingDecodingContext
     public PdfRenderingIntent RenderingIntent { get; }
 
     /// <summary>
-    /// Combined transfer function captured from the graphics state.
+    /// Transfer function (TR) captured from the graphics state.
     /// </summary>
-    public IColorTransform? FullTransferFunction { get; }
+    public TransferFunctionTransform? TransferFunction { get; }
 }

@@ -28,7 +28,7 @@ public sealed class DrawShadingCommand : PdfCommand
         Context = context ?? throw new ArgumentNullException(nameof(context));
         _shading = Context.Shading;
         _builder = new PdfShadingBuilder(loggerFactory);
-        _sampler = Context.Converter.GetRgbaSampler(Context.RenderingIntent, Context.FullTransferFunction);
+        _sampler = Context.Converter.GetRgbaSampler(Context.RenderingIntent, Context.TransferFunction);
     }
 
     /// <summary>

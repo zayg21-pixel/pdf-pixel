@@ -5,6 +5,7 @@ using PdfPixel.Forms;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
+using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
 using System;
 
@@ -79,9 +80,17 @@ public class FormRenderer : IFormRenderer
         {
             FormXObjectPageWrapper formPage = formXObject.GetFormPage();
 
-            PdfGraphicsState localGs = new(formPage, graphicsState);
+            PdfGraphicsState localGs = graphicsState.CloneForPage(formPage);
+            localGs.SoftMask = null;
+            localGs.TextClipPath = null;
             localGs.CTM = formXObject.Matrix;
             localGs.ClipBounds = localGs.CTM.MapRect(formXObject.BBox);
+
+            if (formXObject.TransparencyGroup != null)
+            {
+                localGs.FillPaint = localGs.FillPaint.WithAlpha(1f).WithBlendMode(PdfBlendMode.Normal);
+                localGs.StrokePaint = localGs.StrokePaint.WithAlpha(1f).WithBlendMode(PdfBlendMode.Normal);
+            }
 
             PdfContentStreamRenderer renderer = new(_renderer, formPage);
             PdfParseContext parseContext = new(content);

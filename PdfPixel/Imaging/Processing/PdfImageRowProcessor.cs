@@ -100,7 +100,7 @@ internal sealed partial class PdfImageRowProcessor
             if (parameters.ColorSpaceConverter is IndexedConverter indexedConverter)
             {
                 _outputMode = OutputMode.IndexedRgbaColorConverted;
-                _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
+                _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.TransferFunction);
             }
             else if (_components == 1 && bitsPerComponent <= 8 && !_hasAlpha)
             {
@@ -119,7 +119,7 @@ internal sealed partial class PdfImageRowProcessor
 
                 // Normalize only when Decode denormalizes samples to real component values below.
                 bool applyDecode = (_stages & ProcessingStages.Decode) != 0;
-                _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction, normalize: applyDecode);
+                _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.TransferFunction, normalize: applyDecode);
             }
         }
         else

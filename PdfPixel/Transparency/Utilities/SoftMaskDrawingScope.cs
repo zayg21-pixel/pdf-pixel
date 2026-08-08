@@ -118,7 +118,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
-            PdfColor backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
+            PdfColor backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.TransferFunction);
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             PdfPathBuilder rectPath = new();

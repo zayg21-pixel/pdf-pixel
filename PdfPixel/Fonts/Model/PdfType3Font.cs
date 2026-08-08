@@ -151,7 +151,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
 
-        PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default, sourceState.RenderingParameters);
+        PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, sourceState.RenderingParameters);
 
         PdfRectangle? glyphBounds = boundingBox ?? FontBBox;
         if (glyphBounds != null)
