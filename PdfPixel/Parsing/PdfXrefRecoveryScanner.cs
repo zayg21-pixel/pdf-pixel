@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -25,14 +24,11 @@ internal sealed class PdfXrefRecoveryScanner
 
     public void Scan()
     {
-        _document.ObjectCache.RecoveryScanAttempted = true;
-
         RecoverDecryptor();
 
         PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: true);
         parser.Position = 0;
         int objectsFound = 0;
-        List<PdfObject> objectStreams = [];
 
         while (!parser.IsAtEnd)
         {
@@ -53,94 +49,13 @@ internal sealed class PdfXrefRecoveryScanner
             _document.ObjectCache.SetObject(obj, objectStart);
             objectsFound++;
 
-            PdfString typeName = obj.Dictionary.GetName(PdfTokens.TypeKey);
-
-            if (typeName == PdfTokens.CatalogKey)
+            if (obj.Dictionary?.GetName(PdfTokens.TypeKey) == PdfTokens.CatalogKey)
             {
                 _document.RootObject = obj;
             }
-            else if (typeName == PdfTokens.ObjStmKey)
-            {
-                objectStreams.Add(obj);
-            }
         }
 
-        int compressedFound = 0;
-
-        foreach (PdfObject objectStream in objectStreams)
-        {
-            compressedFound += IndexObjectStreamContents(objectStream);
-        }
-
-        _logger.LogInformation(
-            "Recovery scanner indexed {Count} object(s), and {CompressedCount} more held by {StreamCount} object stream(s).",
-            objectsFound,
-            compressedFound,
-            objectStreams.Count);
-    }
-
-    /// <summary>
-    /// Registers the objects held by a compressed object stream, which carry no <c>N G obj</c>
-    /// declaration of their own and so are invisible to the scan. The container lists every object it
-    /// holds in its own header, as an object number and an offset relative to the container, so its
-    /// contents are recoverable even when no file offset in the document can be trusted.
-    /// </summary>
-    /// <param name="containerObject">An object the scan found to be of <c>/Type /ObjStm</c>.</param>
-    /// <returns>The number of contained objects added to the index.</returns>
-    private int IndexObjectStreamContents(PdfObject containerObject)
-    {
-        int objectCount = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.NKey);
-        int firstOffset = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.FirstKey);
-
-        if (objectCount <= 0 || firstOffset <= 0)
-        {
-            return 0;
-        }
-
-        ReadOnlyMemory<byte> decoded = containerObject.DecodeAsMemory();
-
-        if (decoded.Length < firstOffset)
-        {
-            _logger.LogWarning("Object stream {Reference} decoded to {Length} byte(s), too short for its {First} byte header.", containerObject.Reference, decoded.Length, firstOffset);
-            return 0;
-        }
-
-        PdfParseContext headerContext = new(decoded.Slice(0, firstOffset));
-        PdfParser headerParser = new(headerContext, _document, allowReferences: false, decrypt: false);
-        int registeredCount = 0;
-
-        for (int index = 0; index < objectCount; index++)
-        {
-            IPdfValue? objectNumberValue = headerParser.ReadNextValue();
-            IPdfValue? offsetValue = headerParser.ReadNextValue();
-
-            if (objectNumberValue == null
-                || objectNumberValue.Type != PdfValueType.Integer
-                || offsetValue == null
-                || offsetValue.Type != PdfValueType.Integer)
-            {
-                break;
-            }
-
-            PdfReference reference = new((uint)objectNumberValue.AsInteger(), 0);
-
-            // An object declared directly in the file was located by the scan itself, at a position
-            // that is known to be right, and so outranks the copy held in the object stream.
-            if (!reference.IsValid || _document.ObjectCache.ObjectIndex.ContainsKey(reference))
-            {
-                continue;
-            }
-
-            _document.ObjectCache.ObjectIndex[reference] = PdfObjectInfo.ForCompressed(
-                reference,
-                containerObject.Reference.ObjectNumber,
-                index,
-                fromXrefStream: false);
-
-            registeredCount++;
-        }
-
-        return registeredCount;
+        _logger.LogInformation("Recovery scanner indexed {Count} object(s).", objectsFound);
     }
 
     private void RecoverDecryptor()

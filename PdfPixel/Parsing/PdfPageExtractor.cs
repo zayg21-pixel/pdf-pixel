@@ -36,7 +36,7 @@ internal class PdfPageExtractor
         if (_document.RootObject != null)
         {
             PdfObject? rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
-            if (rootPagesObject == null && !_document.ObjectCache.RecoveryScanAttempted)
+            if (rootPagesObject == null)
             {
                 _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found; attempting recovery scan.", _document.RootObject);
                 PdfXrefRecoveryScanner recoveryScanner = new(_document);
