@@ -195,7 +195,10 @@ internal static partial class PdfStrokeOutlineBuilder
 
         private void EmitOffset(PdfPathBuilder result, float halfWidth, int depth)
         {
-            if (depth < MaxSubdivisionDepth && !OffsetWithinTolerance(halfWidth))
+            Vector2 startTangent = StartTangent();
+            Vector2 endTangent = EndTangent();
+
+            if (depth < MaxSubdivisionDepth && !OffsetWithinTolerance(halfWidth, startTangent, endTangent))
             {
                 (CubicPathSegment head, CubicPathSegment tail) = SplitAt(0.5f);
                 head.EmitOffset(result, halfWidth, depth + 1);
@@ -203,8 +206,6 @@ internal static partial class PdfStrokeOutlineBuilder
                 return;
             }
 
-            Vector2 startTangent = StartTangent();
-            Vector2 endTangent = EndTangent();
             Vector2 control1 = Offset(Control1, startTangent, halfWidth);
             Vector2 control2 = Offset(Control2, endTangent, halfWidth);
             Vector2 end = Offset(End, endTangent, halfWidth);
@@ -217,11 +218,8 @@ internal static partial class PdfStrokeOutlineBuilder
         /// control points along the endpoint normals leaves the offset curve sagging toward its chord in the
         /// middle, so a wide turn fails here and splits until each piece is flat enough for the sag to go.
         /// </summary>
-        private bool OffsetWithinTolerance(float halfWidth)
+        private bool OffsetWithinTolerance(float halfWidth, Vector2 startTangent, Vector2 endTangent)
         {
-            Vector2 startTangent = StartTangent();
-            Vector2 endTangent = EndTangent();
-
             Vector2 offsetStart = Offset(Start, startTangent, halfWidth);
             Vector2 offsetControl1 = Offset(Control1, startTangent, halfWidth);
             Vector2 offsetControl2 = Offset(Control2, endTangent, halfWidth);
