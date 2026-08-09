@@ -13,8 +13,6 @@ internal static partial class PdfStrokeOutlineBuilder
 
         bool IsDegenerate { get; }
 
-        IPathSegment Reversed();
-
         Vector2 StartTangent();
 
         Vector2 EndTangent();
@@ -28,7 +26,13 @@ internal static partial class PdfStrokeOutlineBuilder
 
         IPathSegment Slice(float t0, float t1);
 
-        void EmitOffset(PdfPathBuilder result, float halfWidth);
+        /// <summary>
+        /// Emits this segment's offset rail, walking it end to start when <paramref name="reversed"/> is
+        /// set. <paramref name="startTangent"/> and <paramref name="endTangent"/> are the unit tangents at
+        /// the ends of the walk, which the caller already holds because it places the joins between
+        /// segments.
+        /// </summary>
+        void EmitOffset(PdfPathBuilder result, float halfWidth, Vector2 startTangent, Vector2 endTangent, bool reversed);
     }
 
     /// <summary>
@@ -104,8 +108,6 @@ internal static partial class PdfStrokeOutlineBuilder
 
         public bool IsDegenerate => Vector2.Distance(Start, End) <= Epsilon;
 
-        public IPathSegment Reversed() => new LinearPathSegment(End, Start);
-
         public Vector2 StartTangent() => Direction(Start, End);
 
         public Vector2 EndTangent() => Direction(Start, End);
@@ -114,11 +116,11 @@ internal static partial class PdfStrokeOutlineBuilder
 
         public IPathSegment Slice(float t0, float t1) => new LinearPathSegment(Vector2.Lerp(Start, End, t0), Vector2.Lerp(Start, End, t1));
 
-        public void EmitOffset(PdfPathBuilder result, float halfWidth)
+        /// <inheritdoc />
+        public void EmitOffset(PdfPathBuilder result, float halfWidth, Vector2 startTangent, Vector2 endTangent, bool reversed)
         {
-            Vector2 direction = Direction(Start, End);
-            Vector2 end = Offset(End, direction, halfWidth);
-            result.LineTo(ToPdfPoint(end));
+            Vector2 walkEnd = reversed ? Start : End;
+            result.LineTo(ToPdfPoint(Offset(walkEnd, endTangent, halfWidth)));
         }
     }
 
@@ -142,8 +144,6 @@ internal static partial class PdfStrokeOutlineBuilder
 
         public bool IsDegenerate
             => Vector2.Distance(Start, Control1) <= Epsilon && Vector2.Distance(Control1, Control2) <= Epsilon && Vector2.Distance(Control2, End) <= Epsilon;
-
-        public IPathSegment Reversed() => new CubicPathSegment(End, Control2, Control1, Start);
 
         public Vector2 StartTangent()
         {
@@ -185,30 +185,44 @@ internal static partial class PdfStrokeOutlineBuilder
 
         public IPathSegment Slice(float t0, float t1)
         {
-            (_, CubicPathSegment tail) = SplitAt(t0);
+            CubicSplit startSplit = SplitAt(t0);
             float remappedT1 = (t1 - t0) / (1f - t0);
-            (CubicPathSegment head, _) = tail.SplitAt(remappedT1);
-            return head;
+            CubicSplit endSplit = startSplit.Tail.SplitAt(remappedT1);
+            return endSplit.Head;
         }
 
-        public void EmitOffset(PdfPathBuilder result, float halfWidth) => EmitOffset(result, halfWidth, depth: 0);
-
-        private void EmitOffset(PdfPathBuilder result, float halfWidth, int depth)
+        /// <inheritdoc />
+        public void EmitOffset(PdfPathBuilder result, float halfWidth, Vector2 startTangent, Vector2 endTangent, bool reversed)
         {
-            Vector2 startTangent = StartTangent();
-            Vector2 endTangent = EndTangent();
+            CubicPathSegment walked = reversed ? new CubicPathSegment(End, Control2, Control1, Start) : this;
+            EmitOffset(walked, result, halfWidth, startTangent, endTangent, depth: 0);
+        }
 
-            if (depth < MaxSubdivisionDepth && !OffsetWithinTolerance(halfWidth, startTangent, endTangent))
+        /// <summary>
+        /// Emits <paramref name="segment"/>'s offset, splitting it until each piece stays within tolerance.
+        /// <paramref name="startTangent"/> and <paramref name="endTangent"/> are the curve's unit end
+        /// tangents; the halves of a split take them and the midpoint tangent they meet at. Only the near
+        /// half of a split descends — the far half continues in this call, since it is what remains of the
+        /// curve once the near half has been emitted.
+        /// </summary>
+        private static void EmitOffset(in CubicPathSegment segment, PdfPathBuilder result, float halfWidth, Vector2 startTangent, Vector2 endTangent, int depth)
+        {
+            CubicPathSegment current = segment;
+
+            while (depth < MaxSubdivisionDepth && !current.OffsetWithinTolerance(halfWidth, startTangent, endTangent, out Vector2 midpointTangent))
             {
-                (CubicPathSegment head, CubicPathSegment tail) = SplitAt(0.5f);
-                head.EmitOffset(result, halfWidth, depth + 1);
-                tail.EmitOffset(result, halfWidth, depth + 1);
-                return;
+                CubicSplit split = current.SplitAtMidpoint();
+
+                EmitOffset(split.Head, result, halfWidth, startTangent, midpointTangent, depth + 1);
+
+                current = split.Tail;
+                startTangent = midpointTangent;
+                depth++;
             }
 
-            Vector2 control1 = Offset(Control1, startTangent, halfWidth);
-            Vector2 control2 = Offset(Control2, endTangent, halfWidth);
-            Vector2 end = Offset(End, endTangent, halfWidth);
+            Vector2 control1 = Offset(current.Control1, startTangent, halfWidth);
+            Vector2 control2 = Offset(current.Control2, endTangent, halfWidth);
+            Vector2 end = Offset(current.End, endTangent, halfWidth);
 
             result.CubicTo(ToPdfPoint(control1), ToPdfPoint(control2), ToPdfPoint(end));
         }
@@ -218,18 +232,12 @@ internal static partial class PdfStrokeOutlineBuilder
         /// control points along the endpoint normals leaves the offset curve sagging toward its chord in the
         /// middle, so a wide turn fails here and splits until each piece is flat enough for the sag to go.
         /// </summary>
-        private bool OffsetWithinTolerance(float halfWidth, Vector2 startTangent, Vector2 endTangent)
+        private bool OffsetWithinTolerance(float halfWidth, Vector2 startTangent, Vector2 endTangent, out Vector2 midpointTangent)
         {
-            Vector2 offsetStart = Offset(Start, startTangent, halfWidth);
-            Vector2 offsetControl1 = Offset(Control1, startTangent, halfWidth);
-            Vector2 offsetControl2 = Offset(Control2, endTangent, halfWidth);
-            Vector2 offsetEnd = Offset(End, endTangent, halfWidth);
+            midpointTangent = CubicMidpointTangent(Start, Control1, Control2, End);
+            Vector2 midpointSag = ((startTangent + endTangent) * 0.5f) - midpointTangent;
 
-            Vector2 approximateMidpoint = CubicMidpoint(offsetStart, offsetControl1, offsetControl2, offsetEnd);
-            Vector2 midpointTangent = CubicMidpointTangent(Start, Control1, Control2, End);
-            Vector2 trueOffsetMidpoint = Offset(CubicMidpoint(Start, Control1, Control2, End), midpointTangent, halfWidth);
-
-            return Vector2.Distance(approximateMidpoint, trueOffsetMidpoint) <= StrokeOffsetTolerance;
+            return (halfWidth * halfWidth * midpointSag.LengthSquared()) <= (StrokeOffsetTolerance * StrokeOffsetTolerance);
         }
 
         /// <summary>
@@ -255,7 +263,7 @@ internal static partial class PdfStrokeOutlineBuilder
             return (u * u * u * Start) + (3f * u * u * t * Control1) + (3f * u * t * t * Control2) + (t * t * t * End);
         }
 
-        private (CubicPathSegment Head, CubicPathSegment Tail) SplitAt(float t)
+        private CubicSplit SplitAt(float t)
         {
             Vector2 q0 = Vector2.Lerp(Start, Control1, t);
             Vector2 q1 = Vector2.Lerp(Control1, Control2, t);
@@ -264,7 +272,39 @@ internal static partial class PdfStrokeOutlineBuilder
             Vector2 r1 = Vector2.Lerp(q1, q2, t);
             Vector2 s = Vector2.Lerp(r0, r1, t);
 
-            return (new CubicPathSegment(Start, q0, r0, s), new CubicPathSegment(s, r1, q2, End));
+            return new CubicSplit(new CubicPathSegment(Start, q0, r0, s), new CubicPathSegment(s, r1, q2, End));
+        }
+
+        /// <summary>
+        /// The two halves this curve meets itself at, which is the split the offset subdivision always
+        /// takes. Every de Casteljau step is a plain midpoint here, so none of them weigh their ends.
+        /// </summary>
+        private CubicSplit SplitAtMidpoint()
+        {
+            Vector2 q0 = (Start + Control1) * 0.5f;
+            Vector2 q1 = (Control1 + Control2) * 0.5f;
+            Vector2 q2 = (Control2 + End) * 0.5f;
+            Vector2 r0 = (q0 + q1) * 0.5f;
+            Vector2 r1 = (q1 + q2) * 0.5f;
+            Vector2 midpoint = (r0 + r1) * 0.5f;
+
+            return new CubicSplit(new CubicPathSegment(Start, q0, r0, midpoint), new CubicPathSegment(midpoint, r1, q2, End));
+        }
+    }
+
+    /// <summary>
+    /// The two halves a cubic was split into, in the order they are walked.
+    /// </summary>
+    private readonly struct CubicSplit
+    {
+        public readonly CubicPathSegment Head;
+
+        public readonly CubicPathSegment Tail;
+
+        public CubicSplit(in CubicPathSegment head, in CubicPathSegment tail)
+        {
+            Head = head;
+            Tail = tail;
         }
     }
 }

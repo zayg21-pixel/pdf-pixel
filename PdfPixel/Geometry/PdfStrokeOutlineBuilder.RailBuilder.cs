@@ -23,8 +23,8 @@ internal static partial class PdfStrokeOutlineBuilder
         RailBuilder backwardRail = new(result, halfWidth, style.LineJoin, style.MiterLimit);
         backwardRail.EmitChain(segments, reversed: true, continueFromCurrentPoint: true);
 
-        IPathSegment lastBackward = segments[0].Reversed();
-        AddCap(result, lastBackward.End, lastBackward.EndTangent(), halfWidth, style.LineCap);
+        IPathSegment firstForward = segments[0];
+        AddCap(result, firstForward.Start, -firstForward.StartTangent(), halfWidth, style.LineCap);
 
         result.Close();
     }
@@ -125,29 +125,33 @@ internal static partial class PdfStrokeOutlineBuilder
             int count = segments.Count;
             for (int i = 0; i < count; i++)
             {
-                IPathSegment segment = reversed ? segments[count - 1 - i].Reversed() : segments[i];
-                Vector2 tangent = segment.StartTangent();
+                IPathSegment segment = reversed ? segments[count - 1 - i] : segments[i];
+
+                Vector2 startVertex = reversed ? segment.End : segment.Start;
+                Vector2 endVertex = reversed ? segment.Start : segment.End;
+                Vector2 startTangent = reversed ? -segment.EndTangent() : segment.StartTangent();
+                Vector2 endTangent = reversed ? -segment.StartTangent() : segment.EndTangent();
 
                 if (!_hasPrevious)
                 {
                     if (!continueFromCurrentPoint)
                     {
-                        Vector2 offsetStart = Offset(segment.Start, tangent, _halfWidth);
+                        Vector2 offsetStart = Offset(startVertex, startTangent, _halfWidth);
                         _result.MoveTo(ToPdfPoint(offsetStart));
                     }
 
-                    _firstVertex = segment.Start;
-                    _firstTangent = tangent;
+                    _firstVertex = startVertex;
+                    _firstTangent = startTangent;
                 }
                 else
                 {
-                    AddJoin(_result, _previousVertex, _previousTangent, tangent, _halfWidth, _join, _miterLimit);
+                    AddJoin(_result, _previousVertex, _previousTangent, startTangent, _halfWidth, _join, _miterLimit);
                 }
 
-                segment.EmitOffset(_result, _halfWidth);
+                segment.EmitOffset(_result, _halfWidth, startTangent, endTangent, reversed);
 
-                _previousVertex = segment.End;
-                _previousTangent = segment.EndTangent();
+                _previousVertex = endVertex;
+                _previousTangent = endTangent;
                 _hasPrevious = true;
             }
         }

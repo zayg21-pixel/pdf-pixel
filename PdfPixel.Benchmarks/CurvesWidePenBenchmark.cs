@@ -12,8 +12,8 @@ namespace Benchmarks;
 /// the same pen converted once to the same <see cref="SKPaint"/>.
 /// Run from repo root: dotnet run -c Release --project PdfPixel.Benchmarks -- --filter *CurvesWidePen*
 /// </summary>
-[ShortRunJob]
-//[MemoryDiagnoser]
+//[ShortRunJob]
+[MemoryDiagnoser]
 public class CurvesWidePenBenchmark
 {
     private const int SegmentCount = 200;
@@ -49,7 +49,7 @@ public class CurvesWidePenBenchmark
         _widePenSk.Dispose();
     }
 
-    //[Benchmark(Baseline = true)]
+    [Benchmark(Baseline = true)]
     public SKPath Skia()
     {
         _lastSkiaFillPath?.Dispose();

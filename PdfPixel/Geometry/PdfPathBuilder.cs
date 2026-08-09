@@ -16,6 +16,30 @@ public sealed class PdfPathBuilder
     private int _length;
 
     /// <summary>
+    /// Initializes a builder whose buffer grows from nothing as segments are written.
+    /// </summary>
+    public PdfPathBuilder()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a builder whose buffer starts at <paramref name="capacity"/> bytes, for a caller that
+    /// knows roughly how large the path will be and wants to write it without growing on the way.
+    /// </summary>
+    public PdfPathBuilder(int capacity)
+    {
+        if (capacity < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+        }
+
+        if (capacity > 0)
+        {
+            _buffer = new byte[capacity];
+        }
+    }
+
+    /// <summary>
     /// Whether no segments have been accumulated yet.
     /// </summary>
     public bool IsEmpty => _length == 0;
@@ -106,6 +130,21 @@ public sealed class PdfPathBuilder
         var snapshot = new byte[_length];
         System.Buffer.BlockCopy(_buffer, 0, snapshot, 0, _length);
         return new PdfPath(snapshot, fillType);
+    }
+
+    /// <summary>
+    /// Gives the accumulated segments to a new <see cref="PdfPath"/> with the given fill type and leaves
+    /// this builder empty. The path takes the buffer over, so a builder used again after this starts a new
+    /// one rather than writing into the path's.
+    /// </summary>
+    public PdfPath Detach(PdfPathFillType fillType = PdfPathFillType.Winding)
+    {
+        PdfPath path = new(_buffer.AsMemory(0, _length), fillType);
+
+        _buffer = Array.Empty<byte>();
+        _length = 0;
+
+        return path;
     }
 
     private void WriteSegment(PdfPathSegmentType type, in ReadOnlySpan<PdfPoint> points)

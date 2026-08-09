@@ -27,6 +27,8 @@ internal static partial class PdfStrokeOutlineBuilder
     private const int MinCurveMeasureSamples = 8;
     private const int MaxCurveMeasureSamples = 256;
 
+    private const int OutlineCapacityFactor = 2;
+
     /// <summary>
     /// Builds the fill outline of <paramref name="source"/> stroked with <paramref name="style"/>.
     /// </summary>
@@ -48,7 +50,7 @@ internal static partial class PdfStrokeOutlineBuilder
             halfWidth = 0.5f;
         }
 
-        PdfPathBuilder result = new();
+        PdfPathBuilder result = new(source.Buffer.Length * OutlineCapacityFactor);
 
         foreach (SubPath subPath in EnumerateSubPaths(source))
         {
@@ -74,7 +76,7 @@ internal static partial class PdfStrokeOutlineBuilder
             }
         }
 
-        return result.ToPath();
+        return result.Detach();
     }
 
     private sealed class SubPath
