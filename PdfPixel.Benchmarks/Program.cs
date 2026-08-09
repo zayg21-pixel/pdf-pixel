@@ -14,13 +14,13 @@ namespace Benchmarks
         public static void Main(string[] args)
         {
             // test, do not remove.
-            var widePen = new CurvesWidePenBenchmark();
-            widePen.Setup();
+            //var widePen = new CurvesWidePenBenchmark();
+            //widePen.Setup();
 
-            for (int i = 0; i < 10000; i++)
-            {
-                widePen.PdfPixel();
-            }
+            //for (int i = 0; i < 10000; i++)
+            //{
+            //    widePen.PdfPixel();
+            //}
 
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         }

@@ -6,7 +6,7 @@ namespace PdfPixel.Geometry;
 
 internal static partial class PdfStrokeOutlineBuilder
 {
-    private static void AddOpenOutline(PdfPathBuilder result, List<IPathSegment> segments, float halfWidth, PdfStrokeStyle style)
+    private static void AddOpenOutline(PdfPathBuilder result, List<IPathSegment> segments, float halfWidth, float offsetTolerance, PdfStrokeStyle style)
     {
         segments = RemoveDegenerate(segments);
         if (segments.Count == 0)
@@ -14,13 +14,13 @@ internal static partial class PdfStrokeOutlineBuilder
             return;
         }
 
-        RailBuilder forwardRail = new(result, halfWidth, style.LineJoin, style.MiterLimit);
+        RailBuilder forwardRail = new(result, halfWidth, offsetTolerance, style.LineJoin, style.MiterLimit);
         forwardRail.EmitChain(segments);
 
         IPathSegment lastForward = segments[segments.Count - 1];
         AddCap(result, lastForward.End, lastForward.EndTangent(), halfWidth, style.LineCap);
 
-        RailBuilder backwardRail = new(result, halfWidth, style.LineJoin, style.MiterLimit);
+        RailBuilder backwardRail = new(result, halfWidth, offsetTolerance, style.LineJoin, style.MiterLimit);
         backwardRail.EmitChain(segments, reversed: true, continueFromCurrentPoint: true);
 
         IPathSegment firstForward = segments[0];
@@ -29,7 +29,7 @@ internal static partial class PdfStrokeOutlineBuilder
         result.Close();
     }
 
-    private static void AddClosedOutline(PdfPathBuilder result, List<IPathSegment> segments, float halfWidth, PdfStrokeStyle style)
+    private static void AddClosedOutline(PdfPathBuilder result, List<IPathSegment> segments, float halfWidth, float offsetTolerance, PdfStrokeStyle style)
     {
         segments = RemoveDegenerate(segments);
         if (segments.Count == 0)
@@ -38,7 +38,7 @@ internal static partial class PdfStrokeOutlineBuilder
         }
 
         // Outer ring: offset to the left of travel, joined all the way around back to the start.
-        RailBuilder outer = new(result, halfWidth, style.LineJoin, style.MiterLimit);
+        RailBuilder outer = new(result, halfWidth, offsetTolerance, style.LineJoin, style.MiterLimit);
         outer.EmitChain(segments);
         outer.CloseJoinToStart();
         result.Close();
@@ -46,7 +46,7 @@ internal static partial class PdfStrokeOutlineBuilder
         // Inner ring: offset to the left of the reversed direction of travel (i.e. the other physical side),
         // joined all the way around. Produced as a second, separate closed contour; Winding fill turns the
         // two concentric rings into the annular stroke region.
-        RailBuilder inner = new(result, halfWidth, style.LineJoin, style.MiterLimit);
+        RailBuilder inner = new(result, halfWidth, offsetTolerance, style.LineJoin, style.MiterLimit);
         inner.EmitChain(segments, reversed: true);
         inner.CloseJoinToStart();
         result.Close();
@@ -92,6 +92,7 @@ internal static partial class PdfStrokeOutlineBuilder
     {
         private readonly PdfPathBuilder _result;
         private readonly float _halfWidth;
+        private readonly float _offsetTolerance;
         private readonly PdfStrokeJoin _join;
         private readonly float _miterLimit;
         private Vector2 _previousTangent;
@@ -106,10 +107,11 @@ internal static partial class PdfStrokeOutlineBuilder
         /// a miter in particular would shoot a spike that self-intersects with reversed winding and punches
         /// a hole in the fill.
         /// </summary>
-        public RailBuilder(PdfPathBuilder result, float halfWidth, PdfStrokeJoin join, float miterLimit)
+        public RailBuilder(PdfPathBuilder result, float halfWidth, float offsetTolerance, PdfStrokeJoin join, float miterLimit)
         {
             _result = result;
             _halfWidth = halfWidth;
+            _offsetTolerance = offsetTolerance;
             _join = join;
             _miterLimit = miterLimit;
         }
@@ -148,7 +150,7 @@ internal static partial class PdfStrokeOutlineBuilder
                     AddJoin(_result, _previousVertex, _previousTangent, startTangent, _halfWidth, _join, _miterLimit);
                 }
 
-                segment.EmitOffset(_result, _halfWidth, startTangent, endTangent, reversed);
+                segment.EmitOffset(_result, _halfWidth, _offsetTolerance, startTangent, endTangent, reversed);
 
                 _previousVertex = endVertex;
                 _previousTangent = endTangent;

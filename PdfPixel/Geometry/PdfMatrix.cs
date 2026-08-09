@@ -2,6 +2,8 @@ using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace PdfPixel.Geometry;
@@ -11,6 +13,10 @@ namespace PdfPixel.Geometry;
 /// first 6 fields of Skia's <c>SKMatrix</c> (its 3 perspective fields are not needed for PDF).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
+// TODO: [MEDIUM] reorder the operands to Matrix3x2's layout (ScaleX, SkewY, SkewX, ScaleY, TransX,
+// TransY) and back the struct with one, so mapping, concatenation and inversion become the framework's
+// vectorized operations rather than scalar arithmetic. Costs the field-for-field match with SKMatrix,
+// which ToSkMatrix spells out by name anyway.
 public readonly struct PdfMatrix : IEquatable<PdfMatrix>
 {
     /// <summary>
@@ -64,7 +70,18 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// <summary>
     /// Whether this matrix equals <see cref="Identity"/>.
     /// </summary>
-    public bool IsIdentity => this == Identity;
+    public bool IsIdentity
+    {
+        get
+        {
+            return ScaleX == 1f
+                && ScaleY == 1f
+                && SkewX == 0f
+                && SkewY == 0f
+                && TransX == 0f
+                && TransY == 0f;
+        }
+    }
 
     /// <summary>
     /// Whether this matrix has no skew, i.e. it only scales and translates.
@@ -197,6 +214,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// <summary>
     /// Transforms <paramref name="point"/> by this matrix.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public PdfPoint MapPoint(in PdfPoint point)
     {
         if (IsIdentity)
@@ -211,9 +229,28 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     }
 
     /// <summary>
+    /// Transforms <paramref name="vector"/> by this matrix, translation included.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector2 MapVector2(Vector2 vector)
+    {
+        if (IsIdentity)
+        {
+            return vector;
+        }
+
+        Vector2 xAxis = new(ScaleX, SkewY);
+        Vector2 yAxis = new(SkewX, ScaleY);
+        Vector2 translation = new(TransX, TransY);
+
+        return (xAxis * vector.X) + (yAxis * vector.Y) + translation;
+    }
+
+    /// <summary>
     /// Transforms <paramref name="rect"/> by this matrix, returning the axis-aligned bounding box of its
     /// transformed corners.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public PdfRectangle MapRect(in PdfRectangle rect)
     {
         if (IsIdentity)
@@ -238,6 +275,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// Computes the inverse of this matrix. Returns <see cref="Identity"/> when this matrix is singular
     /// (its determinant is zero) and has no inverse.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public PdfMatrix Invert()
     {
         float determinant = (ScaleX * ScaleY) - (SkewX * SkewY);
@@ -258,6 +296,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     }
 
     /// <inheritdoc/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(PdfMatrix other)
     {
         return ScaleX == other.ScaleX
@@ -269,6 +308,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     }
 
     /// <inheritdoc/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is PdfMatrix other && Equals(other);
 
     /// <inheritdoc/>

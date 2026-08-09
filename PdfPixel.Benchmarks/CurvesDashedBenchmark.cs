@@ -65,7 +65,7 @@ public class CurvesDashedBenchmark
     }
 
     [Benchmark]
-    public PdfPath PdfPixel() => PdfStrokeOutlineBuilder.BuildOutline(_curves, Dashed);
+    public PdfPath PdfPixel() => PdfStrokeOutlineBuilder.BuildOutline(_curves, Dashed, PdfMatrix.Identity, PdfMatrix.Identity);
 
     // Identical to StrokeOutlineBenchmark.BuildCurves: an open wave of cubics, each long enough that
     // offsetting it has to split.

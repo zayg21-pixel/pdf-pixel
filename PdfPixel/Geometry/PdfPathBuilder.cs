@@ -1,5 +1,5 @@
 using System;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Geometry;
 
@@ -12,21 +12,37 @@ public sealed class PdfPathBuilder
 {
     private const int DefaultCapacity = 4;
 
+    private readonly PdfMatrix _matrix;
+    private readonly bool _isIdentityMatrix;
+
     private byte[] _buffer = [];
     private int _length;
 
     /// <summary>
-    /// Initializes a builder whose buffer grows from nothing as segments are written.
+    /// Initializes a builder whose buffer grows from nothing as segments are written, writing points
+    /// as they are given.
     /// </summary>
     public PdfPathBuilder()
+        : this(0, PdfMatrix.Identity)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a builder whose buffer grows from nothing as segments are written, transforming every
+    /// point it is given by <paramref name="matrix"/>, so that the path it builds is already in the space
+    /// that matrix maps to.
+    /// </summary>
+    public PdfPathBuilder(in PdfMatrix matrix)
+        : this(0, matrix)
     {
     }
 
     /// <summary>
     /// Initializes a builder whose buffer starts at <paramref name="capacity"/> bytes, for a caller that
-    /// knows roughly how large the path will be and wants to write it without growing on the way.
+    /// knows roughly how large the path will be and wants to write it without growing on the way, and
+    /// whose <paramref name="matrix"/> transforms every point it is given.
     /// </summary>
-    public PdfPathBuilder(int capacity)
+    public PdfPathBuilder(int capacity, in PdfMatrix matrix)
     {
         if (capacity < 0)
         {
@@ -37,6 +53,9 @@ public sealed class PdfPathBuilder
         {
             _buffer = new byte[capacity];
         }
+
+        _matrix = matrix;
+        _isIdentityMatrix = matrix.IsIdentity;
     }
 
     /// <summary>
@@ -54,9 +73,8 @@ public sealed class PdfPathBuilder
     /// </summary>
     public void MoveTo(in PdfPoint point)
     {
-        Span<PdfPoint> points = stackalloc PdfPoint[1];
-        points[0] = point;
-        WriteSegment(PdfPathSegmentType.MoveTo, points);
+        StartSegment(PdfPathSegmentType.MoveTo, pointCount: 1);
+        WritePoint(MapPoint(point));
     }
 
     /// <summary>
@@ -69,9 +87,8 @@ public sealed class PdfPathBuilder
     /// </summary>
     public void LineTo(in PdfPoint point)
     {
-        Span<PdfPoint> points = stackalloc PdfPoint[1];
-        points[0] = point;
-        WriteSegment(PdfPathSegmentType.LineTo, points);
+        StartSegment(PdfPathSegmentType.LineTo, pointCount: 1);
+        WritePoint(MapPoint(point));
     }
 
     /// <summary>
@@ -85,20 +102,20 @@ public sealed class PdfPathBuilder
     /// </summary>
     public void CubicTo(in PdfPoint control1, in PdfPoint control2, in PdfPoint end)
     {
-        Span<PdfPoint> points = stackalloc PdfPoint[3];
-        points[0] = control1;
-        points[1] = control2;
-        points[2] = end;
-        WriteSegment(PdfPathSegmentType.CubicTo, points);
+        StartSegment(PdfPathSegmentType.CubicTo, pointCount: 3);
+        WritePoint(MapPoint(control1));
+        WritePoint(MapPoint(control2));
+        WritePoint(MapPoint(end));
     }
 
     /// <summary>
     /// Closes the current subpath with a straight line back to its start.
     /// </summary>
-    public void Close() => WriteSegment(PdfPathSegmentType.Close, ReadOnlySpan<PdfPoint>.Empty);
+    public void Close() => StartSegment(PdfPathSegmentType.Close, pointCount: 0);
 
     /// <summary>
-    /// Appends a copy of another path's segments.
+    /// Appends another path's segments, transformed by this builder's matrix. An identity matrix leaves
+    /// the segments untouched, so they are copied as raw bytes rather than walked point by point.
     /// </summary>
     public void AddPath(PdfPath other)
     {
@@ -107,11 +124,28 @@ public sealed class PdfPathBuilder
             throw new ArgumentNullException(nameof(other));
         }
 
-        ReadOnlySpan<byte> otherBuffer = other.Buffer.Span;
-        EnsureCapacity(_length + otherBuffer.Length);
+        if (_isIdentityMatrix)
+        {
+            ReadOnlySpan<byte> otherBuffer = other.Buffer.Span;
+            EnsureCapacity(_length + otherBuffer.Length);
 
-        otherBuffer.CopyTo(_buffer.AsSpan(_length));
-        _length += otherBuffer.Length;
+            otherBuffer.CopyTo(_buffer.AsSpan(_length));
+            _length += otherBuffer.Length;
+
+            return;
+        }
+
+        foreach (PdfPathSegment segment in other.Segments)
+        {
+            ReadOnlySpan<PdfPoint> points = segment.Points;
+
+            StartSegment(segment.Type, points.Length);
+
+            for (int index = 0; index < points.Length; index++)
+            {
+                WritePoint(MapPoint(points[index]));
+            }
+        }
     }
 
     /// <summary>
@@ -147,16 +181,35 @@ public sealed class PdfPathBuilder
         return path;
     }
 
-    private void WriteSegment(PdfPathSegmentType type, in ReadOnlySpan<PdfPoint> points)
+    /// <summary>
+    /// <paramref name="point"/> transformed by this builder's matrix, or as it stands when that matrix is
+    /// the identity.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private PdfPoint MapPoint(in PdfPoint point) => _isIdentityMatrix ? point : _matrix.MapPoint(point);
+
+    /// <summary>
+    /// Writes the type of a segment carrying <paramref name="pointCount"/> points and makes room for those
+    /// points, which the caller writes with <see cref="WritePoint"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void StartSegment(PdfPathSegmentType type, int pointCount)
     {
-        ReadOnlySpan<byte> pointBytes = MemoryMarshal.AsBytes(points);
-        EnsureCapacity(_length + 1 + pointBytes.Length);
+        EnsureCapacity(_length + 1 + (pointCount * Unsafe.SizeOf<PdfPoint>()));
 
         _buffer[_length] = (byte)type;
         _length++;
+    }
 
-        pointBytes.CopyTo(_buffer.AsSpan(_length));
-        _length += pointBytes.Length;
+    /// <summary>
+    /// Writes <paramref name="point"/> at the end of the buffer, in the room the segment it belongs to has
+    /// already reserved.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WritePoint(in PdfPoint point)
+    {
+        Unsafe.WriteUnaligned(ref _buffer[_length], point);
+        _length += Unsafe.SizeOf<PdfPoint>();
     }
 
     private void EnsureCapacity(int requiredLength)

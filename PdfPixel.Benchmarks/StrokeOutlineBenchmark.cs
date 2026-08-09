@@ -28,10 +28,8 @@ public class StrokeOutlineBenchmark
     private static readonly PdfStrokeStyle Dashed = new(lineWidth: 1f, dashPattern: new[] { 3f, 2f });
     private static readonly PdfStrokeStyle FinelyDashed = new(lineWidth: 1f, dashPattern: new[] { 0.5f, 0.5f });
 
-    // The two factors an anisotropic pen is built with: PdfStrokeOutline shrinks the path by them,
-    // strokes it, and grows the outline back, which is the round trip this fixture stands in for.
-    private static readonly PdfMatrix PenShrink = PdfMatrix.CreateScale(1f / 3f, 1f);
-    private static readonly PdfMatrix PenGrow = PdfMatrix.CreateScale(3f, 1f);
+    // The pen an anisotropic stroke scale shapes: three times as wide across one axis as the other.
+    private static readonly PdfMatrix AnisotropicPen = PdfMatrix.CreateScale(3f, 1f);
 
     private readonly PdfPath _lines = BuildLines();
     private readonly PdfPath _sharpZigzag = BuildSharpZigzag();
@@ -43,88 +41,81 @@ public class StrokeOutlineBenchmark
     /// their own.
     /// </summary>
     [Benchmark(Baseline = true)]
-    public PdfPath LinesButtMiter() => PdfStrokeOutlineBuilder.BuildOutline(_lines, ButtMiter);
+    public PdfPath LinesButtMiter() => PdfStrokeOutlineBuilder.BuildOutline(_lines, ButtMiter, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// Round caps and joins, which are the ones emitting arcs rather than corners.
     /// </summary>
     [Benchmark]
-    public PdfPath LinesRoundCapRoundJoin() => PdfStrokeOutlineBuilder.BuildOutline(_lines, RoundCapRoundJoin);
+    public PdfPath LinesRoundCapRoundJoin() => PdfStrokeOutlineBuilder.BuildOutline(_lines, RoundCapRoundJoin, PdfMatrix.Identity, PdfMatrix.Identity);
 
     [Benchmark]
-    public PdfPath LinesSquareCapBevelJoin() => PdfStrokeOutlineBuilder.BuildOutline(_lines, SquareCapBevelJoin);
+    public PdfPath LinesSquareCapBevelJoin() => PdfStrokeOutlineBuilder.BuildOutline(_lines, SquareCapBevelJoin, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// A pen twenty times the baseline's, where the join geometry rather than the path drives the work.
     /// </summary>
     [Benchmark]
-    public PdfPath LinesWidePen() => PdfStrokeOutlineBuilder.BuildOutline(_lines, WidePen);
+    public PdfPath LinesWidePen() => PdfStrokeOutlineBuilder.BuildOutline(_lines, WidePen, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// A zero line width, which the builder takes to a half-pixel pen of its own.
     /// </summary>
     [Benchmark]
-    public PdfPath LinesHairline() => PdfStrokeOutlineBuilder.BuildOutline(_lines, Hairline);
+    public PdfPath LinesHairline() => PdfStrokeOutlineBuilder.BuildOutline(_lines, Hairline, PdfMatrix.Identity, PdfMatrix.Identity);
 
     [Benchmark]
-    public PdfPath LinesDashed() => PdfStrokeOutlineBuilder.BuildOutline(_lines, Dashed);
+    public PdfPath LinesDashed() => PdfStrokeOutlineBuilder.BuildOutline(_lines, Dashed, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// A dash pattern short enough to split every segment several times, which is what makes the number
     /// of dashes rather than the number of segments the size of the work.
     /// </summary>
     [Benchmark]
-    public PdfPath LinesFinelyDashed() => PdfStrokeOutlineBuilder.BuildOutline(_lines, FinelyDashed);
+    public PdfPath LinesFinelyDashed() => PdfStrokeOutlineBuilder.BuildOutline(_lines, FinelyDashed, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
-    /// The shrink, stroke and grow an anisotropic pen is built with, against the single pass the same
-    /// path takes when the two axes widen alike.
+    /// An elliptical pen, against the round one the same path takes when the two axes widen alike.
     /// </summary>
     [Benchmark]
-    public PdfPath LinesAnisotropicPen()
-    {
-        PdfPath shrunk = _lines.Transform(PenShrink);
-        PdfPath outline = PdfStrokeOutlineBuilder.BuildOutline(shrunk, ButtMiter);
-
-        return outline.Transform(PenGrow);
-    }
+    public PdfPath LinesAnisotropicPen() => PdfStrokeOutlineBuilder.BuildOutline(_lines, ButtMiter, AnisotropicPen, PdfMatrix.Identity);
 
     /// <summary>
     /// Corners sharp enough to reach the miter limit, where a miter join has to fall back to a bevel.
     /// </summary>
     [Benchmark]
-    public PdfPath SharpZigzagMiter() => PdfStrokeOutlineBuilder.BuildOutline(_sharpZigzag, ButtMiter);
+    public PdfPath SharpZigzagMiter() => PdfStrokeOutlineBuilder.BuildOutline(_sharpZigzag, ButtMiter, PdfMatrix.Identity, PdfMatrix.Identity);
 
     [Benchmark]
-    public PdfPath SharpZigzagRoundJoin() => PdfStrokeOutlineBuilder.BuildOutline(_sharpZigzag, RoundCapRoundJoin);
+    public PdfPath SharpZigzagRoundJoin() => PdfStrokeOutlineBuilder.BuildOutline(_sharpZigzag, RoundCapRoundJoin, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// Closed subpaths, which join at the seam instead of capping, and the shape most PDFs stroke most.
     /// </summary>
     [Benchmark]
-    public PdfPath ClosedRectangles() => PdfStrokeOutlineBuilder.BuildOutline(_rectangles, ButtMiter);
+    public PdfPath ClosedRectangles() => PdfStrokeOutlineBuilder.BuildOutline(_rectangles, ButtMiter, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// Cubic segments, whose offset is split until it stays within tolerance rather than emitted once.
     /// </summary>
     [Benchmark]
-    public PdfPath CurvesButtMiter() => PdfStrokeOutlineBuilder.BuildOutline(_curves, ButtMiter);
+    public PdfPath CurvesButtMiter() => PdfStrokeOutlineBuilder.BuildOutline(_curves, ButtMiter, PdfMatrix.Identity, PdfMatrix.Identity);
 
     [Benchmark]
-    public PdfPath CurvesRoundCapRoundJoin() => PdfStrokeOutlineBuilder.BuildOutline(_curves, RoundCapRoundJoin);
+    public PdfPath CurvesRoundCapRoundJoin() => PdfStrokeOutlineBuilder.BuildOutline(_curves, RoundCapRoundJoin, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// A wide pen on curves, where the offset strays further from the curve and so splits deeper.
     /// </summary>
     [Benchmark]
-    public PdfPath CurvesWidePen() => PdfStrokeOutlineBuilder.BuildOutline(_curves, WidePen);
+    public PdfPath CurvesWidePen() => PdfStrokeOutlineBuilder.BuildOutline(_curves, WidePen, PdfMatrix.Identity, PdfMatrix.Identity);
 
     /// <summary>
     /// Dashed curves, where every curve is measured by sampling before it can be split at dash
     /// boundaries.
     /// </summary>
     [Benchmark]
-    public PdfPath CurvesDashed() => PdfStrokeOutlineBuilder.BuildOutline(_curves, Dashed);
+    public PdfPath CurvesDashed() => PdfStrokeOutlineBuilder.BuildOutline(_curves, Dashed, PdfMatrix.Identity, PdfMatrix.Identity);
 
     // An open polyline turning gently at every vertex, as a chart axis or an underline run does.
     private static PdfPath BuildLines()

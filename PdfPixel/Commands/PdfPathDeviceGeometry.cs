@@ -23,8 +23,8 @@ internal readonly struct PdfPathDeviceGeometry
     // A thinner one has only coverage left to carry it.
     private const float MinimumAliasedThickness = 2f;
 
-    // The pen a degenerate fill is painted with. Its width comes from the hairline stroke scale, so the
-    // width here carries no meaning; the caps and joins are the ones such a fill is stroked with.
+    // The pen a degenerate fill is painted with. Its width comes from the hairline pen, so the width
+    // here carries no meaning; the caps and joins are the ones such a fill is stroked with.
     private static readonly PdfStrokeStyle HairlineStrokeStyle = new();
 
     // The geometry, held as whichever of the two it came out as: a path left where it was, or the
@@ -87,7 +87,7 @@ internal readonly struct PdfPathDeviceGeometry
         // pixel wide is what keeps it visible.
         if (pathInfo.Bounds.Width == 0 || pathInfo.Bounds.Height == 0)
         {
-            return CreateStroke(path, HairlineStrokeStyle, PdfStrokeScale.Create(executionContext, 0f), executionContext);
+            return CreateStroke(path, HairlineStrokeStyle, PdfDevicePen.Create(executionContext, 0f), executionContext);
         }
 
         return CreateFill(path, pathInfo, executionContext);
@@ -147,19 +147,15 @@ internal readonly struct PdfPathDeviceGeometry
     {
         PdfStrokeStyle strokeStyle = paint.RequireStrokeStyle();
 
-        return CreateStroke(path, strokeStyle, PdfStrokeScale.Create(executionContext, strokeStyle.LineWidth), executionContext);
+        return CreateStroke(path, strokeStyle, PdfDevicePen.Create(executionContext, strokeStyle.LineWidth), executionContext);
     }
 
-    private static PdfPathDeviceGeometry CreateStroke(PdfPath path, PdfStrokeStyle strokeStyle, in PdfStrokeScale strokeScale, PdfCommandExecutionContext executionContext)
+    private static PdfPathDeviceGeometry CreateStroke(PdfPath path, PdfStrokeStyle strokeStyle, in PdfDevicePen pen, PdfCommandExecutionContext executionContext)
     {
         PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
+        PdfPath outline = PdfStrokeOutlineBuilder.BuildOutline(path, strokeStyle.WithLineWidth(pen.Width), pen.Matrix, deviceMatrix);
 
-        // What the outline covers is what gets painted, so it — and not the path the pen travelled — is
-        // the shape the grid sees. Its thickness comes from the pen: the bounds of an outline running
-        // around a shape measure the shape instead.
-        PdfPath outline = PdfStrokeOutline.Build(path, strokeStyle, strokeScale);
-
-        return Create(outline, outline.GetPathInfo(), GetDevicePenThickness(strokeScale, deviceMatrix), isStrokeOutline: true, deviceMatrix, executionContext);
+        return Create(outline, outline.GetPathInfo(), pen.DeviceThickness, isStrokeOutline: true, deviceMatrix, executionContext);
     }
 
     private static PdfPathDeviceGeometry Create(
@@ -227,16 +223,5 @@ internal readonly struct PdfPathDeviceGeometry
         PdfRectangle deviceBounds = deviceMatrix.MapRect(geometryInfo.Bounds);
 
         return MathF.Min(deviceBounds.Width, deviceBounds.Height);
-    }
-
-    // How thick the mark a pen leaves is, in device pixels, across the axis that carries the least of
-    // it. The widening in PdfStrokeScale has already taken the pen to a whole pixel on the axis that
-    // asked for one.
-    private static float GetDevicePenThickness(in PdfStrokeScale strokeScale, in PdfMatrix deviceMatrix)
-    {
-        PdfRectangle pen = new(0, 0, strokeScale.PenWidth * strokeScale.X, strokeScale.PenWidth * strokeScale.Y);
-        PdfRectangle devicePen = deviceMatrix.MapRect(pen);
-
-        return MathF.Min(devicePen.Width, devicePen.Height);
     }
 }

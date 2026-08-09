@@ -83,6 +83,11 @@ internal static partial class PdfStrokeOutlineBuilder
                     dashIndex = (dashIndex + 1) % dashPattern.Length;
                     dashRemaining = dashPattern[dashIndex];
                     isOn = !isOn;
+
+                    if (pieces.Count > MaxDashPieces)
+                    {
+                        return new List<List<IPathSegment>> { subPath.Segments };
+                    }
                 }
             }
         }

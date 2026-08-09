@@ -62,7 +62,7 @@ public class CurvesWidePenBenchmark
     }
 
     [Benchmark]
-    public PdfPath PdfPixel() => PdfStrokeOutlineBuilder.BuildOutline(_curves, WidePen);
+    public PdfPath PdfPixel() => PdfStrokeOutlineBuilder.BuildOutline(_curves, WidePen, PdfMatrix.Identity, PdfMatrix.Identity);
 
     // Identical to StrokeOutlineBenchmark.BuildCurves: an open wave of cubics, each long enough that
     // offsetting it has to split.
