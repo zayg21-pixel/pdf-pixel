@@ -278,18 +278,12 @@ public abstract class PdfFontBase : IDisposable
 
         float originalWidth = declaredWidth ?? widths.Sum();
 
-        (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, originalWidth, widths);
-
-        // Without rescaling, a substituted glyph keeps its own proportions and is centred instead.
-        if (!resolution.IsMappedByFont && !shouldRescale && declaredWidth.HasValue)
-        {
-            xScale = 1;
-        }
+        (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, originalWidth, widths, shouldRescale);
 
         return new PdfCharacterInfo(characterCode, typeface, unicode, glyphIds, originalWidth, widths, xScale, origin, advancement);
     }
 
-    private (float xScale, PdfPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in PdfVerticalMetric verticalMetric, float originalWidth, float[] widths)
+    private (float xScale, PdfPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in PdfVerticalMetric verticalMetric, float originalWidth, float[] widths, bool shouldRescale)
     {
         float totalWidth = widths.Sum();
         float xScale;
@@ -306,11 +300,18 @@ public abstract class PdfFontBase : IDisposable
         }
         else
         {
-            if (unicode?.Length > 0 && char.IsLetterOrDigit(unicode[0]))
+            bool isLetterOrDigit = unicode?.Length > 0 && char.IsLetterOrDigit(unicode[0]);
+
+            if (shouldRescale && isLetterOrDigit && totalWidth > originalWidth)
             {
-                // A zero totalWidth means the shaped glyphs carry no advance of their own; any xScale
-                // multiplies out to the same zero-width result, so scale is safely clamped to 1.
-                xScale = (totalWidth != 0) ? originalWidth / totalWidth : 1;
+                // Shaped glyphs wider than the declared advance are condensed to fit it.
+                xScale = originalWidth / totalWidth;
+                offsetX = 0;
+            }
+            else if (!shouldRescale && isLetterOrDigit)
+            {
+                // The shaped glyphs carry their own trusted metrics, so they are left where they fall.
+                xScale = 1;
                 offsetX = 0;
             }
             else
