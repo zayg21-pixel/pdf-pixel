@@ -10,8 +10,9 @@ using Xunit.Abstractions;
 namespace PdfPixel.Tests.Imaging.Jpx;
 
 /// <summary>
-/// Decoding tests for JPEG 2000 codestreams. Every file in <c>jpx/</c> encodes the same
-/// source image with one coding feature varied, so a failure names the feature that broke.
+/// Decoding tests for JPEG 2000 codestreams. The <c>baboon-*</c> files in <c>jpx/</c> each encode
+/// the same source image with one coding feature varied, so a failure names the feature that
+/// broke; the remaining files are codestreams taken from PDFs that exposed a bug.
 /// Each decode is compared against a golden PNG in <c>jpx/golden/</c> produced by
 /// OpenJPEG's opj_decompress, and is written to <c>jpx/decoded/</c> in the test output
 /// directory so it can be inspected by eye afterwards.
@@ -22,9 +23,11 @@ public class JpxDecodingTests
     // a decoder has to handle. These axes are therefore uncovered, and the gap is in the corpus
     // rather than in the code:
     //
-    // TODO: [HIGH] Cover COC and QCC. opj_compress has no per-component coding style or
-    // quantization options, so it never writes either segment. PdfPixel parses both and applies
-    // neither, so a file that carries them decodes that component with the main header's values.
+    // TODO: [HIGH] Cover a COC that differs from the COD. opj_compress has no per-component
+    // coding style option, so it never writes one, and the COC segments issue12752.jp2 carries
+    // only repeat the COD's values. PdfPixel parses COC and applies none of it, so a component
+    // given its own transform, decomposition levels, code-block size or precinct sizes decodes
+    // with the main header's.
     // TODO: [HIGH] Cover POC. opj_compress accepts -POC but writes no marker for any spec tried,
     // though the library itself has opj_j2k_write_poc.
     // TODO: [HIGH] Cover PPM and PPT. opj_compress has no flag for packed packet headers.
@@ -157,6 +160,15 @@ public class JpxDecodingTests
     [Theory]
     [InlineData("baboon-mct-off.j2k")]
     public void ComponentTransform_DecodesCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
+
+    /// <summary>
+    /// A QCC segment gives one component its own step sizes, which the reversible path turns into
+    /// a different magnitude alignment than the main header's QCD would. Taking the QCD for such a
+    /// component reconstructs its coefficients off by a factor of two per exponent it differs by.
+    /// </summary>
+    [Theory]
+    [InlineData("issue12752.jp2")]
+    public void ComponentQuantization_DecodesCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
 
     /// <summary>
     /// The irreversible 9-7 transform, the other of the two wavelets ITU-T T.800 defines. It

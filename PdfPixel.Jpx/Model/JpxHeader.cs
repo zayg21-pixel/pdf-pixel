@@ -84,6 +84,24 @@ public sealed class JpxHeader
     public List<JpxComponentQuantization> ComponentQuantizations { get; } = [];
 
     /// <summary>
+    /// Gets the quantization a component is coded with: the QCC override the codestream carries
+    /// for it when there is one, and the main header's QCD otherwise.
+    /// </summary>
+    /// <param name="componentIndex">Zero-based index of the component.</param>
+    public JpxQuantization? GetComponentQuantization(int componentIndex)
+    {
+        foreach (JpxComponentQuantization componentQuantization in ComponentQuantizations)
+        {
+            if (componentQuantization.ComponentIndex == componentIndex)
+            {
+                return componentQuantization.Quantization;
+            }
+        }
+
+        return Quantization;
+    }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the main header contains comments (COM marker segments).
     /// </summary>
     public bool HasComments { get; set; }

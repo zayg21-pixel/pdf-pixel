@@ -27,21 +27,22 @@ internal static class JpxInverseDwtFactory
             throw new InvalidOperationException("Coding style is not defined.");
         }
 
-        if (header.Quantization == null)
+        JpxQuantization? quantization = header.GetComponentQuantization(componentIndex);
+
+        if (quantization == null)
         {
             throw new InvalidOperationException("Quantization is not defined.");
         }
 
-        // TODO: [HIGH] Use the component's QCC override when it has one. This always takes the
-        // main header's QCD, so a component given its own step sizes is dequantized with the
-        // wrong ones. JpxHeader.ComponentQuantizations is parsed but never read. The same
-        // applies to the transform, which a COC override can change per component.
+        // TODO: [HIGH] Take the transform from the component's COC override when it has one.
+        // This always reads the main header's COD, so a component whose COC gives it the other
+        // wavelet is reconstructed with the wrong one.
         if (header.CodingStyle.IsReversibleTransform)
         {
-            return new JpxInverseDwt53(header.Quantization);
+            return new JpxInverseDwt53(quantization);
         }
 
         int bitDepth = header.Components[componentIndex].PrecisionBits;
-        return new JpxInverseDwt97(header.Quantization, bitDepth);
+        return new JpxInverseDwt97(quantization, bitDepth);
     }
 }
