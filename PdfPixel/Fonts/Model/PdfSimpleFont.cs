@@ -3,7 +3,6 @@ using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Resources;
-using PdfPixel.Fonts.Type1;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using System;
@@ -123,21 +122,13 @@ public class PdfSimpleFont : PdfSingleByteFont
     {
         try
         {
-            switch (FontDescriptor?.FontFileFormat)
+            if (FontDescriptor?.FontFileStream != null)
             {
-                case PdfFontFileFormat.Type1:
+                PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
+                IPdfTypeface typeface = loader.GetTypefaceFromFontProgram(FontDescriptor);
+
+                if (FontDescriptor.FontFileFormat == PdfFontFileFormat.Type1 && typeface is CffPdfTypeface type1Typeface)
                 {
-                    ReadOnlyMemory<byte> type1RawData = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    CffTypeface? cffTypeface = Type1ToCffConverter.GetCffFont(
-                        new Type1RawFontProgram(type1RawData, FontDescriptor.FontFileLength1, FontDescriptor.FontFileLength2, FontDescriptor.FontFileLength3),
-                        Document.LoggerFactory);
-
-                    if (cffTypeface == null)
-                    {
-                        _logger.LogWarning("Failed to get CFF font info for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to get CFF font info for font.");
-                    }
-
                     if (Encoding.BaseEncoding == PdfEncoding.Unknown)
                     {
                         PdfFontEncoding? knownEncoding = SingleByteEncodings.GetEncodingByName(BaseFont.ToPdfFontString());
@@ -149,29 +140,10 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     // CodeToName for Font1 already contains base encoding vector, so, if Encoding.BaseEncoding is unknown,
                     // it will fallback to correct CodeToName
-                    return BuildFromCffTypeface(new CffPdfTypeface(cffTypeface));
+                    return BuildFromCffTypeface(type1Typeface);
                 }
-                case PdfFontFileFormat.Type1C:
-                {
-                    ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-                    PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
-                    IPdfTypeface typeface = loader.GetTypefaceFromCff(cffBytes);
 
-                    return BuildFromTypeface(typeface);
-                }
-                case PdfFontFileFormat.OpenType:
-                case PdfFontFileFormat.TrueType:
-                {
-                    return LoadFromSfntFont();
-                }
-            }
-
-            if (FontDescriptor?.FontFileStream != null)
-            {
-                _logger.LogWarning(
-                    "Unsupported embedded font format '{Format}' for font '{FontName}', will attempt substitution",
-                    FontDescriptor.FontFileFormat,
-                    BaseFont);
+                return BuildFromTypeface(typeface);
             }
         }
 #pragma warning disable CA1031
@@ -205,19 +177,6 @@ public class PdfSimpleFont : PdfSingleByteFont
         CffByteCodeToGidMapper mapper = new(typeface.CffTypeface, typeface, Encoding);
 
         return new TypefaceResolution(typeface, mapper, isSubstituted: false, standardFontWidths: null);
-    }
-
-    /// <summary>
-    /// Loads a TrueType- or CFF-flavored OpenType font program and builds the matching code-to-GID
-    /// mapper: an sfnt cmap-based mapper for TrueType outlines, or a CFF built-in-encoding-based mapper
-    /// for CFF outlines.
-    /// </summary>
-    private TypefaceResolution LoadFromSfntFont()
-    {
-        PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
-        IPdfTypeface typeface = loader.GetTypefaceFromSfnt(FontDescriptor?.FontFileStream);
-
-        return BuildFromTypeface(typeface);
     }
 
     /// <summary>
