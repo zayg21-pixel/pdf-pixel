@@ -1,5 +1,5 @@
 using System;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -15,6 +15,8 @@ public sealed class PdfFontPathBuilder
     private const int DefaultCapacity = 4;
 
     private readonly PdfFontMatrix _matrix;
+    private readonly bool _isIdentityMatrix;
+
     private byte[] _buffer = [];
     private int _length;
 
@@ -23,7 +25,11 @@ public sealed class PdfFontPathBuilder
     /// <see cref="LineTo"/>, and <see cref="CubicTo"/> is transformed by <paramref name="matrix"/> before
     /// being stored -- pass <see cref="PdfFontMatrix.Identity"/> to store points unchanged.
     /// </summary>
-    public PdfFontPathBuilder(in PdfFontMatrix matrix) => _matrix = matrix;
+    public PdfFontPathBuilder(in PdfFontMatrix matrix)
+    {
+        _matrix = matrix;
+        _isIdentityMatrix = matrix.IsIdentity;
+    }
 
     /// <summary>
     /// Whether no segments have been accumulated yet.
@@ -35,8 +41,8 @@ public sealed class PdfFontPathBuilder
     /// </summary>
     public void MoveTo(float x, float y)
     {
-        (float mappedX, float mappedY) = _matrix.MapPoint(x, y);
-        WriteSegment(PdfFontPathSegmentType.MoveTo, stackalloc float[] { mappedX, mappedY });
+        StartSegment(PdfFontPathSegmentType.MoveTo, pointCount: 1);
+        WritePoint(x, y);
     }
 
     /// <summary>
@@ -44,8 +50,8 @@ public sealed class PdfFontPathBuilder
     /// </summary>
     public void LineTo(float x, float y)
     {
-        (float mappedX, float mappedY) = _matrix.MapPoint(x, y);
-        WriteSegment(PdfFontPathSegmentType.LineTo, stackalloc float[] { mappedX, mappedY });
+        StartSegment(PdfFontPathSegmentType.LineTo, pointCount: 1);
+        WritePoint(x, y);
     }
 
     /// <summary>
@@ -53,10 +59,10 @@ public sealed class PdfFontPathBuilder
     /// </summary>
     public void CubicTo(float x1, float y1, float x2, float y2, float x3, float y3)
     {
-        (float mappedX1, float mappedY1) = _matrix.MapPoint(x1, y1);
-        (float mappedX2, float mappedY2) = _matrix.MapPoint(x2, y2);
-        (float mappedX3, float mappedY3) = _matrix.MapPoint(x3, y3);
-        WriteSegment(PdfFontPathSegmentType.CubicTo, stackalloc float[] { mappedX1, mappedY1, mappedX2, mappedY2, mappedX3, mappedY3 });
+        StartSegment(PdfFontPathSegmentType.CubicTo, pointCount: 3);
+        WritePoint(x1, y1);
+        WritePoint(x2, y2);
+        WritePoint(x3, y3);
     }
 
     /// <summary>
@@ -77,7 +83,7 @@ public sealed class PdfFontPathBuilder
     /// <summary>
     /// Closes the current subpath with a straight line back to its start.
     /// </summary>
-    public void Close() => WriteSegment(PdfFontPathSegmentType.Close, ReadOnlySpan<float>.Empty);
+    public void Close() => StartSegment(PdfFontPathSegmentType.Close, pointCount: 0);
 
     /// <summary>
     /// Removes all accumulated segments so the builder can be reused. The underlying buffer is kept, not
@@ -86,27 +92,49 @@ public sealed class PdfFontPathBuilder
     public void Reset() => _length = 0;
 
     /// <summary>
-    /// Detaches the segments accumulated so far as a new buffer, in the format
-    /// <c>PdfPixel.Geometry.PdfPath</c>'s constructor accepts directly. The builder remains usable
-    /// afterward; the returned buffer is unaffected by further building or a later <see cref="Reset"/>.
+    /// Gives the segments accumulated so far to the caller as a buffer, in the format
+    /// <c>PdfPixel.Geometry.PdfPath</c>'s constructor accepts directly, and leaves this builder empty.
+    /// A builder used again after this starts a new path rather than continuing the returned one.
     /// </summary>
-    public ReadOnlyMemory<byte> ToPath()
+    public ReadOnlyMemory<byte> Detach()
     {
-        var snapshot = new byte[_length];
-        Buffer.BlockCopy(_buffer, 0, snapshot, 0, _length);
-        return snapshot;
+        ReadOnlyMemory<byte> detached = _buffer.AsMemory(0, _length);
+
+        _buffer = Array.Empty<byte>();
+        _length = 0;
+
+        return detached;
     }
 
-    private void WriteSegment(PdfFontPathSegmentType type, in ReadOnlySpan<float> coordinates)
+    /// <summary>
+    /// Writes the type of a segment carrying <paramref name="pointCount"/> points and makes room for those
+    /// points, which the caller writes with <see cref="WritePoint"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void StartSegment(PdfFontPathSegmentType type, int pointCount)
     {
-        ReadOnlySpan<byte> coordinateBytes = MemoryMarshal.AsBytes(coordinates);
-        EnsureCapacity(_length + 1 + coordinateBytes.Length);
+        EnsureCapacity(_length + 1 + (pointCount * 2 * sizeof(float)));
 
         _buffer[_length] = (byte)type;
         _length++;
+    }
 
-        coordinateBytes.CopyTo(_buffer.AsSpan(_length));
-        _length += coordinateBytes.Length;
+    /// <summary>
+    /// Writes <paramref name="x"/>/<paramref name="y"/>, transformed by this builder's matrix, at the end
+    /// of the buffer, in the room the segment it belongs to has already reserved.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WritePoint(float x, float y)
+    {
+        if (!_isIdentityMatrix)
+        {
+            (x, y) = _matrix.MapPoint(x, y);
+        }
+
+        Unsafe.WriteUnaligned(ref _buffer[_length], x);
+        _length += sizeof(float);
+        Unsafe.WriteUnaligned(ref _buffer[_length], y);
+        _length += sizeof(float);
     }
 
     private void EnsureCapacity(int requiredLength)

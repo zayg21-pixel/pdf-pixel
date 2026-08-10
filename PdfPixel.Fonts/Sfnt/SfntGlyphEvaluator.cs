@@ -82,7 +82,7 @@ public class SfntGlyphEvaluator
         PdfFontPathBuilder pathBuilder = new(matrix);
         EmitOutline(outline, pathBuilder);
 
-        return new SfntGlyphCharacter(pathBuilder.ToPath(), repacked);
+        return new SfntGlyphCharacter(pathBuilder.Detach(), repacked);
     }
 
     /// <summary>

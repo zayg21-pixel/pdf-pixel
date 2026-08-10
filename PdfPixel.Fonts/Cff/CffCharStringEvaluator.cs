@@ -96,7 +96,7 @@ public class CffCharStringEvaluator
             context.Writer.PrependWidth(context.Width - context.NominalWidthX);
         }
 
-        return new CffCharacter(context.PathBuilder.ToPath(), context.Writer.ToArray(), context.Width, dict);
+        return new CffCharacter(context.PathBuilder.Detach(), context.Writer.ToArray(), context.Width, dict);
     }
 
     private void Execute(in ReadOnlySpan<byte> data, CffCharStringContext context, int depth)

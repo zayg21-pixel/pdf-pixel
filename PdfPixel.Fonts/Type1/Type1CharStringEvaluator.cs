@@ -83,7 +83,7 @@ internal sealed class Type1CharStringEvaluator
             context.Writer.PrependWidth(context.Width);
         }
 
-        return new CffCharacter(context.PathBuilder.ToPath(), context.Writer.ToArray(), context.Width, dict: null);
+        return new CffCharacter(context.PathBuilder.Detach(), context.Writer.ToArray(), context.Width, dict: null);
     }
 
     private void Execute(in ReadOnlySpan<byte> data, Type1CharStringContext context, int depth)

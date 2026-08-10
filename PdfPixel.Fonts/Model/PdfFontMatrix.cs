@@ -1,4 +1,8 @@
+using System;
 using System.Globalization;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -7,7 +11,8 @@ namespace PdfPixel.Fonts.Model;
 /// CFF/Type1/Type3 FontMatrix. Structurally the font-space counterpart of <c>PdfPixel.Geometry.PdfMatrix</c>
 /// (that type lives in the main PdfPixel assembly, which PdfPixel.Fonts does not reference).
 /// </summary>
-public readonly struct PdfFontMatrix
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
 {
     /// <summary>
     /// Initializes a new <see cref="PdfFontMatrix"/> from its 6 operands.
@@ -15,10 +20,10 @@ public readonly struct PdfFontMatrix
     public PdfFontMatrix(float scaleX, float skewX, float transX, float skewY, float scaleY, float transY)
     {
         ScaleX = scaleX;
-        SkewX = skewX;
-        TransX = transX;
         SkewY = skewY;
+        SkewX = skewX;
         ScaleY = scaleY;
+        TransX = transX;
         TransY = transY;
     }
 
@@ -28,24 +33,24 @@ public readonly struct PdfFontMatrix
     public float ScaleX { get; }
 
     /// <summary>
-    /// Horizontal skew.
-    /// </summary>
-    public float SkewX { get; }
-
-    /// <summary>
-    /// Horizontal translation.
-    /// </summary>
-    public float TransX { get; }
-
-    /// <summary>
     /// Vertical skew.
     /// </summary>
     public float SkewY { get; }
 
     /// <summary>
+    /// Horizontal skew.
+    /// </summary>
+    public float SkewX { get; }
+
+    /// <summary>
     /// Vertical scale.
     /// </summary>
     public float ScaleY { get; }
+
+    /// <summary>
+    /// Horizontal translation.
+    /// </summary>
+    public float TransX { get; }
 
     /// <summary>
     /// Vertical translation.
@@ -66,7 +71,18 @@ public readonly struct PdfFontMatrix
     /// <summary>
     /// Whether this matrix equals <see cref="Identity"/>.
     /// </summary>
-    public bool IsIdentity => Equals(Identity);
+    public bool IsIdentity
+    {
+        get
+        {
+            return ScaleX == 1f
+                && ScaleY == 1f
+                && SkewX == 0f
+                && SkewY == 0f
+                && TransX == 0f
+                && TransY == 0f;
+        }
+    }
 
     /// <summary>
     /// Design units per em square implied by this matrix's horizontal scale, i.e. the units-per-em a
@@ -98,15 +114,17 @@ public readonly struct PdfFontMatrix
     /// </summary>
     public static PdfFontMatrix Concat(in PdfFontMatrix first, in PdfFontMatrix second)
     {
-        float scaleX = (first.ScaleX * second.ScaleX) + (first.SkewX * second.SkewY);
-        float skewX = (first.ScaleX * second.SkewX) + (first.SkewX * second.ScaleY);
-        float transX = (first.ScaleX * second.TransX) + (first.SkewX * second.TransY) + first.TransX;
+        if (first.IsIdentity)
+        {
+            return second;
+        }
 
-        float skewY = (first.SkewY * second.ScaleX) + (first.ScaleY * second.SkewY);
-        float scaleY = (first.SkewY * second.SkewX) + (first.ScaleY * second.ScaleY);
-        float transY = (first.SkewY * second.TransX) + (first.ScaleY * second.TransY) + first.TransY;
+        if (second.IsIdentity)
+        {
+            return first;
+        }
 
-        return new PdfFontMatrix(scaleX, skewX, transX, skewY, scaleY, transY);
+        return AsPdfFontMatrix(AsMatrix3x2(second) * AsMatrix3x2(first));
     }
 
     /// <summary>
@@ -122,6 +140,7 @@ public readonly struct PdfFontMatrix
     /// <summary>
     /// Transforms the point <c>(x, y)</c> by this matrix.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public (float X, float Y) MapPoint(float x, float y)
     {
         if (IsIdentity)
@@ -129,10 +148,47 @@ public readonly struct PdfFontMatrix
             return (x, y);
         }
 
-        return ((ScaleX * x) + (SkewX * y) + TransX, (SkewY * x) + (ScaleY * y) + TransY);
+        Vector2 mapped = Vector2.Transform(new Vector2(x, y), AsMatrix3x2(this));
+
+        return (mapped.X, mapped.Y);
     }
+
+    /// <inheritdoc/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Equals(PdfFontMatrix other)
+    {
+        return ScaleX == other.ScaleX
+            && SkewX == other.SkewX
+            && TransX == other.TransX
+            && SkewY == other.SkewY
+            && ScaleY == other.ScaleY
+            && TransY == other.TransY;
+    }
+
+    /// <inheritdoc/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public override bool Equals(object? obj) => obj is PdfFontMatrix other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(ScaleX, SkewX, TransX, SkewY, ScaleY, TransY);
+
+    /// <summary>
+    /// Determines whether two matrices have the same operands.
+    /// </summary>
+    public static bool operator ==(in PdfFontMatrix left, in PdfFontMatrix right) => left.Equals(right);
+
+    /// <summary>
+    /// Determines whether two matrices have different operands.
+    /// </summary>
+    public static bool operator !=(in PdfFontMatrix left, in PdfFontMatrix right) => !left.Equals(right);
 
     /// <inheritdoc/>
     public override string ToString()
         => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {TransX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TransY.ToString(CultureInfo.InvariantCulture)}]";
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Matrix3x2 AsMatrix3x2(in PdfFontMatrix matrix) => Unsafe.As<PdfFontMatrix, Matrix3x2>(ref Unsafe.AsRef(in matrix));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static PdfFontMatrix AsPdfFontMatrix(Matrix3x2 matrix) => Unsafe.As<Matrix3x2, PdfFontMatrix>(ref matrix);
 }
