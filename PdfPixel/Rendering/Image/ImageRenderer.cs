@@ -60,10 +60,24 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
+        ImageFillRenderTarget target = new(pdfImage, state, _factory);
+
+        if (HasOwnMask(pdfImage))
+        {
+            target.Render(processor);
+            return;
+        }
+
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 
-        ImageFillRenderTarget target = new(pdfImage, state, _factory);
         target.Render(processor);
+    }
+
+    private static bool HasOwnMask(PdfImage pdfImage)
+    {
+        return pdfImage.SoftMask != null
+            || pdfImage.StencilMask != null
+            || pdfImage.MaskArray != null;
     }
 }
