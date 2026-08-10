@@ -7,50 +7,43 @@ namespace PdfPixel.Commands.Image;
 internal static class PdfImageCommandUtilities
 {
     /// <summary>
-    /// Computes where <paramref name="tilePosition"/> should be drawn, snapping to whole device
-    /// pixels when the CTM is axis-aligned, falling back to the tile's native pixel
-    /// size with no snapping otherwise.
+    /// Computes where <paramref name="tilePosition"/> should be drawn, putting the tile on whole device
+    /// pixels under a matrix that keeps the axes on the grid, and falling back to the tile's native pixel
+    /// size with no snapping otherwise. The snapped region is brought back into the space the current
+    /// transformation is given in, the space paths are drawn and clipped in, so that a tile edge and the
+    /// edge of a fill or clip beside it are carried onto the device by the same transform and land on the
+    /// same pixel.
     /// </summary>
     public static SnappedTilePlacement GetSnappedTilePlacement(
         PdfCommandExecutionContext executionContext, in PdfIntegerSize imageSize, in PdfIntegerRectangle tilePosition, bool interpolate)
     {
-        PdfMatrix baseCtm = CommandHelpers.GetScaledMatrix(executionContext);
-        PdfMatrix ctm = GetImageCtm(baseCtm);
-        bool shouldInterpolate = ShouldInterpolate(ctm, imageSize, interpolate);
+        PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
+        PdfMatrix imageCtm = GetImageCtm(deviceMatrix);
+        bool shouldInterpolate = ShouldInterpolate(imageCtm, imageSize, interpolate);
 
-        // TODO: [MEDIUM] a quarter turn keeps a tile on the pixel grid but is rejected here, so a page
-        // rotated by 90 or 270 degrees never snaps its tiles. Accepting one needs GetSignedPlacementMatrix
-        // reworked first: it recovers the axis signs from Sign(ScaleX)/Sign(ScaleY), both zero on a
-        // quarter turn, which would leave the placement degenerate.
-        if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsAxisAligned(ctm))
+        if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsGridPreserving(deviceMatrix))
         {
             return GetUnsnappedTilePlacement(imageSize, tilePosition, shouldInterpolate);
         }
 
-        PdfPoint topLeft = ctm.MapPoint(new PdfPoint(tilePosition.Left / (float)imageSize.Width, tilePosition.Top / (float)imageSize.Height));
-        PdfPoint bottomRight = ctm.MapPoint(new PdfPoint(tilePosition.Right / (float)imageSize.Width, tilePosition.Bottom / (float)imageSize.Height));
+        PdfRectangle tileImageRect = new(
+            tilePosition.Left / (float)imageSize.Width,
+            tilePosition.Top / (float)imageSize.Height,
+            tilePosition.Right / (float)imageSize.Width,
+            tilePosition.Bottom / (float)imageSize.Height);
 
-        float roundedLeft = MathF.Round(topLeft.X);
-        float roundedTop = MathF.Round(topLeft.Y);
-        float roundedRight = MathF.Round(bottomRight.X);
-        float roundedBottom = MathF.Round(bottomRight.Y);
+        PdfRectangle deviceRect = CommandHelpers.SnapToDevicePixels(imageCtm.MapRect(tileImageRect));
+        PdfRectangle sourceRect = deviceMatrix.Invert().MapRect(deviceRect);
 
-        float deviceWidth = MathF.Abs(roundedRight - roundedLeft);
-        if (deviceWidth == 0)
-        {
-            deviceWidth = 1;
-        }
+        // How many device pixels the tile is sampled to along each of its own axes. A quarter turn
+        // carries those axes onto the other one, so the device rectangle measures them the other way
+        // round; where the tile ends up on the page is the transformation's business, not this one's.
+        bool isQuarterTurn = !CommandHelpers.IsAxisAligned(deviceMatrix);
+        PdfSize deviceSize = new(
+            isQuarterTurn ? deviceRect.Height : deviceRect.Width,
+            isQuarterTurn ? deviceRect.Width : deviceRect.Height);
 
-        float deviceHeight = MathF.Abs(roundedBottom - roundedTop);
-        if (deviceHeight == 0)
-        {
-            deviceHeight = 1;
-        }
-
-        PdfSize deviceSize = new(deviceWidth, deviceHeight);
-        PdfMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, ctm, roundedLeft, roundedTop);
-
-        return new SnappedTilePlacement(deviceSize, placementMatrix, shouldInterpolate);
+        return new SnappedTilePlacement(deviceSize, GetPlacementMatrix(sourceRect, deviceSize), shouldInterpolate);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -67,24 +60,21 @@ internal static class PdfImageCommandUtilities
     }
 
     /// <summary>
-    /// Builds the matrix that places a tile at the rounded device position while re-applying the
-    /// axis signs that rounding stripped out, so mirrored images (e.g. the CTM's baked-in Y-flip)
-    /// still draw the right way up. <paramref name="canvasCtm"/> is the transform actually on the
-    /// canvas at draw time (no image flip), used to cancel it out; <paramref name="imageCtm"/>
-    /// is the image-inclusive matrix the rounded position/sign were computed from.
+    /// Builds the matrix that lays a tile sampled at <paramref name="deviceSize"/> into
+    /// <paramref name="sourceRect"/>, the region it covers in the space the current transformation is
+    /// given in. The tile's rows run down that space while it runs up, so the matrix turns them over;
+    /// how the tile is then turned or mirrored onto the page is left to the transformation itself.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static PdfMatrix GetSignedPlacementMatrix(in PdfMatrix canvasCtm, in PdfMatrix imageCtm, float roundedLeft, float roundedTop)
+    private static PdfMatrix GetPlacementMatrix(in PdfRectangle sourceRect, in PdfSize deviceSize)
     {
-        PdfMatrix signedPlacement = new(
-            MathF.Sign(imageCtm.ScaleX),
+        return new(
+            sourceRect.Width / deviceSize.Width,
             0,
-            roundedLeft,
+            sourceRect.Left,
             0,
-            MathF.Sign(imageCtm.ScaleY),
-            roundedTop);
-
-        return PdfMatrix.Concat(canvasCtm.Invert(), signedPlacement);
+            -sourceRect.Height / deviceSize.Height,
+            sourceRect.Bottom);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -120,10 +110,19 @@ internal static class PdfImageCommandUtilities
             return default;
         }
 
-        if (CommandHelpers.IsAxisAligned(ctm))
+        if (CommandHelpers.IsGridPreserving(ctm))
         {
-            int scaledWidth = Math.Abs((int)Math.Round(edgeX.X) - (int)Math.Round(origin.X));
-            int scaledHeight = Math.Abs((int)Math.Round(edgeY.Y) - (int)Math.Round(origin.Y));
+            // A quarter turn carries the image's own x axis onto the device y axis and its y axis onto
+            // the device x axis, so each is measured wherever the matrix put it. Measuring between
+            // snapped coordinates is what makes the size decoded here the size the tile is placed at.
+            bool isQuarterTurn = !CommandHelpers.IsAxisAligned(ctm);
+            float imageXAxisStart = isQuarterTurn ? origin.Y : origin.X;
+            float imageXAxisEnd = isQuarterTurn ? edgeX.Y : edgeX.X;
+            float imageYAxisStart = isQuarterTurn ? origin.X : origin.Y;
+            float imageYAxisEnd = isQuarterTurn ? edgeY.X : edgeY.Y;
+
+            var scaledWidth = (int)MathF.Abs(CommandHelpers.SnapToWholePixel(imageXAxisEnd) - CommandHelpers.SnapToWholePixel(imageXAxisStart));
+            var scaledHeight = (int)MathF.Abs(CommandHelpers.SnapToWholePixel(imageYAxisEnd) - CommandHelpers.SnapToWholePixel(imageYAxisStart));
 
             return new PdfIntegerSize(Math.Max(1, scaledWidth), Math.Max(1, scaledHeight));
         }

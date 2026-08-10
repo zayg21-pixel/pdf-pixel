@@ -24,6 +24,12 @@ internal static class SkCanvasExtensions
         try
         {
             canvas.Scale(request.Scale, request.Scale);
+
+            // TODO: [MEDIUM] translate by a whole number of device pixels here. This shifts the page by
+            // Offset * Scale device pixels, which is fractional, while content commands snap their
+            // geometry to whole pixels against a matrix carrying only ScaleFactor. Snapped geometry
+            // therefore reaches the framebuffer off the grid, and a full-page image can come out a
+            // column short of the unsnapped page rect drawn under it.
             canvas.Translate(page.Offset.X, page.Offset.Y);
 
             SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);

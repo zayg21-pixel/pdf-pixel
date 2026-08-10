@@ -62,18 +62,22 @@ internal static class CommandHelpers
     }
 
     /// <summary>
-    /// Puts every edge of <paramref name="deviceRect"/> on the whole device pixel nearest to it. The
-    /// rectangle can come back empty on an axis it was too thin to reach a pixel on; a caller that draws
-    /// a mark rather than clipping to one gives that axis a pixel of its own.
+    /// Puts every edge of <paramref name="deviceRect"/> on the whole device pixel nearest to it, and
+    /// gives an axis whose edges rounded onto the same boundary a whole pixel of its own, so that a mark
+    /// too thin to round to anything still covers a row. The rescued axis keeps the edge it rounded to
+    /// and grows away from it, so the edge geometry abutting this one shares stays shared.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfRectangle SnapToDevicePixels(in PdfRectangle deviceRect)
     {
-        return new(
-            SnapToWholePixel(deviceRect.Left),
-            SnapToWholePixel(deviceRect.Top),
-            SnapToWholePixel(deviceRect.Right),
-            SnapToWholePixel(deviceRect.Bottom));
+        float left = SnapToWholePixel(deviceRect.Left);
+        float top = SnapToWholePixel(deviceRect.Top);
+
+        return new PdfRectangle(
+            left,
+            top,
+            MathF.Max(SnapToWholePixel(deviceRect.Right), left + 1f),
+            MathF.Max(SnapToWholePixel(deviceRect.Bottom), top + 1f));
     }
 
     /// <summary>
@@ -85,7 +89,7 @@ internal static class CommandHelpers
     /// from changing width as it moves across the grid.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float SnapToWholePixel(float deviceCoordinate) => MathF.Floor(deviceCoordinate + 0.5f);
+    public static float SnapToWholePixel(float deviceCoordinate) => MathF.Floor(deviceCoordinate + 0.5f);
 
     /// <summary>
     /// Returns whether the pattern is better covered by repeating a recorded tile than by drawing the

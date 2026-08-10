@@ -194,19 +194,12 @@ internal readonly struct PdfPathDeviceGeometry
 
     // Puts the geometry on whole device pixels and brings it back to the space it was given in. The
     // rounding sends each edge to the pixel nearest it and nothing more, so that geometry abutting this
-    // keeps abutting it; an axis too thin to reach a pixel that way rounds away to nothing, and gets a
-    // whole pixel here instead, so a rule too thin to round to anything still covers a row.
+    // keeps abutting it.
     private static PdfRectangle SnapToWholeDevicePixels(in PdfRectangle bounds, in PdfMatrix deviceMatrix)
     {
         PdfRectangle deviceRect = CommandHelpers.SnapToDevicePixels(deviceMatrix.MapRect(bounds));
 
-        PdfRectangle visibleDeviceRect = new(
-            deviceRect.Left,
-            deviceRect.Top,
-            MathF.Max(deviceRect.Right, deviceRect.Left + 1f),
-            MathF.Max(deviceRect.Bottom, deviceRect.Top + 1f));
-
-        return deviceMatrix.Invert().MapRect(visibleDeviceRect);
+        return deviceMatrix.Invert().MapRect(deviceRect);
     }
 
     // How thick the mark a fill leaves is, in device pixels. A fill that is not one rectangle covers
