@@ -91,13 +91,13 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfString xObjectName = operands[0].AsName();
-        if (xObjectName.IsEmpty)
+        PdfString? xObjectName = operands[0].AsName();
+        if (xObjectName == null)
         {
             return;
         }
 
-        PdfXObject? pageObject = _page.Cache.GetXObject(xObjectName);
+        PdfXObject? pageObject = _page.Cache.GetXObject(xObjectName.Value);
 
         if (pageObject == null)
         {
@@ -157,14 +157,14 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfString shadingName = operands[0].AsName();
-        if (shadingName.IsEmpty)
+        PdfString? shadingName = operands[0].AsName();
+        if (shadingName == null)
         {
             return;
         }
 
         PdfDictionary? shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
-        PdfObject? shadingObject = shadings?.GetObject(shadingName);
+        PdfObject? shadingObject = shadings?.GetObject(shadingName.Value);
 
         if (shadingObject == null)
         {

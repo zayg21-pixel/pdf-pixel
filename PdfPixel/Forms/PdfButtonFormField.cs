@@ -48,13 +48,13 @@ public class PdfButtonFormField : PdfFormField
     /// <returns>True if the button is checked, false otherwise.</returns>
     public bool IsChecked()
     {
-        if (Value == null || Value.Type != PdfValueType.Name)
+        PdfString? valueName = Value.AsName();
+        if (valueName == null)
         {
             return false;
         }
 
-        PdfString valueName = Value.AsName();
-        return !valueName.IsEmpty && valueName != (PdfString)"Off"u8;
+        return !valueName.Value.IsEmpty && valueName.Value != (PdfString)"Off"u8;
     }
 
     /// <summary>

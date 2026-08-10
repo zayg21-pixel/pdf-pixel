@@ -243,8 +243,8 @@ internal class ColorOperators : IOperatorProcessor
         PdfColorSpaceConverter converter = state.FillColorConverter;
         if (converter is PatternColorSpaceConverter)
         {
-            PdfString patternName = operands[operands.Length - 1].AsName();
-            PdfPattern? resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
+            PdfString? patternName = operands[operands.Length - 1].AsName();
+            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(_renderer, patternName.Value);
 
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
@@ -289,8 +289,8 @@ internal class ColorOperators : IOperatorProcessor
         PdfColorSpaceConverter converter = state.StrokeColorConverter;
         if (converter is PatternColorSpaceConverter)
         {
-            PdfString patternName = operands[operands.Length - 1].AsName();
-            PdfPattern? resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
+            PdfString? patternName = operands[operands.Length - 1].AsName();
+            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(_renderer, patternName.Value);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
                 PdfColor tintColor = PdfColors.Black;

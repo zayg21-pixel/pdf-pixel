@@ -179,14 +179,14 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        PdfString fontName = operands[0].AsName();
+        PdfString? fontName = operands[0].AsName();
         float fontSize = operands[1].AsFloat();
-        if (fontName.IsEmpty)
+        if (fontName == null)
         {
             return;
         }
 
-        graphicsState.CurrentFont = _page.Cache.GetFont(fontName);
+        graphicsState.CurrentFont = _page.Cache.GetFont(fontName.Value);
         graphicsState.FontSize = fontSize;
     }
 

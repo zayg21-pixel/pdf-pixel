@@ -78,8 +78,13 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfString tagName = operands[0].AsName();
-        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName, propertiesDictionary: null);
+        PdfString? tagName = operands[0].AsName();
+        if (tagName == null)
+        {
+            return;
+        }
+
+        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null);
     }
 
     private void ProcessMarkedContentPointWithProperties(PdfGraphicsState graphicsState)
@@ -90,9 +95,14 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfString tagName = operands[0].AsName();
+        PdfString? tagName = operands[0].AsName();
+        if (tagName == null)
+        {
+            return;
+        }
+
         PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
-        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName, propertiesDictionary);
+        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary);
     }
 
     private void ProcessBeginMarkedContent()
@@ -103,8 +113,13 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfString tagName = operands[0].AsName();
-        PdfMarkedContent markedContent = new(tagName) { TextMarkup = TryParseTextMarkup(tagName, propertiesDictionary: null) };
+        PdfString? tagName = operands[0].AsName();
+        if (tagName == null)
+        {
+            return;
+        }
+
+        PdfMarkedContent markedContent = new(tagName.Value) { TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null) };
 
         _processor.Process(new BeginMarkedContentCommand(markedContent));
     }
@@ -119,10 +134,15 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfString tagName = operands[0].AsName();
-        PdfMarkedContent markedContent = new(tagName);
+        PdfString? tagName = operands[0].AsName();
+        if (tagName == null)
+        {
+            return;
+        }
 
-        if (tagName == PdfTokens.OptionalContentKey)
+        PdfMarkedContent markedContent = new(tagName.Value);
+
+        if (tagName.Value == PdfTokens.OptionalContentKey)
         {
             PdfObject? propertiesObject = ResolvePropertiesObject(operands[1]);
             if (propertiesObject != null)
@@ -133,7 +153,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         else
         {
             PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
-            markedContent.TextMarkup = TryParseTextMarkup(tagName, propertiesDictionary);
+            markedContent.TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary);
         }
 
         _processor.Process(new BeginMarkedContentCommand(markedContent));
@@ -197,14 +217,14 @@ internal class MarkedContentOperators : IOperatorProcessor
             return inlineDictionary;
         }
 
-        PdfString propertiesName = propertiesOperand.AsName();
-        if (propertiesName.IsEmpty)
+        PdfString? propertiesName = propertiesOperand.AsName();
+        if (propertiesName == null)
         {
             return null;
         }
 
         PdfDictionary? properties = _page.ResourceDictionary.GetDictionary(PdfTokens.PropertiesKey);
-        return properties?.GetDictionary(propertiesName);
+        return properties?.GetDictionary(propertiesName.Value);
     }
 
     private PdfObject? ResolvePropertiesObject(IPdfValue propertiesOperand)
@@ -217,13 +237,13 @@ internal class MarkedContentOperators : IOperatorProcessor
         }
 
         // Resource name — look up in /Properties subdictionary.
-        PdfString propertiesName = propertiesOperand.AsName();
-        if (propertiesName.IsEmpty)
+        PdfString? propertiesName = propertiesOperand.AsName();
+        if (propertiesName == null)
         {
             return null;
         }
 
         PdfDictionary? properties = _page.ResourceDictionary.GetDictionary(PdfTokens.PropertiesKey);
-        return properties?.GetObject(propertiesName);
+        return properties?.GetObject(propertiesName.Value);
     }
 }

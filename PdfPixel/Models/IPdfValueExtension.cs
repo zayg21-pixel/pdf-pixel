@@ -9,18 +9,19 @@ namespace PdfPixel.Models;
 internal static class IPdfValueExtension
 {
     /// <summary>
-    /// Returns the value as a PDF name if the type is <see cref="PdfValueType.Name"/>; otherwise returns <c>default</c>.
+    /// Returns the value as a PDF name if the type is <see cref="PdfValueType.Name"/>; otherwise returns <c>null</c>.
+    /// An empty name (<c>/</c>) is a valid name and is returned as an empty <see cref="PdfString"/>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The <see cref="PdfString"/> representing the name, or <c>default</c> if not a name.</returns>
-    public static PdfString AsName(this IPdfValue? value)
+    /// <returns>The <see cref="PdfString"/> representing the name, or <c>null</c> if not a name.</returns>
+    public static PdfString? AsName(this IPdfValue? value)
     {
         if (value is IPdfValue<PdfString> nameValue && nameValue.Type == PdfValueType.Name)
         {
             return nameValue.Value;
         }
 
-        return default;
+        return null;
     }
 
     /// <summary>

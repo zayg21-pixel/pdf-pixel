@@ -174,12 +174,12 @@ public sealed class PdfStreamDecoder
                 }
             }
         }
-        else if (filterValue.Type == PdfValueType.Name)
+        else
         {
-            PdfString filterName = filterValue.AsName();
-            if (!filterName.IsEmpty)
+            PdfString? filterName = filterValue.AsName();
+            if (filterName != null && !filterName.Value.IsEmpty)
             {
-                filters.Add(filterName.AsEnum<PdfFilterType>());
+                filters.Add(filterName.Value.AsEnum<PdfFilterType>());
             }
         }
 

@@ -26,12 +26,12 @@ internal static class PdfFontEncodingParser
         }
 
         // Name case: /Encoding /WinAnsiEncoding, /UniJIS-UTF16-H, etc.
-        PdfString name = encodingValue.AsName();
+        PdfString? encodingName = encodingValue.AsName();
 
-        if (!name.IsEmpty)
+        if (encodingName != null)
         {
-            PdfEncoding encoding = name.AsEnum<PdfEncoding>();
-            return new PdfFontEncodingInfo(encoding, name, null);
+            PdfEncoding encoding = encodingName.Value.AsEnum<PdfEncoding>();
+            return new PdfFontEncodingInfo(encoding, encodingName.Value, null);
         }
 
         // Dictionary case: may include /BaseEncoding and /Differences
@@ -39,8 +39,8 @@ internal static class PdfFontEncodingParser
         if (encodingDictionary != null)
         {
             // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
-            name = encodingDictionary.GetName(PdfTokens.BaseEncodingKey);
-            PdfEncoding baseEncoding = name.AsEnum<PdfEncoding>();
+            PdfString baseEncodingName = encodingDictionary.GetName(PdfTokens.BaseEncodingKey);
+            PdfEncoding baseEncoding = baseEncodingName.AsEnum<PdfEncoding>();
 
             Dictionary<int, PdfString> differences = [];
             PdfArray? diffs = encodingDictionary.GetArray(PdfTokens.DifferencesKey);
@@ -60,16 +60,19 @@ internal static class PdfFontEncodingParser
                     if (item.Type == PdfValueType.Integer)
                     {
                         currentCode = item.AsInteger();
+                        continue;
                     }
-                    else if (item.Type == PdfValueType.Name && currentCode >= 0)
+
+                    PdfString? differenceName = item.AsName();
+                    if (differenceName != null && currentCode >= 0)
                     {
-                        differences[currentCode] = item.AsName();
+                        differences[currentCode] = differenceName.Value;
                         currentCode++;
                     }
                 }
             }
 
-            return new PdfFontEncodingInfo(baseEncoding, name, differences);
+            return new PdfFontEncodingInfo(baseEncoding, baseEncodingName, differences);
         }
 
         // Fallback: unknown encoding representation

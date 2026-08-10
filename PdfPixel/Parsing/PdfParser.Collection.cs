@@ -55,8 +55,8 @@ internal partial struct PdfParser
         while (scanIndex < values.Count)
         {
             IPdfValue possibleKey = values[scanIndex];
-            PdfString keyName = possibleKey.AsName();
-            if (keyName.IsEmpty)
+            PdfString? keyName = possibleKey.AsName();
+            if (keyName == null)
             {
                 scanIndex++;
                 continue;
@@ -69,7 +69,7 @@ internal partial struct PdfParser
             }
 
             IPdfValue value = values[valueIndex];
-            rawMap[keyName] = value;
+            rawMap[keyName.Value] = value;
             scanIndex = valueIndex + 1;
         }
 

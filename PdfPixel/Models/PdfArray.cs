@@ -67,7 +67,7 @@ public class PdfArray
             return default;
         }
 
-        return value.AsName();
+        return value.AsName() ?? default;
     }
 
     /// <summary>

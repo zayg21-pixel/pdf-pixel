@@ -247,9 +247,10 @@ internal sealed partial class ColorSpaceResolver
             return false;
         }
 
-        if (value.Type == PdfValueType.Name)
+        PdfString? nameValue = value.AsName();
+        if (nameValue != null)
         {
-            name = value.AsName();
+            name = nameValue.Value;
             return !name.IsEmpty;
         }
 

@@ -115,7 +115,13 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.RenderingIntent = operands[0].AsName().AsEnum<PdfRenderingIntent>();
+        PdfString? intentName = operands[0].AsName();
+        if (intentName == null)
+        {
+            return;
+        }
+
+        graphicsState.RenderingIntent = intentName.Value.AsEnum<PdfRenderingIntent>();
     }
 
     private void ProcessSaveGraphicsState(PdfGraphicsState graphicsState)
@@ -242,8 +248,13 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        PdfString gsName = operands[0].AsName();
-        _page.Cache.ApplyGraphicsStateParameters(gsName, _processor, graphicsState);
+        PdfString? gsName = operands[0].AsName();
+        if (gsName == null)
+        {
+            return;
+        }
+
+        _page.Cache.ApplyGraphicsStateParameters(gsName.Value, _processor, graphicsState);
     }
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)

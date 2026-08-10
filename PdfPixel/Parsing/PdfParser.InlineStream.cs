@@ -74,18 +74,13 @@ internal partial struct PdfParser
             for (int parameterIndex = 0; parameterIndex + 1 < parameters.Count; parameterIndex += 2)
             {
                 IPdfValue keyValue = parameters[parameterIndex];
-                if (keyValue.Type != PdfValueType.Name)
+                PdfString? rawKey = keyValue.AsName();
+                if (rawKey == null)
                 {
                     break;
                 }
 
-                PdfString rawKey = keyValue.AsName();
-                if (rawKey.IsEmpty)
-                {
-                    continue;
-                }
-
-                PdfString expandedKey = ExpandInlineImageKey(rawKey);
+                PdfString expandedKey = ExpandInlineImageKey(rawKey.Value);
                 if (!imageDictionary.HasKey(expandedKey))
                 {
                     imageDictionary.Set(expandedKey, parameters[parameterIndex + 1]);
@@ -352,12 +347,13 @@ internal partial struct PdfParser
 
     private static int? ResolveInlineComponentCount(IPdfValue? colorSpaceValue)
     {
-        if (colorSpaceValue == null || colorSpaceValue.Type != PdfValueType.Name)
+        PdfString? colorSpaceName = colorSpaceValue.AsName();
+        if (colorSpaceName == null)
         {
             return null;
         }
 
-        switch (colorSpaceValue.AsName().AsEnum<PdfColorSpaceType>())
+        switch (colorSpaceName.Value.AsEnum<PdfColorSpaceType>())
         {
             case PdfColorSpaceType.DeviceGray:
                 return 1;
