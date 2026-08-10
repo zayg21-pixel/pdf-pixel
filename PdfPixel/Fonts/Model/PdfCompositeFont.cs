@@ -347,9 +347,10 @@ public class PdfCompositeFont : PdfFontBase
     /// Converts a character code to the Unicode string used to select and shape a substitute glyph.
     /// When the descendant is a non-embedded CIDFontType2 font with an Identity CID ordering and the
     /// /ToUnicode CMap has no genuine bfchar/bfrange entries (only cidchar/cidrange, which some
-    /// producers mislabel as /ToUnicode), resolves the CID against the built-in standard-font glyph
-    /// map instead, since such CIDs are commonly raw glyph indices of a well-known non-embedded font.
-    /// Falls back to <see cref="GetUnicodeString"/> in every other case.
+    /// producers mislabel as /ToUnicode), resolves the glyph index against the built-in standard-font
+    /// glyph map instead, since such fonts commonly address a well-known non-embedded font by glyph
+    /// index. A /CIDToGIDMap turns the CID into that glyph index; without one the CID is the glyph
+    /// index itself. Falls back to <see cref="GetUnicodeString"/> in every other case.
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string to shape against, or <see langword="null"/> if none is available.</returns>
@@ -378,7 +379,21 @@ public class PdfCompositeFont : PdfFontBase
             return false;
         }
 
-        return StandardFontGlyphMapProvider.TryGetUnicode(descendant.BaseFont, cid, out unicode);
+        PdfCidToGidMap? cidToGidMap = descendant.CidToGidMap;
+        uint glyphIndex = cid;
+
+        if (cidToGidMap != null)
+        {
+            if (!cidToGidMap.HasMapping(cid))
+            {
+                unicode = null;
+                return false;
+            }
+
+            glyphIndex = cidToGidMap.GetGID(cid);
+        }
+
+        return StandardFontGlyphMapProvider.TryGetUnicode(descendant.BaseFont, glyphIndex, out unicode);
     }
 
     // A /ToUnicode CMap that declares only cidchar/cidrange entries carries its target values as CIDs
