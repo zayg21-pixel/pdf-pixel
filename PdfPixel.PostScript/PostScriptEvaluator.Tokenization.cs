@@ -275,6 +275,8 @@ public partial class PostScriptEvaluator
                         data.Slice(position, byteCount).CopyTo(block);
                         position += byteCount;
                         result[result.Count - 1] = new PostScriptBinaryString(block); // Replace length with binary data.
+
+                        ResynchronizeBinaryBlock(data, ref position, result);
                         continue;
                     }
 
@@ -372,6 +374,88 @@ public partial class PostScriptEvaluator
 
             break;
         }
+    }
+
+    /// <summary>
+    /// Restores what a binary block's surroundings are required to look like: the declared length ends
+    /// on a delimiter, and a single store operator -- <c>ND</c>/<c>|-</c> for a charstring, <c>NP</c>/
+    /// <c>|</c> for a subroutine -- stands between the block and the entry after it. A length that
+    /// falls short leaves the rest of the block's own data where that operator belongs, and producers
+    /// that drop the operator leave the block and its key stranded on the operand stack; either one
+    /// desynchronizes every entry that follows, so both are repaired here.
+    /// </summary>
+    private void ResynchronizeBinaryBlock(in ReadOnlySpan<byte> data, ref int position, List<PostScriptToken> result)
+    {
+        int tokenEnd = position;
+        while (tokenEnd < data.Length && !IsTokenTerminator(data[tokenEnd]))
+        {
+            tokenEnd++;
+        }
+
+        // The store operator is allowed to follow the block without a delimiter, so what sits between
+        // the two is leftover data only when it cannot be an operator name at all. A byte outside
+        // printable ASCII gives that away: the declared length ended inside the block's own data.
+        if (ContainsNonPrintableByte(data.Slice(position, tokenEnd - position)))
+        {
+            _logger.LogWarning("Binary block declared length falls {ByteCount} bytes short of its data.", tokenEnd - position);
+            position = tokenEnd;
+        }
+
+        int nextTokenStart = position;
+        SkipWhitespace(data, ref nextTokenStart);
+
+        if (!IsEntryBoundary(data, nextTokenStart) || result.Count < 2)
+        {
+            return;
+        }
+
+        // A charstring is keyed by its glyph name and a subroutine by its index, which is what tells
+        // the two store operators apart: the first wraps def, the second put.
+        PostScriptToken key = result[result.Count - 2];
+
+        if (key is PostScriptLiteralName)
+        {
+            result.Add(new PostScriptExecutableName("def"));
+        }
+        else if (key is PostScriptNumber)
+        {
+            result.Add(new PostScriptExecutableName("put"));
+        }
+    }
+
+    private static bool ContainsNonPrintableByte(in ReadOnlySpan<byte> data)
+    {
+        foreach (byte value in data)
+        {
+            if (value < 0x21 || value > 0x7E)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Where the next charstring ('/name'), the next subroutine ('dup') or the close of the dictionary
+    // holding them ('end') begins -- none of which a binary block can reach before it has been stored.
+    private static bool IsEntryBoundary(in ReadOnlySpan<byte> data, int position)
+    {
+        if (position >= data.Length)
+        {
+            return false;
+        }
+
+        return data[position] == (byte)'/'
+            || StartsWithToken(data, position, "dup"u8)
+            || StartsWithToken(data, position, "end"u8);
+    }
+
+    private static bool StartsWithToken(in ReadOnlySpan<byte> data, int position, in ReadOnlySpan<byte> token)
+    {
+        ReadOnlySpan<byte> remaining = data.Slice(position);
+
+        return remaining.StartsWith(token)
+            && (remaining.Length == token.Length || IsTokenTerminator(remaining[token.Length]));
     }
 
     private static byte[] ReadLiteralString(in ReadOnlySpan<byte> data, ref int position)
