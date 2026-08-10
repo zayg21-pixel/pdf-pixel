@@ -9,14 +9,9 @@ using System.Runtime.InteropServices;
 namespace PdfPixel.Geometry;
 
 /// <summary>
-/// A 2D affine transformation matrix with 6 operands, structurally compatible with the
-/// first 6 fields of Skia's <c>SKMatrix</c> (its 3 perspective fields are not needed for PDF).
+/// A 2D affine transformation matrix with 6 operands.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-// TODO: [MEDIUM] reorder the operands to Matrix3x2's layout (ScaleX, SkewY, SkewX, ScaleY, TransX,
-// TransY) and back the struct with one, so mapping, concatenation and inversion become the framework's
-// vectorized operations rather than scalar arithmetic. Costs the field-for-field match with SKMatrix,
-// which ToSkMatrix spells out by name anyway.
 public readonly struct PdfMatrix : IEquatable<PdfMatrix>
 {
     /// <summary>
@@ -25,10 +20,10 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     public PdfMatrix(float scaleX, float skewX, float transX, float skewY, float scaleY, float transY)
     {
         ScaleX = scaleX;
-        SkewX = skewX;
-        TransX = transX;
         SkewY = skewY;
+        SkewX = skewX;
         ScaleY = scaleY;
+        TransX = transX;
         TransY = transY;
     }
 
@@ -38,24 +33,24 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     public float ScaleX { get; }
 
     /// <summary>
-    /// Horizontal skew.
-    /// </summary>
-    public float SkewX { get; }
-
-    /// <summary>
-    /// Horizontal translation.
-    /// </summary>
-    public float TransX { get; }
-
-    /// <summary>
     /// Vertical skew.
     /// </summary>
     public float SkewY { get; }
 
     /// <summary>
+    /// Horizontal skew.
+    /// </summary>
+    public float SkewX { get; }
+
+    /// <summary>
     /// Vertical scale.
     /// </summary>
     public float ScaleY { get; }
+
+    /// <summary>
+    /// Horizontal translation.
+    /// </summary>
+    public float TransX { get; }
 
     /// <summary>
     /// Vertical translation.
@@ -179,26 +174,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
             return first;
         }
 
-        if (first.IsAxisAligned && second.IsAxisAligned)
-        {
-            float axisAlignedScaleX = first.ScaleX * second.ScaleX;
-            float axisAlignedTransX = (first.ScaleX * second.TransX) + first.TransX;
-
-            float axisAlignedScaleY = first.ScaleY * second.ScaleY;
-            float axisAlignedTransY = (first.ScaleY * second.TransY) + first.TransY;
-
-            return new PdfMatrix(axisAlignedScaleX, 0, axisAlignedTransX, 0, axisAlignedScaleY, axisAlignedTransY);
-        }
-
-        float scaleX = (first.ScaleX * second.ScaleX) + (first.SkewX * second.SkewY);
-        float skewX = (first.ScaleX * second.SkewX) + (first.SkewX * second.ScaleY);
-        float transX = (first.ScaleX * second.TransX) + (first.SkewX * second.TransY) + first.TransX;
-
-        float skewY = (first.SkewY * second.ScaleX) + (first.ScaleY * second.SkewY);
-        float scaleY = (first.SkewY * second.SkewX) + (first.ScaleY * second.ScaleY);
-        float transY = (first.SkewY * second.TransX) + (first.ScaleY * second.TransY) + first.TransY;
-
-        return new PdfMatrix(scaleX, skewX, transX, skewY, scaleY, transY);
+        return AsPdfMatrix(AsMatrix3x2(second) * AsMatrix3x2(first));
     }
 
     /// <summary>
@@ -222,10 +198,9 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
             return point;
         }
 
-        float x = (ScaleX * point.X) + (SkewX * point.Y) + TransX;
-        float y = (SkewY * point.X) + (ScaleY * point.Y) + TransY;
+        Vector2 mapped = Vector2.Transform(new Vector2(point.X, point.Y), AsMatrix3x2(this));
 
-        return new PdfPoint(x, y);
+        return new PdfPoint(mapped.X, mapped.Y);
     }
 
     /// <summary>
@@ -239,11 +214,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
             return vector;
         }
 
-        Vector2 xAxis = new(ScaleX, SkewY);
-        Vector2 yAxis = new(SkewX, ScaleY);
-        Vector2 translation = new(TransX, TransY);
-
-        return (xAxis * vector.X) + (yAxis * vector.Y) + translation;
+        return Vector2.Transform(vector, AsMatrix3x2(this));
     }
 
     /// <summary>
@@ -278,21 +249,12 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public PdfMatrix Invert()
     {
-        float determinant = (ScaleX * ScaleY) - (SkewX * SkewY);
-
-        if (determinant == 0)
+        if (!Matrix3x2.Invert(AsMatrix3x2(this), out Matrix3x2 inverse))
         {
             return Identity;
         }
 
-        float inverseScaleX = ScaleY / determinant;
-        float inverseSkewX = -SkewX / determinant;
-        float inverseSkewY = -SkewY / determinant;
-        float inverseScaleY = ScaleX / determinant;
-        float inverseTransX = -((inverseScaleX * TransX) + (inverseSkewX * TransY));
-        float inverseTransY = -((inverseSkewY * TransX) + (inverseScaleY * TransY));
-
-        return new PdfMatrix(inverseScaleX, inverseSkewX, inverseTransX, inverseSkewY, inverseScaleY, inverseTransY);
+        return AsPdfMatrix(inverse);
     }
 
     /// <inheritdoc/>
@@ -327,4 +289,10 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// <inheritdoc/>
     public override string ToString()
         => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TransX.ToString(CultureInfo.InvariantCulture)} {TransY.ToString(CultureInfo.InvariantCulture)}]";
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Matrix3x2 AsMatrix3x2(in PdfMatrix matrix) => Unsafe.As<PdfMatrix, Matrix3x2>(ref Unsafe.AsRef(in matrix));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static PdfMatrix AsPdfMatrix(Matrix3x2 matrix) => Unsafe.As<Matrix3x2, PdfMatrix>(ref matrix);
 }
