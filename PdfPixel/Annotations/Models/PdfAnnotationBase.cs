@@ -103,13 +103,20 @@ public abstract class PdfAnnotationBase
     protected virtual bool UsesOpacityLayer => Opacity < 1.0f;
 
     /// <summary>
+    /// Gets whether this annotation carries text to show in a pop-up window.
+    /// </summary>
+    public virtual bool HasPopupContent => !Contents.Value.IsEmpty || !RichContents.Value.IsEmpty;
+
+    /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
     /// </summary>
     /// <remarks>
     /// When true, indicates that the annotation has content (like comments) that should
     /// be accessible through a bubble indicator. The HoverRectangle will be the bubble area only.
+    /// An annotation that carries no <see cref="Popup"/> triggers its pop-up from its own area
+    /// instead, so it shows no separate bubble.
     /// </remarks>
-    public virtual bool ShouldDisplayBubble => !Contents.Value.IsEmpty;
+    public virtual bool ShouldDisplayBubble => Popup != null && HasPopupContent;
 
     /// <summary>
     /// Gets the pointer cursor to display when hovering over this annotation.
@@ -121,15 +128,15 @@ public abstract class PdfAnnotationBase
     /// </summary>
     /// <remarks>
     /// True when the appearance stream defines rollover or down states, or when the annotation
-    /// displays a bubble (which has its own hover rendering). Subclasses with fallback interactive
-    /// rendering should override this to return true unconditionally.
+    /// has pop-up content to reveal. Subclasses with fallback interactive rendering should
+    /// override this to return true unconditionally.
     /// </remarks>
     public virtual bool IsInteractive
     {
         get
         {
             return (SupportedVisualStates & (PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down)) != 0
-                || ShouldDisplayBubble;
+                || HasPopupContent;
         }
     }
 

@@ -17,6 +17,15 @@ namespace PdfPixel.Annotations.Models;
 public class PdfPopupAnnotation : PdfAnnotationBase
 {
     /// <summary>
+    /// Gets whether this annotation carries text to show in a pop-up window.
+    /// </summary>
+    /// <remarks>
+    /// A popup annotation is the window itself, shown on behalf of its parent, so it is never
+    /// a trigger of its own.
+    /// </remarks>
+    public override bool HasPopupContent => false;
+
+    /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
     /// </summary>
     /// <remarks>

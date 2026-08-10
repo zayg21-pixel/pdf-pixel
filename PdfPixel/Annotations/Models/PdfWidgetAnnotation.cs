@@ -64,6 +64,14 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     public PdfFormField? Field { get; }
 
     /// <summary>
+    /// Gets whether this annotation carries text to show in a pop-up window.
+    /// </summary>
+    /// <remarks>
+    /// Widget annotations are form controls; their text belongs to the field, not to a pop-up.
+    /// </remarks>
+    public override bool HasPopupContent => false;
+
+    /// <summary>
     /// Gets a value indicating whether this widget should not display a content bubble.
     /// </summary>
     /// <remarks>
