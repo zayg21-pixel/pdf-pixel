@@ -141,6 +141,8 @@ public class CffTypefaceReader
             // seac-style endchar accent composition is not used with CIDFonts, so no name resolution is
             // needed here.
             Dictionary<PdfFontString, ushort> nameToGid = [];
+            var localSubrsByFdIndex = new ReadOnlyMemory<byte>[fdArray.Length][];
+            ReadOnlyMemory<byte>[]? fallbackLocalSubrs = null;
 
             for (int glyphIndex = 0; glyphIndex < charStrings.Length; glyphIndex++)
             {
@@ -151,7 +153,12 @@ public class CffTypefaceReader
                 if (fdIndex >= 0 && fdIndex < fdArray.Length)
                 {
                     glyphDict = fdArray[fdIndex];
-                    glyphLocalSubrs = ReadLocalSubrs(glyphDict.TopDict, glyphDict.PrivateDict, cffData);
+                    if (localSubrsByFdIndex[fdIndex] == null)
+                    {
+                        localSubrsByFdIndex[fdIndex] = ReadLocalSubrs(glyphDict.TopDict, glyphDict.PrivateDict, cffData);
+                    }
+
+                    glyphLocalSubrs = localSubrsByFdIndex[fdIndex];
                 }
                 else
                 {
@@ -160,7 +167,12 @@ public class CffTypefaceReader
                         _logger.LogWarning("CFF FDSelect references out-of-range Font DICT {FdIndex} (of {Count}) for GID {Gid}.", fdIndex, fdArray.Length, glyphIndex);
                     }
 
-                    glyphLocalSubrs = ReadLocalSubrs(topDict, privateDict, cffData);
+                    if (fallbackLocalSubrs == null)
+                    {
+                        fallbackLocalSubrs = ReadLocalSubrs(topDict, privateDict, cffData);
+                    }
+
+                    glyphLocalSubrs = fallbackLocalSubrs;
                 }
 
                 characters[glyphIndex] = _charStringEvaluator.Evaluate(charStrings[glyphIndex], dict, glyphDict, glyphLocalSubrs, globalSubrs, charStrings, nameToGid);
