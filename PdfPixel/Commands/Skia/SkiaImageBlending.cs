@@ -29,8 +29,7 @@ internal static class SkiaImageBlending
                     }
                     else
                     {
-                        color = matte - matte / alpha + color; // since we don't multiply color in advance, this is correct formula for getting dematte effect
-                        return half4(color, alpha);
+                        return half4(color - matte + matte * alpha, alpha);
                     }
                 }
             ";
