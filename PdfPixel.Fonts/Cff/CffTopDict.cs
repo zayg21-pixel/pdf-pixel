@@ -1,6 +1,5 @@
 using PdfPixel.Fonts.Model;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -86,13 +85,6 @@ public class CffTopDict
     /// Gets or sets the FDSelect (glyph-to-Font-DICT mapping) offset. Present only for CID-keyed fonts.
     /// </summary>
     public int? FdSelectOffset { get; set; }
-
-    /// <summary>
-    /// Gets or sets every DICT entry not individually modeled above -- unparsed/unknown to this reader
-    /// (descriptive strings, unique IDs, CID metadata, synthetic-font operators, etc.) -- preserved
-    /// verbatim so they can be written back unchanged.
-    /// </summary>
-    public List<CffDictEntry> Entries { get; set; } = [];
 
     /// <summary>
     /// Combines <paramref name="topDict"/>'s FontMatrix with <paramref name="fdTopDict"/>'s (if given),

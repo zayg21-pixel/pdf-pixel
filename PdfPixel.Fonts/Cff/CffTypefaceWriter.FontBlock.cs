@@ -24,6 +24,11 @@ public partial class CffTypefaceWriter
             block.CharsetData = (block.CharsetIsPredefined) ? Array.Empty<byte>() : BuildCharsetTable(font.Charset);
         }
 
+        if (font.Dict.TopDict.Ros != null)
+        {
+            block.CidCount = GetCidCount(font);
+        }
+
         var charStringEntries = new ReadOnlyMemory<byte>[font.Characters.Length];
         for (int glyphIndex = 0; glyphIndex < font.Characters.Length; glyphIndex++)
         {
@@ -61,6 +66,30 @@ public partial class CffTypefaceWriter
         }
 
         return block;
+    }
+
+    // In a CID-keyed font the charset holds CIDs rather than SIDs, and CIDCount declares how many are
+    // valid. The written charset is the one built here, so the count comes from it rather than from
+    // whatever the source font declared. Without a charset the CIDs are the glyph indices themselves.
+    private static int GetCidCount(CffFont font)
+    {
+        ushort[]? cidsByGid = (font.Charset?.PredefinedId == null) ? font.Charset?.SidsByGid : null;
+
+        if (cidsByGid == null || cidsByGid.Length == 0)
+        {
+            return font.Characters.Length;
+        }
+
+        ushort highestCid = 0;
+        foreach (ushort cid in cidsByGid)
+        {
+            if (cid > highestCid)
+            {
+                highestCid = cid;
+            }
+        }
+
+        return highestCid + 1;
     }
 
     private static byte[] BuildEncodingTable(CffEncoding encoding)
@@ -175,6 +204,8 @@ public partial class CffTypefaceWriter
         public int CharsetPredefinedId;
         public byte[] CharsetData = Array.Empty<byte>();
         public int CharsetOffsetValue;
+
+        public int? CidCount;
 
         public byte[] CharStringsIndexData = Array.Empty<byte>();
         public int CharStringsOffsetValue;

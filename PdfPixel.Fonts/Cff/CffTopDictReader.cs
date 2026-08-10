@@ -113,11 +113,6 @@ public class CffTopDictReader
 
                     break;
                 }
-            default:
-                {
-                    StoreInformational(result, operatorValue, operands);
-                    break;
-                }
         }
     }
 
@@ -183,14 +178,6 @@ public class CffTopDictReader
                     result.FdSelectOffset = operands.LastAsInt();
                     break;
                 }
-            default:
-                {
-                    StoreInformational(result, operatorValue, operands);
-                    break;
-                }
         }
     }
-
-    private static void StoreInformational(CffTopDict result, ICffValue operatorValue, List<ICffValue> operands)
-        => result.Entries.Add(new CffDictEntry(operatorValue, operands.ToArray()));
 }

@@ -126,6 +126,12 @@ public partial class CffTypefaceWriter
         CffBinaryWriter writer = new();
         WriteTopDictContentFields(writer, topDict);
 
+        if (block.CidCount.HasValue)
+        {
+            writer.WriteDictNumber(block.CidCount.Value);
+            writer.WriteDictEscapedOperator(CffConstants.TopDictEscapedOperatorCidCount);
+        }
+
         if (block.HasEncoding)
         {
             writer.WriteDictOffset(block.EncodingOffsetValue);
@@ -223,35 +229,6 @@ public partial class CffTypefaceWriter
             writer.WriteDictNumber(topDict.Ros.Ordering);
             writer.WriteDictNumber(topDict.Ros.Supplement);
             writer.WriteDictEscapedOperator(CffConstants.TopDictEscapedOperatorRos);
-        }
-
-        foreach (CffDictEntry entry in topDict.Entries)
-        {
-            WriteDictEntry(writer, entry);
-        }
-    }
-
-    private static void WriteDictEntry(CffBinaryWriter writer, CffDictEntry entry)
-    {
-        foreach (ICffValue operand in entry.Operands)
-        {
-            if (operand.Type == CffValueType.Integer)
-            {
-                writer.WriteDictNumber(operand.AsInt());
-            }
-            else
-            {
-                writer.WriteDictNumber(operand.AsFloat());
-            }
-        }
-
-        if (entry.Operator.Type == CffValueType.EscapedOperator)
-        {
-            writer.WriteDictEscapedOperator(((CffValue<byte>)entry.Operator).Value);
-        }
-        else
-        {
-            writer.WriteDictOperator(((CffValue<byte>)entry.Operator).Value);
         }
     }
 }

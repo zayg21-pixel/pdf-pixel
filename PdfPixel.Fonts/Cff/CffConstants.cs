@@ -47,6 +47,7 @@ internal static class CffConstants
     public const byte TopDictEscapedOperatorFontMatrix = 7;
     public const byte TopDictEscapedOperatorStrokeWidth = 8;
     public const byte TopDictEscapedOperatorRos = 30;
+    public const byte TopDictEscapedOperatorCidCount = 34;
     public const byte TopDictEscapedOperatorFdArray = 36;
     public const byte TopDictEscapedOperatorFdSelect = 37;
 
