@@ -52,6 +52,13 @@ internal class PdfDocumentObjectCache
     internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = [];
 
     /// <summary>
+    /// Document typeface cache, keyed by the reference of the object holding the embedded font
+    /// program, so a program several font descriptors share is parsed only once. Owns the typefaces
+    /// it holds; they live as long as the document.
+    /// </summary>
+    internal Dictionary<PdfReference, IPdfTypeface> Typefaces { get; } = [];
+
+    /// <summary>
     /// Document color space converter cache.
     /// </summary>
     internal Dictionary<PdfReference, PdfColorSpaceConverter?> ColorSpaceConverters { get; } = [];

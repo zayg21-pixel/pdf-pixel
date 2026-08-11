@@ -122,12 +122,14 @@ public class PdfSimpleFont : PdfSingleByteFont
     {
         try
         {
-            if (FontDescriptor?.FontFileStream != null)
-            {
-                PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
-                IPdfTypeface typeface = loader.GetTypefaceFromFontProgram(FontDescriptor);
+            PdfFontDescriptor? fontDescriptor = FontDescriptor;
 
-                if (FontDescriptor.FontFileFormat == PdfFontFileFormat.Type1 && typeface is CffPdfTypeface type1Typeface)
+            if (fontDescriptor?.FontFileStream != null)
+            {
+                PdfTypefaceLoader loader = new(fontDescriptor, Type, Document.LoggerFactory);
+                IPdfTypeface typeface = loader.GetTypeface();
+
+                if (fontDescriptor.FontFileFormat == PdfFontFileFormat.Type1 && typeface is CffPdfTypeface type1Typeface)
                 {
                     if (Encoding.BaseEncoding == PdfEncoding.Unknown)
                     {
@@ -243,17 +245,6 @@ public class PdfSimpleFont : PdfSingleByteFont
 
         bool isBold = SubstitutionInfo.Weight >= PdfSubstitutionInfo.BoldWeight;
         return PdfSingleByteFontWidths.FromStandardFont(standardFontName.Value, isBold, SubstitutionInfo.IsItalic, Encoding);
-    }
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-
-        if (disposing && !_resolution.IsSubstituted)
-        {
-            _resolution.Typeface?.Dispose();
-        }
     }
 
     /// <summary>

@@ -123,6 +123,12 @@ public class PdfFontDescriptor
     public PdfObjectStream? FontFileStream { get; set; }
 
     /// <summary>
+    /// Reference of the object holding <see cref="FontFileStream"/>, which several descriptors may
+    /// share. Invalid when this descriptor embeds no font program.
+    /// </summary>
+    public PdfReference FontFileReference { get; set; }
+
+    /// <summary>
     /// Format of the embedded font file.
     /// </summary>
     public PdfFontFileFormat FontFileFormat { get; set; }
@@ -206,6 +212,7 @@ public class PdfFontDescriptor
         if (fontFileObject != null)
         {
             descriptor.FontFileStream = fontFileObject.Stream;
+            descriptor.FontFileReference = fontFileObject.Reference;
             descriptor.FontFileLength1 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
             descriptor.FontFileLength2 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
             descriptor.FontFileLength3 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);

@@ -145,15 +145,17 @@ public class PdfCidFont : PdfFontBase
 
     private IPdfTypeface? GetTypeface()
     {
-        if (FontDescriptor?.FontFileStream == null)
+        PdfFontDescriptor? fontDescriptor = FontDescriptor;
+
+        if (fontDescriptor?.FontFileStream == null)
         {
             return null;
         }
 
         try
         {
-            PdfTypefaceLoader loader = new(Type, Document.LoggerFactory);
-            return loader.GetTypefaceFromFontProgram(FontDescriptor);
+            PdfTypefaceLoader loader = new(fontDescriptor, Type, Document.LoggerFactory);
+            return loader.GetTypeface();
         }
 #pragma warning disable CA1031
         catch (Exception ex)
@@ -246,16 +248,5 @@ public class PdfCidFont : PdfFontBase
         PdfGlyphResolution resolution = ResolveFromFontProgram(characterCode, renderingUnicode);
 
         return (!resolution.IsEmpty) ? resolution : SubstituteByUnicode(renderingUnicode);
-    }
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-
-        if (disposing)
-        {
-            _typeface?.Dispose();
-        }
     }
 }

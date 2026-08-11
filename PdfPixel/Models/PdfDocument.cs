@@ -3,6 +3,7 @@ using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using PdfPixel.TextExtraction;
@@ -79,6 +80,12 @@ internal class PdfDocument : IPdfDocumentInternal
     public void Dispose()
     {
         CommandCache.Dispose();
+
+        foreach (IPdfTypeface typeface in _objectCache.Typefaces.Values)
+        {
+            typeface.Dispose();
+        }
+
         _fontProvider.Cleanup();
         _stream.Dispose();
     }

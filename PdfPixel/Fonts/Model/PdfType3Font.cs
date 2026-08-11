@@ -256,15 +256,4 @@ public class PdfType3Font : PdfSingleByteFont
 
         return new PdfGlyphResolution(typeface, [GetGid(characterCode)], isMappedByFont: true);
     }
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-
-        if (disposing)
-        {
-            type3Cache.Clear();
-        }
-    }
 }

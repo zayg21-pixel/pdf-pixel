@@ -12,7 +12,7 @@ namespace PdfPixel.Fonts.Model;
 /// <summary>
 /// Base class for all PDF font types with common properties and interface.
 /// </summary>
-public abstract class PdfFontBase : IDisposable
+public abstract class PdfFontBase
 {
     private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = [];
 
@@ -356,20 +356,5 @@ public abstract class PdfFontBase : IDisposable
         }
 
         return parsedCMap;
-    }
-
-    /// <inheritdoc/>
-    protected virtual void Dispose(bool disposing)
-    {
-    }
-
-    /// <inheritdoc/>
-    ~PdfFontBase() => Dispose(disposing: false);
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
     }
 }
