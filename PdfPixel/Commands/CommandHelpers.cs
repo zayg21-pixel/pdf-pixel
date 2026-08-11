@@ -92,17 +92,11 @@ internal static class CommandHelpers
     public static float SnapToWholePixel(float deviceCoordinate) => MathF.Floor(deviceCoordinate + 0.5f);
 
     /// <summary>
-    /// Returns whether the pattern is better covered by repeating a recorded tile than by drawing the
-    /// cell once per grid position. A step that does not advance leaves no tile to repeat, and a tile
-    /// wider than a decoding tile is not worth rasterizing.
+    /// Returns how far the pattern's steps advance on the device, measured along each of the pattern's
+    /// own axes.
     /// </summary>
-    public static bool CanTileByRepeating(DrawTilingCommand command, PdfCommandExecutionContext executionContext)
+    public static PdfSize GetDeviceStepSize(DrawTilingCommand command, PdfCommandExecutionContext executionContext)
     {
-        if (command.XStep <= 0 || command.YStep <= 0)
-        {
-            return false;
-        }
-
         PdfMatrix deviceMatrix = GetScaledMatrix(executionContext);
         PdfPoint deviceOrigin = deviceMatrix.MapPoint(PdfPoint.Empty);
         PdfPoint mappedX = deviceMatrix.MapPoint(new PdfPoint(command.XStep, 0));
@@ -113,12 +107,33 @@ internal static class CommandHelpers
         float deviceYAxisX = mappedY.X - deviceOrigin.X;
         float deviceYAxisY = mappedY.Y - deviceOrigin.Y;
 
-        float deviceXAxisLength = MathF.Sqrt((deviceXAxisX * deviceXAxisX) + (deviceXAxisY * deviceXAxisY));
-        float deviceYAxisLength = MathF.Sqrt((deviceYAxisX * deviceYAxisX) + (deviceYAxisY * deviceYAxisY));
+        return new PdfSize(
+            MathF.Sqrt((deviceXAxisX * deviceXAxisX) + (deviceXAxisY * deviceXAxisY)),
+            MathF.Sqrt((deviceYAxisX * deviceYAxisX) + (deviceYAxisY * deviceYAxisY)));
+    }
+
+    /// <summary>
+    /// Returns whether the pattern is better covered by repeating a recorded tile than by drawing the
+    /// cell once per grid position. A step that does not advance, on the page or on the device, leaves
+    /// no tile to repeat, and a tile wider than a decoding tile is not worth rasterizing.
+    /// </summary>
+    public static bool CanTileByRepeating(DrawTilingCommand command, PdfCommandExecutionContext executionContext)
+    {
+        if (command.XStep <= 0 || command.YStep <= 0)
+        {
+            return false;
+        }
+
+        PdfSize deviceStep = GetDeviceStepSize(command, executionContext);
+
+        if (deviceStep.Width <= 0 || deviceStep.Height <= 0)
+        {
+            return false;
+        }
 
         int maxTileDeviceDimension = executionContext.Parameters.ImageTileSize;
 
-        return deviceXAxisLength <= maxTileDeviceDimension && deviceYAxisLength <= maxTileDeviceDimension;
+        return deviceStep.Width <= maxTileDeviceDimension && deviceStep.Height <= maxTileDeviceDimension;
     }
 
     /// <summary>

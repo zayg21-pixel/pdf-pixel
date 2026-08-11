@@ -16,15 +16,16 @@ public sealed partial class SkCanvasCommandProcessor
 
         if (CommandHelpers.CanTileByRepeating(command, _executionContext))
         {
-            // Cells sit at whole multiples of the step from the pattern space origin, so one step
-            // starting at that origin is the unit a repeating shader covers the whole area with in a
-            // single draw. The unit keeps the step exactly: rounding it to whole device pixels gives
-            // the grid a period that changes with the zoom, drifting the pattern across the page and
-            // leaving gaps between cells.
             PdfRectangle tileUnit = new(0, 0, command.XStep, command.YStep);
 
-            using SKPicture tile = RecordPatternTile(command, tileUnit);
-            using SKShader shader = tile.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileUnit.ToSkRect());
+            PdfSize deviceStep = CommandHelpers.GetDeviceStepSize(command, _executionContext);
+            float tileScaleX = deviceStep.Width / command.XStep;
+            float tileScaleY = deviceStep.Height / command.YStep;
+            SKRect deviceTile = new(0, 0, deviceStep.Width, deviceStep.Height);
+            SKMatrix tileMatrix = SKMatrix.CreateScale(1f / tileScaleX, 1f / tileScaleY);
+
+            using SKPicture tile = RecordPatternTile(command, tileUnit, tileScaleX, tileScaleY, deviceTile);
+            using SKShader shader = tile.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileMatrix, deviceTile);
             using SKPaint shaderPaint = new() { Shader = shader };
 
             _canvas.DrawRect(command.TilingArea.ToSkRect(), shaderPaint);
@@ -54,7 +55,7 @@ public sealed partial class SkCanvasCommandProcessor
         _executionContext.Frames.OnRestoreState();
     }
 
-    private SKPicture RecordPatternTile(DrawTilingCommand command, in PdfRectangle tileUnit)
+    private SKPicture RecordPatternTile(DrawTilingCommand command, in PdfRectangle tileUnit, float tileScaleX, float tileScaleY, SKRect deviceTile)
     {
         // A cell bigger than its step overlaps its neighbours, so every grid position reaching the
         // tile is recorded into it and the shader brings back from the next repeat what the cull
@@ -62,8 +63,11 @@ public sealed partial class SkCanvasCommandProcessor
         PdfIntegerRectangle grid = GetCellGrid(command, tileUnit);
 
         using SKPictureRecorder recorder = new();
-        using SKCanvas canvas = recorder.BeginRecording(tileUnit.ToSkRect());
+        using SKCanvas canvas = recorder.BeginRecording(deviceTile);
         using PdfCommandExecutionContext childContext = CreateCellContext();
+
+        // The shader's local matrix undoes this, so it never reaches the frames.
+        canvas.Scale(tileScaleX, tileScaleY);
 
         SkCanvasCommandProcessor childProcessor = new(canvas, childContext, _logger);
 
