@@ -28,28 +28,46 @@ public sealed class PdfCidToGidMap
     }
 
     /// <summary>
-    /// Creates a <see cref="PdfCidToGidMap"/> from the specified CFF font's charset.
+    /// Creates a <see cref="PdfCidToGidMap"/> from the specified CFF font's charset, which lists the CID
+    /// of every glyph in the font program by GID.
     /// </summary>
-    /// <remarks>If <paramref name="font"/> is not CID-keyed or has an empty GID-to-SID charset, a
-    /// default <see cref="PdfCidToGidMap"/> is returned with no mappings.</remarks>
+    /// <remarks>A /CIDToGIDMap in the font dictionary is applied "inverted" for a CID-keyed CFF font: its
+    /// entries name the CIDs the charset carries, so the map turns a character code into the CID the charset
+    /// is then looked up by, rather than into a GID directly as it does for a TrueType font program. Codes the
+    /// map leaves out are looked up in the charset unchanged. When <paramref name="font"/> is not CID-keyed or
+    /// has an empty GID-to-SID charset, <paramref name="cidToGidMap"/> is returned as it stands.</remarks>
     /// <param name="font">The CFF font containing the GID-to-SID charset and CID font status.</param>
+    /// <param name="cidToGidMap">The mapping from the font dictionary's /CIDToGIDMap entry, or <see langword="null"/> when the entry is absent.</param>
     /// <returns>A <see cref="PdfCidToGidMap"/> instance representing the mapping from CID to GID.</returns>
-    internal static PdfCidToGidMap FromCffFont(CffFont font)
+    internal static PdfCidToGidMap FromCffFont(CffFont font, PdfCidToGidMap? cidToGidMap)
     {
         bool isCidFont = font.FdArray.Length > 0;
         ushort[]? gidToSid = font.Charset?.SidsByGid;
 
         if (!isCidFont || gidToSid == null || gidToSid.Length == 0)
         {
+            if (cidToGidMap != null)
+            {
+                return cidToGidMap;
+            }
+
             return new PdfCidToGidMap(true);
         }
 
+        Dictionary<ushort, uint>? gidToCid = cidToGidMap?.BuildInverse();
         PdfCidToGidMap map = new(false);
 
         for (uint gid = 0; gid < gidToSid.Length; gid++)
         {
             ushort sid = gidToSid[gid];
-            map._cidToGidMap[sid] = (ushort)gid;
+            uint cid = sid;
+
+            if (gidToCid != null && gidToCid.TryGetValue(sid, out uint mappedCid))
+            {
+                cid = mappedCid;
+            }
+
+            map._cidToGidMap[cid] = (ushort)gid;
         }
 
         return map;
@@ -129,4 +147,23 @@ public sealed class PdfCidToGidMap
     /// Check if this is an identity mapping
     /// </summary>
     public bool IsIdentityMapping { get; }
+
+    /// <summary>
+    /// Builds the reverse lookup from GID to CID. Entries mapping to GID 0 are left out: .notdef carries
+    /// no glyph identity and every unmapped CID lands on it, so it names no single CID to come back to.
+    /// </summary>
+    private Dictionary<ushort, uint> BuildInverse()
+    {
+        Dictionary<ushort, uint> inverse = new(_cidToGidMap.Count);
+
+        foreach (KeyValuePair<uint, ushort> entry in _cidToGidMap)
+        {
+            if (entry.Value != 0)
+            {
+                inverse[entry.Value] = entry.Key;
+            }
+        }
+
+        return inverse;
+    }
 }

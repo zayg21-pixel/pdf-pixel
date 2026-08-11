@@ -32,27 +32,10 @@ public class PdfCidFont : PdfFontBase
         CidToGidMap = LoadCidToGidMap();
         _typeface = GetTypeface();
 
-        if (_typeface is CffPdfTypeface cffPdfTypeface)
+        CffFont? embeddedCffFont = GetEmbeddedCffFont(_typeface);
+        if (embeddedCffFont != null)
         {
-            CffFont cffFont = cffPdfTypeface.CffTypeface.Fonts[0];
-
-            if (CidToGidMap == null)
-            {
-                CidToGidMap = PdfCidToGidMap.FromCffFont(cffFont);
-            }
-        }
-        else if (_typeface is SfntPdfTypeface sfntPdfTypeface)
-        {
-            CffTypeface? cffTypeface = sfntPdfTypeface.SfntFont.CffTypeface;
-            if (cffTypeface != null)
-            {
-                CffFont cffFont = cffTypeface.Fonts[0];
-
-                if (CidToGidMap == null)
-                {
-                    CidToGidMap = PdfCidToGidMap.FromCffFont(cffFont);
-                }
-            }
+            CidToGidMap = PdfCidToGidMap.FromCffFont(embeddedCffFont, CidToGidMap);
         }
     }
 
@@ -165,6 +148,31 @@ public class PdfCidFont : PdfFontBase
 #pragma warning restore CA1031
 
         return null;
+    }
+
+    /// <summary>
+    /// Returns the CFF font program the typeface is built on, either as a bare CFF or as the CFF table of an
+    /// OpenType container. Returns <see langword="null"/> when the typeface has no CFF font program.
+    /// </summary>
+    private static CffFont? GetEmbeddedCffFont(IPdfTypeface? typeface)
+    {
+        CffTypeface? cffTypeface = null;
+
+        if (typeface is CffPdfTypeface cffPdfTypeface)
+        {
+            cffTypeface = cffPdfTypeface.CffTypeface;
+        }
+        else if (typeface is SfntPdfTypeface sfntPdfTypeface)
+        {
+            cffTypeface = sfntPdfTypeface.SfntFont.CffTypeface;
+        }
+
+        if (cffTypeface == null || cffTypeface.Fonts.Length == 0)
+        {
+            return null;
+        }
+
+        return cffTypeface.Fonts[0];
     }
 
     private PdfCidSystemInfo? LoadCidSystemInfo()
