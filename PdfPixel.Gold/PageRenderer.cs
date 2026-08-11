@@ -55,7 +55,7 @@ internal static class PageRenderer
 
             // Optional content groups are the PDF's layers; passing the document's groups renders
             // every layer in its default visibility state.
-            yield return (page.PageNumber, RenderPage(page, document.OptionalContentGroups));
+            yield return (page.PageNumber, RenderPage(document, page, document.OptionalContentGroups));
         }
     }
 
@@ -139,7 +139,7 @@ internal static class PageRenderer
         return diff;
     }
 
-    private static SKBitmap RenderPage(IPdfPage page, IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
+    private static SKBitmap RenderPage(IPdfDocument document, IPdfPage page, IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
     {
         // CropBox is the visible page area in PDF units; scale it to get the output image size.
         int width = (int)(page.CropBox.Width * Scale);
@@ -176,6 +176,7 @@ internal static class PageRenderer
         // Bundles the canvas, rendering options, and the objects above into the state every
         // drawing command reads from while the page is replayed.
         using PdfCommandExecutionContext executionContext = new(
+            document,
             executionParameters,
             contentLocker,
             optionalContentGroups,

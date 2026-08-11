@@ -15,15 +15,18 @@ namespace PdfPixel.Commands;
 public sealed class PdfCommandExecutionContext : IDisposable
 {
     /// <summary>
-    /// Initializes a new execution context with execution parameters, a content locker, and an observer.
+    /// Initializes a new execution context with the document being replayed, execution parameters,
+    /// a content locker, and an observer.
     /// </summary>
     public PdfCommandExecutionContext(
+        IPdfDocument document,
         PdfCommandExecutionParameters parameters,
         object contentLocker,
         IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups,
         IPdfExecutionObserver executionObserver,
         PdfRectangle? pageRegionOfInterest = null)
     {
+        Document = document ?? throw new ArgumentNullException(nameof(document));
         Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
         OptionalContentGroups = optionalContentGroups ?? throw new ArgumentNullException(nameof(optionalContentGroups));
@@ -36,6 +39,11 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// Current paint uncolored modifier.
     /// </summary>
     public UncoloredPaintModifier? UncoloredModifier { get; internal set; }
+
+    /// <summary>
+    /// Document whose commands are replayed, owning the values cached for its whole lifetime.
+    /// </summary>
+    public IPdfDocument Document { get; }
 
     /// <summary>
     /// Execution parameters that may vary between replays (e.g. scale factor, antialias).

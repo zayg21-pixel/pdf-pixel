@@ -61,9 +61,10 @@ foreach (IPdfPage page in document.Pages)
     // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.
     IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
-    // Bundles the rendering options and the objects above into the state every
+    // Bundles the document, the rendering options and the objects above into the state every
     // drawing command reads from while the page is replayed.
     using PdfCommandExecutionContext executionContext = new(
+        document,
         new PdfCommandExecutionParameters
         {
             ScaleFactor = scale

@@ -4,7 +4,7 @@ namespace PdfPixel.Commands.Cache;
 
 /// <summary>
 /// Holds the <see cref="SKTypeface"/> built from an <see cref="Fonts.Model.IPdfTypeface"/>'s font
-/// bytes, shared by every command that draws with that typeface during this execution's replay.
+/// bytes, shared by every command of the document that draws with that typeface.
 /// </summary>
 internal sealed class SkTypefaceCommandCacheEntry : ICommandCacheItem
 {

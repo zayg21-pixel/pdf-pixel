@@ -3,6 +3,7 @@ using PdfPixel.Commands;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Image;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.IO;
@@ -100,24 +101,28 @@ internal static class SkiaCommandUtilities
 
     /// <summary>
     /// Returns the <see cref="SKTypeface"/> backing <paramref name="typeface"/>, building it from font
-    /// bytes only once per execution and caching it on <see cref="PdfCommandExecutionContext.Cache"/>
-    /// so every command drawing with the same typeface during a replay reuses the same native typeface.
+    /// bytes only once per document and caching it on <see cref="IPdfDocument.CommandCache"/> so every
+    /// command drawing with the same typeface reuses the same native typeface.
     /// </summary>
     public static SKTypeface GetOrCreateSkTypeface(PdfCommandExecutionContext executionContext, IPdfTypeface typeface)
     {
         TypefaceCommandCacheKey key = new(typeface);
+        CommandCache cache = executionContext.Document.CommandCache;
 
-        if (executionContext.Cache.GetEntry(key) is SkTypefaceCommandCacheEntry existing)
+        lock (executionContext.ContentLocker)
         {
-            return existing.Typeface;
+            if (cache.GetEntry(key) is SkTypefaceCommandCacheEntry existing)
+            {
+                return existing.Typeface;
+            }
+
+            using Stream fontStream = typeface.GetFontStream();
+            SKTypeface skTypeface = SKTypeface.FromStream(fontStream) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
+
+            cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
+
+            return skTypeface;
         }
-
-        using Stream fontStream = typeface.GetFontStream();
-        SKTypeface skTypeface = SKTypeface.FromStream(fontStream) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
-
-        executionContext.Cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
-
-        return skTypeface;
     }
 
     /// <summary>

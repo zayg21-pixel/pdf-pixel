@@ -88,6 +88,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 using SKPictureRecorder recorder = new();
                 SKCanvas canvas = recorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
                 using PdfCommandExecutionContext executionContext = new(
+                    _document,
                     _request.CommandExecutionParameters,
                     _documentLocker,
                     _document.OptionalContentGroups,
@@ -143,6 +144,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 using SKPictureRecorder annotationRecorder = new();
                 SKCanvas annotationCanvas = annotationRecorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
                 using PdfCommandExecutionContext annotationContext = new(
+                    _document,
                     _request.CommandExecutionParameters,
                     _documentLocker,
                     _document.OptionalContentGroups,

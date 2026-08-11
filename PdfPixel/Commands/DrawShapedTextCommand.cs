@@ -10,8 +10,8 @@ namespace PdfPixel.Commands;
 /// <summary>
 /// Draws shaped text at the origin by building one or more text blobs from pre-shaped glyphs.
 /// Resolves each glyph's typeface lazily at execution time via
-/// <see cref="PdfCommandExecutionContext.Cache"/>, so the same native typeface is reused across every
-/// command that draws with it during a replay.
+/// <see cref="Models.IPdfDocument.CommandCache"/>, so the same native typeface is reused across every
+/// command that draws with it.
 /// </summary>
 public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
 {

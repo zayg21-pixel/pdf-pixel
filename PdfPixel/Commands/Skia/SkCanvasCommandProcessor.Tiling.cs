@@ -143,6 +143,7 @@ public sealed partial class SkCanvasCommandProcessor
         childParameters.SnapToDevicePixels = false;
 
         PdfCommandExecutionContext childContext = new(
+            _executionContext.Document,
             childParameters,
             _executionContext.ContentLocker,
             _executionContext.OptionalContentGroups,

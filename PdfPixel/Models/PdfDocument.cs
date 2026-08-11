@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
@@ -43,6 +44,9 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <inheritdoc/>
     public ILoggerFactory LoggerFactory { get; }
 
+    /// <inheritdoc />
+    public CommandCache CommandCache { get; } = new();
+
     IReadOnlyList<IPdfPage> IPdfDocument.Pages => _pages;
 
     /// <inheritdoc />
@@ -74,6 +78,7 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <inheritdoc/>
     public void Dispose()
     {
+        CommandCache.Dispose();
         _fontProvider.Cleanup();
         _stream.Dispose();
     }

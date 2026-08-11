@@ -238,6 +238,7 @@ internal sealed class Program
             // Bundles the canvas, rendering options, and the objects above into the state every
             // drawing command reads from while the recordings are replayed.
             using PdfCommandExecutionContext executionContext = new(
+                document,
                 new PdfCommandExecutionParameters
                 {
                     ScaleFactor = scale,
