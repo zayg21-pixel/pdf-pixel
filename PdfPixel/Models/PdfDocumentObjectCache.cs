@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc.Model;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
 using PdfPixel.Imaging.Model;
@@ -82,6 +83,13 @@ internal class PdfDocumentObjectCache
     /// High-level cache for parsed PDF image XObjects, keyed by reference.
     /// </summary>
     internal Dictionary<PdfReference, PdfImage> Images { get; } = [];
+
+    /// <summary>
+    /// Cache for recorded tiling pattern cells, keyed by the reference of the pattern object. A cell
+    /// is recorded in a graphics state built from scratch, so it depends only on the pattern object
+    /// itself, never on the state the pattern is used from.
+    /// </summary>
+    internal Dictionary<PdfReference, PdfCommandRecorder> TilingCells { get; } = [];
 
     /// <summary>
     /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.

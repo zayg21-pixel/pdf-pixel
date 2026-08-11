@@ -1,3 +1,4 @@
+using PdfPixel.Commands.Cache;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
@@ -14,27 +15,26 @@ public sealed partial class SkCanvasCommandProcessor
         _canvas.Concat(command.Matrix.ToSkMatrix());
         _executionContext.Frames.OnConcatMatrix(command.Matrix);
 
+        // Taken after the command's own matrix is in, so it carries everything that shapes the
+        // recorded picture and tells apart two uses of the pattern that do not.
+        PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(_executionContext);
+
         if (CommandHelpers.CanTileByRepeating(command, _executionContext))
         {
-            PdfRectangle tileUnit = new(0, 0, command.XStep, command.YStep);
+            TilingCommandCacheEntry entry = GetOrBuildTile(command, deviceMatrix);
 
-            PdfSize deviceStep = CommandHelpers.GetDeviceStepSize(command, _executionContext);
-            float tileScaleX = deviceStep.Width / command.XStep;
-            float tileScaleY = deviceStep.Height / command.YStep;
-            SKRect deviceTile = new(0, 0, deviceStep.Width, deviceStep.Height);
-            SKMatrix tileMatrix = SKMatrix.CreateScale(1f / tileScaleX, 1f / tileScaleY);
+            if (entry.Shader != null)
+            {
+                using SKPaint shaderPaint = new() { Shader = entry.Shader };
 
-            using SKPicture tile = RecordPatternTile(command, tileUnit, tileScaleX, tileScaleY, deviceTile);
-            using SKShader shader = tile.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileMatrix, deviceTile);
-            using SKPaint shaderPaint = new() { Shader = shader };
-
-            _canvas.DrawRect(command.TilingArea.ToSkRect(), shaderPaint);
+                _canvas.DrawRect(command.TilingArea.ToSkRect(), shaderPaint);
+            }
         }
         else
         {
             PdfIntegerRectangle grid = GetCellGrid(command, command.TilingArea);
 
-            using SKPicture cell = RecordPatternCell(command);
+            TilingCommandCacheEntry entry = GetOrBuildCell(command, deviceMatrix);
 
             for (int column = grid.Left; column <= grid.Right; column++)
             {
@@ -44,7 +44,7 @@ public sealed partial class SkCanvasCommandProcessor
 
                     _canvas.Save();
                     _canvas.Concat(translation);
-                    _canvas.DrawPicture(cell);
+                    _canvas.DrawPicture(entry.Picture);
 
                     _canvas.Restore();
                 }
@@ -53,6 +53,59 @@ public sealed partial class SkCanvasCommandProcessor
 
         _canvas.Restore();
         _executionContext.Frames.OnRestoreState();
+    }
+
+    /// <summary>
+    /// Returns the cached tile recorded for the pattern, recording and storing one when the cache
+    /// holds none for this cell, tint, and device matrix.
+    /// </summary>
+    private TilingCommandCacheEntry GetOrBuildTile(DrawTilingCommand command, in PdfMatrix deviceMatrix)
+    {
+        TilingCommandCacheKey key = new(command, deviceMatrix, repeating: true);
+
+        lock (_executionContext.ContentLocker)
+        {
+            if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
+            {
+                return existing;
+            }
+
+            PdfRectangle tileUnit = new(0, 0, command.XStep, command.YStep);
+
+            PdfSize deviceStep = CommandHelpers.GetDeviceStepSize(command, _executionContext);
+            float tileScaleX = deviceStep.Width / command.XStep;
+            float tileScaleY = deviceStep.Height / command.YStep;
+            SKRect deviceTile = new(0, 0, deviceStep.Width, deviceStep.Height);
+            SKMatrix tileMatrix = SKMatrix.CreateScale(1f / tileScaleX, 1f / tileScaleY);
+
+            SKPicture tile = RecordPatternTile(command, tileUnit, tileScaleX, tileScaleY, deviceTile);
+            SKShader shader = tile.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileMatrix, deviceTile);
+
+            TilingCommandCacheEntry entry = new(tile, shader);
+            _executionContext.Cache.StoreEntry(key, entry);
+            return entry;
+        }
+    }
+
+    /// <summary>
+    /// Returns the cached cell recorded for the pattern, recording and storing one when the cache
+    /// holds none for this cell, tint, and device matrix.
+    /// </summary>
+    private TilingCommandCacheEntry GetOrBuildCell(DrawTilingCommand command, in PdfMatrix deviceMatrix)
+    {
+        TilingCommandCacheKey key = new(command, deviceMatrix, repeating: false);
+
+        lock (_executionContext.ContentLocker)
+        {
+            if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
+            {
+                return existing;
+            }
+
+            TilingCommandCacheEntry entry = new(RecordPatternCell(command), null);
+            _executionContext.Cache.StoreEntry(key, entry);
+            return entry;
+        }
     }
 
     private SKPicture RecordPatternTile(DrawTilingCommand command, in PdfRectangle tileUnit, float tileScaleX, float tileScaleY, SKRect deviceTile)

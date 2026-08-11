@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
+using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Forms;
 using PdfPixel.Rendering.State;
+using System.Collections.Generic;
 
 namespace PdfPixel.Pattern.Utilities;
 
@@ -22,6 +24,14 @@ internal sealed class TilingPatternShaderBuilder
     /// <returns>A <see cref="PdfCommandRecorder"/> containing the recorded pattern cell, or null if the cell is empty.</returns>
     public static PdfCommandRecorder? RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
     {
+        PdfReference patternReference = pattern.SourceObject.Reference;
+        Dictionary<PdfReference, PdfCommandRecorder> cellCache = sourceState.Page.Document.ObjectCache.TilingCells;
+
+        if (patternReference.IsValid && cellCache.TryGetValue(patternReference, out PdfCommandRecorder? cachedCell))
+        {
+            return cachedCell;
+        }
+
         System.ReadOnlyMemory<byte> streamData = pattern.SourceObject.DecodeAsMemory();
 
         if (streamData.IsEmpty)
@@ -34,6 +44,11 @@ internal sealed class TilingPatternShaderBuilder
             // Prevent infinite recursion.
             return null;
         }
+
+        // Anything already under way is suppressed wherever the cell reaches it again, which makes
+        // the recording specific to this use; only a cell reached with nothing else in flight holds
+        // for every other use of the pattern.
+        bool reachedAtTopLevel = sourceState.RecursionGuard.Count == 0;
 
         sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
 
@@ -51,6 +66,11 @@ internal sealed class TilingPatternShaderBuilder
         if (recorder.Commands.Count == 0)
         {
             return null;
+        }
+
+        if (patternReference.IsValid && reachedAtTopLevel)
+        {
+            cellCache[patternReference] = recorder;
         }
 
         return recorder;
