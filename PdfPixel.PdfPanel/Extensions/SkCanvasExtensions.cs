@@ -59,11 +59,9 @@ internal static class SkCanvasExtensions
 
             if ((flags & PageDrawFlags.Content) != 0)
             {
-                int layerCount = canvas.SaveLayer();
                 tiler.DrawTiles(canvas, page.PageNumber, in page, request.Scale);
                 DrawPagePicture(canvas, pictures?.Annotations, page);
                 DrawSelectionPicture(canvas, textSelector, page);
-                canvas.RestoreToCount(layerCount);
 
                 if (!tiler.HasTiles(page.PageNumber) && (flags & PageDrawFlags.Placeholder) != 0 && animation != null)
                 {
