@@ -33,35 +33,37 @@ internal class PdfPageExtractor
     /// </summary>
     public void ExtractPages()
     {
-        if (_document.RootObject != null)
+        PdfObject? rootObject = _document.RootObject;
+        if (rootObject == null)
         {
-            PdfObject? rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
-            if (rootPagesObject == null)
-            {
-                _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found; attempting recovery scan.", _document.RootObject);
-                PdfXrefRecoveryScanner recoveryScanner = new(_document);
-                recoveryScanner.Scan();
-                rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
-            }
-
-            if (rootPagesObject != null)
-            {
-                // Try to resolve page labels from the catalog
-                PdfPageLabelResolver labelResolver = new(_document.RootObject.Dictionary);
-
-                PdfPageResources initialResources = new();
-                initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
-                HashSet<uint> visited = [];
-                ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver, visited);
-                return;
-            }
-
-            _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found even after recovery scan.", _document.RootObject);
+            _logger.LogWarning("Document root not found in objects.");
+            return;
         }
-        else
+
+        PdfObject? rootPagesObject = rootObject.Dictionary.GetObject(PdfTokens.PagesKey);
+        if (rootPagesObject == null)
         {
-            _logger.LogWarning("RootRef {RootRef} not found in objects.", _document.RootObject);
+            _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found; attempting recovery scan.", rootObject.Reference);
+            _document.ObjectCache.RunRecoveryScan();
+
+            // The recovery scan picks its own root, so the /Pages tree has to be read off the new one.
+            rootObject = _document.RootObject;
+            rootPagesObject = rootObject?.Dictionary.GetObject(PdfTokens.PagesKey);
         }
+
+        if (rootObject == null || rootPagesObject == null)
+        {
+            _logger.LogWarning("Document root present but /Pages tree not found even after recovery scan.");
+            return;
+        }
+
+        // Try to resolve page labels from the catalog
+        PdfPageLabelResolver labelResolver = new(rootObject.Dictionary);
+
+        PdfPageResources initialResources = new();
+        initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
+        HashSet<uint> visited = [];
+        ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver, visited);
     }
 
     /// <summary>
@@ -100,8 +102,14 @@ internal class PdfPageExtractor
                 continue;
             }
 
+            // A node is an intermediate /Pages node only when it actually carries kids of its own;
+            // damaged documents routinely omit /Type on leaf pages, and inline them into /Kids.
             PdfString typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
-            if (typeName == PdfTokens.PageKey)
+            if (typeName != PdfTokens.PageKey && kidObject.Dictionary.HasKey(PdfTokens.KidsKey))
+            {
+                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver, visited);
+            }
+            else
             {
                 // Page-level overrides
                 PdfPageResources pageResources = levelResources.Clone();
@@ -110,14 +118,6 @@ internal class PdfPageExtractor
                 PdfPage page = new(currentPageNum, pageLabel, _document, kidObject, pageResources);
                 _document.Pages.Add(page);
                 currentPageNum++;
-            }
-            else if (typeName == PdfTokens.PagesKey)
-            {
-                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver, visited);
-            }
-            else
-            {
-                _logger.LogWarning("Unexpected /Type '{Type}' encountered in page tree (ref {Ref}).", typeName, kidObject.Reference.ObjectNumber);
             }
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using PdfPixel.Text;
 
 namespace PdfPixel.Parsing;
 
@@ -9,6 +10,33 @@ namespace PdfPixel.Parsing;
 /// </summary>
 internal static class PdfByteScanner
 {
+    /// <summary>
+    /// Number of leading bytes searched for the file header before giving up.
+    /// </summary>
+    private const int HeaderSearchLimit = 1024;
+
+    /// <summary>
+    /// Locates the <c>%PDF-</c> file header. Files can carry junk bytes ahead of the header, and every
+    /// offset such a file declares (startxref, cross-reference entries) counts from the header rather
+    /// than from the start of the file.
+    /// </summary>
+    /// <param name="stream">The document stream to read from.</param>
+    /// <returns>The absolute file position of the header, or 0 when no header is present.</returns>
+    public static int LocateHeader(Stream stream)
+    {
+        long limit = Math.Min(HeaderSearchLimit, stream.Length - PdfTokens.Header.Length);
+
+        for (long scanIndex = 0; scanIndex <= limit; scanIndex++)
+        {
+            if (MatchesAt(stream, scanIndex, PdfTokens.Header))
+            {
+                return (int)scanIndex;
+            }
+        }
+
+        return 0;
+    }
+
     /// <summary>
     /// Determines whether the specified byte sequence occurs at the given absolute file position.
     /// </summary>

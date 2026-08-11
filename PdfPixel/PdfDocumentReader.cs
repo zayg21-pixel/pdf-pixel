@@ -71,6 +71,13 @@ public class PdfDocumentReader
 
         IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontProvider, stream);
         document.Password = password;
+        document.HeaderOffset = PdfByteScanner.LocateHeader(document.Stream);
+
+        if (document.HeaderOffset != 0)
+        {
+            _logger.LogWarning("PDF header found at offset {Offset}; declared offsets are relative to it.", document.HeaderOffset);
+        }
+
         PdfXrefLoader xrefLoader = new(document);
 
         try
@@ -85,8 +92,7 @@ public class PdfDocumentReader
         if (document.RootObject == null)
         {
             _logger.LogInformation("Xref incomplete (no catalog root); starting recovery scan.");
-            PdfXrefRecoveryScanner recoveryScanner = new(document);
-            recoveryScanner.Scan();
+            document.ObjectCache.RunRecoveryScan();
         }
 
         if (document.RootObject == null)

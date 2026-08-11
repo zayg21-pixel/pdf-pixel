@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Skia;
@@ -61,6 +61,11 @@ internal sealed class Program
             Description = "Print every recorded drawing command."
         };
 
+        Option<string?> passwordOption = new("--password")
+        {
+            Description = "Password used to decrypt the PDF, when it is encrypted."
+        };
+
         RootCommand rootCommand = new("Records and replays a PDF page, reporting decode and rasterization timings.")
         {
             pdfArgument,
@@ -70,7 +75,8 @@ internal sealed class Program
             maxPageOption,
             rasterizeOption,
             savePngOption,
-            dumpCommandsOption
+            dumpCommandsOption,
+            passwordOption
         };
 
         rootCommand.SetAction(parseResult =>
@@ -83,7 +89,8 @@ internal sealed class Program
                 parseResult.GetValue(maxPageOption),
                 parseResult.GetValue(rasterizeOption),
                 parseResult.GetValue(savePngOption),
-                parseResult.GetValue(dumpCommandsOption));
+                parseResult.GetValue(dumpCommandsOption),
+                parseResult.GetValue(passwordOption));
 
             return 0;
         });
@@ -99,7 +106,8 @@ internal sealed class Program
         int? maxPage,
         bool rasterize,
         bool savePng,
-        bool dumpCommands)
+        bool dumpCommands,
+        string? password)
     {
         if (pdfFile == null)
         {
@@ -122,7 +130,7 @@ internal sealed class Program
         string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", Path.GetFileNameWithoutExtension(pdfPath));
         Directory.CreateDirectory(outputDirectory);
 
-        int pageCount = GetPageCount(reader, pdfPath);
+        int pageCount = GetPageCount(reader, pdfPath, password);
         int firstPage = Math.Max(1, minPage);
         int lastPage = Math.Min(maxPage ?? pageCount, pageCount);
 
@@ -145,14 +153,15 @@ internal sealed class Program
                 iterationCount,
                 rasterize,
                 savePng,
-                dumpCommands);
+                dumpCommands,
+                password);
         }
     }
 
-    private static int GetPageCount(PdfDocumentReader reader, string pdfPath)
+    private static int GetPageCount(PdfDocumentReader reader, string pdfPath, string? password)
     {
         using FileStream fileStream = File.OpenRead(pdfPath);
-        using IPdfDocument document = reader.Read(fileStream);
+        using IPdfDocument document = reader.Read(fileStream, password);
         return document.Pages.Count;
     }
 
@@ -167,7 +176,8 @@ internal sealed class Program
         int iterationCount,
         bool rasterize,
         bool savePng,
-        bool dumpCommands)
+        bool dumpCommands,
+        string? password)
     {
         double[] totalMilliseconds = new double[iterationCount];
         double[] decodeMilliseconds = new double[iterationCount];
@@ -178,7 +188,7 @@ internal sealed class Program
             // Re-open and re-parse the document every iteration so no per-document decode cache
             // (e.g. PdfDocumentObjectCache.Images) can mask real decode cost on later iterations.
             using FileStream fileStream = File.OpenRead(pdfPath);
-            using IPdfDocument document = reader.Read(fileStream);
+            using IPdfDocument document = reader.Read(fileStream, password);
 
             IPdfPage page = document.Pages[pageNumber - 1];
 

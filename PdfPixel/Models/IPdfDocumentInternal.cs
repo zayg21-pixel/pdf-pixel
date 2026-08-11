@@ -29,6 +29,13 @@ internal interface IPdfDocumentInternal : IPdfDocument
     PdfObject? RootObject { get; set; }
 
     /// <summary>
+    /// Gets or sets the absolute file position of the <c>%PDF-</c> header. Offsets the document declares
+    /// for itself (startxref, cross-reference entries) are relative to this position, which is non-zero
+    /// only when the file carries junk bytes ahead of the header.
+    /// </summary>
+    int HeaderOffset { get; set; }
+
+    /// <summary>
     /// Gets the document-level font provider.
     /// </summary>
     IFontProvider FontProvider { get; }

@@ -11,6 +11,17 @@ internal partial struct PdfParser
     /// The parser position is not modified.
     /// </summary>
     /// <summary>
+    /// Skips whitespace and comments, then consumes the specified keyword when it is the next token.
+    /// Leaves the position on the first non-whitespace byte when the keyword does not match.
+    /// </summary>
+    public bool TryScanKeyword(in PdfString keyword)
+    {
+        SkipWhitespacesAndComments();
+
+        return TryConsumeToken(keyword);
+    }
+
+    /// <summary>
     /// Attempts to consume the specified token at the current position.
     /// If the token matches, advances past it and returns true.
     /// Otherwise, leaves the position unchanged and returns false.

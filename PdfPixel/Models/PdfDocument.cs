@@ -62,6 +62,8 @@ internal class PdfDocument : IPdfDocumentInternal
 
     PdfObject? IPdfDocumentInternal.RootObject { get; set; }
 
+    int IPdfDocumentInternal.HeaderOffset { get; set; }
+
     BasePdfDecryptor? IPdfDocumentInternal.Decryptor { get; set; }
 
     string? IPdfDocumentInternal.Password { get; set; }

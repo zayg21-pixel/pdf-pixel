@@ -42,10 +42,11 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        int xrefOffset = ParseStartXrefOffset(startxrefPos);
-        if (xrefOffset < 0 || xrefOffset >= _document.Stream.Length)
+        int declaredOffset = ParseStartXrefOffset(startxrefPos);
+        int xrefOffset = _document.HeaderOffset + declaredOffset;
+        if (declaredOffset < 0 || xrefOffset >= _document.Stream.Length)
         {
-            _logger.LogWarning("Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.Stream.Length);
+            _logger.LogWarning("Parsed startxref offset {Offset} is invalid (file length {Length}).", declaredOffset, _document.Stream.Length);
             return;
         }
 
@@ -64,7 +65,7 @@ internal sealed class PdfXrefLoader
                 int? prevOffset;
                 while ((prevOffset = _trailerParser.GetPrevOffset(trailer)).HasValue)
                 {
-                    int offsetValue = prevOffset.Value;
+                    int offsetValue = _document.HeaderOffset + prevOffset.Value;
                     if (!visitedOffsets.Add(offsetValue))
                     {
                         _logger.LogWarning("Detected /Prev chain cycle at offset {Offset}; stopping xref traversal.", offsetValue);
@@ -103,7 +104,7 @@ internal sealed class PdfXrefLoader
             int? prevOffset;
             while ((prevOffset = _trailerParser.GetPrevOffset(streamTrailer)).HasValue)
             {
-                int offsetValue = prevOffset.Value;
+                int offsetValue = _document.HeaderOffset + prevOffset.Value;
                 if (!visitedOffsets.Add(offsetValue))
                 {
                     _logger.LogWarning("Detected /Prev chain cycle at offset {Offset}; stopping xref traversal.", offsetValue);
@@ -235,7 +236,7 @@ internal sealed class PdfXrefLoader
         PdfObjectInfo info;
         if (statusByte == (byte)'n')
         {
-            info = PdfObjectInfo.ForUncompressed(reference, offsetValue, false);
+            info = PdfObjectInfo.ForUncompressed(reference, _document.HeaderOffset + offsetValue, false);
         }
         else if (statusByte == (byte)'f')
         {
@@ -254,6 +255,25 @@ internal sealed class PdfXrefLoader
     #endregion
 
     #region XRef Stream (PDF 1.5+)
+
+    /// <summary>
+    /// Applies the entries of a cross-reference stream that was found by scanning the file rather than
+    /// by following the /Prev chain. Entries the index already holds keep precedence, so this only fills
+    /// the gaps — chiefly the compressed objects a plain scan cannot see, since they live inside /ObjStm
+    /// containers and are never declared with an <c>N G obj</c> header of their own.
+    /// </summary>
+    /// <param name="crossReferenceStream">A parsed object whose dictionary is of <c>/Type /XRef</c>.</param>
+    public void ApplyCrossReferenceStream(PdfObject crossReferenceStream)
+    {
+        ReadOnlyMemory<byte> decoded = crossReferenceStream.DecodeAsMemory();
+        if (decoded.IsEmpty)
+        {
+            _logger.LogWarning("Cross-reference stream {Reference} found by the recovery scan decoded to nothing.", crossReferenceStream.Reference);
+            return;
+        }
+
+        ParseXrefStreamEntries(crossReferenceStream.Dictionary, decoded);
+    }
 
     private PdfDictionary? ParseXrefStream(ref PdfParser parser)
     {
@@ -360,7 +380,7 @@ internal sealed class PdfXrefLoader
                     }
                     case 1:
                     {
-                        info = PdfObjectInfo.ForUncompressed(reference, field2, true);
+                        info = PdfObjectInfo.ForUncompressed(reference, _document.HeaderOffset + field2, true);
                         break;
                     }
                     case 2:

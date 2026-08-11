@@ -10,6 +10,7 @@ internal static class PdfTokens
 {
     // PDF Keywords
 
+    public static ReadOnlySpan<byte> Header => "%PDF-"u8;
     public static ReadOnlySpan<byte> Xref => "xref"u8;
     public static ReadOnlySpan<byte> Startxref => "startxref"u8;
 

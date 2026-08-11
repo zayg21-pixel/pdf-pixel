@@ -115,9 +115,8 @@ internal class PdfDocumentObjectCache
 
         if (parsed == null && !_recoveryScanAttempted)
         {
-            _recoveryScanAttempted = true;
             _logger.LogWarning("Object {Reference} could not be resolved from the xref table; running a fallback recovery scan.", reference);
-            _recoveryScanner.Scan();
+            RunRecoveryScan();
             parsed = ResolveIndexedObject(reference);
         }
 
@@ -130,16 +129,29 @@ internal class PdfDocumentObjectCache
     }
 
     /// <summary>
-    /// Records an already-parsed object directly, updating both the object index (so later lookups
-    /// know where it lives on disk) and the materialized object cache (so it isn't re-parsed).
+    /// Rebuilds the object index and the document root by scanning the file itself. Runs at most once
+    /// per document, so that resolving objects while the scan picks a root cannot recurse into it.
     /// </summary>
-    /// <param name="obj">The already-parsed object.</param>
-    /// <param name="fileOffset">Absolute byte offset in the source file where the object header begins.</param>
-    internal void SetObject(PdfObject obj, long fileOffset)
+    internal void RunRecoveryScan()
     {
-        ObjectIndex[obj.Reference] = PdfObjectInfo.ForUncompressed(obj.Reference, fileOffset, fromXrefStream: false);
-        _objects[obj.Reference] = obj;
+        if (_recoveryScanAttempted)
+        {
+            return;
+        }
+
+        _recoveryScanAttempted = true;
+        _recoveryScanner.Scan();
     }
+
+    /// <summary>
+    /// Records where an object was found without materializing it. The object is parsed on demand from
+    /// this offset, which keeps it out of the cache until the document is fully set up — an object
+    /// parsed before the decryptor exists would hold its strings undecrypted forever.
+    /// </summary>
+    /// <param name="reference">Object reference declared by the object header.</param>
+    /// <param name="fileOffset">Absolute byte offset in the source file where the object header begins.</param>
+    internal void SetObjectOffset(in PdfReference reference, long fileOffset)
+        => ObjectIndex[reference] = PdfObjectInfo.ForUncompressed(reference, fileOffset, fromXrefStream: false);
 
     private PdfObject? ResolveIndexedObject(in PdfReference reference)
     {
