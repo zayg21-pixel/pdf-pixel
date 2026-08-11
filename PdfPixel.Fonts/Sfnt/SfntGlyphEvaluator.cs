@@ -86,9 +86,7 @@ public class SfntGlyphEvaluator
 
         if (numberOfContours >= 0)
         {
-            GlyphOutline simpleOutline = ReadSimpleOutline(ref reader, numberOfContours, data);
-
-            return (reader.IsValid) ? simpleOutline : null;
+            return ReadSimpleOutline(ref reader, numberOfContours, data);
         }
 
         return CollectComponents(ref reader, glyfProcessor, loca, source, depth);
@@ -184,9 +182,8 @@ public class SfntGlyphEvaluator
 
         PdfFontMatrix scale = new(component.ScaleX, component.Scale10, 0f, component.Scale01, component.ScaleY, 0f);
 
-        PdfFontPoint compositePoint = outline.Points.Span[component.CompositePointIndex];
-        PdfFontPoint componentPoint = componentOutline.Points.Span[component.ComponentPointIndex];
-        PdfFontPoint scaledComponentPoint = scale.MapPoint(componentPoint);
+        GlyphPoint compositePoint = outline.Points[component.CompositePointIndex];
+        GlyphPoint scaledComponentPoint = GlyphOutline.Place(componentOutline.Points[component.ComponentPointIndex], scale);
 
         return new PdfFontMatrix(
             component.ScaleX,
@@ -203,9 +200,9 @@ public class SfntGlyphEvaluator
     /// data. Only the on-curve bit of each flag is kept: the rest describe how the source encoded its
     /// deltas, which a writer decides for itself from the coordinates it is given.
     /// </summary>
-    private static GlyphOutline ReadSimpleOutline(ref SfntReader reader, short numberOfContours, in ReadOnlyMemory<byte> data)
+    private static GlyphOutline? ReadSimpleOutline(ref SfntReader reader, short numberOfContours, in ReadOnlyMemory<byte> data)
     {
-        var endPoints = new ushort[numberOfContours];
+        var endPoints = new int[numberOfContours];
         for (int contourIndex = 0; contourIndex < numberOfContours; contourIndex++)
         {
             endPoints[contourIndex] = reader.ReadUInt16OrDefault();
@@ -215,7 +212,14 @@ public class SfntGlyphEvaluator
         int instructionOffset = reader.Position;
         reader.Skip(instructionLength);
 
-        ReadOnlyMemory<byte> instructions = (reader.IsValid && instructionLength > 0)
+        // The point data below is sized from the last contour end, so a glyph truncated before it is
+        // rejected here rather than after allocating for points the data cannot hold.
+        if (!reader.IsValid)
+        {
+            return null;
+        }
+
+        ReadOnlyMemory<byte> instructions = (instructionLength > 0)
             ? data.Slice(instructionOffset, instructionLength)
             : default;
 
@@ -229,43 +233,32 @@ public class SfntGlyphEvaluator
             if ((flag & SfntGlyphFlags.Repeat) != 0)
             {
                 byte repeatCount = reader.ReadByteOrDefault();
-                for (int repeatIndex = 0; repeatIndex < repeatCount && pointIndex < numPoints; repeatIndex++)
-                {
-                    flags[pointIndex++] = flag;
-                }
+                int repeatEnd = Math.Min(pointIndex + repeatCount, numPoints);
+                flags.AsSpan(pointIndex, repeatEnd - pointIndex).Fill(flag);
+                pointIndex = repeatEnd;
             }
         }
 
-        var xs = new int[numPoints];
+        // Both coordinate runs are delta-encoded and stored one axis after the other, so x is
+        // accumulated into the points first and y is folded into them on the second pass.
+        var points = new GlyphPoint[numPoints];
+
         int x = 0;
         for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
         {
             x += ReadDelta(ref reader, flags[pointIndex], SfntGlyphFlags.XShort, SfntGlyphFlags.XSame);
-            xs[pointIndex] = x;
+            points[pointIndex] = GlyphPoint.Clamped(x, 0);
         }
 
-        var ys = new int[numPoints];
         int y = 0;
         for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
         {
             y += ReadDelta(ref reader, flags[pointIndex], SfntGlyphFlags.YShort, SfntGlyphFlags.YSame);
-            ys[pointIndex] = y;
+            points[pointIndex] = GlyphPoint.Clamped(points[pointIndex].X, y);
             flags[pointIndex] &= SfntGlyphFlags.OnCurve;
         }
 
-        var points = new PdfFontPoint[numPoints];
-        for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
-        {
-            points[pointIndex] = new PdfFontPoint(xs[pointIndex], ys[pointIndex]);
-        }
-
-        var contourEndPoints = new int[numberOfContours];
-        for (int contourIndex = 0; contourIndex < numberOfContours; contourIndex++)
-        {
-            contourEndPoints[contourIndex] = endPoints[contourIndex];
-        }
-
-        return new GlyphOutline(points, flags, contourEndPoints, instructions);
+        return (reader.IsValid) ? new GlyphOutline(points, flags, endPoints, instructions) : null;
     }
 
     private static int ReadDelta(ref SfntReader reader, byte flag, byte shortFlag, byte sameFlag)

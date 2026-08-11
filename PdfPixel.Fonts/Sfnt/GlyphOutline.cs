@@ -9,9 +9,13 @@ namespace PdfPixel.Fonts.Sfnt;
 /// contour. Immutable - a composite glyph's components are combined through <see cref="Merge"/>,
 /// which returns the combined outline instead of growing either of the two it was given.
 /// </summary>
+/// <remarks>
+/// Only a glyph read for its path is ever flattened this way. Writing "glyf" back out keeps a
+/// composite composite, so nothing on that path places a component or leaves the design grid.
+/// </remarks>
 public sealed class GlyphOutline
 {
-    private readonly PdfFontPoint[] _points;
+    private readonly GlyphPoint[] _points;
     private readonly byte[] _flags;
     private readonly int[] _endPoints;
 
@@ -23,7 +27,7 @@ public sealed class GlyphOutline
     /// <param name="flags">Each point's flags, one per entry of <paramref name="points"/>.</param>
     /// <param name="endPoints">The index, into <paramref name="points"/>, of the last point of every contour.</param>
     /// <param name="instructions">The glyph's hinting instructions, empty when it has none.</param>
-    public GlyphOutline(PdfFontPoint[] points, byte[] flags, int[] endPoints, in ReadOnlyMemory<byte> instructions)
+    public GlyphOutline(GlyphPoint[] points, byte[] flags, int[] endPoints, in ReadOnlyMemory<byte> instructions)
     {
         if (points == null)
         {
@@ -50,7 +54,7 @@ public sealed class GlyphOutline
     /// Gets an outline holding no points at all, which is where combining a composite glyph's
     /// components starts.
     /// </summary>
-    public static GlyphOutline Empty { get; } = new(Array.Empty<PdfFontPoint>(), Array.Empty<byte>(), Array.Empty<int>(), default);
+    public static GlyphOutline Empty { get; } = new([], [], [], default);
 
     /// <summary>
     /// Gets the glyph's hinting instructions, which address the point numbers this outline holds.
@@ -63,17 +67,37 @@ public sealed class GlyphOutline
     /// Gets every point of the outline, in the order that a component's point-matching arguments
     /// number them.
     /// </summary>
-    public ReadOnlyMemory<PdfFontPoint> Points => _points;
+    public ReadOnlySpan<GlyphPoint> Points => _points;
 
     /// <summary>
     /// Gets each point's flags, one per entry of <see cref="Points"/>.
     /// </summary>
-    public ReadOnlyMemory<byte> Flags => _flags;
+    public ReadOnlySpan<byte> Flags => _flags;
 
     /// <summary>
     /// Gets the index, into <see cref="Points"/>, of the last point of every contour.
     /// </summary>
-    public ReadOnlyMemory<int> EndPoints => _endPoints;
+    public ReadOnlySpan<int> EndPoints => _endPoints;
+
+    /// <summary>
+    /// Places one of a component's points by the transform its record carries, back onto the whole
+    /// design units the rest of the outline sits on. A component that only offsets its glyph - which
+    /// nearly all of them do - never leaves those units in the first place.
+    /// </summary>
+    /// <param name="point">The point to place.</param>
+    /// <param name="transform">The transform placing it.</param>
+    public static GlyphPoint Place(in GlyphPoint point, in PdfFontMatrix transform)
+    {
+        if (transform.ScaleX == 1f && transform.ScaleY == 1f && transform.SkewX == 0f && transform.SkewY == 0f)
+        {
+            return GlyphPoint.Clamped(point.X + (int)transform.TransX, point.Y + (int)transform.TransY);
+        }
+
+        float x = (transform.ScaleX * point.X) + (transform.SkewX * point.Y) + transform.TransX;
+        float y = (transform.SkewY * point.X) + (transform.ScaleY * point.Y) + transform.TransY;
+
+        return GlyphPoint.Clamped(Round(x), Round(y));
+    }
 
     /// <summary>
     /// Combines this outline with <paramref name="outline"/>, placing every point of the latter by
@@ -98,14 +122,14 @@ public sealed class GlyphOutline
         int pointOffset = _points.Length;
         int contourOffset = _endPoints.Length;
 
-        var points = new PdfFontPoint[pointOffset + outline._points.Length];
+        var points = new GlyphPoint[pointOffset + outline._points.Length];
         var flags = new byte[_flags.Length + outline._flags.Length];
         var endPoints = new int[contourOffset + outline._endPoints.Length];
 
         _points.CopyTo(points, 0);
         for (int pointIndex = 0; pointIndex < outline._points.Length; pointIndex++)
         {
-            points[pointOffset + pointIndex] = transform.MapPoint(outline._points[pointIndex]);
+            points[pointOffset + pointIndex] = Place(outline._points[pointIndex], transform);
         }
 
         _flags.CopyTo(flags, 0);
@@ -119,4 +143,6 @@ public sealed class GlyphOutline
 
         return new GlyphOutline(points, flags, endPoints, Instructions);
     }
+
+    private static int Round(float value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 }

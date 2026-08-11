@@ -1,43 +1,55 @@
-using PdfPixel.Fonts.Model;
 using System;
 
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
-/// Writes a collected glyph outline back out as a simple "glyf" glyph. A composite glyph's components
-/// have already been flattened into the outline by then, so the result never refers to another glyph.
-/// The bounding box is recomputed from the points, and every delta is encoded in the shortest form
-/// that holds it - the outline records only which points lie on the curve, not how the source chose
-/// to store its coordinates.
+/// Writes a simple glyph's outline back out as a simple "glyf" glyph. The bounding box is recomputed
+/// from the points, and every delta is encoded in the shortest form that holds it - the outline
+/// records only which points lie on the curve, not how the source chose to store its coordinates.
+/// The points arrive in the design units the format stores and are written as they are: nothing on
+/// this path places, scales or rounds them.
 /// </summary>
-public static class SfntGlyphRepacker
+/// <remarks>
+/// One instance repacks a whole table: the per-point scratch buffers grow to the largest glyph seen
+/// and are reused by every glyph after it, so a table costs one set of buffers rather than one per
+/// glyph.
+/// </remarks>
+internal sealed class SfntGlyphRepacker
 {
     private const int ShortDeltaLimit = 255;
     private const int MaxRepeatRunLength = 256;
 
+    private int[] _xDeltas = [];
+    private int[] _yDeltas = [];
+    private byte[] _flags = [];
+
     /// <summary>
-    /// Repacks one glyph. Returns an empty glyph when the outline has no points, which "loca" records
-    /// as a glyph without an outline.
+    /// Repacks one glyph, appending it to <paramref name="writer"/>. Writes nothing when the outline
+    /// has no points, which "loca" records as a glyph without an outline.
     /// </summary>
+    /// <param name="writer">The writer the glyph's bytes are appended to.</param>
     /// <param name="outline">The glyph's collected outline.</param>
-    public static byte[] Repack(GlyphOutline outline)
+    public void Repack(SfntWriter writer, GlyphOutline outline)
     {
         if (outline == null)
         {
             throw new ArgumentNullException(nameof(outline));
         }
 
-        ReadOnlySpan<PdfFontPoint> points = outline.Points.Span;
+        ReadOnlySpan<GlyphPoint> points = outline.Points;
+        ReadOnlySpan<int> endPoints = outline.EndPoints;
         int pointCount = points.Length;
 
-        if (pointCount == 0 || outline.EndPoints.Length == 0)
+        if (pointCount == 0 || endPoints.Length == 0)
         {
-            return Array.Empty<byte>();
+            return;
         }
 
-        var xDeltas = new int[pointCount];
-        var yDeltas = new int[pointCount];
-        var flags = new byte[pointCount];
+        EnsureCapacity(pointCount);
+
+        Span<int> xDeltas = _xDeltas.AsSpan(0, pointCount);
+        Span<int> yDeltas = _yDeltas.AsSpan(0, pointCount);
+        Span<byte> flags = _flags.AsSpan(0, pointCount);
 
         short xMin = short.MaxValue;
         short yMin = short.MaxValue;
@@ -47,38 +59,39 @@ public static class SfntGlyphRepacker
         short previousX = 0;
         short previousY = 0;
 
-        ReadOnlySpan<byte> outlineFlags = outline.Flags.Span;
+        ReadOnlySpan<byte> outlineFlags = outline.Flags;
 
         for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
         {
-            PdfFontPoint point = points[pointIndex];
-            short roundedX = ToFontUnits(point.X);
-            short roundedY = ToFontUnits(point.Y);
+            GlyphPoint point = points[pointIndex];
+            short x = point.X;
+            short y = point.Y;
 
-            xMin = Math.Min(xMin, roundedX);
-            yMin = Math.Min(yMin, roundedY);
-            xMax = Math.Max(xMax, roundedX);
-            yMax = Math.Max(yMax, roundedY);
+            xMin = Math.Min(xMin, x);
+            yMin = Math.Min(yMin, y);
+            xMax = Math.Max(xMax, x);
+            yMax = Math.Max(yMax, y);
 
-            xDeltas[pointIndex] = roundedX - previousX;
-            yDeltas[pointIndex] = roundedY - previousY;
-            previousX = roundedX;
-            previousY = roundedY;
+            int xDelta = x - previousX;
+            int yDelta = y - previousY;
+            xDeltas[pointIndex] = xDelta;
+            yDeltas[pointIndex] = yDelta;
+            previousX = x;
+            previousY = y;
 
             var onCurve = (byte)(outlineFlags[pointIndex] & SfntGlyphFlags.OnCurve);
             flags[pointIndex] = (byte)(onCurve
-                | EncodeDeltaFlag(xDeltas[pointIndex], SfntGlyphFlags.XShort, SfntGlyphFlags.XSame)
-                | EncodeDeltaFlag(yDeltas[pointIndex], SfntGlyphFlags.YShort, SfntGlyphFlags.YSame));
+                | EncodeDeltaFlag(xDelta, SfntGlyphFlags.XShort, SfntGlyphFlags.XSame)
+                | EncodeDeltaFlag(yDelta, SfntGlyphFlags.YShort, SfntGlyphFlags.YSame));
         }
 
-        SfntWriter writer = new();
-        writer.WriteInt16((short)outline.EndPoints.Length);
+        writer.WriteInt16((short)endPoints.Length);
         writer.WriteInt16(xMin);
         writer.WriteInt16(yMin);
         writer.WriteInt16(xMax);
         writer.WriteInt16(yMax);
 
-        foreach (int endPoint in outline.EndPoints.Span)
+        foreach (int endPoint in endPoints)
         {
             writer.WriteUInt16((ushort)endPoint);
         }
@@ -92,8 +105,6 @@ public static class SfntGlyphRepacker
         WriteFlags(writer, flags);
         WriteDeltas(writer, flags, xDeltas, SfntGlyphFlags.XShort);
         WriteDeltas(writer, flags, yDeltas, SfntGlyphFlags.YShort);
-
-        return writer.Detach();
     }
 
     /// <summary>
@@ -120,7 +131,7 @@ public static class SfntGlyphRepacker
     /// Writes the per-point flags, collapsing a run of identical ones into a single flag byte carrying
     /// <see cref="SfntGlyphFlags.Repeat"/> and the count of the points that repeat it.
     /// </summary>
-    private static void WriteFlags(SfntWriter writer, byte[] flags)
+    private static void WriteFlags(SfntWriter writer, in ReadOnlySpan<byte> flags)
     {
         for (int pointIndex = 0; pointIndex < flags.Length;)
         {
@@ -151,7 +162,7 @@ public static class SfntGlyphRepacker
     /// <summary>
     /// Writes one axis' deltas in the forms the flags written alongside them declare.
     /// </summary>
-    private static void WriteDeltas(SfntWriter writer, byte[] flags, int[] deltas, byte shortFlag)
+    private static void WriteDeltas(SfntWriter writer, in ReadOnlySpan<byte> flags, in ReadOnlySpan<int> deltas, byte shortFlag)
     {
         for (int pointIndex = 0; pointIndex < deltas.Length; pointIndex++)
         {
@@ -168,8 +179,6 @@ public static class SfntGlyphRepacker
         }
     }
 
-    private static short ToFontUnits(float value) => ClampToFontUnits((int)Math.Round(value, MidpointRounding.AwayFromZero));
-
     private static short ClampToFontUnits(int value)
     {
         if (value < short.MinValue)
@@ -183,5 +192,27 @@ public static class SfntGlyphRepacker
         }
 
         return (short)value;
+    }
+
+    /// <summary>
+    /// Grows the per-point scratch buffers to hold <paramref name="pointCount"/> points, at least
+    /// doubling them so a table whose glyphs grow steadily does not reallocate on every one.
+    /// </summary>
+    private void EnsureCapacity(int pointCount)
+    {
+        if (pointCount <= _flags.Length)
+        {
+            return;
+        }
+
+        int newCapacity = _flags.Length * 2;
+        if (newCapacity < pointCount)
+        {
+            newCapacity = pointCount;
+        }
+
+        _xDeltas = new int[newCapacity];
+        _yDeltas = new int[newCapacity];
+        _flags = new byte[newCapacity];
     }
 }

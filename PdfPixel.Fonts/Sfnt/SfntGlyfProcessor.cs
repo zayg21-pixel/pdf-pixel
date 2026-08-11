@@ -81,9 +81,11 @@ public class SfntGlyfProcessor
     }
 
     /// <summary>
-    /// Writes a full "glyf" table's binary content, evaluating and repacking every glyph, along with
-    /// the "loca" table that indexes them. Each glyph is padded to an even byte boundary, since a
-    /// short-format "loca" can only represent even offsets.
+    /// Writes a full "glyf" table's binary content, along with the "loca" table that indexes them.
+    /// Every glyph keeps the glyph id it already had, so a composite glyph is written back as it
+    /// stands - what its components reference still resolves - and only a simple glyph is decoded and
+    /// repacked. Each glyph is padded to an even byte boundary, since a short-format "loca" can only
+    /// represent even offsets.
     /// </summary>
     public SfntGlyfWriteResult Write(SfntGlyf glyf, in SfntGlyfSource source)
     {
@@ -94,9 +96,10 @@ public class SfntGlyfProcessor
 
         int numGlyphs = glyf.NumGlyphs;
 
-        // A repacked simple glyph is its source's size, and a flattened composite rarely exceeds it by
-        // much, so the source table plus a pad byte per glyph writes the whole table without growing.
+        // A repacked simple glyph is its source's size and a composite is copied at its own, so the
+        // source table plus a pad byte per glyph writes the whole table without growing.
         SfntWriter writer = new(source.GlyfRecord.Length + numGlyphs);
+        SfntGlyphRepacker repacker = new();
         var ranges = new SfntGlyphRange[numGlyphs];
 
         for (int gid = 0; gid < numGlyphs; gid++)
@@ -104,15 +107,25 @@ public class SfntGlyfProcessor
             var startOffset = (uint)writer.Length;
 
             ReadOnlyMemory<byte> glyphData = FetchRawGlyph(gid, glyf.Loca, source);
-            GlyphOutline? outline = _evaluator.Evaluate(glyphData, this, glyf.Loca, source);
 
-            if (outline != null)
+            if (IsComposite(glyphData.Span))
             {
-                writer.WriteBytes(SfntGlyphRepacker.Repack(outline));
-                if ((writer.Length & 1) != 0)
+                writer.WriteBytes(glyphData.Span);
+            }
+            else if (glyphData.Length > 0)
+            {
+                GlyphOutline? outline = _evaluator.Evaluate(glyphData, this, glyf.Loca, source);
+
+                if (outline != null)
                 {
-                    writer.WriteByte(0);
+                    repacker.Repack(writer, outline);
                 }
+            }
+
+            // Every glyph ends on an even boundary, so an odd length here is this glyph's alone.
+            if ((writer.Length & 1) != 0)
+            {
+                writer.WriteByte(0);
             }
 
             ranges[gid] = new SfntGlyphRange(startOffset, (uint)writer.Length - startOffset);
@@ -120,4 +133,11 @@ public class SfntGlyfProcessor
 
         return new SfntGlyfWriteResult(writer.Detach(), new SfntLoca { Ranges = ranges });
     }
+
+    /// <summary>
+    /// Reports whether a glyph's raw bytes describe a composite glyph, which a negative contour count
+    /// in the glyph header marks.
+    /// </summary>
+    private static bool IsComposite(in ReadOnlySpan<byte> glyphData)
+        => glyphData.Length >= 2 && (short)((glyphData[0] << 8) | glyphData[1]) < 0;
 }
