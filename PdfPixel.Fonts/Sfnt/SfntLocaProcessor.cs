@@ -77,7 +77,7 @@ public class SfntLocaProcessor
         uint glyfDataLength = lastRange.Offset + lastRange.Length;
         WriteOffset(writer, glyfDataLength, isLongFormat);
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     private static void WriteOffset(SfntWriter writer, uint offset, bool isLongFormat)

@@ -60,7 +60,7 @@ public class SfntCmapProcessor
         writer.WriteUInt16(1); // idDelta
         writer.WriteUInt16(0); // idRangeOffset
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     /// <summary>

@@ -465,7 +465,7 @@ public class SfntGlyphEvaluator
             return WriteFlattenedGlyph(outline);
         }
 
-        SfntWriter writer = new();
+        SfntWriter writer = new(data.Length);
         writer.WriteInt16(numberOfContours);
         writer.WriteInt16(xMin);
         writer.WriteInt16(yMin);
@@ -480,7 +480,7 @@ public class SfntGlyphEvaluator
             return null;
         }
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     private static void RepackSimpleGlyph(ref SfntReader reader, short numberOfContours, SfntWriter writer)
@@ -598,7 +598,7 @@ public class SfntGlyphEvaluator
         WriteDeltas(writer, xCoordinates);
         WriteDeltas(writer, yCoordinates);
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     private static void WriteDeltas(SfntWriter writer, short[] coordinates)

@@ -101,6 +101,6 @@ public class SfntHmtxProcessor
             writer.WriteInt16(metrics[glyphIndex].LeftSideBearing);
         }
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 }

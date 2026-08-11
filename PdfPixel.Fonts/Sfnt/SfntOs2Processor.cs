@@ -199,7 +199,7 @@ public class SfntOs2Processor
 
         if (os2.Version == 0)
         {
-            return writer.ToArray();
+            return writer.Detach();
         }
 
         writer.WriteUInt32(os2.UlCodePageRange1.GetValueOrDefault());
@@ -207,7 +207,7 @@ public class SfntOs2Processor
 
         if (os2.Version == 1)
         {
-            return writer.ToArray();
+            return writer.Detach();
         }
 
         writer.WriteInt16(os2.SxHeight.GetValueOrDefault());
@@ -218,12 +218,12 @@ public class SfntOs2Processor
 
         if (os2.Version != 5)
         {
-            return writer.ToArray();
+            return writer.Detach();
         }
 
         writer.WriteUInt16(os2.UsLowerOpticalPointSize.GetValueOrDefault());
         writer.WriteUInt16(os2.UsUpperOpticalPointSize.GetValueOrDefault());
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 }

@@ -130,7 +130,7 @@ public class SfntMaxpProcessor
 
         if (maxp.Version == 0.5f)
         {
-            return writer.ToArray();
+            return writer.Detach();
         }
 
         writer.WriteUInt16(maxp.MaxPoints.GetValueOrDefault());
@@ -147,6 +147,6 @@ public class SfntMaxpProcessor
         writer.WriteUInt16(maxp.MaxComponentElements.GetValueOrDefault());
         writer.WriteUInt16(maxp.MaxComponentDepth.GetValueOrDefault());
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 }

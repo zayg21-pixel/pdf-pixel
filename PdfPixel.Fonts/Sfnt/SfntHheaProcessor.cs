@@ -121,6 +121,6 @@ public class SfntHheaProcessor
         writer.WriteInt16(hhea.MetricDataFormat);
         writer.WriteUInt16(hhea.NumberOfHMetrics);
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 }

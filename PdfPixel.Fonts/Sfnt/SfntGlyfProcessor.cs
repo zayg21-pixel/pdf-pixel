@@ -85,8 +85,9 @@ public class SfntGlyfProcessor
             throw new ArgumentNullException(nameof(glyf));
         }
 
-        SfntWriter writer = new();
         int numGlyphs = glyf.NumGlyphs;
+
+        SfntWriter writer = new(source.GlyfRecord.Length + numGlyphs);
         var ranges = new SfntGlyphRange[numGlyphs];
 
         for (int gid = 0; gid < numGlyphs; gid++)
@@ -106,6 +107,6 @@ public class SfntGlyfProcessor
             ranges[gid] = new SfntGlyphRange(startOffset, (uint)writer.Length - startOffset);
         }
 
-        return new SfntGlyfWriteResult(writer.ToArray(), new SfntLoca { Ranges = ranges });
+        return new SfntGlyfWriteResult(writer.Detach(), new SfntLoca { Ranges = ranges });
     }
 }

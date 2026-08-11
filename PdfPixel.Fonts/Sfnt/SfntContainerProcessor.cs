@@ -201,7 +201,7 @@ public class SfntContainerProcessor
             offset += Align4(sortedTables[tableIndex].Data.Length);
         }
 
-        byte[] fontBytes = BuildFontBytes(version, sortedTables, tableOffsets, directoryParams);
+        byte[] fontBytes = BuildFontBytes(version, sortedTables, tableOffsets, directoryParams, offset);
 
         int headTableIndex = sortedTables.FindIndex(table => table.Tag == SfntTableTags.Head);
         if (headTableIndex < 0)
@@ -217,9 +217,9 @@ public class SfntContainerProcessor
         return fontBytes;
     }
 
-    private static byte[] BuildFontBytes(uint version, List<SfntTableData> sortedTables, int[] tableOffsets, in DirectoryParams directoryParams)
+    private static byte[] BuildFontBytes(uint version, List<SfntTableData> sortedTables, int[] tableOffsets, in DirectoryParams directoryParams, int totalLength)
     {
-        SfntWriter writer = new();
+        SfntWriter writer = new(totalLength);
 
         writer.WriteUInt32(version);
         writer.WriteUInt16((ushort)sortedTables.Count);
@@ -253,7 +253,7 @@ public class SfntContainerProcessor
             }
         }
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     private static int Align4(int value) => (value + 3) & ~3;

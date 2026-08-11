@@ -87,7 +87,7 @@ public class SfntNameProcessor
         writer.WriteUInt16(0); // recordCount
         writer.WriteUInt16(HeaderLength); // storageOffset: the empty storage area starts past the header
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     /// <summary>
@@ -130,7 +130,7 @@ public class SfntNameProcessor
             writer.WriteBytes(sortedRecords[recordIndex].Value.Span);
         }
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     private static int CompareRecords(SfntNameRecord left, SfntNameRecord right)

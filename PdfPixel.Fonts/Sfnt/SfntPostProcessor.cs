@@ -48,7 +48,7 @@ public class SfntPostProcessor
         writer.WriteUInt32(0); // minMemType1
         writer.WriteUInt32(0); // maxMemType1
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 
     /// <summary>

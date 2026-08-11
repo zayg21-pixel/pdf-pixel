@@ -101,6 +101,6 @@ public class SfntHeadProcessor
         writer.WriteInt16(head.IndexToLocFormat);
         writer.WriteInt16(head.GlyphDataFormat);
 
-        return writer.ToArray();
+        return writer.Detach();
     }
 }
