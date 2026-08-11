@@ -8,8 +8,7 @@ namespace PdfPixel.Fonts.Model;
 
 /// <summary>
 /// A 2D affine transformation matrix with 6 operands, in the same [a b c d e f] operand order as a
-/// CFF/Type1/Type3 FontMatrix. Structurally the font-space counterpart of <c>PdfPixel.Geometry.PdfMatrix</c>
-/// (that type lives in the main PdfPixel assembly, which PdfPixel.Fonts does not reference).
+/// CFF/Type1/Type3 FontMatrix.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
@@ -138,19 +137,19 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
     public PdfFontMatrix PostConcat(in PdfFontMatrix matrix) => Concat(matrix, this);
 
     /// <summary>
-    /// Transforms the point <c>(x, y)</c> by this matrix.
+    /// Transforms <paramref name="point"/> by this matrix.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public (float X, float Y) MapPoint(float x, float y)
+    public PdfFontPoint MapPoint(in PdfFontPoint point)
     {
         if (IsIdentity)
         {
-            return (x, y);
+            return point;
         }
 
-        Vector2 mapped = Vector2.Transform(new Vector2(x, y), AsMatrix3x2(this));
+        Vector2 mapped = Vector2.Transform(new Vector2(point.X, point.Y), AsMatrix3x2(this));
 
-        return (mapped.X, mapped.Y);
+        return new PdfFontPoint(mapped.X, mapped.Y);
     }
 
     /// <inheritdoc/>

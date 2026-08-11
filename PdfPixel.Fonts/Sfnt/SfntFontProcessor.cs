@@ -235,14 +235,14 @@ public class SfntFontProcessor
     }
 
     /// <summary>
-    /// Resolves a single glyph's outline on demand, caching the result on <see cref="SfntFont.Glyf"/>.
-    /// Returns null if <paramref name="font"/> has no "glyf" table.
+    /// Resolves a single glyph's path on demand, caching the result on <see cref="SfntFont.Glyf"/>.
+    /// Returns an empty path if <paramref name="font"/> has no "glyf" table.
     /// </summary>
     /// <param name="font">The font to resolve the glyph from.</param>
     /// <param name="gid">The glyph ID to resolve.</param>
     /// <param name="stream">The stream <paramref name="font"/> was read from.</param>
     /// <param name="matrix">Transform applied to every point of the resulting path.</param>
-    public SfntGlyphCharacter? ResolveGlyph(SfntFont font, int gid, ReadOnlyFontStream stream, in PdfFontMatrix matrix)
+    public ReadOnlyMemory<byte> ResolvePath(SfntFont font, int gid, ReadOnlyFontStream stream, in PdfFontMatrix matrix)
     {
         if (font == null)
         {
@@ -251,10 +251,10 @@ public class SfntFontProcessor
 
         if (font.Glyf == null || font.GlyfRecord == null)
         {
-            return null;
+            return ReadOnlyMemory<byte>.Empty;
         }
 
-        return _glyfProcessor.ResolveGlyph(font.Glyf, gid, new SfntGlyfSource(stream, font.GlyfRecord.Value), matrix);
+        return _glyfProcessor.ResolvePath(font.Glyf, gid, new SfntGlyfSource(stream, font.GlyfRecord.Value), matrix);
     }
 
     /// <summary>
@@ -353,9 +353,7 @@ public class SfntFontProcessor
         {
             if (font.GlyfRecord != null)
             {
-                float unitsPerEmScale = 1f / font.Head.UnitsPerEm;
-                PdfFontMatrix glyphMatrix = new(unitsPerEmScale, 0, 0, 0, unitsPerEmScale, 0);
-                SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value), glyphMatrix);
+                SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value));
                 tables.Add(new SfntTableData(SfntTableTags.Glyf, glyfResult.GlyfData));
 
                 byte[] locaData = _locaProcessor.Write(glyfResult.Loca, font.Head.IndexToLocFormat);

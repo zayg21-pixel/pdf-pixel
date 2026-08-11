@@ -132,8 +132,8 @@ public sealed class SfntPdfTypeface : IPdfTypeface
 
         float unitsPerEmScale = 1f / _head.UnitsPerEm;
         PdfFontMatrix matrix = new(unitsPerEmScale, 0, 0, 0, unitsPerEmScale, 0);
-        SfntGlyphCharacter? glyph = _processor.ResolveGlyph(_font, gid, _fontStream, matrix);
-        return glyph?.Path ?? ReadOnlyMemory<byte>.Empty;
+
+        return _processor.ResolvePath(_font, gid, _fontStream, matrix);
     }
 
     /// <inheritdoc/>

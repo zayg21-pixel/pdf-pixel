@@ -6,23 +6,15 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
-/// Evaluates a single "glyf" glyph into a <see cref="SfntGlyphCharacter"/>: collects the glyph's
-/// points, resolving a composite glyph's components - whether they carry an x/y offset or match a
-/// pair of points - into one flat outline, then builds that outline via
-/// <see cref="PdfFontPathBuilder"/> (converting TrueType's native quadratic curves to the cubic
-/// curves that format stores) and repacks it as a simple glyph.
-/// Mirrors <c>PdfPixel.Fonts.Cff.CffCharStringEvaluator</c>'s role for CFF charstrings.
+/// Collects a single "glyf" glyph's points into one flat <see cref="GlyphOutline"/>, resolving a
+/// composite glyph's components - whether they carry an x/y offset or match a pair of points - into
+/// that same outline. What the outline is then used for is the caller's choice:
+/// <see cref="SfntGlyphRepacker"/> writes it back as glyph bytes,
+/// <see cref="SfntGlyphPathEmitter"/> turns it into a path.
 /// </summary>
 public class SfntGlyphEvaluator
 {
     private const int MaxComponentNestingDepth = 8;
-
-    private const byte FlagOnCurve = 0x01;
-    private const byte FlagXShort = 0x02;
-    private const byte FlagYShort = 0x04;
-    private const byte FlagRepeat = 0x08;
-    private const byte FlagXSame = 0x10;
-    private const byte FlagYSame = 0x20;
 
     private const ushort ComponentArg1And2AreWords = 0x0001;
     private const ushort ComponentArgsAreXyValues = 0x0002;
@@ -41,21 +33,19 @@ public class SfntGlyphEvaluator
     public SfntGlyphEvaluator(ILogger<SfntGlyphEvaluator> logger) => _logger = logger;
 
     /// <summary>
-    /// Evaluates a single glyph. Returns null if the glyph has no outline (e.g. space, an empty
-    /// <paramref name="glyphData"/>) or is malformed, or (for a composite glyph) any component it
-    /// references is malformed.
+    /// Evaluates a single glyph into its outline. Returns null if the glyph has no outline (e.g. a
+    /// space, an empty <paramref name="glyphData"/>) or is malformed, or (for a composite glyph) any
+    /// component it references is malformed.
     /// </summary>
     /// <param name="glyphData">This glyph's raw bytes, as sliced out of "glyf" via "loca".</param>
     /// <param name="glyfProcessor">Resolves a component's raw bytes by glyph ID, on demand.</param>
     /// <param name="loca">This font's parsed "loca" table.</param>
     /// <param name="source">The stream and table range to read a component's raw bytes from.</param>
-    /// <param name="matrix">Transform applied to every point of the resulting path.</param>
-    public SfntGlyphCharacter? Evaluate(
+    public GlyphOutline? Evaluate(
         in ReadOnlyMemory<byte> glyphData,
         SfntGlyfProcessor glyfProcessor,
         SfntLoca loca,
-        in SfntGlyfSource source,
-        in PdfFontMatrix matrix)
+        in SfntGlyfSource source)
     {
         if (glyfProcessor == null)
         {
@@ -67,22 +57,7 @@ public class SfntGlyphEvaluator
             return null;
         }
 
-        GlyphOutline? outline = CollectOutline(glyphData.Span, glyfProcessor, loca, source, depth: 0);
-        if (outline == null)
-        {
-            return null;
-        }
-
-        byte[]? repacked = RepackGlyph(glyphData.Span, outline);
-        if (repacked == null)
-        {
-            return null;
-        }
-
-        PdfFontPathBuilder pathBuilder = new(matrix);
-        EmitOutline(outline, pathBuilder);
-
-        return new SfntGlyphCharacter(pathBuilder.Detach(), repacked);
+        return CollectOutline(glyphData, glyfProcessor, loca, source, depth: 0);
     }
 
     /// <summary>
@@ -93,7 +68,7 @@ public class SfntGlyphEvaluator
     /// its components nest too deeply.
     /// </summary>
     private GlyphOutline? CollectOutline(
-        in ReadOnlySpan<byte> data,
+        in ReadOnlyMemory<byte> data,
         SfntGlyfProcessor glyfProcessor,
         SfntLoca loca,
         in SfntGlyfSource source,
@@ -105,13 +80,13 @@ public class SfntGlyphEvaluator
             return null;
         }
 
-        SfntReader reader = new(data);
+        SfntReader reader = new(data.Span);
         short numberOfContours = reader.ReadInt16OrDefault();
-        reader.Skip(8); // xMin, yMin, xMax, yMax - recomputed from the collected points when needed.
+        reader.Skip(8); // xMin, yMin, xMax, yMax - recomputed from the collected points when written back.
 
         if (numberOfContours >= 0)
         {
-            GlyphOutline simpleOutline = ReadSimpleOutline(ref reader, numberOfContours);
+            GlyphOutline simpleOutline = ReadSimpleOutline(ref reader, numberOfContours, data);
 
             return (reader.IsValid) ? simpleOutline : null;
         }
@@ -132,7 +107,7 @@ public class SfntGlyphEvaluator
         in SfntGlyfSource source,
         int depth)
     {
-        GlyphOutline outline = new();
+        GlyphOutline outline = GlyphOutline.Empty;
 
         bool moreComponents;
         do
@@ -163,19 +138,19 @@ public class SfntGlyphEvaluator
                 continue;
             }
 
-            GlyphOutline? componentOutline = CollectOutline(componentData.Span, glyfProcessor, loca, source, depth + 1);
+            GlyphOutline? componentOutline = CollectOutline(componentData, glyfProcessor, loca, source, depth + 1);
             if (componentOutline == null)
             {
                 return null;
             }
 
-            GlyphTransform? componentTransform = ResolveComponentTransform(component, outline, componentOutline);
+            PdfFontMatrix? componentTransform = ResolveComponentTransform(component, outline, componentOutline);
             if (componentTransform == null)
             {
                 continue;
             }
 
-            outline.Append(componentOutline, componentTransform.Value);
+            outline = outline.Merge(componentOutline, componentTransform.Value);
         }
         while (moreComponents);
 
@@ -188,45 +163,47 @@ public class SfntGlyphEvaluator
     /// point, so the translation lands the scaled point exactly on the one it matches. Returns null
     /// when either point number is out of range, leaving the component unplaced.
     /// </summary>
-    private GlyphTransform? ResolveComponentTransform(in ComponentRecord component, GlyphOutline outline, GlyphOutline componentOutline)
+    private PdfFontMatrix? ResolveComponentTransform(in ComponentRecord component, GlyphOutline outline, GlyphOutline componentOutline)
     {
         if (component.ArgsAreXyValues)
         {
-            return new GlyphTransform(component.ScaleX, component.Scale01, component.Scale10, component.ScaleY, component.OffsetX, component.OffsetY);
+            return new PdfFontMatrix(component.ScaleX, component.Scale10, component.OffsetX, component.Scale01, component.ScaleY, component.OffsetY);
         }
 
-        if (component.CompositePointIndex >= outline.Points.Count || component.ComponentPointIndex >= componentOutline.Points.Count)
+        if (component.CompositePointIndex >= outline.Points.Length || component.ComponentPointIndex >= componentOutline.Points.Length)
         {
             _logger.LogWarning(
                 "Composite glyph component matches point {CompositePointIndex} of {CompositePointCount} to point {ComponentPointIndex} of {ComponentPointCount}, which is out of range; skipping this component.",
                 component.CompositePointIndex,
-                outline.Points.Count,
+                outline.Points.Length,
                 component.ComponentPointIndex,
-                componentOutline.Points.Count);
+                componentOutline.Points.Length);
 
             return null;
         }
 
-        GlyphTransform scale = new(component.ScaleX, component.Scale01, component.Scale10, component.ScaleY, 0f, 0f);
+        PdfFontMatrix scale = new(component.ScaleX, component.Scale10, 0f, component.Scale01, component.ScaleY, 0f);
 
-        (float X, float Y) compositePoint = outline.Points[component.CompositePointIndex];
-        (float X, float Y) componentPoint = componentOutline.Points[component.ComponentPointIndex];
-        (float X, float Y) scaledComponentPoint = scale.Apply(componentPoint.X, componentPoint.Y);
+        PdfFontPoint compositePoint = outline.Points.Span[component.CompositePointIndex];
+        PdfFontPoint componentPoint = componentOutline.Points.Span[component.ComponentPointIndex];
+        PdfFontPoint scaledComponentPoint = scale.MapPoint(componentPoint);
 
-        return new GlyphTransform(
+        return new PdfFontMatrix(
             component.ScaleX,
-            component.Scale01,
             component.Scale10,
-            component.ScaleY,
             compositePoint.X - scaledComponentPoint.X,
+            component.Scale01,
+            component.ScaleY,
             compositePoint.Y - scaledComponentPoint.Y);
     }
 
     /// <summary>
-    /// Reads a simple glyph's contour end points, per-point flags and delta-decoded coordinates,
-    /// leaving <paramref name="reader"/> positioned after the glyph's point data.
+    /// Reads a simple glyph's contour end points, hinting instructions, per-point flags and
+    /// delta-decoded coordinates, leaving <paramref name="reader"/> positioned after the glyph's point
+    /// data. Only the on-curve bit of each flag is kept: the rest describe how the source encoded its
+    /// deltas, which a writer decides for itself from the coordinates it is given.
     /// </summary>
-    private static GlyphOutline ReadSimpleOutline(ref SfntReader reader, short numberOfContours)
+    private static GlyphOutline ReadSimpleOutline(ref SfntReader reader, short numberOfContours, in ReadOnlyMemory<byte> data)
     {
         var endPoints = new ushort[numberOfContours];
         for (int contourIndex = 0; contourIndex < numberOfContours; contourIndex++)
@@ -235,7 +212,12 @@ public class SfntGlyphEvaluator
         }
 
         ushort instructionLength = reader.ReadUInt16OrDefault();
+        int instructionOffset = reader.Position;
         reader.Skip(instructionLength);
+
+        ReadOnlyMemory<byte> instructions = (reader.IsValid && instructionLength > 0)
+            ? data.Slice(instructionOffset, instructionLength)
+            : default;
 
         int numPoints = (numberOfContours > 0) ? endPoints[numberOfContours - 1] + 1 : 0;
 
@@ -244,7 +226,7 @@ public class SfntGlyphEvaluator
         {
             byte flag = reader.ReadByteOrDefault();
             flags[pointIndex++] = flag;
-            if ((flag & FlagRepeat) != 0)
+            if ((flag & SfntGlyphFlags.Repeat) != 0)
             {
                 byte repeatCount = reader.ReadByteOrDefault();
                 for (int repeatIndex = 0; repeatIndex < repeatCount && pointIndex < numPoints; repeatIndex++)
@@ -258,7 +240,7 @@ public class SfntGlyphEvaluator
         int x = 0;
         for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
         {
-            x += ReadDelta(ref reader, flags[pointIndex], FlagXShort, FlagXSame);
+            x += ReadDelta(ref reader, flags[pointIndex], SfntGlyphFlags.XShort, SfntGlyphFlags.XSame);
             xs[pointIndex] = x;
         }
 
@@ -266,24 +248,24 @@ public class SfntGlyphEvaluator
         int y = 0;
         for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
         {
-            y += ReadDelta(ref reader, flags[pointIndex], FlagYShort, FlagYSame);
+            y += ReadDelta(ref reader, flags[pointIndex], SfntGlyphFlags.YShort, SfntGlyphFlags.YSame);
             ys[pointIndex] = y;
+            flags[pointIndex] &= SfntGlyphFlags.OnCurve;
         }
 
-        GlyphOutline outline = new();
-        outline.Flags.AddRange(flags);
-
+        var points = new PdfFontPoint[numPoints];
         for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
         {
-            outline.Points.Add((xs[pointIndex], ys[pointIndex]));
+            points[pointIndex] = new PdfFontPoint(xs[pointIndex], ys[pointIndex]);
         }
 
-        foreach (ushort endPoint in endPoints)
+        var contourEndPoints = new int[numberOfContours];
+        for (int contourIndex = 0; contourIndex < numberOfContours; contourIndex++)
         {
-            outline.EndPoints.Add(endPoint);
+            contourEndPoints[contourIndex] = endPoints[contourIndex];
         }
 
-        return outline;
+        return new GlyphOutline(points, flags, contourEndPoints, instructions);
     }
 
     private static int ReadDelta(ref SfntReader reader, byte flag, byte shortFlag, byte sameFlag)
@@ -352,318 +334,6 @@ public class SfntGlyphEvaluator
 
     private static float ReadF2Dot14(ref SfntReader reader) => reader.ReadInt16OrDefault() / 16384f;
 
-    private static void EmitOutline(GlyphOutline outline, PdfFontPathBuilder pathBuilder)
-    {
-        int startPoint = 0;
-        foreach (int endPoint in outline.EndPoints)
-        {
-            EmitContour(pathBuilder, outline, startPoint, endPoint);
-            startPoint = endPoint + 1;
-        }
-    }
-
-    /// <summary>
-    /// Emits one contour's on/off-curve points as path segments, synthesizing the implied on-curve
-    /// midpoint between two consecutive off-curve points (TrueType allows omitting it) and converting
-    /// each quadratic segment to the cubic curve <see cref="PdfFontPathBuilder"/> stores.
-    /// </summary>
-    private static void EmitContour(PdfFontPathBuilder pathBuilder, GlyphOutline outline, int startPoint, int endPoint)
-    {
-        int pointCount = endPoint - startPoint + 1;
-        if (pointCount <= 0)
-        {
-            return;
-        }
-
-        int firstOnCurve = 0;
-        while (firstOnCurve < pointCount && !IsContourPointOnCurve(outline, startPoint, pointCount, firstOnCurve))
-        {
-            firstOnCurve++;
-        }
-
-        (float X, float Y) startPointCoordinates;
-        if (firstOnCurve == pointCount)
-        {
-            // All-off-curve contour: start at the implied midpoint of the first two points.
-            (float x0, float y0) = GetContourPoint(outline, startPoint, pointCount, 0);
-            (float x1, float y1) = GetContourPoint(outline, startPoint, pointCount, 1);
-            startPointCoordinates = ((x0 + x1) / 2f, (y0 + y1) / 2f);
-            firstOnCurve = 0;
-        }
-        else
-        {
-            startPointCoordinates = GetContourPoint(outline, startPoint, pointCount, firstOnCurve);
-        }
-
-        pathBuilder.MoveTo(startPointCoordinates.X, startPointCoordinates.Y);
-
-        (float X, float Y) currentPoint = startPointCoordinates;
-        (float X, float Y)? pendingControlPoint = null;
-
-        for (int step = 1; step <= pointCount; step++)
-        {
-            int index = firstOnCurve + step;
-            bool onCurve = IsContourPointOnCurve(outline, startPoint, pointCount, index);
-            (float X, float Y) point = GetContourPoint(outline, startPoint, pointCount, index);
-
-            if (onCurve)
-            {
-                if (pendingControlPoint.HasValue)
-                {
-                    (float X, float Y) control = pendingControlPoint.Value;
-                    pathBuilder.QuadraticTo(currentPoint.X, currentPoint.Y, control.X, control.Y, point.X, point.Y);
-                    pendingControlPoint = null;
-                }
-                else
-                {
-                    pathBuilder.LineTo(point.X, point.Y);
-                }
-
-                currentPoint = point;
-            }
-            else
-            {
-                if (pendingControlPoint.HasValue)
-                {
-                    (float X, float Y) previousControl = pendingControlPoint.Value;
-                    (float X, float Y) implied = ((previousControl.X + point.X) / 2f, (previousControl.Y + point.Y) / 2f);
-                    pathBuilder.QuadraticTo(currentPoint.X, currentPoint.Y, previousControl.X, previousControl.Y, implied.X, implied.Y);
-                    currentPoint = implied;
-                }
-
-                pendingControlPoint = point;
-            }
-        }
-
-        pathBuilder.Close();
-    }
-
-    private static bool IsContourPointOnCurve(GlyphOutline outline, int startPoint, int pointCount, int index)
-        => (outline.Flags[startPoint + (index % pointCount)] & FlagOnCurve) != 0;
-
-    private static (float X, float Y) GetContourPoint(GlyphOutline outline, int startPoint, int pointCount, int index)
-        => outline.Points[startPoint + (index % pointCount)];
-
-    /// <summary>
-    /// Repacks a glyph. A simple glyph's structure is copied unchanged, hinting instructions
-    /// included, since its points keep the numbers those instructions address; a composite glyph is
-    /// written as a simple one, its components' contours stored inline, so the repacked glyph no
-    /// longer refers to any other glyph - and loses its instructions, which addressed the point
-    /// numbering that flattening replaces.
-    /// </summary>
-    private byte[]? RepackGlyph(in ReadOnlySpan<byte> data, GlyphOutline outline)
-    {
-        SfntReader reader = new(data);
-        short numberOfContours = reader.ReadInt16OrDefault();
-        short xMin = reader.ReadInt16OrDefault();
-        short yMin = reader.ReadInt16OrDefault();
-        short xMax = reader.ReadInt16OrDefault();
-        short yMax = reader.ReadInt16OrDefault();
-
-        if (numberOfContours < 0)
-        {
-            return WriteFlattenedGlyph(outline);
-        }
-
-        SfntWriter writer = new(data.Length);
-        writer.WriteInt16(numberOfContours);
-        writer.WriteInt16(xMin);
-        writer.WriteInt16(yMin);
-        writer.WriteInt16(xMax);
-        writer.WriteInt16(yMax);
-
-        RepackSimpleGlyph(ref reader, numberOfContours, writer);
-
-        if (!reader.IsValid)
-        {
-            _logger.LogWarning("Failed to repack glyph: data is truncated.");
-            return null;
-        }
-
-        return writer.Detach();
-    }
-
-    private static void RepackSimpleGlyph(ref SfntReader reader, short numberOfContours, SfntWriter writer)
-    {
-        var endPoints = new ushort[numberOfContours];
-        for (int contourIndex = 0; contourIndex < numberOfContours; contourIndex++)
-        {
-            endPoints[contourIndex] = reader.ReadUInt16OrDefault();
-            writer.WriteUInt16(endPoints[contourIndex]);
-        }
-
-        // Points are copied over verbatim below, so the instructions still address the same point
-        // numbers they were compiled against and are carried through with them.
-        ushort instructionLength = reader.ReadUInt16OrDefault();
-        writer.WriteUInt16(instructionLength);
-        writer.WriteBytes(reader.ReadBytes(instructionLength));
-
-        int numPoints = (numberOfContours > 0) ? endPoints[numberOfContours - 1] + 1 : 0;
-
-        var flags = new byte[numPoints];
-        for (int pointIndex = 0; pointIndex < numPoints;)
-        {
-            byte flag = reader.ReadByteOrDefault();
-            flags[pointIndex++] = flag;
-            writer.WriteByte(flag);
-            if ((flag & FlagRepeat) != 0)
-            {
-                byte repeatCount = reader.ReadByteOrDefault();
-                writer.WriteByte(repeatCount);
-                for (int repeatIndex = 0; repeatIndex < repeatCount && pointIndex < numPoints; repeatIndex++)
-                {
-                    flags[pointIndex++] = flag;
-                }
-            }
-        }
-
-        for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
-        {
-            CopyDelta(ref reader, writer, flags[pointIndex], FlagXShort, FlagXSame);
-        }
-
-        for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
-        {
-            CopyDelta(ref reader, writer, flags[pointIndex], FlagYShort, FlagYSame);
-        }
-    }
-
-    private static void CopyDelta(ref SfntReader reader, SfntWriter writer, byte flag, byte shortFlag, byte sameFlag)
-    {
-        if ((flag & shortFlag) != 0)
-        {
-            writer.WriteByte(reader.ReadByteOrDefault());
-        }
-        else if ((flag & sameFlag) == 0)
-        {
-            writer.WriteInt16(reader.ReadInt16OrDefault());
-        }
-    }
-
-    /// <summary>
-    /// Writes a collected outline as a simple glyph, with a bounding box recomputed from its points -
-    /// the composite glyph's own box describes geometry this glyph no longer stores by reference.
-    /// Coordinates are rounded to the integer font units "glyf" holds and every delta is written in
-    /// the two-byte form, rather than the format's shorter ones. Returns an empty glyph when the
-    /// outline has no points, which "loca" records as a glyph without an outline.
-    /// </summary>
-    private static byte[] WriteFlattenedGlyph(GlyphOutline outline)
-    {
-        int pointCount = outline.Points.Count;
-        if (pointCount == 0 || outline.EndPoints.Count == 0)
-        {
-            return Array.Empty<byte>();
-        }
-
-        var xCoordinates = new short[pointCount];
-        var yCoordinates = new short[pointCount];
-        short xMin = short.MaxValue;
-        short yMin = short.MaxValue;
-        short xMax = short.MinValue;
-        short yMax = short.MinValue;
-
-        for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
-        {
-            (float x, float y) = outline.Points[pointIndex];
-            short roundedX = ToFontUnits(x);
-            short roundedY = ToFontUnits(y);
-            xCoordinates[pointIndex] = roundedX;
-            yCoordinates[pointIndex] = roundedY;
-
-            xMin = Math.Min(xMin, roundedX);
-            yMin = Math.Min(yMin, roundedY);
-            xMax = Math.Max(xMax, roundedX);
-            yMax = Math.Max(yMax, roundedY);
-        }
-
-        SfntWriter writer = new();
-        writer.WriteInt16((short)outline.EndPoints.Count);
-        writer.WriteInt16(xMin);
-        writer.WriteInt16(yMin);
-        writer.WriteInt16(xMax);
-        writer.WriteInt16(yMax);
-
-        foreach (int endPoint in outline.EndPoints)
-        {
-            writer.WriteUInt16((ushort)endPoint);
-        }
-
-        writer.WriteUInt16(0); // instructionLength: flattening renumbers the points the composite's instructions address.
-
-        foreach (byte flag in outline.Flags)
-        {
-            writer.WriteByte((byte)(flag & FlagOnCurve));
-        }
-
-        WriteDeltas(writer, xCoordinates);
-        WriteDeltas(writer, yCoordinates);
-
-        return writer.Detach();
-    }
-
-    private static void WriteDeltas(SfntWriter writer, short[] coordinates)
-    {
-        short previous = 0;
-        foreach (short coordinate in coordinates)
-        {
-            writer.WriteInt16(ClampToFontUnits(coordinate - previous));
-            previous = coordinate;
-        }
-    }
-
-    private static short ToFontUnits(float value) => ClampToFontUnits((int)Math.Round(value, MidpointRounding.AwayFromZero));
-
-    private static short ClampToFontUnits(int value)
-    {
-        if (value < short.MinValue)
-        {
-            return short.MinValue;
-        }
-
-        if (value > short.MaxValue)
-        {
-            return short.MaxValue;
-        }
-
-        return (short)value;
-    }
-
-    /// <summary>
-    /// A glyph's outline as "glyf" describes it, flattened: every point in the order that a
-    /// component's point-matching arguments number them, each point's flags, and the index of the
-    /// last point of every contour.
-    /// </summary>
-    private sealed class GlyphOutline
-    {
-        public List<(float X, float Y)> Points { get; } = [];
-
-        public List<byte> Flags { get; } = [];
-
-        public List<int> EndPoints { get; } = [];
-
-        /// <summary>
-        /// Appends another outline's contours to this one, placing each of its points by
-        /// <paramref name="transform"/> and shifting the appended contour ends past the points
-        /// already collected.
-        /// </summary>
-        public void Append(GlyphOutline outline, in GlyphTransform transform)
-        {
-            int pointOffset = Points.Count;
-
-            foreach ((float x, float y) in outline.Points)
-            {
-                Points.Add(transform.Apply(x, y));
-            }
-
-            Flags.AddRange(outline.Flags);
-
-            foreach (int endPoint in outline.EndPoints)
-            {
-                EndPoints.Add(endPoint + pointOffset);
-            }
-        }
-    }
-
     /// <summary>
     /// One component record of a composite glyph: the glyph it references, its 2x2 scale, and its two
     /// arguments - which are either an x/y offset or the pair of point numbers to align, depending on
@@ -726,32 +396,5 @@ public class SfntGlyphEvaluator
         /// Only meaningful while <see cref="ArgsAreXyValues"/> is clear.
         /// </summary>
         public ushort ComponentPointIndex => _rawArgument2;
-    }
-
-    private readonly struct GlyphTransform
-    {
-        public GlyphTransform(float scaleX, float scale01, float scale10, float scaleY, float dx, float dy)
-        {
-            ScaleX = scaleX;
-            Scale01 = scale01;
-            Scale10 = scale10;
-            ScaleY = scaleY;
-            Dx = dx;
-            Dy = dy;
-        }
-
-        public float ScaleX { get; }
-
-        public float Scale01 { get; }
-
-        public float Scale10 { get; }
-
-        public float ScaleY { get; }
-
-        public float Dx { get; }
-
-        public float Dy { get; }
-
-        public (float X, float Y) Apply(float x, float y) => ((x * ScaleX) + (y * Scale10) + Dx, (x * Scale01) + (y * ScaleY) + Dy);
     }
 }

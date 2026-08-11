@@ -5,8 +5,8 @@ namespace PdfPixel.Fonts.Model;
 
 /// <summary>
 /// Builds a glyph outline incrementally into a growable binary buffer, then detaches it as a
-/// <see cref="ReadOnlyMemory{Byte}"/> in the encoded format <c>PdfPixel.Geometry.PdfPath</c> reads:
-/// each segment is a one-byte <see cref="PdfFontPathSegmentType"/> tag followed by its coordinates.
+/// <see cref="ReadOnlyMemory{Byte}"/>: each segment is a one-byte <see cref="PdfFontPathSegmentType"/>
+/// tag followed by its coordinates.
 /// Reusable across many glyph outlines via <see cref="Reset"/>, which drops the accumulated
 /// segments without releasing the buffer.
 /// </summary>
@@ -21,9 +21,9 @@ public sealed class PdfFontPathBuilder
     private int _length;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfFontPathBuilder"/>. Every point passed to <see cref="MoveTo"/>,
-    /// <see cref="LineTo"/>, and <see cref="CubicTo"/> is transformed by <paramref name="matrix"/> before
-    /// being stored -- pass <see cref="PdfFontMatrix.Identity"/> to store points unchanged.
+    /// Initializes a new <see cref="PdfFontPathBuilder"/>. Every point passed to a segment method is
+    /// transformed by <paramref name="matrix"/> before being stored -- pass
+    /// <see cref="PdfFontMatrix.Identity"/> to store points unchanged.
     /// </summary>
     public PdfFontPathBuilder(in PdfFontMatrix matrix)
     {
@@ -37,47 +37,68 @@ public sealed class PdfFontPathBuilder
     public bool IsEmpty => _length == 0;
 
     /// <summary>
+    /// Starts a new subpath at the given coordinates.
+    /// </summary>
+    public void MoveTo(float x, float y) => MoveTo(new PdfFontPoint(x, y));
+
+    /// <summary>
     /// Starts a new subpath at the given point.
     /// </summary>
-    public void MoveTo(float x, float y)
+    public void MoveTo(in PdfFontPoint point)
     {
         StartSegment(PdfFontPathSegmentType.MoveTo, pointCount: 1);
-        WritePoint(x, y);
+        WritePoint(point);
     }
+
+    /// <summary>
+    /// Draws a straight line from the current point to the given coordinates.
+    /// </summary>
+    public void LineTo(float x, float y) => LineTo(new PdfFontPoint(x, y));
 
     /// <summary>
     /// Draws a straight line from the current point to the given point.
     /// </summary>
-    public void LineTo(float x, float y)
+    public void LineTo(in PdfFontPoint point)
     {
         StartSegment(PdfFontPathSegmentType.LineTo, pointCount: 1);
-        WritePoint(x, y);
+        WritePoint(point);
     }
 
     /// <summary>
     /// Draws a cubic Bézier curve from the current point through two control points to an end point.
     /// </summary>
     public void CubicTo(float x1, float y1, float x2, float y2, float x3, float y3)
+        => CubicTo(new PdfFontPoint(x1, y1), new PdfFontPoint(x2, y2), new PdfFontPoint(x3, y3));
+
+    /// <summary>
+    /// Draws a cubic Bézier curve from the current point through two control points to an end point.
+    /// </summary>
+    public void CubicTo(in PdfFontPoint control1, in PdfFontPoint control2, in PdfFontPoint end)
     {
         StartSegment(PdfFontPathSegmentType.CubicTo, pointCount: 3);
-        WritePoint(x1, y1);
-        WritePoint(x2, y2);
-        WritePoint(x3, y3);
+        WritePoint(control1);
+        WritePoint(control2);
+        WritePoint(end);
     }
 
     /// <summary>
-    /// Draws a quadratic Bézier curve (TrueType's native curve form) from <paramref name="currentX"/>/
-    /// <paramref name="currentY"/> through one control point to an end point, by degree-elevating it
-    /// to the equivalent cubic curve this format actually stores.
+    /// Draws a quadratic Bézier curve (TrueType's native curve form) from <paramref name="current"/>
+    /// through one control point to an end point, by degree-elevating it to the equivalent cubic curve
+    /// this format actually stores.
     /// </summary>
-    public void QuadraticTo(float currentX, float currentY, float controlX, float controlY, float endX, float endY)
+    public void QuadraticTo(in PdfFontPoint current, in PdfFontPoint control, in PdfFontPoint end)
     {
         const float twoThirds = 2f / 3f;
-        float control1X = currentX + (twoThirds * (controlX - currentX));
-        float control1Y = currentY + (twoThirds * (controlY - currentY));
-        float control2X = endX + (twoThirds * (controlX - endX));
-        float control2Y = endY + (twoThirds * (controlY - endY));
-        CubicTo(control1X, control1Y, control2X, control2Y, endX, endY);
+
+        PdfFontPoint control1 = new(
+            current.X + (twoThirds * (control.X - current.X)),
+            current.Y + (twoThirds * (control.Y - current.Y)));
+
+        PdfFontPoint control2 = new(
+            end.X + (twoThirds * (control.X - end.X)),
+            end.Y + (twoThirds * (control.Y - end.Y)));
+
+        CubicTo(control1, control2, end);
     }
 
     /// <summary>
@@ -92,8 +113,7 @@ public sealed class PdfFontPathBuilder
     public void Reset() => _length = 0;
 
     /// <summary>
-    /// Gives the segments accumulated so far to the caller as a buffer, in the format
-    /// <c>PdfPixel.Geometry.PdfPath</c>'s constructor accepts directly, and leaves this builder empty.
+    /// Gives the segments accumulated so far to the caller as a buffer, and leaves this builder empty.
     /// A builder used again after this starts a new path rather than continuing the returned one.
     /// </summary>
     public ReadOnlyMemory<byte> Detach()
@@ -113,28 +133,21 @@ public sealed class PdfFontPathBuilder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void StartSegment(PdfFontPathSegmentType type, int pointCount)
     {
-        EnsureCapacity(_length + 1 + (pointCount * 2 * sizeof(float)));
+        EnsureCapacity(_length + 1 + (pointCount * Unsafe.SizeOf<PdfFontPoint>()));
 
         _buffer[_length] = (byte)type;
         _length++;
     }
 
     /// <summary>
-    /// Writes <paramref name="x"/>/<paramref name="y"/>, transformed by this builder's matrix, at the end
-    /// of the buffer, in the room the segment it belongs to has already reserved.
+    /// Writes <paramref name="point"/>, transformed by this builder's matrix, at the end of the
+    /// buffer, in the room the segment it belongs to has already reserved.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WritePoint(float x, float y)
+    private void WritePoint(in PdfFontPoint point)
     {
-        if (!_isIdentityMatrix)
-        {
-            (x, y) = _matrix.MapPoint(x, y);
-        }
-
-        Unsafe.WriteUnaligned(ref _buffer[_length], x);
-        _length += sizeof(float);
-        Unsafe.WriteUnaligned(ref _buffer[_length], y);
-        _length += sizeof(float);
+        Unsafe.WriteUnaligned(ref _buffer[_length], _isIdentityMatrix ? point : _matrix.MapPoint(point));
+        _length += Unsafe.SizeOf<PdfFontPoint>();
     }
 
     private void EnsureCapacity(int requiredLength)

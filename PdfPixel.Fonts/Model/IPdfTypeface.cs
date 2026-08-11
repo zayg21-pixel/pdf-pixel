@@ -36,7 +36,7 @@ public interface IPdfTypeface : IDisposable
 
     /// <summary>
     /// Gets the outline of the given glyph id, in em-relative units (1.0 = one em), encoded in the
-    /// format <c>PdfPixel.Geometry.PdfPath</c>'s constructor accepts directly (see <see cref="PdfFontPathBuilder"/>).
+    /// format <see cref="PdfFontPathBuilder"/> produces.
     /// </summary>
     ReadOnlyMemory<byte> GetPath(ushort gid);
 

@@ -2,8 +2,7 @@ namespace PdfPixel.Fonts.Model;
 
 /// <summary>
 /// Tag byte written into a <see cref="PdfFontPathBuilder"/>'s encoded buffer ahead of each
-/// segment's points. Values match <c>PdfPixel.Geometry.PdfPathSegmentType</c>, the format that
-/// buffer is read back with once handed off.
+/// segment's points.
 /// </summary>
 #pragma warning disable CA1008 // No zero/"None" value: every tag byte written to the buffer is meaningful.
 #pragma warning disable CA1028 // byte is the wire format for the buffer's tag byte, not an implementation detail.
