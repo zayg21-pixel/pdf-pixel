@@ -21,7 +21,8 @@ internal static class TextRenderUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfPath GetTextPath(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        PdfPathBuilder textPathBuilder = new();
+        PdfMatrix matrix = GetFullTextMatrix(state, inverse: false);
+        PdfPathBuilder textPathBuilder = new(matrix);
         ReadOnlySpan<ShapedGlyph> glyphs = shapingResult.Span;
 
         for (int i = 0; i < glyphs.Length; i++)
@@ -45,8 +46,7 @@ internal static class TextRenderUtilities
             textPathBuilder.AddPath(glyphPath.Transform(glyphMatrix));
         }
 
-        PdfMatrix matrix = GetFullTextMatrix(state, inverse: false);
-        return textPathBuilder.ToPath().Transform(matrix);
+        return textPathBuilder.Detach();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
