@@ -214,13 +214,13 @@ public sealed class PdfDestination
             return null;
         }
 
-        PdfObject? pageValue = destArray.GetObject(0);
+        PdfReference? pageValueReference = destArray.GetReference(0);
         PdfReference pageReference;
         int pageIndex = -1;
 
-        if (pageValue?.Reference.IsValid == true)
+        if (pageValueReference?.IsValid == true)
         {
-            pageReference = pageValue.Reference;
+            pageReference = pageValueReference.Value;
         }
         else
         {

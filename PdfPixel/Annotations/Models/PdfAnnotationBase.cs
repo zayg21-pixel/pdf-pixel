@@ -63,11 +63,11 @@ public abstract class PdfAnnotationBase
         Color = annotationObject.Dictionary.GetArray(PdfTokens.ColorKey)?.GetFloatArray();
         InteriorColor = annotationObject.Dictionary.GetArray(PdfTokens.InteriorColorKey)?.GetFloatArray();
         Opacity = annotationObject.Dictionary.GetFloat(PdfTokens.StrokeAlphaKey) ?? 1.0f;
-        PageReference = annotationObject.Dictionary.GetObject(PdfTokens.PageKey)?.Reference;
+        PageReference = annotationObject.Dictionary.GetReference(PdfTokens.PageKey);
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
         OptionalContent = annotationObject.Dictionary.GetDictionary(PdfTokens.OptionalContentKey);
-        Popup = annotationObject.Dictionary.GetObject(PdfTokens.PopupKey)?.Reference;
-        InReplyTo = annotationObject.Dictionary.GetObject(PdfTokens.InReplyToKey)?.Reference;
+        Popup = annotationObject.Dictionary.GetReference(PdfTokens.PopupKey);
+        InReplyTo = annotationObject.Dictionary.GetReference(PdfTokens.InReplyToKey);
         ReplyType = annotationObject.Dictionary.GetName(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
         SupportedVisualStates = DetectSupportedVisualStates();
     }

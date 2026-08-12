@@ -267,6 +267,15 @@ public class PdfArray
         return new PdfObject(default, Document, storedValue);
     }
 
+    /// <summary>
+    /// Gets the reference held at the specified index.
+    /// Returns <c>null</c> if the index is invalid or the item is a direct value.
+    /// </summary>
+    /// <param name="index">The zero-based index of the value to retrieve.</param>
+    /// <returns>The <see cref="PdfReference"/> at the specified index, or <c>null</c>.</returns>
+    public PdfReference? GetReference(int index)
+        => (IsValidIndex(index) && _items[index] is IPdfValue<PdfReference> referenceValue) ? referenceValue.Value : null;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsValidIndex(int index) => index >= 0 && index < _items.Length;
 }

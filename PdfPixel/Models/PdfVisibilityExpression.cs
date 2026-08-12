@@ -78,10 +78,10 @@ public sealed class PdfVisibilityExpression
                 continue;
             }
 
-            PdfObject? groupObject = array.GetObject(index);
-            if (groupObject != null && groupObject.Reference.IsValid)
+            PdfReference? groupReference = array.GetReference(index);
+            if (groupReference != null && groupReference.Value.IsValid)
             {
-                operands.Add(new PdfVisibilityExpression(groupObject.Reference));
+                operands.Add(new PdfVisibilityExpression(groupReference.Value));
             }
         }
 

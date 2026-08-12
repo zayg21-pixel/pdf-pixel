@@ -41,7 +41,7 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     public PdfPopupAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Popup)
     {
-        ParentAnnotation = annotationObject.Dictionary.GetObject(PdfTokens.ParentKey)?.Reference;
+        ParentAnnotation = annotationObject.Dictionary.GetReference(PdfTokens.ParentKey);
         IsOpen = annotationObject.Dictionary.GetBooleanOrDefault(PdfTokens.OpenKey);
     }
 

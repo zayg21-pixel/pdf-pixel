@@ -14,14 +14,14 @@ using System.Collections.Generic;
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Caches PDF object index and provides lazy object resolution as well as access to parsed objects.
+/// Holds the PDF object index and the document-wide caches of the resources parsed out of it, and
+/// resolves objects from the index.
 /// </summary>
 internal class PdfDocumentObjectCache
 {
     private readonly PdfObjectParser _pdfObjectParser;
     private readonly PdfXrefRecoveryScanner _recoveryScanner;
     private readonly ILogger<PdfDocumentObjectCache> _logger;
-    private readonly Dictionary<PdfReference, PdfObject> _objects = [];
     private bool _recoveryScanAttempted;
 
     public PdfDocumentObjectCache(IPdfDocumentInternal document, PdfObjectParser parser)
@@ -103,7 +103,7 @@ internal class PdfDocumentObjectCache
     public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = [];
 
     /// <summary>
-    /// Retrieves an object by reference, parsing it lazily if present in the index but not yet materialized.
+    /// Parses the object a reference names, from the offset the index holds for it.
     /// </summary>
     /// <param name="reference">Target object reference.</param>
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
@@ -114,11 +114,6 @@ internal class PdfDocumentObjectCache
             return null;
         }
 
-        if (_objects.TryGetValue(reference, out PdfObject? existing))
-        {
-            return existing;
-        }
-
         PdfObject? parsed = ResolveIndexedObject(reference);
 
         if (parsed == null && !_recoveryScanAttempted)
@@ -126,11 +121,6 @@ internal class PdfDocumentObjectCache
             _logger.LogWarning("Object {Reference} could not be resolved from the xref table; running a fallback recovery scan.", reference);
             RunRecoveryScan();
             parsed = ResolveIndexedObject(reference);
-        }
-
-        if (parsed != null)
-        {
-            _objects[parsed.Reference] = parsed;
         }
 
         return parsed;

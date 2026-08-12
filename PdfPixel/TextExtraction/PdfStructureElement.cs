@@ -114,12 +114,10 @@ public sealed class PdfStructureElement
             return null;
         }
 
-        PdfObject? pageObject = dictionary.GetObject(PdfTokens.PgKey);
-
         // TODO: [LOW] parse /C (class), /A (attributes)
         PdfStructureElement element = new(document)
         {
-            PageReference = pageObject?.Reference,
+            PageReference = dictionary.GetReference(PdfTokens.PgKey),
             Tag = tag,
             Lang = dictionary.GetString(PdfTokens.LangKey),
             ActualText = dictionary.GetString(PdfTokens.ActualTextKey),
@@ -178,8 +176,7 @@ public sealed class PdfStructureElement
         int? mcid = kidDict.GetInteger(PdfTokens.MCIDKey);
         if (mcid != null)
         {
-            PdfObject? pageObject = kidDict.GetObject(PdfTokens.PgKey);
-            parent.Children.Add(PdfStructureNode.FromMcid(mcid.Value, pageObject?.Reference));
+            parent.Children.Add(PdfStructureNode.FromMcid(mcid.Value, kidDict.GetReference(PdfTokens.PgKey)));
             return;
         }
 

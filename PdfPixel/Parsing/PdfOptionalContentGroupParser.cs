@@ -134,8 +134,8 @@ internal sealed class PdfOptionalContentGroupParser
                 continue;
             }
 
-            PdfObject? orderObject = orderArray.GetObject(index);
-            if (orderObject != null && groupsByReference.TryGetValue(orderObject.Reference, out PdfOptionalContentGroup? group))
+            PdfReference? orderReference = orderArray.GetReference(index);
+            if (orderReference != null && groupsByReference.TryGetValue(orderReference.Value, out PdfOptionalContentGroup? group))
             {
                 group.Order = orderIndex;
                 orderIndex++;

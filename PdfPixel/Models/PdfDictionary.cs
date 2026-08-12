@@ -232,6 +232,15 @@ public class PdfDictionary
     }
 
     /// <summary>
+    /// Gets the reference the specified key holds.
+    /// Returns <c>null</c> if not present or if the entry is a direct value.
+    /// </summary>
+    /// <param name="key">The key to retrieve.</param>
+    /// <returns>The <see cref="PdfReference"/> value, or <c>null</c>.</returns>
+    public PdfReference? GetReference(in PdfString key)
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue) && storedValue is IPdfValue<PdfReference> referenceValue) ? referenceValue.Value : null;
+
+    /// <summary>
     /// Gets a list of PDF objects for the specified key, handling arrays of references and single items.
     /// Returns <c>null</c> if not present or no objects found.
     /// </summary>
