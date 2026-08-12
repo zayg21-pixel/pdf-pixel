@@ -1,4 +1,6 @@
+using PdfPixel.Streams;
 using PdfPixel.Transparency.Model;
+using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
@@ -19,9 +21,14 @@ internal interface IPdfPageInternal : IPdfPage
     PdfPageResources PageResources { get; }
 
     /// <summary>
-    /// Underlying /Page object supplying dictionary entries and content references.
+    /// Reference of the underlying /Page object.
     /// </summary>
-    PdfObject PageObject { get; }
+    PdfReference PageReference { get; }
+
+    /// <summary>
+    /// Stream sources named by the page's /Contents entry, in the order they are to be read.
+    /// </summary>
+    IReadOnlyList<PdfObjectStream> ContentStreams { get; }
 
     /// <summary>
     /// Resolved resource dictionary for this page (never null).

@@ -92,7 +92,7 @@ public sealed class PdfStructureElement
 
         for (int index = 0; index < _document.Pages.Count; index++)
         {
-            if (_document.Pages[index].PageObject.Reference.Equals(PageReference.Value))
+            if (_document.Pages[index].PageReference.Equals(PageReference.Value))
             {
                 _cachedPage = _document.Pages[index];
                 break;

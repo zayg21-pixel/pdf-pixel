@@ -177,7 +177,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         PdfStructureElement? structureElement = null;
         if (mcid != null)
         {
-            structureElement = _page.Document.StructureTree?.FindByMcid(_page.PageObject.Reference, mcid.Value);
+            structureElement = _page.Document.StructureTree?.FindByMcid(_page.PageReference, mcid.Value);
         }
 
         bool hasProperties = !inlineActualText.IsEmpty || !inlineLang.IsEmpty || structureElement != null;

@@ -81,7 +81,7 @@ public sealed class PdfDestination
         for (int pageIndex = 0; pageIndex < _document.Pages.Count; pageIndex++)
         {
             IPdfPageInternal page = _document.Pages[pageIndex];
-            if (page.PageObject.Reference.Equals(_pageReference))
+            if (page.PageReference.Equals(_pageReference))
             {
                 _cachedPage = page;
                 break;

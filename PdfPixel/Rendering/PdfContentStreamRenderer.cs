@@ -4,6 +4,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
@@ -54,16 +55,9 @@ internal class PdfContentStreamRenderer
     {
         List<ReadOnlyMemory<byte>> contentStreams = [];
 
-        List<PdfObject>? contents = _page.PageObject.Dictionary.GetObjects(PdfTokens.ContentsKey);
-
-        if (contents == null)
+        foreach (PdfObjectStream contentStream in _page.ContentStreams)
         {
-            return contentStreams;
-        }
-
-        foreach (PdfObject contentObject in contents)
-        {
-            ReadOnlyMemory<byte> contentData = contentObject.DecodeAsMemory();
+            ReadOnlyMemory<byte> contentData = contentStream.DecodeAsMemory();
 
             if (!contentData.IsEmpty)
             {

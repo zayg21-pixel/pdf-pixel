@@ -1,6 +1,7 @@
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
@@ -21,7 +22,8 @@ internal class PdfPage : IPdfPageInternal
 
     private readonly PdfPageCache _pageCache;
     private readonly IPdfDocumentInternal _document;
-    private readonly PdfObject _pageObject;
+    private readonly PdfReference _pageReference;
+    private readonly List<PdfObjectStream> _contentStreams;
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
@@ -34,8 +36,14 @@ internal class PdfPage : IPdfPageInternal
         PdfPageResources pageResources,
         PdfDictionary resourceDictionary)
     {
+        if (pageObject == null)
+        {
+            throw new ArgumentNullException(nameof(pageObject));
+        }
+
         _document = document ?? throw new ArgumentNullException(nameof(document));
-        _pageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
+        _pageReference = pageObject.Reference;
+        _contentStreams = ExtractContentStreams(pageObject);
         _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
 
         PageNumber = pageNumber;
@@ -59,7 +67,7 @@ internal class PdfPage : IPdfPageInternal
 
         Annotations = annotations;
 
-        PdfDictionary? groupDict = _pageObject.Dictionary.GetDictionary(PdfTokens.GroupKey);
+        PdfDictionary? groupDict = pageObject.Dictionary.GetDictionary(PdfTokens.GroupKey);
         _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, this);
     }
 
@@ -103,7 +111,9 @@ internal class PdfPage : IPdfPageInternal
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
-    PdfObject IPdfPageInternal.PageObject => _pageObject;
+    PdfReference IPdfPageInternal.PageReference => _pageReference;
+
+    IReadOnlyList<PdfObjectStream> IPdfPageInternal.ContentStreams => _contentStreams;
 
     PdfDictionary IPdfPageInternal.ResourceDictionary => _resourceDictionary;
 
@@ -147,4 +157,25 @@ internal class PdfPage : IPdfPageInternal
         _pageCache.ClearAfterRender();
     }
 
+    /// <summary>
+    /// Reads the /Contents entry into the stream sources it names, in the order given.
+    /// </summary>
+    private static List<PdfObjectStream> ExtractContentStreams(PdfObject pageObject)
+    {
+        List<PdfObject>? contents = pageObject.Dictionary.GetObjects(PdfTokens.ContentsKey);
+
+        if (contents == null)
+        {
+            return new List<PdfObjectStream>();
+        }
+
+        List<PdfObjectStream> contentStreams = new(contents.Count);
+
+        foreach (PdfObject contentObject in contents)
+        {
+            contentStreams.Add(contentObject.Stream);
+        }
+
+        return contentStreams;
+    }
 }

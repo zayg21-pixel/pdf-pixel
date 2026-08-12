@@ -16,7 +16,7 @@ internal class FormXObjectPageWrapper : PdfPage
             originalPage.PageNumber,
             originalPage.PageLabel,
             originalPage.Document,
-            ResolvePageObject(originalPage, formXObject),
+            formXObject,
             originalPage.PageResources,
             ResolveResourceDictionary(originalPage, formXObject))
     {
@@ -31,16 +31,6 @@ internal class FormXObjectPageWrapper : PdfPage
             new PdfPageResources(),
             formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? new PdfDictionary(formXObject.Document))
     {
-    }
-
-    private static PdfObject ResolvePageObject(IPdfPageInternal originalPage, PdfObject formXObject)
-    {
-        if (formXObject.Dictionary.HasKey(PdfTokens.ResourcesKey))
-        {
-            return formXObject;
-        }
-
-        return originalPage.PageObject;
     }
 
     private static PdfDictionary ResolveResourceDictionary(IPdfPageInternal originalPage, PdfObject formXObject)
