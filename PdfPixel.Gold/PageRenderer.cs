@@ -151,10 +151,16 @@ internal static class PageRenderer
         }
 
         SKImageInfo imageInfo = new(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        using SKSurface surface = SKSurface.Create(imageInfo);
+        SKBitmap bitmap = new(imageInfo);
+
+        // The page is drawn straight into the bitmap's pixels, so it is held once and handed back
+        // without a copy.
+        using SKSurface surface = SKSurface.Create(imageInfo, bitmap.GetPixels(), bitmap.RowBytes);
 
         if (surface == null)
         {
+            bitmap.Dispose();
+
             throw new InvalidOperationException($"page {page.PageNumber} needs a {width} x {height} surface, which could not be created.");
         }
 
@@ -217,9 +223,7 @@ internal static class PageRenderer
 
         canvas.Flush();
 
-        using SKImage image = surface.Snapshot();
-
-        return ReadPixels(image);
+        return bitmap;
     }
 
     // Straight (unpremultiplied) RGBA is the layout a PNG stores, so a page written to disk and read

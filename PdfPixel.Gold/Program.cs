@@ -17,6 +17,12 @@ internal sealed class Program
     // stays quick enough to be used after every fix.
     private const double FullRunThresholdSeconds = 1.0;
 
+    private const double PageTimeOutlierSeconds = 1.0;
+
+    private const long PageMemoryOutlierBytes = 50L * 1024 * 1024;
+
+    private const double BytesPerMegabyte = 1024.0 * 1024.0;
+
     private static int Main(string[] args)
     {
         EnsureReleaseBuild();
@@ -51,10 +57,11 @@ internal sealed class Program
             return Remove(manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
         }
 
-        // A run compares unless it is asked to generate; every remaining argument that is not the
-        // full-run switch selects the PDFs to process.
+        // A run compares unless it is asked to generate or to analyze; every remaining argument that
+        // is not the full-run switch selects the PDFs to process.
         bool generate = args.Length > 0 && args[0] == "generate";
-        bool hasMode = generate || (args.Length > 0 && args[0] == "compare");
+        bool analyze = args.Length > 0 && args[0] == "analyze";
+        bool hasMode = generate || analyze || (args.Length > 0 && args[0] == "compare");
         string[] runArguments = hasMode ? args.AsSpan(1).ToArray() : args;
 
         bool fullRun = false;
@@ -90,7 +97,7 @@ internal sealed class Program
         // clean slate, so a previous run's leftovers never get mixed in with this one's.
         string? inspectDirectory = null;
 
-        if (inspect && !generate)
+        if (inspect && !generate && !analyze)
         {
             inspectDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Inspect");
 
@@ -105,22 +112,32 @@ internal sealed class Program
         Stopwatch runStopwatch = Stopwatch.StartNew();
         int differentCount = 0;
         int failedCount = 0;
+        List<PageStatistics> timeOutliers = new();
+        List<PageStatistics> memoryOutliers = new();
 
         foreach (GoldEntry entry in entries)
         {
             string pdfPath = Path.Combine(sourceDirectory, entry.Name);
-            string snapshotDirectory = Path.Combine(snapshotsDirectory, Path.GetFileNameWithoutExtension(entry.Name));
-            Directory.CreateDirectory(snapshotDirectory);
 
             try
             {
-                if (generate)
+                if (analyze)
                 {
-                    Generate(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
+                    Analyze(reader, pdfPath, entry.Pages, entry.Password, timeOutliers, memoryOutliers);
                 }
-                else if (!Compare(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password, inspectDirectory))
+                else
                 {
-                    differentCount++;
+                    string snapshotDirectory = Path.Combine(snapshotsDirectory, Path.GetFileNameWithoutExtension(entry.Name));
+                    Directory.CreateDirectory(snapshotDirectory);
+
+                    if (generate)
+                    {
+                        Generate(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
+                    }
+                    else if (!Compare(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password, inspectDirectory))
+                    {
+                        differentCount++;
+                    }
                 }
             }
             catch (Exception exception)
@@ -134,11 +151,27 @@ internal sealed class Program
 
         int problemCount = differentCount + failedCount;
         string scope = filters.Count > 0 ? "selected" : fullRun ? "full" : "short";
-        string summary = generate
-            ? $"Generated {scope} snapshots for {entries.Count - failedCount} of {entries.Count} PDF(s) in {runStopwatch.Elapsed.TotalSeconds:F1} s; {failedCount} failed."
-            : $"{entries.Count - problemCount} of {entries.Count} PDF(s) match in the {scope} run in {runStopwatch.Elapsed.TotalSeconds:F1} s; {differentCount} differ, {failedCount} failed.";
+        string summary;
+
+        if (analyze)
+        {
+            summary = $"Analyzed {entries.Count - failedCount} of {entries.Count} PDF(s) in the {scope} run in {runStopwatch.Elapsed.TotalSeconds:F1} s; {failedCount} failed.";
+        }
+        else if (generate)
+        {
+            summary = $"Generated {scope} snapshots for {entries.Count - failedCount} of {entries.Count} PDF(s) in {runStopwatch.Elapsed.TotalSeconds:F1} s; {failedCount} failed.";
+        }
+        else
+        {
+            summary = $"{entries.Count - problemCount} of {entries.Count} PDF(s) match in the {scope} run in {runStopwatch.Elapsed.TotalSeconds:F1} s; {differentCount} differ, {failedCount} failed.";
+        }
 
         Write(problemCount == 0 ? ConsoleColor.Green : ConsoleColor.Red, summary);
+
+        if (analyze)
+        {
+            PrintOutliers(timeOutliers, memoryOutliers);
+        }
 
         return problemCount == 0 ? 0 : 1;
     }
@@ -365,6 +398,111 @@ internal sealed class Program
         return 0;
     }
 
+    /// <summary>
+    /// Renders one PDF to measure it only: nothing is compared against a golden snapshot and no file
+    /// is written. Every page reports the time it took and the managed memory the document grew by
+    /// while it rendered, the document reports the totals, and the pages that go over the outlier
+    /// thresholds are collected into <paramref name="timeOutliers"/> and
+    /// <paramref name="memoryOutliers"/>.
+    /// </summary>
+    private static void Analyze(
+        PdfDocumentReader reader,
+        string pdfPath,
+        List<int> pages,
+        string? password,
+        List<PageStatistics> timeOutliers,
+        List<PageStatistics> memoryOutliers)
+    {
+        string pdfName = Path.GetFileName(pdfPath);
+        Stopwatch stopwatch = new();
+        int pageCount = 0;
+        double documentSeconds = 0;
+        long documentMemoryBytes = 0;
+
+        // The pages are pulled one at a time, so the clock and the memory reading cover the render of
+        // a single page; the first page carries the cost of opening the document with it.
+        using IEnumerator<(int PageNumber, SKBitmap Bitmap)> renderedPages = PageRenderer.RenderPages(reader, pdfPath, pages, password).GetEnumerator();
+
+        while (true)
+        {
+            long memoryBefore = GC.GetTotalMemory(forceFullCollection: true);
+
+            stopwatch.Restart();
+            bool hasPage = renderedPages.MoveNext();
+            stopwatch.Stop();
+
+            if (!hasPage)
+            {
+                break;
+            }
+
+            (int PageNumber, SKBitmap Bitmap) renderedPage = renderedPages.Current;
+
+            // The bitmap is this page's output rather than something the document holds on to, so it
+            // is released before the memory is read back.
+            renderedPage.Bitmap.Dispose();
+
+            long memoryBytes = GC.GetTotalMemory(forceFullCollection: true) - memoryBefore;
+            double seconds = stopwatch.Elapsed.TotalSeconds;
+            PageStatistics statistics = new(pdfName, renderedPage.PageNumber, seconds, memoryBytes);
+
+            pageCount++;
+            documentSeconds += seconds;
+            documentMemoryBytes += memoryBytes;
+
+            bool slow = seconds > PageTimeOutlierSeconds;
+            bool heavy = memoryBytes > PageMemoryOutlierBytes;
+
+            if (slow)
+            {
+                timeOutliers.Add(statistics);
+            }
+
+            if (heavy)
+            {
+                memoryOutliers.Add(statistics);
+            }
+
+            Write(
+                slow || heavy ? ConsoleColor.Red : ConsoleColor.Gray,
+                $"{pdfName,-60} page {renderedPage.PageNumber,-4} {seconds,8:F3} s {memoryBytes / BytesPerMegabyte,10:F1} MB");
+        }
+
+        Write(
+            ConsoleColor.Cyan,
+            $"{pdfName,-60} TOTAL {pageCount,-4} page(s) {documentSeconds,6:F3} s {documentMemoryBytes / BytesPerMegabyte,10:F1} MB");
+    }
+
+    /// <summary>
+    /// Prints the pages an analysis run found to be outliers, the slow ones first and the memory
+    /// hungry ones after them, each group ordered by what made it an outlier.
+    /// </summary>
+    private static void PrintOutliers(List<PageStatistics> timeOutliers, List<PageStatistics> memoryOutliers)
+    {
+        timeOutliers.Sort(static (left, right) => right.Seconds.CompareTo(left.Seconds));
+        memoryOutliers.Sort(static (left, right) => right.MemoryBytes.CompareTo(left.MemoryBytes));
+
+        Console.WriteLine();
+        Write(ConsoleColor.Cyan, $"{timeOutliers.Count} slow page(s):");
+
+        foreach (PageStatistics statistics in timeOutliers)
+        {
+            Write(
+                ConsoleColor.Red,
+                $"{statistics.PdfName,-60} page {statistics.PageNumber,-4} {statistics.Seconds,8:F3} s {statistics.MemoryBytes / BytesPerMegabyte,10:F1} MB");
+        }
+
+        Console.WriteLine();
+        Write(ConsoleColor.Cyan, $"{memoryOutliers.Count} memory hungry page(s):");
+
+        foreach (PageStatistics statistics in memoryOutliers)
+        {
+            Write(
+                ConsoleColor.Red,
+                $"{statistics.PdfName,-60} page {statistics.PageNumber,-4} {statistics.MemoryBytes / BytesPerMegabyte,10:F1} MB {statistics.Seconds,8:F3} s");
+        }
+    }
+
     private static void Generate(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
     {
         int pageCount = 0;
@@ -508,6 +646,9 @@ internal sealed class Program
         Console.WriteLine("  generate                rewrites the golden snapshots of the short set");
         Console.WriteLine("  generate --fullRun      rewrites the golden snapshots of every registered PDF");
         Console.WriteLine("  generate a* b           rewrites the golden snapshots of the selected PDFs only");
+        Console.WriteLine("  analyze                 renders the short set and prints its time and memory statistics");
+        Console.WriteLine("  analyze --fullRun       renders every registered PDF and prints its statistics");
+        Console.WriteLine("  analyze a* b            renders the selected PDFs only and prints their statistics");
         Console.WriteLine("  add <pdf> [pages] [--password <user password>]");
         Console.WriteLine("                          registers one PDF in gold.json");
         Console.WriteLine("  remove <pdf>            unregisters one PDF and deletes its source and snapshots");
@@ -519,6 +660,8 @@ internal sealed class Program
         Console.WriteLine("A golden snapshot is written for every registered page that has none; existing goldens are kept.");
         Console.WriteLine("With --inspect, the Inspect folder is cleared and refilled with, per differing page,");
         Console.WriteLine("the source PDF and its golden/result/diff PNGs, flat and named by PDF and page.");
+        Console.WriteLine("Analyze renders to measure only: it compares no page and writes no file, and it closes");
+        Console.WriteLine("with the pages that are outliers, the slow ones first and the memory hungry ones after.");
     }
 
     // Snapshots taken from a debug build are not comparable with the ones taken from a release build.
@@ -535,4 +678,10 @@ internal sealed class Program
         Console.WriteLine(text);
         Console.ResetColor();
     }
+
+    /// <summary>
+    /// What one page of an analysis run cost: the time it took to render, and the managed memory the
+    /// document grew by while it did.
+    /// </summary>
+    private sealed record PageStatistics(string PdfName, int PageNumber, double Seconds, long MemoryBytes);
 }
