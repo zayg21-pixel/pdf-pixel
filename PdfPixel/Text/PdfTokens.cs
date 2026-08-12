@@ -247,6 +247,7 @@ internal static class PdfTokens
 
     // Cross-Reference Stream Dictionary Keys (PDF 1.5+)
     public static readonly PdfString XRefKey = (PdfString)"XRef"u8;
+    public static readonly PdfString XRefStmKey = (PdfString)"XRefStm"u8; // Trailer key of a hybrid-reference file, pointing at the stream that indexes its compressed objects
     public static readonly PdfString IndexKey = (PdfString)"Index"u8;
     public static readonly PdfString PrevKey = (PdfString)"Prev"u8;
     public static readonly PdfString SizeKey = (PdfString)"Size"u8;

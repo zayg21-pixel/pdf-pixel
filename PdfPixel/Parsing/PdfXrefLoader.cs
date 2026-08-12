@@ -60,6 +60,7 @@ internal sealed class PdfXrefLoader
             {
                 parser.Position = xrefOffset + PdfTokens.Xref.Length;
                 PdfDictionary? trailer = ParseClassicXref(ref parser);
+                ApplyHybridCrossReferenceStream(trailer);
 
                 // Walk /Prev chain backwards.
                 int? prevOffset;
@@ -77,6 +78,7 @@ internal sealed class PdfXrefLoader
                     {
                         parser.Position = offsetValue + PdfTokens.Xref.Length;
                         trailer = ParseClassicXref(ref parser);
+                        ApplyHybridCrossReferenceStream(trailer);
                     }
                     else
                     {
@@ -116,6 +118,7 @@ internal sealed class PdfXrefLoader
                 {
                     parser.Position = offsetValue + PdfTokens.Xref.Length;
                     streamTrailer = ParseClassicXref(ref parser);
+                    ApplyHybridCrossReferenceStream(streamTrailer);
                 }
                 else
                 {
@@ -257,10 +260,11 @@ internal sealed class PdfXrefLoader
     #region XRef Stream (PDF 1.5+)
 
     /// <summary>
-    /// Applies the entries of a cross-reference stream that was found by scanning the file rather than
-    /// by following the /Prev chain. Entries the index already holds keep precedence, so this only fills
-    /// the gaps — chiefly the compressed objects a plain scan cannot see, since they live inside /ObjStm
-    /// containers and are never declared with an <c>N G obj</c> header of their own.
+    /// Applies the entries of a cross-reference stream reached other than by following the /Prev chain:
+    /// the <c>/XRefStm</c> of a hybrid-reference file, or one the recovery scan found in the file.
+    /// Entries the index already holds keep precedence, so this only fills the gaps — chiefly the
+    /// compressed objects, which live inside /ObjStm containers and are never declared with an
+    /// <c>N G obj</c> header of their own.
     /// </summary>
     /// <param name="crossReferenceStream">A parsed object whose dictionary is of <c>/Type /XRef</c>.</param>
     public void ApplyCrossReferenceStream(PdfObject crossReferenceStream)
@@ -268,11 +272,44 @@ internal sealed class PdfXrefLoader
         ReadOnlyMemory<byte> decoded = crossReferenceStream.DecodeAsMemory();
         if (decoded.IsEmpty)
         {
-            _logger.LogWarning("Cross-reference stream {Reference} found by the recovery scan decoded to nothing.", crossReferenceStream.Reference);
+            _logger.LogWarning("Cross-reference stream {Reference} decoded to nothing.", crossReferenceStream.Reference);
             return;
         }
 
         ParseXrefStreamEntries(crossReferenceStream.Dictionary, decoded);
+    }
+
+    /// <summary>
+    /// Reads the cross-reference stream a classic section points at with <c>/XRefStm</c>, taking only
+    /// its entries: the section's own trailer remains the one that carries /Root and /Prev, and the
+    /// stream is read after the table it accompanies so the table keeps precedence over it.
+    /// </summary>
+    private void ApplyHybridCrossReferenceStream(PdfDictionary? trailer)
+    {
+        int? declaredOffset = _trailerParser.GetCrossReferenceStreamOffset(trailer);
+        if (declaredOffset == null)
+        {
+            return;
+        }
+
+        int streamOffset = _document.HeaderOffset + declaredOffset.Value;
+        if (streamOffset >= _document.Stream.Length)
+        {
+            _logger.LogWarning("Trailer declares /XRefStm at offset {Offset}, past the end of the file.", declaredOffset.Value);
+            return;
+        }
+
+        PdfParser streamParser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
+        streamParser.Position = streamOffset;
+
+        PdfObject? crossReferenceStream = streamParser.ReadObject();
+        if (crossReferenceStream == null)
+        {
+            _logger.LogWarning("Trailer declares /XRefStm at offset {Offset}, where no object could be read.", declaredOffset.Value);
+            return;
+        }
+
+        ApplyCrossReferenceStream(crossReferenceStream);
     }
 
     private PdfDictionary? ParseXrefStream(ref PdfParser parser)

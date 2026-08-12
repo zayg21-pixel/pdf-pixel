@@ -34,6 +34,27 @@ internal sealed class PdfTrailerParser
         return prev.Value;
     }
 
+    /// <summary>
+    /// Return the /XRefStm offset from the current trailer dictionary. A hybrid-reference file puts it
+    /// on the trailer of a classic section to point at the cross-reference stream that indexes the
+    /// objects the section itself cannot describe, chiefly the compressed ones.
+    /// </summary>
+    public int? GetCrossReferenceStreamOffset(PdfDictionary? trailer)
+    {
+        if (trailer == null)
+        {
+            return null;
+        }
+
+        int? offset = trailer.GetInteger(PdfTokens.XRefStmKey);
+        if (!offset.HasValue || offset.Value < 0)
+        {
+            return null;
+        }
+
+        return offset.Value;
+    }
+
     public void TrySetDecryptor(PdfDictionary trailer)
     {
         if (trailer == null)
