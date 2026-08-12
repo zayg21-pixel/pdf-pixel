@@ -66,6 +66,12 @@ internal sealed class Program
             Description = "Password used to decrypt the PDF, when it is encrypted."
         };
 
+        Option<ProfileMode> profileOption = new("--profile")
+        {
+            Description = "Profiles the run: 'cpu' reports the methods the time went to, 'memory' the types allocated.",
+            DefaultValueFactory = _ => ProfileMode.None
+        };
+
         RootCommand rootCommand = new("Records and replays a PDF page, reporting decode and rasterization timings.")
         {
             pdfArgument,
@@ -76,7 +82,8 @@ internal sealed class Program
             rasterizeOption,
             savePngOption,
             dumpCommandsOption,
-            passwordOption
+            passwordOption,
+            profileOption
         };
 
         rootCommand.SetAction(parseResult =>
@@ -90,7 +97,8 @@ internal sealed class Program
                 parseResult.GetValue(rasterizeOption),
                 parseResult.GetValue(savePngOption),
                 parseResult.GetValue(dumpCommandsOption),
-                parseResult.GetValue(passwordOption));
+                parseResult.GetValue(passwordOption),
+                parseResult.GetValue(profileOption));
 
             return 0;
         });
@@ -107,7 +115,8 @@ internal sealed class Program
         bool rasterize,
         bool savePng,
         bool dumpCommands,
-        string? password)
+        string? password,
+        ProfileMode profile)
     {
         if (pdfFile == null)
         {
@@ -140,22 +149,34 @@ internal sealed class Program
             return;
         }
 
-        for (int pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+        void ProcessPages()
         {
-            MeasurePage(
-                reader,
-                loggerFactory,
-                logger,
-                pdfPath,
-                outputDirectory,
-                pageNumber,
-                scale,
-                iterationCount,
-                rasterize,
-                savePng,
-                dumpCommands,
-                password);
+            for (int pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+            {
+                MeasurePage(
+                    reader,
+                    loggerFactory,
+                    logger,
+                    pdfPath,
+                    outputDirectory,
+                    pageNumber,
+                    scale,
+                    iterationCount,
+                    rasterize,
+                    savePng,
+                    dumpCommands,
+                    password);
+            }
         }
+
+        if (profile == ProfileMode.None)
+        {
+            ProcessPages();
+
+            return;
+        }
+
+        Profiler.Collect(profile, outputDirectory, ProcessPages);
     }
 
     private static int GetPageCount(PdfDocumentReader reader, string pdfPath, string? password)
