@@ -239,11 +239,11 @@ internal sealed class PdfXrefLoader
         PdfObjectInfo info;
         if (statusByte == (byte)'n')
         {
-            info = PdfObjectInfo.ForUncompressed(reference, _document.HeaderOffset + offsetValue, false);
+            info = PdfObjectInfo.ForUncompressed(_document.HeaderOffset + offsetValue);
         }
         else if (statusByte == (byte)'f')
         {
-            info = PdfObjectInfo.ForFree(reference, 0, generation, false);
+            info = PdfObjectInfo.Free;
         }
         else
         {
@@ -412,12 +412,12 @@ internal sealed class PdfXrefLoader
                 {
                     case 0:
                     {
-                        info = PdfObjectInfo.ForFree(reference, (int)field2, (int)field3, true);
+                        info = PdfObjectInfo.Free;
                         break;
                     }
                     case 1:
                     {
-                        info = PdfObjectInfo.ForUncompressed(reference, _document.HeaderOffset + field2, true);
+                        info = PdfObjectInfo.ForUncompressed(_document.HeaderOffset + field2);
                         break;
                     }
                     case 2:
@@ -427,7 +427,7 @@ internal sealed class PdfXrefLoader
                             continue;
                         }
 
-                        info = PdfObjectInfo.ForCompressed(reference, (uint)field2, (int)field3, true);
+                        info = PdfObjectInfo.ForCompressed((uint)field2, (int)field3);
                         break;
                     }
                     default:

@@ -29,9 +29,10 @@ internal class PdfObjectParser
     /// <summary>
     /// Lazily parse a single indexed indirect object using only information from the provided PdfObjectInfo.
     /// </summary>
+    /// <param name="reference">Reference the index holds this entry under.</param>
     /// <param name="info">Indexed object metadata.</param>
     /// <returns>Parsed PdfObject or null on failure / unsupported cases.</returns>
-    public PdfObject? ParseSingleIndexedObject(PdfObjectInfo info)
+    public PdfObject? ParseSingleIndexedObject(in PdfReference reference, PdfObjectInfo info)
     {
         if (info == null)
         {
@@ -45,7 +46,7 @@ internal class PdfObjectParser
 
         if (info.IsCompressed)
         {
-            return _objectStreamParser.ParseSingleCompressed(info);
+            return _objectStreamParser.ParseSingleCompressed(reference, info);
         }
 
         if (info.Offset == null)
@@ -69,13 +70,13 @@ internal class PdfObjectParser
         }
 
         // Validate reference matches index metadata to guard against malformed offsets.
-        if (parsedObject.Reference.ObjectNumber != info.Reference.ObjectNumber
-            || parsedObject.Reference.Generation != info.Reference.Generation)
+        if (parsedObject.Reference.ObjectNumber != reference.ObjectNumber
+            || parsedObject.Reference.Generation != reference.Generation)
         {
             _logger.LogWarning(
                 "Xref offset {Offset} for {ExpectedReference} actually contains {ActualReference}; treating the xref entry as invalid.",
                 info.Offset,
-                info.Reference,
+                reference,
                 parsedObject.Reference);
             return null;
         }

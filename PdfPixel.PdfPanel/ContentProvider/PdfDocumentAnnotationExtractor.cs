@@ -98,7 +98,7 @@ internal static class PdfDocumentAnnotationExtractor
 
         foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
         {
-            PdfReference reference = pageAnnotation.Content.AnnotationObject.Reference;
+            PdfReference reference = pageAnnotation.Content.Reference;
             if (reference.IsValid)
             {
                 map[reference] = pageAnnotation.Content;
@@ -133,7 +133,7 @@ internal static class PdfDocumentAnnotationExtractor
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
         List<PdfAnnotationBase> replies = [];
-        PdfReference annotationRef = annotation.AnnotationObject.Reference;
+        PdfReference annotationRef = annotation.Reference;
 
         if (!annotationRef.IsValid)
         {

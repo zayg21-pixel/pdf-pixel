@@ -29,7 +29,12 @@ public abstract class PdfAnnotationBase
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="annotationObject"/> is null.</exception>
     protected PdfAnnotationBase(PdfObject annotationObject, PdfAnnotationSubType subtype)
     {
-        AnnotationObject = annotationObject ?? throw new ArgumentNullException(nameof(annotationObject));
+        if (annotationObject == null)
+        {
+            throw new ArgumentNullException(nameof(annotationObject));
+        }
+
+        Reference = annotationObject.Reference;
         Subtype = subtype;
 
         // Initialize all properties in constructor to avoid re-parsing
@@ -65,7 +70,6 @@ public abstract class PdfAnnotationBase
         Opacity = annotationObject.Dictionary.GetFloat(PdfTokens.StrokeAlphaKey) ?? 1.0f;
         PageReference = annotationObject.Dictionary.GetReference(PdfTokens.PageKey);
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
-        OptionalContent = annotationObject.Dictionary.GetDictionary(PdfTokens.OptionalContentKey);
         Popup = annotationObject.Dictionary.GetReference(PdfTokens.PopupKey);
         InReplyTo = annotationObject.Dictionary.GetReference(PdfTokens.InReplyToKey);
         ReplyType = annotationObject.Dictionary.GetName(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
@@ -73,9 +77,9 @@ public abstract class PdfAnnotationBase
     }
 
     /// <summary>
-    /// Gets the PDF object that represents this annotation.
+    /// Gets the reference of the PDF object that represents this annotation.
     /// </summary>
-    public PdfObject AnnotationObject { get; }
+    public PdfReference Reference { get; }
 
     /// <summary>
     /// Gets the annotation subtype (e.g., Text, Link, Widget, etc.).
@@ -260,11 +264,6 @@ public abstract class PdfAnnotationBase
     /// in the document's structure tree.
     /// </summary>
     public int? StructuralParent { get; }
-
-    /// <summary>
-    /// Gets the optional content configuration dictionary that determines when this annotation is visible.
-    /// </summary>
-    public PdfDictionary? OptionalContent { get; }
 
     /// <summary>
     /// Gets the reference to the annotation that this annotation is in reply to.

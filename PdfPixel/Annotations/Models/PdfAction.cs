@@ -18,16 +18,10 @@ public abstract class PdfAction
     /// <param name="actionType">The type of action.</param>
     protected PdfAction(PdfDictionary actionDictionary, PdfActionType actionType)
     {
-        ActionDictionary = actionDictionary;
         ActionType = actionType;
 
         Next = actionDictionary?.GetValue(PdfTokens.NextKey);
     }
-
-    /// <summary>
-    /// Gets the PDF dictionary representing this action.
-    /// </summary>
-    public PdfDictionary ActionDictionary { get; }
 
     /// <summary>
     /// Gets the type of this action.

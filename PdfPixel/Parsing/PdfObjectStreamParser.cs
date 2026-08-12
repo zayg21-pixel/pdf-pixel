@@ -41,9 +41,10 @@ internal class PdfObjectStreamParser
     /// Lazily parse a single compressed indirect object using its <see cref="PdfObjectInfo"/> metadata.
     /// Populates relative offsets for all objects in the containing object stream on first access.
     /// </summary>
+    /// <param name="reference">Reference the index holds this entry under.</param>
     /// <param name="info">Compressed object index info.</param>
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
-    public PdfObject? ParseSingleCompressed(PdfObjectInfo info)
+    public PdfObject? ParseSingleCompressed(in PdfReference reference, PdfObjectInfo info)
     {
         if (info.ObjectStreamNumber == null || info.ObjectStreamIndex == null)
         {
@@ -128,7 +129,7 @@ internal class PdfObjectStreamParser
             return null;
         }
 
-        PdfObject pdfObject = new(info.Reference, _pdfDocument, value);
+        PdfObject pdfObject = new(reference, _pdfDocument, value);
         return pdfObject;
     }
 

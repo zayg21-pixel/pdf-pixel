@@ -6,6 +6,7 @@ using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Text.RegularExpressions;
 
 namespace PdfPixel.Diagnostics;
 
@@ -20,6 +21,12 @@ internal static class Profiler
     private const int CircularBufferMegabytes = 256;
 
     private const double BytesPerMegabyte = 1024.0 * 1024.0;
+
+    // A heap report row: bytes per instance, how many are alive, then the type and the module it is in.
+    private static readonly Regex HeapReportRow = new(@"^\s*([\d,]+)\s+([\d,]+)\s+(.+?)\s*(\[[^\]]+\])?\s*$", RegexOptions.Compiled);
+
+    // The report splits one array type across rows by instance size; the suffix saying which is dropped.
+    private static readonly Regex SizeBucketSuffix = new(@"\s*\(Bytes > \S+\)\s*$", RegexOptions.Compiled);
 
     // The runtime samples every managed thread at this interval, so a method's sample count
     // multiplied by it is the time spent there.
@@ -102,6 +109,121 @@ internal static class Profiler
             $"Allocated {allocatedBytes / BytesPerMegabyte:F1} MB, collected gen0 {gen0Count} / gen1 {gen1Count} / gen2 {gen2Count}, paused for {pauseTime.TotalMilliseconds:F1} ms");
 
         PrintMemoryReport(tracePath, allocatedBytes);
+    }
+
+    /// <summary>
+    /// Dumps the live heap of this process and prints the types holding the most bytes. Called while
+    /// the document is still open, so what it reports is what the open document holds on to.
+    /// </summary>
+    public static void CollectHeapDump(string outputDirectory)
+    {
+        string dumpPath = Path.Combine(outputDirectory, "heap.gcdump");
+
+        if (File.Exists(dumpPath))
+        {
+            File.Delete(dumpPath);
+        }
+
+        ProcessStartInfo startInfo = new("dotnet")
+        {
+            UseShellExecute = false
+        };
+
+        startInfo.ArgumentList.Add("gcdump");
+        startInfo.ArgumentList.Add("collect");
+        startInfo.ArgumentList.Add("-p");
+        startInfo.ArgumentList.Add(Environment.ProcessId.ToString());
+        startInfo.ArgumentList.Add("-o");
+        startInfo.ArgumentList.Add(dumpPath);
+        startInfo.ArgumentList.Add("--timeout");
+        startInfo.ArgumentList.Add("300");
+
+        using (Process? collector = Process.Start(startInfo))
+        {
+            if (collector == null)
+            {
+                Console.WriteLine("Could not start 'dotnet gcdump'; install it with 'dotnet tool install --global dotnet-gcdump'.");
+
+                return;
+            }
+
+            collector.WaitForExit();
+        }
+
+        if (!File.Exists(dumpPath))
+        {
+            Console.WriteLine("'dotnet gcdump' produced no dump.");
+
+            return;
+        }
+
+        PrintHeapReport(dumpPath);
+    }
+
+    /// <summary>
+    /// Runs the dump through 'dotnet gcdump report' and totals it by type. The report gives the size of
+    /// a single instance and how many of them are alive, so the two are multiplied to get what a type
+    /// holds, and the size buckets it splits array types into are folded back together.
+    /// </summary>
+    private static void PrintHeapReport(string dumpPath)
+    {
+        ProcessStartInfo startInfo = new("dotnet")
+        {
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        };
+
+        startInfo.ArgumentList.Add("gcdump");
+        startInfo.ArgumentList.Add("report");
+        startInfo.ArgumentList.Add(dumpPath);
+
+        using Process? reporter = Process.Start(startInfo);
+
+        if (reporter == null)
+        {
+            return;
+        }
+
+        Dictionary<string, long> bytesByType = new();
+        Dictionary<string, long> countByType = new();
+        long totalBytes = 0;
+
+        while (reporter.StandardOutput.ReadLine() is string line)
+        {
+            Match match = HeapReportRow.Match(line);
+
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            long instanceBytes = long.Parse(match.Groups[1].Value.Replace(",", string.Empty));
+            long instanceCount = long.Parse(match.Groups[2].Value.Replace(",", string.Empty));
+            string typeName = SizeBucketSuffix.Replace(match.Groups[3].Value, string.Empty).Trim();
+
+            Add(bytesByType, typeName, instanceBytes * instanceCount);
+            Add(countByType, typeName, instanceCount);
+            totalBytes += instanceBytes * instanceCount;
+        }
+
+        reporter.WaitForExit();
+
+        if (totalBytes == 0)
+        {
+            Console.WriteLine("The heap report named no types.");
+
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"Live heap holds {totalBytes / BytesPerMegabyte:F1} MB; dump written to {dumpPath}");
+        Console.WriteLine();
+        Console.WriteLine("Retained by type");
+
+        foreach (KeyValuePair<string, long> entry in bytesByType.OrderByDescending(static entry => entry.Value).Take(TopCount))
+        {
+            Console.WriteLine($"{entry.Value / BytesPerMegabyte,10:F1} MB {entry.Value * 100.0 / totalBytes,6:F1}% {countByType[entry.Key],12:N0}  {entry.Key}");
+        }
     }
 
     /// <summary>

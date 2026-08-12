@@ -20,4 +20,10 @@ internal enum ProfileMode
     /// they came from.
     /// </summary>
     Memory,
+
+    /// <summary>
+    /// A dump of the live heap taken while the document is still open, reported as the types holding
+    /// the most bytes.
+    /// </summary>
+    Heap,
 }

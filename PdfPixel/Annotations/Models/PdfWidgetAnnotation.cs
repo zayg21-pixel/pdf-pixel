@@ -28,7 +28,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
         AppearanceCharacteristics = dictionary.GetDictionary(PdfTokens.AppearanceCharacteristicsKey);
         Action = PdfAction.FromDictionary(dictionary.GetDictionary(PdfTokens.AKey));
 
-        Field = ResolveField();
+        Field = ResolveField(annotationObject);
     }
 
     /// <summary>
@@ -281,15 +281,16 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <summary>
     /// Resolves the form field associated with this widget annotation.
     /// </summary>
+    /// <param name="annotationObject">The PDF object representing this widget annotation.</param>
     /// <returns>The form field, or null if no field could be resolved.</returns>
-    private PdfFormField? ResolveField()
+    private static PdfFormField? ResolveField(PdfObject annotationObject)
     {
-        PdfDictionary dictionary = AnnotationObject.Dictionary;
+        PdfDictionary dictionary = annotationObject.Dictionary;
         PdfString fieldType = dictionary.GetName(PdfTokens.FieldTypeKey);
 
         if (!fieldType.IsEmpty)
         {
-            return PdfFormFieldFactory.CreateField(AnnotationObject);
+            return PdfFormFieldFactory.CreateField(annotationObject);
         }
 
         PdfObject? parentObject = dictionary.GetObject(PdfTokens.ParentKey);

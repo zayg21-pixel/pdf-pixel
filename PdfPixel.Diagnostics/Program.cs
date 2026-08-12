@@ -165,11 +165,12 @@ internal sealed class Program
                     rasterize,
                     savePng,
                     dumpCommands,
-                    password);
+                    password,
+                    profile);
             }
         }
 
-        if (profile == ProfileMode.None)
+        if (profile == ProfileMode.None || profile == ProfileMode.Heap)
         {
             ProcessPages();
 
@@ -198,7 +199,8 @@ internal sealed class Program
         bool rasterize,
         bool savePng,
         bool dumpCommands,
-        string? password)
+        string? password,
+        ProfileMode profile)
     {
         double[] totalMilliseconds = new double[iterationCount];
         double[] decodeMilliseconds = new double[iterationCount];
@@ -304,6 +306,11 @@ internal sealed class Program
                 {
                     SavePageSnapshot(logger, surface, outputDirectory, page.PageNumber);
                 }
+            }
+
+            if (profile == ProfileMode.Heap && iteration == iterationCount - 1)
+            {
+                Profiler.CollectHeapDump(outputDirectory);
             }
 
             decodeMilliseconds[iteration] = decodeStopwatch.Elapsed.TotalMilliseconds;

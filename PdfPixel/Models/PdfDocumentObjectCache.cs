@@ -149,7 +149,7 @@ internal class PdfDocumentObjectCache
     /// <param name="reference">Object reference declared by the object header.</param>
     /// <param name="fileOffset">Absolute byte offset in the source file where the object header begins.</param>
     internal void SetObjectOffset(in PdfReference reference, long fileOffset)
-        => ObjectIndex[reference] = PdfObjectInfo.ForUncompressed(reference, fileOffset, fromXrefStream: false);
+        => ObjectIndex[reference] = PdfObjectInfo.ForUncompressed(fileOffset);
 
     private PdfObject? ResolveIndexedObject(in PdfReference reference)
     {
@@ -158,6 +158,6 @@ internal class PdfDocumentObjectCache
             return null;
         }
 
-        return _pdfObjectParser.ParseSingleIndexedObject(info);
+        return _pdfObjectParser.ParseSingleIndexedObject(reference, info);
     }
 }
