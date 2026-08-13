@@ -1,7 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
-using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
@@ -9,7 +8,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Commands.Converters;
+namespace PdfPixel.Skia.Converters;
 
 /// <summary>
 /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/>. Single place where a paint's color,

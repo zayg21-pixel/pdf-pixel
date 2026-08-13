@@ -1,8 +1,10 @@
 using PdfPixel.Color;
+using PdfPixel.Commands;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Geometry;
 using System;
 
-namespace PdfPixel.Commands.Cache;
+namespace PdfPixel.Skia.Cache;
 
 /// <summary>
 /// Identifies a <see cref="TilingCommandCacheEntry"/> built for one <see cref="DrawTilingCommand"/>.

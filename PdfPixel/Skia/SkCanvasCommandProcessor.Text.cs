@@ -1,4 +1,5 @@
-﻿using PdfPixel.Commands.Converters;
+﻿using PdfPixel.Skia.Converters;
+using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Geometry;
@@ -8,7 +9,7 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Commands.Skia;
+namespace PdfPixel.Skia;
 
 public sealed partial class SkCanvasCommandProcessor
 {

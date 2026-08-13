@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 
-namespace PdfPixel.Commands.Skia;
+namespace PdfPixel.Skia;
 
 /// <summary>
 /// The Skia rendering backend: draws recorded PDF commands onto an <see cref="SKCanvas"/>.

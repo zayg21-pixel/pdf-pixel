@@ -1,8 +1,7 @@
-using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
 using SkiaSharp;
 
-namespace PdfPixel.Commands.Converters;
+namespace PdfPixel.Skia.Converters;
 
 /// <summary>
 /// Converts <see cref="PdfPath"/> instances to <see cref="SKPath"/> for rendering.

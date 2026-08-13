@@ -1,8 +1,9 @@
+using PdfPixel.Commands.Cache;
 using PdfPixel.Fonts.Model;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Commands.Cache;
+namespace PdfPixel.Skia.Cache;
 
 /// <summary>
 /// Identifies a <see cref="SkTypefaceCommandCacheEntry"/> for a given <see cref="IPdfTypeface"/>.

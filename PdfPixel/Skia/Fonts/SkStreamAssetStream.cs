@@ -2,11 +2,11 @@ using SkiaSharp;
 using System;
 using System.IO;
 
-namespace PdfPixel.Fonts.Management.Skia;
+namespace PdfPixel.Skia.Fonts;
 
 /// <summary>
 /// Adapts an <see cref="SKStreamAsset"/> (e.g. from <see cref="SKTypeface.OpenStream(out int)"/>) to a
-/// plain, seekable <see cref="Stream"/>, so it can be wrapped by <see cref="Typeface.ReadOnlyFontStream"/>
+/// plain, seekable <see cref="Stream"/>, so it can be wrapped by <see cref="PdfPixel.Fonts.Typeface.ReadOnlyFontStream"/>
 /// without buffering the font program into memory up front.
 /// </summary>
 internal sealed class SkStreamAssetStream : Stream

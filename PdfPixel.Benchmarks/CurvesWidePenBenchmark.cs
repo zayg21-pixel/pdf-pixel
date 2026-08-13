@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Skia;
+using PdfPixel.Skia;
 using PdfPixel.Geometry;
 using SkiaSharp;
 

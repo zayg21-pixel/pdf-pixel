@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace PdfPixel.Commands.Skia;
+namespace PdfPixel.Skia;
 
 /// <summary>
 /// Provides SKSL-based image blending with mask, matte, and optional alpha inversion.

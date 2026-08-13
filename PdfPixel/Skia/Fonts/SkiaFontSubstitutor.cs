@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Typeface;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Fonts.Management.Skia;
+namespace PdfPixel.Skia.Fonts;
 
 /// <summary>
 /// Loads installed system fonts through Skia's own font manager (<see cref="SKFontManager"/>), which

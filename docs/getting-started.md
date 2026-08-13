@@ -14,7 +14,7 @@ using PdfPixel;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
-using PdfPixel.Fonts.Management.Skia;
+using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;

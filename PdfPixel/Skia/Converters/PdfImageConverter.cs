@@ -1,7 +1,7 @@
 using PdfPixel.Imaging.Model;
 using SkiaSharp;
 
-namespace PdfPixel.Commands.Converters;
+namespace PdfPixel.Skia.Converters;
 
 /// <summary>
 /// Converts <see cref="PdfDecodedImage"/> to <see cref="SKImage"/> for canvas rendering.

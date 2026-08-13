@@ -4,12 +4,13 @@ using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Image;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
+using PdfPixel.Skia.Cache;
 using SkiaSharp;
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Commands.Skia;
+namespace PdfPixel.Skia;
 
 /// <summary>
 /// Skia-specific helper methods for commands, e.g. for applying modifiers to paints or resolving typefaces.

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
-using PdfPixel.Commands.Skia;
+using PdfPixel.Skia;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;

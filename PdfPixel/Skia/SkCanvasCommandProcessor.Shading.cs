@@ -1,9 +1,10 @@
-﻿using PdfPixel.Commands.Cache;
-using PdfPixel.Commands.Converters;
+﻿using PdfPixel.Commands;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Shading.Model;
+using PdfPixel.Skia.Converters;
 using SkiaSharp;
 
-namespace PdfPixel.Commands.Skia;
+namespace PdfPixel.Skia;
 
 public sealed partial class SkCanvasCommandProcessor
 {

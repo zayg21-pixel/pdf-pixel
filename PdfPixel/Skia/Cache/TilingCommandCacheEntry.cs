@@ -1,6 +1,7 @@
+using PdfPixel.Commands.Cache;
 using SkiaSharp;
 
-namespace PdfPixel.Commands.Cache;
+namespace PdfPixel.Skia.Cache;
 
 /// <summary>
 /// Holds the rasterization primitives recorded for one tiling pattern cell, shared by every command

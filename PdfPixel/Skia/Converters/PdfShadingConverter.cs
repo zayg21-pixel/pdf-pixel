@@ -1,10 +1,9 @@
 using PdfPixel.Color;
-using PdfPixel.Commands.Skia;
 using PdfPixel.Geometry;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 
-namespace PdfPixel.Commands.Converters;
+namespace PdfPixel.Skia.Converters;
 
 /// <summary>
 /// Converts <see cref="PdfPixel.Shading"/> model types to their SkiaSharp equivalents for canvas rendering.

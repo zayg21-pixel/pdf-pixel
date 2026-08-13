@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Management;
-using PdfPixel.Fonts.Management.Skia;
+using PdfPixel.Skia.Fonts;
 using PdfPixel.Fonts.Model;
 using System;
 using System.Diagnostics;

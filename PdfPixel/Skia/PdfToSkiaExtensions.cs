@@ -1,23 +1,23 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Converters;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Shading.Model;
 using PdfPixel.Transparency.Model;
+using PdfPixel.Skia.Converters;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Commands.Skia;
+namespace PdfPixel.Skia;
 
 /// <summary>
 /// Single entry point for converting <c>Pdf*</c> model types to their SkiaSharp equivalents.
 /// Trivial field-mapping conversions are implemented directly here; conversions with real logic
 /// delegate to a dedicated class in <see cref="Converters"/>.
 /// </summary>
-internal static class PdfToSkiaExtensions
+public static class PdfToSkiaExtensions
 {
     /// <summary>
     /// Converts a <see cref="PdfMatrix"/> to an <see cref="SKMatrix"/>.
@@ -125,41 +125,105 @@ internal static class PdfToSkiaExtensions
     /// <summary>
     /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/>.
     /// </summary>
-    public static SKPaint ToSkiaPaint(this PdfPaint paint) => PdfPaintConverter.ToSkiaPaint(paint);
+    public static SKPaint ToSkiaPaint(this PdfPaint paint)
+    {
+        if (paint == null)
+        {
+            throw new ArgumentNullException(nameof(paint));
+        }
+
+        return PdfPaintConverter.ToSkiaPaint(paint);
+    }
 
     /// <summary>
     /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/> that fills the outline a stroke has
     /// already been widened, dashed, capped, and joined into.
     /// </summary>
-    public static SKPaint ToSkiaOutlineFillPaint(this PdfPaint paint) => PdfPaintConverter.ToSkiaOutlineFillPaint(paint);
+    public static SKPaint ToSkiaOutlineFillPaint(this PdfPaint paint)
+    {
+        if (paint == null)
+        {
+            throw new ArgumentNullException(nameof(paint));
+        }
+
+        return PdfPaintConverter.ToSkiaOutlineFillPaint(paint);
+    }
 
     /// <summary>
     /// Converts a <see cref="PdfPath"/> to an <see cref="SKPath"/>.
     /// </summary>
-    public static SKPath ToSkPath(this PdfPath path) => PdfPathConverter.ToSkPath(path);
+    public static SKPath ToSkPath(this PdfPath path)
+    {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        return PdfPathConverter.ToSkPath(path);
+    }
 
     /// <summary>
     /// Converts a <see cref="PdfDecodedImage"/> to an <see cref="SKImage"/>.
     /// </summary>
-    public static SKImage ToSkImage(this PdfDecodedImage image) => PdfImageConverter.ToSkImage(image);
+    public static SKImage ToSkImage(this PdfDecodedImage image)
+    {
+        if (image == null)
+        {
+            throw new ArgumentNullException(nameof(image));
+        }
+
+        return PdfImageConverter.ToSkImage(image);
+    }
 
     /// <summary>
     /// Converts <see cref="PdfVertices"/> to <see cref="SKVertices"/>.
     /// </summary>
-    public static SKVertices ToSkVertices(this PdfVertices vertices) => PdfShadingConverter.ToSkVertices(vertices);
+    public static SKVertices ToSkVertices(this PdfVertices vertices)
+    {
+        if (vertices == null)
+        {
+            throw new ArgumentNullException(nameof(vertices));
+        }
+
+        return PdfShadingConverter.ToSkVertices(vertices);
+    }
 
     /// <summary>
     /// Builds the shader paint for an axial (Type 2) gradient.
     /// </summary>
-    public static SKPaint ToSkiaPaint(this PdfLinearGradient gradient) => PdfShadingConverter.ToSkiaPaint(gradient);
+    public static SKPaint ToSkiaPaint(this PdfLinearGradient gradient)
+    {
+        if (gradient == null)
+        {
+            throw new ArgumentNullException(nameof(gradient));
+        }
+
+        return PdfShadingConverter.ToSkiaPaint(gradient);
+    }
 
     /// <summary>
     /// Builds the outer-cone shader paint for a radial (Type 3) gradient.
     /// </summary>
-    public static SKPaint ToSkiaOuterPaint(this PdfRadialGradient gradient) => PdfShadingConverter.ToSkiaOuterPaint(gradient);
+    public static SKPaint ToSkiaOuterPaint(this PdfRadialGradient gradient)
+    {
+        if (gradient == null)
+        {
+            throw new ArgumentNullException(nameof(gradient));
+        }
+
+        return PdfShadingConverter.ToSkiaOuterPaint(gradient);
+    }
 
     /// <summary>
     /// Builds the inner-cone shader paint for a radial (Type 3) gradient.
     /// </summary>
-    public static SKPaint ToSkiaInnerPaint(this PdfRadialGradient gradient) => PdfShadingConverter.ToSkiaInnerPaint(gradient);
+    public static SKPaint ToSkiaInnerPaint(this PdfRadialGradient gradient)
+    {
+        if (gradient == null)
+        {
+            throw new ArgumentNullException(nameof(gradient));
+        }
+
+        return PdfShadingConverter.ToSkiaInnerPaint(gradient);
+    }
 }

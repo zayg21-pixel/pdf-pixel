@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Management;
-using PdfPixel.Fonts.Management.Skia;
+using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System.Diagnostics;
 using System.IO.Enumeration;

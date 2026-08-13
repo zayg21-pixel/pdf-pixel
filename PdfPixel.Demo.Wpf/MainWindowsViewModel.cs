@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PdfPixel.Fonts.Management;
-using PdfPixel.Fonts.Management.Skia;
+using PdfPixel.Skia.Fonts;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf;
