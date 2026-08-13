@@ -304,6 +304,13 @@ public class PdfGraphicsState
         => ClipBounds = PdfRectangle.Intersect(ClipBounds, CTM.MapRect(bounds));
 
     /// <summary>
+    /// Returns <see cref="ClipBounds"/> mapped back into current user space, which is the area content
+    /// with no extent of its own - a shading that declared no bounding box, a glyph whose font reports
+    /// none - can still reach.
+    /// </summary>
+    public PdfRectangle GetUserSpaceClipBounds() => CTM.Invert().MapRect(ClipBounds);
+
+    /// <summary>
     /// Create a copy for stack push (q operator).
     /// </summary>
     public PdfGraphicsState Clone() => CloneForPage(Page);

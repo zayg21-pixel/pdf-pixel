@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
-using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -61,17 +60,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             return PdfSize.Empty;
         }
 
-        if (state.RenderingParameters.RenderText)
-        {
-            using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
-            softMaskScope.BeginDrawContent();
-            ProcessGlyphs(processor, glyphs, state, font);
-            softMaskScope.EndDrawContent();
-        }
-        else
-        {
-            ProcessGlyphs(processor, glyphs, state, font);
-        }
+        ProcessGlyphs(processor, glyphs, state, font);
 
         if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
         {
@@ -108,9 +97,15 @@ public class PdfTextRenderer : IPdfTextRenderer
             && state.TextRenderingMode != PdfTextRenderingMode.Invisible
             && state.TextRenderingMode != PdfTextRenderingMode.Clip)
         {
+            PdfMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+
+            PdfRectangle contentBounds = GetType3Bounds(glyphsSpan, state, type3Font, fullTextMatrix) ?? state.GetUserSpaceClipBounds();
+
+            using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
+            softMaskScope.BeginDrawContent();
+
             // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
             processor.Process(SaveStateCommand.Instance);
-            PdfMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
             processor.Process(new ConcatMatrixCommand(fullTextMatrix));
 
             for (int i = 0; i < glyphsSpan.Length; i++)
@@ -130,6 +125,8 @@ public class PdfTextRenderer : IPdfTextRenderer
             }
 
             processor.Process(RestoreStateCommand.Instance);
+
+            softMaskScope.EndDrawContent();
         }
 
         if (state.RenderingParameters.ExtractText)
@@ -166,16 +163,34 @@ public class PdfTextRenderer : IPdfTextRenderer
     {
         if (state.RenderingParameters.RenderText)
         {
-            if (ShouldFill(state.TextRenderingMode))
-            {
-                TextFillRenderTarget textFillTarget = new(shapingResult, state);
-                textFillTarget.Render(processor);
-            }
+            bool shouldFill = ShouldFill(state.TextRenderingMode);
+            bool shouldStroke = ShouldStroke(state.TextRenderingMode);
 
-            if (ShouldStroke(state.TextRenderingMode))
+            if (shouldFill || shouldStroke)
             {
-                TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
-                textStrokeTarget.Render(processor);
+                PdfRectangle contentBounds = TextRenderUtilities.GetTextBounds(shapingResult, state) ?? state.GetUserSpaceClipBounds();
+
+                if (shouldStroke)
+                {
+                    contentBounds = contentBounds.InflateForStroke(state.StrokePaint);
+                }
+
+                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
+                softMaskScope.BeginDrawContent();
+
+                if (shouldFill)
+                {
+                    TextFillRenderTarget textFillTarget = new(shapingResult, state);
+                    textFillTarget.Render(processor);
+                }
+
+                if (shouldStroke)
+                {
+                    TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
+                    textStrokeTarget.Render(processor);
+                }
+
+                softMaskScope.EndDrawContent();
             }
 
             // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
@@ -230,6 +245,59 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             processor.Process(new EndMarkedContentCommand());
         }
+    }
+
+    /// <summary>
+    /// Computes the area the Type 3 glyphs of <paramref name="glyphs"/> can cover, in the space
+    /// <paramref name="fullTextMatrix"/> maps into. Each glyph contributes the box its CharProc declared
+    /// through d1, or the font's own box when it declared none. Returns <see langword="null"/> when a glyph
+    /// has neither, since its CharProc may then draw anywhere.
+    /// </summary>
+    private PdfRectangle? GetType3Bounds(in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font, in PdfMatrix fullTextMatrix)
+    {
+        var hasBounds = false;
+        float left = float.MaxValue;
+        float top = float.MaxValue;
+        float right = float.MinValue;
+        float bottom = float.MinValue;
+
+        for (int i = 0; i < glyphs.Length; i++)
+        {
+            ShapedGlyph glyph = glyphs[i];
+            PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
+
+            if (!charInfo.IsDefined || charInfo.Recording == null)
+            {
+                continue;
+            }
+
+            PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
+
+            if (glyphBBox == null)
+            {
+                return null;
+            }
+
+            PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
+
+            if (mapped.Width <= 0 || mapped.Height <= 0)
+            {
+                return null;
+            }
+
+            hasBounds = true;
+            left = Math.Min(left, glyph.X + mapped.Left);
+            top = Math.Min(top, glyph.Y + mapped.Top);
+            right = Math.Max(right, glyph.X + mapped.Right);
+            bottom = Math.Max(bottom, glyph.Y + mapped.Bottom);
+        }
+
+        if (!hasBounds)
+        {
+            return null;
+        }
+
+        return fullTextMatrix.MapRect(new PdfRectangle(left, top, right, bottom));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

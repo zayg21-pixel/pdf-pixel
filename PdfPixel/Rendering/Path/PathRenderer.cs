@@ -58,7 +58,11 @@ public class PathRenderer : IPathRenderer
             return;
         }
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
+        PdfRectangle contentBounds = (operation == PdfPaintOperation.Fill)
+            ? path.GetBounds()
+            : path.GetStrokeBounds(state.StrokePaint);
+
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
         softMaskScope.BeginDrawContent();
         DrawPathCore(processor, path, state, operation);
         softMaskScope.EndDrawContent();

@@ -28,6 +28,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfSoftMask? _softMask;
     private readonly PdfGraphicsState _graphicsState;
+    private readonly PdfRectangle _contentBounds;
 
     private PdfRectangle _layerBounds;
     private PdfMatrix _maskMatrix;
@@ -42,10 +43,16 @@ public sealed class SoftMaskDrawingScope : IDisposable
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="processor">Command processor to emit drawing commands through.</param>
     /// <param name="graphicsState">Current graphics state (provides the soft mask).</param>
+    /// <param name="contentBounds">
+    /// Area the content about to be drawn can reach, in current user space. The mask layers are confined
+    /// to it, so a small drawing under a page-wide clip costs a small layer rather than a page-sized one.
+    /// Content with no extent of its own passes <see cref="PdfGraphicsState.GetUserSpaceClipBounds"/>.
+    /// </param>
     public SoftMaskDrawingScope(
         IPdfRenderer renderer,
         IPdfCommandProcessor processor,
-        PdfGraphicsState graphicsState)
+        PdfGraphicsState graphicsState,
+        in PdfRectangle contentBounds)
     {
         if (graphicsState == null)
         {
@@ -56,6 +63,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         _processor = processor;
         _softMask = graphicsState.SoftMask;
         _graphicsState = graphicsState;
+        _contentBounds = contentBounds;
     }
 
     /// <summary>
@@ -89,10 +97,17 @@ public sealed class SoftMaskDrawingScope : IDisposable
         _maskMatrix = PdfMatrix.Concat(inverseCtm, _worldToMaskForm);
         // The backdrop gives the mask a value beyond the mask form too, so the masked area spans
         // everything still visible rather than just the area the mask form covers.
-        _layerBounds = inverseCtm.MapRect(_graphicsState.ClipBounds);
+        _layerBounds = PdfRectangle.Intersect(inverseCtm.MapRect(_graphicsState.ClipBounds), _contentBounds);
+
+        // Nothing the mask could composite reaches the clip, so the content stays unmasked and is
+        // clipped away by the clip already in effect.
+        if (_layerBounds.IsEmpty)
+        {
+            _shouldApplyMask = false;
+            return;
+        }
 
         _processor.Process(new SaveLayerCommand(_layerBounds));
-        _processor.Process(new ClipRectangleCommand(_layerBounds, PdfClipOperation.Intersect));
     }
 
     /// <summary>

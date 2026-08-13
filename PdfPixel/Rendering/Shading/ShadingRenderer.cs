@@ -57,7 +57,7 @@ public class ShadingRenderer : IShadingRenderer
             return;
         }
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, shading.BBox ?? state.GetUserSpaceClipBounds());
         softMaskScope.BeginDrawContent();
 
         DrawShadingCore(processor, shading, state);

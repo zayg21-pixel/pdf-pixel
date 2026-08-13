@@ -25,6 +25,15 @@ public static class PdfPathExtensions
             throw new ArgumentNullException(nameof(path));
         }
 
+        return path.GetBounds().InflateForStroke(strokePaint);
+    }
+
+    /// <summary>
+    /// Grows <paramref name="bounds"/> by the reach a stroke with <paramref name="strokePaint"/> adds beyond
+    /// the geometry it follows, so the result covers the stroked shape rather than its centre line.
+    /// </summary>
+    public static PdfRectangle InflateForStroke(this in PdfRectangle bounds, PdfPaint strokePaint)
+    {
         if (strokePaint == null)
         {
             throw new ArgumentNullException(nameof(strokePaint));
@@ -34,8 +43,7 @@ public static class PdfPathExtensions
         float halfWidth = style.LineWidth / 2f;
         float inflate = (style.LineJoin == PdfStrokeJoin.Miter) ? halfWidth * Math.Max(style.MiterLimit, 1f) : halfWidth;
 
-        PdfRectangle bounds = path.GetBounds();
-        return new PdfRectangle(bounds.Left - inflate, bounds.Top - inflate, bounds.Right + inflate, bounds.Bottom + inflate);
+        return bounds.Inflate(inflate);
     }
 
     /// <summary>

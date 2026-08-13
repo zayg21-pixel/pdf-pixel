@@ -49,6 +49,57 @@ internal static class TextRenderUtilities
         return textPathBuilder.Detach();
     }
 
+    /// <summary>
+    /// Computes the area the glyphs of <paramref name="shapingResult"/> can cover, in the same space
+    /// <see cref="GetTextPath"/> builds its outline in. Each glyph contributes the font bounding box its
+    /// <see cref="PdfCharacterInfo.Typeface"/> reports - the box every glyph of that font fits inside -
+    /// placed and scaled the way that glyph is, which bounds the run without reading a single outline.
+    /// Returns <see langword="null"/> when a glyph's typeface reports no usable box, leaving the extent
+    /// of the run unknown rather than under-stated.
+    /// </summary>
+    public static PdfRectangle? GetTextBounds(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    {
+        ReadOnlySpan<ShapedGlyph> glyphs = shapingResult.Span;
+        var hasBounds = false;
+        float left = float.MaxValue;
+        float top = float.MaxValue;
+        float right = float.MinValue;
+        float bottom = float.MinValue;
+
+        for (int i = 0; i < glyphs.Length; i++)
+        {
+            ShapedGlyph shapedGlyph = glyphs[i];
+            if (shapedGlyph.GlyphId == null)
+            {
+                continue;
+            }
+
+            PdfFontMetrics metrics = shapedGlyph.CharacterInfo.Typeface.Metrics;
+
+            if (metrics.BoundingBoxRight <= metrics.BoundingBoxLeft || metrics.BoundingBoxTop <= metrics.BoundingBoxBottom)
+            {
+                return null;
+            }
+
+            float scaledLeft = shapedGlyph.X + (metrics.BoundingBoxLeft * shapedGlyph.Scale);
+            float scaledRight = shapedGlyph.X + (metrics.BoundingBoxRight * shapedGlyph.Scale);
+
+            hasBounds = true;
+            left = Math.Min(left, Math.Min(scaledLeft, scaledRight));
+            right = Math.Max(right, Math.Max(scaledLeft, scaledRight));
+            top = Math.Min(top, shapedGlyph.Y + metrics.BoundingBoxBottom);
+            bottom = Math.Max(bottom, shapedGlyph.Y + metrics.BoundingBoxTop);
+        }
+
+        if (!hasBounds)
+        {
+            return null;
+        }
+
+        PdfMatrix matrix = GetFullTextMatrix(state, inverse: false);
+        return matrix.MapRect(new PdfRectangle(left, top, right, bottom));
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float GetTextWidth(in ReadOnlyMemory<ShapedGlyph> shapingResult)
     {

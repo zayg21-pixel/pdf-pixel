@@ -2,6 +2,7 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
@@ -55,7 +56,9 @@ public class FormRenderer : IFormRenderer
 
         graphicsState.RecursionGuard.Add(objectNumber);
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, graphicsState);
+        PdfRectangle contentBounds = formXObject.Matrix.MapRect(formXObject.BBox);
+
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, graphicsState, contentBounds);
         softMaskScope.BeginDrawContent();
 
         processor.Process(SaveStateCommand.Instance);
