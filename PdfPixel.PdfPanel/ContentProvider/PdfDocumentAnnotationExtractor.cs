@@ -37,7 +37,7 @@ internal static class PdfDocumentAnnotationExtractor
             return Array.Empty<PdfAnnotationPopup>();
         }
 
-        Dictionary<PdfReference, PdfAnnotationBase> annotationMap = BuildAnnotationMap(pdfPage);
+        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = BuildRepliesByParent(pdfPage);
         List<PdfAnnotationPopup> popups = [];
         HashSet<PdfAnnotationBase> processedAnnotations = [];
 
@@ -55,7 +55,7 @@ internal static class PdfDocumentAnnotationExtractor
                 continue;
             }
 
-            PdfAnnotationMessage[] thread = BuildAnnotationThread(annotation, annotationMap, processedAnnotations);
+            PdfAnnotationMessage[] thread = BuildAnnotationThread(annotation, repliesByParent, processedAnnotations);
             PdfAnnotationNavigation? navigation = BuildAnnotationNavigation(annotation);
             popups.Add(new PdfAnnotationPopup(pageAnnotation, navigation, thread));
         }
@@ -65,7 +65,7 @@ internal static class PdfDocumentAnnotationExtractor
 
     private static PdfAnnotationMessage[] BuildAnnotationThread(
         PdfAnnotationBase rootAnnotation,
-        Dictionary<PdfReference, PdfAnnotationBase> annotationMap,
+        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
         List<PdfAnnotationMessage> messages = [];
@@ -78,7 +78,7 @@ internal static class PdfDocumentAnnotationExtractor
 
         processedAnnotations.Add(rootAnnotation);
 
-        List<PdfAnnotationBase> replies = FindAllReplies(rootAnnotation, annotationMap, processedAnnotations);
+        List<PdfAnnotationBase> replies = FindAllReplies(rootAnnotation, repliesByParent, processedAnnotations);
 
         foreach (PdfAnnotationBase reply in replies)
         {
@@ -92,20 +92,35 @@ internal static class PdfDocumentAnnotationExtractor
         return messages.ToArray();
     }
 
-    private static Dictionary<PdfReference, PdfAnnotationBase> BuildAnnotationMap(IPdfPage pdfPage)
+    /// <summary>
+    /// Groups the page's annotations by the annotation they reply to, so that the replies of a given
+    /// annotation are found by a single lookup instead of a scan over every annotation on the page.
+    /// </summary>
+    private static Dictionary<PdfReference, List<PdfAnnotationBase>> BuildRepliesByParent(IPdfPage pdfPage)
     {
-        Dictionary<PdfReference, PdfAnnotationBase> map = [];
+        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = [];
 
         foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
         {
-            PdfReference reference = pageAnnotation.Content.Reference;
-            if (reference.IsValid)
+            PdfAnnotationBase annotation = pageAnnotation.Content;
+
+            if (!annotation.Reference.IsValid || !annotation.InReplyTo.HasValue)
             {
-                map[reference] = pageAnnotation.Content;
+                continue;
             }
+
+            PdfReference parentReference = annotation.InReplyTo.Value;
+
+            if (!repliesByParent.TryGetValue(parentReference, out List<PdfAnnotationBase>? replies))
+            {
+                replies = new List<PdfAnnotationBase>();
+                repliesByParent[parentReference] = replies;
+            }
+
+            replies.Add(annotation);
         }
 
-        return map;
+        return repliesByParent;
     }
 
     /// <summary>
@@ -129,7 +144,7 @@ internal static class PdfDocumentAnnotationExtractor
 
     private static List<PdfAnnotationBase> FindAllReplies(
         PdfAnnotationBase annotation,
-        Dictionary<PdfReference, PdfAnnotationBase> annotationMap,
+        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
         List<PdfAnnotationBase> replies = [];
@@ -140,7 +155,7 @@ internal static class PdfDocumentAnnotationExtractor
             return replies;
         }
 
-        List<PdfAnnotationBase> directReplies = FindDirectReplies(annotationRef, annotationMap, processedAnnotations);
+        List<PdfAnnotationBase> directReplies = FindDirectReplies(annotationRef, repliesByParent, processedAnnotations);
 
         foreach (PdfAnnotationBase reply in directReplies)
         {
@@ -148,7 +163,7 @@ internal static class PdfDocumentAnnotationExtractor
 
             if (reply.ReplyType == PdfAnnotationReplyType.Reply)
             {
-                List<PdfAnnotationBase> nestedReplies = FindAllReplies(reply, annotationMap, processedAnnotations);
+                List<PdfAnnotationBase> nestedReplies = FindAllReplies(reply, repliesByParent, processedAnnotations);
                 replies.AddRange(nestedReplies);
             }
         }
@@ -234,23 +249,25 @@ internal static class PdfDocumentAnnotationExtractor
 
     private static List<PdfAnnotationBase> FindDirectReplies(
         in PdfReference parentRef,
-        Dictionary<PdfReference, PdfAnnotationBase> annotationMap,
+        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
         List<PdfAnnotationBase> replies = [];
 
-        foreach (PdfAnnotationBase candidate in annotationMap.Values)
+        if (!repliesByParent.TryGetValue(parentRef, out List<PdfAnnotationBase>? candidates))
+        {
+            return replies;
+        }
+
+        foreach (PdfAnnotationBase candidate in candidates)
         {
             if (processedAnnotations.Contains(candidate))
             {
                 continue;
             }
 
-            if (candidate.InReplyTo.HasValue && candidate.InReplyTo.Value.Equals(parentRef))
-            {
-                processedAnnotations.Add(candidate);
-                replies.Add(candidate);
-            }
+            processedAnnotations.Add(candidate);
+            replies.Add(candidate);
         }
 
         return replies;

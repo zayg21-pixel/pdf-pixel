@@ -2,6 +2,11 @@
 
 namespace PdfPixel.PdfPanel.Annotations;
 
+// TODO: rework into a hierarchy. Replies form a tree through /IRT, and flattening a thread into an
+// ordered array loses which message each reply answers. The type needs to carry its own replies so the
+// tree survives extraction, and PdfDocumentAnnotationExtractor must then walk it without dropping
+// subtrees under a non-/R node or discarding replies whose parent is not on the page.
+
 /// <summary>
 /// Contains information about a single annotation message.
 /// </summary>
