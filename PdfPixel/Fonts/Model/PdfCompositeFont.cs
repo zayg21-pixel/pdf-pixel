@@ -15,6 +15,11 @@ namespace PdfPixel.Fonts.Model;
 /// </summary>
 public class PdfCompositeFont : PdfFontBase
 {
+    /// <summary>
+    /// The longest /UseCMap chain followed when loading an embedded CMap stream.
+    /// </summary>
+    private const int MaxUseCMapDepth = 8;
+
     private readonly CMapWMode _writingMode;
     private readonly Dictionary<uint, string>? _toUnicode;
 
@@ -180,48 +185,125 @@ public class PdfCompositeFont : PdfFontBase
             return (Document.CMapCache.GetCmap(predefinedName), predefinedName);
         }
 
-        PdfObject? encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
-        if (encodingObj == null)
+        PdfObject? encodingObject = Dictionary.GetObject(PdfTokens.EncodingKey);
+        if (encodingObject == null)
         {
             return default;
         }
 
-        if (encodingObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(encodingObj.Reference, out PdfCMap? cachedCMap))
+        PdfCMap? result = LoadCMapStream(encodingObject, 0);
+
+        return (result == null) ? default : (result, result.Name);
+    }
+
+    /// <summary>
+    /// Parses a CMap stream object into a <see cref="PdfCMap"/>, applying the CMap entries of its stream
+    /// dictionary on top of the stream body, and caches the result under the object's reference.
+    /// Returns <see langword="null"/> when the stream carries no data or does not parse.
+    /// </summary>
+    /// <param name="cmapObject">The CMap stream object to parse.</param>
+    /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this stream.</param>
+    private PdfCMap? LoadCMapStream(PdfObject cmapObject, int useCMapDepth)
+    {
+        if (cmapObject.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(cmapObject.Reference, out PdfCMap? cachedCMap))
         {
-            return (cachedCMap, cachedCMap.Name);
+            return cachedCMap;
         }
 
-        ReadOnlyMemory<byte> data = encodingObj.DecodeAsMemory();
-        if (data.IsEmpty || data.Length == 0)
+        ReadOnlyMemory<byte> data = cmapObject.DecodeAsMemory();
+        if (data.IsEmpty)
         {
-            return default;
+            return null;
         }
 
         PdfCMap? result = PdfCMapParser.ParseCMap(data, Document);
-
         if (result == null)
         {
-            return default;
+            return null;
         }
 
-        // PdfTokens.CMapNameKey
+        ApplyCMapStreamDictionary(cmapObject.Dictionary, result, useCMapDepth);
 
-        PdfString cmapNameToken = PdfString.FromString("CMapName"); // TODO: [HIGH] we need to cleanup the rest here, some other properties are coming from CMap
-        PdfString cmapName = encodingObj.Dictionary.GetName(cmapNameToken);
+        if (cmapObject.Reference.IsValid)
+        {
+            Document.CMapCache.CMapStreams[cmapObject.Reference] = result;
+        }
 
+        return result;
+    }
+
+    /// <summary>
+    /// Applies the /CMapName, /CIDSystemInfo, /WMode and /UseCMap entries of a CMap stream dictionary to the
+    /// CMap parsed from the stream body. /CMapName replaces the parsed name; /CIDSystemInfo and /WMode fill in
+    /// what the body left at its default; /UseCMap contributes the mappings and codespace ranges of the CMap it
+    /// designates, which the body's own entries take precedence over.
+    /// </summary>
+    /// <param name="cmapDictionary">The stream dictionary of the CMap being loaded.</param>
+    /// <param name="cmap">The CMap parsed from the stream body.</param>
+    /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this dictionary.</param>
+    private void ApplyCMapStreamDictionary(PdfDictionary cmapDictionary, PdfCMap cmap, int useCMapDepth)
+    {
+        MergeUseCMap(cmapDictionary, cmap, useCMapDepth);
+
+        PdfString cmapName = cmapDictionary.GetName(PdfTokens.CMapNameKey);
         if (!cmapName.IsEmpty)
         {
-            result.Name = cmapName;
+            cmap.Name = cmapName;
         }
 
-
-
-        if (encodingObj.Reference.IsValid)
+        if (cmap.CidSystemInfo == null)
         {
-            Document.CMapCache.CMapStreams[encodingObj.Reference] = result;
+            cmap.CidSystemInfo = PdfCidSystemInfo.FromDictionary(cmapDictionary.GetDictionary(PdfTokens.CidSystemInfoKey));
         }
 
-        return (result, result.Name);
+        if (cmap.WMode == CMapWMode.Horizontal)
+        {
+            int? writingMode = cmapDictionary.GetInteger(PdfTokens.WModeKey);
+            if (writingMode != null)
+            {
+                cmap.WMode = (CMapWMode)writingMode.Value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Merges the CMap designated by the /UseCMap entry of a CMap stream dictionary into <paramref name="cmap"/>.
+    /// The entry is either the name of a predefined CMap or a stream holding a further CMap, and chains longer
+    /// than <see cref="MaxUseCMapDepth"/> entries are not followed.
+    /// </summary>
+    /// <param name="cmapDictionary">The stream dictionary of the CMap being loaded.</param>
+    /// <param name="cmap">The CMap to merge the designated CMap into.</param>
+    /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this dictionary.</param>
+    private void MergeUseCMap(PdfDictionary cmapDictionary, PdfCMap cmap, int useCMapDepth)
+    {
+        if (useCMapDepth >= MaxUseCMapDepth)
+        {
+            return;
+        }
+
+        PdfString useCMapName = cmapDictionary.GetName(PdfTokens.UseCMapKey);
+        if (!useCMapName.IsEmpty)
+        {
+            PdfCMap? predefinedCMap = Document.CMapCache.GetCmap(useCMapName);
+            if (predefinedCMap != null)
+            {
+                cmap.MergeFrom(predefinedCMap);
+            }
+
+            return;
+        }
+
+        PdfObject? useCMapObject = cmapDictionary.GetObject(PdfTokens.UseCMapKey);
+        if (useCMapObject == null)
+        {
+            return;
+        }
+
+        PdfCMap? baseCMap = LoadCMapStream(useCMapObject, useCMapDepth + 1);
+        if (baseCMap != null)
+        {
+            cmap.MergeFrom(baseCMap);
+        }
     }
 
     /// <summary>
