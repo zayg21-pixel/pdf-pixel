@@ -20,7 +20,8 @@ internal class PdfPage : IPdfPageInternal
 {
     private static readonly PdfRectangle DefaultMediaBox = new(0, 0, 612, 792);
 
-    private readonly PdfPageCache _pageCache;
+    private readonly Lazy<PdfPageCache> _pageCache;
+    private readonly Lazy<IReadOnlyList<PdfPageAnnotation>> _annotations;
     private readonly IPdfDocumentInternal _document;
     private readonly PdfReference _pageReference;
     private readonly List<PdfObjectStream> _contentStreams;
@@ -55,17 +56,9 @@ internal class PdfPage : IPdfPageInternal
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = resourceDictionary;
         PageLabel = pageLabel;
-        _pageCache = new PdfPageCache(this, document, resourceDictionary);
+        _pageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this, document, resourceDictionary));
 
-        List<PdfAnnotationBase> rawAnnotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
-        List<PdfPageAnnotation> annotations = new(rawAnnotations.Count);
-
-        foreach (PdfAnnotationBase annotation in rawAnnotations)
-        {
-            annotations.Add(new PdfPageAnnotation(this, annotation));
-        }
-
-        Annotations = annotations;
+        _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
 
         PdfDictionary? groupDict = pageObject.Dictionary.GetDictionary(PdfTokens.GroupKey);
         _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, this);
@@ -102,12 +95,12 @@ internal class PdfPage : IPdfPageInternal
     public int Rotation { get; }
 
     /// <inheritdoc/>
-    public IReadOnlyList<PdfPageAnnotation> Annotations { get; }
+    public IReadOnlyList<PdfPageAnnotation> Annotations => _annotations.Value;
 
     /// <inheritdoc/>
     public PdfString PageLabel { get; }
 
-    PdfPageCache IPdfPageInternal.Cache => _pageCache;
+    PdfPageCache IPdfPageInternal.Cache => _pageCache.Value;
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
@@ -153,8 +146,22 @@ internal class PdfPage : IPdfPageInternal
         {
             processor.Process(RestoreLayerCommand.Instance);
         }
+    }
 
-        _pageCache.ClearAfterRender();
+    /// <summary>
+    /// Binds each annotation resolved for this page to the page itself.
+    /// </summary>
+    private List<PdfPageAnnotation> CreateAnnotations()
+    {
+        List<PdfAnnotationBase> rawAnnotations = _pageResources.Annotations ?? new List<PdfAnnotationBase>();
+        List<PdfPageAnnotation> annotations = new(rawAnnotations.Count);
+
+        foreach (PdfAnnotationBase annotation in rawAnnotations)
+        {
+            annotations.Add(new PdfPageAnnotation(this, annotation));
+        }
+
+        return annotations;
     }
 
     /// <summary>

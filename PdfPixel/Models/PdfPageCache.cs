@@ -24,9 +24,9 @@ internal sealed class PdfPageCache
     private readonly ILogger<PdfPageCache> _logger;
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
-    private readonly PdfDictionary? _fontDictionary; // captured once
-    private readonly PdfDictionary? _patternDictionary; // captured once
-    private readonly PdfDictionary? _extGStateDictionary; // captured once
+    private readonly PdfDictionary? _fontDictionary;
+    private readonly PdfDictionary? _patternDictionary;
+    private readonly PdfDictionary? _extGStateDictionary;
     private readonly PdfDictionary? _xObjectDictionary;
 
     public PdfPageCache(IPdfPageInternal page, IPdfDocumentInternal document, PdfDictionary resources)
@@ -45,16 +45,6 @@ internal sealed class PdfPageCache
     /// Gets the resolver used to determine the color space for image processing operations.
     /// </summary>
     public ColorSpaceResolver ColorSpace { get; }
-
-    /// <summary>
-    /// Releases name-based lookup caches (patterns, graphics state parameters) that are only
-    /// needed during content stream recording. ColorSpace resolver is retained for image decoders.
-    /// </summary>
-    public void ClearAfterRender()
-    {
-        _patternsByName.Clear();
-        _graphicsStateParametersByName.Clear();
-    }
 
     /// <summary>
     /// Retrieve an XObject by resource name from /XObject dictionary. Returns null if not found.

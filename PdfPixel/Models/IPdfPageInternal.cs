@@ -10,7 +10,7 @@ namespace PdfPixel.Models;
 internal interface IPdfPageInternal : IPdfPage
 {
     /// <summary>
-    /// Lazy per-page resource cache providing name-based lookups.
+    /// Per-page resource cache providing name-based lookups.
     /// Created on first access to avoid unnecessary allocations for pages that do not need caching.
     /// </summary>
     PdfPageCache Cache { get; }
