@@ -148,7 +148,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject);
+        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject, _page);
 
         if (parsedPattern == null)
         {

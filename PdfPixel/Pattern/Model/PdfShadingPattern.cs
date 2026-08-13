@@ -24,12 +24,12 @@ public sealed class PdfShadingPattern : PdfPattern
     /// <param name="sourceObject">The original source PDF object for the pattern.</param>
     /// <param name="shading">The shading object referenced by the pattern's /Shading entry.</param>
     /// <param name="matrix">The pattern transformation matrix.</param>
-    /// <param name="extGState">Optional extended graphics state dictionary (may be null).</param>
+    /// <param name="extGState">Optional graphics state parameters parsed from the pattern's /ExtGState entry (may be null).</param>
     internal PdfShadingPattern(
         PdfObject sourceObject,
         PdfShading shading,
         in PdfMatrix matrix,
-        PdfDictionary? extGState)
+        PdfGraphicsStateParameters? extGState)
         : base(sourceObject, matrix, PdfPatternType.Shading)
     {
         Shading = shading;
@@ -42,13 +42,22 @@ public sealed class PdfShadingPattern : PdfPattern
     public PdfShading Shading { get; }
 
     /// <summary>
-    /// Gets the optional extended graphics state dictionary (may be null).
+    /// Gets the graphics state parameters put into effect while the pattern is painted, or
+    /// <see langword="null"/> when the pattern declares no /ExtGState.
     /// </summary>
-    public PdfDictionary? ExtGState { get; } // TODO: [LOW] implement support for ExtGState as per specification. Though, I could never find PDF with ExtGState in shading
+    internal PdfGraphicsStateParameters? ExtGState { get; }
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        PdfMatrix matrix = PdfMatrix.Concat(state.CTM.Invert(), PatternMatrix);
+        PdfGraphicsState shadingState = state;
+
+        if (ExtGState != null)
+        {
+            shadingState = state.Clone();
+            ExtGState.ApplyToGraphicsState(shadingState);
+        }
+
+        PdfMatrix matrix = PdfMatrix.Concat(shadingState.CTM.Invert(), PatternMatrix);
 
         PdfCommandRecorder recorder = new();
 
@@ -62,8 +71,8 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.Background != null && Shading.BBox.HasValue)
         {
-            PdfColorSpaceConverter? colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
-            PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.TransferFunction);
+            PdfColorSpaceConverter? colorSpace = shadingState.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
+            PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, shadingState.RenderingIntent, shadingState.TransferFunction);
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             PdfPathBuilder rectPath = new();
@@ -72,8 +81,8 @@ public sealed class PdfShadingPattern : PdfPattern
             recorder.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        ShadingDecodingContext context = new(state, Shading);
-        recorder.Process(new DrawShadingCommand(context, state.Page.Document.LoggerFactory));
+        ShadingDecodingContext context = new(shadingState, Shading);
+        recorder.Process(new DrawShadingCommand(context, shadingState.Page.Document.LoggerFactory));
 
         recorder.Process(RestoreStateCommand.Instance);
 
