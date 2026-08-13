@@ -35,19 +35,11 @@ internal sealed class CffCharStringWriter
     public void WriteRawByte(byte value) => _output.Add(value);
 
     /// <summary>
-    /// Inserts a width value at the very start of the accumulated output, ahead of everything already
-    /// written, as its own <c>hstem</c> operator carrying one degenerate zero-width stem pair alongside
-    /// the width.
+    /// Drops everything written so far so the writer can be reused for the next charstring. The
+    /// underlying buffer is kept, not shrunk, so a writer reused across a font's glyphs does not
+    /// repeatedly reallocate.
     /// </summary>
-    public void PrependWidth(float value)
-    {
-        CffCharStringWriter prefixWriter = new();
-        prefixWriter.WriteNumber(value);
-        prefixWriter.WriteNumber(0f);
-        prefixWriter.WriteNumber(0f);
-        prefixWriter.WriteRawByte(CffConstants.CharStringOperatorHstem);
-        _output.InsertRange(0, prefixWriter._output);
-    }
+    public void Reset() => _output.Clear();
 
     public byte[] ToArray() => _output.ToArray();
 

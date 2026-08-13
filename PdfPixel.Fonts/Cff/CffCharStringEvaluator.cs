@@ -7,12 +7,14 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Cff;
 
 /// <summary>
-/// Evaluates a Type2 charstring into a <see cref="CffCharacter"/>: inlines <c>callsubr</c>/<c>callgsubr</c>
-/// (bias-adjusted, from local and global Subr INDEXes), drops hint operators (<c>hstem</c>/<c>vstem</c>/
-/// <c>hstemhm</c>/<c>vstemhm</c>/<c>hintmask</c>/<c>cntrmask</c> -- tracking hint count only to skip
-/// <c>hintmask</c>/<c>cntrmask</c> mask bytes correctly), builds the outline via
-/// <see cref="PdfPixel.Fonts.Model.PdfFontPathBuilder"/>, and emits a flattened, hint-free,
-/// subroutine-free repacked charstring alongside the extracted width.
+/// Evaluates a Type2 charstring: inlines <c>callsubr</c>/<c>callgsubr</c> (bias-adjusted, from local
+/// and global Subr INDEXes), drops hint operators (<c>hstem</c>/<c>vstem</c>/<c>hstemhm</c>/
+/// <c>vstemhm</c>/<c>hintmask</c>/<c>cntrmask</c> -- tracking hint count only to skip
+/// <c>hintmask</c>/<c>cntrmask</c> mask bytes correctly), resolves a deprecated seac-style
+/// <c>endchar</c> accent composition, and extracts the width.
+/// What else it produces is the caller's choice, made by which outputs their
+/// <see cref="CffCharStringContext"/> carries: an outline, a flattened hint-free subroutine-free
+/// repacked charstring, both, or neither.
 /// </summary>
 public class CffCharStringEvaluator
 {
@@ -27,76 +29,60 @@ public class CffCharStringEvaluator
     public CffCharStringEvaluator(ILogger<CffCharStringEvaluator> logger) => _logger = logger;
 
     /// <summary>
-    /// Evaluates a single charstring.
+    /// Returns <paramref name="character"/>'s outline, building it from the repacked charstring and
+    /// storing it on the character if it has not been built yet.
+    /// </summary>
+    /// <param name="font">The font <paramref name="character"/> belongs to, for its FontMatrix.</param>
+    /// <param name="character">The character to resolve the outline of.</param>
+    public ReadOnlyMemory<byte> ResolvePath(CffFont font, CffCharacter character)
+    {
+        if (font == null)
+        {
+            throw new ArgumentNullException(nameof(font));
+        }
+
+        if (character == null)
+        {
+            throw new ArgumentNullException(nameof(character));
+        }
+
+        if (!character.Path.IsEmpty || character.CharString.IsEmpty)
+        {
+            return character.Path;
+        }
+
+        PdfFontPathBuilder pathBuilder = new(character.GetEffectiveMatrix(font));
+        CffCharStringContext context = new() { PathBuilder = pathBuilder };
+
+        Evaluate(character.CharString, context);
+        character.Path = pathBuilder.Detach();
+
+        return character.Path;
+    }
+
+    /// <summary>
+    /// Evaluates a single charstring into <paramref name="context"/>, whose <see cref="CffCharStringContext.PathBuilder"/>
+    /// and <see cref="CffCharStringContext.Writer"/> decide what is produced. The context's per-glyph
+    /// state is reset first, so the same context evaluates one glyph after another; its font-scope
+    /// properties must already be set. The glyph's width is left in <see cref="CffCharStringContext.Width"/>.
     /// </summary>
     /// <param name="charString">The raw charstring bytes.</param>
-    /// <param name="topDict">The font's own Top DICT and (for a non-CID font) Private DICT. Used for
-    /// <c>nominalWidthX</c>/<c>defaultWidthX</c> when <paramref name="dict"/> is null or has no Private
-    /// DICT of its own.</param>
-    /// <param name="dict">For a CID-keyed font, the FDArray entry this specific character's FDSelect
-    /// entry names; null for a non-CID font, which has no per-character Font DICT. When non-null, its
-    /// Private DICT takes precedence over <paramref name="topDict"/>'s for
-    /// <c>nominalWidthX</c>/<c>defaultWidthX</c>. Stored on the returned <see cref="CffCharacter"/> as-is.</param>
-    /// <param name="localSubrs">The Local Subr INDEX entries in scope for this charstring.</param>
-    /// <param name="globalSubrs">The typeface's Global Subr INDEX entries.</param>
-    /// <param name="charStrings">This font's raw CharStrings INDEX entries, indexed by GID -- used to
-    /// resolve the base/accent glyphs of a deprecated seac-style <c>endchar</c> accent composition.</param>
-    /// <param name="nameToGid">This font's glyph-name-to-GID map, used for the same purpose. Empty for
-    /// CID-keyed fonts.</param>
-    /// <returns>The evaluated character.</returns>
-    public CffCharacter Evaluate(
-        in ReadOnlyMemory<byte> charString,
-        CffFontDict topDict,
-        CffFontDict? dict,
-        ReadOnlyMemory<byte>[] localSubrs,
-        ReadOnlyMemory<byte>[] globalSubrs,
-        ReadOnlyMemory<byte>[] charStrings,
-        IReadOnlyDictionary<PdfFontString, ushort> nameToGid)
+    /// <param name="context">The evaluation state and output targets.</param>
+    internal void Evaluate(in ReadOnlyMemory<byte> charString, CffCharStringContext context)
     {
-        if (topDict == null)
+        if (context == null)
         {
-            throw new ArgumentNullException(nameof(topDict));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (localSubrs == null)
-        {
-            throw new ArgumentNullException(nameof(localSubrs));
-        }
-
-        if (globalSubrs == null)
-        {
-            throw new ArgumentNullException(nameof(globalSubrs));
-        }
-
-        if (charStrings == null)
-        {
-            throw new ArgumentNullException(nameof(charStrings));
-        }
-
-        if (nameToGid == null)
-        {
-            throw new ArgumentNullException(nameof(nameToGid));
-        }
-
-        CffPrivateDict? effectivePrivateDict = dict?.PrivateDict ?? topDict.PrivateDict;
-        float nominalWidthX = effectivePrivateDict?.NominalWidthX ?? 0f;
-        float defaultWidthX = effectivePrivateDict?.DefaultWidthX ?? 0f;
-        PdfFontMatrix matrix = CffTopDict.CombineFontMatrix(topDict.TopDict, dict?.TopDict);
-        CffCharStringContext context = new(localSubrs, globalSubrs, nominalWidthX, defaultWidthX, charStrings, nameToGid, matrix);
+        context.Reset();
 
         Execute(charString.Span, context, depth: 0);
 
         if (context.SawMoveTo)
         {
-            context.PathBuilder.Close();
+            context.PathBuilder?.Close();
         }
-
-        if (context.Width != context.DefaultWidthX)
-        {
-            context.Writer.PrependWidth(context.Width - context.NominalWidthX);
-        }
-
-        return new CffCharacter(context.PathBuilder.Detach(), context.Writer.ToArray(), context.Width, dict);
     }
 
     private void Execute(in ReadOnlySpan<byte> data, CffCharStringContext context, int depth)
@@ -151,8 +137,9 @@ public class CffCharStringEvaluator
             case CffConstants.CharStringOperatorHstemhm:
             case CffConstants.CharStringOperatorVstemhm:
                 {
-                    List<float> args = PopAllWidth(context, nominalCountIsOdd: false);
-                    context.HintCount += args.Count / 2;
+                    TakeWidth(context, nominalCountIsOdd: false);
+                    context.HintCount += context.Operands.Count / 2;
+                    context.Operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorHintmask:
@@ -160,14 +147,12 @@ public class CffCharStringEvaluator
                 {
                     if (context.HintMaskBytes == 0)
                     {
-                        List<float> args = PopAllWidth(context, nominalCountIsOdd: false);
-                        context.HintCount += args.Count / 2;
+                        TakeWidth(context, nominalCountIsOdd: false);
+                        context.HintCount += context.Operands.Count / 2;
                         context.HintMaskBytes = (context.HintCount + 7) / 8;
                     }
-                    else
-                    {
-                        context.Operands.Clear();
-                    }
+
+                    context.Operands.Clear();
 
                     if (!reader.TrySkipBytes(context.HintMaskBytes))
                     {
@@ -179,160 +164,175 @@ public class CffCharStringEvaluator
                 }
             case CffConstants.CharStringOperatorRmoveto:
                 {
-                    List<float> args = PopAllWidth(context, nominalCountIsOdd: false);
-                    float dx = (args.Count > 0) ? args[0] : 0f;
-                    float dy = (args.Count > 1) ? args[1] : 0f;
+                    TakeWidth(context, nominalCountIsOdd: false);
+                    List<float> operands = context.Operands;
+                    float dx = (operands.Count > 0) ? operands[0] : 0f;
+                    float dy = (operands.Count > 1) ? operands[1] : 0f;
                     EmitMoveTo(context, dx, dy);
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorRmoveto);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorRmoveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorHmoveto:
                 {
-                    List<float> args = PopAllWidth(context, nominalCountIsOdd: true);
-                    float dx = (args.Count > 0) ? args[0] : 0f;
+                    TakeWidth(context, nominalCountIsOdd: true);
+                    List<float> operands = context.Operands;
+                    float dx = (operands.Count > 0) ? operands[0] : 0f;
                     EmitMoveTo(context, dx, 0f);
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorHmoveto);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorHmoveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorVmoveto:
                 {
-                    List<float> args = PopAllWidth(context, nominalCountIsOdd: true);
-                    float dy = (args.Count > 0) ? args[0] : 0f;
+                    TakeWidth(context, nominalCountIsOdd: true);
+                    List<float> operands = context.Operands;
+                    float dy = (operands.Count > 0) ? operands[0] : 0f;
                     EmitMoveTo(context, 0f, dy);
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorVmoveto);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorVmoveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorRlineto:
                 {
-                    List<float> args = context.PopAll();
-                    for (int index = 0; index + 1 < args.Count; index += 2)
+                    List<float> operands = context.Operands;
+                    for (int index = 0; index + 1 < operands.Count; index += 2)
                     {
-                        EmitLine(context, args[index], args[index + 1]);
+                        EmitLine(context, operands[index], operands[index + 1]);
                     }
 
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorRlineto);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorRlineto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorHlineto:
             case CffConstants.CharStringOperatorVlineto:
                 {
-                    List<float> args = context.PopAll();
+                    List<float> operands = context.Operands;
                     bool horizontal = operatorCode == CffConstants.CharStringOperatorHlineto;
-                    for (int index = 0; index < args.Count; index++)
+                    for (int index = 0; index < operands.Count; index++)
                     {
                         if (horizontal)
                         {
-                            EmitLine(context, args[index], 0f);
+                            EmitLine(context, operands[index], 0f);
                         }
                         else
                         {
-                            EmitLine(context, 0f, args[index]);
+                            EmitLine(context, 0f, operands[index]);
                         }
 
                         horizontal = !horizontal;
                     }
 
-                    context.Writer.WriteOperator(args, operatorCode);
+                    context.Writer?.WriteOperator(operands, operatorCode);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorRrcurveto:
                 {
-                    List<float> args = context.PopAll();
-                    for (int index = 0; index + 5 < args.Count; index += 6)
+                    List<float> operands = context.Operands;
+                    for (int index = 0; index + 5 < operands.Count; index += 6)
                     {
-                        EmitCurve(context, args[index], args[index + 1], args[index + 2], args[index + 3], args[index + 4], args[index + 5]);
+                        EmitCurve(context, operands[index], operands[index + 1], operands[index + 2], operands[index + 3], operands[index + 4], operands[index + 5]);
                     }
 
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorRrcurveto);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorRrcurveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorRcurveline:
                 {
-                    List<float> args = context.PopAll();
+                    List<float> operands = context.Operands;
                     int index = 0;
-                    for (; index + 7 < args.Count; index += 6)
+                    for (; index + 7 < operands.Count; index += 6)
                     {
-                        EmitCurve(context, args[index], args[index + 1], args[index + 2], args[index + 3], args[index + 4], args[index + 5]);
+                        EmitCurve(context, operands[index], operands[index + 1], operands[index + 2], operands[index + 3], operands[index + 4], operands[index + 5]);
                     }
 
-                    if (index + 1 < args.Count)
+                    if (index + 1 < operands.Count)
                     {
-                        EmitLine(context, args[index], args[index + 1]);
+                        EmitLine(context, operands[index], operands[index + 1]);
                     }
 
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorRcurveline);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorRcurveline);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorRlinecurve:
                 {
-                    List<float> args = context.PopAll();
-                    int lineCount = args.Count - 6;
+                    List<float> operands = context.Operands;
+                    int lineCount = operands.Count - 6;
                     int index = 0;
                     for (; index < lineCount; index += 2)
                     {
-                        EmitLine(context, args[index], args[index + 1]);
+                        EmitLine(context, operands[index], operands[index + 1]);
                     }
 
-                    if (index + 5 < args.Count)
+                    if (index + 5 < operands.Count)
                     {
-                        EmitCurve(context, args[index], args[index + 1], args[index + 2], args[index + 3], args[index + 4], args[index + 5]);
+                        EmitCurve(context, operands[index], operands[index + 1], operands[index + 2], operands[index + 3], operands[index + 4], operands[index + 5]);
                     }
 
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorRlinecurve);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorRlinecurve);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorVvcurveto:
                 {
-                    List<float> args = context.PopAll();
+                    List<float> operands = context.Operands;
                     int index = 0;
                     float dx1 = 0f;
-                    if ((args.Count % 2) != 0)
+                    if ((operands.Count % 2) != 0)
                     {
-                        dx1 = args[0];
+                        dx1 = operands[0];
                         index = 1;
                     }
 
-                    for (; index + 3 < args.Count; index += 4)
+                    for (; index + 3 < operands.Count; index += 4)
                     {
-                        EmitCurve(context, dx1, args[index], args[index + 1], args[index + 2], 0f, args[index + 3]);
+                        EmitCurve(context, dx1, operands[index], operands[index + 1], operands[index + 2], 0f, operands[index + 3]);
                         dx1 = 0f;
                     }
 
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorVvcurveto);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorVvcurveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorHhcurveto:
                 {
-                    List<float> args = context.PopAll();
+                    List<float> operands = context.Operands;
                     int index = 0;
                     float dy1 = 0f;
-                    if ((args.Count % 2) != 0)
+                    if ((operands.Count % 2) != 0)
                     {
-                        dy1 = args[0];
+                        dy1 = operands[0];
                         index = 1;
                     }
 
-                    for (; index + 3 < args.Count; index += 4)
+                    for (; index + 3 < operands.Count; index += 4)
                     {
-                        EmitCurve(context, args[index], dy1, args[index + 1], args[index + 2], args[index + 3], 0f);
+                        EmitCurve(context, operands[index], dy1, operands[index + 1], operands[index + 2], operands[index + 3], 0f);
                         dy1 = 0f;
                     }
 
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorHhcurveto);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorHhcurveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorVhcurveto:
                 {
-                    List<float> args = context.PopAll();
-                    EmitAlternatingCurves(context, args, startVertical: true);
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorVhcurveto);
+                    List<float> operands = context.Operands;
+                    EmitAlternatingCurves(context, operands, startVertical: true);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorVhcurveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorHvcurveto:
                 {
-                    List<float> args = context.PopAll();
-                    EmitAlternatingCurves(context, args, startVertical: false);
-                    context.Writer.WriteOperator(args, CffConstants.CharStringOperatorHvcurveto);
+                    List<float> operands = context.Operands;
+                    EmitAlternatingCurves(context, operands, startVertical: false);
+                    context.Writer?.WriteOperator(operands, CffConstants.CharStringOperatorHvcurveto);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringOperatorCallsubr:
@@ -351,25 +351,38 @@ public class CffCharStringEvaluator
                 }
             case CffConstants.CharStringOperatorEndchar:
                 {
-                    List<float> args = PopAllWidth(context, nominalCountIsOdd: false);
+                    TakeWidth(context, nominalCountIsOdd: false);
+                    List<float> operands = context.Operands;
 
                     // A component's own endchar (reached while composing a seac accent below) only ends
                     // that component's charstring, not the overall composite glyph.
                     if (context.InSeacComponent)
                     {
+                        operands.Clear();
                         return false;
                     }
 
-                    if (args.Count == 4)
+                    int operandCount = operands.Count;
+                    if (operandCount == 4)
                     {
-                        ApplySeacComposition(context, args[0], args[1], args[2], args[3], depth);
+                        float adx = operands[0];
+                        float ady = operands[1];
+                        float baseCode = operands[2];
+                        float accentCode = operands[3];
+                        operands.Clear();
+                        ApplySeacComposition(context, adx, ady, baseCode, accentCode, depth);
                     }
-                    else if (args.Count != 0)
+                    else
                     {
-                        _logger.LogWarning("CFF charstring endchar has {Count} operands, expected 0 or 4.", args.Count);
+                        if (operandCount != 0)
+                        {
+                            _logger.LogWarning("CFF charstring endchar has {Count} operands, expected 0 or 4.", operandCount);
+                        }
+
+                        operands.Clear();
                     }
 
-                    context.Writer.WriteRawByte(CffConstants.CharStringOperatorEndchar);
+                    context.Writer?.WriteRawByte(CffConstants.CharStringOperatorEndchar);
                     context.Finished = true;
                     return false;
                 }
@@ -389,70 +402,74 @@ public class CffCharStringEvaluator
         {
             case CffConstants.CharStringEscapedOperatorHflex:
                 {
-                    List<float> args = context.PopAll();
-                    if (args.Count >= 7)
+                    List<float> operands = context.Operands;
+                    if (operands.Count >= 7)
                     {
-                        float dy2 = args[2];
-                        EmitCurve(context, args[0], 0f, args[1], dy2, args[3], 0f);
-                        EmitCurve(context, args[4], 0f, args[5], -dy2, args[6], 0f);
+                        float dy2 = operands[2];
+                        EmitCurve(context, operands[0], 0f, operands[1], dy2, operands[3], 0f);
+                        EmitCurve(context, operands[4], 0f, operands[5], -dy2, operands[6], 0f);
                     }
 
-                    context.Writer.WriteEscapedOperator(args, CffConstants.CharStringEscapedOperatorHflex);
+                    context.Writer?.WriteEscapedOperator(operands, CffConstants.CharStringEscapedOperatorHflex);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringEscapedOperatorFlex:
                 {
-                    List<float> args = context.PopAll();
-                    if (args.Count >= 12)
+                    List<float> operands = context.Operands;
+                    if (operands.Count >= 12)
                     {
-                        EmitCurve(context, args[0], args[1], args[2], args[3], args[4], args[5]);
-                        EmitCurve(context, args[6], args[7], args[8], args[9], args[10], args[11]);
+                        EmitCurve(context, operands[0], operands[1], operands[2], operands[3], operands[4], operands[5]);
+                        EmitCurve(context, operands[6], operands[7], operands[8], operands[9], operands[10], operands[11]);
                     }
 
-                    context.Writer.WriteEscapedOperator(args, CffConstants.CharStringEscapedOperatorFlex);
+                    context.Writer?.WriteEscapedOperator(operands, CffConstants.CharStringEscapedOperatorFlex);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringEscapedOperatorHflex1:
                 {
-                    List<float> args = context.PopAll();
-                    if (args.Count >= 9)
+                    List<float> operands = context.Operands;
+                    if (operands.Count >= 9)
                     {
-                        float dy1 = args[1];
-                        float dy2 = args[3];
-                        float dy5 = args[7];
+                        float dy1 = operands[1];
+                        float dy2 = operands[3];
+                        float dy5 = operands[7];
                         float dy6 = -(dy1 + dy2 + dy5);
-                        EmitCurve(context, args[0], dy1, args[2], dy2, args[4], 0f);
-                        EmitCurve(context, args[5], 0f, args[6], dy5, args[8], dy6);
+                        EmitCurve(context, operands[0], dy1, operands[2], dy2, operands[4], 0f);
+                        EmitCurve(context, operands[5], 0f, operands[6], dy5, operands[8], dy6);
                     }
 
-                    context.Writer.WriteEscapedOperator(args, CffConstants.CharStringEscapedOperatorHflex1);
+                    context.Writer?.WriteEscapedOperator(operands, CffConstants.CharStringEscapedOperatorHflex1);
+                    operands.Clear();
                     break;
                 }
             case CffConstants.CharStringEscapedOperatorFlex1:
                 {
-                    List<float> args = context.PopAll();
-                    if (args.Count >= 11)
+                    List<float> operands = context.Operands;
+                    if (operands.Count >= 11)
                     {
-                        float dx = args[0] + args[2] + args[4] + args[6] + args[8];
-                        float dy = args[1] + args[3] + args[5] + args[7] + args[9];
+                        float dx = operands[0] + operands[2] + operands[4] + operands[6] + operands[8];
+                        float dy = operands[1] + operands[3] + operands[5] + operands[7] + operands[9];
                         float dx6;
                         float dy6;
                         if (MathF.Abs(dx) > MathF.Abs(dy))
                         {
-                            dx6 = args[10];
+                            dx6 = operands[10];
                             dy6 = -dy;
                         }
                         else
                         {
                             dx6 = -dx;
-                            dy6 = args[10];
+                            dy6 = operands[10];
                         }
 
-                        EmitCurve(context, args[0], args[1], args[2], args[3], args[4], args[5]);
-                        EmitCurve(context, args[6], args[7], args[8], args[9], dx6, dy6);
+                        EmitCurve(context, operands[0], operands[1], operands[2], operands[3], operands[4], operands[5]);
+                        EmitCurve(context, operands[6], operands[7], operands[8], operands[9], dx6, dy6);
                     }
 
-                    context.Writer.WriteEscapedOperator(args, CffConstants.CharStringEscapedOperatorFlex1);
+                    context.Writer?.WriteEscapedOperator(operands, CffConstants.CharStringEscapedOperatorFlex1);
+                    operands.Clear();
                     break;
                 }
             default:
@@ -501,8 +518,11 @@ public class CffCharStringEvaluator
         context.InSeacComponent = true;
         Execute(baseCharString.Span, context, depth + 1);
 
-        List<float> correctiveMove = new(2) { adx - context.CurrentX, ady - context.CurrentY };
-        context.Writer.WriteOperator(correctiveMove, CffConstants.CharStringOperatorRmoveto);
+        context.Operands.Clear();
+        context.Operands.Add(adx - context.CurrentX);
+        context.Operands.Add(ady - context.CurrentY);
+        context.Writer?.WriteOperator(context.Operands, CffConstants.CharStringOperatorRmoveto);
+        context.Operands.Clear();
         context.CurrentX = adx;
         context.CurrentY = ady;
 
@@ -555,43 +575,43 @@ public class CffCharStringEvaluator
         }
     }
 
-    private List<float> PopAllWidth(CffCharStringContext context, bool nominalCountIsOdd)
+    private void TakeWidth(CffCharStringContext context, bool nominalCountIsOdd)
     {
-        List<float> args = context.PopAll();
-        if (!context.GotWidth)
+        if (context.GotWidth)
         {
-            bool actualCountIsOdd = (args.Count % 2) != 0;
-            if (actualCountIsOdd != nominalCountIsOdd && args.Count > 0)
-            {
-                context.Width = context.NominalWidthX + args[0];
-                args.RemoveAt(0);
-            }
-            else
-            {
-                if (actualCountIsOdd != nominalCountIsOdd)
-                {
-                    _logger.LogWarning("CFF charstring operator expected a width-carrying operand but the operand stack was empty; using defaultWidthX.");
-                }
-
-                context.Width = context.DefaultWidthX;
-            }
-
-            context.GotWidth = true;
+            return;
         }
 
-        return args;
+        List<float> operands = context.Operands;
+        bool actualCountIsOdd = (operands.Count % 2) != 0;
+        if (actualCountIsOdd != nominalCountIsOdd && operands.Count > 0)
+        {
+            context.Width = context.NominalWidthX + operands[0];
+            operands.RemoveAt(0);
+        }
+        else
+        {
+            if (actualCountIsOdd != nominalCountIsOdd)
+            {
+                _logger.LogWarning("CFF charstring operator expected a width-carrying operand but the operand stack was empty; using defaultWidthX.");
+            }
+
+            context.Width = context.DefaultWidthX;
+        }
+
+        context.GotWidth = true;
     }
 
     private static void EmitMoveTo(CffCharStringContext context, float dx, float dy)
     {
         if (context.SawMoveTo)
         {
-            context.PathBuilder.Close();
+            context.PathBuilder?.Close();
         }
 
         context.CurrentX += dx;
         context.CurrentY += dy;
-        context.PathBuilder.MoveTo(context.CurrentX, context.CurrentY);
+        context.PathBuilder?.MoveTo(context.CurrentX, context.CurrentY);
         context.SawMoveTo = true;
     }
 
@@ -599,7 +619,7 @@ public class CffCharStringEvaluator
     {
         context.CurrentX += dx;
         context.CurrentY += dy;
-        context.PathBuilder.LineTo(context.CurrentX, context.CurrentY);
+        context.PathBuilder?.LineTo(context.CurrentX, context.CurrentY);
     }
 
     private static void EmitCurve(CffCharStringContext context, float dx1, float dy1, float dx2, float dy2, float dx3, float dy3)
@@ -610,7 +630,7 @@ public class CffCharStringEvaluator
         float y2 = y1 + dy2;
         float x3 = x2 + dx3;
         float y3 = y2 + dy3;
-        context.PathBuilder.CubicTo(x1, y1, x2, y2, x3, y3);
+        context.PathBuilder?.CubicTo(x1, y1, x2, y2, x3, y3);
         context.CurrentX = x3;
         context.CurrentY = y3;
     }

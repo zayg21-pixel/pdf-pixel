@@ -52,13 +52,11 @@ internal sealed class Type1CharStringEvaluator
     /// <param name="localSubrs">The font's decrypted local subroutines, by index.</param>
     /// <param name="charStrings">This font's raw Type1 charstrings by glyph name -- used to resolve the
     /// base and accent glyphs of a <c>seac</c> accent composition.</param>
-    /// <param name="matrix">The font's FontMatrix, applied to every outline point.</param>
     /// <returns>The evaluated character.</returns>
     public CffCharacter Evaluate(
         in ReadOnlyMemory<byte> charString,
         IReadOnlyDictionary<int, byte[]> localSubrs,
-        IReadOnlyDictionary<PdfFontString, byte[]> charStrings,
-        in PdfFontMatrix matrix)
+        IReadOnlyDictionary<PdfFontString, byte[]> charStrings)
     {
         if (localSubrs == null)
         {
@@ -70,20 +68,10 @@ internal sealed class Type1CharStringEvaluator
             throw new ArgumentNullException(nameof(charStrings));
         }
 
-        Type1CharStringContext context = new(localSubrs, charStrings, matrix);
+        Type1CharStringContext context = new(localSubrs, charStrings);
         Execute(charString.Span, context, depth: 0);
 
-        if (context.SawMoveTo)
-        {
-            context.PathBuilder.Close();
-        }
-
-        if (context.Width != 0f)
-        {
-            context.Writer.PrependWidth(context.Width);
-        }
-
-        return new CffCharacter(context.PathBuilder.Detach(), context.Writer.ToArray(), context.Width, dict: null);
+        return new CffCharacter(context.Writer.ToArray(), context.Width, dict: null);
     }
 
     private void Execute(in ReadOnlySpan<byte> data, Type1CharStringContext context, int depth)
@@ -146,100 +134,110 @@ internal sealed class Type1CharStringEvaluator
             }
             case OpHsbw:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 2)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 2)
                 {
-                    SetSideBearing(context, args[0], 0f, args[1]);
+                    SetSideBearing(context, operands[0], 0f, operands[1]);
                 }
 
+                operands.Clear();
                 break;
             }
             case CffConstants.CharStringOperatorRmoveto:
             {
-                List<float> args = context.PopAll();
-                float dx = (args.Count > 0) ? args[0] : 0f;
-                float dy = (args.Count > 1) ? args[1] : 0f;
+                List<float> operands = context.Operands;
+                float dx = (operands.Count > 0) ? operands[0] : 0f;
+                float dy = (operands.Count > 1) ? operands[1] : 0f;
+                operands.Clear();
                 HandleMoveTo(context, dx, dy);
                 break;
             }
             case CffConstants.CharStringOperatorHmoveto:
             {
-                List<float> args = context.PopAll();
-                float dx = (args.Count > 0) ? args[0] : 0f;
+                List<float> operands = context.Operands;
+                float dx = (operands.Count > 0) ? operands[0] : 0f;
+                operands.Clear();
                 HandleMoveTo(context, dx, 0f);
                 break;
             }
             case CffConstants.CharStringOperatorVmoveto:
             {
-                List<float> args = context.PopAll();
-                float dy = (args.Count > 0) ? args[0] : 0f;
+                List<float> operands = context.Operands;
+                float dy = (operands.Count > 0) ? operands[0] : 0f;
+                operands.Clear();
                 HandleMoveTo(context, 0f, dy);
                 break;
             }
             case CffConstants.CharStringOperatorRlineto:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 2)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 2)
                 {
-                    EmitLine(context, args[0], args[1]);
+                    EmitLine(context, operands[0], operands[1]);
                 }
 
-                context.Writer.WriteOperator(args, CffConstants.CharStringOperatorRlineto);
+                context.Writer.WriteOperator(operands, CffConstants.CharStringOperatorRlineto);
+                operands.Clear();
                 break;
             }
             case CffConstants.CharStringOperatorHlineto:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 1)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 1)
                 {
-                    EmitLine(context, args[0], 0f);
+                    EmitLine(context, operands[0], 0f);
                 }
 
-                context.Writer.WriteOperator(args, CffConstants.CharStringOperatorHlineto);
+                context.Writer.WriteOperator(operands, CffConstants.CharStringOperatorHlineto);
+                operands.Clear();
                 break;
             }
             case CffConstants.CharStringOperatorVlineto:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 1)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 1)
                 {
-                    EmitLine(context, 0f, args[0]);
+                    EmitLine(context, 0f, operands[0]);
                 }
 
-                context.Writer.WriteOperator(args, CffConstants.CharStringOperatorVlineto);
+                context.Writer.WriteOperator(operands, CffConstants.CharStringOperatorVlineto);
+                operands.Clear();
                 break;
             }
             case CffConstants.CharStringOperatorRrcurveto:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 6)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 6)
                 {
-                    EmitCurve(context, args[0], args[1], args[2], args[3], args[4], args[5]);
+                    EmitCurve(context, operands[0], operands[1], operands[2], operands[3], operands[4], operands[5]);
                 }
 
-                context.Writer.WriteOperator(args, CffConstants.CharStringOperatorRrcurveto);
+                context.Writer.WriteOperator(operands, CffConstants.CharStringOperatorRrcurveto);
+                operands.Clear();
                 break;
             }
             case CffConstants.CharStringOperatorVhcurveto:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 4)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 4)
                 {
-                    EmitCurve(context, 0f, args[0], args[1], args[2], args[3], 0f);
+                    EmitCurve(context, 0f, operands[0], operands[1], operands[2], operands[3], 0f);
                 }
 
-                context.Writer.WriteOperator(args, CffConstants.CharStringOperatorVhcurveto);
+                context.Writer.WriteOperator(operands, CffConstants.CharStringOperatorVhcurveto);
+                operands.Clear();
                 break;
             }
             case CffConstants.CharStringOperatorHvcurveto:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 4)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 4)
                 {
-                    EmitCurve(context, args[0], 0f, args[1], args[2], 0f, args[3]);
+                    EmitCurve(context, operands[0], 0f, operands[1], operands[2], 0f, operands[3]);
                 }
 
-                context.Writer.WriteOperator(args, CffConstants.CharStringOperatorHvcurveto);
+                context.Writer.WriteOperator(operands, CffConstants.CharStringOperatorHvcurveto);
+                operands.Clear();
                 break;
             }
             case CffConstants.CharStringOperatorCallsubr:
@@ -300,20 +298,31 @@ internal sealed class Type1CharStringEvaluator
             }
             case EscSbw:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 4)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 4)
                 {
-                    SetSideBearing(context, args[0], args[1], args[2]);
+                    SetSideBearing(context, operands[0], operands[1], operands[2]);
                 }
 
+                operands.Clear();
                 break;
             }
             case EscSeac:
             {
-                List<float> args = context.PopAll();
-                if (args.Count >= 5)
+                List<float> operands = context.Operands;
+                if (operands.Count >= 5)
                 {
-                    ApplySeacComposition(context, args[0], args[1], args[2], args[3], args[4], depth);
+                    float asb = operands[0];
+                    float adx = operands[1];
+                    float ady = operands[2];
+                    float baseCode = operands[3];
+                    float accentCode = operands[4];
+                    operands.Clear();
+                    ApplySeacComposition(context, asb, adx, ady, baseCode, accentCode, depth);
+                }
+                else
+                {
+                    operands.Clear();
                 }
 
                 break;
@@ -528,27 +537,24 @@ internal sealed class Type1CharStringEvaluator
         context.PendingOriginDeltaY = 0f;
 
         EmitMoveTo(context, effectiveDx, effectiveDy);
-        context.Writer.WriteOperator(new List<float> { effectiveDx, effectiveDy }, CffConstants.CharStringOperatorRmoveto);
+
+        context.Operands.Clear();
+        context.Operands.Add(effectiveDx);
+        context.Operands.Add(effectiveDy);
+        context.Writer.WriteOperator(context.Operands, CffConstants.CharStringOperatorRmoveto);
+        context.Operands.Clear();
     }
 
     private static void EmitMoveTo(Type1CharStringContext context, float dx, float dy)
     {
-        if (context.SawMoveTo)
-        {
-            context.PathBuilder.Close();
-        }
-
         context.CurrentX += dx;
         context.CurrentY += dy;
-        context.PathBuilder.MoveTo(context.CurrentX, context.CurrentY);
-        context.SawMoveTo = true;
     }
 
     private static void EmitLine(Type1CharStringContext context, float dx, float dy)
     {
         context.CurrentX += dx;
         context.CurrentY += dy;
-        context.PathBuilder.LineTo(context.CurrentX, context.CurrentY);
     }
 
     private static void EmitCurve(Type1CharStringContext context, float dx1, float dy1, float dx2, float dy2, float dx3, float dy3)
@@ -559,7 +565,6 @@ internal sealed class Type1CharStringEvaluator
         float y2 = y1 + dy2;
         float x3 = x2 + dx3;
         float y3 = y2 + dy3;
-        context.PathBuilder.CubicTo(x1, y1, x2, y2, x3, y3);
         context.CurrentX = x3;
         context.CurrentY = y3;
     }

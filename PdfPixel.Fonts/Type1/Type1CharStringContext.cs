@@ -11,11 +11,10 @@ namespace PdfPixel.Fonts.Type1;
 /// </summary>
 internal sealed class Type1CharStringContext
 {
-    public Type1CharStringContext(IReadOnlyDictionary<int, byte[]> localSubrs, IReadOnlyDictionary<PdfFontString, byte[]> charStrings, in PdfFontMatrix matrix)
+    public Type1CharStringContext(IReadOnlyDictionary<int, byte[]> localSubrs, IReadOnlyDictionary<PdfFontString, byte[]> charStrings)
     {
         LocalSubrs = localSubrs;
         CharStrings = charStrings;
-        PathBuilder = new PdfFontPathBuilder(matrix);
     }
 
     public IReadOnlyDictionary<int, byte[]> LocalSubrs { get; }
@@ -29,8 +28,6 @@ internal sealed class Type1CharStringContext
     public List<float> Operands { get; } = new(32);
 
     public CffCharStringWriter Writer { get; } = new();
-
-    public PdfFontPathBuilder PathBuilder { get; }
 
     public float CurrentX { get; set; }
 
@@ -68,8 +65,6 @@ internal sealed class Type1CharStringContext
     /// </summary>
     public bool InSeacComponent { get; set; }
 
-    public bool SawMoveTo { get; set; }
-
     public bool InFlexSequence { get; set; }
 
     public List<float>? FlexDeltas { get; set; }
@@ -77,11 +72,4 @@ internal sealed class Type1CharStringContext
     public List<float> OtherSubrResults { get; } = [];
 
     public bool Finished { get; set; }
-
-    public List<float> PopAll()
-    {
-        List<float> result = new(Operands);
-        Operands.Clear();
-        return result;
-    }
 }

@@ -42,11 +42,11 @@ internal static class Type1DictionaryToCffConverter
             PdfFontString glyphName = glyphCollections.OrderedNames[gid];
             if (type1CharStrings.TryGetValue(glyphName, out byte[]? sourceCharString))
             {
-                characters[gid] = evaluator.Evaluate(sourceCharString, type1Subrs, type1CharStrings, matrix);
+                characters[gid] = evaluator.Evaluate(sourceCharString, type1Subrs, type1CharStrings);
             }
             else
             {
-                characters[gid] = new CffCharacter(ReadOnlyMemory<byte>.Empty, ReadOnlyMemory<byte>.Empty, width: 0f, dict: null);
+                characters[gid] = new CffCharacter(ReadOnlyMemory<byte>.Empty, width: 0f, dict: null);
             }
         }
 

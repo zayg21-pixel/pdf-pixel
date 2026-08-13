@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Model;
 using System;
@@ -11,6 +12,8 @@ namespace PdfPixel.Fonts.Typeface;
 /// </summary>
 public sealed class CffPdfTypeface : IPdfTypeface
 {
+    private static readonly CffCharStringEvaluator PathEvaluator = new(NullLogger<CffCharStringEvaluator>.Instance);
+
     private readonly CffFont _font;
     private readonly Stream? _fontStream;
 
@@ -102,7 +105,7 @@ public sealed class CffPdfTypeface : IPdfTypeface
     public float? GetWidth(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Width / Metrics.UnitsPerEm : null;
 
     /// <inheritdoc/>
-    public ReadOnlyMemory<byte> GetPath(ushort gid) => (IsGidExists(gid)) ? _font.Characters[gid].Path : ReadOnlyMemory<byte>.Empty;
+    public ReadOnlyMemory<byte> GetPath(ushort gid) => (IsGidExists(gid)) ? PathEvaluator.ResolvePath(_font, _font.Characters[gid]) : ReadOnlyMemory<byte>.Empty;
 
     /// <summary>
     /// Always returns null. Fallback/substitution typefaces are always TrueType in this codebase, so

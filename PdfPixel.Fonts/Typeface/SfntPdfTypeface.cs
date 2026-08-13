@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Sfnt;
@@ -25,6 +26,8 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         (0, 1), // Unicode, Unicode 1.1 semantics
         (0, 0) // Unicode, Unicode 1.0 semantics
     ];
+
+    private static readonly CffCharStringEvaluator PathEvaluator = new(NullLogger<CffCharStringEvaluator>.Instance);
 
     private readonly SfntFont _font;
     private readonly SfntHead _head;
@@ -127,7 +130,7 @@ public sealed class SfntPdfTypeface : IPdfTypeface
                 return ReadOnlyMemory<byte>.Empty;
             }
 
-            return _cffFont.Characters[gid].Path;
+            return PathEvaluator.ResolvePath(_cffFont, _cffFont.Characters[gid]);
         }
 
         float unitsPerEmScale = 1f / _head.UnitsPerEm;

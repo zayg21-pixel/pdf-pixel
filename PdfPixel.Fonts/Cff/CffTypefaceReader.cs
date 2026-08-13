@@ -135,6 +135,15 @@ public class CffTypefaceReader
         var characters = new CffCharacter[charStrings.Length];
         Dictionary<PdfFontString, ushort>? fontNameToGid = null;
 
+        // No outlines here: each is built from its repacked charstring when first asked for.
+        CffCharStringWriter charStringWriter = new();
+        CffCharStringContext context = new()
+        {
+            Writer = charStringWriter,
+            GlobalSubrs = globalSubrs,
+            CharStrings = charStrings
+        };
+
         if (fdArray.Length > 0 && fdSelect != null)
         {
             // CID-keyed fonts carry CIDs rather than glyph-name SIDs in their charset, and the deprecated
@@ -175,17 +184,30 @@ public class CffTypefaceReader
                     glyphLocalSubrs = fallbackLocalSubrs;
                 }
 
-                characters[glyphIndex] = _charStringEvaluator.Evaluate(charStrings[glyphIndex], dict, glyphDict, glyphLocalSubrs, globalSubrs, charStrings, nameToGid);
+                CffPrivateDict? glyphPrivateDict = glyphDict?.PrivateDict ?? privateDict;
+                context.NameToGid = nameToGid;
+                context.LocalSubrs = glyphLocalSubrs;
+                context.NominalWidthX = glyphPrivateDict?.NominalWidthX ?? 0f;
+                context.DefaultWidthX = glyphPrivateDict?.DefaultWidthX ?? 0f;
+
+                _charStringEvaluator.Evaluate(charStrings[glyphIndex], context);
+                characters[glyphIndex] = new CffCharacter(charStringWriter.ToArray(), context.Width, glyphDict);
             }
         }
         else
         {
             Dictionary<PdfFontString, ushort> nameToGid = BuildNameToGid(charset, strings);
             fontNameToGid = nameToGid;
-            ReadOnlyMemory<byte>[] localSubrs = ReadLocalSubrs(topDict, privateDict, cffData);
+
+            context.NameToGid = nameToGid;
+            context.LocalSubrs = ReadLocalSubrs(topDict, privateDict, cffData);
+            context.NominalWidthX = privateDict?.NominalWidthX ?? 0f;
+            context.DefaultWidthX = privateDict?.DefaultWidthX ?? 0f;
+
             for (int glyphIndex = 0; glyphIndex < charStrings.Length; glyphIndex++)
             {
-                characters[glyphIndex] = _charStringEvaluator.Evaluate(charStrings[glyphIndex], dict, null, localSubrs, globalSubrs, charStrings, nameToGid);
+                _charStringEvaluator.Evaluate(charStrings[glyphIndex], context);
+                characters[glyphIndex] = new CffCharacter(charStringWriter.ToArray(), context.Width, null);
             }
         }
 

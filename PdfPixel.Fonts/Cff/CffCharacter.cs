@@ -4,31 +4,30 @@ using System;
 namespace PdfPixel.Fonts.Cff;
 
 /// <summary>
-/// The result of evaluating a single CFF charstring: its outline, a repacked hint-free/subroutine-free
-/// charstring, and its width.
+/// The result of evaluating a single CFF charstring: a repacked hint-free/subroutine-free charstring
+/// and its width, with the outline built on demand.
 /// </summary>
 public class CffCharacter
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="CffCharacter"/> class.
     /// </summary>
-    /// <param name="path">The glyph outline, encoded in <see cref="PdfPixel.Fonts.Model.PdfFontPathBuilder"/>'s format.</param>
     /// <param name="charString">The repacked Type2 charstring: subroutine calls inlined, hints dropped.</param>
     /// <param name="width">The glyph's width in font design units.</param>
     /// <param name="dict">For a CID-keyed font, the FDArray entry this specific character's FDSelect
     /// entry names. Null for a non-CID font, which has no per-character Font DICT.</param>
-    public CffCharacter(in ReadOnlyMemory<byte> path, in ReadOnlyMemory<byte> charString, float width, CffFontDict? dict)
+    public CffCharacter(in ReadOnlyMemory<byte> charString, float width, CffFontDict? dict)
     {
-        Path = path;
         CharString = charString;
         Width = width;
         Dict = dict;
     }
 
     /// <summary>
-    /// Gets the glyph outline, encoded in <see cref="PdfPixel.Fonts.Model.PdfFontPathBuilder"/>'s format.
+    /// Gets or sets the glyph outline, encoded in <see cref="PdfPixel.Fonts.Model.PdfFontPathBuilder"/>'s
+    /// format. Empty until built on demand from <see cref="CharString"/>.
     /// </summary>
-    public ReadOnlyMemory<byte> Path { get; }
+    public ReadOnlyMemory<byte> Path { get; set; }
 
     /// <summary>
     /// Gets the repacked Type2 charstring: subroutine calls inlined, hints dropped, with a leading
