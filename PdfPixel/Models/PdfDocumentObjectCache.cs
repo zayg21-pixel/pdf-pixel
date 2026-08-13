@@ -9,6 +9,7 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Parsing;
 using PdfPixel.Shading.Model;
+using PdfPixel.Transparency.Model;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -90,6 +91,13 @@ internal class PdfDocumentObjectCache
     /// itself, never on the state the pattern is used from.
     /// </summary>
     internal Dictionary<PdfReference, PdfCommandRecorder> TilingCells { get; } = [];
+
+    /// <summary>
+    /// Cache for recorded soft mask form content, keyed by the mask form and the matrix it was recorded
+    /// under. A mask applies to every painting operation carried out under it, so without this its
+    /// content stream is parsed and recorded once per operation rather than once per use.
+    /// </summary>
+    internal Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> SoftMaskForms { get; } = [];
 
     /// <summary>
     /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.

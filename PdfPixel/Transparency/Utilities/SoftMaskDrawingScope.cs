@@ -145,29 +145,16 @@ public sealed class SoftMaskDrawingScope : IDisposable
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
         recorder.Process(new ClipRectangleCommand(_softMask.MaskForm.BBox, PdfClipOperation.Intersect));
 
-        // Render mask content stream into the recorder (isolated from canvas transforms).
-        ReadOnlyMemory<byte> contentData = _softMask.MaskForm.GetFormData();
-        uint softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
-        bool isRecursive = _graphicsState.RecursionGuard.Contains(softMaskObjectNumber);
+        PdfCommandRecorder? maskFormRecording = SoftMaskUtilities.GetMaskFormRecording(
+            _renderer,
+            _softMask,
+            _softMask.MaskForm,
+            _graphicsState,
+            _worldToMaskForm);
 
-        if (!contentData.IsEmpty && !isRecursive)
+        if (maskFormRecording != null)
         {
-            _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
-
-            Forms.FormXObjectPageWrapper page = _softMask.MaskForm.GetFormPage();
-
-            PdfParseContext parseContext = new(contentData);
-            PdfGraphicsState maskGs = (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
-                ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
-                : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
-
-            maskGs.CTM = _worldToMaskForm;
-            maskGs.ClipBounds = maskGs.CTM.MapRect(_softMask.MaskForm.BBox);
-
-            PdfContentStreamRenderer contentRenderer = new(_renderer, page);
-            contentRenderer.RenderContext(recorder, ref parseContext, maskGs);
-
-            _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
+            recorder.Process(new DrawRecordingCommand(maskFormRecording));
         }
 
         recorder.Process(RestoreStateCommand.Instance);

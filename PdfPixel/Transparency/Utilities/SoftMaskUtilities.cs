@@ -1,7 +1,14 @@
 ﻿using PdfPixel.Color;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
+using PdfPixel.Forms;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
+using PdfPixel.Transparency.Model;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Transparency.Utilities;
@@ -12,6 +19,71 @@ namespace PdfPixel.Transparency.Utilities;
 /// </summary>
 internal static class SoftMaskUtilities
 {
+    /// <summary>
+    /// Records the commands that draw <paramref name="softMask"/>'s form content, in the mask form's own
+    /// space, and caches the recording on the document so that the operations sharing a mask replay one
+    /// recording instead of each rendering the mask's content stream again. Returns null when the form
+    /// carries no content, or when it is already being drawn further up the stack.
+    /// </summary>
+    public static PdfCommandRecorder? GetMaskFormRecording(
+        IPdfRenderer renderer,
+        PdfSoftMask softMask,
+        PdfForm maskForm,
+        PdfGraphicsState sourceState,
+        in PdfMatrix worldToMaskForm)
+    {
+        ReadOnlyMemory<byte> contentData = maskForm.GetFormData();
+
+        if (contentData.IsEmpty)
+        {
+            return null;
+        }
+
+        PdfReference maskFormReference = maskForm.XObject.Reference;
+
+        if (sourceState.RecursionGuard.Contains(maskFormReference.ObjectNumber))
+        {
+            return null;
+        }
+
+        Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> recordingCache = sourceState.Page.Document.ObjectCache.SoftMaskForms;
+        PdfSoftMaskRecordingKey key = new(maskFormReference, worldToMaskForm);
+
+        if (maskFormReference.IsValid && recordingCache.TryGetValue(key, out PdfCommandRecorder? cachedRecording))
+        {
+            return cachedRecording;
+        }
+
+        // Anything already under way is suppressed wherever the mask reaches it again, which makes the
+        // recording specific to this use; only a mask reached with nothing else in flight holds for
+        // every other use of it.
+        bool reachedAtTopLevel = sourceState.RecursionGuard.Count == 0;
+
+        sourceState.RecursionGuard.Add(maskFormReference.ObjectNumber);
+
+        FormXObjectPageWrapper maskPage = maskForm.GetFormPage();
+        PdfGraphicsState maskState = (softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
+            ? CreateLuminosityMaskGraphicsState(maskPage, sourceState)
+            : CreateAlphaMaskGraphicsState(maskPage, sourceState);
+
+        maskState.CTM = worldToMaskForm;
+        maskState.ClipBounds = worldToMaskForm.MapRect(maskForm.BBox);
+
+        PdfCommandRecorder recorder = new();
+        PdfContentStreamRenderer contentRenderer = new(renderer, maskPage);
+        PdfParseContext parseContext = new(contentData);
+        contentRenderer.RenderContext(recorder, ref parseContext, maskState);
+
+        sourceState.RecursionGuard.Remove(maskFormReference.ObjectNumber);
+
+        if (maskFormReference.IsValid && reachedAtTopLevel)
+        {
+            recordingCache[key] = recorder;
+        }
+
+        return recorder;
+    }
+
     /// <summary>
     /// Create a graphics state optimized for alpha soft mask rendering (Subtype = /Alpha).
     /// We render the mask content in solid white so that the resulting luminance (or direct alpha composition)
