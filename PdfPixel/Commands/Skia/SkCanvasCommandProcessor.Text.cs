@@ -133,7 +133,6 @@ public sealed partial class SkCanvasCommandProcessor
             Size = 1,
             Subpixel = true,
             LinearMetrics = true,
-            Hinting = SKFontHinting.Slight,
             ScaleX = scale
         };
 

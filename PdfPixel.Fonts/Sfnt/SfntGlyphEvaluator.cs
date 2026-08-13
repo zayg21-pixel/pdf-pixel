@@ -209,7 +209,6 @@ public class SfntGlyphEvaluator
         }
 
         ushort instructionLength = reader.ReadUInt16OrDefault();
-        int instructionOffset = reader.Position;
         reader.Skip(instructionLength);
 
         // The point data below is sized from the last contour end, so a glyph truncated before it is
@@ -218,10 +217,6 @@ public class SfntGlyphEvaluator
         {
             return null;
         }
-
-        ReadOnlyMemory<byte> instructions = (instructionLength > 0)
-            ? data.Slice(instructionOffset, instructionLength)
-            : default;
 
         int numPoints = (numberOfContours > 0) ? endPoints[numberOfContours - 1] + 1 : 0;
 
@@ -258,7 +253,7 @@ public class SfntGlyphEvaluator
             flags[pointIndex] &= SfntGlyphFlags.OnCurve;
         }
 
-        return (reader.IsValid) ? new GlyphOutline(points, flags, endPoints, instructions) : null;
+        return (reader.IsValid) ? new GlyphOutline(points, flags, endPoints) : null;
     }
 
     private static int ReadDelta(ref SfntReader reader, byte flag, byte shortFlag, byte sameFlag)

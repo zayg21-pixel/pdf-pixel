@@ -96,11 +96,8 @@ internal sealed class SfntGlyphRepacker
             writer.WriteUInt16((ushort)endPoint);
         }
 
-        // The points below keep the numbers they had, so whatever the instructions addressed they
-        // still address; a flattened composite carries none, its components having been renumbered.
-        ReadOnlySpan<byte> instructions = outline.Instructions.Span;
-        writer.WriteUInt16((ushort)instructions.Length);
-        writer.WriteBytes(instructions);
+        // Write no instructions, stack based hints disabled
+        writer.WriteUInt16(0);
 
         WriteFlags(writer, flags);
         WriteDeltas(writer, flags, xDeltas, SfntGlyphFlags.XShort);

@@ -26,8 +26,7 @@ public sealed class GlyphOutline
     /// <param name="points">Every point of the outline, in "glyf" order.</param>
     /// <param name="flags">Each point's flags, one per entry of <paramref name="points"/>.</param>
     /// <param name="endPoints">The index, into <paramref name="points"/>, of the last point of every contour.</param>
-    /// <param name="instructions">The glyph's hinting instructions, empty when it has none.</param>
-    public GlyphOutline(GlyphPoint[] points, byte[] flags, int[] endPoints, in ReadOnlyMemory<byte> instructions)
+    public GlyphOutline(GlyphPoint[] points, byte[] flags, int[] endPoints)
     {
         if (points == null)
         {
@@ -47,21 +46,13 @@ public sealed class GlyphOutline
         _points = points;
         _flags = flags;
         _endPoints = endPoints;
-        Instructions = instructions;
     }
 
     /// <summary>
     /// Gets an outline holding no points at all, which is where combining a composite glyph's
     /// components starts.
     /// </summary>
-    public static GlyphOutline Empty { get; } = new([], [], [], default);
-
-    /// <summary>
-    /// Gets the glyph's hinting instructions, which address the point numbers this outline holds.
-    /// Empty once the outline is assembled from components, since flattening renumbers the points
-    /// those instructions were compiled against.
-    /// </summary>
-    public ReadOnlyMemory<byte> Instructions { get; }
+    public static GlyphOutline Empty { get; } = new([], [], []);
 
     /// <summary>
     /// Gets every point of the outline, in the order that a component's point-matching arguments
@@ -108,9 +99,7 @@ public sealed class GlyphOutline
     /// <param name="outline">The outline whose points follow this one's.</param>
     /// <param name="transform">The transform placing <paramref name="outline"/>'s points.</param>
     /// <returns>
-    /// The combined outline, keeping this outline's <see cref="Instructions"/> - its points keep the
-    /// numbers they had, so what addressed them still does - and dropping <paramref name="outline"/>'s,
-    /// whose points are renumbered past them. Neither operand is changed.
+    /// Resulted <see cref="GlyphOutline"/>.
     /// </returns>
     public GlyphOutline Merge(GlyphOutline outline, in PdfFontMatrix transform)
     {
@@ -141,7 +130,7 @@ public sealed class GlyphOutline
             endPoints[contourOffset + contourIndex] = outline._endPoints[contourIndex] + pointOffset;
         }
 
-        return new GlyphOutline(points, flags, endPoints, Instructions);
+        return new GlyphOutline(points, flags, endPoints);
     }
 
     private static int Round(float value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);

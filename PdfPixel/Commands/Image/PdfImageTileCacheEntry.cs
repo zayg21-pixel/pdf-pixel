@@ -8,10 +8,6 @@ namespace PdfPixel.Commands.Image;
 
 /// <summary>
 /// Caches decoded tiles for one PDF image across repeated renders (e.g. scrolling). <see cref="Initialize"/>
-/// marks in-viewport tiles without an image as pending; <see cref="GetNextTile"/> then decodes only those,
-/// in order. Tiles outside the viewport are left alone. A CTM change that alters the decode size
-/// (images are never upscaled) drops the whole cache, since every tile shares one decode size.
-/// </summary>
 public sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;

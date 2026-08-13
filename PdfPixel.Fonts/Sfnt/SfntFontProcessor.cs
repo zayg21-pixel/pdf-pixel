@@ -15,6 +15,8 @@ namespace PdfPixel.Fonts.Sfnt;
 /// </summary>
 public class SfntFontProcessor
 {
+    private readonly byte[] DefaultGasp = [0x00, 0x01, 0x00, 0x01, 0xFF, 0xFF, 0x00, 0x08]; // force disable all AA features except for smoothing
+
     private readonly ILogger<SfntFontProcessor> _logger;
     private readonly SfntContainerProcessor _containerProcessor;
     private readonly SfntHeadProcessor _headProcessor;
@@ -361,19 +363,7 @@ public class SfntFontProcessor
             }
         }
 
-        foreach (SfntTableRecord table in font.Tables)
-        {
-            bool isPassthroughTable = table.Tag == SfntTableTags.Fpgm
-                || table.Tag == SfntTableTags.Prep
-                || table.Tag == SfntTableTags.Cvt
-                || table.Tag == SfntTableTags.Gasp;
-
-            if (isPassthroughTable)
-            {
-                tables.Add(new SfntTableData(table.Tag, sourceStream.GetMemory(table)));
-            }
-        }
-
+        tables.Add(new SfntTableData(SfntTableTags.Gasp, DefaultGasp));
         tables.Add(new SfntTableData(SfntTableTags.Cmap, SfntCmapProcessor.CreateEmptyStub()));
         tables.Add(new SfntTableData(SfntTableTags.Post, SfntPostProcessor.CreateEmptyStub()));
 
