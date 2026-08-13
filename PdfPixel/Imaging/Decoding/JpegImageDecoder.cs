@@ -72,12 +72,19 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }
 
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(header.Width, header.Height));
+        // The row count is the smaller of the two declared heights. A frame header may carry a
+        // placeholder line count — that is what the DNL marker exists for — and rows past the
+        // dictionary's height have no entropy-coded data behind them, so decoding up to a larger
+        // SOF height yields blank rows and stretches the tile grid over them. The width stays the
+        // SOF's, because it is the stride the row decoder writes and the row buffer must hold it.
+        int decodedHeight = Math.Min(header.Height, Image.Height);
+
+        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(header.Width, decodedHeight));
 
         _imageParameters = new PdfImageRowDecodingParameters(
             Context,
             header.Width,
-            header.Height,
+            decodedHeight,
             Image.BitsPerComponent,
             Image.RenderingIntent,
             resolvedConverter,
