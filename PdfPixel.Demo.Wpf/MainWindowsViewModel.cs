@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Management.Skia;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf;
@@ -33,7 +34,7 @@ public class MainWindowsViewModel : ObservableObject
 {
     private static readonly Dictionary<int, List<PdfWord>> _extractedWords = new Dictionary<int, List<PdfWord>>();
     private readonly PdfTextChunker _chunker = new PdfTextChunker();
-    private readonly IFontProvider _fontProvider;
+    private readonly FontProvider _fontProvider;
     private readonly PdfDocumentReader _reader;
     private readonly ObservableLoggerFactory _loggerFactory;
     private readonly object _logMessagesLock = new object();
@@ -50,7 +51,7 @@ public class MainWindowsViewModel : ObservableObject
         LogMessages = new ObservableCollection<LogMessage>();
         System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, _logMessagesLock);
         _loggerFactory = new ObservableLoggerFactory(LogMessages, _logMessagesLock);
-        _fontProvider = new WindowsFontProvider(_loggerFactory, "Times New Roman");
+        _fontProvider = new FontProvider(new SkiaFontSubstitutor(_loggerFactory), FontSubstitutionMaps.Current.WithFallbackFamily("Times New Roman"));
         _reader = new PdfDocumentReader(_loggerFactory, _fontProvider);
 
         PanelInterface = new WpfPdfPanelInterface();

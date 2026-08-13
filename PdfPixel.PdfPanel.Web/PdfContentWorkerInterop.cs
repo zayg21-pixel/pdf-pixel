@@ -40,7 +40,8 @@ public sealed class WorkerDocumentData
 [SupportedOSPlatform("browser")]
 public partial class PdfContentWorkerInterop
 {
-    private static InMemoryFontProvider FontProvider;
+    private static InMemoryFontSubstitutor FontSubstitutor;
+    private static FontProvider DocumentFontProvider;
     private static bool _isInitialized = false;
     private static readonly Dictionary<string, WorkerDocumentData> _documents = new();
 
@@ -63,7 +64,8 @@ public partial class PdfContentWorkerInterop
 
         LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddEmscriptenConsole());
         Logger = LoggerFactory.CreateLogger<PdfContentWorkerInterop>();
-        FontProvider = new InMemoryFontProvider(LoggerFactory);
+        FontSubstitutor = new InMemoryFontSubstitutor(LoggerFactory);
+        DocumentFontProvider = new FontProvider(FontSubstitutor, FontSubstitutionMaps.CanonicalNames);
         Logger.LogInformation("PdfContentWorkerInterop initialized");
 
         _isInitialized = true;
@@ -164,7 +166,7 @@ public partial class PdfContentWorkerInterop
 
         if (Enum.TryParse<PdfStandardFontName>(name, ignoreCase: true, out var standardFont))
         {
-            FontProvider.RegisterStandardFont(standardFont, fontData);
+            FontSubstitutor.RegisterStandardFont(standardFont, fontData);
             Logger.LogInformation("Registered standard font '{Name}'", name);
         }
         else
@@ -180,7 +182,7 @@ public partial class PdfContentWorkerInterop
             return;
         }
 
-        FontProvider.RegisterFallback(fontData);
+        FontSubstitutor.RegisterFallback(fontData);
         Logger.LogInformation("Registered fallback font");
     }
 
@@ -190,7 +192,7 @@ public partial class PdfContentWorkerInterop
 
         try
         {
-            var reader = new PdfDocumentReader(LoggerFactory, FontProvider);
+            var reader = new PdfDocumentReader(LoggerFactory, DocumentFontProvider);
             Logger.LogInformation("Reading PDF document, size={Size} bytes", documentData.Length);
             var document = reader.Read(new MemoryStream(documentData), string.Empty);
             Logger.LogInformation("PDF document parsed, pages={PageCount}", document.Pages.Count);

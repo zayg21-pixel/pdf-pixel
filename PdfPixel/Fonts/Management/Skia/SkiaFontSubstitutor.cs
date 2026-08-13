@@ -7,41 +7,39 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Management.Skia;
 
 /// <summary>
-/// Platform-agnostic helpers for resolving an installed system font via Skia's own font manager
-/// (<see cref="SKFontManager"/>), which on each platform delegates to that platform's native font
-/// substitution mechanism (DirectWrite on Windows, CoreText on macOS, fontconfig on Linux). The
-/// resolved font's program bytes are read lazily from Skia's own font data, without buffering into
-/// managed memory up front.
+/// Loads installed system fonts through Skia's own font manager (<see cref="SKFontManager"/>), which
+/// on each platform delegates to that platform's native font substitution mechanism (DirectWrite on
+/// Windows, CoreText on macOS, fontconfig on Linux). The resolved font's program bytes are read
+/// lazily from Skia's own font data, without buffering into managed memory up front.
 /// </summary>
-internal sealed class SkiaFontSubstitution
+public sealed class SkiaFontSubstitutor : IFontSubstitutor
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly HashSet<string> _knownFontFamilies;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SkiaFontSubstitution"/> class.
+    /// Initializes a new instance of the <see cref="SkiaFontSubstitutor"/> class.
     /// </summary>
     /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
-    public SkiaFontSubstitution(ILoggerFactory loggerFactory)
+    public SkiaFontSubstitutor(ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory;
         _knownFontFamilies = new HashSet<string>(SKFontManager.Default.FontFamilies, StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Determines whether <paramref name="name"/> names an installed font family.
-    /// </summary>
-    /// <param name="name">The font family name to check.</param>
-    public bool IsKnownFamilyName(string name) => _knownFontFamilies.Contains(name);
-
-    /// <summary>
-    /// Resolves the font named by <paramref name="substitutionInfo"/>, or <see langword="null"/> if it
-    /// isn't installed. Whether the resolved font covers the character being shaped is the caller's
-    /// decision to make.
-    /// </summary>
-    /// <param name="substitutionInfo">Names the font family and style to resolve.</param>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Skia's <see cref="SKFontManager.MatchFamily(string, SKFontStyle)"/> answers an uninstalled family
+    /// with its own idea of a substitute rather than with nothing, so the family name is checked against
+    /// the installed set first.
+    /// </remarks>
     public SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
     {
+        if (!_knownFontFamilies.Contains(substitutionInfo.NormalizedStem))
+        {
+            return null;
+        }
+
         SKFontStyle style = CreateFontStyle(substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.IsItalic);
 
         using SKTypeface? matchedTypeface = SKFontManager.Default.MatchFamily(substitutionInfo.NormalizedStem, style);
@@ -53,13 +51,7 @@ internal sealed class SkiaFontSubstitution
         return BuildTypeface(matchedTypeface);
     }
 
-    /// <summary>
-    /// Resolves the installed font family best able to render the first codepoint in
-    /// <paramref name="unicode"/>, preferring <paramref name="substitutionInfo"/>'s family name.
-    /// </summary>
-    /// <param name="substitutionInfo">Names the preferred font family and style to resolve.</param>
-    /// <param name="unicode">The Unicode text whose first codepoint to resolve a font for.</param>
-    /// <returns>The resolved typeface, or <see langword="null"/> if no installed font can render it.</returns>
+    /// <inheritdoc />
     public SfntPdfTypeface? ResolveByCharacter(in PdfSubstitutionInfo substitutionInfo, string unicode)
     {
         int codepoint = char.ConvertToUtf32(unicode, 0);
@@ -76,10 +68,8 @@ internal sealed class SkiaFontSubstitution
         return BuildTypeface(matchedTypeface);
     }
 
-    /// <summary>
-    /// Resolves Skia's own default typeface, used as the final-resort font when nothing else matches.
-    /// </summary>
-    public SfntPdfTypeface GetFallbackFont()
+    /// <inheritdoc />
+    public SfntPdfTypeface GetFallbackTypeface()
         => BuildTypeface(SKTypeface.Default) ?? throw new InvalidOperationException("Could not load Skia's default typeface.");
 
     private static SKFontStyle CreateFontStyle(int weight, int width, bool isItalic)

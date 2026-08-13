@@ -19,7 +19,9 @@ internal class PdfDocument : IPdfDocumentInternal
 {
     private readonly ILogger<PdfDocument> _logger;
     private readonly List<IPdfPageInternal> _pages = [];
-    private readonly IFontProvider _fontProvider;
+#pragma warning disable CA2213 // Disposable fields should be disposed
+    private readonly FontProvider _fontProvider;
+#pragma warning restore CA2213 // Disposable fields should be disposed
     private readonly PdfDocumentObjectCache _objectCache;
     private readonly CMapCache _cMapCache;
     private readonly PdfStreamDecoder _streamDecoder;
@@ -31,7 +33,7 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <param name="loggerFactory">The logger factory for creating loggers.</param>
     /// <param name="fontProvider">The font provider for font substitution and resolution.</param>
     /// <param name="fileStream">The input stream containing the PDF file data.</param>
-    public PdfDocument(ILoggerFactory loggerFactory, IFontProvider fontProvider, Stream fileStream)
+    public PdfDocument(ILoggerFactory loggerFactory, FontProvider fontProvider, Stream fileStream)
     {
         LoggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<PdfDocument>();
@@ -68,7 +70,7 @@ internal class PdfDocument : IPdfDocumentInternal
 
     string? IPdfDocumentInternal.Password { get; set; }
 
-    IFontProvider IPdfDocumentInternal.FontProvider => _fontProvider;
+    FontProvider IPdfDocumentInternal.FontProvider => _fontProvider;
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;
 

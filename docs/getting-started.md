@@ -14,6 +14,7 @@ using PdfPixel;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Management.Skia;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
@@ -30,7 +31,9 @@ float scale = 2f;
 using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
 
 // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
-IFontProvider fontProvider = new WindowsFontProvider(loggerFactory);
+// SkiaFontSubstitutor loads the installed system fonts; the map names the families that stand in
+// for the Standard 14 fonts on the operating system this process is running on.
+FontProvider fontProvider = new(new SkiaFontSubstitutor(loggerFactory), FontSubstitutionMaps.Current);
 
 // PdfDocumentReader is the entry point for parsing PDF files.
 PdfDocumentReader reader = new(loggerFactory, fontProvider);

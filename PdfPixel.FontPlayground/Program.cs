@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Management.Skia;
 using PdfPixel.Fonts.Model;
 using System;
 using System.Diagnostics;
@@ -40,8 +41,8 @@ internal static class Program
         MemorySnapshot previousMemory = memoryBefore;
 
         Stopwatch stopwatch = Stopwatch.StartNew();
-        WindowsFontProvider fontProvider = new(NullLoggerFactory.Instance);
-        previousMemory = ReportStep("WindowsFontProvider construction", previousMemory);
+        FontProvider fontProvider = new(new SkiaFontSubstitutor(NullLoggerFactory.Instance), FontSubstitutionMaps.Current);
+        previousMemory = ReportStep("FontProvider construction", previousMemory);
 
         foreach ((PdfSubstitutionInfo substitutionInfo, string unicode, string description) in cases)
         {

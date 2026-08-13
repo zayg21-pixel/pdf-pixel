@@ -38,7 +38,7 @@ internal interface IPdfDocumentInternal : IPdfDocument
     /// <summary>
     /// Gets the document-level font provider.
     /// </summary>
-    IFontProvider FontProvider { get; }
+    FontProvider FontProvider { get; }
 
     /// <summary>
     /// Gets the object cache for PDF objects in the document.

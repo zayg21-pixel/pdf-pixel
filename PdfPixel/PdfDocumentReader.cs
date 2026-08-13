@@ -17,13 +17,13 @@ namespace PdfPixel;
 public class PdfDocumentReader
 {
     private readonly ILoggerFactory _loggerFactory;
-    private readonly IFontProvider _fontProvider;
+    private readonly FontProvider _fontProvider;
     private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes the reader with a logger factory and font provider for non-embedded font substitution.
     /// </summary>
-    public PdfDocumentReader(ILoggerFactory loggerFactory, IFontProvider fontProvider)
+    public PdfDocumentReader(ILoggerFactory loggerFactory, FontProvider fontProvider)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _fontProvider = fontProvider ?? throw new ArgumentNullException(nameof(fontProvider));
