@@ -9,14 +9,11 @@ namespace PdfPixel.Fonts.Sfnt;
 /// <summary>
 /// Reads and writes a full SFNT font through its per-table models: decodes the container via
 /// <see cref="SfntContainerProcessor"/>, then parses every table that has a dedicated processor
-/// (head, hhea, maxp, hmtx, OS/2, name, cmap, post, glyf/loca, CFF). Tables without one remain
-/// accessible only as raw bytes on <see cref="SfntFont.Tables"/>; writing passes through just the
-/// hinting tables among them and drops the rest.
+/// (head, hhea, maxp, hmtx, OS/2, name, cmap, post, gasp, glyf/loca, CFF). Tables without one remain
+/// accessible only as raw bytes on <see cref="SfntFont.Tables"/>, and writing drops them.
 /// </summary>
 public class SfntFontProcessor
 {
-    private readonly byte[] DefaultGasp = [0x00, 0x01, 0x00, 0x01, 0xFF, 0xFF, 0x00, 0x08]; // force disable all AA features except for smoothing
-
     private readonly ILogger<SfntFontProcessor> _logger;
     private readonly SfntContainerProcessor _containerProcessor;
     private readonly SfntHeadProcessor _headProcessor;
@@ -27,6 +24,7 @@ public class SfntFontProcessor
     private readonly SfntNameProcessor _nameProcessor;
     private readonly SfntCmapProcessor _cmapProcessor;
     private readonly SfntPostProcessor _postProcessor;
+    private readonly SfntGaspProcessor _gaspProcessor;
     private readonly SfntLocaProcessor _locaProcessor;
     private readonly SfntGlyfProcessor _glyfProcessor;
     private readonly SfntCffProcessor _cffProcessor;
@@ -47,6 +45,7 @@ public class SfntFontProcessor
         _nameProcessor = new SfntNameProcessor(loggerFactory.CreateLogger<SfntNameProcessor>());
         _cmapProcessor = new SfntCmapProcessor(loggerFactory.CreateLogger<SfntCmapProcessor>());
         _postProcessor = new SfntPostProcessor(loggerFactory.CreateLogger<SfntPostProcessor>());
+        _gaspProcessor = new SfntGaspProcessor(loggerFactory.CreateLogger<SfntGaspProcessor>());
         _locaProcessor = new SfntLocaProcessor(loggerFactory.CreateLogger<SfntLocaProcessor>());
         _glyfProcessor = new SfntGlyfProcessor(loggerFactory);
         _cffProcessor = new SfntCffProcessor(loggerFactory);
@@ -183,6 +182,12 @@ public class SfntFontProcessor
             font.Post = _postProcessor.Read(stream.GetMemory(postRecord.Value));
         }
 
+        SfntTableRecord? gaspRecord = container.FindTable(SfntTableTags.Gasp);
+        if (gaspRecord != null)
+        {
+            font.Gasp = _gaspProcessor.Read(stream.GetMemory(gaspRecord.Value));
+        }
+
         if (cffRecord != null)
         {
             font.CffTypeface = _cffProcessor.Read(stream.GetMemory(cffRecord.Value));
@@ -284,13 +289,13 @@ public class SfntFontProcessor
     }
 
     /// <summary>
-    /// Writes a full SFNT font back to bytes. Tables with a dedicated model are re-serialized from it;
-    /// "fpgm", "prep", "cvt " and "gasp" are passed through unchanged from
-    /// <paramref name="sourceStream"/>; every other source table is dropped. "cmap" and "post" always
-    /// get a minimal empty stub: neither has a writer, and passing the source's own bytes through
-    /// would carry a corrupt subtable into an otherwise sound font - enough for a rasterizer to
-    /// reject the whole font. "OS/2" falls back to a stub of its own when the source carries none,
-    /// since a font written without it is equally rejected.
+    /// Writes a full SFNT font back to bytes. Tables with a dedicated model are re-serialized from it
+    /// and every other source table is dropped. "cmap" and "post" always get a minimal empty stub:
+    /// neither has a writer, and passing the source's own bytes through would carry a corrupt subtable
+    /// into an otherwise sound font - enough for a rasterizer to reject the whole font. "OS/2" falls
+    /// back to a stub of its own when the source carries none, since a font written without it is
+    /// equally rejected. "gasp" gets no stub in turn: a font that asks for no particular grid-fitting
+    /// is rendered by the rasterizer's own defaults, which is what dropping it restores.
     /// </summary>
     /// <param name="font">The font to write.</param>
     /// <param name="sourceStream">The stream <paramref name="font"/> was read from, used to resolve passthrough tables' bytes.</param>
@@ -363,7 +368,11 @@ public class SfntFontProcessor
             }
         }
 
-        tables.Add(new SfntTableData(SfntTableTags.Gasp, DefaultGasp));
+        if (font.Gasp != null)
+        {
+            tables.Add(new SfntTableData(SfntTableTags.Gasp, _gaspProcessor.Write(font.Gasp)));
+        }
+
         tables.Add(new SfntTableData(SfntTableTags.Cmap, SfntCmapProcessor.CreateEmptyStub()));
         tables.Add(new SfntTableData(SfntTableTags.Post, SfntPostProcessor.CreateEmptyStub()));
 

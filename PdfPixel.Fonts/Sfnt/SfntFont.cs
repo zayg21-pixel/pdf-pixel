@@ -72,6 +72,11 @@ public class SfntFont
     public SfntPost? Post { get; set; }
 
     /// <summary>
+    /// Gets or sets the parsed "gasp" table, or null if the font has none or it failed to parse.
+    /// </summary>
+    public SfntGasp? Gasp { get; set; }
+
+    /// <summary>
     /// Gets or sets the parsed "glyf" table, or null if the font has none (e.g. a CFF-flavored font),
     /// or "loca"/"maxp" (which "glyf" depends on to parse) are themselves missing or unparsable.
     /// </summary>

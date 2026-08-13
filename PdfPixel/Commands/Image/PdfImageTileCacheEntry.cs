@@ -8,6 +8,7 @@ namespace PdfPixel.Commands.Image;
 
 /// <summary>
 /// Caches decoded tiles for one PDF image across repeated renders (e.g. scrolling). <see cref="Initialize"/>
+/// </summary>
 public sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
