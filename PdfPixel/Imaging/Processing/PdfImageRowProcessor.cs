@@ -168,6 +168,11 @@ internal sealed partial class PdfImageRowProcessor
         {
             _scale = 1f / ((1 << NormalizedBitsPerComponent) - 1);
         }
+
+        if (_indexedPalette != null)
+        {
+            _indexedPalette = FoldDecodeAndMaskIntoPalette(_indexedPalette);
+        }
     }
 
     /// <summary>
@@ -218,14 +223,7 @@ internal sealed partial class PdfImageRowProcessor
         {
             case OutputMode.IndexedRgbaColorConverted:
             {
-                if (_stages == ProcessingStages.SampleColor)
-                {
-                    WriteIndexedRowSampleOnly(decodedRow);
-                }
-                else
-                {
-                    WriteIndexedRow(decodedRow);
-                }
+                WriteIndexedRow(decodedRow);
 
                 if (!_rowConverter.TryConvertRow(rowIndex, _rgbaBuffer, _convertedRowBuffer))
                 {
@@ -294,30 +292,6 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteIndexedRowSampleOnly(in Span<byte> decodedRow)
-    {
-        if (_rgbaBuffer == null || _indexedPalette == null)
-        {
-            throw new InvalidOperationException("Not initialized.");
-        }
-
-        RgbaPacked[] palette = _indexedPalette;
-        ref RgbaPacked paletteRef = ref palette[0];
-        var paletteSize = (uint)palette.Length;
-        uint paletteMin = paletteSize - 1;
-        int pixelCount = _parameters.Width;
-        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
-        UintBitReaderFixedLength bitReader = new(decodedRow, _indexedBitsPerComponent);
-
-        for (int x = 0; x < pixelCount; x++)
-        {
-            uint sample = Math.Min(bitReader.Read(), paletteMin);
-            destPixel = Unsafe.Add(ref paletteRef, sample);
-            destPixel = ref Unsafe.Add(ref destPixel, 1);
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteIndexedRow(in Span<byte> decodedRow)
     {
         if (_rgbaBuffer == null || _indexedPalette == null)
@@ -325,45 +299,83 @@ internal sealed partial class PdfImageRowProcessor
             throw new InvalidOperationException("Not initialized.");
         }
 
-        // TODO: [MEDIUM] optimize further, see ColorMinAndScale
         RgbaPacked[] palette = _indexedPalette;
         ref RgbaPacked paletteRef = ref palette[0];
-        var paletteSize = (uint)palette.Length;
-        uint paletteMin = paletteSize - 1;
+        var maxPaletteIndex = (uint)(palette.Length - 1);
         int pixelCount = _parameters.Width;
         ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
         UintBitReaderFixedLength bitReader = new(decodedRow, _indexedBitsPerComponent);
 
+        for (int x = 0; x < pixelCount; x++)
+        {
+            uint sample = Math.Min(bitReader.Read(), maxPaletteIndex);
+            destPixel = Unsafe.Add(ref paletteRef, sample);
+            destPixel = ref Unsafe.Add(ref destPixel, 1);
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds the palette so that a raw sample read from the row selects its final pixel directly, with the
+    /// /Decode mapping and the colour key mask already applied. The result is indexed by sample value and so
+    /// spans the whole sample domain rather than the source palette's entry count. Returns the source palette
+    /// unchanged when neither stage applies.
+    /// </summary>
+    /// <param name="palette">The palette built from the image's colour space.</param>
+    private RgbaPacked[] FoldDecodeAndMaskIntoPalette(RgbaPacked[] palette)
+    {
         bool applyDecode = (_stages & ProcessingStages.Decode) != 0;
         bool applyMask = (_stages & ProcessingStages.Mask) != 0;
 
-        for (int x = 0; x < pixelCount; x++)
+        if (!applyDecode && !applyMask)
         {
-            uint sample = bitReader.Read();
+            return palette;
+        }
+
+        float decodeMin = 0f;
+        float decodeScale = 0f;
+
+        if (applyDecode)
+        {
+            PdfRange decodeRange = _decodeRanges[0];
+            decodeMin = decodeRange.Min;
+            decodeScale = decodeRange.Range * _scale;
+        }
+
+        uint maskMinCode = 0;
+        uint maskMaxCode = 0;
+
+        if (applyMask)
+        {
+            maskMinCode = (uint)_maskArray[0];
+            maskMaxCode = (uint)_maskArray[1];
+        }
+
+        var maxPaletteIndex = (uint)(palette.Length - 1);
+        int sampleCount = 1 << _indexedBitsPerComponent;
+        var foldedPalette = new RgbaPacked[sampleCount];
+
+        for (int sample = 0; sample < sampleCount; sample++)
+        {
+            var paletteIndex = (uint)sample;
 
             if (applyDecode)
             {
-                PdfRange decodeRange = _decodeRanges[0];
-                sample = (uint)Math.Max(0, decodeRange.Min + (sample * decodeRange.Range * _scale));
+                paletteIndex = (uint)Math.Max(0f, decodeMin + (paletteIndex * decodeScale));
             }
 
-            sample = Math.Min(sample, paletteMin);
+            paletteIndex = Math.Min(paletteIndex, maxPaletteIndex);
 
-            destPixel = palette[sample];
+            RgbaPacked pixel = palette[paletteIndex];
 
-            if (applyMask)
+            if (applyMask && paletteIndex >= maskMinCode && paletteIndex <= maskMaxCode)
             {
-                int minCode = _maskArray[0];
-                int maxCodeRange = _maskArray[1];
-
-                if (sample >= (uint)minCode && sample <= (uint)maxCodeRange)
-                {
-                    destPixel.A = 0;
-                }
+                pixel.A = 0;
             }
 
-            destPixel = ref Unsafe.Add(ref destPixel, 1);
+            foldedPalette[sample] = pixel;
         }
+
+        return foldedPalette;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
