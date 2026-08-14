@@ -22,7 +22,11 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="fieldObject"/> is null.</exception>
     protected PdfFormField(PdfObject fieldObject, PdfFormFieldType fieldType)
     {
-        FieldObject = fieldObject ?? throw new ArgumentNullException(nameof(fieldObject));
+        if (fieldObject == null)
+        {
+            throw new ArgumentNullException(nameof(fieldObject));
+        }
+
         FieldType = (fieldType == PdfFormFieldType.Unknown) ? throw new ArgumentException("FieldType cannot be Unknown", nameof(fieldType)) : fieldType;
 
         PdfDictionary dictionary = fieldObject.Dictionary;
@@ -34,15 +38,9 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
         Value = dictionary.GetValue(PdfTokens.ValueKey);
         DefaultValue = dictionary.GetValue(PdfTokens.DefaultValueKey);
         Parent = dictionary.GetReference(PdfTokens.ParentKey) ?? default;
-        Kids = dictionary.GetArray(PdfTokens.KidsKey);
         DefaultAppearance = dictionary.GetString(PdfTokens.DefaultAppearanceKey);
         Quadding = dictionary.GetIntegerOrDefault(PdfTokens.QuadKey);
     }
-
-    /// <summary>
-    /// Gets the PDF object that represents this form field.
-    /// </summary>
-    public PdfObject FieldObject { get; }
 
     /// <summary>
     /// Gets the field type.
@@ -96,11 +94,6 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// Form fields can be organized hierarchically. Terminal fields have widgets.
     /// </remarks>
     public PdfReference Parent { get; }
-
-    /// <summary>
-    /// Gets the array of child fields or widget annotations.
-    /// </summary>
-    public PdfArray? Kids { get; }
 
     /// <summary>
     /// Gets the default appearance string.

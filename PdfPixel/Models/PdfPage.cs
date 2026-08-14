@@ -29,22 +29,31 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
 
+    /// <summary>
+    /// Initializes a new instance from values already resolved out of the page object, so that a caller
+    /// holding a page's reference, content streams and resources does not have to materialize the object.
+    /// </summary>
+    /// <param name="pageNumber">1-based page index.</param>
+    /// <param name="pageLabel">Resolved page label for this page.</param>
+    /// <param name="document">Owning document.</param>
+    /// <param name="pageReference">Reference of the underlying page object.</param>
+    /// <param name="contentStreams">Content streams making up the page.</param>
+    /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
+    /// <param name="resourceDictionary">Resource dictionary the page's names resolve against.</param>
+    /// <param name="groupDictionary">The page's /Group entry, or null when it declares none.</param>
     protected internal PdfPage(
         int pageNumber,
         in PdfString pageLabel,
         IPdfDocumentInternal document,
-        PdfObject pageObject,
+        in PdfReference pageReference,
+        List<PdfObjectStream> contentStreams,
         PdfPageResources pageResources,
-        PdfDictionary resourceDictionary)
+        PdfDictionary resourceDictionary,
+        PdfDictionary? groupDictionary)
     {
-        if (pageObject == null)
-        {
-            throw new ArgumentNullException(nameof(pageObject));
-        }
-
         _document = document ?? throw new ArgumentNullException(nameof(document));
-        _pageReference = pageObject.Reference;
-        _contentStreams = ExtractContentStreams(pageObject);
+        _pageReference = pageReference;
+        _contentStreams = contentStreams ?? throw new ArgumentNullException(nameof(contentStreams));
         _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
 
         PageNumber = pageNumber;
@@ -60,8 +69,26 @@ internal class PdfPage : IPdfPageInternal
 
         _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
 
-        PdfDictionary? groupDict = pageObject.Dictionary.GetDictionary(PdfTokens.GroupKey);
-        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, this);
+        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDictionary, this);
+    }
+
+    protected internal PdfPage(
+        int pageNumber,
+        in PdfString pageLabel,
+        IPdfDocumentInternal document,
+        PdfObject pageObject,
+        PdfPageResources pageResources,
+        PdfDictionary resourceDictionary)
+        : this(
+            pageNumber,
+            pageLabel,
+            document,
+            (pageObject ?? throw new ArgumentNullException(nameof(pageObject))).Reference,
+            ExtractContentStreams(pageObject),
+            pageResources,
+            resourceDictionary,
+            pageObject.Dictionary.GetDictionary(PdfTokens.GroupKey))
+    {
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using PdfPixel.Models;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 
 namespace PdfPixel.Imaging.Model;
@@ -12,7 +13,7 @@ public class PdfDecodeParameters
 {
     /// <summary>
     /// PNG/TIFF predictor method used for post-decompression sample reconstruction.
-    /// 2 = TIFF predictor; 10–15 = PNG predictors.
+    /// 2 = TIFF predictor; 10ï¿½15 = PNG predictors.
     /// Applies to FlateDecode and LZWDecode.
     /// </summary>
     public int? Predictor { get; private set; }
@@ -78,10 +79,16 @@ public class PdfDecodeParameters
     public int? ColorTransform { get; private set; }
 
     /// <summary>
-    /// JBIG2 globals stream object (JBIG2Decode). References shared symbol dictionaries defined
-    /// outside the page stream. Should be decoded once and cached at the document level.
+    /// JBIG2 globals stream (JBIG2Decode), holding the shared symbol dictionaries defined outside the
+    /// page stream. Null when no /JBIG2Globals is declared.
     /// </summary>
-    public PdfObject? Jbig2Globals { get; private set; }
+    public PdfObjectStream? Jbig2Globals { get; private set; }
+
+    /// <summary>
+    /// Reference of the object the JBIG2 globals stream was read from, under which its decoded segments
+    /// are cached for every image sharing it.
+    /// </summary>
+    public PdfReference Jbig2GlobalsReference { get; private set; }
 
     /// <summary>
     /// Parse a /DecodeParms dictionary to a strongly-typed <see cref="PdfDecodeParameters"/> instance.
@@ -117,7 +124,12 @@ public class PdfDecodeParameters
         parameters.ColorTransform = dictionary.GetInteger(PdfTokens.ColorTransformKey);
 
         // JBIG2
-        parameters.Jbig2Globals = dictionary.GetObject(PdfTokens.Jbig2GlobalsKey);
+        PdfObject? jbig2GlobalsObject = dictionary.GetObject(PdfTokens.Jbig2GlobalsKey);
+        if (jbig2GlobalsObject != null)
+        {
+            parameters.Jbig2Globals = jbig2GlobalsObject.Stream;
+            parameters.Jbig2GlobalsReference = jbig2GlobalsObject.Reference;
+        }
 
         return parameters;
     }

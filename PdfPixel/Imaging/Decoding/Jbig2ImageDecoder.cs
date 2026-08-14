@@ -7,6 +7,7 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Jbig2.Model;
+using PdfPixel.Streams;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -126,14 +127,22 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     private Jbig2SegmentCache? ResolveGlobalsCache(object contentLocker)
     {
-        Models.PdfObject? globalsObject = Image.DecodeParms?.Jbig2Globals;
-        if (globalsObject == null)
+        PdfDecodeParameters? decodeParameters = Image.DecodeParms;
+        if (decodeParameters == null)
         {
             return null;
         }
 
+        PdfObjectStream? globalsStream = decodeParameters.Jbig2Globals;
+        if (globalsStream == null)
+        {
+            return null;
+        }
+
+        Models.PdfReference globalsReference = decodeParameters.Jbig2GlobalsReference;
         Models.PdfDocumentObjectCache? objectCache = Context.Page.Document.ObjectCache;
-        if (objectCache != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsObject.Reference, out Jbig2SegmentCache? existing))
+
+        if (objectCache != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsReference, out Jbig2SegmentCache? existing))
         {
             return existing;
         }
@@ -141,7 +150,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         ReadOnlyMemory<byte> globalsData;
         lock (contentLocker)
         {
-            globalsData = globalsObject.DecodeAsMemory();
+            globalsData = globalsStream.DecodeAsMemory();
         }
 
         if (globalsData.IsEmpty)
@@ -154,7 +163,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
         if (objectCache != null)
         {
-            objectCache.Jbig2GlobalCaches[globalsObject.Reference] = globalsCache;
+            objectCache.Jbig2GlobalCaches[globalsReference] = globalsCache;
         }
 
         return globalsCache;

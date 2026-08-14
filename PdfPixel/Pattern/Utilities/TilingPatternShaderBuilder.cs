@@ -24,7 +24,7 @@ internal sealed class TilingPatternShaderBuilder
     /// <returns>A <see cref="PdfCommandRecorder"/> containing the recorded pattern cell, or null if the cell is empty.</returns>
     public static PdfCommandRecorder? RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
     {
-        PdfReference patternReference = pattern.SourceObject.Reference;
+        PdfReference patternReference = pattern.SourceReference;
         Dictionary<PdfReference, PdfCommandRecorder> cellCache = sourceState.Page.Document.ObjectCache.TilingCells;
 
         if (patternReference.IsValid && cellCache.TryGetValue(patternReference, out PdfCommandRecorder? cachedCell))
@@ -32,14 +32,14 @@ internal sealed class TilingPatternShaderBuilder
             return cachedCell;
         }
 
-        System.ReadOnlyMemory<byte> streamData = pattern.SourceObject.DecodeAsMemory();
+        System.ReadOnlyMemory<byte> streamData = pattern.SourceStream.DecodeAsMemory();
 
         if (streamData.IsEmpty)
         {
             return null;
         }
 
-        if (sourceState.RecursionGuard.Contains(pattern.SourceObject.Reference.ObjectNumber))
+        if (sourceState.RecursionGuard.Contains(patternReference.ObjectNumber))
         {
             // Prevent infinite recursion.
             return null;
@@ -50,18 +50,22 @@ internal sealed class TilingPatternShaderBuilder
         // for every other use of the pattern.
         bool reachedAtTopLevel = sourceState.RecursionGuard.Count == 0;
 
-        sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Add(patternReference.ObjectNumber);
 
         PdfCommandRecorder recorder = new();
 
         // Render pattern cell without tint or color filter
-        FormXObjectPageWrapper patternPage = new(pattern.SourceObject);
+        FormXObjectPageWrapper patternPage = new(
+            sourceState.Page.Document,
+            patternReference,
+            pattern.SourceStream,
+            pattern.CellResources);
         PdfGraphicsState cellState = new(patternPage, sourceState);
         PdfContentStreamRenderer contentRenderer = new(renderer, patternPage);
         PdfParseContext parseContext = new(streamData);
         contentRenderer.RenderContext(recorder, ref parseContext, cellState);
 
-        sourceState.RecursionGuard.Remove(pattern.SourceObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Remove(patternReference.ObjectNumber);
 
         if (recorder.Commands.Count == 0)
         {

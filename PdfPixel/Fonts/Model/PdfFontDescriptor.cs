@@ -149,9 +149,10 @@ public class PdfFontDescriptor
     public int FontFileLength3 { get; set; }
 
     /// <summary>
-    /// Reference to the original dictionary this descriptor was created from.
+    /// Object cache of the document this descriptor was created from, used to share one parsed typeface
+    /// between every descriptor embedding the same font program.
     /// </summary>
-    public PdfDictionary? Dictionary { get; private set; }
+    internal PdfDocumentObjectCache? ObjectCache { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether this font descriptor has any embedded font stream.
@@ -172,7 +173,7 @@ public class PdfFontDescriptor
 
         PdfFontDescriptor descriptor = new()
         {
-            Dictionary = dict, // Store reference to the dictionary
+            ObjectCache = dict.Document.ObjectCache,
             FontName = dict.GetString(PdfTokens.FontNameKey),
             Flags = (PdfFontFlags)dict.GetIntegerOrDefault(PdfTokens.FlagsKey),
             ItalicAngle = dict.GetFloatOrDefault(PdfTokens.ItalicAngleKey),

@@ -69,7 +69,7 @@ public sealed class PdfTypefaceLoader
     /// <exception cref="InvalidDataException">The font program does not parse as any known layout.</exception>
     public IPdfTypeface GetTypeface()
     {
-        PdfDocumentObjectCache? objectCache = _fontDescriptor.Dictionary?.Document.ObjectCache;
+        PdfDocumentObjectCache? objectCache = _fontDescriptor.ObjectCache;
         PdfReference fontFileReference = _fontDescriptor.FontFileReference;
 
         if (objectCache == null || !fontFileReference.IsValid)

@@ -21,16 +21,14 @@ public sealed class PdfShadingPattern : PdfPattern
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfShadingPattern"/> class with the specified parameters.
     /// </summary>
-    /// <param name="sourceObject">The original source PDF object for the pattern.</param>
     /// <param name="shading">The shading object referenced by the pattern's /Shading entry.</param>
     /// <param name="matrix">The pattern transformation matrix.</param>
     /// <param name="extGState">Optional graphics state parameters parsed from the pattern's /ExtGState entry (may be null).</param>
     internal PdfShadingPattern(
-        PdfObject sourceObject,
         PdfShading shading,
         in PdfMatrix matrix,
         PdfGraphicsStateParameters? extGState)
-        : base(sourceObject, matrix, PdfPatternType.Shading)
+        : base(matrix, PdfPatternType.Shading)
     {
         Shading = shading;
         ExtGState = extGState;

@@ -1,4 +1,5 @@
 using PdfPixel.Models;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 
 namespace PdfPixel.Forms;
@@ -30,6 +31,31 @@ internal class FormXObjectPageWrapper : PdfPage
             formXObject,
             new PdfPageResources(),
             formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? new PdfDictionary(formXObject.Document))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a wrapper for a content stream whose reference, stream and /Resources have already
+    /// been resolved, so the stream's object does not have to be parsed a second time.
+    /// </summary>
+    /// <param name="document">Owning document.</param>
+    /// <param name="contentReference">Reference of the object holding the content stream.</param>
+    /// <param name="contentStream">The content stream itself.</param>
+    /// <param name="resources">The stream's own /Resources, or null when it declares none.</param>
+    public FormXObjectPageWrapper(
+        IPdfDocumentInternal document,
+        in PdfReference contentReference,
+        PdfObjectStream contentStream,
+        PdfDictionary? resources)
+        : base(
+            0,
+            default,
+            document,
+            contentReference,
+            [contentStream],
+            new PdfPageResources(),
+            resources ?? new PdfDictionary(document),
+            null)
     {
     }
 

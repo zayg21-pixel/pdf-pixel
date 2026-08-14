@@ -57,7 +57,9 @@ internal static class PdfPatternParser
 
         return new PdfTilingPattern(
             renderer,
-            patternObject,
+            patternObject.Reference,
+            patternObject.Stream,
+            dictionary.GetDictionary(PdfTokens.ResourcesKey),
             bbox,
             xStep,
             yStep,
@@ -87,6 +89,6 @@ internal static class PdfPatternParser
 
         PdfShading shading = PdfShading.GetShading(shadingObject);
 
-        return new PdfShadingPattern(patternObject, shading, matrix, extGState);
+        return new PdfShadingPattern(shading, matrix, extGState);
     }
 }

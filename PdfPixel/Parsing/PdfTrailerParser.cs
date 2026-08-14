@@ -74,7 +74,6 @@ internal sealed class PdfTrailerParser
         }
 
         PdfDecryptorParameters parameters = new();
-        parameters.SourceDictionary = encryptDict;
         parameters.V = encryptDict.GetIntegerOrDefault(PdfTokens.VKey);
         parameters.R = encryptDict.GetIntegerOrDefault(PdfTokens.RKey);
         parameters.LengthBits = encryptDict.GetIntegerOrDefault(PdfTokens.LengthKey);

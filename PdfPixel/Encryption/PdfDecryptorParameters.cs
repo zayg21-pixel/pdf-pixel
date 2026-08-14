@@ -10,11 +10,6 @@ namespace PdfPixel.Encryption
     public class PdfDecryptorParameters
     {
         /// <summary>
-        /// Original /Encrypt dictionary for advanced lookups (e.g. /CF, /O, /U, /UE, /OE, /Perms).
-        /// </summary>
-        public PdfDictionary? SourceDictionary { get; set; }
-
-        /// <summary>
         /// Encryption algorithm version (/V).
         /// </summary>
         public int V { get; set; }

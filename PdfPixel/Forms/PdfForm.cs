@@ -16,16 +16,12 @@ public sealed class PdfForm
         in PdfMatrix matrix,
         in PdfRectangle bbox,
         PdfTransparencyGroup? transparencyGroup,
-        PdfDictionary dictionary,
-        PdfDictionary? resources,
         IPdfPageInternal page,
         PdfObject xObject)
     {
         Matrix = matrix;
         BBox = bbox;
         TransparencyGroup = transparencyGroup;
-        Dictionary = dictionary;
-        Resources = resources;
         Page = page;
         XObject = xObject;
     }
@@ -44,16 +40,6 @@ public sealed class PdfForm
     /// The transparency group (/Group) for the form, if present.
     /// </summary>
     public PdfTransparencyGroup? TransparencyGroup { get; }
-
-    /// <summary>
-    /// The underlying XObject dictionary.
-    /// </summary>
-    public PdfDictionary Dictionary { get; }
-
-    /// <summary>
-    /// The resources dictionary (/Resources) for the form, if present.
-    /// </summary>
-    public PdfDictionary? Resources { get; }
 
     /// <summary>
     /// The parent page for this form.
@@ -77,14 +63,13 @@ public sealed class PdfForm
         PdfArray? matrixArray = dict.GetArray(PdfTokens.MatrixKey);
         PdfArray? bboxArray = dict.GetArray(PdfTokens.BBoxKey);
         PdfDictionary? groupDict = dict.GetDictionary(PdfTokens.GroupKey);
-        PdfDictionary? resourcesDict = dict.GetDictionary(PdfTokens.ResourcesKey);
 
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
         PdfRectangle bbox = PdfRectangle.FromArray(bboxArray) ?? PdfRectangle.Empty;
 
         PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, page);
 
-        return new PdfForm(matrix, bbox, transparencyGroup, dict, resourcesDict, page, xObject);
+        return new PdfForm(matrix, bbox, transparencyGroup, page, xObject);
     }
 
     /// <summary>
