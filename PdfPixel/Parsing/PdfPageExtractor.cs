@@ -104,8 +104,7 @@ internal class PdfPageExtractor
 
             // A node is an intermediate /Pages node only when it actually carries kids of its own;
             // damaged documents routinely omit /Type on leaf pages, and inline them into /Kids.
-            PdfString typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
-            if (typeName != PdfTokens.PageKey && kidObject.Dictionary.HasKey(PdfTokens.KidsKey))
+            if (kidObject.Dictionary.GetName(PdfTokens.TypeKey) != PdfTokens.PageKey && kidObject.Dictionary.HasKey(PdfTokens.KidsKey))
             {
                 currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver, visited);
             }

@@ -85,14 +85,14 @@ internal sealed class PdfTrailerParser
             parameters.EncryptMetadata = encryptMetadata.Value;
         }
 
-        parameters.OwnerEntry = encryptDict.GetValue(PdfTokens.OKey).AsStringBytes().ToArray();
-        parameters.UserEntry = encryptDict.GetValue(PdfTokens.UKey).AsStringBytes().ToArray();
+        parameters.OwnerEntry = encryptDict.GetValue(PdfTokens.OKey).AsString()?.Value.ToArray();
+        parameters.UserEntry = encryptDict.GetValue(PdfTokens.UKey).AsString()?.Value.ToArray();
 
         if (parameters.R >= 5)
         {
-            parameters.OwnerEncryptedKey = encryptDict.GetValue(PdfTokens.OEKey).AsStringBytes().ToArray();
-            parameters.UserEncryptedKey = encryptDict.GetValue(PdfTokens.UEKey).AsStringBytes().ToArray();
-            parameters.Perms = encryptDict.GetValue(PdfTokens.PermsKey).AsStringBytes().ToArray();
+            parameters.OwnerEncryptedKey = encryptDict.GetValue(PdfTokens.OEKey).AsString()?.Value.ToArray();
+            parameters.UserEncryptedKey = encryptDict.GetValue(PdfTokens.UEKey).AsString()?.Value.ToArray();
+            parameters.Perms = encryptDict.GetValue(PdfTokens.PermsKey).AsString()?.Value.ToArray();
         }
 
         if (parameters.V >= 4)
@@ -104,14 +104,20 @@ internal sealed class PdfTrailerParser
 
             if (parameters.CryptFilterDictionary != null)
             {
-                PdfDictionary? streamCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName);
+                PdfDictionary? streamCfEntry = (parameters.StreamCryptFilterName == null)
+                    ? null
+                    : parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName.Value);
+
                 if (streamCfEntry != null)
                 {
                     parameters.StreamCryptFilterMethod = streamCfEntry.GetName(PdfTokens.CfmKey);
                     parameters.StreamCryptFilterLength = streamCfEntry.GetInteger(PdfTokens.LengthKey);
                 }
 
-                PdfDictionary? stringCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName);
+                PdfDictionary? stringCfEntry = (parameters.StringCryptFilterName == null)
+                    ? null
+                    : parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName.Value);
+
                 if (stringCfEntry != null)
                 {
                     parameters.StringCryptFilterMethod = stringCfEntry.GetName(PdfTokens.CfmKey);
@@ -123,8 +129,8 @@ internal sealed class PdfTrailerParser
         PdfArray? idArray = trailer.GetArray(PdfTokens.IdKey);
         if (idArray?.Count >= 2)
         {
-            parameters.FileIdFirst = idArray.GetValue(0).AsStringBytes().ToArray();
-            parameters.FileIdSecond = idArray.GetValue(1).AsStringBytes().ToArray();
+            parameters.FileIdFirst = idArray.GetValue(0).AsString()?.Value.ToArray();
+            parameters.FileIdSecond = idArray.GetValue(1).AsString()?.Value.ToArray();
         }
 
         _document.Decryptor = PdfDecryptorFactory.Create(parameters);

@@ -25,7 +25,7 @@ public class PdfUriAction : PdfAction
     /// <summary>
     /// Gets the uniform resource identifier to resolve.
     /// </summary>
-    public PdfString Uri { get; }
+    public PdfString? Uri { get; }
 
     /// <summary>
     /// Gets a value indicating whether the URI is a map coordinate.

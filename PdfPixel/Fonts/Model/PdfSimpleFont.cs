@@ -133,7 +133,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                 {
                     if (Encoding.BaseEncoding == PdfEncoding.Unknown)
                     {
-                        PdfFontEncoding? knownEncoding = SingleByteEncodings.GetEncodingByName(BaseFont.ToPdfFontString());
+                        PdfFontEncoding? knownEncoding = (BaseFont == null) ? null : SingleByteEncodings.GetEncodingByName(BaseFont.Value.ToPdfFontString());
                         if (knownEncoding != null)
                         {
                             Encoding.UpdateEncoding(knownEncoding.Value.ToPdfEncoding());
@@ -155,7 +155,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 #pragma warning restore CA1031
 
-        PdfEncoding? standard14Encoding = SingleByteEncodings.GetEncodingByName(BaseFont.ToPdfFontString())?.ToPdfEncoding();
+        PdfEncoding? standard14Encoding = (BaseFont == null) ? null : SingleByteEncodings.GetEncodingByName(BaseFont.Value.ToPdfFontString())?.ToPdfEncoding();
 
         if (Encoding.BaseEncoding == PdfEncoding.Unknown)
         {

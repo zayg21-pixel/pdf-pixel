@@ -15,7 +15,7 @@ public class PdfFontDescriptor
     /// <summary>
     /// The font name as specified in the PDF dictionary (/FontName).
     /// </summary>
-    public PdfString FontName { get; set; }
+    public PdfString? FontName { get; set; }
 
     /// <summary>
     /// Flags describing font characteristics (see PDF spec Table 5.19).
@@ -80,12 +80,12 @@ public class PdfFontDescriptor
     /// <summary>
     /// Font family name (PDF 1.5+, /FontFamily).
     /// </summary>
-    public PdfString FontFamily { get; set; }
+    public PdfString? FontFamily { get; set; }
 
     /// <summary>
     /// Font stretch value (PDF 1.5+, /FontStretch).
     /// </summary>
-    public PdfString FontStretch { get; set; }
+    public PdfString? FontStretch { get; set; }
 
     /// <summary>
     /// Font weight (PDF 1.5+, /FontWeight).
@@ -100,7 +100,7 @@ public class PdfFontDescriptor
     /// <summary>
     /// Character set description (PDF 1.5+, /CharSet).
     /// </summary>
-    public PdfString CharSet { get; set; }
+    public PdfString? CharSet { get; set; }
 
     /// <summary>
     /// Array of horizontal stem thicknesses (PDF 1.5+, /StemSnapH).
@@ -198,14 +198,10 @@ public class PdfFontDescriptor
         descriptor.StemSnapV = dict.GetArray(PdfTokens.StemSnapVKey)?.GetFloatArray();
 
         // PANOSE (string or hex string)
-        IPdfValue? panoseVal = dict.GetValue(PdfTokens.PanoseKey);
-        if (panoseVal != null)
+        PdfString? panoseValue = dict.GetValue(PdfTokens.PanoseKey).AsString();
+        if (panoseValue?.IsEmpty == false)
         {
-            System.ReadOnlyMemory<byte> hexBytes = panoseVal.AsStringBytes();
-            if (!hexBytes.IsEmpty)
-            {
-                descriptor.Panose = hexBytes.ToArray();
-            }
+            descriptor.Panose = panoseValue.Value.Value.ToArray();
         }
 
         (PdfObject? fontFileObject, PdfFontFileFormat format) = GetFileObjectAndFormat(dict);
@@ -244,7 +240,7 @@ public class PdfFontDescriptor
         if (fontFile3Obj != null)
         {
             // For FontFile3 the actual program type is specified by the stream dictionary /Subtype
-            PdfFontFileFormat subType = fontFile3Obj.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontFileFormat>();
+            PdfFontFileFormat subType = fontFile3Obj.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontFileFormat>();
             return (fontFile3Obj, subType);
         }
 

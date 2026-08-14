@@ -69,21 +69,37 @@ public class PdfDictionary
 
     /// <summary>
     /// Gets the value as a PDF name for the specified key, following references.
-    /// Returns <c>default</c> if not present or not a name.
+    /// Returns <c>null</c> if not present or not a name.
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
-    /// <returns>The <see cref="PdfString"/> name value, or <c>default</c>.</returns>
-    public PdfString GetName(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsName() ?? default : default;
+    /// <returns>The <see cref="PdfString"/> name value, or <c>null</c>.</returns>
+    public PdfString? GetName(in PdfString key)
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsName() : null;
+
+    /// <summary>
+    /// Gets the value as a PDF name for the specified key, following references.
+    /// Returns an empty <see cref="PdfString"/> if not present or not a name.
+    /// </summary>
+    /// <param name="key">The key to retrieve.</param>
+    /// <returns>The <see cref="PdfString"/> name value, or an empty <see cref="PdfString"/>.</returns>
+    public PdfString GetNameOrDefault(in PdfString key) => GetName(key) ?? PdfString.Empty;
 
     /// <summary>
     /// Gets the value as a PDF string for the specified key, following references.
-    /// Returns <c>default</c> if not present or not a string.
+    /// Returns <c>null</c> if not present or not a string.
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
-    /// <returns>The <see cref="PdfString"/> value, or <c>default</c>.</returns>
-    public PdfString GetString(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsString() ?? default : default;
+    /// <returns>The <see cref="PdfString"/> value, or <c>null</c>.</returns>
+    public PdfString? GetString(in PdfString key)
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsString() : null;
+
+    /// <summary>
+    /// Gets the value as a PDF string for the specified key, following references.
+    /// Returns an empty <see cref="PdfString"/> if not present or not a string.
+    /// </summary>
+    /// <param name="key">The key to retrieve.</param>
+    /// <returns>The <see cref="PdfString"/> value, or an empty <see cref="PdfString"/>.</returns>
+    public PdfString GetStringOrDefault(in PdfString key) => GetString(key) ?? PdfString.Empty;
 
     /// <summary>
     /// Gets the value as an integer for the specified key, following references.

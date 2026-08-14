@@ -97,10 +97,10 @@ namespace PdfPixel.Rendering.State
                 var mode = PdfBlendMode.Unknown;
 
                 // First try to get as name
-                PdfString blendModeName = gsDict.GetName(PdfTokens.BlendModeKey);
-                if (!blendModeName.IsEmpty)
+                PdfString? blendModeName = gsDict.GetName(PdfTokens.BlendModeKey);
+                if (blendModeName != null)
                 {
-                    mode = blendModeName.AsEnum<PdfBlendMode>();
+                    mode = blendModeName.Value.AsEnum<PdfBlendMode>();
                 }
                 else
                 {
@@ -110,7 +110,7 @@ namespace PdfPixel.Rendering.State
                     {
                         for (int index = 0; index < blendModeArray.Count; index++)
                         {
-                            PdfBlendMode candidate = blendModeArray.GetName(index).AsEnum<PdfBlendMode>();
+                            PdfBlendMode candidate = blendModeArray.GetNameOrDefault(index).AsEnum<PdfBlendMode>();
                             if (candidate != PdfBlendMode.Unknown)
                             {
                                 mode = candidate;
@@ -131,8 +131,7 @@ namespace PdfPixel.Rendering.State
             // Soft Mask (/SMask)
             if (gsDict.HasKey(PdfTokens.SoftMaskKey))
             {
-                PdfString maskName = gsDict.GetName(PdfTokens.SoftMaskKey);
-                if (maskName == PdfTokens.NoneValue)
+                if (gsDict.GetName(PdfTokens.SoftMaskKey) == PdfTokens.NoneValue)
                 {
                     parameters.ShouldUnsetSoftMask = true;
                 }
@@ -172,8 +171,7 @@ namespace PdfPixel.Rendering.State
             // Rendering intent (/RI)
             if (gsDict.HasKey(PdfTokens.StateIntentKey))
             {
-                PdfString intentName = gsDict.GetName(PdfTokens.StateIntentKey);
-                parameters.PdfRenderingIntent = intentName.AsEnum<PdfRenderingIntent>();
+                parameters.PdfRenderingIntent = gsDict.GetNameOrDefault(PdfTokens.StateIntentKey).AsEnum<PdfRenderingIntent>();
             }
 
             return parameters;
@@ -184,8 +182,7 @@ namespace PdfPixel.Rendering.State
         /// </summary>
         private static void ParseTransferFunction(PdfDictionary gsDict, in PdfString key, in PdfString unsetValue, PdfGraphicsStateParameters parameters)
         {
-            PdfString name = gsDict.GetName(key);
-            if (name == unsetValue)
+            if (gsDict.GetName(key) == unsetValue)
             {
                 parameters.ShouldUnsetTransferFunction = true;
                 return;

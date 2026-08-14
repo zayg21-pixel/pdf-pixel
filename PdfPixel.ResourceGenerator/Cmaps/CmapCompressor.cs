@@ -64,15 +64,22 @@ public static class CmapCompressor
 
         foreach (PdfCMap cmap in cmaps)
         {
-            int clusterIndex = CmapClustering.FindClusterIndex(clusters, cmap.Name.ToString());
+            if (cmap.Name == null)
+            {
+                Console.WriteLine("  Skipped (no name)");
+                continue;
+            }
+
+            string cmapName = cmap.Name.Value.ToString();
+            int clusterIndex = CmapClustering.FindClusterIndex(clusters, cmapName);
             if (clusterIndex < 0)
             {
-                Console.WriteLine($"  Skipped (no cluster): {cmap.Name}");
+                Console.WriteLine($"  Skipped (no cluster): {cmapName}");
                 continue;
             }
 
             Dictionary<byte, Dictionary<uint, int>> clusterBase = bases[clusterIndex];
-            string overridesPath = Path.Combine(outputDirectory, $"{cmap.Name.ToString()}.bin");
+            string overridesPath = Path.Combine(outputDirectory, $"{cmapName}.bin");
             Console.WriteLine($"  Exporting: {cmap.Name} -> {overridesPath}");
             WriteCMapOverridesBinary(cmap, clusterBase, clusterIndex, overridesPath);
         }
@@ -121,7 +128,7 @@ public static class CmapCompressor
         stream.WriteByte((byte)BlockId.OverridesHeader);
         WriteVarUInt(stream, (uint)clusterIndex);
 
-        if (!cmap.Name.IsEmpty)
+        if (cmap.Name?.IsEmpty == false)
         {
             stream.WriteByte((byte)BlockId.Name);
             WriteString(stream, cmap.Name);
@@ -318,9 +325,9 @@ public static class CmapCompressor
         WriteVarUInt(stream, zigzag);
     }
 
-    private static void WriteString(FileStream stream, in PdfString value)
+    private static void WriteString(FileStream stream, PdfString? value)
     {
-        ReadOnlyMemory<byte> bytes = value.Value;
+        ReadOnlyMemory<byte> bytes = value?.Value ?? ReadOnlyMemory<byte>.Empty;
         WriteVarUInt(stream, (uint)bytes.Length);
         byte[] arr = bytes.ToArray();
         stream.Write(arr, 0, arr.Length);

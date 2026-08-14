@@ -25,36 +25,19 @@ internal static class IPdfValueExtension
     }
 
     /// <summary>
-    /// Returns the value as a PDF string if the type is <see cref="PdfValueType.String"/>; otherwise returns <c>default</c>.
+    /// Returns the value as a PDF string if the value carries string content; otherwise returns <c>null</c>.
+    /// An empty string is a valid string and is returned as an empty <see cref="PdfString"/>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The <see cref="PdfString"/> value, or <c>default</c> if not a string type.</returns>
-    public static PdfString AsString(this IPdfValue? value)
+    /// <returns>The <see cref="PdfString"/> value, or <c>null</c> if not a string type.</returns>
+    public static PdfString? AsString(this IPdfValue? value)
     {
         if (value is IPdfValue<PdfString> stringValue)
         {
             return stringValue.Value;
         }
 
-        return default;
-    }
-
-    /// <summary>
-    /// Returns the raw bytes of a PDF string value. Returns <c>null</c> if not a string or if the string is empty.
-    /// Skips whitespace and pads odd-length nibbles per PDF spec for hex strings.
-    /// </summary>
-    /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The raw byte content of the string, or <c>null</c> if not a string or empty.</returns>
-    public static ReadOnlyMemory<byte> AsStringBytes(this IPdfValue? value)
-    {
-        PdfString stringValue = AsString(value);
-
-        if (stringValue.IsEmpty)
-        {
-            return null;
-        }
-
-        return stringValue.Value;
+        return null;
     }
 
     /// <summary>

@@ -28,9 +28,15 @@ public static class StandardFontGlyphMapProvider
     /// <param name="cid">The CID to resolve.</param>
     /// <param name="unicode">The resolved Unicode string, or <see langword="null"/> if unresolved.</param>
     /// <returns><see langword="true"/> if the CID resolved to a Unicode string.</returns>
-    public static bool TryGetUnicode(in PdfString baseFontName, uint cid, out string? unicode)
+    public static bool TryGetUnicode(PdfString? baseFontName, uint cid, out string? unicode)
     {
-        string name = baseFontName.ToString();
+        if (baseFontName == null)
+        {
+            unicode = null;
+            return false;
+        }
+
+        string name = baseFontName.Value.ToString();
 
         if (IsArialBlack(name) && _arialBlack.Value.TryGetValue(cid, out unicode))
         {

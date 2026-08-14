@@ -82,11 +82,9 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        string contentsText = Contents.ToString();
-
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"Square Annotation: {contentsText}";
+            return $"Square Annotation: {Contents}";
         }
 
         return "Square Annotation";

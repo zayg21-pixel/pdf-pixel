@@ -72,17 +72,17 @@ namespace PdfPixel.Encryption
         /// <summary>
         /// Stream crypt filter name (/StmF) when V=4 or 5.
         /// </summary>
-        public PdfString StreamCryptFilterName { get; set; }
+        public PdfString? StreamCryptFilterName { get; set; }
 
         /// <summary>
         /// String crypt filter name (/StrF) when V=4 or 5.
         /// </summary>
-        public PdfString StringCryptFilterName { get; set; }
+        public PdfString? StringCryptFilterName { get; set; }
 
         /// <summary>
         /// Embedded file crypt filter name (/EFF) when present.
         /// </summary>
-        public PdfString EmbeddedFileCryptFilterName { get; set; }
+        public PdfString? EmbeddedFileCryptFilterName { get; set; }
 
         /// <summary>
         /// Crypt filter dictionary (/CF) parsed lazily by decryptor. Raw map retained from SourceDictionary when needed.
@@ -93,12 +93,12 @@ namespace PdfPixel.Encryption
         /// Selected stream crypt filter method (CF entry's /CFM name, e.g., AESV2, None).
         /// Resolved by looking up the CF entry referenced by /StmF.
         /// </summary>
-        public PdfString StreamCryptFilterMethod { get; set; }
+        public PdfString? StreamCryptFilterMethod { get; set; }
 
         /// <summary>
         /// Selected string crypt filter method (CF entry's /CFM name referenced by /StrF).
         /// </summary>
-        public PdfString StringCryptFilterMethod { get; set; }
+        public PdfString? StringCryptFilterMethod { get; set; }
 
         /// <summary>
         /// Key length override from CF entry for streams (units as stored in CF dictionary).

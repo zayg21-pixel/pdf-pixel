@@ -72,9 +72,8 @@ public class PdfPageLabelResolver
 
     private static PdfString FormatLabel(PdfDictionary labelDict, int index)
     {
-        PdfString prefix = labelDict.GetString(PdfTokens.PrefixKey);
-        PdfString styleString = labelDict.GetName(PdfTokens.StyleKey);
-        PageLabelStyle style = styleString.AsEnum<PageLabelStyle>();
+        PdfString? prefix = labelDict.GetString(PdfTokens.PrefixKey);
+        PageLabelStyle style = labelDict.GetNameOrDefault(PdfTokens.StyleKey).AsEnum<PageLabelStyle>();
         int start = labelDict.GetInteger(PdfTokens.StartKey) ?? 1;
         int number = start + index;
         PdfString numStr = style switch
@@ -87,17 +86,17 @@ public class PdfPageLabelResolver
             _ => PdfString.FromString(number.ToString(CultureInfo.CurrentCulture))
         };
         // Concatenate prefix and numStr at the byte level
-        if (prefix.IsEmpty)
+        if (prefix == null || prefix.Value.IsEmpty)
         {
             return numStr;
         }
 
         if (numStr.IsEmpty)
         {
-            return prefix;
+            return prefix.Value;
         }
 
-        ReadOnlySpan<byte> prefixBytes = prefix.Value.Span;
+        ReadOnlySpan<byte> prefixBytes = prefix.Value.Value.Span;
         ReadOnlySpan<byte> numBytes = numStr.Value.Span;
         var result = new byte[prefixBytes.Length + numBytes.Length];
         prefixBytes.CopyTo(result);

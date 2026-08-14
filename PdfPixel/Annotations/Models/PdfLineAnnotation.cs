@@ -39,8 +39,8 @@ public class PdfLineAnnotation : PdfAnnotationBase
         PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
         if (lineEndingArray?.Count >= 2)
         {
-            StartLineEnding = lineEndingArray.GetName(0).AsEnum<PdfLineEndingStyle>();
-            EndLineEnding = lineEndingArray.GetName(1).AsEnum<PdfLineEndingStyle>();
+            StartLineEnding = lineEndingArray.GetNameOrDefault(0).AsEnum<PdfLineEndingStyle>();
+            EndLineEnding = lineEndingArray.GetNameOrDefault(1).AsEnum<PdfLineEndingStyle>();
         }
 
         LeaderLineLength = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineKey);
@@ -186,11 +186,9 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        string contentsText = Contents.ToString();
-
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"Line Annotation: {contentsText}";
+            return $"Line Annotation: {Contents}";
         }
 
         return "Line Annotation";

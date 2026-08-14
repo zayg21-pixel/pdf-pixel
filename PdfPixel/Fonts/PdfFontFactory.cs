@@ -19,14 +19,12 @@ public static class PdfFontFactory
             return false;
         }
 
-        PdfString type = pdfDictionary.GetName(PdfTokens.TypeKey);
-
-        if (type == PdfTokens.FontKey)
+        if (pdfDictionary.GetName(PdfTokens.TypeKey) == PdfTokens.FontKey)
         {
             return true;
         }
 
-        PdfFontSubType subtype = pdfDictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+        PdfFontSubType subtype = pdfDictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
 
         return subtype != PdfFontSubType.Unknown;
     }
@@ -51,7 +49,7 @@ public static class PdfFontFactory
             return null;
         }
 
-        PdfFontSubType subtype = fontObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+        PdfFontSubType subtype = fontObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
 
         return subtype switch
         {

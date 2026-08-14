@@ -72,11 +72,11 @@ internal class PdfNamedDestinationParser
         {
             for (int i = 0; i < namesArray.Count - 1; i += 2)
             {
-                PdfString name = namesArray.GetString(i);
+                PdfString? name = namesArray.GetString(i);
                 IPdfValue? value = namesArray.GetValue(i + 1);
-                if (!name.IsEmpty && value != null)
+                if (name?.IsEmpty == false && value != null)
                 {
-                    target.Set(name, value);
+                    target.Set(name.Value, value);
                 }
             }
         }

@@ -54,14 +54,14 @@ internal sealed class PdfOptionalContentGroupParser
                 continue;
             }
 
-            PdfString name = ocgObject.Dictionary.GetString(PdfTokens.NameKey);
-            if (name.IsEmpty)
+            PdfString? name = ocgObject.Dictionary.GetString(PdfTokens.NameKey);
+            if (name == null || name.Value.IsEmpty)
             {
                 _logger.LogWarning("OCG {Reference} has no /Name entry; skipping", ocgObject.Reference);
                 continue;
             }
 
-            PdfOptionalContentGroup group = new(ocgObject.Reference, name);
+            PdfOptionalContentGroup group = new(ocgObject.Reference, name.Value);
             groupsByReference[ocgObject.Reference] = group;
         }
 

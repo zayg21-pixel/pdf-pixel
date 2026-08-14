@@ -31,13 +31,13 @@ public static class PdfTextBlockFlattener
             return;
         }
 
-        if (block.Markup?.ActualText.IsEmpty == false)
+        if (block.Markup?.ActualText?.IsEmpty == false)
         {
             PdfRectangle? unionBounds = null;
             CollectBounds(block, ref unionBounds);
             if (unionBounds != null)
             {
-                result.Add(new PdfCharacter(block.Markup.ActualText.ToString(), unionBounds.Value));
+                result.Add(new PdfCharacter(block.Markup.ActualText.Value.ToString(), unionBounds.Value));
             }
 
             return;

@@ -13,7 +13,7 @@ internal static class PdfDateParser
     /// Parses a PDF date string into a DateTime object.
     /// </summary>
     /// <param name="pdfString">The PDF string containing the date.</param>
-    /// <returns>The parsed DateTime, or null if parsing fails or the string is empty.</returns>
+    /// <returns>The parsed DateTime, or null if parsing fails or the string is absent or empty.</returns>
     /// <remarks>
     /// <para>
     /// PDF dates follow the format: D:YYYYMMDDHHmmSSOHH'mm
@@ -29,14 +29,14 @@ internal static class PdfDateParser
     /// </para>
     /// <para>Trailing components may be omitted, e.g., D:2023 or D:20231225</para>
     /// </remarks>
-    public static DateTime? ParsePdfDate(in PdfString pdfString)
+    public static DateTime? ParsePdfDate(PdfString? pdfString)
     {
-        if (pdfString.IsEmpty)
+        if (pdfString == null || pdfString.Value.IsEmpty)
         {
             return null;
         }
 
-        string dateString = pdfString.ToString();
+        string dateString = pdfString.Value.ToString();
 
         // Must start with "D:"
         if (!dateString.StartsWith("D:"))

@@ -58,7 +58,7 @@ public class PdfImage
         }
 
         MatteArray = dictionary.GetArray(PdfTokens.MatteKey)?.GetFloatArray();
-        RenderingIntent = dictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
+        RenderingIntent = dictionary.GetNameOrDefault(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
         var type = PdfImageType.Raw;
         List<PdfFilterType> filters = imageXObject.Stream.Filters;

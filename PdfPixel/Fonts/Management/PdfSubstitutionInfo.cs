@@ -165,9 +165,9 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     /// <param name="rawName">The raw font name string from the PDF font dictionary (e.g., the /BaseFont value).</param>
     /// <param name="descriptor">Optional font descriptor that may override weight, width, and slant derived from the name.</param>
     /// <returns>A <see cref="PdfSubstitutionInfo"/> containing the normalized stem and resolved style.</returns>
-    public static PdfSubstitutionInfo Parse(in PdfString rawName, PdfFontDescriptor? descriptor)
+    public static PdfSubstitutionInfo Parse(PdfString? rawName, PdfFontDescriptor? descriptor)
     {
-        string name = rawName.ToString();
+        string name = (rawName == null) ? string.Empty : rawName.Value.ToString();
 
         int plusIndex = name.IndexOf('+');
         if (plusIndex > 0 && plusIndex < name.Length - 1)
@@ -201,7 +201,7 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
         {
             FontStyleHints literalHints = GetLiteralDescriptorHints(descriptor);
 
-            string descriptorFontName = descriptor.FontName.ToString();
+            string descriptorFontName = (descriptor.FontName == null) ? string.Empty : descriptor.FontName.Value.ToString();
             FontStyleHints descriptorNameHints = ExtractNameHints(ref descriptorFontName);
 
             resolved = literalHints.Coalesce(descriptorNameHints);
@@ -241,7 +241,7 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
             weight = descriptor.FontWeight;
         }
 
-        int? width = (!descriptor.FontStretch.IsEmpty && WidthHints.TryGetValue(descriptor.FontStretch.ToString(), out int descriptorWidth))
+        int? width = (descriptor.FontStretch != null && WidthHints.TryGetValue(descriptor.FontStretch.Value.ToString(), out int descriptorWidth))
             ? descriptorWidth
             : null;
 

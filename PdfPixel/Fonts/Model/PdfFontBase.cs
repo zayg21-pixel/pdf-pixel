@@ -26,7 +26,7 @@ public abstract class PdfFontBase
         FontObject = fontObject ?? throw new ArgumentNullException(nameof(fontObject));
         Dictionary = fontObject.Dictionary ?? throw new ArgumentNullException(nameof(fontObject));
 
-        Type = Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+        Type = Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
         BaseFont = Dictionary.GetString(PdfTokens.BaseFontKey);
         ToUnicodeCMap = LoadToUnicodeCMap();
         FontDescriptor = PdfFontDescriptor.FromDictionary(Dictionary.GetDictionary(PdfTokens.FontDescriptorKey));
@@ -93,7 +93,7 @@ public abstract class PdfFontBase
     /// <summary>
     /// Base font name (PostScript name)
     /// </summary>
-    public PdfString BaseFont { get; }
+    public PdfString? BaseFont { get; }
 
     /// <summary>
     /// PDF document containing this font (convenience property)

@@ -31,7 +31,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         PdfDictionary? actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
         Action = PdfAction.FromDictionary(actionDict);
 
-        HighlightMode = annotationObject.Dictionary.GetName(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
+        HighlightMode = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
     }
 
     /// <inheritdoc/>
@@ -128,7 +128,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type and destination or URI.</returns>
     public override string ToString()
     {
-        if (Action is PdfUriAction uriAction && !uriAction.Uri.IsEmpty)
+        if (Action is PdfUriAction uriAction && uriAction.Uri?.IsEmpty == false)
         {
             return $"Link Annotation: {uriAction.Uri}";
         }

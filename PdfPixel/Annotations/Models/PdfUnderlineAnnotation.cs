@@ -60,11 +60,9 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        string contentsText = Contents.ToString();
-
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"Underline Annotation: {contentsText}";
+            return $"Underline Annotation: {Contents}";
         }
 
         return "Underline Annotation";

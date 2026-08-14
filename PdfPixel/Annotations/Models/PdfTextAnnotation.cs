@@ -26,7 +26,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     {
         // Initialize all text annotation specific properties
         IsOpen = annotationObject.Dictionary.GetBooleanOrDefault(PdfTokens.OpenKey);
-        Icon = annotationObject.Dictionary.GetName(PdfTokens.NameKey).AsEnum<PdfTextAnnotationIcon>();
+        Icon = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfTextAnnotationIcon>();
         StateModel = annotationObject.Dictionary.GetName(PdfTokens.StateModelKey);
         State = annotationObject.Dictionary.GetName(PdfTokens.StateKey);
 
@@ -67,7 +67,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// <remarks>
     /// Common state models include "Review" and "Marked".
     /// </remarks>
-    public PdfString StateModel { get; }
+    public PdfString? StateModel { get; }
 
     /// <summary>
     /// Gets the state value corresponding to the state model.
@@ -76,7 +76,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// For "Review" state model: None, Accepted, Rejected, Cancelled, Completed, etc.
     /// For "Marked" state model: Marked, Unmarked.
     /// </remarks>
-    public PdfString State { get; }
+    public PdfString? State { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -101,11 +101,9 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type and contents.</returns>
     public override string ToString()
     {
-        string contentsText = Contents.ToString();
-
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"Text Annotation ({Icon}): {contentsText}";
+            return $"Text Annotation ({Icon}): {Contents}";
         }
 
         return $"Text Annotation ({Icon})";

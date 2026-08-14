@@ -15,12 +15,12 @@ public class PdfCidSystemInfo
     /// <summary>
     /// The registry name identifying the character collection (e.g., "Adobe").
     /// </summary>
-    public PdfString Registry { get; internal set; }
+    public PdfString? Registry { get; internal set; }
 
     /// <summary>
     /// The ordering name specifying the character collection (e.g., "GB1", "CNS1").
     /// </summary>
-    public PdfString Ordering { get; internal set; }
+    public PdfString? Ordering { get; internal set; }
 
     /// <summary>
     /// The supplement number indicating the version of the character collection.

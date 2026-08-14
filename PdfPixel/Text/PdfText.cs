@@ -30,14 +30,14 @@ namespace PdfPixel.Text
         /// </summary>
         public static PdfText FromOperand(IPdfValue operand)
         {
-            ReadOnlyMemory<byte> bytes = operand.AsStringBytes();
+            PdfString? value = operand.AsString();
 
-            if (bytes.IsEmpty)
+            if (value == null || value.Value.IsEmpty)
             {
                 return default;
             }
 
-            return new PdfText(bytes);
+            return new PdfText(value.Value.Value);
         }
 
         /// <inheritdoc/>

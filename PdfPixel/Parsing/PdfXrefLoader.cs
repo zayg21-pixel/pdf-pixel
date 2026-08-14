@@ -154,8 +154,7 @@ internal sealed class PdfXrefLoader
             // Trailer detection.
             if (firstValue.Type == PdfValueType.Operator)
             {
-                PdfString op = firstValue.AsString();
-                if (!op.IsEmpty && op == PdfTokens.Trailer)
+                if (firstValue.AsString() == PdfTokens.Trailer)
                 {
                     IPdfValue? dictValue = parser.ReadNextValue();
                     PdfDictionary? trailerDict = dictValue?.AsDictionary();
@@ -225,15 +224,15 @@ internal sealed class PdfXrefLoader
 
         var offsetValue = (uint)parser.ReadNextValue().AsInteger();
         int generation = parser.ReadNextValue().AsInteger();
-        PdfString statusString = parser.ReadNextValue().AsString();
+        PdfString? statusString = parser.ReadNextValue().AsString();
 
-        if (statusString.IsEmpty || statusString.Value.Length != 1)
+        if (statusString == null || statusString.Value.Value.Length != 1)
         {
             parser.Position = entryStart;
             return false;
         }
 
-        byte statusByte = statusString.Value.Span[0];
+        byte statusByte = statusString.Value.Value.Span[0];
 
         PdfReference reference = new(objectNumber, generation);
         PdfObjectInfo info;

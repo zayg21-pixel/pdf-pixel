@@ -179,10 +179,10 @@ public sealed class PdfDestination
 
         if (document != null && destination.Type == PdfValueType.String)
         {
-            PdfString destName = destination.AsString();
-            if (document.NamedDestinations != null)
+            PdfString? destName = destination.AsString();
+            if (document.NamedDestinations != null && destName != null)
             {
-                IPdfValue? resolvedDest = document.NamedDestinations.GetValue(destName);
+                IPdfValue? resolvedDest = document.NamedDestinations.GetValue(destName.Value);
 
                 PdfArray? resolvedDestArray = resolvedDest?.AsArray();
                 if (resolvedDestArray != null)
@@ -231,8 +231,7 @@ public sealed class PdfDestination
         var fitType = PdfDestinationFitType.Unknown;
         if (destArray.Count > 1)
         {
-            PdfString fitName = destArray.GetName(1);
-            fitType = fitName.AsEnum<PdfDestinationFitType>();
+            fitType = destArray.GetNameOrDefault(1).AsEnum<PdfDestinationFitType>();
         }
 
         float? left = null;

@@ -83,9 +83,11 @@ internal class PdfContentStreamRenderer
 
         while ((value = parser.ReadNextValue(operandStack)) != null)
         {
-            if (value.Type == PdfValueType.Operator)
+            PdfString? operatorName = (value.Type == PdfValueType.Operator) ? value.AsString() : null;
+
+            if (operatorName != null)
             {
-                string op = value.AsString().ToString();
+                string op = operatorName.Value.ToString();
 
                 try
                 {

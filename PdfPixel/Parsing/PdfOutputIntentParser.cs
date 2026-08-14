@@ -104,9 +104,9 @@ internal sealed class PdfOutputIntentParser
 
             // Determine ranking based on /S (intent subtype) if present.
             // NOTE: PdfTokens does not currently expose a dedicated OutputIntent /S key; /S is generic.
-            PdfString intentName = dict.GetName(PdfTokens.SoftMaskSubtypeKey);
+            PdfString? intentName = dict.GetName(PdfTokens.SoftMaskSubtypeKey);
             int rank = int.MaxValue;
-            if (!intentName.IsEmpty && preferredRank.TryGetValue(intentName, out int r))
+            if (intentName != null && preferredRank.TryGetValue(intentName.Value, out int r))
             {
                 rank = r;
             }

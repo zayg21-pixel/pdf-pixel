@@ -12,11 +12,11 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly PdfString _name;
+    private readonly PdfString? _name;
     private readonly PdfColorSpaceConverter _alternate;
     private readonly PdfFunction? _tintFunction;
 
-    public SeparationColorSpaceConverter(in PdfString name, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
+    public SeparationColorSpaceConverter(PdfString? name, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
     {
         _name = name;
         _alternate = alternate ?? DeviceGrayConverter.Instance;

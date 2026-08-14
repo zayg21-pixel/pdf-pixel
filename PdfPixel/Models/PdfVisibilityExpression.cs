@@ -61,7 +61,7 @@ public sealed class PdfVisibilityExpression
             return null;
         }
 
-        PdfVisibilityExpressionOperator operatorKind = array.GetName(0).AsEnum<PdfVisibilityExpressionOperator>();
+        PdfVisibilityExpressionOperator operatorKind = array.GetNameOrDefault(0).AsEnum<PdfVisibilityExpressionOperator>();
 
         List<PdfVisibilityExpression> operands = new(array.Count - 1);
         for (int index = 1; index < array.Count; index++)

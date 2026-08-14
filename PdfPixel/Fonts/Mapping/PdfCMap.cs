@@ -55,7 +55,7 @@ public class PdfCMap
     /// <summary>
     /// Defined CMap name.
     /// </summary>
-    public PdfString Name { get; internal set; }
+    public PdfString? Name { get; internal set; }
 
     /// <summary>
     /// System info for CID mappings, if applicable.

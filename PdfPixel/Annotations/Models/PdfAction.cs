@@ -48,7 +48,7 @@ public abstract class PdfAction
             return null;
         }
 
-        PdfActionType actionType = actionDictionary.GetName(PdfTokens.SKey).AsEnum<PdfActionType>();
+        PdfActionType actionType = actionDictionary.GetNameOrDefault(PdfTokens.SKey).AsEnum<PdfActionType>();
 
         return actionType switch
         {

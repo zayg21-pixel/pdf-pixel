@@ -163,8 +163,8 @@ internal class MarkedContentOperators : IOperatorProcessor
     {
         PdfTextTag tag = tagName.AsEnum<PdfTextTag>();
 
-        PdfString inlineActualText = default;
-        PdfString inlineLang = default;
+        PdfString? inlineActualText = null;
+        PdfString? inlineLang = null;
         int? mcid = null;
 
         if (propertiesDictionary != null)
@@ -180,7 +180,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             structureElement = _page.Document.StructureTree?.FindByMcid(_page.PageReference, mcid.Value);
         }
 
-        bool hasProperties = !inlineActualText.IsEmpty || !inlineLang.IsEmpty || structureElement != null;
+        bool hasProperties = inlineActualText?.IsEmpty == false || inlineLang?.IsEmpty == false || structureElement != null;
 
         if (tag == PdfTextTag.Custom && !hasProperties)
         {
@@ -196,8 +196,8 @@ internal class MarkedContentOperators : IOperatorProcessor
 
         if (structureElement != null)
         {
-            markup.ActualText = (inlineActualText.IsEmpty) ? structureElement.ActualText : inlineActualText;
-            markup.Lang = (inlineLang.IsEmpty) ? structureElement.Lang : inlineLang;
+            markup.ActualText = (inlineActualText == null || inlineActualText.Value.IsEmpty) ? structureElement.ActualText : inlineActualText;
+            markup.Lang = (inlineLang == null || inlineLang.Value.IsEmpty) ? structureElement.Lang : inlineLang;
             markup.StructureElement = structureElement;
         }
         else

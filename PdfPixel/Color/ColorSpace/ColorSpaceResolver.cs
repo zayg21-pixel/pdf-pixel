@@ -257,9 +257,11 @@ internal sealed partial class ColorSpaceResolver
         if (value.Type == PdfValueType.Array)
         {
             PdfArray? arr = value.AsArray();
-            if (arr?.Count > 0)
+            PdfString? firstName = (arr?.Count > 0) ? arr.GetName(0) : null;
+
+            if (firstName != null)
             {
-                name = arr.GetName(0);
+                name = firstName.Value;
                 return !name.IsEmpty;
             }
         }

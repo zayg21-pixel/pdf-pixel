@@ -14,13 +14,13 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly PdfString[] _componentNames;
+    private readonly PdfString?[] _componentNames;
     private readonly PdfColorSpaceConverter _alternate;
     private readonly PdfFunction? _tintFunction;
 
-    public DeviceNColorSpaceConverter(PdfString[]? componentNames, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
+    public DeviceNColorSpaceConverter(PdfString?[]? componentNames, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
     {
-        _componentNames = componentNames ?? Array.Empty<PdfString>();
+        _componentNames = componentNames ?? Array.Empty<PdfString?>();
         _alternate = alternate ?? DeviceRgbConverter.Instance;
         _tintFunction = tintFunction;
     }

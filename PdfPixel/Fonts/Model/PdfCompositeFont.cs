@@ -77,7 +77,7 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// CMap name from /Encoding entry (either predefined name or name from embedded CMap).
     /// </summary>
-    public PdfString CMapName { get; }
+    public PdfString? CMapName { get; }
 
     /// <summary>
     /// Get character width (delegated to appropriate descendant CID font by CID).
@@ -176,13 +176,13 @@ public class PdfCompositeFont : PdfFontBase
     /// Load an embedded /Encoding CMap stream (if present) into a code->CID map.
     /// Returns null if /Encoding is a name or if parsing fails.
     /// </summary>
-    private (PdfCMap? CMap, PdfString CMapName) LoadCodeToCidCMap()
+    private (PdfCMap? CMap, PdfString? CMapName) LoadCodeToCidCMap()
     {
-        PdfString predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
+        PdfString? predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
 
-        if (!predefinedName.IsEmpty)
+        if (predefinedName != null)
         {
-            return (Document.CMapCache.GetCmap(predefinedName), predefinedName);
+            return (Document.CMapCache.GetCmap(predefinedName.Value), predefinedName);
         }
 
         PdfObject? encodingObject = Dictionary.GetObject(PdfTokens.EncodingKey);
@@ -245,8 +245,8 @@ public class PdfCompositeFont : PdfFontBase
     {
         MergeUseCMap(cmapDictionary, cmap, useCMapDepth);
 
-        PdfString cmapName = cmapDictionary.GetName(PdfTokens.CMapNameKey);
-        if (!cmapName.IsEmpty)
+        PdfString? cmapName = cmapDictionary.GetName(PdfTokens.CMapNameKey);
+        if (cmapName != null)
         {
             cmap.Name = cmapName;
         }
@@ -281,10 +281,10 @@ public class PdfCompositeFont : PdfFontBase
             return;
         }
 
-        PdfString useCMapName = cmapDictionary.GetName(PdfTokens.UseCMapKey);
-        if (!useCMapName.IsEmpty)
+        PdfString? useCMapName = cmapDictionary.GetName(PdfTokens.UseCMapKey);
+        if (useCMapName != null)
         {
-            PdfCMap? predefinedCMap = Document.CMapCache.GetCmap(useCMapName);
+            PdfCMap? predefinedCMap = Document.CMapCache.GetCmap(useCMapName.Value);
             if (predefinedCMap != null)
             {
                 cmap.MergeFrom(predefinedCMap);

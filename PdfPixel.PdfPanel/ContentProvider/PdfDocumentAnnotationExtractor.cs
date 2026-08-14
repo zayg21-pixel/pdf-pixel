@@ -128,14 +128,19 @@ internal static class PdfDocumentAnnotationExtractor
     /// </summary>
     private static PdfAnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation)
     {
-        string title = annotation.Title.DecodePdfString();
-        string contents = annotation.Contents.DecodePdfString();
+        if (annotation.Contents == null)
+        {
+            return null;
+        }
+
+        string contents = annotation.Contents.Value.DecodePdfString();
 
         if (string.IsNullOrEmpty(contents))
         {
             return null;
         }
 
+        string? title = annotation.Title?.DecodePdfString();
         string? messageTitle = (!string.IsNullOrEmpty(title)) ? title : null;
         DateTimeOffset? messageDate = (annotation.CreationDate.HasValue) ? new DateTimeOffset(annotation.CreationDate.Value) : (DateTimeOffset?)null;
 
@@ -182,13 +187,13 @@ internal static class PdfDocumentAnnotationExtractor
             };
         }
 
-        if (link.Action is PdfUriAction uriAction && !uriAction.Uri.IsEmpty)
+        if (link.Action is PdfUriAction uriAction && uriAction.Uri?.IsEmpty == false)
         {
             return new PdfAnnotationNavigation
             {
                 NavigationType = PdfAnnotationNavigationType.Uri,
                 CursorType = link.CursorType,
-                Uri = uriAction.Uri.ToString()
+                Uri = uriAction.Uri.Value.ToString()
             };
         }
 

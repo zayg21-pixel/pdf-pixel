@@ -89,20 +89,20 @@ public class PdfChoiceFormField : PdfFormField
         for (int i = 0; i < Options.Count; i++)
         {
             IPdfValue? option = Options.GetValue(i);
-            if (option != null && option.Type == PdfValueType.String)
+            PdfString? optionText = (option?.Type == PdfValueType.String) ? option.AsString() : null;
+
+            if (optionText != null)
             {
-                yield return option.AsString().ToString();
+                yield return optionText.Value.ToString();
             }
             else if (option != null && option.Type == PdfValueType.Array)
             {
                 PdfArray? optionArray = option.AsArray();
-                if (optionArray?.Count >= 2)
+                PdfString? displayText = (optionArray?.Count >= 2) ? optionArray.GetString(1) : null;
+
+                if (displayText?.IsEmpty == false)
                 {
-                    PdfString displayText = optionArray.GetString(1);
-                    if (!displayText.IsEmpty)
-                    {
-                        yield return displayText.ToString();
-                    }
+                    yield return displayText.Value.ToString();
                 }
             }
         }
@@ -121,7 +121,12 @@ public class PdfChoiceFormField : PdfFormField
 
         if (Value.Type == PdfValueType.String)
         {
-            yield return Value.AsString().ToString();
+            PdfString? selectedValue = Value.AsString();
+
+            if (selectedValue != null)
+            {
+                yield return selectedValue.Value.ToString();
+            }
         }
         else if (Value.Type == PdfValueType.Array)
         {
@@ -131,9 +136,11 @@ public class PdfChoiceFormField : PdfFormField
                 for (int i = 0; i < valueArray.Count; i++)
                 {
                     IPdfValue? item = valueArray.GetValue(i);
-                    if (item != null && item.Type == PdfValueType.String)
+                    PdfString? itemValue = (item?.Type == PdfValueType.String) ? item.AsString() : null;
+
+                    if (itemValue != null)
                     {
-                        yield return item.AsString().ToString();
+                        yield return itemValue.Value.ToString();
                     }
                 }
             }

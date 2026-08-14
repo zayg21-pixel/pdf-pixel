@@ -24,7 +24,7 @@ public class PdfCaretAnnotation : PdfAnnotationBase
     public PdfCaretAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Caret)
     {
-        Symbol = annotationObject.Dictionary.GetName(PdfTokens.SymbolKey).AsEnum<PdfCaretSymbol>();
+        Symbol = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.SymbolKey).AsEnum<PdfCaretSymbol>();
 
         RectangleDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         MarkRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);

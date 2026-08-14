@@ -169,7 +169,7 @@ public sealed class PdfStreamDecoder
             {
                 for (int index = 0; index < filterArray.Count; index++)
                 {
-                    PdfFilterType filterType = filterArray.GetName(index).AsEnum<PdfFilterType>();
+                    PdfFilterType filterType = filterArray.GetNameOrDefault(index).AsEnum<PdfFilterType>();
                     filters.Add(filterType);
                 }
             }

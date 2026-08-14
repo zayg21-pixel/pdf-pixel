@@ -23,7 +23,7 @@ public class PdfGoToRemoteAction : PdfAction
     /// <summary>
     /// Gets the file specification for the remote document.
     /// </summary>
-    public PdfString FileSpecification { get; }
+    public PdfString? FileSpecification { get; }
 
     /// <summary>
     /// Gets the parsed destination in the remote document.

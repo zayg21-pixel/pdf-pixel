@@ -37,32 +37,32 @@ public sealed class PdfStructureElement
     /// <summary>
     /// Language tag (/Lang), or empty if not specified.
     /// </summary>
-    public PdfString Lang { get; internal set; }
+    public PdfString? Lang { get; internal set; }
 
     /// <summary>
     /// Replacement text (/ActualText), or empty if not specified.
     /// </summary>
-    public PdfString ActualText { get; internal set; }
+    public PdfString? ActualText { get; internal set; }
 
     /// <summary>
     /// Alternative text (/Alt), or empty if not specified.
     /// </summary>
-    public PdfString Alt { get; internal set; }
+    public PdfString? Alt { get; internal set; }
 
     /// <summary>
     /// Element identifier (/ID), or empty if not specified.
     /// </summary>
-    public PdfString Id { get; internal set; }
+    public PdfString? Id { get; internal set; }
 
     /// <summary>
     /// Expanded form of an abbreviation (/E), or empty if not specified.
     /// </summary>
-    public PdfString ExpandedForm { get; internal set; }
+    public PdfString? ExpandedForm { get; internal set; }
 
     /// <summary>
     /// Title (/T), or empty if not specified.
     /// </summary>
-    public PdfString Title { get; internal set; }
+    public PdfString? Title { get; internal set; }
 
     /// <summary>
     /// Revision number (/R), or <see langword="null"/> if not specified.
@@ -108,8 +108,8 @@ public sealed class PdfStructureElement
     /// </summary>
     internal static PdfStructureElement? FromDictionary(PdfDictionary dictionary, IPdfDocumentInternal document)
     {
-        PdfString tag = dictionary.GetName(PdfTokens.GroupSubtypeKey);
-        if (tag.IsEmpty)
+        PdfString? tag = dictionary.GetName(PdfTokens.GroupSubtypeKey);
+        if (tag == null || tag.Value.IsEmpty)
         {
             return null;
         }
@@ -118,7 +118,7 @@ public sealed class PdfStructureElement
         PdfStructureElement element = new(document)
         {
             PageReference = dictionary.GetReference(PdfTokens.PgKey),
-            Tag = tag,
+            Tag = tag.Value,
             Lang = dictionary.GetString(PdfTokens.LangKey),
             ActualText = dictionary.GetString(PdfTokens.ActualTextKey),
             Alt = dictionary.GetString(PdfTokens.AltKey),

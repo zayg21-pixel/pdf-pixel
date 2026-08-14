@@ -38,7 +38,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// Valid values: N (None), I (Invert), O (Outline), P (Push), T (Toggle).
     /// Default is I (Invert).
     /// </remarks>
-    public PdfString HighlightMode { get; }
+    public PdfString? HighlightMode { get; }
 
     /// <summary>
     /// Gets the appearance characteristics dictionary.
@@ -117,10 +117,9 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     {
         if (Field != null)
         {
-            string fieldName = Field.PartialName.ToString();
-            if (!string.IsNullOrEmpty(fieldName))
+            if (Field.PartialName?.IsEmpty == false)
             {
-                return $"Widget Annotation: {fieldName} ({Field.FieldType})";
+                return $"Widget Annotation: {Field.PartialName} ({Field.FieldType})";
             }
 
             return $"Widget Annotation: {Field.FieldType}";
@@ -286,9 +285,8 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     private static PdfFormField? ResolveField(PdfObject annotationObject)
     {
         PdfDictionary dictionary = annotationObject.Dictionary;
-        PdfString fieldType = dictionary.GetName(PdfTokens.FieldTypeKey);
 
-        if (!fieldType.IsEmpty)
+        if (dictionary.GetName(PdfTokens.FieldTypeKey) != null)
         {
             return PdfFormFieldFactory.CreateField(annotationObject);
         }

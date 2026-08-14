@@ -32,7 +32,7 @@ internal static class CmapSourceParser
         foreach (string filePath in allFiles)
         {
             PdfCMap? cmap = ParseFile(filePath, resolver, resolverCache, loggerFactory);
-            if (cmap != null && !cmap.Name.IsEmpty)
+            if (cmap != null && cmap.Name?.IsEmpty == false)
             {
                 result.Add(cmap);
             }
@@ -70,7 +70,7 @@ internal static class CmapSourceParser
             dependency => ResolveUseCmap(dependency.ToString(), resolver, resolverCache, loggerFactory)
         );
 
-        if (cmap == null || cmap.Name.IsEmpty)
+        if (cmap == null || cmap.Name?.IsEmpty != false)
         {
             Console.WriteLine($"    -> skipped (null or empty name)");
         }

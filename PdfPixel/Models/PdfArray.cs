@@ -59,33 +59,30 @@ public class PdfArray
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The <see cref="PdfString"/> if the value is a name; otherwise, <c>null</c>.</returns>
-    public PdfString GetName(int index)
-    {
-        IPdfValue? value = GetValue(index);
-        if (value == null)
-        {
-            return default;
-        }
+    public PdfString? GetName(int index) => GetValue(index).AsName();
 
-        return value.AsName() ?? default;
-    }
+    /// <summary>
+    /// Gets a name value (e.g. <c>/Subtype</c>) at the specified index.
+    /// Returns an empty <see cref="PdfString"/> if the value is missing or not a name.
+    /// </summary>
+    /// <param name="index">The zero-based index of the value to retrieve.</param>
+    /// <returns>The <see cref="PdfString"/> if the value is a name; otherwise, an empty <see cref="PdfString"/>.</returns>
+    public PdfString GetNameOrDefault(int index) => GetName(index) ?? PdfString.Empty;
 
     /// <summary>
     /// Gets a string value at the specified index (text, hex, or name coerced).
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The <see cref="PdfString"/> if the value is string-like; otherwise, <c>null</c>.</returns>
-    public PdfString GetString(int index)
-    {
-        IPdfValue? value = GetValue(index);
+    public PdfString? GetString(int index) => GetValue(index).AsString();
 
-        if (value == null)
-        {
-            return default;
-        }
-
-        return value.AsString();
-    }
+    /// <summary>
+    /// Gets a string value at the specified index (text, hex, or name coerced).
+    /// Returns an empty <see cref="PdfString"/> if the value is missing or not string-like.
+    /// </summary>
+    /// <param name="index">The zero-based index of the value to retrieve.</param>
+    /// <returns>The <see cref="PdfString"/> if the value is string-like; otherwise, an empty <see cref="PdfString"/>.</returns>
+    public PdfString GetStringOrDefault(int index) => GetString(index) ?? PdfString.Empty;
 
     /// <summary>
     /// Gets an integer value at the specified index, or <c>null</c> if the value is not numeric.

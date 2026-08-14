@@ -24,7 +24,7 @@ internal static class PdfAnnotationBorderParser
         if (borderStyleDictionary != null)
         {
             float width = borderStyleDictionary.GetFloat(PdfTokens.WKey) ?? 1.0f;
-            PdfAnnotationBorderStyleType style = borderStyleDictionary.GetName(PdfTokens.SKey).AsEnum<PdfAnnotationBorderStyleType>();
+            PdfAnnotationBorderStyleType style = borderStyleDictionary.GetNameOrDefault(PdfTokens.SKey).AsEnum<PdfAnnotationBorderStyleType>();
 
             float[]? dashPattern = null;
             PdfArray? dashArray = borderStyleDictionary.GetArray(PdfTokens.DashArrayKey);
@@ -74,7 +74,7 @@ internal static class PdfAnnotationBorderParser
         }
 
         return new PdfAnnotationBorderEffect(
-            borderEffectDictionary.GetName(PdfTokens.SKey).AsEnum<PdfAnnotationBorderEffectType>(),
+            borderEffectDictionary.GetNameOrDefault(PdfTokens.SKey).AsEnum<PdfAnnotationBorderEffectType>(),
             borderEffectDictionary.GetFloat(PdfTokens.IntensityKey) ?? 0f);
     }
 }

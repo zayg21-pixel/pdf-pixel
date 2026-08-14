@@ -43,7 +43,7 @@ public class PdfXObject
             throw new ArgumentNullException(nameof(sourceObject));
         }
 
-        PdfXObjectSubtype subtype = sourceObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
+        PdfXObjectSubtype subtype = sourceObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
         PdfOptionalContentMembership? optionalContent = PdfOptionalContentMembership.FromDictionary(sourceObject.Dictionary);
 
         return new PdfXObject(sourceObject, subtype, optionalContent);

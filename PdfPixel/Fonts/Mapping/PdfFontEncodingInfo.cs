@@ -15,11 +15,11 @@ public class PdfFontEncodingInfo
     /// Initializes a new <see cref="PdfFontEncodingInfo"/> instance with the specified base encoding, optional custom encoding name, and optional differences.
     /// </summary>
     /// <param name="encoding">The resolved base encoding, or <see cref="PdfEncoding.Unknown"/> when not present in the font dictionary.</param>
-    /// <param name="customEncoding">The raw encoding name for custom or unrecognised encodings; empty when a standard encoding is used.</param>
+    /// <param name="customEncoding">The raw encoding name for custom or unrecognised encodings; <see langword="null"/> when the font dictionary names no encoding.</param>
     /// <param name="differences">
     /// A map from character code to glyph name representing the /Differences array; may be <see langword="null"/>, in which case an empty dictionary is used.
     /// </param>
-    public PdfFontEncodingInfo(PdfEncoding encoding, in PdfString customEncoding, Dictionary<int, PdfString>? differences)
+    public PdfFontEncodingInfo(PdfEncoding encoding, PdfString? customEncoding, Dictionary<int, PdfString>? differences)
     {
         BaseEncoding = encoding;
         CustomEncoding = customEncoding;
@@ -34,7 +34,7 @@ public class PdfFontEncodingInfo
     /// <summary>
     /// Custom encoding name (when Encoding == Custom). For name-based encodings not recognized.
     /// </summary>
-    public PdfString CustomEncoding { get; }
+    public PdfString? CustomEncoding { get; }
 
     /// <summary>
     /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.

@@ -27,7 +27,7 @@ public static class PdfAnnotationFactory
         }
 
         // Get the annotation subtype and convert to enum
-        PdfAnnotationSubType subtype = annotationObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfAnnotationSubType>();
+        PdfAnnotationSubType subtype = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfAnnotationSubType>();
 
         // Create specific annotation types based on subtype
         return subtype switch
@@ -67,14 +67,13 @@ public static class PdfAnnotationFactory
         }
 
         // Check if the Type is /Annot
-        PdfString type = pdfObject.Dictionary.GetName(PdfTokens.TypeKey);
-        if (!type.IsEmpty && type == PdfTokens.AnnotationKey)
+        if (pdfObject.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.AnnotationKey)
         {
             return true;
         }
 
         // Some annotations might not have the Type field set, so check for Subtype
-        PdfAnnotationSubType subtype = pdfObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfAnnotationSubType>();
+        PdfAnnotationSubType subtype = pdfObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfAnnotationSubType>();
         return subtype != PdfAnnotationSubType.Unknown;
     }
 }

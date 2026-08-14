@@ -85,7 +85,7 @@ namespace PdfPixel.Encryption
             EnsureFileKey();
 
             // Choose CF method and length override
-            PdfString method = useStreamPath ? Parameters.StreamCryptFilterMethod : Parameters.StringCryptFilterMethod;
+            PdfString? method = useStreamPath ? Parameters.StreamCryptFilterMethod : Parameters.StringCryptFilterMethod;
             int? overrideLenBytes = useStreamPath ? Parameters.StreamCryptFilterLength : Parameters.StringCryptFilterLength;
             bool useAes = method == PdfTokens.AESV2;
 

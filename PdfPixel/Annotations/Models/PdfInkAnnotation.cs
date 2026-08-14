@@ -176,12 +176,11 @@ public class PdfInkAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type and path count.</returns>
     public override string ToString()
     {
-        string contentsText = Contents.ToString();
         int pathCount = InkList?.Length ?? 0;
 
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"Ink Annotation ({pathCount} paths): {contentsText}";
+            return $"Ink Annotation ({pathCount} paths): {Contents}";
         }
 
         return $"Ink Annotation ({pathCount} paths)";

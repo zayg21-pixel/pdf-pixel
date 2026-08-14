@@ -54,7 +54,7 @@ internal sealed class PdfXrefRecoveryScanner
                 _document.ObjectCache.SetObjectOffset(obj.Reference, objectStart);
                 objectsFound++;
 
-                PdfString typeName = obj.Dictionary.GetName(PdfTokens.TypeKey);
+                PdfString? typeName = obj.Dictionary.GetName(PdfTokens.TypeKey);
                 if (typeName == PdfTokens.CatalogKey)
                 {
                     catalogReference = obj.Reference;

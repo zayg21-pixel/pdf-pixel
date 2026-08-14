@@ -54,7 +54,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// The fully qualified field name is constructed by concatenating the partial names
     /// of all ancestors, separated by periods.
     /// </remarks>
-    public PdfString PartialName { get; }
+    public PdfString? PartialName { get; }
 
     /// <summary>
     /// Gets the alternate field name for user interface purposes.
@@ -62,12 +62,12 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <remarks>
     /// This is the name displayed to the user in tooltips or dialogs.
     /// </remarks>
-    public PdfString AlternateName { get; }
+    public PdfString? AlternateName { get; }
 
     /// <summary>
     /// Gets the mapping name for export operations.
     /// </summary>
-    public PdfString MappingName { get; }
+    public PdfString? MappingName { get; }
 
     /// <summary>
     /// Gets the field flags.
@@ -101,7 +101,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <remarks>
     /// Contains instructions for generating the field's appearance, including font, size, and color.
     /// </remarks>
-    public PdfString DefaultAppearance { get; }
+    public PdfString? DefaultAppearance { get; }
 
     /// <summary>
     /// Gets the quadding (text alignment) value.
@@ -124,8 +124,8 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <summary>
     /// Gets the fully qualified field name.
     /// </summary>
-    /// <returns>The fully qualified field name.</returns>
-    public virtual string GetFullyQualifiedName() => PartialName.ToString();
+    /// <returns>The fully qualified field name, or <c>null</c> when the field carries no partial name.</returns>
+    public virtual string? GetFullyQualifiedName() => PartialName?.ToString();
 
     /// <summary>
     /// Handles mouse down event on the form field.

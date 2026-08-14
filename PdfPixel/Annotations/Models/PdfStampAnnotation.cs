@@ -37,7 +37,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
     public PdfStampAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Stamp)
     {
-        StampName = annotationObject.Dictionary.GetName(PdfTokens.NameKey).AsEnum<PdfStampName>();
+        StampName = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfStampName>();
     }
 
     /// <summary>
@@ -122,7 +122,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         processor.Process(new DrawShapedTextCommand(textMatrix, glyphs.ToArray(), textPaint));
     }
 
-    private static string GetLabelText(PdfStampName stampName, in PdfString rawName)
+    private static string GetLabelText(PdfStampName stampName, PdfString? rawName)
     {
         return stampName switch
         {
@@ -140,7 +140,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
             PdfStampName.NotForPublicRelease => "NOT FOR PUBLIC RELEASE",
             PdfStampName.Sold => "SOLD",
             PdfStampName.TopSecret => "TOP SECRET",
-            _ => (rawName.IsEmpty) ? "STAMP" : rawName.ToString().ToUpperInvariant()
+            _ => (rawName == null || rawName.Value.IsEmpty) ? "STAMP" : rawName.Value.ToString().ToUpperInvariant()
         };
     }
 

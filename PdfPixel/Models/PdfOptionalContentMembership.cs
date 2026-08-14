@@ -60,7 +60,7 @@ public class PdfOptionalContentMembership
     internal static PdfOptionalContentMembership? FromOptionalContentObject(PdfObject optionalContentObject)
     {
         PdfOptionalContentType type = optionalContentObject.Dictionary
-            .GetName(PdfTokens.TypeKey)
+            .GetNameOrDefault(PdfTokens.TypeKey)
             .AsEnum<PdfOptionalContentType>();
 
         if (type == PdfOptionalContentType.Membership)
@@ -77,7 +77,7 @@ public class PdfOptionalContentMembership
     private static PdfOptionalContentMembership FromMembershipDictionary(PdfDictionary membershipDictionary)
     {
         PdfOptionalContentVisibilityPolicy policy = membershipDictionary
-            .GetName(PdfTokens.VisibilityPolicyKey)
+            .GetNameOrDefault(PdfTokens.VisibilityPolicyKey)
             .AsEnum<PdfOptionalContentVisibilityPolicy>();
 
         PdfArray? visibilityExpressionArray = membershipDictionary.GetArray(PdfTokens.VisibilityExpressionKey);

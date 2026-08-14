@@ -19,12 +19,12 @@ internal static class CmapClustering
         foreach (PdfCMap cmap in cmaps)
         {
             Dictionary<byte, Dictionary<uint, int>> signature = BuildCMapSignature(cmap);
-            if (signature.Count == 0)
+            if (signature.Count == 0 || cmap.Name == null)
             {
                 continue;
             }
 
-            signatures[cmap.Name.ToString()] = signature;
+            signatures[cmap.Name.Value.ToString()] = signature;
         }
 
         return signatures;

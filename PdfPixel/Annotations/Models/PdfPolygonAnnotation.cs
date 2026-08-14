@@ -132,11 +132,9 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        string contentsText = Contents.ToString();
-
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"Polygon Annotation: {contentsText}";
+            return $"Polygon Annotation: {Contents}";
         }
 
         return "Polygon Annotation";

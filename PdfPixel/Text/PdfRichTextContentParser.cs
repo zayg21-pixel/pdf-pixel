@@ -15,24 +15,24 @@ internal static class PdfRichTextContentParser
     /// Converts rich text markup into plain text by discarding all tags and attributes.
     /// </summary>
     /// <param name="richText">The rich text markup to convert.</param>
-    /// <returns>The plain text content, or an empty <see cref="PdfString"/> when <paramref name="richText"/> has no text content.</returns>
-    public static PdfString ExtractPlainText(in PdfString richText)
+    /// <returns>The plain text content, or <c>null</c> when <paramref name="richText"/> is absent or is not valid markup.</returns>
+    public static PdfString? ExtractPlainText(PdfString? richText)
     {
-        if (richText.IsEmpty)
+        if (richText == null || richText.Value.IsEmpty)
         {
-            return PdfString.Empty;
+            return null;
         }
 
         try
         {
-            var document = XDocument.Parse(richText.ToString(), LoadOptions.None);
+            var document = XDocument.Parse(richText.Value.ToString(), LoadOptions.None);
             StringBuilder builder = new();
             AppendText(document.Root, builder);
             return (PdfString)builder.ToString().Trim();
         }
         catch (Exception exception) when (exception is System.Xml.XmlException or ArgumentException)
         {
-            return PdfString.Empty;
+            return null;
         }
     }
 

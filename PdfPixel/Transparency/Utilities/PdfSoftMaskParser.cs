@@ -16,7 +16,7 @@ internal static class PdfSoftMaskParser
         }
 
         PdfSoftMask softMask = new();
-        softMask.Subtype = softMaskDict.GetName(PdfTokens.SoftMaskSubtypeKey).AsEnum<PdfSoftMaskSubtype>();
+        softMask.Subtype = softMaskDict.GetNameOrDefault(PdfTokens.SoftMaskSubtypeKey).AsEnum<PdfSoftMaskSubtype>();
 
         PdfObject? groupObject = softMaskDict.GetObject(PdfTokens.SoftMaskGroupKey);
         if (groupObject == null)
@@ -51,8 +51,7 @@ internal static class PdfSoftMaskParser
         }
 
         PdfTransparencyGroup group = new();
-        PdfString subtype = groupDict.GetName(PdfTokens.GroupSubtypeKey);
-        if (subtype != PdfTokens.TransparencyGroupValue)
+        if (groupDict.GetName(PdfTokens.GroupSubtypeKey) != PdfTokens.TransparencyGroupValue)
         {
             return null;
         }

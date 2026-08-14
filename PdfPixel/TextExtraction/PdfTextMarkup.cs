@@ -24,17 +24,17 @@ public class PdfTextMarkup
     /// <summary>
     /// Raw tag name when <see cref="Tag"/> is <see cref="PdfTextTag.Custom"/>.
     /// </summary>
-    public PdfString CustomTag { get; internal set; }
+    public PdfString? CustomTag { get; internal set; }
 
     /// <summary>
     /// Replacement text for ligatures or decorative glyphs (/ActualText).
     /// </summary>
-    public PdfString ActualText { get; internal set; }
+    public PdfString? ActualText { get; internal set; }
 
     /// <summary>
     /// Language tag (/Lang).
     /// </summary>
-    public PdfString Lang { get; internal set; }
+    public PdfString? Lang { get; internal set; }
 
     /// <summary>
     /// Whether this scope is an artifact (non-logical content to exclude from selection).

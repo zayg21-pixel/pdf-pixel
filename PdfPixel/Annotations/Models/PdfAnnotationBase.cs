@@ -41,21 +41,24 @@ public abstract class PdfAnnotationBase
         Rectangle = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? PdfRectangle.Empty;
         RichContents = annotationObject.Dictionary.GetString(PdfTokens.RichContentsKey);
 
-        PdfString contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
-        Contents = (contents.IsEmpty)
-            ? PdfRichTextContentParser.ExtractPlainText(RichContents)
-            : contents;
-        Name = annotationObject.Dictionary.GetString(PdfTokens.NameKey);
+        PdfString? contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
 
-        PdfString modDateString = annotationObject.Dictionary.GetString(PdfTokens.ModificationDateKey);
-        ModificationDate = PdfDateParser.ParsePdfDate(modDateString);
+        if (contents == null || contents.Value.IsEmpty)
+        {
+            Contents = PdfRichTextContentParser.ExtractPlainText(RichContents);
+        }
+        else
+        {
+            Contents = contents;
+        }
+
+        Name = annotationObject.Dictionary.GetString(PdfTokens.NameKey);
+        ModificationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.ModificationDateKey));
 
         // Parse additional annotation metadata
         Title = annotationObject.Dictionary.GetString(PdfTokens.TitleKey);
         Subject = annotationObject.Dictionary.GetString(PdfTokens.SubjectKey);
-
-        PdfString creationDateString = annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey);
-        CreationDate = PdfDateParser.ParsePdfDate(creationDateString);
+        CreationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey));
 
         Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
         AppearanceDictionary = annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey);
@@ -72,7 +75,7 @@ public abstract class PdfAnnotationBase
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
         Popup = annotationObject.Dictionary.GetReference(PdfTokens.PopupKey);
         InReplyTo = annotationObject.Dictionary.GetReference(PdfTokens.InReplyToKey);
-        ReplyType = annotationObject.Dictionary.GetName(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
+        ReplyType = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
         SupportedVisualStates = DetectSupportedVisualStates();
     }
 
@@ -109,7 +112,7 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Gets whether this annotation carries text to show in a pop-up window.
     /// </summary>
-    public virtual bool HasPopupContent => !Contents.Value.IsEmpty || !RichContents.Value.IsEmpty;
+    public virtual bool HasPopupContent => Contents?.IsEmpty == false || RichContents?.IsEmpty == false;
 
     /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
@@ -148,19 +151,19 @@ public abstract class PdfAnnotationBase
     /// Gets the annotation's contents, which is typically the text displayed
     /// for the annotation or associated with it.
     /// </summary>
-    public PdfString Contents { get; }
+    public PdfString? Contents { get; }
 
     /// <summary>
     /// Gets the annotation's rich text contents (the RC entry), an XHTML-subset
     /// markup representation of <see cref="Contents"/>.
     /// </summary>
-    public PdfString RichContents { get; }
+    public PdfString? RichContents { get; }
 
     /// <summary>
     /// Gets the annotation's name, a text string uniquely identifying it among
     /// all the annotations on its page.
     /// </summary>
-    public PdfString Name { get; }
+    public PdfString? Name { get; }
 
     /// <summary>
     /// Gets the annotation title/author.
@@ -168,7 +171,7 @@ public abstract class PdfAnnotationBase
     /// <remarks>
     /// The title is typically used to identify the author or creator of the annotation.
     /// </remarks>
-    public PdfString Title { get; }
+    public PdfString? Title { get; }
 
     /// <summary>
     /// Gets the annotation subject.
@@ -176,7 +179,7 @@ public abstract class PdfAnnotationBase
     /// <remarks>
     /// The subject represents a short description of the subject being addressed by the annotation.
     /// </remarks>
-    public PdfString Subject { get; }
+    public PdfString? Subject { get; }
 
     /// <summary>
     /// Gets the creation date of the annotation.
@@ -213,7 +216,7 @@ public abstract class PdfAnnotationBase
     /// Gets the appearance state that, along with the appearance dictionary, controls
     /// the annotation's appearance.
     /// </summary>
-    public PdfString AppearanceState { get; }
+    public PdfString? AppearanceState { get; }
 
     /// <summary>
     /// Gets the border style dictionary that specifies the characteristics of the annotation's border.
@@ -517,17 +520,14 @@ public abstract class PdfAnnotationBase
     /// <returns>A string containing the annotation subtype and basic information.</returns>
     public override string ToString()
     {
-        string contentsText = Contents.ToString();
-        string nameText = Name.ToString();
-
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"{Subtype} Annotation: {contentsText}";
+            return $"{Subtype} Annotation: {Contents}";
         }
 
-        if (!string.IsNullOrEmpty(nameText))
+        if (Name?.IsEmpty == false)
         {
-            return $"{Subtype} Annotation: {nameText}";
+            return $"{Subtype} Annotation: {Name}";
         }
 
         return $"{Subtype} Annotation";

@@ -41,8 +41,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
             EmbeddedFileObject ??= FileSpec.GetObject(PdfTokens.EFKey);
         }
 
-        PdfString nameValue = annotationObject.Dictionary.GetName(PdfTokens.NameKey);
-        Icon = nameValue.AsEnum<PdfFileAttachmentIcon>();
+        Icon = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfFileAttachmentIcon>();
 
         // TODO: [LOW] complete FileSpec object parsing
     }
@@ -66,7 +65,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     /// <summary>
     /// The original file name of the attached file, if present.
     /// </summary>
-    public PdfString FileName { get; }
+    public PdfString? FileName { get; }
 
     /// <summary>
     /// The PDF object that contains the embedded file stream, if available.
@@ -94,7 +93,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     /// <inheritdoc/>
     public override string ToString()
     {
-        if (!FileName.IsEmpty)
+        if (FileName?.IsEmpty == false)
         {
             return $"FileAttachment: {FileName}";
         }

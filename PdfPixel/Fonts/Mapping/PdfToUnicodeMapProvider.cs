@@ -63,7 +63,12 @@ public static class PdfToUnicodeMapProvider
             return null;
         }
 
-        ReadOnlySpan<byte> ordering = cidSystemInfo.Ordering.Value.Span;
+        if (cidSystemInfo.Ordering == null)
+        {
+            return null;
+        }
+
+        ReadOnlySpan<byte> ordering = cidSystemInfo.Ordering.Value.Value.Span;
 
         ReadOnlySpan<byte> japanPrefix = "Japan"u8;
         if (ordering.Length >= japanPrefix.Length && ordering.Slice(0, japanPrefix.Length).SequenceEqual(japanPrefix))

@@ -48,8 +48,12 @@ namespace PdfPixel.Color.ColorSpace
                 }
                 else
                 {
-                    IPdfValue lookupValue = lookupObject.Value;
-                    lookupTableBytes = lookupValue.AsStringBytes().ToArray();
+                    PdfString? lookupString = lookupObject.Value.AsString();
+
+                    if (lookupString != null)
+                    {
+                        lookupTableBytes = lookupString.Value.Value.ToArray();
+                    }
                 }
             }
 
@@ -69,7 +73,7 @@ namespace PdfPixel.Color.ColorSpace
                 return null;
             }
 
-            PdfString colorantName = colorSpaceArray.GetName(1);
+            PdfString? colorantName = colorSpaceArray.GetName(1);
             PdfColorSpaceConverter? alternateConverter = ResolveByValue(colorSpaceArray.GetValue(2));
             PdfFunction? tintFunction = ResolveTintFunction(colorSpaceArray, 3);
             return new SeparationColorSpaceConverter(colorantName, alternateConverter, tintFunction);
@@ -94,7 +98,7 @@ namespace PdfPixel.Color.ColorSpace
                 return null;
             }
 
-            var colorantNames = new PdfString[namesArray.Count];
+            var colorantNames = new PdfString?[namesArray.Count];
             for (int i = 0; i < namesArray.Count; i++)
             {
                 colorantNames[i] = namesArray.GetString(i);

@@ -179,9 +179,11 @@ public class PdfType3Font : PdfSingleByteFont
         PdfRectangle? type3BoundingBox = null;
         while ((value = parser.ReadNextValue()) != null)
         {
-            if (value.Type == PdfValueType.Operator)
+            PdfString? operatorName = (value.Type == PdfValueType.Operator) ? value.AsString() : null;
+
+            if (operatorName != null)
             {
-                string op = value.AsString().ToString();
+                string op = operatorName.Value.ToString();
 
                 switch (op)
                 {

@@ -64,11 +64,10 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     public override string ToString()
     {
         string state = IsOpen ? "Open" : "Closed";
-        string contentsText = Contents.ToString();
 
-        if (!string.IsNullOrEmpty(contentsText))
+        if (Contents?.IsEmpty == false)
         {
-            return $"Popup Annotation ({state}): {contentsText}";
+            return $"Popup Annotation ({state}): {Contents}";
         }
 
         return $"Popup Annotation ({state})";
