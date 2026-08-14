@@ -107,6 +107,7 @@ public class PdfDocumentReader
         try
         {
             document.NamedDestinations = namedDestinationParser.ParseNamedDestinations();
+            // TODO: this is extremely inefficient method, we essentially do NOT NEED to resolve destination unless we want to navigate to it
             pageExtractor.ExtractPages();
 
             PdfOptionalContentGroupParser ocgParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOptionalContentGroupParser>());
@@ -114,6 +115,7 @@ public class PdfDocumentReader
 
             PdfDictionary? structTreeRoot = document.RootObject.Dictionary.GetDictionary(PdfTokens.StructTreeRootKey);
             ((PdfDocument)document).StructureTree = PdfStructureTree.FromDictionary(structTreeRoot, document);
+            // TODO: document structure tree is per page and we don't need to load whole tree at once, this feature is incomplete and need full rework
 
             IccProfile? outputIntentProfile = outputIntentParser.ParseFirstOutputIntentProfile();
             document.ObjectCache.OutputIntentProfile = outputIntentProfile;
