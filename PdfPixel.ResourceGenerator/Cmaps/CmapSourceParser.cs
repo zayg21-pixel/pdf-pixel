@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Models;
 
 namespace PdfPixel.ResourceGenerator.Cmaps;
 
@@ -32,7 +31,7 @@ internal static class CmapSourceParser
         foreach (string filePath in allFiles)
         {
             PdfCMap? cmap = ParseFile(filePath, resolver, resolverCache, loggerFactory);
-            if (cmap != null && cmap.Name?.IsEmpty == false)
+            if (cmap?.Name != null)
             {
                 result.Add(cmap);
             }
@@ -70,7 +69,7 @@ internal static class CmapSourceParser
             dependency => ResolveUseCmap(dependency.ToString(), resolver, resolverCache, loggerFactory)
         );
 
-        if (cmap == null || cmap.Name?.IsEmpty != false)
+        if (cmap?.Name == null)
         {
             Console.WriteLine($"    -> skipped (null or empty name)");
         }

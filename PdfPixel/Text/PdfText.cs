@@ -32,7 +32,7 @@ namespace PdfPixel.Text
         {
             PdfString? value = operand.AsString();
 
-            if (value == null || value.Value.IsEmpty)
+            if (value?.IsEmpty != false)
             {
                 return default;
             }

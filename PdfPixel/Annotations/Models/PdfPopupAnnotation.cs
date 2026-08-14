@@ -65,7 +65,7 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     {
         string state = IsOpen ? "Open" : "Closed";
 
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"Popup Annotation ({state}): {Contents}";
         }

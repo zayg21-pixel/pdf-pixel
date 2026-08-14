@@ -140,7 +140,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
             PdfStampName.NotForPublicRelease => "NOT FOR PUBLIC RELEASE",
             PdfStampName.Sold => "SOLD",
             PdfStampName.TopSecret => "TOP SECRET",
-            _ => (rawName == null || rawName.Value.IsEmpty) ? "STAMP" : rawName.Value.ToString().ToUpperInvariant()
+            _ => (rawName == null) ? "STAMP" : rawName.Value.ToString().ToUpperInvariant()
         };
     }
 

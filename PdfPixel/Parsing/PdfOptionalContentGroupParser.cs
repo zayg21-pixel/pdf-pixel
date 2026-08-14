@@ -55,7 +55,7 @@ internal sealed class PdfOptionalContentGroupParser
             }
 
             PdfString? name = ocgObject.Dictionary.GetString(PdfTokens.NameKey);
-            if (name == null || name.Value.IsEmpty)
+            if (name == null)
             {
                 _logger.LogWarning("OCG {Reference} has no /Name entry; skipping", ocgObject.Reference);
                 continue;

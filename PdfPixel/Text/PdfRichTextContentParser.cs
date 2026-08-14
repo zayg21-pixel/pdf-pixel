@@ -18,7 +18,7 @@ internal static class PdfRichTextContentParser
     /// <returns>The plain text content, or <c>null</c> when <paramref name="richText"/> is absent or is not valid markup.</returns>
     public static PdfString? ExtractPlainText(PdfString? richText)
     {
-        if (richText == null || richText.Value.IsEmpty)
+        if (richText == null)
         {
             return null;
         }

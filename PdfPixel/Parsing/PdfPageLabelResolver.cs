@@ -86,7 +86,7 @@ public class PdfPageLabelResolver
             _ => PdfString.FromString(number.ToString(CultureInfo.CurrentCulture))
         };
         // Concatenate prefix and numStr at the byte level
-        if (prefix == null || prefix.Value.IsEmpty)
+        if (prefix == null)
         {
             return numStr;
         }

@@ -178,7 +178,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
     {
         int pathCount = InkList?.Length ?? 0;
 
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"Ink Annotation ({pathCount} paths): {Contents}";
         }

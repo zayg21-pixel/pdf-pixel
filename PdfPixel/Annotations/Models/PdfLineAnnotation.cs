@@ -186,7 +186,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"Line Annotation: {Contents}";
         }

@@ -43,7 +43,7 @@ public abstract class PdfAnnotationBase
 
         PdfString? contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
 
-        if (contents == null || contents.Value.IsEmpty)
+        if (contents == null)
         {
             Contents = PdfRichTextContentParser.ExtractPlainText(RichContents);
         }
@@ -112,7 +112,7 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Gets whether this annotation carries text to show in a pop-up window.
     /// </summary>
-    public virtual bool HasPopupContent => Contents?.IsEmpty == false || RichContents?.IsEmpty == false;
+    public virtual bool HasPopupContent => Contents != null || RichContents != null;
 
     /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
@@ -520,12 +520,12 @@ public abstract class PdfAnnotationBase
     /// <returns>A string containing the annotation subtype and basic information.</returns>
     public override string ToString()
     {
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"{Subtype} Annotation: {Contents}";
         }
 
-        if (Name?.IsEmpty == false)
+        if (Name != null)
         {
             return $"{Subtype} Annotation: {Name}";
         }

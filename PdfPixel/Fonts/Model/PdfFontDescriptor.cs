@@ -199,7 +199,7 @@ public class PdfFontDescriptor
 
         // PANOSE (string or hex string)
         PdfString? panoseValue = dict.GetValue(PdfTokens.PanoseKey).AsString();
-        if (panoseValue?.IsEmpty == false)
+        if (panoseValue != null)
         {
             descriptor.Panose = panoseValue.Value.Value.ToArray();
         }

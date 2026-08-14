@@ -59,7 +59,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"StrikeOut Annotation: {Contents}";
         }

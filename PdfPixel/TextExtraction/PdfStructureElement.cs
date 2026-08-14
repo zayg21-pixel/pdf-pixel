@@ -109,7 +109,7 @@ public sealed class PdfStructureElement
     internal static PdfStructureElement? FromDictionary(PdfDictionary dictionary, IPdfDocumentInternal document)
     {
         PdfString? tag = dictionary.GetName(PdfTokens.GroupSubtypeKey);
-        if (tag == null || tag.Value.IsEmpty)
+        if (tag == null)
         {
             return null;
         }

@@ -36,12 +36,12 @@ public class PdfGenericAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation subtype and basic information.</returns>
     public override string ToString()
     {
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"{Subtype} Annotation: {Contents}";
         }
 
-        if (Name?.IsEmpty == false)
+        if (Name != null)
         {
             return $"{Subtype} Annotation: {Name}";
         }

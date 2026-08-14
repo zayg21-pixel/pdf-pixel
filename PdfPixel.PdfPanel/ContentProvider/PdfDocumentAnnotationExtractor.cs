@@ -187,7 +187,7 @@ internal static class PdfDocumentAnnotationExtractor
             };
         }
 
-        if (link.Action is PdfUriAction uriAction && uriAction.Uri?.IsEmpty == false)
+        if (link.Action is PdfUriAction uriAction && uriAction.Uri != null)
         {
             return new PdfAnnotationNavigation
             {

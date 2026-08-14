@@ -251,7 +251,7 @@ internal sealed partial class ColorSpaceResolver
         if (nameValue != null)
         {
             name = nameValue.Value;
-            return !name.IsEmpty;
+            return true;
         }
 
         if (value.Type == PdfValueType.Array)
@@ -262,7 +262,7 @@ internal sealed partial class ColorSpaceResolver
             if (firstName != null)
             {
                 name = firstName.Value;
-                return !name.IsEmpty;
+                return true;
             }
         }
 

@@ -100,7 +100,7 @@ public class PdfChoiceFormField : PdfFormField
                 PdfArray? optionArray = option.AsArray();
                 PdfString? displayText = (optionArray?.Count >= 2) ? optionArray.GetString(1) : null;
 
-                if (displayText?.IsEmpty == false)
+                if (displayText != null)
                 {
                     yield return displayText.Value.ToString();
                 }

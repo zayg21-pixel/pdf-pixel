@@ -101,7 +101,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type and contents.</returns>
     public override string ToString()
     {
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"Text Annotation ({Icon}): {Contents}";
         }

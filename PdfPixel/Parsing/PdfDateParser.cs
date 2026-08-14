@@ -31,7 +31,7 @@ internal static class PdfDateParser
     /// </remarks>
     public static DateTime? ParsePdfDate(PdfString? pdfString)
     {
-        if (pdfString == null || pdfString.Value.IsEmpty)
+        if (pdfString == null)
         {
             return null;
         }

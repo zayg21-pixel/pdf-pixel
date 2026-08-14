@@ -74,7 +74,7 @@ internal class PdfNamedDestinationParser
             {
                 PdfString? name = namesArray.GetString(i);
                 IPdfValue? value = namesArray.GetValue(i + 1);
-                if (name?.IsEmpty == false && value != null)
+                if (name != null && value != null)
                 {
                     target.Set(name.Value, value);
                 }

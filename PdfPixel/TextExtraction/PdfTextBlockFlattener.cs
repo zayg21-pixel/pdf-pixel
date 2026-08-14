@@ -31,7 +31,7 @@ public static class PdfTextBlockFlattener
             return;
         }
 
-        if (block.Markup?.ActualText?.IsEmpty == false)
+        if (block.Markup?.ActualText != null)
         {
             PdfRectangle? unionBounds = null;
             CollectBounds(block, ref unionBounds);

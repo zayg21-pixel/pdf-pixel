@@ -67,11 +67,6 @@ internal sealed class PdfPageCache
     /// </summary>
     public PdfFontBase? GetFont(in PdfString fontName)
     {
-        if (fontName.IsEmpty)
-        {
-            return null;
-        }
-
         if (_fontDictionary == null)
         {
             _logger.LogWarning("Font '{FontName}' requested but the page has no /Font resources.", fontName);
@@ -124,11 +119,6 @@ internal sealed class PdfPageCache
     /// </summary>
     public PdfPattern? GetPattern(IPdfRenderer renderer, in PdfString patternName)
     {
-        if (patternName.IsEmpty)
-        {
-            return null;
-        }
-
         if (_patternsByName.TryGetValue(patternName, out PdfPattern? cachedPattern))
         {
             return cachedPattern;
@@ -171,11 +161,6 @@ internal sealed class PdfPageCache
     /// <param name="graphicsState">Graphics state to update</param>
     internal void ApplyGraphicsStateParameters(in PdfString graphicsStateName, IPdfCommandProcessor processor, PdfGraphicsState graphicsState)
     {
-        if (graphicsStateName.IsEmpty)
-        {
-            return;
-        }
-
         if (processor == null || graphicsState == null)
         {
             return;

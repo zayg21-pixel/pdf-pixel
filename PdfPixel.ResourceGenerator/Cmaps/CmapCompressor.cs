@@ -128,7 +128,7 @@ public static class CmapCompressor
         stream.WriteByte((byte)BlockId.OverridesHeader);
         WriteVarUInt(stream, (uint)clusterIndex);
 
-        if (cmap.Name?.IsEmpty == false)
+        if (cmap.Name != null)
         {
             stream.WriteByte((byte)BlockId.Name);
             WriteString(stream, cmap.Name);

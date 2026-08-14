@@ -117,7 +117,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     {
         if (Field != null)
         {
-            if (Field.PartialName?.IsEmpty == false)
+            if (Field.PartialName != null)
             {
                 return $"Widget Annotation: {Field.PartialName} ({Field.FieldType})";
             }

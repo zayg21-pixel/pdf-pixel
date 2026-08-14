@@ -128,7 +128,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type and destination or URI.</returns>
     public override string ToString()
     {
-        if (Action is PdfUriAction uriAction && uriAction.Uri?.IsEmpty == false)
+        if (Action is PdfUriAction uriAction && uriAction.Uri != null)
         {
             return $"Link Annotation: {uriAction.Uri}";
         }

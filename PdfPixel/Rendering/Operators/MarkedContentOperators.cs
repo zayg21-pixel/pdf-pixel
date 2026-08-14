@@ -180,7 +180,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             structureElement = _page.Document.StructureTree?.FindByMcid(_page.PageReference, mcid.Value);
         }
 
-        bool hasProperties = inlineActualText?.IsEmpty == false || inlineLang?.IsEmpty == false || structureElement != null;
+        bool hasProperties = inlineActualText != null || inlineLang != null || structureElement != null;
 
         if (tag == PdfTextTag.Custom && !hasProperties)
         {
@@ -196,8 +196,8 @@ internal class MarkedContentOperators : IOperatorProcessor
 
         if (structureElement != null)
         {
-            markup.ActualText = (inlineActualText == null || inlineActualText.Value.IsEmpty) ? structureElement.ActualText : inlineActualText;
-            markup.Lang = (inlineLang == null || inlineLang.Value.IsEmpty) ? structureElement.Lang : inlineLang;
+            markup.ActualText = inlineActualText ?? structureElement.ActualText;
+            markup.Lang = inlineLang ?? structureElement.Lang;
             markup.StructureElement = structureElement;
         }
         else

@@ -92,7 +92,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        if (Contents?.IsEmpty == false)
+        if (Contents != null)
         {
             return $"Highlight Annotation: {Contents}";
         }

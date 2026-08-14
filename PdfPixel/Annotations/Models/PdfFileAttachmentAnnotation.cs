@@ -93,7 +93,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     /// <inheritdoc/>
     public override string ToString()
     {
-        if (FileName?.IsEmpty == false)
+        if (FileName != null)
         {
             return $"FileAttachment: {FileName}";
         }

@@ -177,7 +177,7 @@ public sealed class PdfStreamDecoder
         else
         {
             PdfString? filterName = filterValue.AsName();
-            if (filterName != null && !filterName.Value.IsEmpty)
+            if (filterName != null)
             {
                 filters.Add(filterName.Value.AsEnum<PdfFilterType>());
             }
