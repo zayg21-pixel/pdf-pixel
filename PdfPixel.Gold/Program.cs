@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Models;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System.Diagnostics;
@@ -503,6 +504,7 @@ internal sealed class Program
                 $"{statistics.PdfName,-60} page {statistics.PageNumber,-4} {statistics.MemoryBytes / BytesPerMegabyte,10:F1} MB {statistics.Seconds,8:F3} s");
         }
     }
+
 
     private static void Generate(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
     {

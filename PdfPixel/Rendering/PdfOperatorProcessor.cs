@@ -46,7 +46,7 @@ internal class PdfOperatorProcessor
         _graphicsStateOperators = new GraphicsStateOperators(page, processor, operandStack, graphicsStack);
         _textOperators = new TextOperators(renderer, page, processor, operandStack);
         _pathOperators = new PathOperators(renderer, operandStack, processor, currentPath, page);
-        _colorOperators = new ColorOperators(renderer, operandStack, page);
+        _colorOperators = new ColorOperators(operandStack, page);
         _inlineImageOperators = new InlineImageOperators(renderer, operandStack, page, processor);
         _markedContentOperators = new MarkedContentOperators(operandStack, page, processor);
         _miscOperators = new MiscellaneousOperators(renderer, operandStack, page, processor);

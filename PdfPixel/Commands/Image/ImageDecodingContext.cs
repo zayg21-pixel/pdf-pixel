@@ -127,5 +127,5 @@ public sealed class ImageDecodingContext
     /// </summary>
     public bool IsStencilMaskComposite { get; }
 
-    private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Page.Cache.ColorSpace.ResolveByObject(image.ColorSpaceObject, defaultComponents: -1);
+    private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Page.Cache.ColorSpace.Resolve(image.ColorSpaceReference, defaultComponents: -1);
 }

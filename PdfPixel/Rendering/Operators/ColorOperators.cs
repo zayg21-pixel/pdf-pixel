@@ -35,13 +35,11 @@ internal class ColorOperators : IOperatorProcessor
         "SCN"
     ];
 
-    private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly IPdfPageInternal _page;
 
-    public ColorOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfPageInternal page)
+    public ColorOperators(Stack<IPdfValue> operandStack, IPdfPageInternal page)
     {
-        _renderer = renderer;
         _operandStack = operandStack;
         _page = page;
     }
@@ -244,7 +242,7 @@ internal class ColorOperators : IOperatorProcessor
         if (converter is PatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].AsName();
-            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(_renderer, patternName.Value);
+            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(patternName.Value);
 
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
@@ -290,7 +288,7 @@ internal class ColorOperators : IOperatorProcessor
         if (converter is PatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].AsName();
-            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(_renderer, patternName.Value);
+            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(patternName.Value);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
                 PdfColor tintColor = PdfColors.Black;

@@ -1,3 +1,4 @@
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -39,7 +40,7 @@ public sealed class PdfShading
             ExtendEnd = extendArr.GetBooleanOrDefault(1);
         }
 
-        ColorSpaceObject = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);
+        ColorSpaceReference = PdfColorSpaceReference.FromDictionary(rawDictionary, PdfTokens.ColorSpaceKey);
         Functions = new List<PdfFunction>();
 
         List<PdfObject>? functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
@@ -151,9 +152,9 @@ public sealed class PdfShading
     public bool ExtendEnd { get; }
 
     /// <summary>
-    /// Color space value (/ColorSpace) object.
+    /// Colour space (/ColorSpace) as written, resolved on demand.
     /// </summary>
-    public PdfObject? ColorSpaceObject { get; }
+    internal PdfColorSpaceReference ColorSpaceReference { get; }
 
     /// <summary>
     /// List of resolved PdfFunction(s) for function-based color evaluation.

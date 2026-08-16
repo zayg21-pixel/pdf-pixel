@@ -163,16 +163,12 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfDictionary? shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
-        PdfObject? shadingObject = shadings?.GetObject(shadingName.Value);
+        PdfShading? shading = _page.Cache.GetShading(shadingName.Value);
 
-        if (shadingObject == null)
+        if (shading == null)
         {
-            _logger.LogWarning("Shading '{ShadingName}' not found in resources", shadingName);
             return;
         }
-
-        PdfShading shading = PdfShading.GetShading(shadingObject);
 
         _renderer.DrawShading(_processor, shading, graphicsState);
     }

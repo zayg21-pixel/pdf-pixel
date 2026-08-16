@@ -144,11 +144,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
         if (tagName.Value == PdfTokens.OptionalContentKey)
         {
-            PdfObject? propertiesObject = ResolvePropertiesObject(operands[1]);
-            if (propertiesObject != null)
-            {
-                markedContent.OptionalContent = PdfOptionalContentMembership.FromOptionalContentObject(propertiesObject);
-            }
+            markedContent.OptionalContent = ResolveOptionalContent(operands[1]);
         }
         else
         {
@@ -211,17 +207,17 @@ internal class MarkedContentOperators : IOperatorProcessor
             return null;
         }
 
-        PdfDictionary? properties = _page.ResourceDictionary.GetDictionary(PdfTokens.PropertiesKey);
-        return properties?.GetDictionary(propertiesName.Value);
+        return _page.Cache.GetProperties(propertiesName.Value);
     }
 
-    private PdfObject? ResolvePropertiesObject(IPdfValue propertiesOperand)
+    private PdfOptionalContentMembership? ResolveOptionalContent(IPdfValue propertiesOperand)
     {
         // Inline dictionary — wrap in a synthetic PdfObject.
         PdfDictionary? inlineDictionary = propertiesOperand.AsDictionary();
         if (inlineDictionary != null)
         {
-            return new PdfObject(default, _page.Document, propertiesOperand);
+            PdfObject inlineObject = new(default, _page.Document, propertiesOperand);
+            return PdfOptionalContentMembership.FromOptionalContentObject(inlineObject);
         }
 
         // Resource name — look up in /Properties subdictionary.
@@ -231,7 +227,6 @@ internal class MarkedContentOperators : IOperatorProcessor
             return null;
         }
 
-        PdfDictionary? properties = _page.ResourceDictionary.GetDictionary(PdfTokens.PropertiesKey);
-        return properties?.GetObject(propertiesName.Value);
+        return _page.Cache.GetOptionalContent(propertiesName.Value);
     }
 }

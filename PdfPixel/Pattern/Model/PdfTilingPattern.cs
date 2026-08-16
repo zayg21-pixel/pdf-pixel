@@ -13,10 +13,7 @@ namespace PdfPixel.Pattern.Model;
 /// </summary>
 public sealed class PdfTilingPattern : PdfPattern
 {
-    private readonly IPdfRenderer _renderer;
-
     internal PdfTilingPattern(
-        IPdfRenderer renderer,
         in PdfReference sourceReference,
         PdfObjectStream sourceStream,
         PdfDictionary? cellResources,
@@ -28,7 +25,6 @@ public sealed class PdfTilingPattern : PdfPattern
         in PdfMatrix matrix)
         : base(matrix, PdfPatternType.Tiling)
     {
-        _renderer = renderer;
         SourceReference = sourceReference;
         SourceStream = sourceStream;
         CellResources = cellResources;
@@ -81,9 +77,17 @@ public sealed class PdfTilingPattern : PdfPattern
     /// </summary>
     public PdfTilingSpacingType TilingTypeKind { get; }
 
+    /// <summary>
+    /// The recorded cell, or null until one has been recorded.
+    /// </summary>
+    internal PdfCommandRecorder? CellRecording { get; set; }
+
+    /// <inheritdoc />
+    internal override bool IsPageIndependent => true;
+
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        PdfCommandRecorder? tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this, state);
+        PdfCommandRecorder? tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(this, state);
 
         if (tileRecorder == null)
         {

@@ -40,7 +40,7 @@ internal class PdfPage : IPdfPageInternal
     /// <param name="contentStreams">Content streams making up the page.</param>
     /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
     /// <param name="resourceDictionary">Resource dictionary the page's names resolve against.</param>
-    /// <param name="groupDictionary">The page's /Group entry, or null when it declares none.</param>
+    /// <param name="groupOwnerDictionary">Dictionary holding the page's /Group entry, or null when there is none.</param>
     protected internal PdfPage(
         int pageNumber,
         in PdfString pageLabel,
@@ -49,7 +49,7 @@ internal class PdfPage : IPdfPageInternal
         List<PdfObjectStream> contentStreams,
         PdfPageResources pageResources,
         PdfDictionary resourceDictionary,
-        PdfDictionary? groupDictionary)
+        PdfDictionary? groupOwnerDictionary)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _pageReference = pageReference;
@@ -69,7 +69,7 @@ internal class PdfPage : IPdfPageInternal
 
         _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
 
-        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDictionary, this);
+        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupOwnerDictionary, PdfTokens.GroupKey, this);
     }
 
     protected internal PdfPage(
@@ -87,7 +87,7 @@ internal class PdfPage : IPdfPageInternal
             ExtractContentStreams(pageObject),
             pageResources,
             resourceDictionary,
-            pageObject.Dictionary.GetDictionary(PdfTokens.GroupKey))
+            pageObject.Dictionary)
     {
     }
 

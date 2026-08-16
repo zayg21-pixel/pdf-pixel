@@ -62,12 +62,11 @@ public sealed class PdfForm
         PdfDictionary dict = xObject.Dictionary;
         PdfArray? matrixArray = dict.GetArray(PdfTokens.MatrixKey);
         PdfArray? bboxArray = dict.GetArray(PdfTokens.BBoxKey);
-        PdfDictionary? groupDict = dict.GetDictionary(PdfTokens.GroupKey);
 
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
         PdfRectangle bbox = PdfRectangle.FromArray(bboxArray) ?? PdfRectangle.Empty;
 
-        PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, page);
+        PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(dict, PdfTokens.GroupKey, page);
 
         return new PdfForm(matrix, bbox, transparencyGroup, page, xObject);
     }

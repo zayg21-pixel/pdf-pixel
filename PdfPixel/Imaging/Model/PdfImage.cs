@@ -30,7 +30,7 @@ public class PdfImage
         BitsPerComponent = bitsPerComponent;
         Width = dictionary.GetIntegerOrDefault(PdfTokens.WidthKey);
         Height = dictionary.GetIntegerOrDefault(PdfTokens.HeightKey);
-        ColorSpaceObject = dictionary.GetObject(PdfTokens.ColorSpaceKey);
+        ColorSpaceReference = PdfColorSpaceReference.FromDictionary(dictionary, PdfTokens.ColorSpaceKey);
         HasImageMask = dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey);
         Interpolate = dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey);
         float[]? decodeArray = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
@@ -149,9 +149,9 @@ public class PdfImage
     public int BitsPerComponent { get; }
 
     /// <summary>
-    /// Color space value (/ColorSpace) object.
+    /// Colour space (/ColorSpace) as written, resolved on demand.
     /// </summary>
-    public PdfObject? ColorSpaceObject { get; }
+    internal PdfColorSpaceReference ColorSpaceReference { get; }
 
     /// <summary>
     /// Simplified image type classification derived from /Filter (e.g., JPEG, JPEG2000, CCITT, JBIG2, Raw).

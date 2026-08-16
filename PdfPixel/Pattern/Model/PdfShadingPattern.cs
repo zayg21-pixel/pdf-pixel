@@ -45,6 +45,9 @@ public sealed class PdfShadingPattern : PdfPattern
     /// </summary>
     internal PdfGraphicsStateParameters? ExtGState { get; }
 
+    /// <inheritdoc />
+    internal override bool IsPageIndependent => ExtGState?.SoftMask == null;
+
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
         PdfGraphicsState shadingState = state;
@@ -69,7 +72,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.Background != null && Shading.BBox.HasValue)
         {
-            PdfColorSpaceConverter? colorSpace = shadingState.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
+            PdfColorSpaceConverter? colorSpace = shadingState.Page.Cache.ColorSpace.Resolve(Shading.ColorSpaceReference) ?? DeviceRgbConverter.Instance;
             PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, shadingState.RenderingIntent, shadingState.TransferFunction);
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 

@@ -216,13 +216,15 @@ public class PdfDictionary
     /// <returns>A list of <see cref="PdfObject"/> values, or <c>null</c>.</returns>
     public List<PdfObject>? GetObjects(in PdfString key)
     {
-        if (!RawValues.TryGetValue(key, out IPdfValue? storedValue))
+        PdfObject? resolved = GetObject(key);
+
+        if (resolved == null)
         {
             return null;
         }
 
         List<PdfObject> results = [];
-        PdfArray? referenceArray = storedValue.ResolveToNonReference(Document)?.AsArray();
+        PdfArray? referenceArray = resolved.Value.AsArray();
 
         if (referenceArray != null)
         {
@@ -239,14 +241,9 @@ public class PdfDictionary
             return results;
         }
 
-        // Single item fallback
-        PdfObject? single = GetObject(key);
-        if (single != null)
-        {
-            results.Add(single);
-        }
+        results.Add(resolved);
 
-        return (results.Count > 0) ? results : null;
+        return results;
     }
 
     /// <summary>

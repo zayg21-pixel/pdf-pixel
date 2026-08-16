@@ -2,7 +2,6 @@ using PdfPixel.Models;
 using PdfPixel.Shading.Model;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Text;
-using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Geometry;
 
@@ -16,23 +15,22 @@ internal static class PdfPatternParser
     /// <remarks>This method supports parsing tiling patterns (PatternType 1) and shading patterns
     /// (PatternType 2).  Patterns with other types are not supported and will result in a <see langword="null"/>
     /// return value.</remarks>
-    /// <param name="renderer">The PDF renderer instance used for context during parsing.</param>
     /// <param name="patternObject">The PDF object representing the pattern. Must contain a valid dictionary with a <c>PatternType</c> key.</param>
     /// <param name="page">The page owning the pattern, used to parse the shading pattern's graphics state parameters.</param>
     /// <returns>A <see cref="PdfPattern"/> instance representing the parsed pattern, or <see langword="null"/> if the
     /// pattern type is unsupported.</returns>
-    public static PdfPattern? ParsePattern(IPdfRenderer renderer, PdfObject patternObject, IPdfPageInternal page)
+    public static PdfPattern? ParsePattern(PdfObject patternObject, IPdfPageInternal page)
     {
         int patternType = patternObject.Dictionary.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
         return patternType switch
         {
-            1 => ParseTilingPattern(renderer, patternObject),
+            1 => ParseTilingPattern(patternObject),
             2 => ParseShadingPattern(patternObject, page),
             _ => null// Unsupported pattern type
         };
     }
 
-    private static PdfTilingPattern ParseTilingPattern(IPdfRenderer renderer, PdfObject patternObject)
+    private static PdfTilingPattern ParseTilingPattern(PdfObject patternObject)
     {
         PdfDictionary dictionary = patternObject.Dictionary;
 
@@ -56,7 +54,6 @@ internal static class PdfPatternParser
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
 
         return new PdfTilingPattern(
-            renderer,
             patternObject.Reference,
             patternObject.Stream,
             dictionary.GetDictionary(PdfTokens.ResourcesKey),
@@ -75,9 +72,9 @@ internal static class PdfPatternParser
         PdfArray? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
 
-        PdfObject? shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
+        PdfShading? shading = page.Cache.GetShadingForPattern(dictionary);
 
-        if (shadingObject == null)
+        if (shading == null)
         {
             return null; // Invalid shading pattern without /Shading
         }
@@ -86,8 +83,6 @@ internal static class PdfPatternParser
         PdfGraphicsStateParameters? extGState = (extGStateDictionary == null)
             ? null
             : PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(extGStateDictionary, page);
-
-        PdfShading shading = PdfShading.GetShading(shadingObject);
 
         return new PdfShadingPattern(shading, matrix, extGState);
     }

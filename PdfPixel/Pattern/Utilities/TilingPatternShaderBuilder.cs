@@ -6,7 +6,6 @@ using PdfPixel.Rendering;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Forms;
 using PdfPixel.Rendering.State;
-using System.Collections.Generic;
 
 namespace PdfPixel.Pattern.Utilities;
 
@@ -18,18 +17,16 @@ internal sealed class TilingPatternShaderBuilder
     /// <summary>
     /// Renders a single tiling pattern cell into a <see cref="PdfCommandRecorder"/>.
     /// </summary>
-    /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">Tiling pattern definition.</param>
     /// <param name="sourceState">Source state for rendering.</param>
     /// <returns>A <see cref="PdfCommandRecorder"/> containing the recorded pattern cell, or null if the cell is empty.</returns>
-    public static PdfCommandRecorder? RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
+    public static PdfCommandRecorder? RenderTilingCell(PdfTilingPattern pattern, PdfGraphicsState sourceState)
     {
         PdfReference patternReference = pattern.SourceReference;
-        Dictionary<PdfReference, PdfCommandRecorder> cellCache = sourceState.Page.Document.ObjectCache.TilingCells;
 
-        if (patternReference.IsValid && cellCache.TryGetValue(patternReference, out PdfCommandRecorder? cachedCell))
+        if (pattern.CellRecording != null)
         {
-            return cachedCell;
+            return pattern.CellRecording;
         }
 
         System.ReadOnlyMemory<byte> streamData = pattern.SourceStream.DecodeAsMemory();
@@ -61,7 +58,8 @@ internal sealed class TilingPatternShaderBuilder
             pattern.SourceStream,
             pattern.CellResources);
         PdfGraphicsState cellState = new(patternPage, sourceState);
-        PdfContentStreamRenderer contentRenderer = new(renderer, patternPage);
+        PdfRenderer cellRenderer = new(sourceState.Page.Document.LoggerFactory);
+        PdfContentStreamRenderer contentRenderer = new(cellRenderer, patternPage);
         PdfParseContext parseContext = new(streamData);
         contentRenderer.RenderContext(recorder, ref parseContext, cellState);
 
@@ -74,7 +72,7 @@ internal sealed class TilingPatternShaderBuilder
 
         if (patternReference.IsValid && reachedAtTopLevel)
         {
-            cellCache[patternReference] = recorder;
+            pattern.CellRecording = recorder;
         }
 
         return recorder;

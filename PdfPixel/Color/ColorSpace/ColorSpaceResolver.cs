@@ -59,6 +59,37 @@ internal sealed partial class ColorSpaceResolver
     }
 
     /// <summary>
+    /// Resolves the converter for a colour space as it was written. An indirect colour space is
+    /// answered from the document cache by its reference, so the object it names is resolved only the
+    /// first time any user of it asks.
+    /// </summary>
+    /// <param name="colorSpaceReference">The colour space as written.</param>
+    /// <param name="defaultComponents">Component count to assume when no colour space was written.</param>
+    public PdfColorSpaceConverter? Resolve(in PdfColorSpaceReference colorSpaceReference, int defaultComponents = 3)
+    {
+        if (colorSpaceReference.Reference.IsValid)
+        {
+            if (TryResolveFromCacheByReference(colorSpaceReference.Reference, out PdfColorSpaceConverter? cached) && cached != null)
+            {
+                return cached;
+            }
+
+            PdfObject? resolved = _document.ObjectCache.GetObject(colorSpaceReference.Reference);
+            PdfColorSpaceConverter? converter = ResolveByValue(resolved?.Value, defaultComponents);
+            TryStoreByReference(resolved, converter);
+
+            return converter;
+        }
+
+        if (colorSpaceReference.Value != null)
+        {
+            return ResolveByValue(colorSpaceReference.Value, defaultComponents);
+        }
+
+        return ResolveDeviceConverter(defaultComponents);
+    }
+
+    /// <summary>
     /// Resolve a color space converter from a generic value which may be:
     ///1) A name (device or resource key)
     ///2) A parameter array (e.g. [/ICCBased obj])
@@ -215,6 +246,11 @@ internal sealed partial class ColorSpaceResolver
                 // Resource name lookup path.
                 if (_colorSpaceDictionary != null)
                 {
+                    if (TryResolveFromCacheByReference(_colorSpaceDictionary.GetReference(name), out PdfColorSpaceConverter? documentCached) && documentCached != null)
+                    {
+                        return documentCached;
+                    }
+
                     PdfObject? resourceValue = _colorSpaceDictionary.GetObject(name);
 
                     if (TryResolveFromCache(resourceValue, out PdfColorSpaceConverter? cached) && cached != null)
@@ -264,6 +300,18 @@ internal sealed partial class ColorSpaceResolver
         }
 
         name = default;
+        return false;
+    }
+
+    private bool TryResolveFromCacheByReference(PdfReference? reference, out PdfColorSpaceConverter? converter)
+    {
+        if (reference != null && _document.ObjectCache.ColorSpaceConverters.TryGetValue(reference.Value, out PdfColorSpaceConverter? existing))
+        {
+            converter = existing;
+            return true;
+        }
+
+        converter = null;
         return false;
     }
 

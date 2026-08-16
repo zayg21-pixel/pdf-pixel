@@ -17,15 +17,10 @@ internal class PdfObjectStreamParser
     private readonly IPdfDocumentInternal _pdfDocument;
 
     /// <summary>
-    /// Cache of container object number -> decoded bytes so that repeated lazy loads do not re-decode filters.
+    /// Cache of container object number -> everything a compressed object needs from its container.
+    /// The container object is read once to build the entry and is not held afterwards.
     /// </summary>
-    private readonly Dictionary<uint, ReadOnlyMemory<byte>> _decodedStreamCache = [];
-
-    /// <summary>
-    /// Cache of container object number -> mapping of object stream index to relative offset.
-    /// Populated when header offsets are first indexed to avoid repeated scans.
-    /// </summary>
-    private readonly Dictionary<uint, Dictionary<int, int>> _indexToOffsetCache = [];
+    private readonly Dictionary<uint, ObjectStreamContent> _containers = [];
 
     /// <summary>
     /// Create a new object stream parser bound to a PDF document.
@@ -51,39 +46,26 @@ internal class PdfObjectStreamParser
             return null;
         }
 
-        PdfReference containerReference = new(info.ObjectStreamNumber.Value, 0);
-        PdfObject? containerObject = _pdfDocument.ObjectCache.GetObject(containerReference);
-        if (containerObject == null || containerObject.Dictionary == null)
-        {
-            return null;
-        }
+        uint containerObjectNumber = info.ObjectStreamNumber.Value;
 
-        if (!_decodedStreamCache.TryGetValue(containerReference.ObjectNumber, out ReadOnlyMemory<byte> decoded))
+        if (!_containers.TryGetValue(containerObjectNumber, out ObjectStreamContent? container))
         {
-            decoded = containerObject.DecodeAsMemory();
-            if (decoded.IsEmpty)
+            container = LoadContainer(containerObjectNumber);
+            if (container == null)
             {
                 return null;
             }
 
-            _decodedStreamCache[containerReference.ObjectNumber] = decoded;
+            _containers[containerObjectNumber] = container;
         }
 
-        int objectCount = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.NKey);
-        int firstOffset = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.FirstKey);
-        if (objectCount <= 0 || firstOffset < 0)
-        {
-            return null;
-        }
-
-        EnsureOffsetsIndexed(containerReference.ObjectNumber, decoded, objectCount, firstOffset);
         if (info.ObjectStreamRelativeOffset == null)
         {
             return null;
         }
 
-        ReadOnlySpan<byte> span = decoded.Span;
-        int objectStart = firstOffset + info.ObjectStreamRelativeOffset.Value;
+        ReadOnlySpan<byte> span = container.Decoded.Span;
+        int objectStart = container.FirstOffset + info.ObjectStreamRelativeOffset.Value;
         if (objectStart < 0 || objectStart >= span.Length)
         {
             return null;
@@ -92,20 +74,10 @@ internal class PdfObjectStreamParser
         int objectEnd = span.Length;
         // Find next object's relative offset (same container) with a higher index.
         int targetNextIndex = info.ObjectStreamIndex.Value + 1;
-        int? nextRelative = null;
 
-        // Prefer cached lookup to avoid scanning the entire object index.
-        if (_indexToOffsetCache.TryGetValue(containerReference.ObjectNumber, out Dictionary<int, int>? indexMap))
+        if (targetNextIndex < container.RelativeOffsets.Length)
         {
-            if (indexMap.TryGetValue(targetNextIndex, out int offset))
-            {
-                nextRelative = offset;
-            }
-        }
-
-        if (nextRelative != null)
-        {
-            int candidate = firstOffset + nextRelative.Value;
+            int candidate = container.FirstOffset + container.RelativeOffsets[targetNextIndex];
             if (candidate > objectStart && candidate <= span.Length)
             {
                 objectEnd = candidate;
@@ -119,7 +91,7 @@ internal class PdfObjectStreamParser
         }
 
         // Slice directly without copying the entire decoded buffer.
-        ReadOnlyMemory<byte> slice = decoded.Slice(objectStart, length);
+        ReadOnlyMemory<byte> slice = container.Decoded.Slice(objectStart, length);
         PdfParseContext context = new(slice);
         // Use new PdfParser struct for value parsing (handles whitespace/comments internally).
         PdfParser parser = new(context, _pdfDocument, allowReferences: true, decrypt: true);
@@ -133,17 +105,31 @@ internal class PdfObjectStreamParser
         return pdfObject;
     }
 
-    private void EnsureOffsetsIndexed(uint containerObjectNumber, in ReadOnlyMemory<byte> decoded, int objectCount, int firstOffset)
+    /// <summary>
+    /// Reads a container object stream once: decodes it, takes the object count and first offset from
+    /// its dictionary, and indexes the header's relative offsets. Returns null when the container is
+    /// missing or malformed.
+    /// </summary>
+    private ObjectStreamContent? LoadContainer(uint containerObjectNumber)
     {
-        // If this container is already cached, no work needed.
-        if (_indexToOffsetCache.ContainsKey(containerObjectNumber))
+        PdfReference containerReference = new(containerObjectNumber, 0);
+        PdfObject? containerObject = _pdfDocument.ObjectCache.GetObject(containerReference);
+        if (containerObject == null || containerObject.Dictionary == null)
         {
-            return;
+            return null;
         }
 
-        if (firstOffset > decoded.Length)
+        ReadOnlyMemory<byte> decoded = containerObject.DecodeAsMemory();
+        if (decoded.IsEmpty)
         {
-            return;
+            return null;
+        }
+
+        int objectCount = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.NKey);
+        int firstOffset = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.FirstKey);
+        if (objectCount <= 0 || firstOffset < 0 || firstOffset > decoded.Length)
+        {
+            return null;
         }
 
         // Header slice without copying.
@@ -152,9 +138,8 @@ internal class PdfObjectStreamParser
         // Unified parsing via PdfParser for header: sequence of objectNumber relativeOffset pairs.
         PdfParser headerParser = new(headerContext, _pdfDocument, allowReferences: false, decrypt: false);
 
-        // Prepare cache for this container.
-        Dictionary<int, int> indexMap = new(capacity: objectCount);
-        _indexToOffsetCache[containerObjectNumber] = indexMap;
+        var relativeOffsets = new int[objectCount];
+        int parsedCount = 0;
 
         for (int index = 0; index < objectCount; index++)
         {
@@ -170,23 +155,54 @@ internal class PdfObjectStreamParser
                 break;
             }
 
-            var objectNumber = (uint)objectNumberValue.Value;
-            int relativeOffset = offsetValue.Value;
+            relativeOffsets[index] = offsetValue.Value;
+            parsedCount = index + 1;
 
-            // Cache the index -> offset mapping for fast lookup.
-            if (!indexMap.ContainsKey(index))
-            {
-                indexMap[index] = relativeOffset;
-            }
-
-            PdfReference reference = new(objectNumber, 0);
+            PdfReference reference = new((uint)objectNumberValue.Value, 0);
             if (_pdfDocument.ObjectCache.ObjectIndex.TryGetValue(reference, out PdfObjectInfo? info))
             {
                 if (info.IsCompressed && info.ObjectStreamNumber == containerObjectNumber)
                 {
-                    info.ObjectStreamRelativeOffset = relativeOffset;
+                    info.ObjectStreamRelativeOffset = offsetValue.Value;
                 }
             }
         }
+
+        // A header that stopped short leaves a shorter array, so its length is what says which indexes
+        // are present rather than a placeholder offset standing in for a missing one.
+        if (parsedCount < objectCount)
+        {
+            Array.Resize(ref relativeOffsets, parsedCount);
+        }
+
+        return new ObjectStreamContent(decoded, firstOffset, relativeOffsets);
+    }
+
+    /// <summary>
+    /// What a compressed object needs from the object stream containing it.
+    /// </summary>
+    private sealed class ObjectStreamContent
+    {
+        public ObjectStreamContent(in ReadOnlyMemory<byte> decoded, int firstOffset, int[] relativeOffsets)
+        {
+            Decoded = decoded;
+            FirstOffset = firstOffset;
+            RelativeOffsets = relativeOffsets;
+        }
+
+        /// <summary>
+        /// Decoded container stream bytes.
+        /// </summary>
+        public ReadOnlyMemory<byte> Decoded { get; }
+
+        /// <summary>
+        /// Byte offset of the first contained object, from the container's /First entry.
+        /// </summary>
+        public int FirstOffset { get; }
+
+        /// <summary>
+        /// Relative offset of each contained object, indexed by its position in the container.
+        /// </summary>
+        public int[] RelativeOffsets { get; }
     }
 }

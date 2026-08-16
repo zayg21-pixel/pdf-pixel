@@ -8,6 +8,8 @@ using PdfPixel.Functions;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Parsing;
+using PdfPixel.Pattern.Model;
+using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using PdfPixel.Transparency.Model;
 using System.Collections.Generic;
@@ -81,16 +83,37 @@ internal class PdfDocumentObjectCache
     internal Dictionary<PdfReference, PdfShading> Shadings { get; } = [];
 
     /// <summary>
+    /// Document cache for parsed ExtGState parameters, keyed by reference. Holds only parameters
+    /// without a soft mask, a soft mask being bound to the page it was parsed from.
+    /// </summary>
+    internal Dictionary<PdfReference, PdfGraphicsStateParameters> GraphicsStateParameters { get; } = [];
+
+    /// <summary>
     /// High-level cache for parsed PDF image XObjects, keyed by reference.
     /// </summary>
     internal Dictionary<PdfReference, PdfImage> Images { get; } = [];
 
     /// <summary>
-    /// Cache for recorded tiling pattern cells, keyed by the reference of the pattern object. A cell
-    /// is recorded in a graphics state built from scratch, so it depends only on the pattern object
-    /// itself, never on the state the pattern is used from.
+    /// High-level cache for XObject wrappers, keyed by reference.
     /// </summary>
-    internal Dictionary<PdfReference, PdfCommandRecorder> TilingCells { get; } = [];
+    internal Dictionary<PdfReference, PdfXObject> XObjects { get; } = [];
+
+    /// <summary>
+    /// High-level cache for optional content memberships, keyed by the reference of the OCG or OCMD object.
+    /// </summary>
+    internal Dictionary<PdfReference, PdfOptionalContentMembership?> OptionalContentMemberships { get; } = [];
+
+    /// <summary>
+    /// High-level cache for parsed PDF patterns, keyed by reference. Holds only patterns that are
+    /// page independent.
+    /// </summary>
+    internal Dictionary<PdfReference, PdfPattern> Patterns { get; } = [];
+
+    /// <summary>
+    /// High-level cache for parsed transparency groups, keyed by the reference of the /Group
+    /// dictionary. Holds only groups whose blending colour space is an indirect reference.
+    /// </summary>
+    internal Dictionary<PdfReference, PdfTransparencyGroup> TransparencyGroups { get; } = [];
 
     /// <summary>
     /// Cache for recorded soft mask form content, keyed by the mask form and the matrix it was recorded

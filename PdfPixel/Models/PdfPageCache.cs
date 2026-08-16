@@ -5,8 +5,8 @@ using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Pattern.Utilities;
-using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
+using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using System.Collections.Generic;
 
@@ -25,10 +25,15 @@ internal sealed class PdfPageCache
     private readonly Dictionary<PdfString, PdfFontBase> _fontsByName = [];
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
+    private readonly Dictionary<PdfString, PdfXObject> _xObjectsByName = [];
+    private readonly Dictionary<PdfString, PdfShading> _shadingsByName = [];
+    private readonly Dictionary<PdfString, PdfOptionalContentMembership?> _optionalContentByName = [];
     private readonly PdfDictionary? _fontDictionary;
     private readonly PdfDictionary? _patternDictionary;
     private readonly PdfDictionary? _extGStateDictionary;
     private readonly PdfDictionary? _xObjectDictionary;
+    private readonly PdfDictionary? _shadingDictionary;
+    private readonly PdfDictionary? _propertiesDictionary;
 
     public PdfPageCache(IPdfPageInternal page, IPdfDocumentInternal document, PdfDictionary resources)
     {
@@ -40,6 +45,8 @@ internal sealed class PdfPageCache
         _patternDictionary = resources.GetDictionary(PdfTokens.PatternKey);
         _extGStateDictionary = resources.GetDictionary(PdfTokens.ExtGStateKey);
         _xObjectDictionary = resources.GetDictionary(PdfTokens.XObjectKey);
+        _shadingDictionary = resources.GetDictionary(PdfTokens.ShadingKey);
+        _propertiesDictionary = resources.GetDictionary(PdfTokens.PropertiesKey);
     }
 
     /// <summary>
@@ -48,20 +55,131 @@ internal sealed class PdfPageCache
     public ColorSpaceResolver ColorSpace { get; }
 
     /// <summary>
-    /// Retrieve an XObject by resource name from /XObject dictionary. Returns null if not found.
+    /// Get (and cache) an XObject by resource name from the /XObject dictionary. Returns null if not found.
+    /// Checks the document-level XObject cache by indirect reference before resolving the object.
     /// </summary>
     public PdfXObject? GetXObject(in PdfString xObjectName)
     {
-        PdfObject? pageObject = _xObjectDictionary?.GetObject(xObjectName);
+        if (_xObjectsByName.TryGetValue(xObjectName, out PdfXObject? cachedXObject))
+        {
+            return cachedXObject;
+        }
 
+        if (_xObjectDictionary == null)
+        {
+            _logger.LogWarning("XObject '{XObjectName}' requested but the page has no /XObject resources.", xObjectName);
+            return null;
+        }
+
+        PdfReference? xObjectReference = _xObjectDictionary.GetReference(xObjectName);
+        if (xObjectReference != null && _document.ObjectCache.XObjects.TryGetValue(xObjectReference.Value, out PdfXObject? documentCachedXObject))
+        {
+            _xObjectsByName[xObjectName] = documentCachedXObject;
+            return documentCachedXObject;
+        }
+
+        PdfObject? pageObject = _xObjectDictionary.GetObject(xObjectName);
         if (pageObject == null)
         {
             _logger.LogWarning("XObject '{XObjectName}' could not be resolved.", xObjectName);
             return null;
         }
 
-        return PdfXObject.FromObject(pageObject);
+        PdfXObject xObject = PdfXObject.FromObject(pageObject);
+        _xObjectsByName[xObjectName] = xObject;
+
+        if (pageObject.Reference.IsValid)
+        {
+            _document.ObjectCache.XObjects[pageObject.Reference] = xObject;
+        }
+
+        return xObject;
     }
+
+    /// <summary>
+    /// Get (and cache) a shading by resource name from the /Shading dictionary. Returns null if not found.
+    /// Checks the document-level shading cache by indirect reference before resolving the object.
+    /// </summary>
+    public PdfShading? GetShading(in PdfString shadingName)
+    {
+        if (_shadingsByName.TryGetValue(shadingName, out PdfShading? cachedShading))
+        {
+            return cachedShading;
+        }
+
+        if (_shadingDictionary == null)
+        {
+            _logger.LogWarning("Shading '{ShadingName}' requested but the page has no /Shading resources.", shadingName);
+            return null;
+        }
+
+        PdfShading? shading = ResolveShading(_shadingDictionary, shadingName);
+        if (shading == null)
+        {
+            _logger.LogWarning("Shading '{ShadingName}' is not present in the page's /Shading resources.", shadingName);
+            return null;
+        }
+
+        _shadingsByName[shadingName] = shading;
+
+        return shading;
+    }
+
+    /// <summary>
+    /// Get a shading from the /Shading entry of a shading pattern dictionary. Returns null if the
+    /// pattern declares none.
+    /// </summary>
+    public PdfShading? GetShadingForPattern(PdfDictionary patternDictionary)
+        => ResolveShading(patternDictionary, PdfTokens.ShadingKey);
+
+    /// <summary>
+    /// Get (and cache) the optional content membership a /Properties resource name refers to. Returns
+    /// null if not found or if the entry describes no membership.
+    /// Checks the document-level membership cache by indirect reference before resolving the object.
+    /// </summary>
+    public PdfOptionalContentMembership? GetOptionalContent(in PdfString propertiesName)
+    {
+        if (_optionalContentByName.TryGetValue(propertiesName, out PdfOptionalContentMembership? cachedMembership))
+        {
+            return cachedMembership;
+        }
+
+        if (_propertiesDictionary == null)
+        {
+            _logger.LogWarning("Properties '{PropertiesName}' requested but the page has no /Properties resources.", propertiesName);
+            return null;
+        }
+
+        PdfReference? propertiesReference = _propertiesDictionary.GetReference(propertiesName);
+        if (propertiesReference != null && _document.ObjectCache.OptionalContentMemberships.TryGetValue(propertiesReference.Value, out PdfOptionalContentMembership? documentCachedMembership))
+        {
+            _optionalContentByName[propertiesName] = documentCachedMembership;
+            return documentCachedMembership;
+        }
+
+        PdfObject? propertiesObject = _propertiesDictionary.GetObject(propertiesName);
+        if (propertiesObject == null)
+        {
+            _logger.LogWarning("Properties '{PropertiesName}' is not present in the page's /Properties resources.", propertiesName);
+            return null;
+        }
+
+        PdfOptionalContentMembership? membership = PdfOptionalContentMembership.FromOptionalContentObject(propertiesObject);
+        _optionalContentByName[propertiesName] = membership;
+
+        if (propertiesObject.Reference.IsValid)
+        {
+            _document.ObjectCache.OptionalContentMemberships[propertiesObject.Reference] = membership;
+        }
+
+        return membership;
+    }
+
+    /// <summary>
+    /// Get the dictionary a /Properties resource name refers to. Returns null if not found.
+    /// </summary>
+    public PdfDictionary? GetProperties(in PdfString propertiesName)
+        => _propertiesDictionary?.GetDictionary(propertiesName);
 
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.
@@ -137,7 +255,7 @@ internal sealed class PdfPageCache
     /// Get (and cache) a pattern by resource name from /Pattern dictionary. Returns null if not found or unsupported.
     /// Checks document-level pattern cache first when indirect reference is present.
     /// </summary>
-    public PdfPattern? GetPattern(IPdfRenderer renderer, in PdfString patternName)
+    public PdfPattern? GetPattern(in PdfString patternName)
     {
         if (_patternsByName.TryGetValue(patternName, out PdfPattern? cachedPattern))
         {
@@ -150,6 +268,13 @@ internal sealed class PdfPageCache
             return null;
         }
 
+        PdfReference? patternReference = _patternDictionary.GetReference(patternName);
+        if (patternReference != null && _document.ObjectCache.Patterns.TryGetValue(patternReference.Value, out PdfPattern? documentCachedPattern))
+        {
+            _patternsByName[patternName] = documentCachedPattern;
+            return documentCachedPattern;
+        }
+
         PdfObject? patternObject = _patternDictionary.GetObject(patternName);
 
         if (patternObject == null)
@@ -158,7 +283,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject, _page);
+        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(patternObject, _page);
 
         if (parsedPattern == null)
         {
@@ -167,6 +292,11 @@ internal sealed class PdfPageCache
         else
         {
             _patternsByName[patternName] = parsedPattern;
+
+            if (patternObject.Reference.IsValid && parsedPattern.IsPageIndependent)
+            {
+                _document.ObjectCache.Patterns[patternObject.Reference] = parsedPattern;
+            }
         }
 
         return parsedPattern;
@@ -194,14 +324,13 @@ internal sealed class PdfPageCache
 
         if (!_graphicsStateParametersByName.TryGetValue(graphicsStateName, out PdfGraphicsStateParameters? parameters))
         {
-            PdfDictionary? gsDict = _extGStateDictionary.GetDictionary(graphicsStateName);
-            if (gsDict == null)
+            parameters = ResolveGraphicsStateParameters(_extGStateDictionary, graphicsStateName);
+            if (parameters == null)
             {
                 _logger.LogWarning("ExtGState '{GraphicsStateName}' is not present in the page's /ExtGState resources.", graphicsStateName);
                 return;
             }
 
-            parameters = PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(gsDict, _page);
             _graphicsStateParametersByName[graphicsStateName] = parameters;
         }
 
@@ -210,5 +339,52 @@ internal sealed class PdfPageCache
         {
             processor.Process(new ConcatMatrixCommand(parameters.TransformMatrix.Value));
         }
+    }
+
+    /// <summary>
+    /// Resolves the ExtGState parameters a dictionary entry names.
+    /// </summary>
+    private PdfGraphicsStateParameters? ResolveGraphicsStateParameters(PdfDictionary dictionary, in PdfString key)
+    {
+        PdfReference? graphicsStateReference = dictionary.GetReference(key);
+        if (graphicsStateReference != null && _document.ObjectCache.GraphicsStateParameters.TryGetValue(graphicsStateReference.Value, out PdfGraphicsStateParameters? documentCachedParameters))
+        {
+            return documentCachedParameters;
+        }
+
+        PdfDictionary? graphicsStateDictionary = dictionary.GetDictionary(key);
+        if (graphicsStateDictionary == null)
+        {
+            return null;
+        }
+
+        PdfGraphicsStateParameters parameters = PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(graphicsStateDictionary, _page);
+
+        if (graphicsStateReference != null && parameters.SoftMask == null)
+        {
+            _document.ObjectCache.GraphicsStateParameters[graphicsStateReference.Value] = parameters;
+        }
+
+        return parameters;
+    }
+
+    /// <summary>
+    /// Resolves the shading a dictionary entry names.
+    /// </summary>
+    private PdfShading? ResolveShading(PdfDictionary dictionary, in PdfString key)
+    {
+        PdfReference? shadingReference = dictionary.GetReference(key);
+        if (shadingReference != null && _document.ObjectCache.Shadings.TryGetValue(shadingReference.Value, out PdfShading? documentCachedShading))
+        {
+            return documentCachedShading;
+        }
+
+        PdfObject? shadingObject = dictionary.GetObject(key);
+        if (shadingObject == null)
+        {
+            return null;
+        }
+
+        return PdfShading.GetShading(shadingObject);
     }
 }

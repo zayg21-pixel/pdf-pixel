@@ -1,4 +1,5 @@
-﻿using PdfPixel.Color.Transform;
+﻿using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Transform;
 using PdfPixel.Forms;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -43,23 +44,51 @@ internal static class PdfSoftMaskParser
         return softMask;
     }
 
-    public static PdfTransparencyGroup? ParseTransparencyGroup(PdfDictionary? groupDict, IPdfPageInternal page)
+    /// <summary>
+    /// Parses the transparency group a dictionary holds under a key. A group whose blending colour
+    /// space is an indirect reference is kept in the document cache and answered from it on later
+    /// uses, so the /Group dictionary is resolved once however many times the group is reached.
+    /// </summary>
+    public static PdfTransparencyGroup? ParseTransparencyGroup(PdfDictionary? ownerDictionary, in PdfString key, IPdfPageInternal page)
     {
-        if (groupDict == null)
+        if (ownerDictionary == null)
         {
             return null;
         }
 
-        PdfTransparencyGroup group = new();
-        if (groupDict.GetName(PdfTokens.GroupSubtypeKey) != PdfTokens.TransparencyGroupValue)
+        PdfReference? groupReference = ownerDictionary.GetReference(key);
+
+        if (groupReference != null && page.Document.ObjectCache.TransparencyGroups.TryGetValue(groupReference.Value, out PdfTransparencyGroup? documentCachedGroup))
+        {
+            return documentCachedGroup;
+        }
+
+        PdfDictionary? groupDictionary = ownerDictionary.GetDictionary(key);
+
+        if (groupDictionary == null)
         {
             return null;
         }
 
-        PdfObject? csValue = groupDict.GetObject(PdfTokens.GroupColorSpaceKey);
-        group.ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(csValue);
-        group.Isolated = groupDict.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey);
-        group.Knockout = groupDict.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey);
+        if (groupDictionary.GetName(PdfTokens.GroupSubtypeKey) != PdfTokens.TransparencyGroupValue)
+        {
+            return null;
+        }
+
+        PdfColorSpaceReference colorSpaceReference = PdfColorSpaceReference.FromDictionary(groupDictionary, PdfTokens.GroupColorSpaceKey);
+
+        PdfTransparencyGroup group = new()
+        {
+            ColorSpaceConverter = page.Cache.ColorSpace.Resolve(colorSpaceReference),
+            Isolated = groupDictionary.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey),
+            Knockout = groupDictionary.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey)
+        };
+
+        if (groupReference != null && colorSpaceReference.Reference.IsValid)
+        {
+            page.Document.ObjectCache.TransparencyGroups[groupReference.Value] = group;
+        }
+
         return group;
     }
 }
