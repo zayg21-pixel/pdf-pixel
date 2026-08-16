@@ -26,7 +26,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     private readonly Range[] _sourceSampleRangeForDestinationSample;
 
     // Vertical: inverse grid. Set of source-row indices whose arrival completes a destination row.
-    private readonly HashSet<int> _flushAfterSourceRow;
+    private readonly HashSet<int> _flushAfterSourceRow; // TODO: this takes 1/5 of all processing operations to check this hasset, need to improve
 
     private int _nextDestinationRowToWrite;
     private int _accumulatedSourceRowCount;

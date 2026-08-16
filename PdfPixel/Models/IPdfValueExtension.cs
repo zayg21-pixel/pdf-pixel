@@ -1,5 +1,3 @@
-using System;
-
 namespace PdfPixel.Models;
 
 /// <summary>
@@ -10,11 +8,10 @@ internal static class IPdfValueExtension
 {
     /// <summary>
     /// Returns the value as a PDF name if the type is <see cref="PdfValueType.Name"/>; otherwise returns <c>null</c>.
-    /// An empty name (<c>/</c>) is a valid name and is returned as an empty <see cref="PdfString"/>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> representing the name, or <c>null</c> if not a name.</returns>
-    public static PdfString? AsName(this IPdfValue? value)
+    public static PdfString? AsName(this IPdfValue? value) // TODO [HIGH]: this brings a lot of inconsistencies, that was in responsibility caller to check type previously, need to cleanup ASAP
     {
         if (value is IPdfValue<PdfString> nameValue && nameValue.Type == PdfValueType.Name)
         {
@@ -26,7 +23,6 @@ internal static class IPdfValueExtension
 
     /// <summary>
     /// Returns the value as a PDF string if the value carries string content; otherwise returns <c>null</c>.
-    /// An empty string is a valid string and is returned as an empty <see cref="PdfString"/>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> value, or <c>null</c> if not a string type.</returns>

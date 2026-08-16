@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Geometry;
 
-internal static partial class PdfStrokeOutlineBuilder
+public static partial class PdfStrokeOutlineBuilder
 {
     // One lookup is built and fully consumed per segment, so a single buffer per thread serves every
     // segment of every stroke on it.

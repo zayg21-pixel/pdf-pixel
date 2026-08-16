@@ -41,7 +41,7 @@ internal class PdfDocument : IPdfDocumentInternal
         _fontProvider = fontProvider;
         _objectCache = new PdfDocumentObjectCache(this, new PdfObjectParser(this));
         _stream = new BufferedStream(fileStream);
-        _cMapCache = new CMapCache(this, _logger);
+        _cMapCache = new CMapCache(_logger);
     }
 
     /// <inheritdoc/>

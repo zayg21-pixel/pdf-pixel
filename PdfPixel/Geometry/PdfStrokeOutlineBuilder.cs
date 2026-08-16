@@ -5,13 +5,13 @@ using System.Numerics;
 
 namespace PdfPixel.Geometry;
 
+// TODO: over-documented whole class
+
 /// <summary>
-/// Builds the fill outline of a stroked <see cref="PdfPath"/> directly in <see cref="PdfPath"/> geometry,
-/// without going through Skia. Supports caps, joins, and dash patterns. Does not support
-/// <see cref="PdfStrokeEffectType.Cloudy"/> (the decorative border-bump effect is out of scope; a plain
-/// stroke outline is produced regardless of <see cref="PdfStrokeStyle.EffectType"/>).
+/// Builds the fill outline of a stroked <see cref="PdfPath"/> directly in <see cref="PdfPath"/> geometry
+/// using <see cref="PdfPaint"/> parameters.
 /// </summary>
-internal static partial class PdfStrokeOutlineBuilder
+public static partial class PdfStrokeOutlineBuilder
 {
     // How far the emitted offset curve may stray from the true offset, measured at the segment midpoint
     // and in device units, before the cubic is split and its halves offset separately.

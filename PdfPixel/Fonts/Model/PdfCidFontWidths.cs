@@ -7,7 +7,7 @@ namespace PdfPixel.Fonts.Model;
 /// <summary>
 /// Font width information for CID fonts (Type0 descendant fonts).
 /// Handles both individual and ranged widths as per PDF spec.
-/// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
+/// All widths are stored in user space units.
 /// </summary>
 public class PdfCidFontWidths
 {

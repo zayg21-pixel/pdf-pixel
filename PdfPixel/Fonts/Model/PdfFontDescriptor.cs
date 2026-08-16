@@ -5,7 +5,6 @@ using PdfPixel.Text;
 
 namespace PdfPixel.Fonts.Model;
 
-// Font descriptor information
 /// <summary>
 /// Represents a PDF font descriptor, containing font metrics, style, and embedded font file information.
 /// Provides access to font properties as defined in the PDF specification.

@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Geometry;
 
-internal static partial class PdfStrokeOutlineBuilder
+public static partial class PdfStrokeOutlineBuilder
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool PointsEqual(Vector2 a, Vector2 b) => Vector2.DistanceSquared(a, b) <= (Epsilon * Epsilon);

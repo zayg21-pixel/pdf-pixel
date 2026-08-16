@@ -118,12 +118,7 @@ public class PdfCidFont : PdfFontBase
             return (ushort)cid;
         }
 
-        if (CidToGidMap.HasMapping(cid))
-        {
-            return CidToGidMap.GetGID(cid);
-        }
-
-        return null;
+        return CidToGidMap.GetGID(cid);
     }
 
     private IPdfTypeface? GetTypeface()

@@ -35,14 +35,10 @@ public class PdfType3Font : PdfSingleByteFont
             throw new ArgumentException("Font dictionary must be Type3");
         }
 
-        // Get CharProcs dictionary - essential for Type3 fonts
         CharProcs = Dictionary.GetDictionary(PdfTokens.CharProcsKey);
 
-        // Get FontMatrix (required for Type3 fonts)
         FontMatrix = PdfMatrix.FromArray(Dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? PdfMatrix.CreateScale(0.001f, 0.001f);
 
-        // Get FontBBox (required for Type3 fonts per PDF spec §9.6.5, Table 110)
-        // Used as the recording bounds for d0 glyphs that do not specify a per-glyph bounding box
         FontBBox = PdfRectangle.FromArray(Dictionary.GetArray(PdfTokens.FontBBoxKey));
         Widths.RescaleWidths(FontMatrix.ScaleX / PdfSingleByteFontWidths.WidthToUserSpaceCoeff);
 
@@ -115,7 +111,6 @@ public class PdfType3Font : PdfSingleByteFont
             return cached;
         }
 
-        // Convert character code to character name
         PdfString charName = GetCharacterName(charCode);
         if (charName.IsEmpty)
         {
@@ -144,7 +139,6 @@ public class PdfType3Font : PdfSingleByteFont
 
         PdfCommandRecorder recorder = new();
 
-        // Render glyph content stream without recursion (independent from page rendering)
         FormXObjectPageWrapper glyphPage = new(sourceState.Page, FontObject);
         PdfContentStreamRenderer contentRenderer = new(renderer, glyphPage);
         PdfParseContext parseContext = new(streamData);

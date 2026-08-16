@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace PdfPixel.Geometry;
 
-internal static partial class PdfStrokeOutlineBuilder
+public static partial class PdfStrokeOutlineBuilder
 {
     private static void AddJoin(
         PdfPathBuilder result,

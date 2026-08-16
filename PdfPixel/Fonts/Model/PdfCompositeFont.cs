@@ -27,7 +27,7 @@ public class PdfCompositeFont : PdfFontBase
         : base(fontObject)
     {
         DescendantFonts = LoadDescendantFonts();
-        (CodeToCidCMap, CMapName) = LoadCodeToCidCMap();
+        CodeToCidCMap = LoadCodeToCidCMap();
         _writingMode = CodeToCidCMap?.WMode ?? CMapWMode.Horizontal;
         _toUnicode = PdfToUnicodeMapProvider.GetToUnicodeMap(PrimaryDescendant?.CidSystemInfo);
     }
@@ -73,11 +73,6 @@ public class PdfCompositeFont : PdfFontBase
     /// May be null if /Encoding is a predefined name without an embedded stream (e.g., Identity-H).
     /// </summary>
     public PdfCMap? CodeToCidCMap { get; }
-
-    /// <summary>
-    /// CMap name from /Encoding entry (either predefined name or name from embedded CMap).
-    /// </summary>
-    public PdfString? CMapName { get; }
 
     /// <summary>
     /// Get character width (delegated to appropriate descendant CID font by CID).
@@ -176,13 +171,13 @@ public class PdfCompositeFont : PdfFontBase
     /// Load an embedded /Encoding CMap stream (if present) into a code->CID map.
     /// Returns null if /Encoding is a name or if parsing fails.
     /// </summary>
-    private (PdfCMap? CMap, PdfString? CMapName) LoadCodeToCidCMap()
+    private PdfCMap? LoadCodeToCidCMap()
     {
         PdfString? predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
 
         if (predefinedName != null)
         {
-            return (Document.CMapCache.GetCmap(predefinedName.Value), predefinedName);
+            return Document.CMapCache.GetCmap(predefinedName.Value);
         }
 
         PdfObject? encodingObject = Dictionary.GetObject(PdfTokens.EncodingKey);
@@ -191,9 +186,7 @@ public class PdfCompositeFont : PdfFontBase
             return default;
         }
 
-        PdfCMap? result = LoadCMapStream(encodingObject, 0);
-
-        return (result == null) ? default : (result, result.Name);
+        return LoadCMapStream(encodingObject, 0);
     }
 
     /// <summary>
@@ -466,13 +459,15 @@ public class PdfCompositeFont : PdfFontBase
 
         if (cidToGidMap != null)
         {
-            if (!cidToGidMap.HasMapping(cid))
+            ushort? cidToGidIndex = cidToGidMap.GetGID(cid);
+
+            if (cidToGidIndex == null)
             {
                 unicode = null;
                 return false;
             }
 
-            glyphIndex = cidToGidMap.GetGID(cid);
+            glyphIndex = cidToGidIndex.Value;
         }
 
         return StandardFontGlyphMapProvider.TryGetUnicode(descendant.BaseFont, glyphIndex, out unicode);

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Represents a parsed PDF document, exposing its pages and metadata.
+/// Represents a parsed PDF document.
 /// </summary>
 public interface IPdfDocument : IDisposable
 {
@@ -25,7 +25,7 @@ public interface IPdfDocument : IDisposable
     /// Gets the cache holding values built during command execution that stay valid for the lifetime
     /// of the document, so every replay of any of its pages reuses the same entries.
     /// </summary>
-    CommandCache CommandCache { get; }
+    CommandCache CommandCache { get; } // TODO: this is part of internals, need to cleanup
 
     /// <summary>
     /// Gets the optional content groups (layers) defined in the document,

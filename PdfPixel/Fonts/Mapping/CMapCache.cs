@@ -12,7 +12,6 @@ namespace PdfPixel.Fonts.Mapping;
 internal class CMapCache
 {
     private readonly ILogger _logger;
-    private readonly PdfDocument _document;
 
     /// <summary>
     /// Global cache for parsed CMaps by name.
@@ -24,11 +23,7 @@ internal class CMapCache
     /// </summary>
     internal Dictionary<PdfReference, PdfCMap> CMapStreams { get; } = [];
 
-    public CMapCache(PdfDocument document, ILogger logger)
-    {
-        _document = document ?? throw new ArgumentNullException(nameof(document));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    public CMapCache(ILogger logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
     /// Gets a CMap by name, loading and caching it if necessary.

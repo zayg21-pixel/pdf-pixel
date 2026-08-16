@@ -6,8 +6,7 @@ using PdfPixel.Models;
 namespace PdfPixel.Fonts.Mapping;
 
 /// <summary>
-/// Deserialises CMap data from the compact custom binary format produced by the ResourceGenerator tool.
-/// The format uses variable-length integers, delta coding, and run-length range blocks to minimise file size.
+/// Deserialises CMap data from the compact custom binary format produced by the Resource Generator tool.
 /// </summary>
 public static class PdfCmapBinary
 {

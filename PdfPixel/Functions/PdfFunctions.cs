@@ -7,13 +7,6 @@ namespace PdfPixel.Functions;
 
 /// <summary>
 /// PDF function evaluator (subset of spec) used for color related operations (tint transforms, shadings, etc.).
-/// Supported function types:
-///   0 - Sampled function (supports N-dimensional input, multilinear interpolation).
-///   2 - Exponential interpolation (single input variable).
-///   3 - Stitching function (single input variable, delegates to sub‑functions).
-/// Unsupported types (e.g. 4 PostScript calculator functions) produce an empty result.
-/// NOTE: Sample table ordering assumes that the FIRST input dimension varies fastest (dimension 0),
-/// so linear sample order increments dimension 0 first, then 1, etc. This matches internal producer expectations.
 /// </summary>
 internal static class PdfFunctions
 {
