@@ -110,9 +110,7 @@ public class PdfDocumentReader
             PdfOptionalContentGroupParser ocgParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOptionalContentGroupParser>());
             ((PdfDocument)document).OptionalContentGroups = ocgParser.Parse();
 
-            PdfDictionary? structTreeRoot = document.RootObject.Dictionary.GetDictionary(PdfTokens.StructTreeRootKey);
-            //((PdfDocument)document).StructureTree = PdfStructureTree.FromDictionary(structTreeRoot, document);
-            // TODO: document structure tree is per page and we don't need to load whole tree at once, this feature is incomplete and need full rework
+            ((PdfDocument)document).StructureTree = PdfStructureTree.FromCatalog(document.RootObject.Dictionary);
 
             IccProfile? outputIntentProfile = outputIntentParser.ParseFirstOutputIntentProfile();
             document.ObjectCache.OutputIntentProfile = outputIntentProfile;

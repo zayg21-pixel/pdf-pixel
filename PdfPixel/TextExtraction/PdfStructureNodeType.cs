@@ -1,17 +1,22 @@
 namespace PdfPixel.TextExtraction;
 
 /// <summary>
-/// Discriminates the kind of child entry in a structure element's /K array.
+/// The kind of child a structure element holds.
 /// </summary>
 public enum PdfStructureNodeType
 {
     /// <summary>
-    /// A nested structure element (/StructElem).
+    /// A nested structure element.
     /// </summary>
     Element,
 
     /// <summary>
-    /// A marked content reference (MCID integer).
+    /// Marked content in a content stream, named by its identifier.
     /// </summary>
-    Mcid
+    Mcid,
+
+    /// <summary>
+    /// A whole object, such as an annotation or an XObject.
+    /// </summary>
+    ObjectReference
 }

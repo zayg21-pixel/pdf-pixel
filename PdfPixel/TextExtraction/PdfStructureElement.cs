@@ -5,186 +5,195 @@ using System.Collections.Generic;
 namespace PdfPixel.TextExtraction;
 
 /// <summary>
-/// A node in the document structure tree, corresponding to a PDF structure element (/StructElem).
-/// Children are either nested structure elements or marked content references (MCIDs).
+/// A structure element (/StructElem) in the document structure tree.
 /// </summary>
 public sealed class PdfStructureElement
 {
-    private readonly IPdfDocumentInternal _document;
-    private IPdfPage? _cachedPage;
+    private readonly PdfDictionary _dictionary;
 
-    private PdfStructureElement(IPdfDocumentInternal document)
-        => _document = document;
-
-    /// <summary>
-    /// Pre-order index in the structure tree, assigned during tree construction.
-    /// Used to determine reading order across structure elements.
-    /// </summary>
-    public int Index { get; internal set; }
-
-    /// <summary>
-    /// Parent structure element, or <see langword="null"/> for root elements.
-    /// </summary>
-    public PdfStructureElement? Parent { get; private set; }
-
-    internal PdfReference? PageReference { get; private set; }
-
-    /// <summary>
-    /// Structure type tag (/S), e.g. "P", "Span", "H1", "Table".
-    /// </summary>
-    public PdfString Tag { get; internal set; }
-
-    /// <summary>
-    /// Language tag (/Lang), or empty if not specified.
-    /// </summary>
-    public PdfString? Lang { get; internal set; }
-
-    /// <summary>
-    /// Replacement text (/ActualText), or empty if not specified.
-    /// </summary>
-    public PdfString? ActualText { get; internal set; }
-
-    /// <summary>
-    /// Alternative text (/Alt), or empty if not specified.
-    /// </summary>
-    public PdfString? Alt { get; internal set; }
-
-    /// <summary>
-    /// Element identifier (/ID), or empty if not specified.
-    /// </summary>
-    public PdfString? Id { get; internal set; }
-
-    /// <summary>
-    /// Expanded form of an abbreviation (/E), or empty if not specified.
-    /// </summary>
-    public PdfString? ExpandedForm { get; internal set; }
-
-    /// <summary>
-    /// Title (/T), or empty if not specified.
-    /// </summary>
-    public PdfString? Title { get; internal set; }
-
-    /// <summary>
-    /// Revision number (/R), or <see langword="null"/> if not specified.
-    /// </summary>
-    public int? Revision { get; internal set; }
-
-    /// <summary>
-    /// Child structure elements and MCID references in document reading order.
-    /// </summary>
-    public List<PdfStructureNode> Children { get; } = [];
-
-    /// <summary>
-    /// Resolves the page associated with this structure element (/Pg),
-    /// or <see langword="null"/> if no page reference is present.
-    /// </summary>
-    public IPdfPage? GetPage()
+    internal PdfStructureElement(PdfDictionary dictionary, PdfStructureTree tree)
     {
-        if (_cachedPage != null)
-        {
-            return _cachedPage;
-        }
-
-        if (PageReference == null)
-        {
-            return null;
-        }
-
-        for (int index = 0; index < _document.Pages.Count; index++)
-        {
-            if (_document.Pages[index].PageReference.Equals(PageReference.Value))
-            {
-                _cachedPage = _document.Pages[index];
-                break;
-            }
-        }
-
-        return _cachedPage;
+        _dictionary = dictionary;
+        Tree = tree;
     }
 
     /// <summary>
-    /// Parses a structure element from a PDF dictionary.
-    /// Returns <see langword="null"/> if the dictionary does not represent a valid structure element.
+    /// The structure tree this element belongs to.
     /// </summary>
-    internal static PdfStructureElement? FromDictionary(PdfDictionary dictionary, IPdfDocumentInternal document)
+    public PdfStructureTree Tree { get; }
+
+    /// <summary>
+    /// Structure type (/S), mapped through the tree's /RoleMap.
+    /// </summary>
+    public PdfString Type => Tree.MapRole(RawType);
+
+    /// <summary>
+    /// Structure type (/S) as written, before /RoleMap.
+    /// </summary>
+    public PdfString RawType => _dictionary.GetNameOrDefault(PdfTokens.StructureTypeKey);
+
+    /// <summary>
+    /// Parent structure element (/P), or <see langword="null"/> when the parent is the
+    /// structure tree root.
+    /// </summary>
+    public PdfStructureElement? Parent
     {
-        PdfString? tag = dictionary.GetName(PdfTokens.GroupSubtypeKey);
-        if (tag == null)
+        get
         {
-            return null;
-        }
-
-        // TODO: [LOW] parse /C (class), /A (attributes)
-        PdfStructureElement element = new(document)
-        {
-            PageReference = dictionary.GetReference(PdfTokens.PgKey),
-            Tag = tag.Value,
-            Lang = dictionary.GetString(PdfTokens.LangKey),
-            ActualText = dictionary.GetString(PdfTokens.ActualTextKey),
-            Alt = dictionary.GetString(PdfTokens.AltKey),
-            Id = dictionary.GetString(PdfTokens.IdKey),
-            ExpandedForm = dictionary.GetString(PdfTokens.ExpandedFormKey),
-            Title = dictionary.GetString(PdfTokens.TitleKey),
-            Revision = dictionary.GetInteger(PdfTokens.RKey)
-        };
-
-        ParseChildren(dictionary, document, element);
-
-        return element;
-    }
-
-    private static void ParseChildren(PdfDictionary dictionary, IPdfDocumentInternal document, PdfStructureElement parent)
-    {
-        PdfArray? childrenArray = dictionary.GetArray(PdfTokens.KKey);
-        if (childrenArray != null)
-        {
-            for (int i = 0; i < childrenArray.Count; i++)
+            PdfDictionary? parent = _dictionary.GetDictionary(PdfTokens.StructureParentKey);
+            if (parent == null || parent.GetName(PdfTokens.TypeKey) == PdfTokens.StructTreeRootKey)
             {
-                int? mcid = childrenArray.GetInteger(i);
-                if (mcid != null)
-                {
-                    parent.Children.Add(PdfStructureNode.FromMcid(mcid.Value));
-                    continue;
-                }
-
-                PdfDictionary? kidDict = childrenArray.GetDictionary(i);
-                if (kidDict != null)
-                {
-                    ParseKidDictionary(kidDict, document, parent);
-                }
+                return null;
             }
 
-            return;
-        }
-
-        int? singleMcid = dictionary.GetInteger(PdfTokens.KKey);
-        if (singleMcid != null)
-        {
-            parent.Children.Add(PdfStructureNode.FromMcid(singleMcid.Value));
-            return;
-        }
-
-        PdfDictionary? singleKidDict = dictionary.GetDictionary(PdfTokens.KKey);
-        if (singleKidDict != null)
-        {
-            ParseKidDictionary(singleKidDict, document, parent);
+            return new PdfStructureElement(parent, Tree);
         }
     }
 
-    private static void ParseKidDictionary(PdfDictionary kidDict, IPdfDocumentInternal document, PdfStructureElement parent)
+    /// <summary>
+    /// Page (/Pg) the element's content appears on, or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfReference? Page => _dictionary.GetReference(PdfTokens.PgKey);
+
+    /// <summary>
+    /// Element identifier (/ID), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? Id => _dictionary.GetString(PdfTokens.IdKey);
+
+    /// <summary>
+    /// Language (/Lang), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? Lang => _dictionary.GetString(PdfTokens.LangKey);
+
+    /// <summary>
+    /// Replacement text (/ActualText), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? ActualText => _dictionary.GetString(PdfTokens.ActualTextKey);
+
+    /// <summary>
+    /// Alternative description (/Alt), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? Alt => _dictionary.GetString(PdfTokens.AltKey);
+
+    /// <summary>
+    /// Expanded form of an abbreviation (/E), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? ExpandedForm => _dictionary.GetString(PdfTokens.ExpandedFormKey);
+
+    /// <summary>
+    /// Title (/T), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? Title => _dictionary.GetString(PdfTokens.TitleKey);
+
+    /// <summary>
+    /// Revision number (/R), or <see langword="null"/> when absent.
+    /// </summary>
+    public int? Revision => _dictionary.GetInteger(PdfTokens.RKey);
+
+    /// <summary>
+    /// Pronunciation (/Phoneme), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? Phoneme => _dictionary.GetString(PdfTokens.PhonemeKey);
+
+    /// <summary>
+    /// Phonetic alphabet (/PhoneticAlphabet) of <see cref="Phoneme"/>,
+    /// or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfString? PhoneticAlphabet => _dictionary.GetName(PdfTokens.PhoneticAlphabetKey);
+
+    // TODO: [LOW] parse /A and /C attributes, including the revision numbers paired with them
+
+    /// <summary>
+    /// Structure elements this element references (/Ref).
+    /// </summary>
+    public IEnumerable<PdfStructureElement> EnumerateReferenced()
     {
-        int? mcid = kidDict.GetInteger(PdfTokens.MCIDKey);
+        PdfArray? referenced = _dictionary.GetArray(PdfTokens.ReferencedKey);
+        if (referenced == null)
+        {
+            yield break;
+        }
+
+        for (int index = 0; index < referenced.Count; index++)
+        {
+            PdfDictionary? element = referenced.GetDictionary(index);
+            if (element != null)
+            {
+                yield return new PdfStructureElement(element, Tree);
+            }
+        }
+    }
+
+    // TODO: [LOW] parse /AF associated file specifications, /NS namespace
+
+    /// <summary>
+    /// Children (/K) of this element in document order.
+    /// </summary>
+    public IEnumerable<PdfStructureNode> EnumerateChildren()
+    {
+        IPdfValue? children = _dictionary.GetValue(PdfTokens.KKey);
+        PdfArray? childArray = children.AsArray();
+
+        if (childArray == null)
+        {
+            PdfStructureNode? single = CreateNode(children);
+            if (single != null)
+            {
+                yield return single.Value;
+            }
+
+            yield break;
+        }
+
+        for (int index = 0; index < childArray.Count; index++)
+        {
+            PdfStructureNode? node = CreateNode(childArray.GetValue(index));
+            if (node != null)
+            {
+                yield return node.Value;
+            }
+        }
+    }
+
+    private PdfStructureNode? CreateNode(IPdfValue? child)
+    {
+        int? mcid = child.AsInteger();
         if (mcid != null)
         {
-            parent.Children.Add(PdfStructureNode.FromMcid(mcid.Value, kidDict.GetReference(PdfTokens.PgKey)));
-            return;
+            return new PdfStructureNode(PdfStructureNodeType.Mcid, mcid, null, null, null, null);
         }
 
-        PdfStructureElement? child = FromDictionary(kidDict, document);
-        if (child != null)
+        PdfDictionary? childDictionary = child.AsDictionary();
+        if (childDictionary == null)
         {
-            child.Parent = parent;
-            parent.Children.Add(PdfStructureNode.FromElement(child));
+            return null;
         }
+
+        PdfString? type = childDictionary.GetName(PdfTokens.TypeKey);
+
+        if (type == PdfTokens.ObjectReferenceKey)
+        {
+            return new PdfStructureNode(
+                PdfStructureNodeType.ObjectReference,
+                null,
+                childDictionary.GetReference(PdfTokens.PgKey),
+                null,
+                null,
+                childDictionary.GetReference(PdfTokens.ObjectKey));
+        }
+
+        int? referencedMcid = childDictionary.GetInteger(PdfTokens.MCIDKey);
+        if (type == PdfTokens.MarkedContentReferenceKey || referencedMcid != null)
+        {
+            return new PdfStructureNode(
+                PdfStructureNodeType.Mcid,
+                referencedMcid,
+                childDictionary.GetReference(PdfTokens.PgKey),
+                childDictionary.GetReference(PdfTokens.StreamKey),
+                childDictionary.GetReference(PdfTokens.StreamOwnerKey),
+                null);
+        }
+
+        return new PdfStructureNode(new PdfStructureElement(childDictionary, Tree));
     }
 }

@@ -65,7 +65,7 @@ internal sealed class PdfPageCache
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.
     /// </summary>
-    public PdfFontBase? GetFont(in PdfString fontName)
+    public PdfFontBase? GetFont(in PdfString fontName) // TODO: [EXTRA HIGH] GetObject creates new object every time
     {
         if (_fontDictionary == null)
         {

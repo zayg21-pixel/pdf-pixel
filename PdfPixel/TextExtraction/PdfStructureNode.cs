@@ -3,17 +3,24 @@ using PdfPixel.Models;
 namespace PdfPixel.TextExtraction;
 
 /// <summary>
-/// A child entry in a <see cref="PdfStructureElement"/>.
-/// Either a nested structure element or a marked content reference (MCID).
+/// A child entry (/K) of a <see cref="PdfStructureElement"/>.
 /// </summary>
 public readonly struct PdfStructureNode
 {
-    private PdfStructureNode(PdfStructureNodeType type, PdfStructureElement? element, int? mcid, PdfReference? pageReference)
+    internal PdfStructureNode(PdfStructureElement element)
+    {
+        Type = PdfStructureNodeType.Element;
+        Element = element;
+    }
+
+    internal PdfStructureNode(PdfStructureNodeType type, int? mcid, PdfReference? pageReference, PdfReference? streamReference, PdfReference? streamOwnerReference, PdfReference? objectReference)
     {
         Type = type;
-        Element = element;
         Mcid = mcid;
         PageReference = pageReference;
+        StreamReference = streamReference;
+        StreamOwnerReference = streamOwnerReference;
+        ObjectReference = objectReference;
     }
 
     /// <summary>
@@ -22,30 +29,32 @@ public readonly struct PdfStructureNode
     public PdfStructureNodeType Type { get; }
 
     /// <summary>
-    /// The nested structure element, or <see langword="null"/> if this is an MCID reference.
+    /// The nested structure element, or <see langword="null"/> when this node is not an element.
     /// </summary>
     public PdfStructureElement? Element { get; }
 
     /// <summary>
-    /// The marked content identifier, or <see langword="null"/> if this is a structure element.
+    /// The marked content identifier (/MCID), or <see langword="null"/> when this node is not marked content.
     /// </summary>
     public int? Mcid { get; }
 
     /// <summary>
-    /// Page reference from the MCR's own /Pg entry, overriding the parent element's page.
-    /// <see langword="null"/> when absent — the parent element's page reference applies.
+    /// Page (/Pg) of the referenced content or object, or <see langword="null"/> when absent.
     /// </summary>
     public PdfReference? PageReference { get; }
 
     /// <summary>
-    /// Creates a node wrapping a nested structure element.
+    /// Content stream (/Stm) holding the marked content, or <see langword="null"/> when absent.
     /// </summary>
-    public static PdfStructureNode FromElement(PdfStructureElement element)
-        => new(PdfStructureNodeType.Element, element, null, null);
+    public PdfReference? StreamReference { get; }
 
     /// <summary>
-    /// Creates a node wrapping a marked content identifier.
+    /// Object (/StmOwn) owning <see cref="StreamReference"/>, or <see langword="null"/> when absent.
     /// </summary>
-    public static PdfStructureNode FromMcid(int mcid, PdfReference? pageReference = null)
-        => new(PdfStructureNodeType.Mcid, null, mcid, pageReference);
+    public PdfReference? StreamOwnerReference { get; }
+
+    /// <summary>
+    /// The object (/Obj) this node refers to, or <see langword="null"/> when this node is not an object reference.
+    /// </summary>
+    public PdfReference? ObjectReference { get; }
 }

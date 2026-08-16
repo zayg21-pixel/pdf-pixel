@@ -402,10 +402,25 @@ internal static class PdfTokens
     public static readonly PdfString PgKey = (PdfString)"Pg"u8;                           // Page reference in structure element
     public static readonly PdfString AltKey = (PdfString)"Alt"u8;                         // Alternative text in structure element
     public static readonly PdfString ExpandedFormKey = (PdfString)"E"u8;                  // Expanded form of abbreviation in structure element
+    public static readonly PdfString ParentTreeKey = (PdfString)"ParentTree"u8;           // Number tree mapping structural parent keys to structure elements
+    public static readonly PdfString StructParentsKey = (PdfString)"StructParents"u8;     // Structural parent key of a content stream holding marked content
+    public static readonly PdfString ParentTreeNextKeyKey = (PdfString)"ParentTreeNextKey"u8; // Next structural parent key to assign
+    public static readonly PdfString RoleMapKey = (PdfString)"RoleMap"u8;                 // Maps non-standard structure types onto standard ones
+    public static readonly PdfString StructureTypeKey = (PdfString)"S"u8;                 // Structure type of a structure element
+    public static readonly PdfString StructureParentKey = (PdfString)"P"u8;               // Parent structure element
+    public static readonly PdfString ReferencedKey = (PdfString)"Ref"u8;                  // Structure elements this element references
+    public static readonly PdfString PhonemeKey = (PdfString)"Phoneme"u8;                 // Pronunciation of the element's content
+    public static readonly PdfString PhoneticAlphabetKey = (PdfString)"PhoneticAlphabet"u8;
+    public static readonly PdfString MarkedContentReferenceKey = (PdfString)"MCR"u8;      // /Type of a marked content reference
+    public static readonly PdfString ObjectReferenceKey = (PdfString)"OBJR"u8;            // /Type of an object reference
+    public static readonly PdfString StreamKey = (PdfString)"Stm"u8;                      // Content stream holding the referenced marked content
+    public static readonly PdfString StreamOwnerKey = (PdfString)"StmOwn"u8;              // Object owning the content stream
+    public static readonly PdfString ObjectKey = (PdfString)"Obj"u8;                      // Object a structure element refers to
 
     // Page label number tree keys
     public static readonly PdfString PageLabelsKey = (PdfString)"PageLabels"u8;
     public static readonly PdfString NumsKey = (PdfString)"Nums"u8;
+    public static readonly PdfString LimitsKey = (PdfString)"Limits"u8;
     public static readonly PdfString PrefixKey = (PdfString)"P"u8;
     public static readonly PdfString StyleKey = (PdfString)"S"u8;
     public static readonly PdfString StartKey = (PdfString)"St"u8;

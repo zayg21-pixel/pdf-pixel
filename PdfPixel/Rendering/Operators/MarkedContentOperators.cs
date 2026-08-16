@@ -163,47 +163,35 @@ internal class MarkedContentOperators : IOperatorProcessor
     {
         PdfTextTag tag = tagName.AsEnum<PdfTextTag>();
 
-        PdfString? inlineActualText = null;
-        PdfString? inlineLang = null;
+        PdfString? actualText = null;
+        PdfString? lang = null;
         int? mcid = null;
 
         if (propertiesDictionary != null)
         {
-            inlineActualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
-            inlineLang = propertiesDictionary.GetString(PdfTokens.LangKey);
+            actualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
+            lang = propertiesDictionary.GetString(PdfTokens.LangKey);
             mcid = propertiesDictionary.GetInteger(PdfTokens.MCIDKey);
         }
 
-        PdfStructureElement? structureElement = null;
-        if (mcid != null)
-        {
-            structureElement = _page.Document.StructureTree?.FindByMcid(_page.PageReference, mcid.Value);
-        }
+        // TODO: fall back to the structure element the MCID belongs to for /ActualText and /Lang,
+        // resolving it through the structure tree's /ParentTree entry named by /StructParents
 
-        bool hasProperties = inlineActualText != null || inlineLang != null || structureElement != null;
-
-        if (tag == PdfTextTag.Custom && !hasProperties)
+        if (tag == PdfTextTag.Custom && actualText == null && lang == null && mcid == null)
         {
             return null;
         }
 
-        PdfTextMarkup markup = new(tag);
+        PdfTextMarkup markup = new(tag)
+        {
+            ActualText = actualText,
+            Lang = lang,
+            Mcid = mcid
+        };
 
         if (tag == PdfTextTag.Custom)
         {
             markup.CustomTag = tagName;
-        }
-
-        if (structureElement != null)
-        {
-            markup.ActualText = inlineActualText ?? structureElement.ActualText;
-            markup.Lang = inlineLang ?? structureElement.Lang;
-            markup.StructureElement = structureElement;
-        }
-        else
-        {
-            markup.ActualText = inlineActualText;
-            markup.Lang = inlineLang;
         }
 
         return markup;

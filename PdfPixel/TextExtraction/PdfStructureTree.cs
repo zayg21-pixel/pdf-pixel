@@ -5,99 +5,92 @@ using System.Collections.Generic;
 namespace PdfPixel.TextExtraction;
 
 /// <summary>
-/// Document-level structure tree parsed from the catalog's /StructTreeRoot entry.
-/// Contains the root structure elements defining the document's logical reading order.
+/// The document structure tree (/StructTreeRoot).
 /// </summary>
-public class PdfStructureTree
+public sealed class PdfStructureTree
 {
-    private readonly Dictionary<(PdfReference pageRef, int mcid), PdfStructureElement> _mcidMap = [];
-    private int _nextIndex;
+    private readonly PdfDictionary _dictionary;
 
-    private PdfStructureTree()
+    internal PdfStructureTree(PdfDictionary dictionary)
+        => _dictionary = dictionary;
+
+    /// <summary>
+    /// Number tree (/ParentTree) mapping structural parent keys onto structure elements,
+    /// or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfDictionary? ParentTree => _dictionary.GetDictionary(PdfTokens.ParentTreeKey);
+
+    /// <summary>
+    /// Next structural parent key to assign (/ParentTreeNextKey), or <see langword="null"/> when absent.
+    /// </summary>
+    public int? ParentTreeNextKey => _dictionary.GetInteger(PdfTokens.ParentTreeNextKeyKey);
+
+    // TODO: [LOW] parse /IDTree, /ClassMap, /Namespaces, /PronunciationLexicon
+
+    /// <summary>
+    /// A tree over the catalog's /StructTreeRoot entry, or <see langword="null"/> when the
+    /// catalog has none.
+    /// </summary>
+    internal static PdfStructureTree? FromCatalog(PdfDictionary? catalog)
     {
+        PdfDictionary? structTreeRoot = catalog?.GetDictionary(PdfTokens.StructTreeRootKey);
+        return (structTreeRoot != null) ? new PdfStructureTree(structTreeRoot) : null;
     }
 
-    // TODO: [LOW] parse /RoleMap, /IDTree, /ClassMap
-
     /// <summary>
-    /// Root structure elements in document reading order.
+    /// Root structure elements (/K) in document order.
     /// </summary>
-    public List<PdfStructureElement> RootElements { get; } = [];
-
-    /// <summary>
-    /// Looks up the structure element that owns the given marked content identifier on the specified page.
-    /// Returns <see langword="null"/> if the MCID is not present in the structure tree.
-    /// </summary>
-    internal PdfStructureElement? FindByMcid(in PdfReference pageRef, int mcid)
-        => (_mcidMap.TryGetValue((pageRef, mcid), out PdfStructureElement? element)) ? element : null;
-
-    /// <summary>
-    /// Parses the structure tree from the catalog's /StructTreeRoot dictionary.
-    /// Returns <see langword="null"/> if no structure tree is present.
-    /// </summary>
-    internal static PdfStructureTree? FromDictionary(PdfDictionary? structTreeRoot, IPdfDocumentInternal document)
+    public IEnumerable<PdfStructureElement> EnumerateRootElements()
     {
-        if (structTreeRoot == null)
+        IPdfValue? children = _dictionary.GetValue(PdfTokens.KKey);
+        PdfArray? childArray = children.AsArray();
+
+        if (childArray == null)
         {
-            return null;
+            PdfDictionary? single = children.AsDictionary();
+            if (single != null)
+            {
+                yield return new PdfStructureElement(single, this);
+            }
+
+            yield break;
         }
 
-        PdfStructureTree tree = new();
-
-        PdfArray? childrenArray = structTreeRoot.GetArray(PdfTokens.KKey);
-        if (childrenArray != null)
+        for (int index = 0; index < childArray.Count; index++)
         {
-            for (int i = 0; i < childrenArray.Count; i++)
+            PdfDictionary? element = childArray.GetDictionary(index);
+            if (element != null)
             {
-                PdfDictionary? kidDict = childrenArray.GetDictionary(i);
-                if (kidDict != null)
-                {
-                    PdfStructureElement? element = PdfStructureElement.FromDictionary(kidDict, document);
-                    if (element != null)
-                    {
-                        tree.RootElements.Add(element);
-                    }
-                }
+                yield return new PdfStructureElement(element, this);
             }
         }
-        else
-        {
-            PdfDictionary? singleKid = structTreeRoot.GetDictionary(PdfTokens.KKey);
-            if (singleKid != null)
-            {
-                PdfStructureElement? element = PdfStructureElement.FromDictionary(singleKid, document);
-                if (element != null)
-                {
-                    tree.RootElements.Add(element);
-                }
-            }
-        }
-
-        foreach (PdfStructureElement rootElement in tree.RootElements)
-        {
-            tree.IndexAndMap(rootElement);
-        }
-
-        return tree;
     }
 
-    private void IndexAndMap(PdfStructureElement element)
+    /// <summary>
+    /// The standard structure type the tree's /RoleMap gives for a type,
+    /// or the type itself when the map does not name it.
+    /// </summary>
+    internal PdfString MapRole(in PdfString structureType)
     {
-        element.Index = _nextIndex++;
-        foreach (PdfStructureNode child in element.Children)
+        PdfDictionary? roleMap = _dictionary.GetDictionary(PdfTokens.RoleMapKey);
+        if (roleMap == null)
         {
-            if (child.Type == PdfStructureNodeType.Mcid && child.Mcid != null)
-            {
-                PdfReference? pageRef = child.PageReference ?? element.PageReference;
-                if (pageRef != null)
-                {
-                    _mcidMap[(pageRef.Value, child.Mcid.Value)] = element;
-                }
-            }
-            else if (child.Type == PdfStructureNodeType.Element && child.Element != null)
-            {
-                IndexAndMap(child.Element);
-            }
+            return structureType;
         }
+
+        PdfString mapped = structureType;
+
+        for (int step = 0; step < roleMap.Count; step++)
+        {
+            PdfString? next = roleMap.GetName(mapped);
+            if (next == null || next.Value == mapped)
+            {
+                break;
+            }
+
+            mapped = next.Value;
+        }
+
+        return mapped;
     }
 }
