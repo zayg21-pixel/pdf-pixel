@@ -155,10 +155,15 @@ internal ref partial struct PdfParser
                 {
                     if (values.Count >= 2)
                     {
-                        int generation = values[values.Count - 1].AsInteger();
-                        var objectNumber = (uint)values[values.Count - 2].AsInteger();
-                        values.RemoveRange(values.Count - 2, 2);
-                        values.Add(PdfValueFactory.Reference(new PdfReference(objectNumber, generation)));
+                        int? generation = values[values.Count - 1].AsInteger();
+                        int? objectNumber = values[values.Count - 2].AsInteger();
+
+                        // Without two numeric operands this is not a reference; leave the values in place.
+                        if (generation != null && objectNumber != null)
+                        {
+                            values.RemoveRange(values.Count - 2, 2);
+                            values.Add(PdfValueFactory.Reference(new PdfReference((uint)objectNumber.Value, generation.Value)));
+                        }
                     }
 
                     break;

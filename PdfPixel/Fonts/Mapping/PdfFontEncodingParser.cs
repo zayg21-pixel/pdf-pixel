@@ -57,9 +57,10 @@ internal static class PdfFontEncodingParser
                         continue;
                     }
 
-                    if (item.Type == PdfValueType.Integer)
+                    int? differenceCode = item.AsInteger();
+                    if (differenceCode != null)
                     {
-                        currentCode = item.AsInteger();
+                        currentCode = differenceCode.Value;
                         continue;
                     }
 

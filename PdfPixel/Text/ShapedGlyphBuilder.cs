@@ -118,8 +118,13 @@ public static class ShapedGlyphBuilder
                 else
                 {
                     // Positioning adjustment (negative = move left, positive = move right)
-                    float adjustment = item.AsFloat();
-                    float adjustmentInUserSpace = -adjustment / 1000f;
+                    float? adjustment = item.AsFloat();
+                    if (adjustment == null)
+                    {
+                        continue;
+                    }
+
+                    float adjustmentInUserSpace = -adjustment.Value / 1000f;
 
                     if (isVertical)
                     {

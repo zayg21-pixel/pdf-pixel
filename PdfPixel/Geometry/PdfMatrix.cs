@@ -106,7 +106,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
 
     /// <summary>
     /// Creates a <see cref="PdfMatrix"/> from PDF transformation matrix operands (legacy list form).
-    /// Returns null if the operand list has insufficient elements.
+    /// Returns null if the operand list has insufficient elements or any operand is not numeric.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="operands"/> is null.</exception>
     public static PdfMatrix? FromOperands(List<IPdfValue> operands)
@@ -121,14 +121,24 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
             return null;
         }
 
-        float a = operands[0].AsFloat();
-        float b = operands[1].AsFloat();
-        float c = operands[2].AsFloat();
-        float d = operands[3].AsFloat();
-        float e = operands[4].AsFloat();
-        float f = operands[5].AsFloat();
+        float? a = operands[0].AsFloat();
+        float? b = operands[1].AsFloat();
+        float? c = operands[2].AsFloat();
+        float? d = operands[3].AsFloat();
+        float? e = operands[4].AsFloat();
+        float? f = operands[5].AsFloat();
 
-        return new PdfMatrix(a, c, e, b, d, f);
+        if (a == null
+            || b == null
+            || c == null
+            || d == null
+            || e == null
+            || f == null)
+        {
+            return null;
+        }
+
+        return new PdfMatrix(a.Value, c.Value, e.Value, b.Value, d.Value, f.Value);
     }
 
     /// <summary>

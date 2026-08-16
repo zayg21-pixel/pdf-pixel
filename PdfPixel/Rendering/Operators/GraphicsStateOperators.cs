@@ -164,7 +164,14 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        PdfStrokeStyle strokeStyle = graphicsState.StrokePaint.RequireStrokeStyle().WithLineWidth(operands[0].AsFloat());
+        float? lineWidth = operands[0].AsFloat();
+        if (lineWidth == null)
+        {
+            _logger.LogWarning("Skipping 'w' operator: non-numeric line width operand.");
+            return;
+        }
+
+        PdfStrokeStyle strokeStyle = graphicsState.StrokePaint.RequireStrokeStyle().WithLineWidth(lineWidth.Value);
         graphicsState.StrokePaint = graphicsState.StrokePaint.WithStrokeStyle(strokeStyle);
     }
 
@@ -176,8 +183,14 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        float capStyle = operands[0].AsFloat();
-        PdfStrokeCap lineCap = capStyle switch
+        float? capStyle = operands[0].AsFloat();
+        if (capStyle == null)
+        {
+            _logger.LogWarning("Skipping 'J' operator: non-numeric line cap operand.");
+            return;
+        }
+
+        PdfStrokeCap lineCap = capStyle.Value switch
         {
             0 => PdfStrokeCap.Butt,
             1 => PdfStrokeCap.Round,
@@ -197,8 +210,14 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        float joinStyle = operands[0].AsFloat();
-        PdfStrokeJoin lineJoin = joinStyle switch
+        float? joinStyle = operands[0].AsFloat();
+        if (joinStyle == null)
+        {
+            _logger.LogWarning("Skipping 'j' operator: non-numeric line join operand.");
+            return;
+        }
+
+        PdfStrokeJoin lineJoin = joinStyle.Value switch
         {
             0 => PdfStrokeJoin.Miter,
             1 => PdfStrokeJoin.Round,
@@ -218,7 +237,14 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        PdfStrokeStyle strokeStyle = graphicsState.StrokePaint.RequireStrokeStyle().WithMiterLimit(operands[0].AsFloat());
+        float? miterLimit = operands[0].AsFloat();
+        if (miterLimit == null)
+        {
+            _logger.LogWarning("Skipping 'M' operator: non-numeric miter limit operand.");
+            return;
+        }
+
+        PdfStrokeStyle strokeStyle = graphicsState.StrokePaint.RequireStrokeStyle().WithMiterLimit(miterLimit.Value);
         graphicsState.StrokePaint = graphicsState.StrokePaint.WithStrokeStyle(strokeStyle);
     }
 
@@ -230,11 +256,17 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
+        float? dashPhase = operands[1].AsFloat();
+        if (dashPhase == null)
+        {
+            _logger.LogWarning("Skipping 'd' operator: non-numeric dash phase operand.");
+            return;
+        }
+
         float[]? dashArray = operands[0].AsArray()?.GetFloatArray();
-        float dashPhase = operands[1].AsFloat();
 
         PdfStrokeStyle strokeStyle = (dashArray?.Length > 0)
-            ? graphicsState.StrokePaint.RequireStrokeStyle().WithDash(GetDashPattern(dashArray), dashPhase)
+            ? graphicsState.StrokePaint.RequireStrokeStyle().WithDash(GetDashPattern(dashArray), dashPhase.Value)
             : graphicsState.StrokePaint.RequireStrokeStyle().WithDash(null, 0f); // Empty array means solid line
 
         graphicsState.StrokePaint = graphicsState.StrokePaint.WithStrokeStyle(strokeStyle);
@@ -265,8 +297,14 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        float flatness = operands[0].AsFloat();
-        graphicsState.FlatnessTolerance = flatness;
+        float? flatness = operands[0].AsFloat();
+        if (flatness == null)
+        {
+            _logger.LogWarning("Skipping 'i' operator: non-numeric flatness tolerance operand.");
+            return;
+        }
+
+        graphicsState.FlatnessTolerance = flatness.Value;
     }
 
     public static float[]? GetDashPattern(float[] pattern)

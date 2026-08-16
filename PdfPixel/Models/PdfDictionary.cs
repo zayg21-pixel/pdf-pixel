@@ -107,20 +107,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The integer value, or <c>null</c>.</returns>
-    public int? GetInteger(in PdfString key)
-    {
-        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
-        {
-            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
-
-            if (resolvedValue != null && (resolvedValue.Type == PdfValueType.Integer || resolvedValue.Type == PdfValueType.Real))
-            {
-                return resolvedValue.AsInteger();
-            }
-        }
-
-        return default;
-    }
+    public int? GetInteger(in PdfString key) => GetValue(key).AsInteger();
 
     /// <summary>
     /// Gets the value as an integer for the specified key, following references.
@@ -128,8 +115,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The integer value, or 0.</returns>
-    public int GetIntegerOrDefault(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
+    public int GetIntegerOrDefault(in PdfString key) => GetInteger(key) ?? 0;
 
     /// <summary>
     /// Gets the value as a float for the specified key, following references.
@@ -137,19 +123,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The float value, or <c>null</c>.</returns>
-    public float? GetFloat(in PdfString key)
-    {
-        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
-        {
-            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
-            if (resolvedValue != null && (resolvedValue.Type == PdfValueType.Integer || resolvedValue.Type == PdfValueType.Real))
-            {
-                return resolvedValue.AsFloat();
-            }
-        }
-
-        return default;
-    }
+    public float? GetFloat(in PdfString key) => GetValue(key).AsFloat();
 
     /// <summary>
     /// Gets the value as a float for the specified key, following references.
@@ -157,8 +131,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The float value, or 0.</returns>
-    public float GetFloatOrDefault(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
+    public float GetFloatOrDefault(in PdfString key) => GetFloat(key) ?? 0f;
 
     /// <summary>
     /// Gets the value as a boolean for the specified key, following references.
@@ -166,19 +139,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The boolean value, or <c>null</c>.</returns>
-    public bool? GetBoolean(in PdfString key)
-    {
-        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
-        {
-            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
-            if (resolvedValue != null && resolvedValue.Type == PdfValueType.Boolean)
-            {
-                return resolvedValue.AsBoolean();
-            }
-        }
-
-        return default;
-    }
+    public bool? GetBoolean(in PdfString key) => GetValue(key).AsBoolean();
 
     /// <summary>
     /// Gets the value as a boolean for the specified key, following references.
@@ -186,16 +147,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The boolean value, or <c>false</c>.</returns>
-    public bool GetBooleanOrDefault(in PdfString key)
-    {
-        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
-        {
-            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
-            return resolvedValue?.AsBoolean() == true;
-        }
-
-        return false;
-    }
+    public bool GetBooleanOrDefault(in PdfString key) => GetBoolean(key) ?? false;
 
     /// <summary>
     /// Gets the value as a PDF array for the specified key, following references.

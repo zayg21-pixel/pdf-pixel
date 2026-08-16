@@ -89,13 +89,13 @@ public class PdfCidFontVerticalMetrics
             int i = 0;
             while (i < w2Array.Count)
             {
-                IPdfValue? first = w2Array.GetValue(i++);
-                if (first == null)
+                int? firstCidValue = w2Array.GetValue(i++).AsInteger();
+                if (firstCidValue == null)
                 {
                     continue;
                 }
 
-                var firstCid = (uint)first.AsInteger();
+                var firstCid = (uint)firstCidValue.Value;
                 IPdfValue? second = w2Array.GetValue(i++);
                 if (second == null)
                 {
@@ -125,7 +125,13 @@ public class PdfCidFontVerticalMetrics
                 else
                 {
                     // Range: firstCid..lastCid
-                    var lastCid = (uint)second.AsInteger();
+                    int? lastCidValue = second.AsInteger();
+                    if (lastCidValue == null)
+                    {
+                        continue;
+                    }
+
+                    var lastCid = (uint)lastCidValue.Value;
                     if (i + 2 >= w2Array.Count)
                     {
                         continue;

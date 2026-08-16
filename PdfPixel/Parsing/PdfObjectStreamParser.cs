@@ -158,20 +158,20 @@ internal class PdfObjectStreamParser
 
         for (int index = 0; index < objectCount; index++)
         {
-            IPdfValue? objectNumberValue = headerParser.ReadNextValue();
-            if (objectNumberValue == null || objectNumberValue.Type != PdfValueType.Integer)
+            int? objectNumberValue = headerParser.ReadNextValue().AsInteger();
+            if (objectNumberValue == null)
             {
                 break;
             }
 
-            IPdfValue? offsetValue = headerParser.ReadNextValue();
-            if (offsetValue == null || offsetValue.Type != PdfValueType.Integer)
+            int? offsetValue = headerParser.ReadNextValue().AsInteger();
+            if (offsetValue == null)
             {
                 break;
             }
 
-            var objectNumber = (uint)objectNumberValue.AsInteger();
-            int relativeOffset = offsetValue.AsInteger();
+            var objectNumber = (uint)objectNumberValue.Value;
+            int relativeOffset = offsetValue.Value;
 
             // Cache the index -> offset mapping for fast lookup.
             if (!indexMap.ContainsKey(index))

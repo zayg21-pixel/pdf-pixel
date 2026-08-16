@@ -141,7 +141,7 @@ internal class ColorOperators : IOperatorProcessor
         var components = new float[converter.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
         {
-            components[componentIndex] = operands[componentIndex].AsFloat();
+            components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
         PdfColor color = converter.ToSrgb(components, state.RenderingIntent, state.TransferFunction);
@@ -190,7 +190,7 @@ internal class ColorOperators : IOperatorProcessor
         var components = new float[converter.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
         {
-            components[componentIndex] = operands[componentIndex].AsFloat();
+            components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
         PdfColor color = converter.ToSrgb(components, state.RenderingIntent, state.TransferFunction);
@@ -208,7 +208,7 @@ internal class ColorOperators : IOperatorProcessor
         Span<float> components = stackalloc float[state.FillColorConverter.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
         {
-            components[componentIndex] = operands[componentIndex].AsFloat();
+            components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
         state.FillPaint = state.FillPaint.WithSolidColor(state.FillRgbaSampler.Sample(components).ToPdfColor());
@@ -226,7 +226,7 @@ internal class ColorOperators : IOperatorProcessor
         Span<float> components = stackalloc float[state.StrokeColorConverter.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
         {
-            components[componentIndex] = operands[componentIndex].AsFloat();
+            components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
         state.StrokePaint = state.StrokePaint.WithSolidColor(state.StrokeRgbaSampler.Sample(components).ToPdfColor());
@@ -272,7 +272,7 @@ internal class ColorOperators : IOperatorProcessor
         var numericComponents = new float[converter.Components];
         for (int componentIndex = 0; componentIndex < numericComponents.Length && componentIndex < operands.Length; componentIndex++)
         {
-            numericComponents[componentIndex] = operands[componentIndex].AsFloat();
+            numericComponents[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
         state.FillPaint = state.FillPaint.WithSolidColor(converter.ToSrgb(numericComponents, state.RenderingIntent, state.TransferFunction));
@@ -317,7 +317,7 @@ internal class ColorOperators : IOperatorProcessor
         var numericComponents = new float[converter.Components];
         for (int componentIndex = 0; componentIndex < numericComponents.Length && componentIndex < operands.Length; componentIndex++)
         {
-            numericComponents[componentIndex] = operands[componentIndex].AsFloat();
+            numericComponents[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
         state.StrokePaint = state.StrokePaint.WithSolidColor(converter.ToSrgb(numericComponents, state.RenderingIntent, state.TransferFunction));
@@ -378,7 +378,7 @@ internal class ColorOperators : IOperatorProcessor
 
         for (int componentIndex = 0; componentIndex < provided; componentIndex++)
         {
-            values[componentIndex] = operands[componentIndex].AsFloat();
+            values[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
         return values;

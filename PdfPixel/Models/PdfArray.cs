@@ -89,114 +89,42 @@ public class PdfArray
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The integer value if present; otherwise, <c>null</c>.</returns>
-    public int? GetInteger(int index)
-    {
-        IPdfValue? value = GetValue(index);
-
-        if (value == null)
-        {
-            return default;
-        }
-
-        if (value.Type == PdfValueType.Integer || value.Type == PdfValueType.Real)
-        {
-            return value.AsInteger();
-        }
-
-        return default;
-    }
+    public int? GetInteger(int index) => GetValue(index).AsInteger();
 
     /// <summary>
     /// Gets an integer value at the specified index, or 0 if the value is not numeric.
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The integer value if present; otherwise, 0.</returns>
-    public int GetIntegerOrDefault(int index)
-    {
-        IPdfValue? value = GetValue(index);
-        if (value == null)
-        {
-            return 0;
-        }
-
-        return value.AsInteger();
-    }
+    public int GetIntegerOrDefault(int index) => GetInteger(index) ?? 0;
 
     /// <summary>
     /// Gets a floating-point value at the specified index, or <c>null</c> if the value is not numeric.
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The float value if present; otherwise, <c>null</c>.</returns>
-    public float? GetFloat(int index)
-    {
-        IPdfValue? value = GetValue(index);
-
-        if (value == null)
-        {
-            return 0f;
-        }
-
-        if (value.Type == PdfValueType.Integer || value.Type == PdfValueType.Real)
-        {
-            return value.AsFloat();
-        }
-
-        return default;
-    }
+    public float? GetFloat(int index) => GetValue(index).AsFloat();
 
     /// <summary>
     /// Gets a floating-point value at the specified index, or 0 if the value is not numeric.
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The float value if present; otherwise, 0.</returns>
-    public float GetFloatOrDefault(int index)
-    {
-        IPdfValue? value = GetValue(index);
-        if (value == null)
-        {
-            return 0f;
-        }
-
-        return value.AsFloat();
-    }
+    public float GetFloatOrDefault(int index) => GetFloat(index) ?? 0f;
 
     /// <summary>
     /// Gets a boolean value at the specified index, or <c>null</c> if the value is not a boolean.
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The boolean value if present; otherwise, <c>null</c>.</returns>
-    public bool? GetBoolean(int index)
-    {
-        IPdfValue? value = GetValue(index);
-        if (value == null)
-        {
-            return default;
-        }
-
-        if (value.Type == PdfValueType.Boolean)
-        {
-            return value.AsBoolean();
-        }
-
-        return default;
-    }
-
+    public bool? GetBoolean(int index) => GetValue(index).AsBoolean();
 
     /// <summary>
     /// Gets a boolean value at the specified index, interpreting names <c>/true</c> and <c>/false</c> as booleans.
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The boolean value if present; otherwise, <c>false</c>.</returns>
-    public bool GetBooleanOrDefault(int index)
-    {
-        IPdfValue? value = GetValue(index);
-        if (value == null)
-        {
-            return false;
-        }
-
-        return value.AsBoolean();
-    }
+    public bool GetBooleanOrDefault(int index) => GetBoolean(index) ?? false;
 
     /// <summary>
     /// Gets an inner array as a resolved list of values at the specified index.

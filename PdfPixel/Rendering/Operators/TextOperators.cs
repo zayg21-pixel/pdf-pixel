@@ -180,14 +180,15 @@ internal class TextOperators : IOperatorProcessor
         }
 
         PdfString? fontName = operands[0].AsName();
-        float fontSize = operands[1].AsFloat();
-        if (fontName == null)
+        float? fontSize = operands[1].AsFloat();
+        if (fontName == null || fontSize == null)
         {
+            _logger.LogWarning("Skipping 'Tf' operator: expected a font name and a numeric size.");
             return;
         }
 
         graphicsState.CurrentFont = _page.Cache.GetFont(fontName.Value);
-        graphicsState.FontSize = fontSize;
+        graphicsState.FontSize = fontSize.Value;
     }
 
     private void ProcessSetCharacterSpacing(PdfGraphicsState graphicsState)
@@ -198,7 +199,14 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.CharacterSpacing = operands[0].AsFloat();
+        float? characterSpacing = operands[0].AsFloat();
+        if (characterSpacing == null)
+        {
+            _logger.LogWarning("Skipping 'Tc' operator: non-numeric character spacing operand.");
+            return;
+        }
+
+        graphicsState.CharacterSpacing = characterSpacing.Value;
     }
 
     private void ProcessSetWordSpacing(PdfGraphicsState graphicsState)
@@ -209,7 +217,14 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.WordSpacing = operands[0].AsFloat();
+        float? wordSpacing = operands[0].AsFloat();
+        if (wordSpacing == null)
+        {
+            _logger.LogWarning("Skipping 'Tw' operator: non-numeric word spacing operand.");
+            return;
+        }
+
+        graphicsState.WordSpacing = wordSpacing.Value;
     }
 
     private void ProcessSetHorizontalScaling(PdfGraphicsState graphicsState)
@@ -220,7 +235,14 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.HorizontalScaling = operands[0].AsFloat();
+        float? horizontalScaling = operands[0].AsFloat();
+        if (horizontalScaling == null)
+        {
+            _logger.LogWarning("Skipping 'Tz' operator: non-numeric horizontal scaling operand.");
+            return;
+        }
+
+        graphicsState.HorizontalScaling = horizontalScaling.Value;
     }
 
     private void ProcessSetTextLeading(PdfGraphicsState graphicsState)
@@ -231,7 +253,14 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.Leading = -operands[0].AsFloat();
+        float? leading = operands[0].AsFloat();
+        if (leading == null)
+        {
+            _logger.LogWarning("Skipping 'TL' operator: non-numeric leading operand.");
+            return;
+        }
+
+        graphicsState.Leading = -leading.Value;
     }
 
     private void ProcessSetTextRise(PdfGraphicsState graphicsState)
@@ -242,7 +271,14 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.Rise = operands[0].AsFloat();
+        float? rise = operands[0].AsFloat();
+        if (rise == null)
+        {
+            _logger.LogWarning("Skipping 'Ts' operator: non-numeric text rise operand.");
+            return;
+        }
+
+        graphicsState.Rise = rise.Value;
     }
 
     private void ProcessSetTextRenderingMode(PdfGraphicsState graphicsState)
@@ -253,10 +289,16 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        var mode = (int)operands[0].AsFloat();
+        int? mode = operands[0].AsInteger();
+        if (mode == null)
+        {
+            _logger.LogWarning("Skipping 'Tr' operator: non-numeric rendering mode operand.");
+            return;
+        }
+
         if (mode >= 0 && mode <= 7)
         {
-            graphicsState.TextRenderingMode = (PdfTextRenderingMode)mode;
+            graphicsState.TextRenderingMode = (PdfTextRenderingMode)mode.Value;
         }
         else
         {
@@ -272,9 +314,16 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        float tx = operands[0].AsFloat();
-        float ty = operands[1].AsFloat();
-        PdfMatrix translation = PdfMatrix.CreateTranslation(tx, ty);
+        float? tx = operands[0].AsFloat();
+        float? ty = operands[1].AsFloat();
+
+        if (tx == null || ty == null)
+        {
+            _logger.LogWarning("Skipping 'Td' operator: non-numeric translation operands.");
+            return;
+        }
+
+        PdfMatrix translation = PdfMatrix.CreateTranslation(tx.Value, ty.Value);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
@@ -287,10 +336,17 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        float tx = operands[0].AsFloat();
-        float ty = operands[1].AsFloat();
-        graphicsState.Leading = ty;
-        PdfMatrix translation = PdfMatrix.CreateTranslation(tx, ty);
+        float? tx = operands[0].AsFloat();
+        float? ty = operands[1].AsFloat();
+
+        if (tx == null || ty == null)
+        {
+            _logger.LogWarning("Skipping 'TD' operator: non-numeric translation operands.");
+            return;
+        }
+
+        graphicsState.Leading = ty.Value;
+        PdfMatrix translation = PdfMatrix.CreateTranslation(tx.Value, ty.Value);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
@@ -355,8 +411,17 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.WordSpacing = operands[0].AsFloat();
-        graphicsState.CharacterSpacing = operands[1].AsFloat();
+        float? wordSpacing = operands[0].AsFloat();
+        float? characterSpacing = operands[1].AsFloat();
+
+        if (wordSpacing == null || characterSpacing == null)
+        {
+            _logger.LogWarning("Skipping '\"' operator: non-numeric word or character spacing operands.");
+            return;
+        }
+
+        graphicsState.WordSpacing = wordSpacing.Value;
+        graphicsState.CharacterSpacing = characterSpacing.Value;
         ShapedGlyphBuilder.BuildFromString(operands[2], graphicsState, buffer);
         ProcessSequence(graphicsState, buffer);
     }

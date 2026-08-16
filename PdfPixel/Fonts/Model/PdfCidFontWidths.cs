@@ -77,13 +77,13 @@ public class PdfCidFontWidths
             int i = 0;
             while (i < wArray.Count)
             {
-                IPdfValue? first = wArray.GetValue(i++);
-                if (first == null)
+                int? firstCidValue = wArray.GetValue(i++).AsInteger();
+                if (firstCidValue == null)
                 {
                     continue;
                 }
 
-                var firstCid = (uint)first.AsInteger();
+                var firstCid = (uint)firstCidValue.Value;
                 IPdfValue? second = wArray.GetValue(i++);
                 if (second == null)
                 {
@@ -108,7 +108,13 @@ public class PdfCidFontWidths
                 else
                 {
                     // Range: firstCid to secondCid, all have the same width
-                    var lastCid = (uint)second.AsInteger();
+                    int? lastCidValue = second.AsInteger();
+                    if (lastCidValue == null)
+                    {
+                        continue;
+                    }
+
+                    var lastCid = (uint)lastCidValue.Value;
                     float width = wArray.GetFloatOrDefault(i++) * WidthToUserSpaceCoeff;
                     for (uint cid = firstCid; cid <= lastCid; cid++)
                     {

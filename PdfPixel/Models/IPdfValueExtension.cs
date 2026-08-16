@@ -11,7 +11,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> representing the name, or <c>null</c> if not a name.</returns>
-    public static PdfString? AsName(this IPdfValue? value) // TODO [HIGH]: this brings a lot of inconsistencies, that was in responsibility caller to check type previously, need to cleanup ASAP
+    public static PdfString? AsName(this IPdfValue? value)
     {
         if (value is IPdfValue<PdfString> nameValue && nameValue.Type == PdfValueType.Name)
         {
@@ -37,11 +37,11 @@ internal static class IPdfValueExtension
     }
 
     /// <summary>
-    /// Returns the value as an integer if the type is <see cref="PdfValueType.Integer"/> or <see cref="PdfValueType.Real"/>; otherwise returns 0.
+    /// Returns the value as an integer if the type is <see cref="PdfValueType.Integer"/> or <see cref="PdfValueType.Real"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The integer value, or 0 if not numeric.</returns>
-    public static int AsInteger(this IPdfValue? value)
+    /// <returns>The integer value, or <c>null</c> if not numeric.</returns>
+    public static int? AsInteger(this IPdfValue? value)
     {
         if (value is IPdfValue<int> intValue && intValue.Type == PdfValueType.Integer)
         {
@@ -52,52 +52,41 @@ internal static class IPdfValueExtension
             return (int)floatNumber.Value;
         }
 
-        return 0;
+        return null;
     }
 
     /// <summary>
-    /// Returns the value as a float if the type is <see cref="PdfValueType.Real"/>; otherwise returns 0.
+    /// Returns the value as a float if the type is <see cref="PdfValueType.Integer"/> or <see cref="PdfValueType.Real"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The float value, or 0 if not a real number.</returns>
-    private static float AsReal(this IPdfValue? value)
+    /// <returns>The float value, or <c>null</c> if not numeric.</returns>
+    public static float? AsFloat(this IPdfValue? value)
     {
-        if (value is IPdfValue<float> realValue)
+        if (value is IPdfValue<float> realValue && realValue.Type == PdfValueType.Real)
         {
             return realValue.Value;
         }
-
-        return 0f;
-    }
-
-    /// <summary>
-    /// Returns the value as a float if the type is <see cref="PdfValueType.Integer"/> or <see cref="PdfValueType.Real"/>; otherwise returns 0.
-    /// </summary>
-    /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The float value, or 0 if not numeric.</returns>
-    public static float AsFloat(this IPdfValue? value)
-    {
-        return value?.Type switch
+        else if (value is IPdfValue<int> intValue && intValue.Type == PdfValueType.Integer)
         {
-            PdfValueType.Integer => value.AsInteger(),
-            PdfValueType.Real => value.AsReal(),
-            _ => 0f
-        };
+            return intValue.Value;
+        }
+
+        return null;
     }
 
     /// <summary>
-    /// Returns the value as a boolean if the type is <see cref="PdfValueType.Boolean"/>; otherwise returns <c>false</c>.
+    /// Returns the value as a boolean if the type is <see cref="PdfValueType.Boolean"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The boolean value, or <c>false</c> if not a boolean.</returns>
-    public static bool AsBoolean(this IPdfValue? value)
+    /// <returns>The boolean value, or <c>null</c> if not a boolean.</returns>
+    public static bool? AsBoolean(this IPdfValue? value)
     {
-        if (value is PdfValue<bool> booleanValue)
+        if (value is IPdfValue<bool> booleanValue && booleanValue.Type == PdfValueType.Boolean)
         {
             return booleanValue.Value;
         }
 
-        return false;
+        return null;
     }
 
     /// <summary>
@@ -107,7 +96,7 @@ internal static class IPdfValueExtension
     /// <returns>The <see cref="PdfArray"/> value, or <c>null</c> if not an array.</returns>
     public static PdfArray? AsArray(this IPdfValue? value)
     {
-        if (value is PdfValue<PdfArray> arrayValue && arrayValue.Type == PdfValueType.Array)
+        if (value is IPdfValue<PdfArray> arrayValue && arrayValue.Type == PdfValueType.Array)
         {
             return arrayValue.Value;
         }
@@ -122,7 +111,7 @@ internal static class IPdfValueExtension
     /// <returns>The <see cref="PdfDictionary"/> value, or <c>null</c> if not a dictionary.</returns>
     public static PdfDictionary? AsDictionary(this IPdfValue? value)
     {
-        if (value is PdfValue<PdfDictionary> dictionaryValue && dictionaryValue.Type == PdfValueType.Dictionary)
+        if (value is IPdfValue<PdfDictionary> dictionaryValue && dictionaryValue.Type == PdfValueType.Dictionary)
         {
             return dictionaryValue.Value;
         }
@@ -137,7 +126,7 @@ internal static class IPdfValueExtension
     /// <returns>The <see cref="PdfObject"/> carrying the inline image's dictionary and stream bytes, or <c>null</c>.</returns>
     public static PdfObject? AsInlineImage(this IPdfValue? value)
     {
-        if (value is PdfValue<PdfObject> inlineImageValue && inlineImageValue.Type == PdfValueType.InlineImage)
+        if (value is IPdfValue<PdfObject> inlineImageValue && inlineImageValue.Type == PdfValueType.InlineImage)
         {
             return inlineImageValue.Value;
         }

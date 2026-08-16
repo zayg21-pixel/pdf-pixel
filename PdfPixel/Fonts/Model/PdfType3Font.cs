@@ -190,9 +190,15 @@ public class PdfType3Font : PdfSingleByteFont
                             break;
                         }
 
-                        float wx = operands[0].AsFloat();
-                        float wy = operands[1].AsFloat();
-                        type3Advancement = new PdfSize(wx, wy);
+                        float? wx = operands[0].AsFloat();
+                        float? wy = operands[1].AsFloat();
+
+                        if (wx == null || wy == null)
+                        {
+                            break;
+                        }
+
+                        type3Advancement = new PdfSize(wx.Value, wy.Value);
                         return (type3Advancement, type3BoundingBox);
                     }
                     case "d1":
@@ -204,15 +210,25 @@ public class PdfType3Font : PdfSingleByteFont
                             break;
                         }
 
-                        float wx = operands[0].AsFloat();
-                        float wy = operands[1].AsFloat();
-                        float llx = operands[2].AsFloat();
-                        float lly = operands[3].AsFloat();
-                        float urx = operands[4].AsFloat();
-                        float ury = operands[5].AsFloat();
+                        float? wx = operands[0].AsFloat();
+                        float? wy = operands[1].AsFloat();
+                        float? llx = operands[2].AsFloat();
+                        float? lly = operands[3].AsFloat();
+                        float? urx = operands[4].AsFloat();
+                        float? ury = operands[5].AsFloat();
 
-                        type3Advancement = new PdfSize(wx, wy);
-                        type3BoundingBox = new PdfRectangle(Math.Min(llx, urx), Math.Min(lly, ury), Math.Max(llx, urx), Math.Max(lly, ury));
+                        if (wx == null
+                            || wy == null
+                            || llx == null
+                            || lly == null
+                            || urx == null
+                            || ury == null)
+                        {
+                            break;
+                        }
+
+                        type3Advancement = new PdfSize(wx.Value, wy.Value);
+                        type3BoundingBox = new PdfRectangle(Math.Min(llx.Value, urx.Value), Math.Min(lly.Value, ury.Value), Math.Max(llx.Value, urx.Value), Math.Max(lly.Value, ury.Value));
 
                         return (type3Advancement, type3BoundingBox);
                     }

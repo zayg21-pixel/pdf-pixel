@@ -64,9 +64,16 @@ internal partial struct PdfParser
 
     private PdfObject? FinishReadObject(IPdfValue? first, IPdfValue? second, int startPos)
     {
-        var objectNumber = (uint)first.AsInteger();
-        int generation = second.AsInteger();
-        PdfReference reference = new(objectNumber, generation);
+        int? objectNumber = first.AsInteger();
+        int? generation = second.AsInteger();
+
+        if (objectNumber == null || generation == null)
+        {
+            Position = startPos;
+            return null;
+        }
+
+        PdfReference reference = new((uint)objectNumber.Value, generation.Value);
         _currentReference = reference;
 
         IPdfValue? value = ReadNextValue();
@@ -113,7 +120,8 @@ internal partial struct PdfParser
 
         SkipSingleEndOfLine();
 
-        int declaredLength = dict.GetValue(PdfTokens.LengthKey).AsInteger();
+        // A missing or non-numeric /Length leaves the length unknown; the endstream scan below recovers it.
+        int declaredLength = dict.GetValue(PdfTokens.LengthKey).AsInteger() ?? 0;
 
         int streamStart = Position;
 

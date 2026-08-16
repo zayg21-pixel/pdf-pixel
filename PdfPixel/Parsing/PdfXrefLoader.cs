@@ -172,22 +172,23 @@ internal sealed class PdfXrefLoader
                 break;
             }
 
-            if (firstValue.Type != PdfValueType.Integer)
+            int? subsectionStart = firstValue.AsInteger();
+            if (subsectionStart == null)
             {
                 // Not integer and not trailer -> end.
                 _logger.LogDebug("Non-integer subsection start value; ending classic xref parse.");
                 break;
             }
 
-            IPdfValue? countValue = parser.ReadNextValue();
-            if (countValue == null || countValue.Type != PdfValueType.Integer)
+            int? subsectionCount = parser.ReadNextValue().AsInteger();
+            if (subsectionCount == null)
             {
-                _logger.LogWarning("Failed to read entry count for subsection {Index} (start {First}) at position {Pos}.", subsectionIndex, firstValue.AsInteger(), parser.Position);
+                _logger.LogWarning("Failed to read entry count for subsection {Index} (start {First}) at position {Pos}.", subsectionIndex, subsectionStart.Value, parser.Position);
                 break;
             }
 
-            int firstObject = firstValue.AsInteger();
-            int entryCount = countValue.AsInteger();
+            int firstObject = subsectionStart.Value;
+            int entryCount = subsectionCount.Value;
             int parsedCount = 0;
 
             for (int localIndex = 0; localIndex < entryCount; localIndex++)
@@ -215,18 +216,18 @@ internal sealed class PdfXrefLoader
 
     /// <summary>
     /// Parse a single classic xref table entry using the unified PdfParser.
-    /// Reads three tokens (offset, generation, status) without validating the first two types.
-    /// Only the third (status) must be an operator 'n' or 'f'.
+    /// Reads three tokens (offset, generation, status): the first two must be numeric,
+    /// the third an operator 'n' or 'f'.
     /// </summary>
     private bool ParseSingleEntry(ref PdfParser parser, uint objectNumber)
     {
         int entryStart = parser.Position;
 
-        var offsetValue = (uint)parser.ReadNextValue().AsInteger();
-        int generation = parser.ReadNextValue().AsInteger();
+        int? offsetValue = parser.ReadNextValue().AsInteger();
+        int? generation = parser.ReadNextValue().AsInteger();
         PdfString? statusString = parser.ReadNextValue().AsString();
 
-        if (statusString == null || statusString.Value.Value.Length != 1)
+        if (offsetValue == null || generation == null || statusString == null || statusString.Value.Value.Length != 1)
         {
             parser.Position = entryStart;
             return false;
@@ -234,11 +235,11 @@ internal sealed class PdfXrefLoader
 
         byte statusByte = statusString.Value.Value.Span[0];
 
-        PdfReference reference = new(objectNumber, generation);
+        PdfReference reference = new(objectNumber, generation.Value);
         PdfObjectInfo info;
         if (statusByte == (byte)'n')
         {
-            info = PdfObjectInfo.ForUncompressed(_document.HeaderOffset + offsetValue);
+            info = PdfObjectInfo.ForUncompressed(_document.HeaderOffset + (uint)offsetValue.Value);
         }
         else if (statusByte == (byte)'f')
         {
@@ -492,14 +493,9 @@ internal sealed class PdfXrefLoader
     {
         PdfParser parser = new(_document.Stream, _document, allowReferences: false, decrypt: false);
         parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
-        IPdfValue? value = parser.ReadNextValue();
 
-        if (value == null || value.Type != PdfValueType.Integer)
-        {
-            return -1;
-        }
-
-        return value.AsInteger();
+        // -1 marks a missing or non-numeric startxref offset.
+        return parser.ReadNextValue().AsInteger() ?? -1;
     }
 
     private bool MatchSequenceAt(long position, in ReadOnlySpan<byte> sequence) => PdfByteScanner.MatchesAt(_document.Stream, position, sequence);

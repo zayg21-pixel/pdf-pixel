@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
@@ -43,6 +44,7 @@ internal class PathOperators : IOperatorProcessor
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfPathBuilder _currentPath;
     private readonly IPdfPageInternal _page;
+    private readonly ILogger<PathOperators> _logger;
     private PdfPathFillType? _pendingClipFillType;
     private PdfPoint _lastPoint;
     private PdfPoint _subPathStart;
@@ -54,6 +56,7 @@ internal class PathOperators : IOperatorProcessor
         _processor = processor;
         _currentPath = currentPath;
         _page = page;
+        _logger = page.Document.LoggerFactory.CreateLogger<PathOperators>();
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -174,10 +177,17 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        float x = operands[0].AsFloat();
-        float y = operands[1].AsFloat();
-        _currentPath.MoveTo(x, y);
-        _lastPoint = new PdfPoint(x, y);
+        float? x = operands[0].AsFloat();
+        float? y = operands[1].AsFloat();
+
+        if (x == null || y == null)
+        {
+            _logger.LogWarning("Skipping 'm' operator: non-numeric coordinate operands.");
+            return;
+        }
+
+        _currentPath.MoveTo(x.Value, y.Value);
+        _lastPoint = new PdfPoint(x.Value, y.Value);
         _subPathStart = _lastPoint;
     }
 
@@ -189,10 +199,17 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        float x = operands[0].AsFloat();
-        float y = operands[1].AsFloat();
-        _currentPath.LineTo(x, y);
-        _lastPoint = new PdfPoint(x, y);
+        float? x = operands[0].AsFloat();
+        float? y = operands[1].AsFloat();
+
+        if (x == null || y == null)
+        {
+            _logger.LogWarning("Skipping 'l' operator: non-numeric coordinate operands.");
+            return;
+        }
+
+        _currentPath.LineTo(x.Value, y.Value);
+        _lastPoint = new PdfPoint(x.Value, y.Value);
     }
 
     private void ProcessCurveTo()
@@ -203,14 +220,26 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        float x1 = operands[0].AsFloat();
-        float y1 = operands[1].AsFloat();
-        float x2 = operands[2].AsFloat();
-        float y2 = operands[3].AsFloat();
-        float x3 = operands[4].AsFloat();
-        float y3 = operands[5].AsFloat();
-        _currentPath.CubicTo(x1, y1, x2, y2, x3, y3);
-        _lastPoint = new PdfPoint(x3, y3);
+        float? x1 = operands[0].AsFloat();
+        float? y1 = operands[1].AsFloat();
+        float? x2 = operands[2].AsFloat();
+        float? y2 = operands[3].AsFloat();
+        float? x3 = operands[4].AsFloat();
+        float? y3 = operands[5].AsFloat();
+
+        if (x1 == null
+            || y1 == null
+            || x2 == null
+            || y2 == null
+            || x3 == null
+            || y3 == null)
+        {
+            _logger.LogWarning("Skipping 'c' operator: non-numeric coordinate operands.");
+            return;
+        }
+
+        _currentPath.CubicTo(x1.Value, y1.Value, x2.Value, y2.Value, x3.Value, y3.Value);
+        _lastPoint = new PdfPoint(x3.Value, y3.Value);
     }
 
     private void ProcessCurveToV()
@@ -221,12 +250,19 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        float x2 = operands[0].AsFloat();
-        float y2 = operands[1].AsFloat();
-        float x3 = operands[2].AsFloat();
-        float y3 = operands[3].AsFloat();
-        _currentPath.CubicTo(_lastPoint.X, _lastPoint.Y, x2, y2, x3, y3);
-        _lastPoint = new PdfPoint(x3, y3);
+        float? x2 = operands[0].AsFloat();
+        float? y2 = operands[1].AsFloat();
+        float? x3 = operands[2].AsFloat();
+        float? y3 = operands[3].AsFloat();
+
+        if (x2 == null || y2 == null || x3 == null || y3 == null)
+        {
+            _logger.LogWarning("Skipping 'v' operator: non-numeric coordinate operands.");
+            return;
+        }
+
+        _currentPath.CubicTo(_lastPoint.X, _lastPoint.Y, x2.Value, y2.Value, x3.Value, y3.Value);
+        _lastPoint = new PdfPoint(x3.Value, y3.Value);
     }
 
     private void ProcessCurveToY()
@@ -237,12 +273,19 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        float x1 = operands[0].AsFloat();
-        float y1 = operands[1].AsFloat();
-        float x3 = operands[2].AsFloat();
-        float y3 = operands[3].AsFloat();
-        _currentPath.CubicTo(x1, y1, x3, y3, x3, y3);
-        _lastPoint = new PdfPoint(x3, y3);
+        float? x1 = operands[0].AsFloat();
+        float? y1 = operands[1].AsFloat();
+        float? x3 = operands[2].AsFloat();
+        float? y3 = operands[3].AsFloat();
+
+        if (x1 == null || y1 == null || x3 == null || y3 == null)
+        {
+            _logger.LogWarning("Skipping 'y' operator: non-numeric coordinate operands.");
+            return;
+        }
+
+        _currentPath.CubicTo(x1.Value, y1.Value, x3.Value, y3.Value, x3.Value, y3.Value);
+        _lastPoint = new PdfPoint(x3.Value, y3.Value);
     }
 
     private void ProcessClosePath()
@@ -259,12 +302,19 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        float x = operands[0].AsFloat();
-        float y = operands[1].AsFloat();
-        float width = operands[2].AsFloat();
-        float height = operands[3].AsFloat();
-        _currentPath.AddRect(new PdfRectangle(x, y, x + width, y + height));
-        _lastPoint = new PdfPoint(x, y);
+        float? x = operands[0].AsFloat();
+        float? y = operands[1].AsFloat();
+        float? width = operands[2].AsFloat();
+        float? height = operands[3].AsFloat();
+
+        if (x == null || y == null || width == null || height == null)
+        {
+            _logger.LogWarning("Skipping 're' operator: non-numeric rectangle operands.");
+            return;
+        }
+
+        _currentPath.AddRect(new PdfRectangle(x.Value, y.Value, x.Value + width.Value, y.Value + height.Value));
+        _lastPoint = new PdfPoint(x.Value, y.Value);
         _subPathStart = _lastPoint;
     }
 
