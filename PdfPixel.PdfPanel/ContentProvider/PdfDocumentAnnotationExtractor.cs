@@ -26,6 +26,8 @@ internal static class PdfDocumentAnnotationExtractor
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this IPdfDocument document, int pageNumber)
     {
+        // TODO: rework
+        return Array.Empty<PdfAnnotationPopup>();
         if (pageNumber < 1 || pageNumber > document.Pages.Count)
         {
             return Array.Empty<PdfAnnotationPopup>();
@@ -197,14 +199,19 @@ internal static class PdfDocumentAnnotationExtractor
             };
         }
 
-        if (link.Action is PdfGoToAction goToAction && goToAction.Destination != null)
+        if (link.Action is PdfGoToAction goToAction)
         {
-            return new PdfAnnotationNavigation
+            PdfDestination? actionDestination = goToAction.GetDestination();
+
+            if (actionDestination != null)
             {
-                NavigationType = PdfAnnotationNavigationType.GoToDestination,
-                CursorType = link.CursorType,
-                Destination = BuildAnnotationDestination(goToAction.Destination)
-            };
+                return new PdfAnnotationNavigation
+                {
+                    NavigationType = PdfAnnotationNavigationType.GoToDestination,
+                    CursorType = link.CursorType,
+                    Destination = actionDestination
+                };
+            }
         }
 
         if (link.Action is PdfGoToRemoteAction)
@@ -217,13 +224,15 @@ internal static class PdfDocumentAnnotationExtractor
             };
         }
 
-        if (link.Destination != null)
+        PdfDestination? linkDestination = link.GetDestination();
+
+        if (linkDestination != null)
         {
             return new PdfAnnotationNavigation
             {
                 NavigationType = PdfAnnotationNavigationType.GoToDestination,
                 CursorType = link.CursorType,
-                Destination = BuildAnnotationDestination(link.Destination)
+                Destination = linkDestination
             };
         }
 
@@ -231,24 +240,6 @@ internal static class PdfDocumentAnnotationExtractor
         {
             NavigationType = PdfAnnotationNavigationType.None,
             CursorType = link.CursorType
-        };
-    }
-
-    private static PdfAnnotationDestination? BuildAnnotationDestination(PdfDestination pdfDestination)
-    {
-        IPdfPage? page = pdfDestination.GetPdfPage();
-
-        if (page == null)
-        {
-            return null;
-        }
-
-        return new PdfAnnotationDestination
-        {
-            PageNumber = page.PageNumber,
-            FitType = pdfDestination.FitType,
-            TargetLocation = pdfDestination.GetTargetLocation(),
-            Zoom = pdfDestination.Zoom
         };
     }
 

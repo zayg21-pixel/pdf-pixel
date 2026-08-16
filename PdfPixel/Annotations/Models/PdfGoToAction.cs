@@ -8,6 +8,9 @@ namespace PdfPixel.Annotations.Models;
 /// </summary>
 public class PdfGoToAction : PdfAction
 {
+    private readonly IPdfDocumentInternal _document;
+    private readonly PdfDestinationReference _destination;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfGoToAction"/> class.
     /// </summary>
@@ -15,14 +18,14 @@ public class PdfGoToAction : PdfAction
     public PdfGoToAction(PdfDictionary actionDictionary)
         : base(actionDictionary, PdfActionType.GoTo)
     {
-        IPdfValue? destValue = actionDictionary.GetValue(PdfTokens.DKey);
-        Destination = PdfDestination.Parse(destValue, actionDictionary.Document);
+        _document = actionDictionary.Document;
+        _destination = PdfDestinationReference.FromDictionary(actionDictionary, PdfTokens.DKey);
     }
 
     /// <summary>
-    /// Gets the parsed destination to display when this action is activated.
+    /// Gets the destination to display when this action is activated.
     /// </summary>
-    public PdfDestination? Destination { get; }
+    public PdfDestination? GetDestination() => _document.Destinations.Resolve(_destination);
 
     /// <summary>
     /// Returns a string representation of this GoTo action.

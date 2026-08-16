@@ -27,5 +27,5 @@ public class PdfAnnotationNavigation
     /// Destination within the document.
     /// Non-null when <see cref="NavigationType"/> is <see cref="PdfAnnotationNavigationType.GoToDestination"/>.
     /// </summary>
-    public PdfAnnotationDestination? Destination { get; set; }
+    public PdfDestination? Destination { get; set; }
 }

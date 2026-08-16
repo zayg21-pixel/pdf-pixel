@@ -20,7 +20,7 @@ public class WebAnnotationNavigationData
             NavigationType = (int)navigation.NavigationType,
             CursorType = (int)navigation.CursorType,
             Uri = navigation.Uri,
-            Destination = navigation.Destination == null ? null : WebAnnotationDestinationData.FromPdfAnnotationDestination(navigation.Destination)
+            Destination = navigation.Destination == null ? null : WebAnnotationDestinationData.FromPdfDestination(navigation.Destination)
         };
     }
 
@@ -31,7 +31,7 @@ public class WebAnnotationNavigationData
             NavigationType = (PdfAnnotationNavigationType)NavigationType,
             CursorType = (PdfAnnotationCursorType)CursorType,
             Uri = Uri,
-            Destination = Destination?.ToPdfAnnotationDestination()
+            Destination = Destination?.ToPdfDestination()
         };
     }
 }

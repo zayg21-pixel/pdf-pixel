@@ -26,6 +26,7 @@ internal class PdfDocument : IPdfDocumentInternal
     private readonly CMapCache _cMapCache;
     private readonly PdfStreamDecoder _streamDecoder;
     private readonly BufferedStream _stream;
+    private readonly PdfDestinationResolver _destinationResolver;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfDocument"/> class.
@@ -42,6 +43,7 @@ internal class PdfDocument : IPdfDocumentInternal
         _objectCache = new PdfDocumentObjectCache(this, new PdfObjectParser(this));
         _stream = new BufferedStream(fileStream);
         _cMapCache = new CMapCache(_logger);
+        _destinationResolver = new PdfDestinationResolver(this);
     }
 
     /// <inheritdoc/>
@@ -60,7 +62,7 @@ internal class PdfDocument : IPdfDocumentInternal
 
     List<IPdfPageInternal> IPdfDocumentInternal.Pages => _pages;
 
-    PdfDictionary? IPdfDocumentInternal.NamedDestinations { get; set; }
+    PdfDestinationResolver IPdfDocumentInternal.Destinations => _destinationResolver;
 
     PdfObject? IPdfDocumentInternal.RootObject { get; set; }
 

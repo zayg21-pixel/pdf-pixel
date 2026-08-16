@@ -18,6 +18,9 @@ namespace PdfPixel.Annotations.Models;
 /// </remarks>
 public class PdfLinkAnnotation : PdfTextMarkupAnnotation
 {
+    private readonly IPdfDocumentInternal _document;
+    private readonly PdfDestinationReference _destination;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfLinkAnnotation"/> class.
     /// </summary>
@@ -25,8 +28,8 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     internal PdfLinkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Link)
     {
-        IPdfValue? destValue = annotationObject.Dictionary.GetValue(PdfTokens.DestKey);
-        Destination = PdfDestination.Parse(destValue, annotationObject.Dictionary.Document);
+        _document = annotationObject.Dictionary.Document;
+        _destination = PdfDestinationReference.FromDictionary(annotationObject.Dictionary, PdfTokens.DestKey);
 
         PdfDictionary? actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
         Action = PdfAction.FromDictionary(actionDict);
@@ -41,13 +44,10 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     public override bool IsInteractive => true;
 
     /// <summary>
-    /// Gets the parsed destination that should be displayed when the annotation is activated.
+    /// Gets the destination shown when the annotation is activated.
+    /// Null if the link uses an Action instead; per PDF spec a link carries either a Dest or an A entry.
     /// </summary>
-    /// <remarks>
-    /// This property is null if the link uses an Action instead.
-    /// Per PDF spec, a link annotation can have either a Dest entry or an A (action) entry, but not both.
-    /// </remarks>
-    public PdfDestination? Destination { get; }
+    public PdfDestination? GetDestination() => _document.Destinations.Resolve(_destination);
 
     /// <summary>
     /// Gets the action dictionary that defines the action to be performed when the annotation is activated.
@@ -131,11 +131,6 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         if (Action is PdfUriAction uriAction && uriAction.Uri != null)
         {
             return $"Link Annotation: {uriAction.Uri}";
-        }
-
-        if (Destination != null)
-        {
-            return "Link Annotation: Destination";
         }
 
         if (Action != null)

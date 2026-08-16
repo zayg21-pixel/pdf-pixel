@@ -1,6 +1,7 @@
 using PdfPixel.Encryption;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using System.Collections.Generic;
 using System.IO;
@@ -18,10 +19,9 @@ internal interface IPdfDocumentInternal : IPdfDocument
     new List<IPdfPageInternal> Pages { get; }
 
     /// <summary>
-    /// Gets or sets the named destinations dictionary from the PDF document catalog.
-    /// Can originate from a <c>/Dests</c> entry (older format) or a <c>/Names/Dests</c> entry (newer format).
+    /// Gets the resolver for the destinations of the document, explicit and named alike.
     /// </summary>
-    PdfDictionary? NamedDestinations { get; set; }
+    PdfDestinationResolver Destinations { get; }
 
     /// <summary>
     /// Gets or sets the root object of the PDF document.

@@ -1,5 +1,6 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using SkiaSharp;
 using System;
@@ -278,19 +279,21 @@ public static class PdfPanelContextExtensions
     /// </summary>
     /// <param name="context">The panel context to scroll.</param>
     /// <param name="destination">The annotation destination to navigate to.</param>
-    public static void ScrollToDestination(this PdfPanelContext context, PdfAnnotationDestination destination)
+    public static void ScrollToDestination(this PdfPanelContext context, PdfDestination? destination)
     {
         if (context == null)
         {
             throw new ArgumentNullException(nameof(context));
         }
 
-        if (destination == null)
+        IPdfPage? destinationPage = destination?.GetPdfPage();
+
+        if (destination == null || destinationPage == null)
         {
             return;
         }
 
-        if (!context.Pages.TryGetPage(destination.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
+        if (!context.Pages.TryGetPage(destinationPage.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
         {
             return;
         }
@@ -324,7 +327,7 @@ public static class PdfPanelContextExtensions
         }
     }
 
-    private static float? ComputeFitZoom(PdfPanelPage page, PdfAnnotationDestination destination, float viewportWidth, float viewportHeight)
+    private static float? ComputeFitZoom(PdfPanelPage page, PdfDestination destination, float viewportWidth, float viewportHeight)
     {
         SKSize pageSize = page.GetRotatedSize();
 
