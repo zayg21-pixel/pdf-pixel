@@ -15,7 +15,7 @@ internal sealed class DeviceGrayConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => true;
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
     {
         ChainedColorTransform chained = new(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), postTransform);
         return new ColorTransformSampler(chained);

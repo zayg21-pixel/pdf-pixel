@@ -40,7 +40,7 @@ public abstract class PdfColorSpaceConverter
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>sRGB color.</returns>
-    public virtual PdfColor ToSrgb(in ReadOnlySpan<float> comps01, PdfRenderingIntent intent, IColorTransform? postTransform)
+    public virtual PdfColor ToSrgb(in ReadOnlySpan<float> comps01, PdfRenderingIntent intent, TransferFunctionTransform? postTransform)
         => GetRgbaSampler(intent, postTransform).Sample(comps01).ToPdfColor();
 
     /// <summary>
@@ -55,7 +55,7 @@ public abstract class PdfColorSpaceConverter
     /// domain this converter's underlying pipeline consumes natively, so that step should be skipped.
     /// </param>
     /// <returns>Sampler value.</returns>
-    public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize = true)
+    public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize = true)
     {
         SamplerCacheKey key = new(intent, postTransform, normalize);
         if (_samplers.TryGetValue(key, out ColorTransformSampler? cachedSampler))
@@ -75,15 +75,15 @@ public abstract class PdfColorSpaceConverter
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <param name="normalize">See <see cref="GetRgbaSampler"/>.</param>
     /// <returns>RGBA sampler.</returns>
-    protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize);
+    protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize);
 
     private readonly struct SamplerCacheKey : IEquatable<SamplerCacheKey>
     {
         private readonly PdfRenderingIntent _intent;
-        private readonly IColorTransform? _postTransform;
+        private readonly TransferFunctionTransform? _postTransform;
         private readonly bool _normalize;
 
-        public SamplerCacheKey(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
+        public SamplerCacheKey(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
         {
             _intent = intent;
             _postTransform = postTransform;

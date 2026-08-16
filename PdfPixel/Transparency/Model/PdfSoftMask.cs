@@ -38,7 +38,7 @@ public class PdfSoftMask
     /// <param name="intent">Current intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>Background color.</returns>
-    public PdfColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform? postTransform)
+    public PdfColor GetBackgroundColor(PdfRenderingIntent intent, TransferFunctionTransform? postTransform)
     {
         if (MaskForm == null || BackgroundColorComponents == null)
         {

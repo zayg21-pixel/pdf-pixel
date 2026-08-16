@@ -33,7 +33,7 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
     /// <summary>
     /// Build (or retrieve cached) palette for this Indexed color space under the specified rendering intent.
     /// </summary>
-    public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, IColorTransform? postTransform)
+    public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, TransferFunctionTransform? postTransform)
     {
         PaletteCacheKey key = new(renderingIntent, postTransform);
         if (_paletteCache.TryGetValue(key, out Vector4[]? existing))
@@ -66,7 +66,7 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
         return palette;
     }
 
-    public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, IColorTransform? postTransform)
+    public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, TransferFunctionTransform? postTransform)
     {
         Vector4[] palette = BuildPalette(renderingIntent, postTransform);
         int paletteSize = palette.Length;
@@ -80,7 +80,7 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
         return packedPalette;
     }
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
         => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
 
     private readonly struct PaletteCacheKey : IEquatable<PaletteCacheKey>
