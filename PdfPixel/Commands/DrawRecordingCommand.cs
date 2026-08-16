@@ -5,8 +5,7 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Represents a recorded set of commands replayed under its own matrix, with a specified paint modifier.
-/// A save/restore boundary surrounds the replay because the nested commands' state (matrix, clip)
-/// must not leak into commands that run after this one.
+/// A save/restore boundary surrounds the replay because the nested commands' state (matrix, clip).
 /// </summary>
 public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
 {

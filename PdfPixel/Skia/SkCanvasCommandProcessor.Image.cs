@@ -56,11 +56,13 @@ public sealed partial class SkCanvasCommandProcessor
         SKColor? matte = null;
         if (context.MatteArray != null && maskTile.Parameters != null)
         {
+            // TODO: this is lacking transfer function, can lead to incorrect results, better resolve Matte from graphics state
             matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(context.MatteArray, maskTile.Parameters.RenderingIntent, default).ToSkiaColor();
         }
 
         SKSamplingOptions sampling = SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate);
 
+        // TODO: blending is used for inversion of stencil and soft mask blending, both can be done on CPU pretty fast as we resize tiles without shaders
         using SKImage skImage = imageTile.Image.ToSkImage();
         using SKImage skMaskImage = maskTile.Image.ToSkImage();
         using SKShader imageShader = SkiaImageBlending.BuildImageShader(skImage, placement.DeviceSize.ToSkSize(), sampling);

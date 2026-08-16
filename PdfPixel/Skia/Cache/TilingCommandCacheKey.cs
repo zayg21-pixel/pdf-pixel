@@ -17,9 +17,6 @@ internal sealed class TilingCommandCacheKey : ICommandCacheKey
 {
     private readonly PdfCommandRecorder _recorder;
     private readonly PdfColor? _tintColor;
-    private readonly PdfRectangle _bbox;
-    private readonly float _xStep;
-    private readonly float _yStep;
     private readonly PdfMatrix _deviceMatrix;
     private readonly bool _repeating;
 
@@ -32,9 +29,6 @@ internal sealed class TilingCommandCacheKey : ICommandCacheKey
 
         _recorder = command.RecordingCommand.Recorder;
         _tintColor = command.RecordingCommand.Modifier?.Color;
-        _bbox = command.BBox;
-        _xStep = command.XStep;
-        _yStep = command.YStep;
         _deviceMatrix = deviceMatrix;
         _repeating = repeating;
     }
@@ -44,14 +38,11 @@ internal sealed class TilingCommandCacheKey : ICommandCacheKey
         return other is TilingCommandCacheKey key
             && ReferenceEquals(_recorder, key._recorder)
             && Nullable.Equals(_tintColor, key._tintColor)
-            && _bbox.Equals(key._bbox)
-            && _xStep.Equals(key._xStep)
-            && _yStep.Equals(key._yStep)
             && _deviceMatrix.Equals(key._deviceMatrix)
             && _repeating == key._repeating;
     }
 
     public override bool Equals(object? obj) => Equals(obj as ICommandCacheKey);
 
-    public override int GetHashCode() => HashCode.Combine(_recorder, _tintColor, _bbox, _xStep, _yStep, _deviceMatrix, _repeating);
+    public override int GetHashCode() => HashCode.Combine(_recorder, _tintColor, _deviceMatrix, _repeating);
 }

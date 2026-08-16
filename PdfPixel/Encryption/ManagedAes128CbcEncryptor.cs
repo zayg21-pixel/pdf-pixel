@@ -5,8 +5,7 @@ namespace PdfPixel.Encryption;
 
 /// <summary>
 /// Pure managed AES-128-CBC encryption with no padding.
-/// Used only by the R6 hardened-hash algorithm (ISO 32000-2 Algorithm 2.B), which requires
-/// encryption rather than decryption; not used for decrypting document content.
+/// Used only by the R6 hardened-hash algorithm (ISO 32000-2 Algorithm 2.B).
 /// </summary>
 internal sealed class ManagedAes128CbcEncryptor
 {

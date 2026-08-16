@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 

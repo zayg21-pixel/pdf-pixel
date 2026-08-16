@@ -13,17 +13,17 @@ namespace PdfPixel.Fonts.Management;
 public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
 {
     /// <summary>
-    /// The CSS/OpenType weight class (100-1000) corresponding to normal-weight text.
+    /// The OpenType weight class (100-1000) corresponding to normal-weight text.
     /// </summary>
     public const int NormalWeight = 400;
 
     /// <summary>
-    /// The CSS/OpenType weight class (100-1000) at and above which text is considered bold.
+    /// The OpenType weight class (100-1000) at and above which text is considered bold.
     /// </summary>
     public const int BoldWeight = 700;
 
     /// <summary>
-    /// The CSS/OpenType width (stretch) class (1-9, <c>usWidthClass</c>) corresponding to normal-width text.
+    /// The OpenType width (stretch) class corresponding to normal-width text.
     /// </summary>
     public const int NormalWidth = 5;
 
@@ -54,9 +54,6 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
         { "Thin", 100 }
     };
 
-    // Keys ordered so a longer hint (e.g. "SemiCondensed") is matched before a shorter one it contains
-    // (e.g. "Condensed") - the single-pass loop in ExtractNameHints removes each match from the name as it
-    // goes, so matching the longer hint first is what keeps the shorter one from also firing.
     private static readonly Dictionary<string, int> WidthHints = new(StringComparer.OrdinalIgnoreCase)
     {
         { "UltraCondensed", 1 },
@@ -94,8 +91,8 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     /// Initializes a new <see cref="PdfSubstitutionInfo"/> from an explicit normalized stem and style.
     /// </summary>
     /// <param name="normalizedStem">The normalized font family stem.</param>
-    /// <param name="weight">The font's weight, on the CSS/OpenType weight class scale (100-1000).</param>
-    /// <param name="width">The font's width (stretch), on the CSS/OpenType <c>usWidthClass</c> scale (1-9).</param>
+    /// <param name="weight">The font's weight, on the OpenType weight class scale (100-1000).</param>
+    /// <param name="width">The font's width (stretch), on the OpenType scale (1-9).</param>
     /// <param name="italicAngle">The font's italic angle in degrees, or zero when upright.</param>
     public PdfSubstitutionInfo(string normalizedStem, int weight, int width, float italicAngle)
     {
@@ -109,8 +106,8 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     /// Initializes a new <see cref="PdfSubstitutionInfo"/> for a Standard 14 font family and style.
     /// </summary>
     /// <param name="standardFontName">The standard font family.</param>
-    /// <param name="weight">The font's weight, on the CSS/OpenType weight class scale (100-1000).</param>
-    /// <param name="width">The font's width (stretch), on the CSS/OpenType <c>usWidthClass</c> scale (1-9).</param>
+    /// <param name="weight">The font's weight, on the OpenType weight class scale (100-1000).</param>
+    /// <param name="width">The font's width (stretch), on the OpenType scale (1-9).</param>
     /// <param name="italicAngle">The font's italic angle in degrees, or zero when upright.</param>
     public PdfSubstitutionInfo(PdfStandardFontName standardFontName, int weight, int width, float italicAngle)
         : this(standardFontName.ToString(), weight, width, italicAngle)
@@ -157,10 +154,6 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
 
     /// <summary>
     /// Parses a <see cref="PdfSubstitutionInfo"/> from a raw PDF font name string and an optional font descriptor.
-    /// Strips subset prefixes and style tokens from the name to compute the normalized stem. When a descriptor
-    /// is present, weight, width, and slant are resolved from its literal fields, falling back to its font name -
-    /// the raw font name is never consulted in that case. Only when no descriptor is present is the raw font
-    /// name used to derive weight, width, and slant.
     /// </summary>
     /// <param name="rawName">The raw font name string from the PDF font dictionary (e.g., the /BaseFont value).</param>
     /// <param name="descriptor">Optional font descriptor that may override weight, width, and slant derived from the name.</param>
@@ -182,7 +175,6 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
 
         FontStyleHints rawNameHints = ExtractNameHints(ref name);
 
-        // Split once after removing hints to compute normalized stem
         int endIndex = name.Length;
         while (endIndex > 0 && char.IsPunctuation(name[endIndex - 1]))
         {

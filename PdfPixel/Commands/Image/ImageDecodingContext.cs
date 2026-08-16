@@ -123,7 +123,7 @@ public sealed class ImageDecodingContext
 
     /// <summary>
     /// True when this context is for the internal stencil-mask alpha application pass, which composites
-    /// via destination-in (Porter-Duff) regardless of <see cref="BlendMode"/>. Has no PDF spec equivalent.
+    /// via destination-in (Porter-Duff) regardless of <see cref="BlendMode"/>.
     /// </summary>
     public bool IsStencilMaskComposite { get; }
 

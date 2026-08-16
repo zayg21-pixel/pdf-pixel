@@ -7,15 +7,8 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Management;
 
 /// <summary>
-/// Locates a typeface to substitute for a PDF font whose own program is unavailable. Each public
-/// method is a complete query: the caller states what it needs a glyph for, and the provider owns
-/// every step of finding a typeface that supplies it.
+/// Locates a typeface to substitute for a PDF font whose own program is unavailable.
 /// </summary>
-/// <remarks>
-/// The provider holds the whole substitution policy - which families stand in for which Standard 14
-/// font, and the caching and lifetime of every typeface resolved. Where those typefaces are loaded
-/// from is the <see cref="IFontSubstitutor"/>'s business alone.
-/// </remarks>
 public sealed class FontProvider : IDisposable
 {
     private readonly IFontSubstitutor _substitutor;
@@ -26,8 +19,7 @@ public sealed class FontProvider : IDisposable
     private SfntPdfTypeface? _fallback;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="FontProvider"/> class. Every typeface is loaded
-    /// lazily, on first request.
+    /// Initializes a new instance of the <see cref="FontProvider"/> class.
     /// </summary>
     /// <param name="substitutor">Loads typefaces from the underlying font source.</param>
     /// <param name="substitutionMap">Names the families that stand in for each Standard 14 font.</param>
@@ -45,7 +37,7 @@ public sealed class FontProvider : IDisposable
 
         _substitutor = substitutor;
         _substitutionMap = substitutionMap;
-        _protectedFamilyNames = CollectProtectedFamilyNames(substitutionMap);
+        _protectedFamilyNames = CollectProtectedFamilyNames(substitutionMap); // TODO: this is a major workaround, need to cleanup
     }
 
     /// <summary>

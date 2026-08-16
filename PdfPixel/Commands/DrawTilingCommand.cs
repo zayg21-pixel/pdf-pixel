@@ -6,7 +6,7 @@ namespace PdfPixel.Commands;
 /// <summary>
 /// Represents a recorded pattern cell replayed across a tiled grid covering the given bounds, under its own matrix.
 /// A save/restore boundary surrounds the replay because it draws a nested <see cref="DrawRecordingCommand"/>
-/// directly in pattern space, whose state (matrix, clip) must not leak outward.
+/// directly in pattern space.
 /// </summary>
 public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 {

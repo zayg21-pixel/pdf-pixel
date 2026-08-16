@@ -9,8 +9,7 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Represents a PDF shading. <see cref="BuildEntry"/> builds the expensive data (function sampling,
-/// mesh decoding, gradient construction) needed to draw it; callers decide whether and how to
-/// cache the result across other command instances drawing the same shading.
+/// mesh decoding, gradient construction) needed to draw it.
 /// </summary>
 public sealed class DrawShadingCommand : PdfCommand
 {

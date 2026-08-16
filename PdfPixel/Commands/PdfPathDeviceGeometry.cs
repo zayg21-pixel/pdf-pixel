@@ -4,6 +4,7 @@ using System;
 
 namespace PdfPixel.Commands;
 
+// TODO: over-documented
 /// <summary>
 /// <para>
 /// The region one path command covers, as it lands on the device pixel grid: the geometry to fill — the

@@ -6,9 +6,7 @@ namespace PdfPixel.Fonts.Management;
 
 /// <summary>
 /// Names the font families that stand in for each Standard 14 font, together with the family to fall
-/// back to when nothing else matches. The names are meaningful only to the font source they are used
-/// with - "Arial" resolves against installed Windows fonts, while an in-memory source only knows the
-/// names it was given at registration.
+/// back to when nothing else matches.
 /// </summary>
 public sealed class FontSubstitutionMap
 {

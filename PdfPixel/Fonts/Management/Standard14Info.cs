@@ -1,32 +1,31 @@
 using PdfPixel.Fonts.Model;
 using System;
 
-namespace PdfPixel.Fonts.Management
+namespace PdfPixel.Fonts.Management;
+
+/// <summary>
+/// Holds substitution candidates and default encoding for a standard 14 PDF font family.
+/// </summary>
+internal class Standard14Info
 {
     /// <summary>
-    /// Holds substitution candidates and default encoding for a standard 14 PDF font family.
+    /// List of font family names to try for substitution, in order of preference.
     /// </summary>
-    internal class Standard14Info
+    public string[] SubstitutionCandidates { get; }
+
+    /// <summary>
+    /// The default encoding for this standard 14 font family.
+    /// </summary>
+    public PdfEncoding DefaultEncoding { get; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Standard14Info"/> class.
+    /// </summary>
+    /// <param name="substitutionCandidates">Font family names to try for substitution.</param>
+    /// <param name="defaultEncoding">The default encoding for this font family.</param>
+    public Standard14Info(string[] substitutionCandidates, PdfEncoding defaultEncoding)
     {
-        /// <summary>
-        /// List of font family names to try for substitution, in order of preference.
-        /// </summary>
-        public string[] SubstitutionCandidates { get; }
-
-        /// <summary>
-        /// The default encoding for this standard 14 font family.
-        /// </summary>
-        public PdfEncoding DefaultEncoding { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Standard14Info"/> class.
-        /// </summary>
-        /// <param name="substitutionCandidates">Font family names to try for substitution.</param>
-        /// <param name="defaultEncoding">The default encoding for this font family.</param>
-        public Standard14Info(string[] substitutionCandidates, PdfEncoding defaultEncoding)
-        {
-            SubstitutionCandidates = substitutionCandidates ?? Array.Empty<string>();
-            DefaultEncoding = defaultEncoding;
-        }
+        SubstitutionCandidates = substitutionCandidates ?? Array.Empty<string>();
+        DefaultEncoding = defaultEncoding;
     }
 }

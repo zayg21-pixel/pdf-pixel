@@ -7,7 +7,6 @@ namespace PdfPixel.Encryption;
 /// Pure managed AES-256-CBC decryption, optionally with PKCS#7 unpadding.
 /// Used in place of <see cref="System.Security.Cryptography.Aes"/> to support
 /// platforms where the native implementation is unavailable (e.g., Blazor WASM).
-/// Only decryption is implemented; encryption is not required for PDF parsing.
 /// </summary>
 internal sealed class ManagedAes256Cbc
 {

@@ -4,6 +4,7 @@ using System.Numerics;
 
 namespace PdfPixel.Commands;
 
+// TODO: over-documented
 /// <summary>
 /// <para>
 /// The pen a stroke leaves its mark with, as that mark lands on the device pixel grid: the width to
