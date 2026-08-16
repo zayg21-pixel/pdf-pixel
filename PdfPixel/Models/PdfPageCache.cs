@@ -22,6 +22,7 @@ internal sealed class PdfPageCache
     private readonly IPdfPageInternal _page;
     private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfPageCache> _logger;
+    private readonly Dictionary<PdfString, PdfFontBase> _fontsByName = [];
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
     private readonly PdfDictionary? _fontDictionary;
@@ -64,13 +65,26 @@ internal sealed class PdfPageCache
 
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.
+    /// Checks the document-level font cache by indirect reference before resolving the object.
     /// </summary>
-    public PdfFontBase? GetFont(in PdfString fontName) // TODO: [EXTRA HIGH] GetObject creates new object every time
+    public PdfFontBase? GetFont(in PdfString fontName)
     {
+        if (_fontsByName.TryGetValue(fontName, out PdfFontBase? cachedFont))
+        {
+            return cachedFont;
+        }
+
         if (_fontDictionary == null)
         {
             _logger.LogWarning("Font '{FontName}' requested but the page has no /Font resources.", fontName);
             return null;
+        }
+
+        PdfReference? fontReference = _fontDictionary.GetReference(fontName);
+        if (fontReference != null && _document.ObjectCache.Fonts.TryGetValue(fontReference.Value, out PdfFontBase? documentCachedFont))
+        {
+            _fontsByName[fontName] = documentCachedFont;
+            return documentCachedFont;
         }
 
         PdfObject? fontObject = _fontDictionary.GetObject(fontName);
@@ -80,7 +94,13 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        return GetFont(fontObject);
+        PdfFontBase? font = GetFont(fontObject);
+        if (font != null)
+        {
+            _fontsByName[fontName] = font;
+        }
+
+        return font;
     }
 
     /// <summary>
