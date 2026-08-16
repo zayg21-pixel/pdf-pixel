@@ -44,7 +44,7 @@ public sealed class PdfPaint
     }
 
     /// <summary>
-    /// Initializes a new stroke paint that uses <paramref name="strokeStyle"/> directly (no copy).
+    /// Initializes a new stroke paint that uses <paramref name="strokeStyle"/> directly.
     /// </summary>
     public PdfPaint(PdfStrokeStyle strokeStyle)
         : this(PdfPaintStyle.Stroke, default, 1.0f, PdfBlendMode.Normal, false, null, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)), null, null)
@@ -52,7 +52,7 @@ public sealed class PdfPaint
     }
 
     /// <summary>
-    /// Gets whether this paint is used for filling or stroking. Fixed for the lifetime of the instance.
+    /// Gets whether this paint is used for filling or stroking.
     /// </summary>
     public PdfPaintStyle Style { get; }
 
@@ -210,10 +210,4 @@ public sealed class PdfPaint
     /// Create a solid color paint.
     /// </summary>
     public static PdfPaint Solid(in PdfColor color, PdfPaintStyle style) => new PdfPaint(style).WithSolidColor(color);
-
-    /// <summary>
-    /// Create a pattern paint (colored or uncolored). For uncolored patterns provide tint components.
-    /// </summary>
-    public static PdfPaint PatternFill(PdfPattern pattern, in PdfColor resolvedTintColor, PdfPaintStyle style)
-        => new PdfPaint(style).WithPattern(pattern, resolvedTintColor);
 }

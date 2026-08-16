@@ -1,4 +1,3 @@
-using PdfPixel.Color.Icc.Model;
 using PdfPixel.Text;
 
 namespace PdfPixel.Color.ColorSpace;

@@ -5,9 +5,6 @@ using PdfPixel.Color.Icc;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// Converter for PDF /Lab (CIEBasedLab) color space (NOT ICCBased).
-/// </summary>
 internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
 {
     private static readonly Vector4 _labOffset = new(0, 128, 128, 0);

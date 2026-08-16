@@ -4,9 +4,7 @@ using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// <see cref="CalRgbConverter"/> based converter for CalGray (CIEBasedGray) color space.
-/// </summary>
+// TODO: all of color spaces names are not unified does not match naming convention and lacking documentation
 internal sealed class CalGrayConverter : CalRgbConverter
 {
     public CalGrayConverter(float[]? whitePoint, float[]? blackPoint, float? gamma)

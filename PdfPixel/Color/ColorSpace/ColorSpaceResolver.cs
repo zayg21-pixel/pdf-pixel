@@ -6,7 +6,6 @@ namespace PdfPixel.Color.ColorSpace;
 /// <summary>
 /// Instance color space resolver bound to a single <see cref="PdfPage"/> providing
 /// resolution, caching (by indirect object reference and by resource name), and default device space substitution.
-/// Replaces static <c>PdfColorSpaces</c>. All methods are non-static to simplify testability.
 /// </summary>
 internal sealed partial class ColorSpaceResolver
 {
@@ -126,8 +125,6 @@ internal sealed partial class ColorSpaceResolver
 
         return _defaultRgb;
     }
-
-    #region Internal Helpers
 
     private PdfColorSpaceConverter? ResolveDefaultDeviceSpace(in PdfString defaultKey, int n)
     {
@@ -303,6 +300,4 @@ internal sealed partial class ColorSpaceResolver
 
         return false;
     }
-
-    #endregion
 }

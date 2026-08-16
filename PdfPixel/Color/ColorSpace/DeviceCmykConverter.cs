@@ -2,16 +2,9 @@ using PdfPixel.Color.Icc;
 using PdfPixel.Color.Profiles;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
-using System;
-using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// Provides a converter for the Device CMYK color space to sRGB.
-/// </summary>
-/// <remarks>This converter uses an ICC profile to accurately transform CMYK color values to sRGB. It is designed
-/// to handle the Device CMYK color space, which is commonly used in printing.</remarks>
 internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
 {
     public static readonly DeviceCmykConverter Instance = new();

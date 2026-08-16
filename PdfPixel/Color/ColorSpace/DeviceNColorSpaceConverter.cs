@@ -6,12 +6,6 @@ using System;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// Simplified DeviceN color space converter.
-/// Maps N-component tint array through a tint transform function into an alternate color space.
-/// According to PDF spec, /DeviceN [/Names] /AltCS /TintTransform.
-/// We currently only support non-PostScript tint functions (types 0,2,3) via PdfFunctions.
-/// </summary>
 internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfString?[] _componentNames;

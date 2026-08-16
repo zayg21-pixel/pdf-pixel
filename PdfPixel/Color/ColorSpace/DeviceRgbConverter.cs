@@ -3,9 +3,6 @@ using PdfPixel.Color.Transform;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// Static converter for DeviceRGB color space.
-/// </summary>
 internal sealed class DeviceRgbConverter : PdfColorSpaceConverter
 {
     public static readonly DeviceRgbConverter Instance = new();

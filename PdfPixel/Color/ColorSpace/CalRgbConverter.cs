@@ -6,9 +6,6 @@ using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// Converter for PDF CalRGB (CIEBasedCalRGB) color space.
-/// </summary>
 internal class CalRgbConverter : PdfColorSpaceConverter
 {
     public CalRgbConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)

@@ -5,11 +5,6 @@ using PdfPixel.Models;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// Simplified Separation color space converter.
-/// Maps single-component tint value through a tint transform function into a base color space.
-/// If no function/base is present falls back to DeviceGray.
-/// </summary>
 internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfString? _name;

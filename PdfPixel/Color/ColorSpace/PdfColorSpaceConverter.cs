@@ -8,7 +8,6 @@ namespace PdfPixel.Color.ColorSpace;
 
 /// <summary>
 /// Base type for PDF color space converters producing sRGB output.
-/// Implements IDisposable to release cached color filters.
 /// </summary>
 public abstract class PdfColorSpaceConverter
 {
@@ -21,7 +20,6 @@ public abstract class PdfColorSpaceConverter
 
     /// <summary>
     /// Gets a value indicating whether this converter represents a device (native) color space.
-    /// Device spaces may bypass certain lookups.
     /// </summary>
     public abstract bool IsDevice { get; }
 

@@ -8,14 +8,11 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.ColorSpace;
 
-/// <summary>
-/// Indexed color space converter.
-/// </summary>
 internal sealed class IndexedConverter : PdfColorSpaceConverter
 {
     private readonly PdfColorSpaceConverter _baseConv;
     private readonly int _hiVal;
-    private readonly byte[] _lookup; // packed by base components (sequential entries)
+    private readonly byte[] _lookup;
 
     private readonly Dictionary<PaletteCacheKey, Vector4[]> _paletteCache = [];
 
@@ -86,9 +83,9 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
     private readonly struct PaletteCacheKey : IEquatable<PaletteCacheKey>
     {
         private readonly PdfRenderingIntent _intent;
-        private readonly IColorTransform? _postTransform;
+        private readonly TransferFunctionTransform? _postTransform;
 
-        public PaletteCacheKey(PdfRenderingIntent intent, IColorTransform? postTransform)
+        public PaletteCacheKey(PdfRenderingIntent intent, TransferFunctionTransform? postTransform)
         {
             _intent = intent;
             _postTransform = postTransform;
