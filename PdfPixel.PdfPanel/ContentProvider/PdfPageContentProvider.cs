@@ -66,6 +66,9 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
             throw new ArgumentNullException(nameof(request));
         }
 
+        // TODO: [MEDIUM] hold a burst of requests behind a cancellable delay of about 200 ms pushed to the
+        // processing queue, so a zoom or scroll gesture decodes once when it settles rather than once per
+        // intermediate step.
         HashSet<int> visiblePageNumbers = new(request.VisiblePages.Select(x => x.PageNumber));
 
         foreach (PdfPageCacheEntry cacheEntry in _cache)
