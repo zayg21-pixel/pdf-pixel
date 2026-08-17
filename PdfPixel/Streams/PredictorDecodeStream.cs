@@ -5,47 +5,31 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Streaming predictor undo wrapper for TIFF (2) and PNG (10..15) predictors.
-/// Decodes one row at a time (no full buffering). Supports bits per component 1,2,4,8,16.
-/// Sub-byte sample packing is preserved; predictor undo operates in packed form for TIFF.
+/// Stream that undoes the TIFF (2) and PNG (10..15) predictors one row at a time.
+/// Supports 1, 2, 4, 8 and 16 bits per component.
 /// </summary>
 public sealed class PredictorDecodeStream : Stream
 {
-    // Underlying decoded (filter chain already applied) stream provided by caller.
     private readonly Stream _source;
-    // Predictor value from PDF image dictionary: 2 (TIFF) or 10..15 (PNG filters). 1 treated as identity.
     private readonly int _predictor;
-    // Number of color components per pixel (samples per pixel).
     private readonly int _colors;
-    // Bits per component (sample size) 1,2,4,8 or 16.
     private readonly int _bitsPerComponent;
-    // Pixel width (columns) of the image row.
     private readonly int _columns;
-    // Whether to leave underlying stream open when disposing.
     private readonly bool _leaveOpen;
 
-    // Bytes per sample (1 for <=8 bpc, 2 for 16 bpc). For sub‑byte packing still 1 here.
     private readonly int _bytesPerSample;
-    // Logical decoded bytes in a row (packed for sub‑byte samples).
     private readonly int _decodedRowBytes;
-    // Encoded row bytes (PNG adds 1 filter byte; TIFF same as decoded).
     private readonly int _encodedRowBytes;
 
-    // Row buffer. TIFF layout: [row data]; PNG layout: [margin bytes][filter byte][row data].
+    // TIFF layout: [row data]. PNG layout: [margin bytes][filter byte][row data].
     private readonly byte[] _currentRow;
-    // Previous row buffer for PNG predictors (same layout as _currentRow). Null for TIFF / identity.
     private readonly byte[]? _previousRow;
 
-    // Left margin size (bytesPerPixel) used only for PNG to eliminate left boundary checks; 0 otherwise.
     private readonly int _rowMarginBytes;
-    // Index inside buffers where actual row pixel data begins (after margin and filter byte for PNG).
     private readonly int _rowDataOffset;
 
-    // Current read offset inside logical decoded row (excluding margin/filter).
     private int _rowOffset;
-    // End-of-stream flag for underlying source.
     private bool _endOfStream;
-    // Whether _currentRow presently holds a decoded row ready for reading.
     private bool _currentRowValid;
 
     /// <inheritdoc/>
@@ -68,7 +52,7 @@ public sealed class PredictorDecodeStream : Stream
     }
 
     /// <summary>
-    /// Initializes a predictor decode stream that performs TIFF (2) or PNG (10..15) predictor undo on demand.
+    /// Initializes the decoder wrapping the given filter-decoded stream.
     /// </summary>
     public PredictorDecodeStream(Stream decoded, int predictor, int colors, int bitsPerComponent, int columns, bool leaveOpen = false)
     {
@@ -126,18 +110,15 @@ public sealed class PredictorDecodeStream : Stream
 
         if (predictor >= 10)
         {
-            // PNG: buffer layout [margin][filter][data]. Margin length = bytesPerPixel.
             int bytesPerPixel = ((_colors * _bitsPerComponent) + 7) / 8;
             _rowMarginBytes = bytesPerPixel;
-            _rowDataOffset = _rowMarginBytes + 1; // skip margin and filter byte
+            _rowDataOffset = _rowMarginBytes + 1;
             int total = _rowMarginBytes + 1 + _decodedRowBytes;
             _currentRow = new byte[total];
             _previousRow = new byte[total];
-            // Margin bytes implicitly zero. Filter byte will be written at index _rowMarginBytes.
         }
         else
         {
-            // TIFF predictor: no margin, no filter byte.
             _rowMarginBytes = 0;
             _rowDataOffset = 0;
             _currentRow = new byte[_decodedRowBytes];
@@ -154,9 +135,7 @@ public sealed class PredictorDecodeStream : Stream
     {
     }
 
-    /// <summary>
-    /// Reads decoded predictor-undo row bytes into caller buffer.
-    /// </summary>
+    /// <inheritdoc/>
     public override int Read(byte[] buffer, int offset, int count)
     {
         if (buffer == null)
@@ -202,9 +181,6 @@ public sealed class PredictorDecodeStream : Stream
         return totalCopied;
     }
 
-    /// <summary>
-    /// Decodes next encoded row from the source and applies predictor undo.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool DecodeNextRow()
     {
@@ -213,9 +189,8 @@ public sealed class PredictorDecodeStream : Stream
 
         if (_predictor >= 10)
         {
-            // PNG: read filter byte + row data directly into buffer starting at margin index.
-            int start = _rowMarginBytes; // position of filter byte
-            int needed = _encodedRowBytes; // filter + row data
+            int start = _rowMarginBytes;
+            int needed = _encodedRowBytes;
             int readOffset = 0;
             while (readOffset < needed)
             {
@@ -240,7 +215,6 @@ public sealed class PredictorDecodeStream : Stream
         }
         else
         {
-            // TIFF or identity: just read row data.
             int needed = _decodedRowBytes;
             int readOffset = 0;
             while (readOffset < needed)
@@ -275,7 +249,6 @@ public sealed class PredictorDecodeStream : Stream
             }
 
             PngFilterUndo.UndoPngFilter(filterByte, _currentRow, _previousRow, _rowMarginBytes, _rowDataOffset, _decodedRowBytes);
-            // Copy decoded pixel data (exclude margin + filter byte) for next row reference.
             Buffer.BlockCopy(_currentRow, _rowDataOffset, _previousRow, _rowDataOffset, _decodedRowBytes);
         }
 

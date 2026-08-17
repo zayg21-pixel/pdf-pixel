@@ -10,6 +10,22 @@ namespace PdfPixel.TextExtraction;
 public class PdfTextBlock
 {
     /// <summary>
+    /// Initializes a root <see cref="PdfTextBlock"/> with no markup or parent.
+    /// </summary>
+    internal PdfTextBlock()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a child <see cref="PdfTextBlock"/> with the specified markup and parent.
+    /// </summary>
+    internal PdfTextBlock(PdfTextMarkup? markup, PdfTextBlock parent)
+    {
+        Markup = markup;
+        Parent = parent;
+    }
+
+    /// <summary>
     /// Text markup from the marked content scope that opened this block.
     /// Null for the root block.
     /// </summary>
@@ -29,20 +45,4 @@ public class PdfTextBlock
     /// Child blocks opened by nested marked content scopes.
     /// </summary>
     public List<PdfTextBlock> Children { get; } = [];
-
-    /// <summary>
-    /// Initializes a root <see cref="PdfTextBlock"/> with no markup or parent.
-    /// </summary>
-    internal PdfTextBlock()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a child <see cref="PdfTextBlock"/> with the specified markup and parent.
-    /// </summary>
-    internal PdfTextBlock(PdfTextMarkup? markup, PdfTextBlock parent)
-    {
-        Markup = markup;
-        Parent = parent;
-    }
 }

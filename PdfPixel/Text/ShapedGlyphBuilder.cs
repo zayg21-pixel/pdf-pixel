@@ -7,17 +7,13 @@ using System.Collections.Generic;
 namespace PdfPixel.Text;
 
 /// <summary>
-/// Utility to convert PDF text operands (string or TJ array) directly into a list of shaped glyphs.
-/// Bypasses PdfTextSequence for direct rendering.
+/// Converts PDF text operands (string or TJ array) into a list of shaped glyphs.
 /// </summary>
 public static class ShapedGlyphBuilder
 {
     /// <summary>
-    /// Converts plain Unicode text into shaped glyphs laid out along a single horizontal baseline,
-    /// resolving every glyph id and advance through <paramref name="typeface"/> alone, with no PDF
-    /// font dictionary, character codes, or graphics state involved. Positions and advances are in
-    /// em-relative units (1.0 = one em). A codepoint the typeface has no glyph for gets a null glyph
-    /// id and a zero advance.
+    /// Shapes Unicode text along a single horizontal baseline, in em-relative units (1.0 = one em).
+    /// A codepoint the typeface has no glyph for gets a null glyph id and a zero advance.
     /// </summary>
     /// <param name="text">The Unicode text to shape.</param>
     /// <param name="typeface">The typeface resolving glyph ids and advances.</param>
@@ -70,16 +66,13 @@ public static class ShapedGlyphBuilder
     }
 
     /// <summary>
-    /// Converts a PDF TJ array operand into a list of shaped glyphs for rendering.
-    /// The caller must provide a non-null <paramref name="buffer"/>, which will be cleared and filled.
-    /// If any argument is invalid, the method returns silently and does nothing.
+    /// Shapes a PDF TJ array operand into <paramref name="buffer"/>, which is cleared first.
     /// </summary>
     public static void BuildFromArray(
         IPdfValue arrayOperand,
         PdfGraphicsState state,
         List<ShapedGlyph> buffer)
     {
-        // Guard: do nothing if arguments are invalid
         if (arrayOperand == null || arrayOperand.Type != PdfValueType.Array || state == null || buffer == null)
         {
             return;
@@ -117,7 +110,6 @@ public static class ShapedGlyphBuilder
                 }
                 else
                 {
-                    // Positioning adjustment (negative = move left, positive = move right)
                     float? adjustment = item.AsFloat();
                     if (adjustment == null)
                     {
@@ -140,16 +132,13 @@ public static class ShapedGlyphBuilder
     }
 
     /// <summary>
-    /// Converts a PDF string operand into a list of shaped glyphs for rendering.
-    /// The caller must provide a non-null <paramref name="buffer"/>, which will be cleared and filled.
-    /// If any argument is invalid, the method returns silently and does nothing.
+    /// Shapes a PDF string operand into <paramref name="buffer"/>, which is cleared first.
     /// </summary>
     public static void BuildFromString(
         IPdfValue stringOperand,
         PdfGraphicsState state,
         List<ShapedGlyph> buffer)
     {
-        // Guard: do nothing if arguments are invalid
         if (stringOperand == null || stringOperand.Type != PdfValueType.String || state == null || buffer == null)
         {
             return;

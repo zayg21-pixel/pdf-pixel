@@ -9,9 +9,7 @@ using System.IO;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Self-contained stream source that holds everything needed to produce decoded PDF stream data
-/// without retaining a reference to the low-level <see cref="PdfObject"/> or <see cref="PdfDictionary"/>.
-/// Filters and decode parameters are extracted eagerly at construction time.
+/// Self-contained source for the raw and decoded data of a single PDF stream object.
 /// </summary>
 public sealed class PdfObjectStream
 {
@@ -63,8 +61,7 @@ public sealed class PdfObjectStream
     public List<PdfDecodeParameters?> DecodeParameters { get; }
 
     /// <summary>
-    /// Creates a <see cref="PdfObjectStream"/> from a <see cref="PdfObject"/>,
-    /// eagerly extracting filters and decode parameters from its dictionary.
+    /// Creates a <see cref="PdfObjectStream"/> from a <see cref="PdfObject"/>.
     /// </summary>
     internal static PdfObjectStream FromPdfObject(PdfObject pdfObject)
     {

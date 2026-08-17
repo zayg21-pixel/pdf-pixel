@@ -4,16 +4,12 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Provides helper methods for undoing the TIFF predictor (value += left) as defined by PDF specification
-/// when /Predictor = 2. Handles both byte-aligned (8/16 bpc) and packed sub-byte (1/2/4 bpc) samples.
-/// This class is pure and performs all operations in-place on the provided row buffer.
+/// Undoes the TIFF horizontal differencing predictor (/Predictor 2).
 /// </summary>
 public static class TiffPredictorUndo
 {
     /// <summary>
-    /// Undo TIFF horizontal differencing predictor (each sample becomes sample + leftSample modulo sample domain).
-    /// For byte-aligned samples this is performed directly on the byte stream; for packed samples the row is
-    /// temporarily unpacked into an integer array, predictor is applied, then repacked preserving original packing.
+    /// Undoes the predictor in place, replacing each sample with sample + left.
     /// </summary>
     /// <param name="row">Row buffer containing encoded (predicted) samples. Modified in place to decoded form.</param>
     /// <param name="columns">Number of pixel columns in the image row.</param>
@@ -45,12 +41,11 @@ public static class TiffPredictorUndo
 
         int samplesPerRow = columns * colors;
 
-        // Byte-aligned path (8 or 16 bits per component) operates directly on byte array.
+        // Byte-aligned samples (8 or 16 bpc).
         if (bitsPerComponent >= 8)
         {
             if (bytesPerSample == 1)
             {
-                // 8-bit samples: simple modular 256 accumulation.
                 for (int sampleIndex = 0; sampleIndex < samplesPerRow; sampleIndex++)
                 {
                     int leftIndex = sampleIndex - colors;
@@ -82,22 +77,21 @@ public static class TiffPredictorUndo
             return;
         }
 
-        // Packed (sub-byte) path: unpack -> apply predictor -> repack.
+        // Packed (sub-byte) samples: unpack, apply the predictor, repack.
         int bits = bitsPerComponent;
         int sampleMask = (1 << bits) - 1;
         var samples = new int[samplesPerRow];
         int bitPos = 0;
 
-        // Unpack samples from bit stream into integer array preserving order.
         for (int sampleIndex = 0; sampleIndex < samplesPerRow; sampleIndex++)
         {
-            int byteIndex = bitPos >> 3; // which byte contains start of this sample bits
-            int intraBits = bitPos & 7;   // bit offset inside the byte
+            int byteIndex = bitPos >> 3;
+            int intraBits = bitPos & 7;
             int remainingBits = 8 - intraBits;
             int value;
             if (remainingBits >= bits)
             {
-                int shift = remainingBits - bits; // shift right to align sample
+                int shift = remainingBits - bits;
                 value = (row[byteIndex] >> shift) & sampleMask;
             }
             else
@@ -114,7 +108,6 @@ public static class TiffPredictorUndo
             bitPos += bits;
         }
 
-        // Clear destination row before repacking to avoid stale bits.
         Array.Clear(row, 0, row.Length);
 
         int outBitPos = 0;

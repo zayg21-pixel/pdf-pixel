@@ -4,10 +4,7 @@ using System.IO;
 namespace PdfPixel.Streams
 {
     /// <summary>
-    /// Forward-only stream that decodes PDF ASCIIHexDecode (ISO 32000-1, 7.4.3.4) on the fly.
-    /// - Ignores whitespace
-    /// - Stops at the end-of-data marker '>' (0x3E)
-    /// - If an odd number of hex digits is present, pads the last nibble with 0 to form the final byte
+    /// Forward-only stream that decodes PDF ASCIIHexDecode (ISO 32000-1, 7.4.3.4).
     /// </summary>
     internal sealed class AsciiHexDecodeStream : Stream
     {
@@ -83,34 +80,30 @@ namespace PdfPixel.Streams
                         _pendingHighNibble = -1;
                         _oddNibblePaddedReturned = true;
                         written++;
-                        break; // only one padded byte can be returned
+                        break;
                     }
 
                     break;
                 }
 
-                // Ensure we have a high nibble
                 if (_pendingHighNibble < 0)
                 {
                     int high = ReadNextNibble();
                     if (high < 0)
                     {
-                        // End reached (or no more nibble)
-                        continue; // loop will handle flush/pad on next iteration
+                        continue;
                     }
 
                     _pendingHighNibble = high;
-                    continue; // try to get low nibble in the same loop iteration
+                    continue;
                 }
 
                 int lowNibble = ReadNextNibble();
                 if (lowNibble < 0)
                 {
-                    // End or EOD without low nibble; will be padded next iteration
                     continue;
                 }
 
-                // Emit a full byte
                 buffer[offset + written] = (byte)((_pendingHighNibble << 4) | lowNibble);
                 _pendingHighNibble = -1;
                 written++;
@@ -146,8 +139,6 @@ namespace PdfPixel.Streams
                 {
                     return nibble;
                 }
-
-                // Ignore any other non-hex characters for robustness
             }
         }
 

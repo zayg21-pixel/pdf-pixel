@@ -6,43 +6,35 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Forward-only streaming decoder for the PDF LZWDecode filter (ISO32000-1,7.4.4).
-/// Supports /EarlyChange parameter (default1) and emits decoded bytes incrementally.
-/// Responsibilities limited to pure LZW expansion; predictor handling is done externally.
+/// Forward-only stream that decodes PDF LZWDecode (ISO 32000-1, 7.4.4).
 /// </summary>
 public sealed class LzwDecodeStream : Stream
 {
-    // Control codes & limits
-    private const int ClearCode = 256; // Reset dictionary sentinel
-    private const int EndOfDataCode = 257; // Termination sentinel
-    private const int InitialCodeLength = 9; // Start at9 bits
-    private const int MaxCodeLength = 12; // PDF limit per spec
-    private const int MaxDictionarySize = 1 << MaxCodeLength; //4096 entries
+    private const int ClearCode = 256;
+    private const int EndOfDataCode = 257;
+    private const int InitialCodeLength = 9;
+    private const int MaxCodeLength = 12;
+    private const int MaxDictionarySize = 1 << MaxCodeLength;
 
-    // Fixed boundaries matching working LzwFilter
-    private const int NineBitBoundary = 511;   // 2^9 - 1
-    private const int TenBitBoundary = 1023;   // 2^10 - 1
-    private const int ElevenBitBoundary = 2047; // 2^11 - 1
+    private const int NineBitBoundary = 511;
+    private const int TenBitBoundary = 1023;
+    private const int ElevenBitBoundary = 2047;
 
-    // Underlying compressed stream
     private readonly Stream _inner;
     private readonly bool _leaveOpen;
-    private readonly bool _earlyChange; // true => grow when last allocated code == (2^n -1); false => grow when last allocated code ==2^n
+    private readonly bool _earlyChange;
 
-    // Dynamic state
     private int _currentCodeLength;
-    private int _nextCode; // Next free dictionary index
-    private bool _endReached; // End-of-data reached
+    private int _nextCode;
+    private bool _endReached;
 
-    // Bit buffer (MSB-first consumption)
+    // Bit buffer, consumed MSB-first.
     private int _bitBuffer;
     private int _bitCount;
 
-    // Dictionary entries (index => byte sequence)
     private readonly List<byte[]> _dictionary = new(MaxDictionarySize);
-    private byte[]? _previousDecoded; // Last decoded sequence (for building new entries)
+    private byte[]? _previousDecoded;
 
-    // Output staging of current decoded sequence to satisfy caller Read requests.
     private readonly List<byte> _outputBytes = [];
     private int _outputIndex;
 
@@ -70,7 +62,7 @@ public sealed class LzwDecodeStream : Stream
     /// </summary>
     /// <param name="inner">Compressed LZW stream (must be readable).</param>
     /// <param name="leaveOpen">Leave underlying stream open when disposing.</param>
-    /// <param name="earlyChange">/EarlyChange parameter (default true =>1).</param>
+    /// <param name="earlyChange">Value of the /EarlyChange decode parameter.</param>
     public LzwDecodeStream(Stream inner, bool leaveOpen = false, bool earlyChange = true)
     {
         if (inner == null)
@@ -90,9 +82,6 @@ public sealed class LzwDecodeStream : Stream
         InitializeAllState();
     }
 
-    /// <summary>
-    /// Performs a full initialization of decoder state (used at construction only).
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InitializeAllState()
     {
@@ -104,10 +93,6 @@ public sealed class LzwDecodeStream : Stream
         _outputIndex = 0;
     }
 
-    /// <summary>
-    /// Resets only the dictionary-related state required when encountering a ClearCode.
-    /// IMPORTANT: Does not reset bit buffer so that partially read bytes remain valid for subsequent codes.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ResetDictionaryOnly()
     {
@@ -117,12 +102,12 @@ public sealed class LzwDecodeStream : Stream
             _dictionary.Add(new byte[] { (byte)i });
         }
 
-        // Placeholders for control codes (never output directly)
-        _dictionary.Add(Array.Empty<byte>()); //256 Clear
-        _dictionary.Add(Array.Empty<byte>()); //257 EndOfData
+        // Placeholders for ClearCode and EndOfDataCode.
+        _dictionary.Add(Array.Empty<byte>());
+        _dictionary.Add(Array.Empty<byte>());
 
         _currentCodeLength = InitialCodeLength;
-        _nextCode = EndOfDataCode + 1; // First free code index
+        _nextCode = EndOfDataCode + 1;
         _previousDecoded = null;
     }
 
@@ -154,7 +139,7 @@ public sealed class LzwDecodeStream : Stream
                 _outputIndex = 0;
                 if (!DecodeNextCode())
                 {
-                    break; // No more decoded data
+                    break;
                 }
             }
 
@@ -196,9 +181,8 @@ public sealed class LzwDecodeStream : Stream
 
             if (code == ClearCode)
             {
-                // Reset dictionary without discarding any buffered bits
                 ResetDictionaryOnly();
-                continue; // Need next code after clear
+                continue;
             }
 
             if (code == EndOfDataCode)
@@ -214,7 +198,7 @@ public sealed class LzwDecodeStream : Stream
             }
             else if (code == _nextCode && _previousDecoded != null)
             {
-                // KwKwK case: code references entry being formed (prev + first byte of prev)
+                // KwKwK case.
                 byte first = _previousDecoded[0];
                 decoded = ConcatPrevPlusByte(_previousDecoded, first);
             }
@@ -234,21 +218,21 @@ public sealed class LzwDecodeStream : Stream
                     int codeOffset = _earlyChange ? 0 : 1;
                     int dictionarySize = _dictionary.Count;
 
-                    if (dictionarySize >= ElevenBitBoundary + codeOffset) // 2047 + offset
+                    if (dictionarySize >= ElevenBitBoundary + codeOffset)
                     {
                         if (_currentCodeLength < MaxCodeLength)
                         {
-                            _currentCodeLength = MaxCodeLength; // 12 bits
+                            _currentCodeLength = MaxCodeLength;
                         }
                     }
-                    else if (dictionarySize >= TenBitBoundary + codeOffset) // 1023 + offset
+                    else if (dictionarySize >= TenBitBoundary + codeOffset)
                     {
                         if (_currentCodeLength < 11)
                         {
                             _currentCodeLength = 11;
                         }
                     }
-                    else if (dictionarySize >= NineBitBoundary + codeOffset) // 511 + offset
+                    else if (dictionarySize >= NineBitBoundary + codeOffset)
                     {
                         if (_currentCodeLength < 10)
                         {

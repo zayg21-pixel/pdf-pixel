@@ -1,46 +1,43 @@
 using System;
 using PdfPixel.Models;
 
-namespace PdfPixel.Text
+namespace PdfPixel.Text;
+
+/// <summary>
+/// Represents the undecoded bytes of a PDF text-showing operand.
+/// </summary>
+public readonly struct PdfText
 {
     /// <summary>
-    /// Represents text extracted from PDF with proper handling of CID fonts vs Unicode fonts
-    /// Refactored to use PdfFontBase hierarchy with enhanced font type support.
-    /// Preserves raw bytes as <c>ReadOnlyMemory&lt;byte&gt;</c> to avoid extra allocations.
+    /// Initializes a new <see cref="PdfText"/> with the raw PDF character code bytes.
     /// </summary>
-    public readonly struct PdfText
+    public PdfText(in ReadOnlyMemory<byte> rawBytes) => RawBytes = rawBytes;
+
+    /// <summary>
+    /// Gets the raw character code bytes as they appear in the PDF.
+    /// </summary>
+    public ReadOnlyMemory<byte> RawBytes { get; }
+
+    /// <summary>
+    /// Gets whether there are no bytes.
+    /// </summary>
+    public bool IsEmpty => RawBytes.Length == 0;
+
+    /// <summary>
+    /// Creates a <see cref="PdfText"/> from a PDF string operand.
+    /// </summary>
+    public static PdfText FromOperand(IPdfValue operand)
     {
-        /// <summary>
-        /// Initializes a new <see cref="PdfText"/> with the raw PDF character code bytes.
-        /// </summary>
-        public PdfText(in ReadOnlyMemory<byte> rawBytes) => RawBytes = rawBytes;
+        PdfString? value = operand.AsString();
 
-        /// <summary>
-        /// Raw character codes/codepoints from the PDF (for HarfBuzz shaping of CID fonts)
-        /// </summary>
-        public ReadOnlyMemory<byte> RawBytes { get; }
-
-        /// <summary>
-        /// Check if the text is empty
-        /// </summary>
-        public bool IsEmpty => RawBytes.Length == 0;
-
-        /// <summary>
-        /// Create PdfText from a PDF string operand
-        /// </summary>
-        public static PdfText FromOperand(IPdfValue operand)
+        if (value?.IsEmpty != false)
         {
-            PdfString? value = operand.AsString();
-
-            if (value?.IsEmpty != false)
-            {
-                return default;
-            }
-
-            return new PdfText(value.Value.Value);
+            return default;
         }
 
-        /// <inheritdoc/>
-        public override string ToString() => EncodingExtensions.PdfDefault.GetString(RawBytes);
+        return new PdfText(value.Value.Value);
     }
+
+    /// <inheritdoc/>
+    public override string ToString() => EncodingExtensions.PdfDefault.GetString(RawBytes);
 }

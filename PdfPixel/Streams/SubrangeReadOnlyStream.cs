@@ -4,16 +4,15 @@ using System.IO;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Provides a read-only window over a seekable underlying <see cref="Stream"/>.
-/// The wrapper restricts all read and seek operations to a fixed subrange defined by
-/// an absolute starting offset and a length. Attempts to access outside the range fail.
+/// Read-only window over a fixed subrange of a seekable <see cref="Stream"/>.
+/// Reads and seeks outside the range throw.
 /// </summary>
 public sealed class SubrangeReadOnlyStream : Stream
 {
     private readonly Stream _innerStream;
     private readonly long _subrangeOffset;
     private readonly bool _leaveOpen;
-    private long _position; // Position relative to the subrange start.
+    private long _position;
     private bool _disposed;
 
     /// <summary>
@@ -135,7 +134,7 @@ public sealed class SubrangeReadOnlyStream : Stream
 
         if (_position >= Length)
         {
-            return 0; // EOF of subrange.
+            return 0;
         }
 
         long remaining = Length - _position;
@@ -144,7 +143,6 @@ public sealed class SubrangeReadOnlyStream : Stream
             count = (int)remaining;
         }
 
-        // Align inner stream position with absolute offset.
         long absolute = _subrangeOffset + _position;
         if (_innerStream.Position != absolute)
         {

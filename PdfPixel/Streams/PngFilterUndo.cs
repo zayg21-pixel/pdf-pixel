@@ -4,9 +4,7 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// PNG predictor filter undo implementation (types0..4).
-/// Layout expectation: caller supplies buffers with leading left margin of <c>bytesPerPixel</c> zero bytes
-/// then a single filter byte, then pixel data (rowDataOffset points to first pixel data byte).
+/// Undoes the PNG predictor filters (types 0..4).
 /// </summary>
 public static class PngFilterUndo
 {
@@ -56,7 +54,7 @@ public static class PngFilterUndo
             }
             case 1:
             {
-                // Sub: raw[i] += raw[i - bytesPerPixel]; first pixel's bytesPerPixel bytes have implicit left0.
+                // Sub: raw[i] += left.
                 for (int i = bytesPerPixel; i < rowDataLength; i++)
                 {
                     int idx = rowDataOffset + i;
@@ -67,7 +65,7 @@ public static class PngFilterUndo
             }
             case 2:
             {
-                // Up: raw[i] += previous[i].
+                // Up: raw[i] += up.
                 for (int i = 0; i < rowDataLength; i++)
                 {
                     int idx = rowDataOffset + i;
@@ -78,7 +76,7 @@ public static class PngFilterUndo
             }
             case 3:
             {
-                // Average: raw[i] += (left + up) >>1; left is zero for first pixel bytesPerPixel region.
+                // Average: raw[i] += (left + up) >> 1.
                 for (int i = 0; i < rowDataLength; i++)
                 {
                     int idx = rowDataOffset + i;
@@ -91,7 +89,7 @@ public static class PngFilterUndo
             }
             case 4:
             {
-                // Paeth: raw[i] += Paeth(left, up, upLeft); left/upLeft zero for first pixel.
+                // Paeth: raw[i] += Paeth(left, up, upLeft).
                 for (int i = 0; i < rowDataLength; i++)
                 {
                     int idx = rowDataOffset + i;
@@ -105,7 +103,6 @@ public static class PngFilterUndo
             }
             default:
             {
-                // Unknown filter type: treat as None.
                 return;
             }
         }

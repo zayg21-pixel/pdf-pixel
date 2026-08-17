@@ -4,9 +4,7 @@ using System.IO;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Stream for decoding PDF RunLengthDecode filter.
-/// Implements the PDF spec: each data block ends with128 (0x80),
-/// followed by a single byte (0x80) to mark EOD.
+/// Forward-only stream that decodes PDF RunLengthDecode (ISO 32000-1, 7.4.5).
 /// </summary>
 public sealed class RunLengthDecodeStream : Stream
 {

@@ -11,8 +11,8 @@ using System.IO.Compression;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Decodes generic PDF streams by applying /Filter chains and optional /DecodeParms predictor post-processing.
-/// Image specific formats (DCT, JPX, JBIG2, CCITT) are left undecoded for specialized handlers.
+/// Decodes PDF streams by applying their /Filter chain and /DecodeParms predictor.
+/// Image formats (DCT, JPX, JBIG2, CCITT) are returned undecoded.
 /// </summary>
 public sealed class PdfStreamDecoder
 {

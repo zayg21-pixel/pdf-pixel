@@ -4,30 +4,20 @@ using System.IO;
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Forward-only stream that decodes PDF ASCII85Decode (ISO32000-1,7.4.3.5) on the fly.
-/// Rules:
-/// - Whitespace characters are ignored.
-/// - 'z' expands to four0x00 bytes (only valid when no other digits collected for the current group).
-/// - Data terminates at the sequence '~>' (EOD marker). The '>' is consumed.
-/// - Each5 base-85 digits (values0..84 mapped from '!'..'u') produce4 bytes (big-endian).
-/// - A final partial group of2..4 digits is padded with 'u' (value84) up to5 digits and only (digits -1) bytes are emitted.
-/// - A lone single digit at end (rare / malformed) is ignored (cannot form any output bytes).
-/// Robustness: invalid characters outside the permitted range are ignored.
+/// Forward-only stream that decodes PDF ASCII85Decode (ISO 32000-1, 7.4.3.5).
 /// </summary>
 public sealed class Ascii85DecodeStream : Stream
 {
     private readonly Stream _inner;
     private readonly bool _leaveOpen;
 
-    // Decode state
     private bool _endReached;
     private readonly int[] _groupDigits = new int[5];
-    private int _groupLength; //0..5 digits collected for current group
+    private int _groupLength;
 
-    // Output buffering (decoded bytes waiting to be consumed)
     private readonly byte[] _buffer = new byte[4];
     private int _bufferOffset;
-    private int _bufferCount; // number of valid bytes in buffer
+    private int _bufferCount;
 
     /// <summary>
     /// Initializes the decoder wrapping the given ASCII85-encoded stream.
@@ -103,7 +93,7 @@ public sealed class Ascii85DecodeStream : Stream
             {
                 if (!FillDecodeBuffer())
                 {
-                    break; // no more data
+                    break;
                 }
             }
 
@@ -137,7 +127,6 @@ public sealed class Ascii85DecodeStream : Stream
                 return _bufferCount > 0;
             }
 
-            // PDF whitespace characters
             if (IsWhiteSpace((byte)b))
             {
                 continue;
@@ -145,7 +134,7 @@ public sealed class Ascii85DecodeStream : Stream
 
             if (b == 'z')
             {
-                // Short form for0x00000000; only valid when starting a group.
+                // 'z' expands to four zero bytes, and only at the start of a group.
                 if (_groupLength == 0)
                 {
                     _buffer[0] = 0;
@@ -157,7 +146,6 @@ public sealed class Ascii85DecodeStream : Stream
                 }
                 else
                 {
-                    // Ignore 'z' appearing mid-group (robustness); continue decoding digits already collected.
                     continue;
                 }
             }
@@ -178,11 +166,10 @@ public sealed class Ascii85DecodeStream : Stream
 
             if (b < '!' || b > 'u')
             {
-                // Ignore invalid characters (robustness per spec recommendation)
                 continue;
             }
 
-            int digit = b - '!'; //0..84
+            int digit = b - '!';
             _groupDigits[_groupLength] = digit;
             _groupLength++;
 
@@ -209,15 +196,14 @@ public sealed class Ascii85DecodeStream : Stream
     {
         if (_groupLength <= 1)
         {
-            //0 or1 digits -> no output bytes.
             _groupLength = 0;
             return;
         }
 
-        // Pad remaining digits with 'u' (value84) to make a full group.
+        // Pad the group up to five digits with 'u' (84).
         for (int i = _groupLength; i < 5; i++)
         {
-            _groupDigits[i] = 84; // 'u'
+            _groupDigits[i] = 84;
         }
 
         uint value = 0;
@@ -226,7 +212,6 @@ public sealed class Ascii85DecodeStream : Stream
             value = (value * 85) + (uint)_groupDigits[i];
         }
 
-        // Emit only (groupLength -1) bytes.
         int bytesToEmit = _groupLength - 1;
         _buffer[0] = (byte)(value >> 24);
         _buffer[1] = (byte)(value >> 16);
