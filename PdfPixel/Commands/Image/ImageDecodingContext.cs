@@ -1,5 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
@@ -35,11 +36,9 @@ public sealed class ImageDecodingContext
         Page = state.Page;
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = state.RenderingParameters.ImageTileSize;
-        MaxTileCacheSizeBytes = state.RenderingParameters.MaxTileCacheSizeBytes;
+        CacheDecodedTiles = state.RenderingParameters.CacheDecodedTiles;
         TransferFunction = state.TransferFunction;
-        FillColor = state.FillPaint.Color;
-        FillAlpha = state.FillPaint.Alpha;
-        BlendMode = state.FillPaint.BlendMode;
+        FillPaint = state.FillPaint;
     }
 
     /// <summary>
@@ -49,14 +48,12 @@ public sealed class ImageDecodingContext
     /// </summary>
     /// <param name="source">The context to derive shared values (page, tile sizing, transfer function) from.</param>
     /// <param name="image">The image this context resolves a color space converter for.</param>
-    /// <param name="fillColor">Fill color override.</param>
-    /// <param name="fillAlpha">Fill alpha override.</param>
-    /// <param name="blendMode">Blend mode override.</param>
+    /// <param name="fillPaint">Fill paint override.</param>
     /// <param name="isStencilMaskComposite">
-    /// True to composite via destination-in (Porter-Duff) regardless of <paramref name="blendMode"/>, for
+    /// True to composite via destination-in (Porter-Duff) regardless of the paint's blend mode, for
     /// the internal stencil-mask alpha application pass. Has no PDF spec equivalent.
     /// </param>
-    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, in PdfColor fillColor, float fillAlpha, PdfBlendMode blendMode, bool isStencilMaskComposite)
+    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, PdfPaint fillPaint, bool isStencilMaskComposite)
     {
         if (source == null)
         {
@@ -71,11 +68,9 @@ public sealed class ImageDecodingContext
         Page = source.Page;
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = source.DefaultTileSize;
-        MaxTileCacheSizeBytes = source.MaxTileCacheSizeBytes;
+        CacheDecodedTiles = source.CacheDecodedTiles;
         TransferFunction = source.TransferFunction;
-        FillColor = fillColor;
-        FillAlpha = fillAlpha;
-        BlendMode = blendMode;
+        FillPaint = fillPaint ?? throw new ArgumentNullException(nameof(fillPaint));
         IsStencilMaskComposite = isStencilMaskComposite;
     }
 
@@ -96,9 +91,10 @@ public sealed class ImageDecodingContext
     public int DefaultTileSize { get; }
 
     /// <summary>
-    /// Upper bound on the combined estimated byte size of cached decoded tiles.
+    /// When true, decoded tiles are retained across renders for the tiles inside the drawn region.
+    /// When false, only the tile row currently being drawn is held.
     /// </summary>
-    public long MaxTileCacheSizeBytes { get; }
+    public bool CacheDecodedTiles { get; }
 
     /// <summary>
     /// Transfer function (TR) from the graphics state, applied during color conversion.
@@ -106,24 +102,14 @@ public sealed class ImageDecodingContext
     public TransferFunctionTransform? TransferFunction { get; }
 
     /// <summary>
-    /// Fill color from the graphics state, used for stencil mask rendering.
+    /// Fill paint from the graphics state. Its color is used for stencil mask rendering, and its blend
+    /// mode is superseded by destination-in compositing when <see cref="IsStencilMaskComposite"/> is true.
     /// </summary>
-    public PdfColor FillColor { get; }
-
-    /// <summary>
-    /// Image fill alpha.
-    /// </summary>
-    public float FillAlpha { get; }
-
-    /// <summary>
-    /// Blend mode for paint composition; the PDF content blend mode from the graphics state.
-    /// Superseded by destination-in compositing when <see cref="IsStencilMaskComposite"/> is true.
-    /// </summary>
-    public PdfBlendMode BlendMode { get; }
+    public PdfPaint FillPaint { get; }
 
     /// <summary>
     /// True when this context is for the internal stencil-mask alpha application pass, which composites
-    /// via destination-in (Porter-Duff) regardless of <see cref="BlendMode"/>.
+    /// via destination-in (Porter-Duff) regardless of <see cref="FillPaint"/>'s blend mode.
     /// </summary>
     public bool IsStencilMaskComposite { get; }
 

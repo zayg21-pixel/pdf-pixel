@@ -12,10 +12,10 @@ public class PdfRenderingParameters
     public int ImageTileSize { get; set; } = 512;
 
     /// <summary>
-    /// Upper bound on the combined estimated byte size of cached decoded tiles.
-    /// Each tile is estimated as Width * Height * 4 (RGBA8888).
+    /// When true, decoded tiles are retained across renders for the tiles inside the drawn region.
+    /// When false, only the tile row currently being drawn is held.
     /// </summary>
-    public long MaxTileCacheSizeBytes { get; set; } = 10 * 1024 * 1024;
+    public bool CacheDecodedTiles { get; set; }
 
     /// <summary>
     /// Default number of samples for Postscript and Exponential functions when the point count is unknown.

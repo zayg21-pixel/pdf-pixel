@@ -15,7 +15,7 @@ public sealed class PdfImageTileCacheEntry
 
     private PdfIntegerSize? _scaledSize;
     private int _tileIndex;
-    private bool _decoding;
+    private bool _decoderActive;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfImageTileCacheEntry"/> class.
@@ -48,10 +48,10 @@ public sealed class PdfImageTileCacheEntry
     /// </summary>
     public void Initialize(in PdfMatrix ctm, in PdfIntegerRectangle imageRegion, object contentLocker, IPdfExecutionObserver observer)
     {
-        if (_decoding)
+        if (_decoderActive)
         {
             Decoder.Cleanup();
-            _decoding = false;
+            _decoderActive = false;
         }
 
         _tileIndex = 0;
@@ -75,7 +75,7 @@ public sealed class PdfImageTileCacheEntry
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
             Decoder.Initialize(TileInfo, contentLocker, ctm, tileIndexesToDecode, observer);
-            _decoding = true;
+            _decoderActive = true;
         }
     }
 
@@ -92,22 +92,24 @@ public sealed class PdfImageTileCacheEntry
         int tileIndex = _tileIndex++;
         CachedTile cachedTile = _tiles[tileIndex];
 
-        if (!_decoding)
-        {
-            return cachedTile.GetTile();
-        }
-
-        if (cachedTile.IsPendingUpdate)
+        if (_decoderActive && cachedTile.IsPendingUpdate)
         {
             DecodeUntilProduced(tileIndex, observer);
         }
 
-        return cachedTile.GetTile();
+        PdfImageTile tile = cachedTile.GetTile();
+
+        if (!Decoder.Context.CacheDecodedTiles)
+        {
+            cachedTile.Clear();
+        }
+
+        return tile;
     }
 
     private void DecodeUntilProduced(int tileIndex, IPdfExecutionObserver observer)
     {
-        while (_decoding)
+        while (_decoderActive)
         {
             observer?.Notify();
 
@@ -135,7 +137,7 @@ public sealed class PdfImageTileCacheEntry
 
                 if (tile.TileIndex == TileInfo.TotalTiles - 1)
                 {
-                    _decoding = false;
+                    _decoderActive = false;
                     Decoder.Cleanup();
                 }
             }
@@ -191,37 +193,13 @@ public sealed class PdfImageTileCacheEntry
 
     private void EvictTilesOutsideRegion(HashSet<int> regionTileIndexes)
     {
-        long cacheSizeBytes = ComputeCacheSizeBytes();
-
-        for (int tileIndex = 0; tileIndex < _tiles.Length && cacheSizeBytes > Decoder.Context.MaxTileCacheSizeBytes; tileIndex++)
+        for (int tileIndex = 0; tileIndex < _tiles.Length; tileIndex++)
         {
-            if (regionTileIndexes.Contains(tileIndex))
+            if (!regionTileIndexes.Contains(tileIndex))
             {
-                continue;
+                _tiles[tileIndex].Clear();
             }
-
-            CachedTile cachedTile = _tiles[tileIndex];
-            long estimatedByteSize = cachedTile.EstimatedByteSize;
-            if (estimatedByteSize == 0)
-            {
-                continue;
-            }
-
-            cachedTile.Clear();
-            cacheSizeBytes -= estimatedByteSize;
         }
-    }
-
-    private long ComputeCacheSizeBytes()
-    {
-        long cacheSizeBytes = 0;
-
-        foreach (CachedTile cachedTile in _tiles)
-        {
-            cacheSizeBytes += cachedTile.EstimatedByteSize;
-        }
-
-        return cacheSizeBytes;
     }
 
     private sealed class CachedTile
@@ -239,8 +217,6 @@ public sealed class PdfImageTileCacheEntry
         public bool IsPendingUpdate { get; set; }
 
         public bool HasImage => _tile.Image != null;
-
-        public long EstimatedByteSize => (_tile.Image != null) ? (long)_tile.Image.Width * _tile.Image.Height * 4 : 0;
 
         public PdfImageTile GetTile() => _tile;
 

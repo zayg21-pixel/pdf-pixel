@@ -90,7 +90,7 @@ public sealed partial class SkCanvasCommandProcessor
 
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(_executionContext, context.ImageSize, tile.TilePosition, context.Interpolate);
 
-        SKColor fillColor = context.DecodingContext.FillColor.ToSkiaColor();
+        SKColor fillColor = context.DecodingContext.FillPaint.Color.ToSkiaColor();
         using SKColorFilter colorFilter = SkiaImageBlending.CreateImageMaskColorFilter(in fillColor, context.InvertMask);
         using SKImage skImage = tile.Image.ToSkImage();
         using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(context.DecodingContext);

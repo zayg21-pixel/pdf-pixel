@@ -1,6 +1,5 @@
 using PdfPixel.Parsing;
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
@@ -25,8 +24,8 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     // Built from forward midpoint binning so it matches the vertical inverse grid for the same scale.
     private readonly Range[] _sourceSampleRangeForDestinationSample;
 
-    // Vertical: inverse grid. Set of source-row indices whose arrival completes a destination row.
-    private readonly HashSet<int> _flushAfterSourceRow; // TODO: this takes 1/5 of all processing operations to check this hasset, need to improve
+    // Vertical: inverse grid. Flags the source rows whose arrival completes a destination row.
+    private readonly bool[] _flushAfterSourceRow;
 
     private int _nextDestinationRowToWrite;
     private int _accumulatedSourceRowCount;
@@ -105,7 +104,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         // Vertical inverse grid: same forward midpoint binning. The last source row mapping to a
         // given destination row triggers that row's flush. We walk source rows backwards: the first
         // time we encounter each destination value is its last source row.
-        _flushAfterSourceRow = new HashSet<int>();
+        _flushAfterSourceRow = new bool[sourceHeight];
         float inverseVerticalScale = (float)destinationHeight / sourceHeight;
         int previousDestinationRow = -1;
         for (int sourceRow = sourceHeight - 1; sourceRow >= 0; sourceRow--)
@@ -118,7 +117,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
             if (destinationRow != previousDestinationRow)
             {
-                _flushAfterSourceRow.Add(sourceRow);
+                _flushAfterSourceRow[sourceRow] = true;
                 previousDestinationRow = destinationRow;
             }
         }
@@ -137,7 +136,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         AccumulateSourceRow();
         _accumulatedSourceRowCount++;
 
-        if (_flushAfterSourceRow.Contains(rowIndex))
+        if (_flushAfterSourceRow[rowIndex])
         {
             WriteAveragedRow(destRow);
             ResetAccumulators();

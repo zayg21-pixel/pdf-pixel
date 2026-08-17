@@ -44,7 +44,7 @@ public class PdfPanelContext
     /// <summary>
     /// Parameters for PDF page rendering.
     /// </summary>
-    public PdfRenderingParameters RenderingParameters { get; } = new();
+    public PdfRenderingParameters RenderingParameters { get; } = new() { CacheDecodedTiles = true };
 
     /// <summary>
     /// Parameters used for PDF command execution.

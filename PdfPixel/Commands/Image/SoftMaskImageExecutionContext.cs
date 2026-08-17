@@ -97,7 +97,7 @@ public sealed class SoftMaskImageExecutionContext
         PdfIntegerSize imageSize = new(pdfImage.Width, pdfImage.Height);
         PdfIntegerSize maskSize = new(maskImage.Width, maskImage.Height);
 
-        ImageDecodingContext maskDecodingContext = new(context, maskImage, context.FillColor, context.FillAlpha, context.BlendMode, isStencilMaskComposite: false);
+        ImageDecodingContext maskDecodingContext = new(context, maskImage, context.FillPaint, isStencilMaskComposite: false);
 
         PdfImageDecoder? imageDecoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
         PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(maskImage, maskDecodingContext, loggerFactory);
