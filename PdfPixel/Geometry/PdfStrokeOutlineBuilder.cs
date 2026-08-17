@@ -5,20 +5,17 @@ using System.Numerics;
 
 namespace PdfPixel.Geometry;
 
-// TODO: over-documented whole class
-
 /// <summary>
 /// Builds the fill outline of a stroked <see cref="PdfPath"/> directly in <see cref="PdfPath"/> geometry
 /// using <see cref="PdfPaint"/> parameters.
 /// </summary>
 public static partial class PdfStrokeOutlineBuilder
 {
-    // How far the emitted offset curve may stray from the true offset, measured at the segment midpoint
-    // and in device units, before the cubic is split and its halves offset separately.
+    // Maximum deviation of an emitted offset curve from the true offset, in device units, measured at
+    // the segment midpoint.
     private const float DeviceOffsetTolerance = 0.1f;
 
-    // Every level of subdivision doubles the cubics a source curve can turn into, so this bounds one
-    // curve's offset rail at two to the power of it.
+    // Maximum subdivision levels for one source curve's offset rail.
     private const int MaxSubdivisionDepth = 6;
 
     // A dash pattern that would cut a sub-path into more pieces than this leaves it solid instead.
@@ -26,10 +23,7 @@ public static partial class PdfStrokeOutlineBuilder
 
     private const float Epsilon = 1e-4f;
 
-    // A cubic's length is measured by sampling it at even steps in t and summing the chords between the
-    // samples. How far apart those samples are meant to fall is expressed in the space the path is built
-    // in, which is the space a dash pattern is written in too, so the error stays fixed against the dash
-    // lengths it has to land between rather than against the size of the curve.
+    // Spacing of the chord samples a cubic's length is measured from, in the space the path is built in.
     private const float CurveMeasureStep = 0.25f;
     private const int MinCurveMeasureSamples = 8;
     private const int MaxCurveMeasureSamples = 256;
@@ -38,12 +32,9 @@ public static partial class PdfStrokeOutlineBuilder
 
     /// <summary>
     /// Builds the fill outline of <paramref name="source"/> stroked with the pen <paramref name="penMatrix"/>
-    /// shapes: the circle of the line width in <paramref name="style"/> put through that matrix, which is an
-    /// ellipse for a matrix scaling the two axes differently. The outline comes back in the space
-    /// <paramref name="source"/> is given in, and the dash pattern is measured along the path in that same
-    /// space. <paramref name="deviceMatrix"/> is what carries that space to the device, and the curve
-    /// flattening is held to a tolerance measured there rather than one read as a distance in the space the
-    /// path happens to be written in.
+    /// shapes: the circle of the line width in <paramref name="style"/> put through that matrix. The outline
+    /// and the dash pattern are both in the space <paramref name="source"/> is given in, and the curve
+    /// flattening tolerance is measured in the device space <paramref name="deviceMatrix"/> maps into.
     /// </summary>
     public static PdfPath BuildOutline(PdfPath source, PdfStrokeStyle style, in PdfMatrix penMatrix, in PdfMatrix deviceMatrix)
     {
@@ -63,11 +54,9 @@ public static partial class PdfStrokeOutlineBuilder
             halfWidth = 0.5f;
         }
 
-        // The offsetting emits its points in pen space, which reaches the device through the pen matrix and
-        // then the device matrix, so the tolerance travels the same way back to land on the device.
         float offsetTolerance = GetOffsetTolerance(penMatrix.PostConcat(deviceMatrix));
 
-        // The offsetting runs where the pen is a circle; the builder carries each emitted point back.
+        // The offsetting runs in pen space, where the pen is a circle; the builder carries points back.
         PdfMatrix toPenSpace = penMatrix.Invert();
         PdfPathBuilder result = new(GetOutlineCapacity(source, halfWidth, offsetTolerance), penMatrix);
 
@@ -91,7 +80,7 @@ public static partial class PdfStrokeOutlineBuilder
                 continue;
             }
 
-            // The pattern is split before the pen space is entered, over the arc length it is written in.
+            // Split before entering pen space, over the arc length the pattern is written in.
             foreach (List<IPathSegment> piece in SplitDashes(subPath, dashPattern, style.DashPhase))
             {
                 MapToPenSpace(piece, toPenSpace);
@@ -103,9 +92,7 @@ public static partial class PdfStrokeOutlineBuilder
     }
 
     /// <summary>
-    /// A rough size for the buffer the outline is built into: the outline runs either side of the path, and
-    /// every curve on it splits into more the wider the pen is against the tolerance it is held to. A guess,
-    /// so the buffer still grows when a path outruns it.
+    /// Estimates the buffer size the outline is built into. The buffer still grows when a path outruns it.
     /// </summary>
     private static int GetOutlineCapacity(PdfPath source, float halfWidth, float offsetTolerance)
     {
@@ -190,11 +177,9 @@ public static partial class PdfStrokeOutlineBuilder
     }
 
     /// <summary>
-    /// <see cref="DeviceOffsetTolerance"/> expressed in the space the offsetting emits its points in, given
-    /// the <paramref name="toDevice"/> matrix carrying that space to the device. The axis that magnifies
-    /// most sets the tolerance, so the looser axis of a lopsided matrix cannot hide error on the tighter one.
-    /// A matrix that maps everything onto a point, or off the scale a float can hold, leaves the tolerance
-    /// as it stands.
+    /// <see cref="DeviceOffsetTolerance"/> expressed in the space <paramref name="toDevice"/> maps from,
+    /// taking the magnification from the axis that magnifies most. A matrix that maps everything onto a
+    /// point, or off the scale a float can hold, leaves the tolerance as it stands.
     /// </summary>
     private static float GetOffsetTolerance(in PdfMatrix toDevice)
     {
@@ -211,9 +196,8 @@ public static partial class PdfStrokeOutlineBuilder
     }
 
     /// <summary>
-    /// The dash pattern <paramref name="style"/> is to be dashed with, or null when it is to be stroked
-    /// solid. A pattern whose entries add up to nothing never advances along the path and stands for a
-    /// solid stroke.
+    /// The dash pattern <paramref name="style"/> is to be dashed with, or <see langword="null"/> when it is
+    /// to be stroked solid. A pattern whose entries add up to nothing counts as solid.
     /// </summary>
     private static float[]? GetDashPattern(PdfStrokeStyle style)
     {
@@ -232,7 +216,6 @@ public static partial class PdfStrokeOutlineBuilder
         return (total > Epsilon) ? pattern : null;
     }
 
-    // A round pen is already in its own space and the segments are left as they are.
     private static void MapToPenSpace(List<IPathSegment> segments, in PdfMatrix toPenSpace)
     {
         if (toPenSpace.IsIdentity)

@@ -39,9 +39,6 @@ public class PdfChoiceFormField : PdfFormField
     /// Each element can be either a text string or a two-element array containing
     /// the export value and display text.
     /// </remarks>
-    // TODO: [MEDIUM] parse into the export/display value pairs the readers actually want. Every reader
-    // walks this array element by element, re-deciding at each entry whether it is a bare string or a
-    // two-element [export display] array. Blocked on nothing but choosing the pair type to expose.
     public PdfArray? Options { get; }
 
     /// <summary>

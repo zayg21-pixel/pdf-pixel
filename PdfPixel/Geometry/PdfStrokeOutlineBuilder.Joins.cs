@@ -25,8 +25,7 @@ public static partial class PdfStrokeOutlineBuilder
         {
             // Concave side: route the inner contour back through the vertex before stepping out to the
             // outgoing offset. Anchoring the overlap at the centerline keeps the winding number consistent
-            // when a leg is shorter than the stroke radius; a direct line to the offset point instead leaves
-            // a reversed-winding sliver that cancels and punches a hole in the fill (the short-leg problem).
+            // when a leg is shorter than the stroke radius (the short-leg problem).
             result.LineTo(ToPdfPoint(vertex));
             Vector2 concaveEnd = Offset(vertex, outgoingTangent, halfWidth);
             result.LineTo(ToPdfPoint(concaveEnd));
@@ -112,9 +111,8 @@ public static partial class PdfStrokeOutlineBuilder
     /// <summary>
     /// Emits a circular arc of <paramref name="radius"/> centered at <paramref name="center"/>, starting at
     /// <paramref name="startAngleDegrees"/> and sweeping by <paramref name="sweepDegrees"/> (signed, degrees),
-    /// as one or more cubic Bézier segments (the standard tan(sweep/4) arc-to-cubic approximation, exact at
-    /// the endpoints and accurate to a fraction of a percent per segment). The builder's current point must
-    /// already be the arc's start point.
+    /// as one or more cubic Bézier segments (the tan(sweep/4) arc-to-cubic approximation). The builder's
+    /// current point must already be the arc's start point.
     /// </summary>
     private static void AddArc(PdfPathBuilder result, Vector2 center, float radius, float startAngleDegrees, float sweepDegrees)
     {

@@ -4,25 +4,13 @@ using System.Numerics;
 
 namespace PdfPixel.Commands;
 
-// TODO: over-documented
 /// <summary>
-/// <para>
-/// The pen a stroke leaves its mark with, as that mark lands on the device pixel grid: the width to
-/// build the outline with, the matrix shaping the pen, and how thick the mark comes out in device
-/// pixels.
-/// </para>
-/// <para>
-/// A pen covering less than one device pixel is widened until it covers one, so that thin lines stay
-/// visible when zoomed out; an axis it already covers keeps its width. The widening is the same on both
-/// axes under a matrix that scales them alike, and the pen is a circle a single width describes. The two
-/// differ under an anisotropic matrix, where the pen is an ellipse, and the matrix is what carries that
-/// shape.
-/// </para>
+/// The pen a stroke is built with, as its mark lands on the device pixel grid: the outline width, the
+/// matrix shaping the pen, and the resulting thickness in device pixels.
 /// </summary>
 internal readonly struct PdfDevicePen
 {
-    // Axes asking for nearly the same width are treated as one: the difference is invisible, and an
-    // elliptical pen costs a transform on every point of the path where a circular one costs none.
+    // Relative difference below which the two axis widths are treated as one.
     private const float UniformityTolerance = 0.01f;
 
     private PdfDevicePen(in PdfMatrix matrix, float width, float deviceThickness)
@@ -33,8 +21,7 @@ internal readonly struct PdfDevicePen
     }
 
     /// <summary>
-    /// The matrix shaping the pen: identity for a circular pen, and a scaling matrix for the ellipse an
-    /// anisotropic device matrix asks for.
+    /// The matrix shaping the pen: identity for a circular pen, a scaling matrix for an elliptical one.
     /// </summary>
     public PdfMatrix Matrix { get; }
 
@@ -44,31 +31,29 @@ internal readonly struct PdfDevicePen
     public float Width { get; }
 
     /// <summary>
-    /// How thick the mark the pen leaves is, in device pixels, across the axis carrying the least of it.
+    /// Thickness of the pen's mark in device pixels, across the thinner axis.
     /// </summary>
     public float DeviceThickness { get; }
 
     /// <summary>
     /// Computes the pen a stroke of <paramref name="lineWidth"/> is drawn with under the device matrix of
-    /// <paramref name="executionContext"/>. A line width of zero or less is the PDF hairline, which comes
-    /// out as exactly one device pixel on both axes.
+    /// <paramref name="executionContext"/>. A line width of zero or less is the PDF hairline, one device
+    /// pixel on both axes.
     /// </summary>
     public static PdfDevicePen Create(PdfCommandExecutionContext executionContext, float lineWidth)
     {
         PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
 
-        // How many device pixels one unit along each axis of the path's own space is carried to.
+        // Device pixels per unit along each axis of the path's own space.
         float deviceScaleX = new Vector2(deviceMatrix.ScaleX, deviceMatrix.SkewY).Length();
         float deviceScaleY = new Vector2(deviceMatrix.SkewX, deviceMatrix.ScaleY).Length();
 
-        // A matrix mapping an axis onto a point leaves no mark on it to widen, and none to measure.
         if (deviceScaleX <= 0 || deviceScaleY <= 0)
         {
             return new PdfDevicePen(PdfMatrix.Identity, (lineWidth > 0) ? lineWidth : 1f, 0f);
         }
 
-        // A pen covering less than one device pixel is widened to cover exactly one, and every other
-        // pen keeps the width it was authored with. The hairline is that rule at a line width of zero.
+        // A pen covering less than one device pixel is widened to cover exactly one.
         float widthX = (lineWidth * deviceScaleX < 1f) ? 1f / deviceScaleX : lineWidth;
         float widthY = (lineWidth * deviceScaleY < 1f) ? 1f / deviceScaleY : lineWidth;
 
@@ -80,8 +65,7 @@ internal readonly struct PdfDevicePen
             widthY = wider;
         }
 
-        // The width both axes share is a circular pen, which the outline builder reaches by building
-        // wider; only what one axis has beyond the other has to go through the matrix.
+        // The shared width is a circular pen; the matrix carries the excess of the wider axis.
         float sharedWidth = MathF.Min(widthX, widthY);
 
         return new PdfDevicePen(

@@ -4,32 +4,20 @@ using System;
 
 namespace PdfPixel.Commands;
 
-// TODO: over-documented
 /// <summary>
-/// <para>
-/// The region one path command covers, as it lands on the device pixel grid: the geometry to fill — the
-/// path itself, or the outline the pen leaves along it — put on whole device pixels where it can go
-/// there, and whether what comes out still needs coverage to carry the edges the grid cannot.
-/// </para>
-/// <para>
-/// Filling, stroking and clipping all reach that decision here, from the same two facts: the shape of
-/// the geometry that will be painted, and how thick a mark it leaves in device pixels. A stroke and the
-/// band a producer clipped it to therefore land on the same row of pixels rather than on neighbouring
-/// ones.
-/// </para>
+/// The region one path command covers as it lands on the device pixel grid: the geometry to fill — the
+/// path itself, or the outline the pen leaves along it — snapped to whole device pixels where it can be,
+/// and whether it is drawn with antialiasing.
 /// </summary>
 internal readonly struct PdfPathDeviceGeometry
 {
-    // A mark at least this thick in device pixels keeps its shape when its edges are put on the grid.
-    // A thinner one has only coverage left to carry it.
+    // Device-pixel thickness above which a mark keeps its shape with its edges snapped to the grid.
     private const float MinimumAliasedThickness = 2f;
 
-    // The pen a degenerate fill is painted with. Its width comes from the hairline pen, so the width
-    // here carries no meaning; the caps and joins are the ones such a fill is stroked with.
+    // Caps and joins a degenerate fill is stroked with. Its line width comes from the hairline pen.
     private static readonly PdfStrokeStyle HairlineStrokeStyle = new();
 
-    // The geometry, held as whichever of the two it came out as: a path left where it was, or the
-    // rectangle it was put on. A command that fills a rectangle directly then costs no path at all.
+    // Held as whichever it came out as: a path left where it was, or the rectangle it was snapped to.
     private readonly PdfPath? _path;
     private readonly PdfRectangle _rectangle;
     private readonly PdfPathFillType _fillType;
@@ -55,14 +43,12 @@ internal readonly struct PdfPathDeviceGeometry
     }
 
     /// <summary>
-    /// The whole device pixels the geometry was put on, or null when it was left where it was. A caller
-    /// that can fill a rectangle without a path takes it from here.
+    /// The rectangle the geometry was snapped to, or <see langword="null"/> when it was left where it was.
     /// </summary>
     public PdfRectangle? SnappedRectangle { get; }
 
     /// <summary>
-    /// Whether the geometry is the outline of a pen rather than the path a paint fills, so that a paint
-    /// drawing it has to fill that outline rather than stroke along it.
+    /// Whether the geometry is a pen outline to be filled rather than a path to be stroked along.
     /// </summary>
     public bool IsStrokeOutline { get; }
 
@@ -83,9 +69,7 @@ internal readonly struct PdfPathDeviceGeometry
 
         PdfPathInfo pathInfo = path.GetPathInfo();
 
-        // A fill whose bounds are zero-width or zero-height covers no area at all, as the degenerate
-        // "re f" rectangles some producers use to draw grid lines do. Drawing it with a pen one device
-        // pixel wide is what keeps it visible.
+        // A fill with zero-width or zero-height bounds covers no area; a hairline pen keeps it visible.
         if (pathInfo.Bounds.Width == 0 || pathInfo.Bounds.Height == 0)
         {
             return CreateStroke(path, HairlineStrokeStyle, PdfDevicePen.Create(executionContext, 0f), executionContext);
@@ -96,8 +80,8 @@ internal readonly struct PdfPathDeviceGeometry
 
     /// <summary>
     /// Builds the region <paramref name="path"/> covers when clipped to under <paramref name="paint"/>:
-    /// the outline of the pen when the paint strokes, and the path itself when it fills or when there is
-    /// no paint at all. A clip covering no area clips everything away and is not rescued, unlike a fill.
+    /// the pen outline when the paint strokes, and the path itself otherwise. A clip covering no area
+    /// clips everything away and gets no hairline.
     /// </summary>
     public static PdfPathDeviceGeometry CreateForClipping(PdfPath path, PdfPaint? paint, PdfCommandExecutionContext executionContext)
     {
@@ -167,14 +151,11 @@ internal readonly struct PdfPathDeviceGeometry
         in PdfMatrix deviceMatrix,
         PdfCommandExecutionContext executionContext)
     {
-        // Geometry that runs along the axes in its own space still does in device space under a matrix
-        // that keeps the axes on the grid, which is what lets the two be decided apart here.
         bool isOnGrid = geometryInfo.IsRectilinear && CommandHelpers.IsGridPreserving(deviceMatrix);
         PdfPathFillType fillType = (sourcePath != null) ? sourcePath.FillType : PdfPathFillType.Winding;
 
-        // Only a rectangle can be moved onto the grid whole: every other shape holds members thinner
-        // than its bounds, which rounding to those bounds would swallow. Once the edges sit on pixel
-        // boundaries there is no fractional coverage left for antialiasing to describe.
+        // Only a rectangle can be snapped whole: any other shape holds members thinner than its bounds,
+        // which rounding to those bounds would swallow.
         if (isOnGrid && geometryInfo.IsRectangle && executionContext.Parameters.SnapToDevicePixels)
         {
             PdfRectangle snappedRectangle = SnapToWholeDevicePixels(geometryInfo.Bounds, deviceMatrix);
@@ -193,9 +174,7 @@ internal readonly struct PdfPathDeviceGeometry
         return new PdfPathDeviceGeometry(sourcePath, isStrokeOutline, isAntialias);
     }
 
-    // Puts the geometry on whole device pixels and brings it back to the space it was given in. The
-    // rounding sends each edge to the pixel nearest it and nothing more, so that geometry abutting this
-    // keeps abutting it.
+    // Rounds each edge to the nearest whole device pixel and maps the result back to the source space.
     private static PdfRectangle SnapToWholeDevicePixels(in PdfRectangle bounds, in PdfMatrix deviceMatrix)
     {
         PdfRectangle deviceRect = CommandHelpers.SnapToDevicePixels(deviceMatrix.MapRect(bounds));
@@ -203,10 +182,8 @@ internal readonly struct PdfPathDeviceGeometry
         return deviceMatrix.Invert().MapRect(deviceRect);
     }
 
-    // How thick the mark a fill leaves is, in device pixels. A fill that is not one rectangle covers
-    // less than its bounds, and what it leaves out can be thinner than a pixel — the frame a producer
-    // drew as a fill rather than a stroke — so it has no thickness of its own, and coverage is what
-    // keeps those members on the page.
+    // Device-pixel thickness of a fill. Anything but a single rectangle covers less than its bounds and
+    // reports no thickness of its own.
     private static float GetDeviceFillThickness(in PdfPathInfo geometryInfo, in PdfMatrix deviceMatrix)
     {
         if (!geometryInfo.IsRectangle)

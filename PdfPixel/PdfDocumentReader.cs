@@ -4,7 +4,6 @@ using PdfPixel.Color.Icc.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
-using PdfPixel.Text;
 using PdfPixel.TextExtraction;
 using System;
 using System.IO;
@@ -12,7 +11,8 @@ using System.IO;
 namespace PdfPixel;
 
 /// <summary>
-/// Main entry point for reading PDF documents.
+/// Entry point for opening a PDF document, resolving its cross-reference table, catalog, pages and
+/// document-level resources into an <see cref="IPdfDocument"/>.
 /// </summary>
 public class PdfDocumentReader
 {
@@ -33,9 +33,8 @@ public class PdfDocumentReader
     /// <summary>
     /// Reads a PDF document from the specified stream, optionally using a password for decryption.
     /// </summary>
-    /// <remarks>The method reads the entire content of the stream into memory. If the stream contains
-    /// fewer bytes than expected, a warning is logged, and the method attempts to process the available
-    /// data.</remarks>
+    /// <remarks>The returned document parses lazily from <paramref name="stream"/>; it is not copied.
+    /// The stream must stay open, readable and seekable for as long as the document is in use.</remarks>
     /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable.</param>
     /// <param name="password">An optional password used to decrypt the PDF, if it is encrypted. If the PDF is not encrypted, this
     /// parameter can be <see langword="null"/>.</param>

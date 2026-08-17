@@ -5,8 +5,6 @@ namespace PdfPixel.Geometry;
 
 public static partial class PdfStrokeOutlineBuilder
 {
-    // One lookup is built and fully consumed per segment, so a single buffer per thread serves every
-    // segment of every stroke on it.
     [ThreadStatic]
     private static CurveLengthBuffer? _lengthTableBuffer;
 
@@ -96,9 +94,8 @@ public static partial class PdfStrokeOutlineBuilder
         {
             if (subPath.IsClosed && startsOn && pieces.Count > 0)
             {
-                // The "on" run wraps across the seam at the subpath's start point: the trailing run traced
-                // here and the leading run already in pieces[0] are one continuous dash. Merge them so the
-                // seam vertex gets a real join instead of end caps on two separate pieces.
+                // The "on" run wraps across the seam at the subpath's start point: this trailing run and
+                // the leading run in pieces[0] are one continuous dash, and merge into one join there.
                 current.AddRange(pieces[0]);
                 pieces[0] = current;
             }
