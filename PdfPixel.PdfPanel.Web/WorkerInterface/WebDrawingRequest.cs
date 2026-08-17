@@ -46,9 +46,12 @@ public class WebDrawingRequest
             {
                 ScaleFactor = ScaleFactor,
                 Antialias = Antialias,
-                DefaultFunctionSamples = DefaultFunctionSamples,
-                MaxTessellationVertices = MaxTessellationVertices,
                 ImageTileSize = ImageTileSize
+            },
+            RenderingParameters = new PdfRenderingParameters
+            {
+                DefaultFunctionSamples = DefaultFunctionSamples,
+                MaxTessellationVertices = MaxTessellationVertices
             }
         };
     }
@@ -67,8 +70,8 @@ public class WebDrawingRequest
                 .ToList(),
             ScaleFactor = request.CommandExecutionParameters.ScaleFactor,
             Antialias = request.CommandExecutionParameters.Antialias,
-            DefaultFunctionSamples = request.CommandExecutionParameters.DefaultFunctionSamples,
-            MaxTessellationVertices = request.CommandExecutionParameters.MaxTessellationVertices,
+            DefaultFunctionSamples = request.RenderingParameters.DefaultFunctionSamples,
+            MaxTessellationVertices = request.RenderingParameters.MaxTessellationVertices,
             ImageTileSize = request.CommandExecutionParameters.ImageTileSize
         };
     }

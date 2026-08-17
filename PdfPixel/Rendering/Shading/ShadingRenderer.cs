@@ -19,7 +19,6 @@ namespace PdfPixel.Rendering.Shading;
 public class ShadingRenderer : IShadingRenderer
 {
     private readonly IPdfRenderer _renderer;
-    private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<ShadingRenderer> _logger;
 
     /// <summary>
@@ -28,7 +27,6 @@ public class ShadingRenderer : IShadingRenderer
     public ShadingRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
-        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = loggerFactory.CreateLogger<ShadingRenderer>();
     }
 
@@ -87,7 +85,6 @@ public class ShadingRenderer : IShadingRenderer
             processor.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        ShadingDecodingContext context = new(state, shading);
-        processor.Process(new DrawShadingCommand(context, _loggerFactory));
+        processor.Process(new DrawShadingCommand(shading.GetContent(state), state.FillPaint.Alpha));
     }
 }

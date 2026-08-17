@@ -29,7 +29,7 @@ internal partial class PdfShadingBuilder
         PdfShading shading,
         MeshColorResolver colorResolver,
         int maxTessellationVertices,
-        IPdfExecutionObserver observer)
+        IPdfExecutionObserver? observer)
     {
         switch (shading.ShadingType)
         {
@@ -58,7 +58,7 @@ internal partial class PdfShadingBuilder
         PdfShading shading,
         MeshColorResolver colorResolver,
         int maxTessellationVertices,
-        IPdfExecutionObserver observer)
+        IPdfExecutionObserver? observer)
     {
         GouraudMeshDecoder decoder = new(shading, colorResolver);
         List<MeshData> triangles = decoder.Decode();
@@ -79,7 +79,7 @@ internal partial class PdfShadingBuilder
         PdfShading shading,
         MeshColorResolver colorResolver,
         int maxTessellationVertices,
-        IPdfExecutionObserver observer)
+        IPdfExecutionObserver? observer)
     {
         MeshDecoder decoder = new(shading, colorResolver);
         List<MeshData> patches = decoder.Decode();

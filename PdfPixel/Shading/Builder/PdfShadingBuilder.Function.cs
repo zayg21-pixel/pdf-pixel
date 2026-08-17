@@ -31,7 +31,7 @@ internal partial class PdfShadingBuilder
         PdfShading shading,
         ColorTransformSampler sampler,
         int defaultFunctionSamples,
-        IPdfExecutionObserver observer)
+        IPdfExecutionObserver? observer)
     {
         if (shading.Functions == null || shading.Functions.Count == 0 || !shading.ColorSpaceReference.IsPresent)
         {

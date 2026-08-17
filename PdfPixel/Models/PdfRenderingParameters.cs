@@ -18,6 +18,16 @@ public class PdfRenderingParameters
     public long MaxTileCacheSizeBytes { get; set; } = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Default number of samples for Postscript and Exponential functions when the point count is unknown.
+    /// </summary>
+    public int DefaultFunctionSamples { get; set; } = 64;
+
+    /// <summary>
+    /// Maximum number of tessellation vertices for mesh-based shadings.
+    /// </summary>
+    public int MaxTessellationVertices { get; set; } = 32;
+
+    /// <summary>
     /// When false, path drawing commands are suppressed.
     /// </summary>
     public bool RenderPaths { get; set; } = true;

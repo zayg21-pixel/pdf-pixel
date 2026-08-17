@@ -1,7 +1,9 @@
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Sampling;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Rendering.State;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using System;
@@ -16,6 +18,8 @@ namespace PdfPixel.Shading.Model;
 /// </summary>
 public sealed class PdfShading
 {
+    private readonly Dictionary<ColorTransformSampler, PdfShadingContent> _contentBySampler = [];
+
     private PdfShading(PdfObject pdfObject)
     {
         PdfDictionary rawDictionary = pdfObject.Dictionary;
@@ -119,6 +123,27 @@ public sealed class PdfShading
         }
 
         return shading;
+    }
+
+    /// <summary>
+    /// Returns the rendering primitives for this shading drawn from the given state, using the shading's cache if available.
+    /// </summary>
+    /// <param name="state">Graphics state the shading is drawn from.</param>
+    /// <returns>Shading content, resolved from cache or newly built.</returns>
+    internal PdfShadingContent GetContent(PdfGraphicsState state)
+    {
+        PdfColorSpaceConverter converter = state.Page.Cache.ColorSpace.Resolve(ColorSpaceReference) ?? DeviceRgbConverter.Instance;
+        ColorTransformSampler sampler = converter.GetRgbaSampler(state.RenderingIntent, state.TransferFunction);
+
+        if (_contentBySampler.TryGetValue(sampler, out PdfShadingContent? cachedContent))
+        {
+            return cachedContent;
+        }
+
+        PdfShadingContent content = PdfShadingContent.Build(this, sampler, state);
+        _contentBySampler[sampler] = content;
+
+        return content;
     }
 
     /// <summary>

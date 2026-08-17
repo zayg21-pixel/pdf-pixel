@@ -82,8 +82,7 @@ public sealed class PdfShadingPattern : PdfPattern
             recorder.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        ShadingDecodingContext context = new(shadingState, Shading);
-        recorder.Process(new DrawShadingCommand(context, shadingState.Page.Document.LoggerFactory));
+        recorder.Process(new DrawShadingCommand(Shading.GetContent(shadingState), shadingState.FillPaint.Alpha));
 
         recorder.Process(RestoreStateCommand.Instance);
 

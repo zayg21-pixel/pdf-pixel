@@ -1,5 +1,4 @@
 ﻿using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Cache;
 using PdfPixel.Geometry;
 using System;
 using System.Runtime.CompilerServices;
@@ -134,26 +133,5 @@ internal static class CommandHelpers
         int maxTileDeviceDimension = executionContext.Parameters.ImageTileSize;
 
         return deviceStep.Width <= maxTileDeviceDimension && deviceStep.Height <= maxTileDeviceDimension;
-    }
-
-    /// <summary>
-    /// Returns the cached entry built for the shading, building and storing one when the cache holds
-    /// none or holds one built under different parameters.
-    /// </summary>
-    public static ShadingCommandCacheEntry GetOrBuildShadingEntry(DrawShadingCommand command, PdfCommandExecutionContext executionContext)
-    {
-        ShadingCommandCacheKey key = new(command.Context);
-
-        lock (executionContext.ContentLocker)
-        {
-            if (executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing && existing.ParametersMatches(executionContext.Parameters))
-            {
-                return existing;
-            }
-
-            ShadingCommandCacheEntry entry = command.BuildEntry(executionContext);
-            executionContext.Cache.StoreEntry(key, entry);
-            return entry;
-        }
     }
 }

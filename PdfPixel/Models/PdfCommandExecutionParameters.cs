@@ -20,16 +20,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
     public float? ScaleFactor { get; set; }
 
     /// <summary>
-    /// Default number of samples for Postscript and Exponential functions when the point count is unknown.
-    /// </summary>
-    public int DefaultFunctionSamples { get; set; } = 64;
-
-    /// <summary>
-    /// Maximum number of tessellation vertices for mesh-based shadings.
-    /// </summary>
-    public int MaxTessellationVertices { get; set; } = 32;
-
-    /// <summary>
     /// Standard image tile size.
     /// </summary>
     public int ImageTileSize { get; set; } = 1024;
@@ -54,8 +44,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
 
         return Antialias == other.Antialias
             && ScaleFactor == other.ScaleFactor
-            && DefaultFunctionSamples == other.DefaultFunctionSamples
-            && MaxTessellationVertices == other.MaxTessellationVertices
             && SnapToDevicePixels == other.SnapToDevicePixels;
     }
 
@@ -68,8 +56,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         return HashCode.Combine(
             Antialias,
             ScaleFactor,
-            DefaultFunctionSamples,
-            MaxTessellationVertices,
             ImageTileSize,
             SnapToDevicePixels);
     }
@@ -99,8 +85,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         {
             Antialias = Antialias,
             ScaleFactor = ScaleFactor,
-            DefaultFunctionSamples = DefaultFunctionSamples,
-            MaxTessellationVertices = MaxTessellationVertices,
             ImageTileSize = ImageTileSize,
             SnapToDevicePixels = SnapToDevicePixels
         };

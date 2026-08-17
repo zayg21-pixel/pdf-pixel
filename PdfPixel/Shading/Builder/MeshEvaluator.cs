@@ -71,7 +71,7 @@ internal static class MeshEvaluator
         List<MeshData> triangles,
         MeshColorResolver colorResolver,
         int tessellation,
-        IPdfExecutionObserver observer)
+        IPdfExecutionObserver? observer)
     {
         if (triangles == null || triangles.Count == 0)
         {
@@ -155,7 +155,7 @@ internal static class MeshEvaluator
     /// <param name="tessellation">Number of subdivisions per axis (higher = smoother).</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>PdfVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
-    public static PdfVertices CreateVerticesForPatches(List<MeshData> patches, MeshColorResolver colorResolver, int tessellation, IPdfExecutionObserver observer)
+    public static PdfVertices CreateVerticesForPatches(List<MeshData> patches, MeshColorResolver colorResolver, int tessellation, IPdfExecutionObserver? observer)
     {
         if (patches == null || patches.Count == 0)
         {
