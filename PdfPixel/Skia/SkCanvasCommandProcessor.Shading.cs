@@ -48,33 +48,30 @@ public sealed partial class SkCanvasCommandProcessor
     {
         ShadingCommandCacheKey key = new(content);
 
-        lock (_executionContext.ContentLocker)
+        if (_executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing)
         {
-            if (_executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing)
-            {
-                return existing;
-            }
-
-            SKImage? image = (content.Function != null) ? PdfImageConverter.ToSkImage(content.Function.Image) : null;
-            SKShader? shader = null;
-            SKShader? innerShader = null;
-
-            if (content.Axial != null)
-            {
-                shader = content.Axial.ToSkiaShader();
-            }
-            else if (content.Radial != null)
-            {
-                shader = content.Radial.ToSkiaOuterShader();
-                innerShader = content.Radial.ToSkiaInnerShader();
-            }
-
-            SKVertices? vertices = content.Mesh?.ToSkVertices();
-
-            ShadingCommandCacheEntry entry = new(image, shader, innerShader, vertices);
-            _executionContext.Cache.StoreEntry(key, entry);
-            return entry;
+            return existing;
         }
+
+        SKImage? image = (content.Function != null) ? PdfImageConverter.ToSkImage(content.Function.Image) : null;
+        SKShader? shader = null;
+        SKShader? innerShader = null;
+
+        if (content.Axial != null)
+        {
+            shader = content.Axial.ToSkiaShader();
+        }
+        else if (content.Radial != null)
+        {
+            shader = content.Radial.ToSkiaOuterShader();
+            innerShader = content.Radial.ToSkiaInnerShader();
+        }
+
+        SKVertices? vertices = content.Mesh?.ToSkVertices();
+
+        ShadingCommandCacheEntry entry = new(image, shader, innerShader, vertices);
+        _executionContext.Cache.StoreEntry(key, entry);
+        return entry;
     }
 
     private void ExecuteShadingFunctionBased(DrawShadingCommand command, ShadingCommandCacheEntry entry)

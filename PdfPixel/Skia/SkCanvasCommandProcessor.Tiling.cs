@@ -65,28 +65,25 @@ public sealed partial class SkCanvasCommandProcessor
     {
         TilingCommandCacheKey key = new(command, deviceMatrix, repeating: true);
 
-        lock (_executionContext.ContentLocker)
+        if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
         {
-            if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
-            {
-                return existing;
-            }
-
-            PdfRectangle tileUnit = new(0, 0, command.XStep, command.YStep);
-
-            PdfSize deviceStep = CommandHelpers.GetDeviceStepSize(command, _executionContext);
-            float tileScaleX = deviceStep.Width / command.XStep;
-            float tileScaleY = deviceStep.Height / command.YStep;
-            SKRect deviceTile = new(0, 0, deviceStep.Width, deviceStep.Height);
-            SKMatrix tileMatrix = SKMatrix.CreateScale(1f / tileScaleX, 1f / tileScaleY);
-
-            SKPicture tile = RecordPatternTile(command, tileUnit, tileScaleX, tileScaleY, deviceTile);
-            SKShader shader = tile.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileMatrix, deviceTile);
-
-            TilingCommandCacheEntry entry = new(tile, shader);
-            _executionContext.Cache.StoreEntry(key, entry);
-            return entry;
+            return existing;
         }
+
+        PdfRectangle tileUnit = new(0, 0, command.XStep, command.YStep);
+
+        PdfSize deviceStep = CommandHelpers.GetDeviceStepSize(command, _executionContext);
+        float tileScaleX = deviceStep.Width / command.XStep;
+        float tileScaleY = deviceStep.Height / command.YStep;
+        SKRect deviceTile = new(0, 0, deviceStep.Width, deviceStep.Height);
+        SKMatrix tileMatrix = SKMatrix.CreateScale(1f / tileScaleX, 1f / tileScaleY);
+
+        SKPicture tile = RecordPatternTile(command, tileUnit, tileScaleX, tileScaleY, deviceTile);
+        SKShader shader = tile.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileMatrix, deviceTile);
+
+        TilingCommandCacheEntry entry = new(tile, shader);
+        _executionContext.Cache.StoreEntry(key, entry);
+        return entry;
     }
 
     /// <summary>
@@ -97,17 +94,14 @@ public sealed partial class SkCanvasCommandProcessor
     {
         TilingCommandCacheKey key = new(command, deviceMatrix, repeating: false);
 
-        lock (_executionContext.ContentLocker)
+        if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
         {
-            if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
-            {
-                return existing;
-            }
-
-            TilingCommandCacheEntry entry = new(RecordPatternCell(command), null);
-            _executionContext.Cache.StoreEntry(key, entry);
-            return entry;
+            return existing;
         }
+
+        TilingCommandCacheEntry entry = new(RecordPatternCell(command), null);
+        _executionContext.Cache.StoreEntry(key, entry);
+        return entry;
     }
 
     private SKPicture RecordPatternTile(DrawTilingCommand command, in PdfRectangle tileUnit, float tileScaleX, float tileScaleY, SKRect deviceTile)
