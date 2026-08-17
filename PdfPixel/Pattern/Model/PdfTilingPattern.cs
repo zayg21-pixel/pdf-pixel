@@ -87,7 +87,24 @@ public sealed class PdfTilingPattern : PdfPattern
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        PdfCommandRecorder? tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(this, state);
+        PdfCommandRecorder? tileRecorder = CellRecording;
+
+        if (tileRecorder == null)
+        {
+            // Anything already under way is suppressed wherever the cell reaches it again, which makes
+            // the recording specific to this use; only a cell reached with nothing else in flight holds
+            // for every other use of the pattern.
+            bool reachedAtTopLevel = state.RecursionGuard.Count == 0;
+
+            tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(this, state);
+
+            if (tileRecorder != null
+                && SourceReference.IsValid
+                && reachedAtTopLevel)
+            {
+                CellRecording = tileRecorder;
+            }
+        }
 
         if (tileRecorder == null)
         {

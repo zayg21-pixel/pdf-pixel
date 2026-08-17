@@ -7,7 +7,7 @@ namespace PdfPixel.Color.ColorSpace;
 /// written in place — the name or array itself, so that nothing it points at is resolved until a
 /// converter is actually asked for.
 /// </summary>
-internal readonly struct PdfColorSpaceReference
+public readonly struct PdfColorSpaceReference
 {
     private PdfColorSpaceReference(in PdfReference reference, IPdfValue? value)
     {
@@ -16,17 +16,17 @@ internal readonly struct PdfColorSpaceReference
     }
 
     /// <summary>
-    /// Reference to the object holding the colour space. Invalid unless the colour space is indirect.
+    /// Reference to the object holding the color space. Invalid unless the color space is indirect.
     /// </summary>
     public PdfReference Reference { get; }
 
     /// <summary>
-    /// The colour space written in place, a name or an array. Null unless it is written in place.
+    /// The color space written in place, a name or an array. Null unless it is written in place.
     /// </summary>
     public IPdfValue? Value { get; }
 
     /// <summary>
-    /// True when a colour space was written at all.
+    /// True when a color space was written at all.
     /// </summary>
     public bool IsPresent => Reference.IsValid || Value != null;
 
