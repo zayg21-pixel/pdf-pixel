@@ -16,6 +16,7 @@ public sealed class DrawShadingCommand : PdfCommand
     /// <param name="fillAlpha">Fill alpha captured where the shading is used.</param>
     public DrawShadingCommand(PdfShadingContent content, float fillAlpha)
     {
+        // TODO: [HIGH] let it be here, ch14, last page, extremely slow rendering
         Content = content ?? throw new ArgumentNullException(nameof(content));
         FillAlpha = fillAlpha;
     }

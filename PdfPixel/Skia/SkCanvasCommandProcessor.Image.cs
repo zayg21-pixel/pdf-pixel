@@ -41,6 +41,7 @@ public sealed partial class SkCanvasCommandProcessor
 
     private void ExecuteDrawSoftMaskImageTile(DrawSoftMaskImageTileCommand command)
     {
+        // TODO: [HIGH] for stencil and soft masks we shall crop to decode region if defined to avoid leaking content over mask
         SoftMaskImageExecutionContext context = command.Context;
         PdfImageTile imageTile = context.ImageCache.GetNextTile(_executionContext.ExecutionObserver);
         PdfImageTile maskTile = context.MaskCache.GetNextTile(_executionContext.ExecutionObserver);
