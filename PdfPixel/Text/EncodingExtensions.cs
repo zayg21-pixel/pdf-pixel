@@ -11,13 +11,12 @@ namespace PdfPixel.Text;
 public static class EncodingExtensions
 {
     /// <summary>
-    /// The PDF default encoding (ISO-8859-1 / Latin-1), used as a fallback when no BOM is present.
+    /// The PDF default string encoding (ISO-8859-1 / Latin-1).
     /// </summary>
     public static readonly Encoding PdfDefault = Encoding.GetEncoding("ISO-8859-1");
 
     /// <summary>
     /// Decodes a span of bytes to a string using the specified encoding.
-    /// Provides a netstandard2.0-compatible overload that avoids allocating an intermediate array on newer runtimes.
     /// </summary>
     public static string GetString(this Encoding encoding, in ReadOnlySpan<byte> value)
     {
@@ -40,11 +39,10 @@ public static class EncodingExtensions
 
     /// <summary>
     /// Decodes a <see cref="PdfPixel.Models.PdfString"/> into a .NET string using PDF string rules.
-    /// Detects UTF-16BE/UTF-16LE/UTF-8 BOMs and decodes accordingly; otherwise falls back to PDF default (ISO-8859-1).
-    /// When <paramref name="keepEscapeSequence"/> is false, removes language escape sequences bracketed by 0x1B.
+    /// Detects UTF-16BE/UTF-16LE/UTF-8 BOMs and decodes accordingly; otherwise falls back to <see cref="PdfDefault"/>.
     /// </summary>
     /// <param name="value">The PDF string to decode.</param>
-    /// <param name="keepEscapeSequence">If true, do not remove 0x1B escape sequences.</param>
+    /// <param name="keepEscapeSequence">If true, keeps the language escape sequences bracketed by 0x1B.</param>
     /// <returns>Decoded string.</returns>
     public static string DecodePdfString(this in PdfString value, bool keepEscapeSequence = false)
     {
@@ -60,7 +58,6 @@ public static class EncodingExtensions
             return string.Empty;
         }
 
-        // If first byte suggests a BOM/UTF indicator, try BOM-based decoding first
         if (span[0] >= 0xEF)
         {
             Encoding? encoding = null;
@@ -100,7 +97,6 @@ public static class EncodingExtensions
             }
         }
 
-        // Fallback: ISO Latin-1 (PDF default)
         string result = PdfDefault.GetString(value.Value);
         return CleanupEscapeSequence(result, keepEscapeSequence);
     }

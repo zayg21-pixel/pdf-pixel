@@ -31,7 +31,6 @@ namespace PdfPixel.Text
         /// Converts a <see cref="PdfString"/> to its corresponding enum value of type <typeparamref name="T"/>.
         /// Uses <see cref="PdfEnumValueAttribute"/> if present, otherwise uses enum name.
         /// Returns the default value if the <see cref="PdfString"/> is empty or not found.
-        /// Results are cached for performance.
         /// </summary>
         /// <typeparam name="T">Enum type</typeparam>
         /// <param name="value">PDF string value to convert</param>

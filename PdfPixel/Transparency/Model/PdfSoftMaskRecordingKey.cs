@@ -5,9 +5,7 @@ using System;
 namespace PdfPixel.Transparency.Model;
 
 /// <summary>
-/// Identifies one recording of a soft mask form's content. Two keys are equal when they name the same
-/// mask form object recorded under the same matrix, which is everything such a recording depends on -
-/// the graphics state it is recorded in is otherwise built from scratch.
+/// Identifies one recording of a soft mask form's content.
 /// </summary>
 internal readonly struct PdfSoftMaskRecordingKey : IEquatable<PdfSoftMaskRecordingKey>
 {

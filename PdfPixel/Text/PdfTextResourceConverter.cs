@@ -13,7 +13,6 @@ internal static class PdfTextResourceConverter
 {
     /// <summary>
     /// Reads a binary blob and reconstructs the character map.
-    /// Uses only <see cref="ReadOnlyMemory{T}"/> slices for key/value extraction.
     /// </summary>
     /// <param name="blob">The binary blob.</param>
     /// <param name="target">Target dictionary to store mappings.</param>

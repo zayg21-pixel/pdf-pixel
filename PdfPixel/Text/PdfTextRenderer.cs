@@ -82,8 +82,6 @@ public class PdfTextRenderer : IPdfTextRenderer
         }
         else if (glyphs.Length > 0)
         {
-            // Per-glyph typeface and scale (relevant when the font is substituted) are resolved by
-            // DrawShapedTextCommand itself, grouping into spans only when they actually differ.
             DrawShapedText(processor, glyphs, state);
         }
     }
@@ -215,9 +213,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 ShapedGlyph glyph = glyphsSpan[i];
                 PdfFontMetrics metrics = glyph.CharacterInfo.Typeface.Metrics;
 
-                // PdfFontMetrics uses the standard font convention (ascent up positive, descent down
-                // negative), so this is the sign-flipped mirror of the same rectangle built from
-                // Skia's (ascent down positive, descent up negative) SKFontMetrics.
+                // PdfFontMetrics uses the standard font convention: ascent up positive, descent down negative.
                 characters[i] = new PdfCharacter(
                     glyph.CharacterInfo.Unicode,
                     new PdfRectangle(glyph.X, glyph.Y - metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y - metrics.Descent));
@@ -250,8 +246,8 @@ public class PdfTextRenderer : IPdfTextRenderer
     /// <summary>
     /// Computes the area the Type 3 glyphs of <paramref name="glyphs"/> can cover, in the space
     /// <paramref name="fullTextMatrix"/> maps into. Each glyph contributes the box its CharProc declared
-    /// through d1, or the font's own box when it declared none. Returns <see langword="null"/> when a glyph
-    /// has neither, since its CharProc may then draw anywhere.
+    /// through d1, or the font's own box when it declared none, and a glyph with neither yields
+    /// <see langword="null"/>.
     /// </summary>
     private PdfRectangle? GetType3Bounds(in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font, in PdfMatrix fullTextMatrix)
     {

@@ -7,7 +7,6 @@ namespace PdfPixel.Transparency.Model;
 
 /// <summary>
 /// Represents a PDF soft mask for advanced transparency effects.
-/// Soft masks are commonly used for drop shadows, glows, and other complex transparency effects.
 /// </summary>
 public class PdfSoftMask
 {

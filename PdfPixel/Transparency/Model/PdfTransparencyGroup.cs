@@ -3,8 +3,8 @@ using PdfPixel.Color.ColorSpace;
 namespace PdfPixel.Transparency.Model;
 
 /// <summary>
-/// Represents a PDF transparency group
-/// Used for controlling how groups of objects blend together before compositing with the background
+/// Represents a PDF transparency group.
+/// Used for controlling how groups of objects blend together before compositing with the background.
 /// </summary>
 public class PdfTransparencyGroup
 {

@@ -4,7 +4,7 @@ using System;
 namespace PdfPixel.Text;
 
 /// <summary>
-/// Common PDF dictionary key constants for shading and mesh decoding.
+/// PDF keyword and dictionary key constants.
 /// </summary>
 internal static class PdfTokens
 {
@@ -36,7 +36,6 @@ internal static class PdfTokens
     public static readonly PdfString FilterKey = (PdfString)"Filter"u8;
     public static readonly PdfString RotateKey = (PdfString)"Rotate"u8;
     public static readonly PdfString CropBoxKey = (PdfString)"CropBox"u8;
-    // Added missing page box keys (override semantics top-down)
     public static readonly PdfString BleedBoxKey = (PdfString)"BleedBox"u8;
     public static readonly PdfString TrimBoxKey = (PdfString)"TrimBox"u8;
     public static readonly PdfString ArtBoxKey = (PdfString)"ArtBox"u8;
@@ -155,10 +154,7 @@ internal static class PdfTokens
     // CID Font Encodings (CMaps)
     public static readonly PdfString IdentityKey = (PdfString)"Identity";      // Identity CMap for CID fonts
 
-    /// <summary>
-    /// Key for the NewWindow flag in GoToRemote actions.
-    /// </summary>
-    public static readonly PdfString NewWindowKey = (PdfString)"NewWindow"u8;
+    public static readonly PdfString NewWindowKey = (PdfString)"NewWindow"u8; // GoToRemote action window flag
 
     // Graphics State Dictionary Keys
     public static readonly PdfString LineWidthKey = (PdfString)"LW"u8;
@@ -192,7 +188,7 @@ internal static class PdfTokens
     public static readonly PdfString MatteKey = (PdfString)"Matte"u8; // Soft mask image dematting color components
 
     // Shading Dictionary Keys
-    public static readonly PdfString ShadingTypeKey = (PdfString)"ShadingType"u8; // 1..7; we support 2 (axial) and 3 (radial) minimally
+    public static readonly PdfString ShadingTypeKey = (PdfString)"ShadingType"u8; // 1..7
     public static readonly PdfString CoordsKey = (PdfString)"Coords"u8;           // coordinates array
     public static readonly PdfString C0Key = (PdfString)"C0"u8;                   // starting color components
     public static readonly PdfString C1Key = (PdfString)"C1"u8;                   // ending color components
@@ -204,11 +200,11 @@ internal static class PdfTokens
     public static readonly PdfString BoundsKey = (PdfString)"Bounds"u8;           // stitching function bounds
     public static readonly PdfString EncodeKey = (PdfString)"Encode"u8;           // stitching function encode array
     public static readonly PdfString ExtendKey = (PdfString)"Extend"u8;           // extend flags for shadings
-    public static readonly PdfString BitsPerCoordinateKey = (PdfString)"BitsPerCoordinate"u8; // Dictionary key for bits per coordinate in mesh shading
-    public static readonly PdfString BitsPerFlagKey = (PdfString)"BitsPerFlag"u8;           // Dictionary key for bits per flag in mesh shading
+    public static readonly PdfString BitsPerCoordinateKey = (PdfString)"BitsPerCoordinate"u8; // mesh shading
+    public static readonly PdfString BitsPerFlagKey = (PdfString)"BitsPerFlag"u8;             // mesh shading
     public static readonly PdfString VerticesPerRowKey = (PdfString)"VerticesPerRow"u8;
-    public static readonly PdfString AntiAliasKey = (PdfString)"AntiAlias"u8;                     // Boolean key for mesh shading anti-aliasing
-    public static readonly PdfString BackgroundKey = (PdfString)"Background"u8;                       // Array key for mesh shading background color
+    public static readonly PdfString AntiAliasKey = (PdfString)"AntiAlias"u8;                 // mesh shading anti-aliasing flag
+    public static readonly PdfString BackgroundKey = (PdfString)"Background"u8;               // mesh shading background color
 
     // XObject Subtypes
     public static readonly PdfString ImageSubtype = (PdfString)"Image"u8;
@@ -286,7 +282,7 @@ internal static class PdfTokens
     public static readonly PdfString XStepKey = (PdfString)"XStep"u8; // Tiling pattern horizontal step
     public static readonly PdfString YStepKey = (PdfString)"YStep"u8; // Tiling pattern vertical step
 
-    // Function related (added)
+    // Function related
     public static readonly PdfString BitsPerSampleKey = (PdfString)"BitsPerSample"u8; // Function type 0 sampled function BPS
     public static readonly PdfString TintTransformKey = (PdfString)"TintTransform"u8; // Separation/DeviceN attribute (when dictionary form used)
 
