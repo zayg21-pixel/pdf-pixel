@@ -58,7 +58,10 @@ internal ref struct JpxMqDecoder
     // State table built from ITU-T T.800 Table C.3.
     // Packed as one uint per entry: bits 31–16 = Qe (pre-shifted as QeShifted = Qe<<16),
     // bits 15–8 = NextMps, bits 7–0 = NextLpsWithSwitch.
-    private readonly ReadOnlySpan<uint> _states = BuildStates();
+#if NET5_0_OR_GREATER
+    private readonly ref uint _statesReference;
+#endif
+    private readonly ReadOnlySpan<uint> _states;
 
     /// <summary>
     /// Initializes the MQ decoder for the given code-block data.
@@ -68,6 +71,12 @@ internal ref struct JpxMqDecoder
     public JpxMqDecoder(ReadOnlySpan<byte> data)
 #pragma warning restore RCS1231 // Make parameter ref read-only
     {
+        _states = States.AsSpan();
+
+#if NET5_0_OR_GREATER
+        _statesReference = ref MemoryMarshal.GetReference(_states);
+#endif
+
         _contexts = new byte[ContextCount];
         Reset();
         Restart(data);
@@ -122,7 +131,11 @@ internal ref struct JpxMqDecoder
         int mps = mpsPacked >> 7;
 
         // Single 32-bit load: bits 31–16 = QeShifted (= Qe<<16), bits 15–8 = NextMps, bits 7–0 = NextLpsWithSwitch.
-        uint packed = _states[stateIndex];
+#if NET5_0_OR_GREATER
+        uint packed = Unsafe.Add(ref _statesReference, stateIndex);
+#else
+        uint packed = Unsafe.Add(ref MemoryMarshal.GetReference(_states), stateIndex);
+#endif
         uint qeShifted = packed & 0xFFFF_0000u;
 
         // _aRegister stores A<<16, qeShifted = Qe<<16 — subtraction stays in shifted space.
@@ -362,6 +375,13 @@ internal ref struct JpxMqDecoder
     /// Builds the packed state table from ITU-T T.800 Table C.3.
     /// Each uint: bits 31–16 = Qe&lt;&lt;16, bits 15–8 = NextMps, bits 7–0 = NextLpsWithSwitch (bit 7 = SwitchBit).
     /// </summary>
+    /// <summary>
+    /// Probability estimation table from ITU-T T.800 Table C.3 (47 entries), packed into a single
+    /// uint per state. Layout per entry: bits 31-16 = Qe pre-shifted, bits 15-8 = NextMps,
+    /// bits 7-0 = NextLpsWithSwitch.
+    /// </summary>
+    private static readonly uint[] States = BuildStates();
+
     private static uint[] BuildStates()
     {
         ReadOnlySpan<ushort> qeValues =

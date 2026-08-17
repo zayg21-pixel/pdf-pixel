@@ -31,6 +31,7 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
         int newSymbolCount = info.NewSymbolCount;
         int templateId = info.Flags.Template;
         Jbig2AtPixels atPixels = info.AtPixels ?? new Jbig2AtPixels(Array.Empty<sbyte>(), Array.Empty<sbyte>());
+        Jbig2RowTemplate fastTemplate = Jbig2Templates.BuildFastTemplate(templateId, atPixels);
 
         Jbig2ArithmeticReader decoder = new(codedData);
         List<Jbig2Bitmap> newSymbols = new(newSymbolCount);
@@ -79,8 +80,7 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
                         context.GenericContexts.AsSpan(),
                         symbolWidth,
                         heightOffset,
-                        templateId,
-                        atPixels);
+                        fastTemplate);
                 }
 
                 newSymbols.Add(symbolBitmap);
@@ -188,11 +188,9 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
         in Span<byte> contexts,
         int width,
         int height,
-        int templateId,
-        in Jbig2AtPixels atPixels)
+        Jbig2RowTemplate fastTemplate)
     {
         Jbig2Bitmap bitmap = new(width, height);
-        Jbig2RowTemplate fastTemplate = Jbig2Templates.BuildFastTemplate(templateId, atPixels);
 
         for (int y = 0; y < height; y++)
         {
