@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Imaging.Model;
 
@@ -11,7 +12,7 @@ public sealed class PdfDecodedImage
     private byte[] _buffer;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PdfDecodedImage"/> class, renting a buffer sized
+    /// Initializes a new instance of the <see cref="PdfDecodedImage"/> class, allocating a buffer sized
     /// for the given dimensions and color format.
     /// </summary>
     /// <param name="width">Width in pixels.</param>
@@ -23,7 +24,13 @@ public sealed class PdfDecodedImage
         Height = height;
         ColorFormat = colorFormat;
         _rowBytes = width * ((colorFormat == PdfImageColorFormat.Gray) ? 1 : 4);
-        _buffer = new byte[_rowBytes * height];
+
+        int bufferLength = _rowBytes * height;
+#if NET5_0_OR_GREATER
+        _buffer = GC.AllocateUninitializedArray<byte>(bufferLength);
+#else
+        _buffer = new byte[bufferLength];
+#endif
     }
 
     /// <summary>
@@ -42,6 +49,11 @@ public sealed class PdfDecodedImage
     public PdfImageColorFormat ColorFormat { get; }
 
     /// <summary>
+    /// Gets the number of bytes occupied by a single row of the pixel buffer.
+    /// </summary>
+    internal int RowBytes => _rowBytes;
+
+    /// <summary>
     /// Gets a writable view over the full packed pixel buffer, row-major with no padding between rows.
     /// </summary>
     internal Span<byte> GetRawBuffer() => GetBuffer().AsSpan(0, _rowBytes * Height);
@@ -50,6 +62,11 @@ public sealed class PdfDecodedImage
     /// Gets a writable view over a single row of the pixel buffer.
     /// </summary>
     internal Span<byte> GetRow(int row) => GetBuffer().AsSpan(row * _rowBytes, _rowBytes);
+
+    /// <summary>
+    /// Pins the pixel buffer and returns the handle the caller must free.
+    /// </summary>
+    internal GCHandle PinBuffer() => GCHandle.Alloc(GetBuffer(), GCHandleType.Pinned);
 
     private byte[] GetBuffer() => _buffer ?? throw new ObjectDisposedException(nameof(PdfDecodedImage));
 }
