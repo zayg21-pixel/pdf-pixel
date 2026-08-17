@@ -33,31 +33,29 @@ internal static class PdfShadingConverter
     }
 
     /// <summary>
-    /// Builds the shader paint for an axial (Type 2) gradient.
+    /// Builds the shader for an axial (Type 2) gradient.
     /// </summary>
-    internal static SKPaint ToSkiaPaint(PdfLinearGradient gradient)
+    internal static SKShader ToSkiaShader(PdfLinearGradient gradient)
     {
-        using SKShader shader = SKShader.CreateLinearGradient(
+        return SKShader.CreateLinearGradient(
             gradient.Start.ToSkPoint(),
             gradient.End.ToSkPoint(),
             ToSkColors(gradient.Colors),
             gradient.Positions,
             SKShaderTileMode.Clamp);
-
-        return new SKPaint { Shader = shader };
     }
 
     /// <summary>
-    /// Builds the outer-cone shader paint for a radial (Type 3) gradient.
+    /// Builds the outer-cone shader for a radial (Type 3) gradient.
     /// </summary>
-    internal static SKPaint ToSkiaOuterPaint(PdfRadialGradient gradient)
-        => BuildRadialPaint(gradient.Center0, gradient.Radius0, gradient.Center1, gradient.Radius1, gradient.Colors, gradient.Positions);
+    internal static SKShader ToSkiaOuterShader(PdfRadialGradient gradient)
+        => BuildRadialShader(gradient.Center0, gradient.Radius0, gradient.Center1, gradient.Radius1, gradient.Colors, gradient.Positions);
 
     /// <summary>
-    /// Builds the inner-cone shader paint for a radial (Type 3) gradient: the same gradient with
+    /// Builds the inner-cone shader for a radial (Type 3) gradient: the same gradient with
     /// its two circles and color stops reversed.
     /// </summary>
-    internal static SKPaint ToSkiaInnerPaint(PdfRadialGradient gradient)
+    internal static SKShader ToSkiaInnerShader(PdfRadialGradient gradient)
     {
         int count = gradient.Colors.Length;
         var reversedColors = new PdfColor[count];
@@ -70,12 +68,12 @@ internal static class PdfShadingConverter
             reversedPositions[i] = 1 - gradient.Positions[sourceIndex];
         }
 
-        return BuildRadialPaint(gradient.Center1, gradient.Radius1, gradient.Center0, gradient.Radius0, reversedColors, reversedPositions);
+        return BuildRadialShader(gradient.Center1, gradient.Radius1, gradient.Center0, gradient.Radius0, reversedColors, reversedPositions);
     }
 
-    private static SKPaint BuildRadialPaint(in PdfPoint center0, float radius0, in PdfPoint center1, float radius1, PdfColor[] colors, float[] positions)
+    private static SKShader BuildRadialShader(in PdfPoint center0, float radius0, in PdfPoint center1, float radius1, PdfColor[] colors, float[] positions)
     {
-        using SKShader shader = SKShader.CreateTwoPointConicalGradient(
+        return SKShader.CreateTwoPointConicalGradient(
             center0.ToSkPoint(),
             radius0,
             center1.ToSkPoint(),
@@ -83,8 +81,6 @@ internal static class PdfShadingConverter
             ToSkColors(colors),
             positions,
             SKShaderTileMode.Clamp);
-
-        return new SKPaint { Shader = shader };
     }
 
     private static SKColor[] ToSkColors(PdfColor[] colors)

@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
+using PdfPixel.Skia.Cache;
 using PdfPixel.Skia.Converters;
 using SkiaSharp;
 
@@ -9,21 +10,23 @@ public sealed partial class SkCanvasCommandProcessor
 {
     private void ExecuteDrawShading(DrawShadingCommand command)
     {
+        ShadingCommandCacheEntry entry = GetOrBuildShadingEntry(command.Content);
+
         switch (command.Content.ShadingType)
         {
             case PdfShadingType.FunctionBased:
             {
-                ExecuteShadingFunctionBased(command);
+                ExecuteShadingFunctionBased(command, entry);
                 break;
             }
             case PdfShadingType.Axial:
             {
-                ExecuteShadingAxial(command);
+                ExecuteShadingAxial(command, entry);
                 break;
             }
             case PdfShadingType.Radial:
             {
-                ExecuteShadingRadial(command);
+                ExecuteShadingRadial(command, entry);
                 break;
             }
             case PdfShadingType.FreeFormGouraud:
@@ -31,89 +34,112 @@ public sealed partial class SkCanvasCommandProcessor
             case PdfShadingType.CoonsPatchMesh:
             case PdfShadingType.TensorProductPatchMesh:
             {
-                ExecuteShadingMesh(command);
+                ExecuteShadingMesh(command, entry);
                 break;
             }
         }
     }
 
-    private void ExecuteShadingFunctionBased(DrawShadingCommand command)
+    /// <summary>
+    /// Returns the cached primitives built for the shading content, building and storing them when the
+    /// cache holds none.
+    /// </summary>
+    private ShadingCommandCacheEntry GetOrBuildShadingEntry(PdfShadingContent content)
     {
-        if (command.Content.Function == null)
+        ShadingCommandCacheKey key = new(content);
+
+        lock (_executionContext.ContentLocker)
+        {
+            if (_executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing)
+            {
+                return existing;
+            }
+
+            SKImage? image = (content.Function != null) ? PdfImageConverter.ToSkImage(content.Function.Image) : null;
+            SKShader? shader = null;
+            SKShader? innerShader = null;
+
+            if (content.Axial != null)
+            {
+                shader = content.Axial.ToSkiaShader();
+            }
+            else if (content.Radial != null)
+            {
+                shader = content.Radial.ToSkiaOuterShader();
+                innerShader = content.Radial.ToSkiaInnerShader();
+            }
+
+            SKVertices? vertices = content.Mesh?.ToSkVertices();
+
+            ShadingCommandCacheEntry entry = new(image, shader, innerShader, vertices);
+            _executionContext.Cache.StoreEntry(key, entry);
+            return entry;
+        }
+    }
+
+    private void ExecuteShadingFunctionBased(DrawShadingCommand command, ShadingCommandCacheEntry entry)
+    {
+        if (entry.Image == null || command.Content.Function == null)
         {
             return;
         }
-
-        using SKImage image = PdfImageConverter.ToSkImage(command.Content.Function.Image);
 
         _canvas.Save();
         _canvas.Concat(command.Content.Function.Matrix.ToSkMatrix());
-        _canvas.DrawImage(image, SKPoint.Empty, SKSamplingOptions.Default);
+        _canvas.DrawImage(entry.Image, SKPoint.Empty, SKSamplingOptions.Default);
         _canvas.Restore();
     }
 
-    private void ExecuteShadingAxial(DrawShadingCommand command)
+    private void ExecuteShadingAxial(DrawShadingCommand command, ShadingCommandCacheEntry entry)
     {
-        if (command.Content.Axial == null)
+        if (entry.Shader == null)
         {
             return;
         }
 
-        using SKPaint paint = command.Content.Axial.ToSkiaPaint();
-        DrawShadingPaintToCanvas(command, paint);
+        DrawShadingShaderToCanvas(command, entry.Shader);
     }
 
-    private void ExecuteShadingRadial(DrawShadingCommand command)
+    private void ExecuteShadingRadial(DrawShadingCommand command, ShadingCommandCacheEntry entry)
     {
-        if (command.Content.Radial == null)
+        if (entry.Shader == null || entry.InnerShader == null)
         {
             return;
         }
 
-        using SKPaint innerPaint = command.Content.Radial.ToSkiaInnerPaint();
-        DrawShadingPaintToCanvas(command, innerPaint);
-
-        using SKPaint outerPaint = command.Content.Radial.ToSkiaOuterPaint();
-        DrawShadingPaintToCanvas(command, outerPaint);
+        DrawShadingShaderToCanvas(command, entry.InnerShader);
+        DrawShadingShaderToCanvas(command, entry.Shader);
     }
 
-    private void ExecuteShadingMesh(DrawShadingCommand command)
+    private void ExecuteShadingMesh(DrawShadingCommand command, ShadingCommandCacheEntry entry)
     {
-        if (command.Content.Mesh == null)
+        if (entry.Vertices == null)
         {
             return;
         }
 
-        DrawShadingVerticesToCanvas(command, command.Content.Mesh);
-    }
-
-    private void DrawShadingPaintToCanvas(DrawShadingCommand command, SKPaint paint)
-    {
-        paint.Color = SkiaCommandUtilities.ApplyAlpha(paint.Color, command.FillAlpha);
-        paint.IsAntialias = _executionContext.Parameters.Antialias;
-
-        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-
-        _canvas.DrawPaint(paint);
-    }
-
-    private void DrawShadingVerticesToCanvas(DrawShadingCommand command, PdfVertices vertices)
-    {
-        using SKPaint paint = CreateShadingVerticesPaint(command);
-
-        using SKVertices skVertices = PdfShadingConverter.ToSkVertices(vertices);
-        _canvas.DrawVertices(skVertices, SKBlendMode.DstIn, paint);
-    }
-
-    private SKPaint CreateShadingVerticesPaint(DrawShadingCommand command)
-    {
-        SKPaint paint = new()
+        using SKPaint paint = new()
         {
             Color = SkiaCommandUtilities.ApplyAlpha(SKColors.Black, command.FillAlpha),
             IsAntialias = _executionContext.Parameters.Antialias
         };
 
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-        return paint;
+
+        _canvas.DrawVertices(entry.Vertices, SKBlendMode.DstIn, paint);
+    }
+
+    private void DrawShadingShaderToCanvas(DrawShadingCommand command, SKShader shader)
+    {
+        using SKPaint paint = new()
+        {
+            Shader = shader,
+            Color = SkiaCommandUtilities.ApplyAlpha(SKColors.Black, command.FillAlpha),
+            IsAntialias = _executionContext.Parameters.Antialias
+        };
+
+        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
+
+        _canvas.DrawPaint(paint);
     }
 }

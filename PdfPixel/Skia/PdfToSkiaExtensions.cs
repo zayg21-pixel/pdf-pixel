@@ -189,41 +189,41 @@ public static class PdfToSkiaExtensions
     }
 
     /// <summary>
-    /// Builds the shader paint for an axial (Type 2) gradient.
+    /// Builds the shader for an axial (Type 2) gradient.
     /// </summary>
-    public static SKPaint ToSkiaPaint(this PdfLinearGradient gradient)
+    public static SKShader ToSkiaShader(this PdfLinearGradient gradient)
     {
         if (gradient == null)
         {
             throw new ArgumentNullException(nameof(gradient));
         }
 
-        return PdfShadingConverter.ToSkiaPaint(gradient);
+        return PdfShadingConverter.ToSkiaShader(gradient);
     }
 
     /// <summary>
-    /// Builds the outer-cone shader paint for a radial (Type 3) gradient.
+    /// Builds the outer-cone shader for a radial (Type 3) gradient.
     /// </summary>
-    public static SKPaint ToSkiaOuterPaint(this PdfRadialGradient gradient)
+    public static SKShader ToSkiaOuterShader(this PdfRadialGradient gradient)
     {
         if (gradient == null)
         {
             throw new ArgumentNullException(nameof(gradient));
         }
 
-        return PdfShadingConverter.ToSkiaOuterPaint(gradient);
+        return PdfShadingConverter.ToSkiaOuterShader(gradient);
     }
 
     /// <summary>
-    /// Builds the inner-cone shader paint for a radial (Type 3) gradient.
+    /// Builds the inner-cone shader for a radial (Type 3) gradient.
     /// </summary>
-    public static SKPaint ToSkiaInnerPaint(this PdfRadialGradient gradient)
+    public static SKShader ToSkiaInnerShader(this PdfRadialGradient gradient)
     {
         if (gradient == null)
         {
             throw new ArgumentNullException(nameof(gradient));
         }
 
-        return PdfShadingConverter.ToSkiaInnerPaint(gradient);
+        return PdfShadingConverter.ToSkiaInnerShader(gradient);
     }
 }
