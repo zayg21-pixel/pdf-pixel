@@ -7,7 +7,6 @@ namespace PdfPixel.Skia.Cache;
 
 /// <summary>
 /// Identifies a <see cref="SkTypefaceCommandCacheEntry"/> for a given <see cref="IPdfTypeface"/>.
-/// Two keys are equal when they were captured for the same typeface instance.
 /// </summary>
 internal sealed class TypefaceCommandCacheKey : ICommandCacheKey
 {

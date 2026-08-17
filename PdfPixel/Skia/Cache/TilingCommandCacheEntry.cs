@@ -4,9 +4,7 @@ using SkiaSharp;
 namespace PdfPixel.Skia.Cache;
 
 /// <summary>
-/// Holds the rasterization primitives recorded for one tiling pattern cell, shared by every command
-/// instance drawing that cell under the same tint color and device matrix. Owns what it holds and
-/// disposes it with the cache.
+/// Holds the rasterization primitives recorded for one tiling pattern cell.
 /// </summary>
 internal sealed class TilingCommandCacheEntry : ICommandCacheItem
 {

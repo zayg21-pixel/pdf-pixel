@@ -6,9 +6,7 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Skia.Cache;
 
 /// <summary>
-/// Identifies a <see cref="ShadingCommandCacheEntry"/> built for one shading content. Two keys are
-/// equal when they were captured for the same content, which decides every color and every vertex
-/// of the primitives built from it.
+/// Identifies a <see cref="ShadingCommandCacheEntry"/> built for one shading content.
 /// </summary>
 internal sealed class ShadingCommandCacheKey : ICommandCacheKey
 {

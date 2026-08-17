@@ -34,7 +34,6 @@ internal static class PdfSoftMaskParser
             softMask.BackgroundColorComponents = bcArray.GetFloatArray();
         }
 
-        // Parse optional TR transfer function
         PdfObject? trObject = softMaskDict.GetObject(PdfTokens.TransferFunctionKey);
         if (trObject != null)
         {
@@ -45,9 +44,7 @@ internal static class PdfSoftMaskParser
     }
 
     /// <summary>
-    /// Parses the transparency group a dictionary holds under a key. A group whose blending colour
-    /// space is an indirect reference is kept in the document cache and answered from it on later
-    /// uses, so the /Group dictionary is resolved once however many times the group is reached.
+    /// Parses the transparency group <paramref name="ownerDictionary"/> holds under <paramref name="key"/>.
     /// </summary>
     public static PdfTransparencyGroup? ParseTransparencyGroup(PdfDictionary? ownerDictionary, in PdfString key, IPdfPageInternal page)
     {

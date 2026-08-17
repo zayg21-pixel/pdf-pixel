@@ -4,9 +4,7 @@ using SkiaSharp;
 namespace PdfPixel.Skia.Cache;
 
 /// <summary>
-/// Holds the rasterization primitives built for one shading content, shared by every command instance
-/// drawing that content. Only the members matching the shading's type are populated; the rest stay
-/// null. Owns what it holds and disposes it with the cache.
+/// Holds the rasterization primitives built for one shading content.
 /// </summary>
 internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
 {

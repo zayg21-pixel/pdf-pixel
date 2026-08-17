@@ -14,13 +14,6 @@ namespace PdfPixel.Transparency.Utilities;
 
 /// <summary>
 /// Disposable scope to render content with an optional soft mask and transparency group applied.
-/// Usage:
-/// using (var scope = new SoftMaskDrawingScope(processor, graphicsState))
-/// {
-///     scope.BeginDrawContent();
-///     // draw page/form content here
-///     scope.EndDrawContent();
-/// }
 /// </summary>
 public sealed class SoftMaskDrawingScope : IDisposable
 {
@@ -44,9 +37,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
     /// <param name="processor">Command processor to emit drawing commands through.</param>
     /// <param name="graphicsState">Current graphics state (provides the soft mask).</param>
     /// <param name="contentBounds">
-    /// Area the content about to be drawn can reach, in current user space. The mask layers are confined
-    /// to it, so a small drawing under a page-wide clip costs a small layer rather than a page-sized one.
-    /// Content with no extent of its own passes <see cref="PdfGraphicsState.GetUserSpaceClipBounds"/>.
+    /// Area the content about to be drawn can reach, in current user space, which the mask layers are
+    /// confined to. Content with no extent of its own passes <see cref="PdfGraphicsState.GetUserSpaceClipBounds"/>.
     /// </param>
     public SoftMaskDrawingScope(
         IPdfRenderer renderer,
@@ -95,12 +87,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         _worldToMaskForm = PdfMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
         _maskMatrix = PdfMatrix.Concat(inverseCtm, _worldToMaskForm);
-        // The backdrop gives the mask a value beyond the mask form too, so the masked area spans
-        // everything still visible rather than just the area the mask form covers.
         _layerBounds = PdfRectangle.Intersect(inverseCtm.MapRect(_graphicsState.ClipBounds), _contentBounds);
 
-        // Nothing the mask could composite reaches the clip, so the content stays unmasked and is
-        // clipped away by the clip already in effect.
         if (_layerBounds.IsEmpty)
         {
             _shouldApplyMask = false;
@@ -111,10 +99,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
     }
 
     /// <summary>
-    /// Ends the drawing scope. When a soft mask is active, opens a second layer with a mask-compositing
-    /// paint (destination-in, plus the subtype-appropriate alpha conversion and transfer function -
-    /// see <see cref="PdfMaskPaintParameters"/>), renders the mask content into it, then restores both
-    /// layers so the mask composites onto the content.
+    /// Ends the drawing scope. When a soft mask is active, composites it onto the content drawn since
+    /// <see cref="BeginDrawContent"/> and restores the layers it opened.
     /// </summary>
     public void EndDrawContent()
     {
@@ -161,20 +147,16 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         PdfPaint maskPaint = PdfPaintFactory.CreateSoftMaskPaint(_softMask.Subtype, _softMask.TransferFunction);
 
-        // Position the mask form
         _processor.Process(new SaveLayerCommand(_layerBounds, maskPaint));
 
         _processor.Process(new DrawRecordingCommand(recorder));
         _processor.Process(RestoreLayerCommand.Instance);
 
-        // Restore Layer 1 (composites masked content onto parent)
         _processor.Process(RestoreLayerCommand.Instance);
         _shouldApplyMask = false;
     }
 
-    /// <summary>
-    /// Dispose pattern. Attempts to safely end the scope if caller forgot to call EndDrawContent.
-    /// </summary>
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (_disposed)
