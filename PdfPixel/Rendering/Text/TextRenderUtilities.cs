@@ -58,6 +58,7 @@ internal static class TextRenderUtilities
     /// of the run unknown rather than under-stated.
     /// </summary>
     public static PdfRectangle? GetTextBounds(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+        // TODO: [HIGH] this is a workaround, because fill bounds are empty in render target, need to provide correct bounds in all cases in render target
     {
         ReadOnlySpan<ShapedGlyph> glyphs = shapingResult.Span;
         var hasBounds = false;
