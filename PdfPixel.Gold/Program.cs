@@ -25,6 +25,17 @@ internal sealed class Program
 
     private const double BytesPerMegabyte = 1024.0 * 1024.0;
 
+    // How often the background sampler reads the process's private memory while a page renders. A
+    // page that allocates and releases hundreds of megabytes is over in milliseconds, so the peak is
+    // missed entirely at a coarser interval.
+    private const int MemorySampleIntervalMilliseconds = 5;
+
+    // Highest private and managed memory the process has reached since the readings were last reset,
+    // written by the sampler thread and read by the page that is rendering.
+    private static long _peakPrivateBytes;
+
+    private static long _peakManagedBytes;
+
     private static int Main(string[] args)
     {
         EnsureReleaseBuild();
@@ -90,6 +101,18 @@ internal sealed class Program
             {
                 filters.Add(argument);
             }
+        }
+
+        // Peak memory is only visible while the page is still rendering, so it is watched from a
+        // second thread rather than read once the render has already handed everything back.
+        if (measureMemory)
+        {
+            Thread memorySampler = new(SamplePeakMemory)
+            {
+                IsBackground = true,
+            };
+
+            memorySampler.Start();
         }
 
         List<GoldEntry> entries = SelectEntries(manifest, fullRun, filters);
@@ -410,9 +433,9 @@ internal sealed class Program
     /// <summary>
     /// Renders one PDF to measure it only: nothing is compared against a golden snapshot and no file
     /// is written. Every page reports the time it took and, when <paramref name="measureMemory"/> is
-    /// set, the managed and unmanaged memory the document grew by while it rendered; the document
-    /// reports the totals, and the pages that go over the outlier thresholds are collected into
-    /// <paramref name="timeOutliers"/> and <paramref name="memoryOutliers"/>.
+    /// set, the peak memory it reached while it rendered along with the memory the document held on
+    /// to afterwards; the document reports its totals, and the pages that go over the outlier
+    /// thresholds are collected into <paramref name="timeOutliers"/> and <paramref name="memoryOutliers"/>.
     /// </summary>
     private static void Analyze(
         PdfDocumentReader reader,
@@ -428,10 +451,10 @@ internal sealed class Program
         Stopwatch stopwatch = new();
         int pageCount = 0;
         double documentSeconds = 0;
-        long documentManagedBytes = 0;
-        long documentUnmanagedBytes = 0;
+        long documentPeakBytes = 0;
+        long documentPeakManagedBytes = 0;
+        long documentRetainedBytes = 0;
         long heldManagedBytes = 0;
-        long heldUnmanagedBytes = 0;
 
         // The pages are pulled one at a time, so the clock and the memory reading cover the render of
         // a single page; the first page carries the cost of opening the document with it.
@@ -440,17 +463,26 @@ internal sealed class Program
         while (true)
         {
             long managedBefore = 0;
-            long unmanagedBefore = 0;
+            long privateBefore = 0;
 
             if (measureMemory)
             {
                 managedBefore = GC.GetTotalMemory(forceFullCollection: true);
-                unmanagedBefore = GetUnmanagedMemoryBytes();
+
+                // The watermarks start at what the process already holds, so the page is charged for
+                // what it adds rather than for everything the run has committed so far.
+                privateBefore = GetPrivateMemoryBytes();
+                Interlocked.Exchange(ref _peakPrivateBytes, privateBefore);
+                Interlocked.Exchange(ref _peakManagedBytes, managedBefore);
             }
 
             stopwatch.Restart();
             bool hasPage = renderedPages.MoveNext();
             stopwatch.Stop();
+
+            // Read while nothing has been released yet, so the watermarks still cover the render.
+            long peakPrivateBytes = Interlocked.Read(ref _peakPrivateBytes);
+            long peakManagedBytes = Interlocked.Read(ref _peakManagedBytes);
 
             if (!hasPage)
             {
@@ -468,11 +500,11 @@ internal sealed class Program
             if (measureMemory)
             {
                 heldManagedBytes = GC.GetTotalMemory(forceFullCollection: true);
-                heldUnmanagedBytes = GetUnmanagedMemoryBytes();
 
-                pageMemory = new(heldManagedBytes - managedBefore, heldUnmanagedBytes - unmanagedBefore);
-                documentManagedBytes += pageMemory.ManagedBytes;
-                documentUnmanagedBytes += pageMemory.UnmanagedBytes;
+                pageMemory = new(peakPrivateBytes - privateBefore, peakManagedBytes - managedBefore, heldManagedBytes - managedBefore);
+                documentPeakBytes = Math.Max(documentPeakBytes, pageMemory.PeakBytes);
+                documentPeakManagedBytes = Math.Max(documentPeakManagedBytes, pageMemory.PeakManagedBytes);
+                documentRetainedBytes += pageMemory.RetainedBytes;
             }
 
             double seconds = stopwatch.Elapsed.TotalSeconds;
@@ -482,8 +514,7 @@ internal sealed class Program
             documentSeconds += seconds;
 
             bool slow = seconds > PageTimeOutlierSeconds;
-            bool heavy = pageMemory != null
-                && (pageMemory.ManagedBytes > PageMemoryOutlierBytes || pageMemory.UnmanagedBytes > PageMemoryOutlierBytes);
+            bool heavy = pageMemory != null && pageMemory.PeakBytes > PageMemoryOutlierBytes;
 
             if (slow)
             {
@@ -502,10 +533,10 @@ internal sealed class Program
 
         if (measureMemory)
         {
-            total += $" managed {documentManagedBytes / BytesPerMegabyte,8:F1} MB"
-                + $" native {documentUnmanagedBytes / BytesPerMegabyte,8:F1} MB"
-                + $" | held heap {heldManagedBytes / BytesPerMegabyte,8:F1} MB"
-                + $" held native {heldUnmanagedBytes / BytesPerMegabyte,8:F1} MB";
+            total += $" peak {documentPeakBytes / BytesPerMegabyte,9:F1} MB"
+                + $" managed {documentPeakManagedBytes / BytesPerMegabyte,9:F1} MB"
+                + $" | retained {documentRetainedBytes / BytesPerMegabyte,8:F1} MB"
+                + $" | held heap {heldManagedBytes / BytesPerMegabyte,8:F1} MB";
         }
 
         Write(ConsoleColor.Cyan, total);
@@ -532,7 +563,7 @@ internal sealed class Program
             return;
         }
 
-        memoryOutliers.Sort(static (left, right) => TotalMemoryBytes(right).CompareTo(TotalMemoryBytes(left)));
+        memoryOutliers.Sort(static (left, right) => PeakMemoryBytes(right).CompareTo(PeakMemoryBytes(left)));
 
         Console.WriteLine();
         Write(ConsoleColor.Cyan, $"{memoryOutliers.Count} memory hungry page(s):");
@@ -542,14 +573,14 @@ internal sealed class Program
             Write(ConsoleColor.Red, FormatStatistics(statistics));
         }
 
-        static long TotalMemoryBytes(PageStatistics statistics)
+        static long PeakMemoryBytes(PageStatistics statistics)
         {
             if (statistics.Memory == null)
             {
                 return 0;
             }
 
-            return statistics.Memory.ManagedBytes + statistics.Memory.UnmanagedBytes;
+            return statistics.Memory.PeakBytes;
         }
     }
 
@@ -700,7 +731,7 @@ internal sealed class Program
         Console.WriteLine("  analyze                 renders the short set and prints how long every page took");
         Console.WriteLine("  analyze --fullRun       renders every registered PDF and prints its statistics");
         Console.WriteLine("  analyze a* b            renders the selected PDFs only and prints their statistics");
-        Console.WriteLine("  analyze --memory        also measures the managed and unmanaged memory of every page");
+        Console.WriteLine("  analyze --memory        also measures the peak and the retained memory of every page");
         Console.WriteLine("  add <pdf> [pages] [--password <user password>]");
         Console.WriteLine("                          registers one PDF in gold.json");
         Console.WriteLine("  remove <pdf>            unregisters one PDF and deletes its source and snapshots");
@@ -737,18 +768,52 @@ internal sealed class Program
 
         if (statistics.Memory != null)
         {
-            line += $" managed {statistics.Memory.ManagedBytes / BytesPerMegabyte,8:F1} MB"
-                + $" native {statistics.Memory.UnmanagedBytes / BytesPerMegabyte,8:F1} MB";
+            line += $" peak {statistics.Memory.PeakBytes / BytesPerMegabyte,9:F1} MB"
+                + $" managed {statistics.Memory.PeakManagedBytes / BytesPerMegabyte,9:F1} MB"
+                + $" | retained {statistics.Memory.RetainedBytes / BytesPerMegabyte,8:F1} MB";
         }
 
         return line;
     }
 
-    private static long GetUnmanagedMemoryBytes()
+    /// <summary>
+    /// Raises the peak readings to what the process holds for as long as the run lasts, so that a
+    /// page which allocates and releases within its own render is still charged for what it took
+    /// while it held it.
+    /// </summary>
+    private static void SamplePeakMemory()
     {
         using Process process = Process.GetCurrentProcess();
 
-        return process.PrivateMemorySize64 - GC.GetGCMemoryInfo().TotalCommittedBytes;
+        while (true)
+        {
+            process.Refresh();
+
+            long privateBytes = process.PrivateMemorySize64;
+
+            if (privateBytes > Interlocked.Read(ref _peakPrivateBytes))
+            {
+                Interlocked.Exchange(ref _peakPrivateBytes, privateBytes);
+            }
+
+            long managedBytes = GC.GetTotalMemory(forceFullCollection: false);
+
+            if (managedBytes > Interlocked.Read(ref _peakManagedBytes))
+            {
+                Interlocked.Exchange(ref _peakManagedBytes, managedBytes);
+            }
+
+            Thread.Sleep(MemorySampleIntervalMilliseconds);
+        }
+    }
+
+    // Private bytes is what Task Manager shows and what the process is charged against the commit
+    // limit; it covers the managed heap and every native allocation Skia and the decoders make.
+    private static long GetPrivateMemoryBytes()
+    {
+        using Process process = Process.GetCurrentProcess();
+
+        return process.PrivateMemorySize64;
     }
 
     /// <summary>
@@ -758,7 +823,9 @@ internal sealed class Program
     private sealed record PageStatistics(string PdfName, int PageNumber, double Seconds, PageMemory? Memory);
 
     /// <summary>
-    /// The managed and unmanaged memory a document grew by while one of its pages rendered.
+    /// The memory one page took: the highest the whole process and its managed heap reached while it
+    /// rendered, and what the document was still holding once the page bitmap had been released. The
+    /// difference between the two peaks is what was allocated outside the managed heap.
     /// </summary>
-    private sealed record PageMemory(long ManagedBytes, long UnmanagedBytes);
+    private sealed record PageMemory(long PeakBytes, long PeakManagedBytes, long RetainedBytes);
 }
