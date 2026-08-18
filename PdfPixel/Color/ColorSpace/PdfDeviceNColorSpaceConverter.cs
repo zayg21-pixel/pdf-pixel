@@ -6,16 +6,16 @@ using System;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
+internal sealed class PdfDeviceNColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfString?[] _componentNames;
     private readonly PdfColorSpaceConverter _alternate;
     private readonly PdfFunction? _tintFunction;
 
-    public DeviceNColorSpaceConverter(PdfString?[]? componentNames, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
+    public PdfDeviceNColorSpaceConverter(PdfString?[]? componentNames, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
     {
         _componentNames = componentNames ?? Array.Empty<PdfString?>();
-        _alternate = alternate ?? DeviceRgbConverter.Instance;
+        _alternate = alternate ?? PdfDeviceRgbColorSpaceConverter.Instance;
         _tintFunction = tintFunction;
     }
 

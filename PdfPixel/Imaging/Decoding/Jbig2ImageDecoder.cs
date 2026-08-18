@@ -30,7 +30,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
     {
         _colorSpaceConverter = context.ColorSpaceConverter
             ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
-            ?? DeviceGrayConverter.Instance;
+            ?? PdfDeviceGrayColorSpaceConverter.Instance;
     }
 
     protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter;

@@ -3,11 +3,11 @@ using PdfPixel.Color.Transform;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class PatternColorSpaceConverter : PdfColorSpaceConverter
+internal sealed class PdfPatternColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfColorSpaceConverter? _baseColorSpace;
 
-    public PatternColorSpaceConverter(PdfColorSpaceConverter? baseColorSpace) => _baseColorSpace = baseColorSpace;
+    public PdfPatternColorSpaceConverter(PdfColorSpaceConverter? baseColorSpace) => _baseColorSpace = baseColorSpace;
 
     public override bool IsDevice => false;
 

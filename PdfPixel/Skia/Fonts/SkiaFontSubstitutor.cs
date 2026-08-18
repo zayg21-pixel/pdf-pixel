@@ -66,7 +66,8 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
             style.Slant,
             null,
             codepoint);
-
+        // TODO: [HIGH] the way it's designed, this will NEVER return null, we should first check if typeface is KNOWN, then rebuild NormalizedStem with FALLBACK name to try to substitute it first
+        // problem is that substitution have NO IDEA what is fallback name, so we need to fix this on early stages
         return BuildTypeface(matchedTypeface);
     }
 

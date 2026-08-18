@@ -116,7 +116,7 @@ public class PdfDocumentReader
 
             if (outputIntentProfile != null && outputIntentProfile.ChannelsCount != 0)
             {
-                document.ObjectCache.OutputIntentConverter = new IccBasedConverter(outputIntentProfile.ChannelsCount, default, outputIntentProfile);
+                document.ObjectCache.OutputIntentConverter = new PdfIccColorSpaceConverter(outputIntentProfile.ChannelsCount, default, outputIntentProfile);
             }
 
             _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);

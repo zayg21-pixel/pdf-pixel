@@ -239,7 +239,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = state.FillColorConverter;
-        if (converter is PatternColorSpaceConverter)
+        if (converter is PdfPatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].AsName();
             PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(patternName.Value);
@@ -285,7 +285,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = state.StrokeColorConverter;
-        if (converter is PatternColorSpaceConverter)
+        if (converter is PdfPatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].AsName();
             PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(patternName.Value);
@@ -330,7 +330,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         IPdfValue raw = operands[0];
-        state.FillColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? DeviceRgbConverter.Instance;
+        state.FillColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
         state.FillPaint = state.FillPaint.WithSolidColor(PdfColors.Black);
     }
 
@@ -343,7 +343,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         IPdfValue raw = operands[0];
-        state.StrokeColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? DeviceRgbConverter.Instance;
+        state.StrokeColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
         state.StrokePaint = state.StrokePaint.WithSolidColor(PdfColors.Black);
     }
 

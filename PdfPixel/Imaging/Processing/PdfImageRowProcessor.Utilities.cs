@@ -57,7 +57,7 @@ internal sealed partial class PdfImageRowProcessor
 
         var stages = ProcessingStages.None;
 
-        if (ShouldApplyDecode(parameters.Decode, converter.Components, parameters.BitsPerComponent, converter is IndexedConverter))
+        if (ShouldApplyDecode(parameters.Decode, converter.Components, parameters.BitsPerComponent, converter is PdfIndexedColorSpaceConverter))
         {
             stages |= ProcessingStages.Decode;
         }

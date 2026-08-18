@@ -29,7 +29,7 @@ internal class JpxImageDecoder : PdfImageDecoder
     public JpxImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
-        ColorSpaceResolver colorSpace = context.Page.Cache.ColorSpace;
+        PdfColorSpaceResolver colorSpace = context.Page.Cache.ColorSpace;
         _deviceGray = colorSpace.ResolveDeviceConverter(1);
         _deviceRgb = colorSpace.ResolveDeviceConverter(3);
         _deviceCmyk = colorSpace.ResolveDeviceConverter(4);
@@ -139,7 +139,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         int colorComponents = GetColorComponentCount(header);
 
         PdfColorSpaceConverter? converter = Context.ColorSpaceConverter;
-        if (converter != null && (converter is IndexedConverter || converter.Components == colorComponents))
+        if (converter != null && (converter is PdfIndexedColorSpaceConverter || converter.Components == colorComponents))
         {
             return converter;
         }
@@ -168,7 +168,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         IReadOnlyList<JpxRectangle>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
 
         // Indexed samples are palette indices; never reconstruct them at a reduced DWT level.
-        if (resolvedConverter is IndexedConverter)
+        if (resolvedConverter is PdfIndexedColorSpaceConverter)
         {
             return new JpxDecodingParameters(1, regionsOfInterest);
         }

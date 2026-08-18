@@ -5,16 +5,16 @@ using PdfPixel.Models;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
+internal sealed class PdfSeparationColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfString? _name;
     private readonly PdfColorSpaceConverter _alternate;
     private readonly PdfFunction? _tintFunction;
 
-    public SeparationColorSpaceConverter(PdfString? name, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
+    public PdfSeparationColorSpaceConverter(PdfString? name, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
     {
         _name = name;
-        _alternate = alternate ?? DeviceGrayConverter.Instance;
+        _alternate = alternate ?? PdfDeviceGrayColorSpaceConverter.Instance;
         _tintFunction = tintFunction;
     }
 

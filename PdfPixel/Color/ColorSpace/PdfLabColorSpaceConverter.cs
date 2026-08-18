@@ -5,7 +5,7 @@ using PdfPixel.Color.Icc;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
+internal sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
 {
     private static readonly Vector4 _labOffset = new(0, 128, 128, 0);
     private static readonly Vector4 _labScale = new(1f / 100, 1f / 255, 1f / 255, 1);
@@ -15,7 +15,7 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
     private readonly FunctionColorTransform _normalizeTransform;
     private readonly ChainedColorTransform _labTransform;
 
-    public LabColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? rangeArray)
+    public PdfLabColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? rangeArray)
     {
         Vector4 whitePointVector;
         if (whitePoint?.Length >= 3)

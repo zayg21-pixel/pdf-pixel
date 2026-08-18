@@ -5,12 +5,12 @@ using PdfPixel.Color.Transform;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
+internal sealed class PdfDeviceCmykColorSpaceConverter : PdfColorSpaceConverter
 {
-    public static readonly DeviceCmykConverter Instance = new();
+    public static readonly PdfDeviceCmykColorSpaceConverter Instance = new();
     private static readonly IccProfileTransform _iccTransform;
 
-    static DeviceCmykConverter()
+    static PdfDeviceCmykColorSpaceConverter()
     {
         Icc.Model.IccProfile cmykProfile = ProfileRespources.GetCmykProfile();
         _iccTransform = new IccProfileTransform(cmykProfile);

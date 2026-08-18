@@ -6,9 +6,9 @@ using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal class CalRgbConverter : PdfColorSpaceConverter
+internal class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
 {
-    public CalRgbConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)
+    public PdfCalRgbColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)
     {
         // TODO: [LOW] Handle blackPoint if needed, it's unused currently and seems to be ignored by all major PDF viewers.
         Vector4 whitePointVector;

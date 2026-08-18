@@ -3,7 +3,7 @@ using PdfPixel.Models;
 namespace PdfPixel.Color.ColorSpace;
 
 /// <summary>
-/// A colour space as written at the place it is used: a reference to the object holding it, or — when
+/// A color space as written at the place it is used: a reference to the object holding it, or — when
 /// written in place — the name or array itself, so that nothing it points at is resolved until a
 /// converter is actually asked for.
 /// </summary>
@@ -31,7 +31,7 @@ public readonly struct PdfColorSpaceReference
     public bool IsPresent => Reference.IsValid || Value != null;
 
     /// <summary>
-    /// Reads the colour space a dictionary holds under a key, resolving nothing it points at.
+    /// Reads the color space a dictionary holds under a key, resolving nothing it points at.
     /// </summary>
     public static PdfColorSpaceReference FromDictionary(PdfDictionary dictionary, in PdfString key)
     {

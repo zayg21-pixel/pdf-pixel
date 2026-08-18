@@ -7,7 +7,7 @@ namespace PdfPixel.Color.ColorSpace;
 /// Instance color space resolver bound to a single <see cref="PdfPage"/> providing
 /// resolution, caching (by indirect object reference and by resource name), and default device space substitution.
 /// </summary>
-internal sealed partial class ColorSpaceResolver
+internal sealed partial class PdfColorSpaceResolver
 {
     private readonly IPdfDocumentInternal _document;
     private readonly PdfDictionary _resources;
@@ -17,15 +17,15 @@ internal sealed partial class ColorSpaceResolver
     private readonly PdfColorSpaceConverter _defaultRgb;
     private readonly PdfColorSpaceConverter _defaultCmyk;
 
-    public ColorSpaceResolver(IPdfDocumentInternal document, PdfDictionary resources)
+    public PdfColorSpaceResolver(IPdfDocumentInternal document, PdfDictionary resources)
     {
         _document = document;
         _resources = resources;
         _colorSpaceDictionary = resources.GetDictionary(PdfTokens.ColorSpaceKey);
 
-        _defaultGray = ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey, 1) ?? DeviceGrayConverter.Instance;
-        _defaultRgb = ResolveDefaultDeviceSpace(PdfTokens.DefaultRGBKey, 3) ?? DeviceRgbConverter.Instance;
-        _defaultCmyk = ResolveDefaultDeviceSpace(PdfTokens.DefaultCMYKKey, 4) ?? DeviceCmykConverter.Instance;
+        _defaultGray = ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey, 1) ?? PdfDeviceGrayColorSpaceConverter.Instance;
+        _defaultRgb = ResolveDefaultDeviceSpace(PdfTokens.DefaultRGBKey, 3) ?? PdfDeviceRgbColorSpaceConverter.Instance;
+        _defaultCmyk = ResolveDefaultDeviceSpace(PdfTokens.DefaultCMYKKey, 4) ?? PdfDeviceCmykColorSpaceConverter.Instance;
     }
 
     /// <summary>
@@ -163,7 +163,7 @@ internal sealed partial class ColorSpaceResolver
         if (defaultVal != null)
         {
             PdfColorSpaceConverter? conv = ResolveByValue(defaultVal, -1); // Recursive parse; do not override components.
-            if (conv is IccBasedConverter icc && icc.N == n)
+            if (conv is PdfIccColorSpaceConverter icc && icc.N == n)
             {
                 return icc;
             }
@@ -186,7 +186,7 @@ internal sealed partial class ColorSpaceResolver
     {
         if (name.IsEmpty)
         {
-            return DeviceRgbConverter.Instance;
+            return PdfDeviceRgbColorSpaceConverter.Instance;
         }
 
         PdfColorSpaceType family = name.AsEnum<PdfColorSpaceType>();
@@ -204,42 +204,42 @@ internal sealed partial class ColorSpaceResolver
             case PdfColorSpaceType.Indexed:
             {
                 PdfColorSpaceConverter? conv = CreateIndexedColorSpace(originalValue);
-                return conv ?? DeviceGrayConverter.Instance;
+                return conv ?? PdfDeviceGrayColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.ICCBased:
             {
                 PdfColorSpaceConverter? conv = CreateIccColorSpace(originalValue);
-                return conv ?? DeviceRgbConverter.Instance;
+                return conv ?? PdfDeviceRgbColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.CalGray:
             {
                 PdfColorSpaceConverter? conv = CreateCalGrayColorSpace(originalValue);
-                return conv ?? DeviceGrayConverter.Instance;
+                return conv ?? PdfDeviceGrayColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.CalRGB:
             {
                 PdfColorSpaceConverter? conv = CreateCalRrgbColorSpace(originalValue);
-                return conv ?? DeviceRgbConverter.Instance;
+                return conv ?? PdfDeviceRgbColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.Lab:
             {
                 PdfColorSpaceConverter? conv = CreateLabColorSpace(originalValue);
-                return conv ?? DeviceRgbConverter.Instance;
+                return conv ?? PdfDeviceRgbColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.Pattern:
             {
                 PdfColorSpaceConverter conv = CreatePatternColorSpace(originalValue);
-                return conv ?? DeviceRgbConverter.Instance;
+                return conv ?? PdfDeviceRgbColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.Separation:
             {
                 PdfColorSpaceConverter? conv = CreateSeparationColorSpace(originalValue);
-                return conv ?? DeviceGrayConverter.Instance;
+                return conv ?? PdfDeviceGrayColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.DeviceN:
             {
                 PdfColorSpaceConverter? conv = CreateDeviceNColorSpace(originalValue);
-                return conv ?? DeviceRgbConverter.Instance;
+                return conv ?? PdfDeviceRgbColorSpaceConverter.Instance;
             }
             default:
             {
@@ -267,7 +267,7 @@ internal sealed partial class ColorSpaceResolver
                     }
                 }
 
-                return DeviceRgbConverter.Instance;
+                return PdfDeviceRgbColorSpaceConverter.Instance;
             }
         }
     }

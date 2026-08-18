@@ -50,7 +50,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         PdfColorSpaceConverter resolvedConverter = ResolvedColorSpaceConverter;
         if ((Context.ColorSpaceConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
         {
-            resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
+            resolvedConverter = new PdfIccColorSpaceConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }
 
         // The row count is the smaller of the two declared heights. A frame header may carry a

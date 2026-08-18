@@ -53,7 +53,7 @@ public class MainWindowsViewModel : ObservableObject
         System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, _logMessagesLock);
         _loggerFactory = new ObservableLoggerFactory(LogMessages, _logMessagesLock);
         _fontSubstitutor = new SkiaFontSubstitutor(_loggerFactory);
-        _fontProvider = new FontProvider(_fontSubstitutor, FontSubstitutionMaps.Current.WithFallbackFamily("Times New Roman"));
+        _fontProvider = new FontProvider(_fontSubstitutor, FontSubstitutionMaps.Current);
         _reader = new PdfDocumentReader(_loggerFactory, _fontProvider);
 
         PanelInterface = new WpfPdfPanelInterface();

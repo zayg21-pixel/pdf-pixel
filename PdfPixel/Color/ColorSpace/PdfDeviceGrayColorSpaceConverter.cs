@@ -1,18 +1,20 @@
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
+using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class DeviceRgbConverter : PdfColorSpaceConverter
+internal sealed class PdfDeviceGrayColorSpaceConverter : PdfColorSpaceConverter
 {
-    public static readonly DeviceRgbConverter Instance = new();
+    public static readonly PdfDeviceGrayColorSpaceConverter Instance = new();
 
-    public override int Components => 3;
+    public override int Components => 1;
+
     public override bool IsDevice => true;
 
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
     {
-        ChainedColorTransform chained = new(postTransform);
+        ChainedColorTransform chained = new(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), postTransform);
         return new ColorTransformSampler(chained);
     }
 }

@@ -27,7 +27,7 @@ internal static class PdfAnnotationColorResolver
         PdfColorSpaceConverter? converter = page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents.Length);
         if (converter == null)
         {
-            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3) ?? DeviceRgbConverter.Instance;
+            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3) ?? PdfDeviceRgbColorSpaceConverter.Instance;
             float[] paddedColor = colorComponents;
             Array.Resize(ref paddedColor, 3);
             return converter.ToSrgb(paddedColor, PdfRenderingIntent.RelativeColorimetric, null);

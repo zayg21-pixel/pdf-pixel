@@ -43,12 +43,12 @@ internal class PdfDocumentObjectCache
     /// <summary>
     /// Parsed catalog output intent profile converter. Null when none present or invalid.
     /// </summary>
-    internal IccBasedConverter? OutputIntentProfileConverter { get; set; }
+    internal PdfIccColorSpaceConverter? OutputIntentProfileConverter { get; set; }
 
     /// <summary>
     /// Catalog output intent converter parsed from <see cref="IccProfile"/>. Null when none present or invalid.
     /// </summary>
-    internal IccBasedConverter? OutputIntentConverter { get; set; }
+    internal PdfIccColorSpaceConverter? OutputIntentConverter { get; set; }
 
     /// <summary>
     /// Document font cache.

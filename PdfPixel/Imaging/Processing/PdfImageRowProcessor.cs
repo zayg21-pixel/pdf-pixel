@@ -97,7 +97,7 @@ internal sealed partial class PdfImageRowProcessor
 
         if (_stages != ProcessingStages.None)
         {
-            if (parameters.ColorSpaceConverter is IndexedConverter indexedConverter)
+            if (parameters.ColorSpaceConverter is PdfIndexedColorSpaceConverter indexedConverter)
             {
                 _outputMode = OutputMode.IndexedRgbaColorConverted;
                 _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.TransferFunction);

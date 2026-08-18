@@ -40,7 +40,7 @@ internal sealed class PdfPageCache
         _page = page;
         _document = document;
         _logger = document.LoggerFactory.CreateLogger<PdfPageCache>();
-        ColorSpace = new ColorSpaceResolver(document, resources);
+        ColorSpace = new PdfColorSpaceResolver(document, resources);
         _fontDictionary = resources.GetDictionary(PdfTokens.FontKey);
         _patternDictionary = resources.GetDictionary(PdfTokens.PatternKey);
         _extGStateDictionary = resources.GetDictionary(PdfTokens.ExtGStateKey);
@@ -52,7 +52,7 @@ internal sealed class PdfPageCache
     /// <summary>
     /// Gets the resolver used to determine the color space for image processing operations.
     /// </summary>
-    public ColorSpaceResolver ColorSpace { get; }
+    public PdfColorSpaceResolver ColorSpace { get; }
 
     /// <summary>
     /// Get (and cache) an XObject by resource name from the /XObject dictionary. Returns null if not found.

@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class IndexedConverter : PdfColorSpaceConverter
+internal sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfColorSpaceConverter _baseConv;
     private readonly int _hiVal;
@@ -16,7 +16,7 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
 
     private readonly Dictionary<PaletteCacheKey, Vector4[]> _paletteCache = [];
 
-    public IndexedConverter(PdfColorSpaceConverter baseConv, int hiVal, byte[] lookup)
+    public PdfIndexedColorSpaceConverter(PdfColorSpaceConverter baseConv, int hiVal, byte[] lookup)
     {
         _baseConv = baseConv ?? throw new ArgumentNullException(nameof(baseConv));
         _hiVal = Math.Max(0, hiVal);

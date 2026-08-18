@@ -6,14 +6,14 @@ using System;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class IccBasedConverter : PdfColorSpaceConverter
+internal sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly bool _useDefault;
     private readonly PdfColorSpaceConverter _default;
     private readonly IccProfileTransform? _iccTransform;
     private readonly bool _isStandardRgbOrGray;
 
-    public IccBasedConverter(int n, PdfColorSpaceConverter? alternate, IccProfile? profile)
+    public PdfIccColorSpaceConverter(int n, PdfColorSpaceConverter? alternate, IccProfile? profile)
     {
         Profile = profile;
         N = n;
@@ -31,14 +31,14 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         _default = alternate
             ?? n switch
             {
-                1 => DeviceGrayConverter.Instance,
-                3 => DeviceRgbConverter.Instance,
-                4 => DeviceCmykConverter.Instance,
-                _ => DeviceRgbConverter.Instance
+                1 => PdfDeviceGrayColorSpaceConverter.Instance,
+                3 => PdfDeviceRgbColorSpaceConverter.Instance,
+                4 => PdfDeviceCmykColorSpaceConverter.Instance,
+                _ => PdfDeviceRgbColorSpaceConverter.Instance
             };
     }
 
-    public IccBasedConverter(int n, PdfColorSpaceConverter? alternate, byte[]? iccProfileBytes)
+    public PdfIccColorSpaceConverter(int n, PdfColorSpaceConverter? alternate, byte[]? iccProfileBytes)
         : this(n, alternate, GetProfile(iccProfileBytes))
     {
     }

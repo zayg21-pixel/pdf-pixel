@@ -43,7 +43,7 @@ public abstract class PdfImageDecoder
             converter = context.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents);
         }
 
-        _resolvedColorSpaceConverter = converter ?? DeviceRgbConverter.Instance;
+        _resolvedColorSpaceConverter = converter ?? PdfDeviceRgbColorSpaceConverter.Instance;
     }
 
     /// <summary>
@@ -159,7 +159,7 @@ public abstract class PdfImageDecoder
             return false;
         }
 
-        if (converter is IndexedConverter && bitsPerComponent == 16)
+        if (converter is PdfIndexedColorSpaceConverter && bitsPerComponent == 16)
         {
             Logger.LogError("Indexed color space does not support 16 bits per component.");
             return false;

@@ -26,7 +26,7 @@ public abstract class PdfColorSpaceConverter
     /// <summary>
     /// Optional transform mapping this space's real component values into the ICC profile connection
     /// space encoding (0..1). Null when component values are already in that encoding, which covers
-    /// most color spaces. Used by <see cref="IccBasedConverter"/> to correctly feed real component
+    /// most color spaces. Used by <see cref="PdfIccColorSpaceConverter"/> to correctly feed real component
     /// values of its Alternate into an embedded ICC profile transform.
     /// </summary>
     public virtual IColorTransform? NormalizeTransform => null;

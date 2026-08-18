@@ -4,10 +4,10 @@ using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
 
-// TODO: all of color spaces names are not unified does not match naming convention and lacking documentation
-internal sealed class CalGrayConverter : CalRgbConverter
+// TODO: all of color spaces are lacking documentation
+internal sealed class PdfCalGrayColorSpaceConverter : PdfCalRgbColorSpaceConverter
 {
-    public CalGrayConverter(float[]? whitePoint, float[]? blackPoint, float? gamma)
+    public PdfCalGrayColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float? gamma)
         : base(whitePoint, blackPoint, (gamma.HasValue) ? [gamma.Value, gamma.Value, gamma.Value] : null, null)
     {
     }
