@@ -27,6 +27,13 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         float endY = MathF.Ceiling(bounds.Bottom / yStep) * yStep;
 
         TilingArea = new PdfRectangle(startX, startY, endX, endY);
+        CellGrid = GetCellGrid(TilingArea);
+
+        PaintedArea = new PdfRectangle(
+            (CellGrid.Left * xStep) + bbox.Left,
+            (CellGrid.Top * yStep) + bbox.Top,
+            (CellGrid.Right * xStep) + bbox.Right,
+            (CellGrid.Bottom * yStep) + bbox.Bottom);
     }
 
     /// <inheritdoc />
@@ -41,6 +48,16 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// Gets the pattern-space area to cover with tiles, expanded to whole steps.
     /// </summary>
     public PdfRectangle TilingArea { get; }
+
+    /// <summary>
+    /// Gets the cells covering <see cref="TilingArea"/>, as inclusive cell indices.
+    /// </summary>
+    public PdfIntegerRectangle CellGrid { get; }
+
+    /// <summary>
+    /// Gets the area the cells of <see cref="CellGrid"/> reach, in pattern space.
+    /// </summary>
+    public PdfRectangle PaintedArea { get; }
 
     /// <summary>
     /// Gets the horizontal spacing between pattern cells.
@@ -65,4 +82,34 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 
     /// <inheritdoc />
     public override string ToString() => $"{nameof(DrawTilingCommand)} {CommandHelpers.FormatMatrix(Matrix)}";
+
+    /// <summary>
+    /// Returns the cells covering <paramref name="area"/> as inclusive cell indices, columns on the
+    /// left and right edges and rows on the top and bottom. A cell sits at whole multiples of the
+    /// step from the pattern space origin and belongs to the grid when its bounding box reaches into
+    /// the area, so a cell wider than its step brings in the neighbours that overlap it. A step that
+    /// does not advance leaves the single cell at the origin.
+    /// </summary>
+    public PdfIntegerRectangle GetCellGrid(in PdfRectangle area)
+    {
+        int firstColumn = 0;
+        int lastColumn = 0;
+
+        if (XStep > 0)
+        {
+            firstColumn = (int)MathF.Floor((area.Left - BBox.Right) / XStep) + 1;
+            lastColumn = (int)MathF.Ceiling((area.Right - BBox.Left) / XStep) - 1;
+        }
+
+        int firstRow = 0;
+        int lastRow = 0;
+
+        if (YStep > 0)
+        {
+            firstRow = (int)MathF.Floor((area.Top - BBox.Bottom) / YStep) + 1;
+            lastRow = (int)MathF.Ceiling((area.Bottom - BBox.Top) / YStep) - 1;
+        }
+
+        return new PdfIntegerRectangle(firstColumn, firstRow, lastColumn, lastRow);
+    }
 }

@@ -4,7 +4,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Skia.Cache;
 using SkiaSharp;
-using System;
 
 namespace PdfPixel.Skia;
 
@@ -34,7 +33,7 @@ public sealed partial class SkCanvasCommandProcessor
         }
         else
         {
-            PdfIntegerRectangle grid = GetCellGrid(command, command.TilingArea);
+            PdfIntegerRectangle grid = command.CellGrid;
 
             TilingCommandCacheEntry entry = GetOrBuildCell(command, deviceMatrix);
 
@@ -109,7 +108,7 @@ public sealed partial class SkCanvasCommandProcessor
         // A cell bigger than its step overlaps its neighbours, so every grid position reaching the
         // tile is recorded into it and the shader brings back from the next repeat what the cull
         // rectangle drops here.
-        PdfIntegerRectangle grid = GetCellGrid(command, tileUnit);
+        PdfIntegerRectangle grid = command.GetCellGrid(tileUnit);
 
         using SKPictureRecorder recorder = new();
         using SKCanvas canvas = recorder.BeginRecording(deviceTile);
@@ -156,38 +155,6 @@ public sealed partial class SkCanvasCommandProcessor
         childProcessor.ExecuteDrawRecording(command.RecordingCommand);
 
         return recorder.EndRecording();
-    }
-
-    /// <summary>
-    /// Returns the cells covering <paramref name="area"/> as inclusive cell indices, columns on the
-    /// left and right edges and rows on the top and bottom. A cell sits at whole multiples of the
-    /// step from the pattern space origin and belongs to the grid when its bounding box reaches into
-    /// the area, so a cell wider than its step brings in the neighbours that overlap it. A step that
-    /// does not advance leaves the single cell at the origin.
-    /// </summary>
-    private static PdfIntegerRectangle GetCellGrid(DrawTilingCommand command, in PdfRectangle area)
-    {
-        PdfRectangle bbox = command.BBox;
-
-        int firstColumn = 0;
-        int lastColumn = 0;
-
-        if (command.XStep > 0)
-        {
-            firstColumn = (int)MathF.Floor((area.Left - bbox.Right) / command.XStep) + 1;
-            lastColumn = (int)MathF.Ceiling((area.Right - bbox.Left) / command.XStep) - 1;
-        }
-
-        int firstRow = 0;
-        int lastRow = 0;
-
-        if (command.YStep > 0)
-        {
-            firstRow = (int)MathF.Floor((area.Top - bbox.Bottom) / command.YStep) + 1;
-            lastRow = (int)MathF.Ceiling((area.Bottom - bbox.Top) / command.YStep) - 1;
-        }
-
-        return new PdfIntegerRectangle(firstColumn, firstRow, lastColumn, lastRow);
     }
 
     private PdfCommandExecutionContext CreateCellContext()

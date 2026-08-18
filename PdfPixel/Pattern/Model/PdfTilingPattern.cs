@@ -122,7 +122,7 @@ public sealed class PdfTilingPattern : PdfPattern
         DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
         DrawTilingCommand tilingCommand = new(matrix, bounds, BBox, XStep, YStep, recordingCommand);
 
-        renderTarget.BeforePatternRender(processor, matrix.MapRect(tilingCommand.TilingArea));
+        renderTarget.BeforePatternRender(processor, matrix.MapRect(tilingCommand.PaintedArea));
         processor.Process(tilingCommand);
 
         renderTarget.AfterPatternRender(processor);
