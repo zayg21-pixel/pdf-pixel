@@ -21,4 +21,9 @@ public class PdfTransparencyGroup
     /// Knockout flag (K). Parsed but not yet applied during compositing.
     /// </summary>
     public bool Knockout { get; set; }
+
+    /// <summary>
+    /// True when the group is isolated or knockout.
+    /// </summary>
+    public bool RequiresLayer => Isolated || Knockout;
 }

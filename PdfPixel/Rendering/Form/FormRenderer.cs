@@ -69,7 +69,12 @@ public class FormRenderer : IFormRenderer
         // Clip to /BBox
         processor.Process(new ClipRectangleCommand(formXObject.BBox, PdfClipOperation.Intersect));
 
-        if (formXObject.TransparencyGroup != null)
+        bool needsGroupLayer = formXObject.TransparencyGroup != null
+            && (formXObject.TransparencyGroup.RequiresLayer
+                || graphicsState.FillPaint.Alpha < 1
+                || graphicsState.FillPaint.BlendMode != PdfBlendMode.Normal);
+
+        if (needsGroupLayer)
         {
             PdfPaint formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
             processor.Process(new SaveLayerCommand(formXObject.BBox, formPaint));
@@ -89,7 +94,7 @@ public class FormRenderer : IFormRenderer
             localGs.CTM = formXObject.Matrix;
             localGs.ClipBounds = localGs.CTM.MapRect(formXObject.BBox);
 
-            if (formXObject.TransparencyGroup != null)
+            if (needsGroupLayer)
             {
                 localGs.FillPaint = localGs.FillPaint.WithAlpha(1f).WithBlendMode(PdfBlendMode.Normal);
                 localGs.StrokePaint = localGs.StrokePaint.WithAlpha(1f).WithBlendMode(PdfBlendMode.Normal);
@@ -104,7 +109,7 @@ public class FormRenderer : IFormRenderer
         DrawRecordingCommand recording = new(recorder);
         processor.Process(recording);
 
-        if (formXObject.TransparencyGroup != null)
+        if (needsGroupLayer)
         {
             processor.Process(RestoreLayerCommand.Instance);
         }

@@ -162,14 +162,16 @@ internal class PdfPage : IPdfPageInternal
         PdfRenderer renderer = new(_document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(renderer, this);
 
-        if (_transparencyGroup != null)
+        bool needsGroupLayer = _transparencyGroup != null && _transparencyGroup.RequiresLayer;
+
+        if (needsGroupLayer)
         {
             processor.Process(new SaveLayerCommand(CropBox));
         }
 
         contentRenderer.RenderContent(processor, renderingParameters, observer);
 
-        if (_transparencyGroup != null)
+        if (needsGroupLayer)
         {
             processor.Process(RestoreLayerCommand.Instance);
         }
