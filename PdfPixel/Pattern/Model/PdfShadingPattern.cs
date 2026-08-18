@@ -82,12 +82,26 @@ public sealed class PdfShadingPattern : PdfPattern
             recorder.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        recorder.Process(new DrawShadingCommand(Shading.GetContent(shadingState), shadingState.FillPaint.Alpha));
+        PdfShadingContent content = Shading.GetContent(shadingState);
+
+        recorder.Process(new DrawShadingCommand(content, shadingState.FillPaint.Alpha));
 
         recorder.Process(RestoreStateCommand.Instance);
 
-        renderTarget.BeforePatternRender(processor);
+        renderTarget.BeforePatternRender(processor, GetPatternBounds(content, matrix));
         processor.Process(new DrawRecordingCommand(recorder));
         renderTarget.AfterPatternRender(processor);
+    }
+
+    private static PdfRectangle? GetPatternBounds(PdfShadingContent content, in PdfMatrix matrix)
+    {
+        PdfRectangle? bounds = content.GetBounds();
+
+        if (bounds == null)
+        {
+            return null;
+        }
+
+        return matrix.MapRect(bounds.Value);
     }
 }

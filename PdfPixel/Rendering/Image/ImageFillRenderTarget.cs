@@ -41,7 +41,7 @@ internal class ImageFillRenderTarget : IRenderTarget
 
     public PdfColor Color => _state.FillPaint.Color;
 
-    public void BeforePatternRender(IPdfCommandProcessor processor)
+    public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {
         PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
         processor.Process(new SaveLayerCommand(Bounds, layerPaint));

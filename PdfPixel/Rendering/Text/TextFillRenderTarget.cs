@@ -37,13 +37,14 @@ internal class TextFillRenderTarget : IRenderTarget
 
     public PdfColor Color => _state.FillPaint.Color;
 
-    public void BeforePatternRender(IPdfCommandProcessor processor)
+    public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {
         processor.Process(SaveStateCommand.Instance);
         if (_clipPath != null)
         {
             processor.Process(new ClipPathCommand(_clipPath, PdfClipOperation.Intersect));
-            processor.Process(new SaveLayerCommand(Bounds));
+            PdfRectangle layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
+            processor.Process(new SaveLayerCommand(layerBounds));
         }
     }
 

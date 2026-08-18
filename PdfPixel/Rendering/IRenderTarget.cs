@@ -33,8 +33,10 @@ internal interface IRenderTarget
     /// <summary>
     /// Called by pattern implementations before they emit their tile/shading commands.
     /// Path/text targets apply their clip path; image targets open a new layer.
+    /// <paramref name="patternBounds"/> is the area the pattern paints in current CTM space,
+    /// or null when the pattern covers the whole target.
     /// </summary>
-    void BeforePatternRender(IPdfCommandProcessor processor);
+    void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds);
 
     /// <summary>
     /// Called by pattern implementations after all tile/shading commands have been emitted.

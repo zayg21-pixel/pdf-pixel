@@ -32,11 +32,12 @@ internal class PathStrokeRenderTarget : IRenderTarget
 
     public PdfColor Color => _state.StrokePaint.Color;
 
-    public void BeforePatternRender(IPdfCommandProcessor processor)
+    public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {
         processor.Process(SaveStateCommand.Instance);
         processor.Process(new ClipPathCommand(_path, PdfClipOperation.Intersect, _state.StrokePaint));
-        processor.Process(new SaveLayerCommand(Bounds));
+        PdfRectangle layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
+        processor.Process(new SaveLayerCommand(layerBounds));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)

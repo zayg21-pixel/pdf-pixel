@@ -113,8 +113,6 @@ public sealed class PdfTilingPattern : PdfPattern
 
         PdfMatrix matrix = PdfMatrix.Concat(state.CTM.Invert(), PatternMatrix);
 
-        renderTarget.BeforePatternRender(processor);
-
         UncoloredPaintModifier? modifier = (PaintTypeKind == PdfTilingPaintType.Uncolored)
             ? new UncoloredPaintModifier(renderTarget.Color)
             : default;
@@ -122,7 +120,10 @@ public sealed class PdfTilingPattern : PdfPattern
         PdfRectangle bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
         DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
-        processor.Process(new DrawTilingCommand(matrix, bounds, BBox, XStep, YStep, recordingCommand));
+        DrawTilingCommand tilingCommand = new(matrix, bounds, BBox, XStep, YStep, recordingCommand);
+
+        renderTarget.BeforePatternRender(processor, matrix.MapRect(tilingCommand.TilingArea));
+        processor.Process(tilingCommand);
 
         renderTarget.AfterPatternRender(processor);
     }

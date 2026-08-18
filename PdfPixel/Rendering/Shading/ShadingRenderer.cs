@@ -55,17 +55,19 @@ public class ShadingRenderer : IShadingRenderer
             return;
         }
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, shading.BBox ?? state.GetUserSpaceClipBounds());
+        PdfShadingContent content = shading.GetContent(state);
+
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, content.GetBounds() ?? state.GetUserSpaceClipBounds());
         softMaskScope.BeginDrawContent();
 
-        DrawShadingCore(processor, shading, state);
+        DrawShadingCore(processor, shading, state, content);
     }
 
     /// <summary>
     /// Core shading dispatch logic without soft mask handling.
     /// Clips to bounding box, draws background, and emits a lazy shading command.
     /// </summary>
-    private void DrawShadingCore(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
+    private static void DrawShadingCore(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state, PdfShadingContent content)
     {
         if (shading.BBox.HasValue)
         {
@@ -85,6 +87,6 @@ public class ShadingRenderer : IShadingRenderer
             processor.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        processor.Process(new DrawShadingCommand(shading.GetContent(state), state.FillPaint.Alpha));
+        processor.Process(new DrawShadingCommand(content, state.FillPaint.Alpha));
     }
 }

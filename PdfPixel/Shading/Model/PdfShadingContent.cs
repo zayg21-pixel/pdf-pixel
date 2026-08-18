@@ -1,4 +1,5 @@
 using PdfPixel.Color.Sampling;
+using PdfPixel.Geometry;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Decoding;
 
@@ -10,7 +11,16 @@ namespace PdfPixel.Shading.Model;
 /// </summary>
 public sealed class PdfShadingContent
 {
-    private PdfShadingContent(PdfShadingType shadingType) => ShadingType = shadingType;
+    private readonly PdfRectangle? _bbox;
+
+    private PdfRectangle? _bounds;
+    private bool _boundsCalculated;
+
+    private PdfShadingContent(PdfShadingType shadingType, PdfRectangle? bbox)
+    {
+        ShadingType = shadingType;
+        _bbox = bbox;
+    }
 
     /// <summary>
     /// Type of the shading these primitives were built for.
@@ -43,6 +53,21 @@ public sealed class PdfShadingContent
     public PdfVertices? Mesh { get; private set; }
 
     /// <summary>
+    /// Returns the area these primitives paint in shading space, or null when they paint everywhere
+    /// they are drawn through.
+    /// </summary>
+    public PdfRectangle? GetBounds()
+    {
+        if (!_boundsCalculated)
+        {
+            _bounds = CalculateBounds();
+            _boundsCalculated = true;
+        }
+
+        return _bounds;
+    }
+
+    /// <summary>
     /// Builds the primitives for a shading, sampling its function(s) through <paramref name="sampler"/>
     /// and constructing the type-specific gradient, mesh, or image data.
     /// </summary>
@@ -53,7 +78,7 @@ public sealed class PdfShadingContent
     {
         PdfShadingBuilder builder = new(state.Page.Document.LoggerFactory);
         int functionSamples = state.RenderingParameters.DefaultFunctionSamples;
-        PdfShadingContent content = new(shading.ShadingType);
+        PdfShadingContent content = new(shading.ShadingType, shading.BBox);
 
         switch (shading.ShadingType)
         {
@@ -90,5 +115,50 @@ public sealed class PdfShadingContent
         }
 
         return content;
+    }
+
+    private PdfRectangle? CalculateBounds()
+    {
+        PdfRectangle? bounds = _bbox;
+        PdfRectangle? primitiveBounds = GetPrimitiveBounds();
+
+        if (primitiveBounds != null)
+        {
+            bounds = (bounds != null) ? PdfRectangle.Intersect(bounds.Value, primitiveBounds.Value) : primitiveBounds;
+        }
+
+        return bounds;
+    }
+
+    private PdfRectangle? GetPrimitiveBounds()
+    {
+        switch (ShadingType)
+        {
+            case PdfShadingType.FunctionBased:
+            {
+                if (Function == null)
+                {
+                    return null;
+                }
+
+                return Function.Matrix.MapRect(new PdfRectangle(0, 0, Function.Image.Width, Function.Image.Height));
+            }
+            case PdfShadingType.FreeFormGouraud:
+            case PdfShadingType.LatticeFormGouraud:
+            case PdfShadingType.CoonsPatchMesh:
+            case PdfShadingType.TensorProductPatchMesh:
+            {
+                if (Mesh == null)
+                {
+                    return null;
+                }
+
+                return PdfRectangle.FromPoints(Mesh.Positions);
+            }
+            default:
+            {
+                return null;
+            }
+        }
     }
 }
