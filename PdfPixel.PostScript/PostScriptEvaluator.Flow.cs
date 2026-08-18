@@ -86,7 +86,7 @@ public partial class PostScriptEvaluator
                 // those operators, so later redefinitions of the same names no longer affect the procedure.
                 // Names are always resolved dynamically here instead, so a redefined operator would be
                 // picked up where real PostScript would keep the original. This only matters for inputs
-                // that redefine built-in operator names, which does not occur in Type1 font, CMap, or
+                // that redefine built-in operator names, which does not occur in Type1 font or
                 // PDF function PostScript in practice.
                 // TODO: [LOW] implement bind's early-binding semantics, can be found in fit11-talk.pdf
                 return true;

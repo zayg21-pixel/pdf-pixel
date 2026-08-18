@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using PdfPixel.PostScript.Tokens;
 using PdfPixel.Text;
 
 namespace PdfPixel.Fonts.Model;
@@ -47,35 +46,4 @@ public class PdfCidSystemInfo
         };
     }
 
-    /// <summary>
-    /// Generates a <see cref="PdfCidSystemInfo"/> from a PostScript dictionary.
-    /// </summary>
-    /// <param name="dictionary">Dictionary containing CID system information.</param>
-    /// <returns>A populated <see cref="PdfCidSystemInfo"/> or null if the dictionary is null.</returns>
-    public static PdfCidSystemInfo? FromPostscriptDictionary(PostScriptDictionary? dictionary)
-    {
-        if (dictionary == null)
-        {
-            return null;
-        }
-
-        PdfCidSystemInfo info = new();
-
-        if (dictionary.Entries.TryGetValue(PdfTokens.RegistryKey.ToString(), out PostScriptToken? registryValue) && registryValue is PostScriptString registryString)
-        {
-            info.Registry = new PdfString(registryString.Data);
-        }
-
-        if (dictionary.Entries.TryGetValue(PdfTokens.OrderingKey.ToString(), out PostScriptToken? orderingValue) && orderingValue is PostScriptString orderingString)
-        {
-            info.Ordering = new PdfString(orderingString.Data);
-        }
-
-        if (dictionary.Entries.TryGetValue(PdfTokens.SupplementKey.ToString(), out PostScriptToken? supplementValue) && supplementValue is PostScriptNumber supplementInteger)
-        {
-            info.Supplement = (int)supplementInteger.Number;
-        }
-
-        return info;
-    }
 }

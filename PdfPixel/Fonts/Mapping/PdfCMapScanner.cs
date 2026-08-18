@@ -54,7 +54,7 @@ public static class PdfCMapScanner
         int position = 0;
         int lastNameStart = 0;
         int lastNameLength = 0;
-        bool inCidSystemInfo = false;
+        var inCidSystemInfo = false;
 
         while (position < data.Length)
         {
@@ -477,7 +477,7 @@ public static class PdfCMapScanner
         SkipWhitespace(data, ref position);
         value = 0;
         int start = position;
-        bool negative = false;
+        var negative = false;
 
         if (position < data.Length && (data[position] == (byte)'+' || data[position] == (byte)'-'))
         {

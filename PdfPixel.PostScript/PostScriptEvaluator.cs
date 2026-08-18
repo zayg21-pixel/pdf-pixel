@@ -283,11 +283,6 @@ public partial class PostScriptEvaluator
             return;
         }
 
-        if (TryProcessCMapOperator(name, stack))
-        {
-            return;
-        }
-
         if (TryProcessResourceOperator(name, stack))
         {
             return;
