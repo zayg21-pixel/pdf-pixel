@@ -36,13 +36,7 @@ internal static class CidToUnicodeFromPdfCMapGenerator
             Console.WriteLine($"  Generating: {outputPath}");
 
             ReadOnlyMemory<byte> bytes = File.ReadAllBytes(filePath);
-            PdfCMap? cmap = PdfCMapParser.ParseCMap(bytes, loggerFactory, _ => null);
-
-            if (cmap == null)
-            {
-                Console.WriteLine($"    -> skipped (parse failed)");
-                continue;
-            }
+            PdfCMap cmap = PdfCMapScanner.Scan(bytes, _ => null);
 
             Dictionary<uint, string> cidToUnicode = BuildCidToUnicode(cmap);
 

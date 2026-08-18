@@ -63,9 +63,8 @@ internal static class CmapSourceParser
     private static PdfCMap? ParseFile(string filePath, Dictionary<string, string> resolver, Dictionary<string, PdfCMap> resolverCache, ILoggerFactory loggerFactory)
     {
         ReadOnlyMemory<byte> bytes = File.ReadAllBytes(filePath);
-        PdfCMap? cmap = PdfCMapParser.ParseCMap(
+        PdfCMap cmap = PdfCMapScanner.Scan(
             bytes,
-            loggerFactory,
             dependency => ResolveUseCmap(dependency.ToString(), resolver, resolverCache, loggerFactory)
         );
 

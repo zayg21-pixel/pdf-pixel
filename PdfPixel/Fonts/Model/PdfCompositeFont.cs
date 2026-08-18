@@ -209,11 +209,7 @@ public class PdfCompositeFont : PdfFontBase
             return null;
         }
 
-        PdfCMap? result = PdfCMapParser.ParseCMap(data, Document);
-        if (result == null)
-        {
-            return null;
-        }
+        PdfCMap result = PdfCMapScanner.Scan(data, Document.CMapCache.GetCmap);
 
         ApplyCMapStreamDictionary(cmapObject.Dictionary, result, useCMapDepth);
 

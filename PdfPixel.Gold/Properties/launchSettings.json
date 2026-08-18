@@ -2,7 +2,7 @@
   "profiles": {
     "PdfPixel.Gold": {
       "commandName": "Project",
-      "commandLineArgs": "--inspect" // --fullRun
+      "commandLineArgs": "generate" // --fullRun
     }
   }
 }
