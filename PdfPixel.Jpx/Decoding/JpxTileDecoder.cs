@@ -29,6 +29,7 @@ internal sealed class JpxTileDecoder
 
     // Scratch shared by every tile and component of the image.
     private readonly JpxSubbandData _subbands;
+    private readonly JpxDwtScratch _dwtScratch = new();
     private readonly IJpxInverseDwt[] _inverseDwtByComponent;
     private int[] _codeBlockCoefficients = [];
     private uint[] _codeBlockState = [];
@@ -104,7 +105,7 @@ internal sealed class JpxTileDecoder
 
         for (int component = 0; component < destination.ComponentCount; component++)
         {
-            _subbands.Reset(tileBounds);
+            _subbands.Reset(tileBounds, levelsToSkip);
 
             // Stages 2-3: Entropy decode each of this component's code-blocks and place
             // its coefficients into the subband it belongs to.
@@ -117,7 +118,7 @@ internal sealed class JpxTileDecoder
             // holds, so a component no code-block contributed to is left as it is.
             if (hasCoefficients)
             {
-                _inverseDwtByComponent[component].Transform(_subbands, destination.ComponentData[component].AsSpan(0, sampleCount), levelsToSkip);
+                _inverseDwtByComponent[component].Transform(_subbands, destination.ComponentData[component].AsSpan(0, sampleCount), _dwtScratch, levelsToSkip);
             }
 
             observer?.Notify();

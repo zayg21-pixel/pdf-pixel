@@ -101,7 +101,12 @@ internal sealed class JpxSubbandData
     /// no code-block contributes to read as zero.
     /// </summary>
     /// <param name="tileBounds">Bounds of the component's tile on the reference grid.</param>
-    public void Reset(in JpxRectangle tileBounds)
+    /// <param name="levelsToSkip">
+    /// Finest decomposition levels the transform will not reconstruct. Their subbands hold the
+    /// bulk of the coefficients, and neither the entropy decoder nor the transform touches them,
+    /// so they are laid out empty rather than reserved.
+    /// </param>
+    public void Reset(in JpxRectangle tileBounds, int levelsToSkip = 0)
     {
         _tileBounds = tileBounds;
 
@@ -113,6 +118,15 @@ internal sealed class JpxSubbandData
 
         for (int level = 0; level < Levels; level++)
         {
+            if (level < levelsToSkip)
+            {
+                SetSlot(GetSlot(level, JpxSubbandType.HL), 0, 0, ref offset);
+                SetSlot(GetSlot(level, JpxSubbandType.LH), 0, 0, ref offset);
+                SetSlot(GetSlot(level, JpxSubbandType.HH), 0, 0, ref offset);
+
+                continue;
+            }
+
             int bandLevel = level + 1;
 
             SetSlot(GetSlot(level, JpxSubbandType.HL), GetBandWidth(bandLevel, 1), GetBandHeight(bandLevel, 0), ref offset);

@@ -1,4 +1,4 @@
-using PdfPixel.Jpx.Decoding;
+﻿using PdfPixel.Jpx.Decoding;
 using PdfPixel.Jpx.Model;
 using System;
 using Xunit;
@@ -72,7 +72,7 @@ public class JpxInverseDwt97Tests
 
         JpxInverseDwt97 transform = new(CreateQuantization(), BitDepth);
         int[] destination = new int[64 * 48];
-        transform.Transform(subbands, destination, 1);
+        transform.Transform(subbands, destination, new JpxDwtScratch(), 1);
 
         Assert.Equal(32, subbands.GetResolutionWidth(1));
         Assert.Equal(24, subbands.GetResolutionHeight(1));
@@ -96,7 +96,7 @@ public class JpxInverseDwt97Tests
 
         JpxInverseDwt97 transform = new(CreateQuantization(), BitDepth);
         int[] destination = new int[subbands.GetResolutionWidth(0) * subbands.GetResolutionHeight(0)];
-        transform.Transform(subbands, destination);
+        transform.Transform(subbands, destination, new JpxDwtScratch());
 
         return destination;
     }

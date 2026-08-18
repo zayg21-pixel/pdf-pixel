@@ -27,12 +27,6 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     private readonly JpxQuantization _quantization;
     private readonly int _bitDepth;
 
-    // Reusable interleaved buffer to avoid per-level allocation
-    private float[] _interleavedBuffer = Array.Empty<float>();
-
-    // Reconstructed samples for the level completed so far, and the LL input of the next one
-    private float[] _lowpassBuffer = Array.Empty<float>();
-
     /// <summary>
     /// Creates an inverse 9-7 DWT instance with the quantization parameters needed
     /// to dequantize coefficients during interleaving.
@@ -46,11 +40,16 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     }
 
     /// <inheritdoc/>
-    public void Transform(JpxSubbandData subbands, in Span<int> destination, int stopAtLevel = 0)
+    public void Transform(JpxSubbandData subbands, in Span<int> destination, JpxDwtScratch scratch, int stopAtLevel = 0)
     {
         if (subbands == null)
         {
             throw new ArgumentNullException(nameof(subbands));
+        }
+
+        if (scratch == null)
+        {
+            throw new ArgumentNullException(nameof(scratch));
         }
 
         int levels = subbands.Levels;
@@ -59,19 +58,14 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
         int outputWidth = subbands.GetResolutionWidth(stopAtLevel);
         int outputHeight = subbands.GetResolutionHeight(stopAtLevel);
 
-        // Ensure reusable buffers are large enough
         int maxPixels = outputWidth * outputHeight;
-        if (_interleavedBuffer.Length < maxPixels)
-        {
-            _interleavedBuffer = new float[maxPixels];
-        }
 
-        if (_lowpassBuffer.Length < maxPixels)
-        {
-            _lowpassBuffer = new float[maxPixels];
-        }
+        // The interleaved buffer holds the level being reconstructed; the lowpass one holds the
+        // level completed so far, which is the LL input of the next.
+        float[] interleavedBuffer = scratch.GetInterleavedSamples(maxPixels);
+        float[] lowpassBuffer = scratch.GetLowpassSamples(maxPixels);
 
-        Span<float> reconstructed = _lowpassBuffer;
+        Span<float> reconstructed = lowpassBuffer;
 
         Span<int> lowpass = subbands.LL;
         int lowpassWidth = subbands.LLWidth;
@@ -108,7 +102,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             float lhScale = JpxDequantizer.ComputeIrreversibleScale(_quantization, qcdBase + 1, 1, _bitDepth);
             float hhScale = JpxDequantizer.ComputeIrreversibleScale(_quantization, qcdBase + 2, 2, _bitDepth);
 
-            Span<float> interleaved = _interleavedBuffer;
+            Span<float> interleaved = interleavedBuffer;
 
             // A resolution starting on an odd reference-grid coordinate begins with a high-pass
             // sample, which swaps where each subband lands in the interleaved signal.

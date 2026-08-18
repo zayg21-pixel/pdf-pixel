@@ -14,9 +14,6 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
 {
     private readonly JpxQuantization _quantization;
 
-    // Reusable interleaved buffer to avoid per-level allocation
-    private int[] _interleavedBuffer = Array.Empty<int>();
-
     /// <summary>
     /// Creates an inverse 5-3 DWT instance with quantization parameters for dequantization.
     /// </summary>
@@ -24,11 +21,16 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     public JpxInverseDwt53(JpxQuantization quantization) => _quantization = quantization ?? throw new ArgumentNullException(nameof(quantization));
 
     /// <inheritdoc/>
-    public void Transform(JpxSubbandData subbands, in Span<int> destination, int stopAtLevel = 0)
+    public void Transform(JpxSubbandData subbands, in Span<int> destination, JpxDwtScratch scratch, int stopAtLevel = 0)
     {
         if (subbands == null)
         {
             throw new ArgumentNullException(nameof(subbands));
+        }
+
+        if (scratch == null)
+        {
+            throw new ArgumentNullException(nameof(scratch));
         }
 
 
@@ -50,12 +52,8 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             DequantizeInto(destination.Slice(y * outputWidth, currentWidth), lowpass.Slice(y * lowpassWidth, currentWidth), llShift);
         }
 
-        // Ensure the reusable buffer is large enough
         int maxPixels = outputWidth * outputHeight;
-        if (_interleavedBuffer.Length < maxPixels)
-        {
-            _interleavedBuffer = new int[maxPixels];
-        }
+        int[] interleavedBuffer = scratch.GetIntegers(maxPixels);
 
         // Reconstruct level by level from coarsest to finest
         for (int level = subbands.Levels - 1; level >= stopAtLevel; level--)
@@ -80,7 +78,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             int lhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 1);
             int hhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 2);
 
-            Span<int> interleaved = _interleavedBuffer;
+            Span<int> interleaved = interleavedBuffer;
 
             // A resolution starting on an odd reference-grid coordinate begins with a high-pass
             // sample, which swaps where each subband lands in the interleaved signal.

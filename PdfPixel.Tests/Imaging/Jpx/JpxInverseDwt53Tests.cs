@@ -1,4 +1,4 @@
-using PdfPixel.Jpx.Decoding;
+﻿using PdfPixel.Jpx.Decoding;
 using PdfPixel.Jpx.Model;
 using System;
 using System.Runtime.CompilerServices;
@@ -64,7 +64,7 @@ public class JpxInverseDwt53Tests
 
         JpxInverseDwt53 transform = new(quantization);
         int[] destination = new int[1];
-        transform.Transform(subbands, destination);
+        transform.Transform(subbands, destination, new JpxDwtScratch());
 
         int expected = JpxDequantizer.DequantizeReversible(1 << 30, JpxDequantizer.ComputeReversibleShift(quantization, 0));
         Assert.Equal(expected, destination[0]);
@@ -88,7 +88,7 @@ public class JpxInverseDwt53Tests
 
         JpxInverseDwt53 transform = new(CreateQuantization());
         int[] destination = new int[subbands.GetResolutionWidth(0) * subbands.GetResolutionHeight(0)];
-        transform.Transform(subbands, destination);
+        transform.Transform(subbands, destination, new JpxDwtScratch());
 
         return destination;
     }
