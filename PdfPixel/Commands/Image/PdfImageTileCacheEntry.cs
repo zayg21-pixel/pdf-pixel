@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Processing;
@@ -12,18 +13,24 @@ namespace PdfPixel.Commands.Image;
 public sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
+    private readonly ILoggerFactory _loggerFactory;
 
     private PdfIntegerSize? _scaledSize;
     private int _tileIndex;
     private bool _decoderActive;
 
+    private PdfImageTilingContext? _tilingContext;
+    private PdfImageRowDecodingParameters? _imageParameters;
+    private int _currentImageRow;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfImageTileCacheEntry"/> class.
     /// </summary>
-    public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo)
+    public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
     {
         Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
         TileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
+        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
 
         _tiles = new CachedTile[tileInfo.TotalTiles];
         for (int tileIndex = 0; tileIndex < _tiles.Length; tileIndex++)
@@ -54,6 +61,9 @@ public sealed class PdfImageTileCacheEntry
             _decoderActive = false;
         }
 
+        _tilingContext = null;
+        _imageParameters = null;
+        _currentImageRow = 0;
         _tileIndex = 0;
 
         PdfIntegerSize? scaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, TileInfo.ImageSize);
@@ -74,7 +84,8 @@ public sealed class PdfImageTileCacheEntry
 
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
-            Decoder.Initialize(TileInfo, contentLocker, ctm, tileIndexesToDecode, observer);
+            _imageParameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), contentLocker, ctm, observer);
+            _tilingContext = new PdfImageTilingContext(TileInfo, _imageParameters, tileIndexesToDecode, _loggerFactory);
             _decoderActive = true;
         }
     }
@@ -107,13 +118,60 @@ public sealed class PdfImageTileCacheEntry
         return tile;
     }
 
+    /// <summary>
+    /// Reads decoded rows into the tiling context until a tile row completes, and returns the tiles
+    /// it produced. Returns null once the decoder stops before the grid is complete.
+    /// </summary>
+    private PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
+    {
+        if (_imageParameters == null || _tilingContext == null)
+        {
+            return null;
+        }
+
+        while (_currentImageRow < _imageParameters.Height)
+        {
+            if (!Decoder.TryReadNextRow(observer, out ReadOnlySpan<byte> decodedRow))
+            {
+                return null;
+            }
+
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, decodedRow, observer);
+            _currentImageRow++;
+            observer?.Notify();
+
+            if (tiles != null)
+            {
+                return tiles;
+            }
+        }
+
+        return null;
+    }
+
+    private List<PdfIntegerRectangle>? ComputeRegionsOfInterest(HashSet<int>? tileIndexesToDecode)
+    {
+        if (tileIndexesToDecode == null)
+        {
+            return null;
+        }
+
+        List<PdfIntegerRectangle> regionsOfInterest = new(tileIndexesToDecode.Count);
+        foreach (int tileIndex in tileIndexesToDecode)
+        {
+            regionsOfInterest.Add(TileInfo.GetTilePosition(tileIndex));
+        }
+
+        return regionsOfInterest;
+    }
+
     private void DecodeUntilProduced(int tileIndex, IPdfExecutionObserver observer)
     {
         while (_decoderActive)
         {
             observer?.Notify();
 
-            PdfImageTile[]? batch = Decoder.DecodeNextTiles(observer);
+            PdfImageTile[]? batch = DecodeNextTiles(observer);
             if (batch == null)
             {
                 throw new InvalidOperationException($"Decoder returned null before producing tile {tileIndex}.");

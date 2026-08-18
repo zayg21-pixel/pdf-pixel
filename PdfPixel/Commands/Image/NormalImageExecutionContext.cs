@@ -44,7 +44,7 @@ public sealed class NormalImageExecutionContext
         }
 
         PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
-        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), pdfImage.Interpolate);
+        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory), pdfImage.Interpolate);
     }
 
     /// <summary>

@@ -83,6 +83,6 @@ public sealed class StencilMaskImageExecutionContext
         bool invertMask = decode == null || decode.Length < 1 || decode[0].Min < decode[0].Max;
 
         PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
-        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), invertMask, pdfImage.Interpolate);
+        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory), invertMask, pdfImage.Interpolate);
     }
 }

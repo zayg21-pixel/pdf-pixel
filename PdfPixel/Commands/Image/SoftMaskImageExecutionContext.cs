@@ -122,8 +122,8 @@ public sealed class SoftMaskImageExecutionContext
             imageSize,
             maskSize,
             context,
-            new PdfImageTileCacheEntry(imageDecoder, imageTileInfo),
-            new PdfImageTileCacheEntry(maskDecoder, maskTileInfo),
+            new PdfImageTileCacheEntry(imageDecoder, imageTileInfo, loggerFactory),
+            new PdfImageTileCacheEntry(maskDecoder, maskTileInfo, loggerFactory),
             maskImage.MatteArray,
             pdfImage.Interpolate);
     }

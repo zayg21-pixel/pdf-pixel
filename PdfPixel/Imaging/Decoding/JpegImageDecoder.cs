@@ -18,16 +18,17 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 {
     private IJpgDecoder? _jpgRowDecoder;
     private byte[]? _fullWidthRowBuffer;
-    private PdfImageTilingContext? _tilingContext;
-    private PdfImageRowDecodingParameters? _imageParameters;
-    private int _currentImageRow;
 
     public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
+    public override PdfImageRowDecodingParameters Initialize(
+        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
+        object contentLocker,
+        in PdfMatrix ctm,
+        IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -60,50 +61,33 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         // SOF's, because it is the stride the row decoder writes and the row buffer must hold it.
         int decodedHeight = Math.Min(header.Height, Image.Height);
 
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(header.Width, decodedHeight));
-
-        _imageParameters = new PdfImageRowDecodingParameters(
-            Context,
-            header.Width,
-            decodedHeight,
+        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
+            ctm,
+            new PdfIntegerSize(header.Width, decodedHeight),
             Image.BitsPerComponent,
-            Image.RenderingIntent,
-            resolvedConverter,
-            Image.HasImageMask,
-            Image.MaskArray,
-            Image.Decode,
-            downscaledSize);
+            resolvedConverter);
 
         _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
         _fullWidthRowBuffer = new byte[checked(header.ComponentCount * header.Width)];
-        _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
-        _currentImageRow = 0;
+
+        return parameters;
     }
 
-    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
     {
-        if (_imageParameters == null || _jpgRowDecoder == null || _fullWidthRowBuffer == null || _tilingContext == null)
+        if (_jpgRowDecoder == null || _fullWidthRowBuffer == null)
         {
-            return null;
+            row = default;
+            return false;
         }
 
-        while (_currentImageRow < _imageParameters.Height)
+        if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
         {
-            if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
-            {
-                throw new InvalidOperationException($"JPEG decode failed at image row {_currentImageRow} (SourceReference={Image.SourceReference}).");
-            }
-
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
-            _currentImageRow++;
-            observer?.Notify();
-            if (tiles != null)
-            {
-                return tiles;
-            }
+            throw new InvalidOperationException($"JPEG decode failed (SourceReference={Image.SourceReference}).");
         }
 
-        return null;
+        row = _fullWidthRowBuffer;
+        return true;
     }
 
     private IJpgDecoder CreateJpgDecoder(in ReadOnlyMemory<byte> encodedData, JpgHeader header)
@@ -136,8 +120,5 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
     {
         _jpgRowDecoder = null;
         _fullWidthRowBuffer = null;
-        _tilingContext = null;
-        _imageParameters = null;
-        _currentImageRow = 0;
     }
 }

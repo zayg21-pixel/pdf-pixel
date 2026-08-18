@@ -16,16 +16,17 @@ internal class RawImageDecoder : PdfImageDecoder
     private object? _contentLocker;
     private Stream? _dataStream;
     private byte[]? _fullWidthRowBuffer;
-    private PdfImageTilingContext? _tilingContext;
-    private PdfImageRowDecodingParameters? _imageParameters;
-    private int _currentImageRow;
 
     public RawImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override PdfImageRowDecodingParameters Initialize(
+        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
+        object contentLocker,
+        in PdfMatrix ctm,
+        IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -33,57 +34,39 @@ internal class RawImageDecoder : PdfImageDecoder
         }
 
         _contentLocker = contentLocker;
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(Image.Width, Image.Height));
 
-        _imageParameters = new PdfImageRowDecodingParameters(
-            Context,
-            Image.Width,
-            Image.Height,
+        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
+            ctm,
+            new PdfIntegerSize(Image.Width, Image.Height),
             Image.BitsPerComponent,
-            Image.RenderingIntent,
-            ResolvedColorSpaceConverter,
-            Image.HasImageMask,
-            Image.MaskArray,
-            Image.Decode,
-            downscaledSize);
+            ResolvedColorSpaceConverter);
 
         int rowBytes = checked(((Image.Width * ResolvedColorSpaceConverter.Components * Image.BitsPerComponent) + 7) / 8);
         _fullWidthRowBuffer = new byte[rowBytes];
-        _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
 
         lock (contentLocker)
         {
             _dataStream = Image.GetImageDataStream();
         }
 
-        _currentImageRow = 0;
+        return parameters;
     }
 
-    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
     {
-        if (_imageParameters == null || _contentLocker == null || _dataStream == null || _fullWidthRowBuffer == null || _tilingContext == null)
+        if (_contentLocker == null || _dataStream == null || _fullWidthRowBuffer == null)
         {
-            return null;
+            row = default;
+            return false;
         }
 
-        while (_currentImageRow < _imageParameters.Height)
+        lock (_contentLocker)
         {
-            lock (_contentLocker)
-            {
-                ReadFull(_dataStream, _fullWidthRowBuffer);
-            }
-
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
-            _currentImageRow++;
-            observer?.Notify();
-
-            if (tiles != null)
-            {
-                return tiles;
-            }
+            ReadFull(_dataStream, _fullWidthRowBuffer);
         }
 
-        return null;
+        row = _fullWidthRowBuffer;
+        return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -106,10 +89,7 @@ internal class RawImageDecoder : PdfImageDecoder
     {
         _dataStream?.Dispose();
         _dataStream = null;
-        _tilingContext = null;
-        _imageParameters = null;
         _fullWidthRowBuffer = null;
         _contentLocker = null;
-        _currentImageRow = 0;
     }
 }

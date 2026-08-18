@@ -17,10 +17,7 @@ internal class JpxImageDecoder : PdfImageDecoder
 {
     private PdfColorSpaceConverter? _resolvedConverter;
     private JpxTileToRowConverter? _rowConverter;
-    private PdfImageTilingContext? _tilingContext;
-    private PdfImageRowDecodingParameters? _imageParameters;
     private byte[]? _fullWidthRowBuffer;
-    private int _currentImageRow;
 
     private readonly PdfColorSpaceConverter? _deviceGray;
     private readonly PdfColorSpaceConverter? _deviceRgb;
@@ -35,7 +32,11 @@ internal class JpxImageDecoder : PdfImageDecoder
         _deviceCmyk = colorSpace.ResolveDeviceConverter(4);
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override PdfImageRowDecodingParameters Initialize(
+        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
+        object contentLocker,
+        in PdfMatrix ctm,
+        IPdfExecutionObserver? observer)
     {
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
@@ -68,7 +69,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         // though: mode 2 has its alpha in the row, while /Matte gets it from a separately tiled
         // image and can only be undone once both tiles meet at composition. The corpus sets the
         // entry in issue11306, issue16782 and isssue18194.
-        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, tileInfo, tileIndexesToDecode, _resolvedConverter);
+        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, regionsOfInterest, _resolvedConverter);
         JpxTileProvider tileProvider = new(
             jpxHeader,
             encodedData.Span.Slice(jpxHeader.CodestreamOffset),
@@ -76,52 +77,34 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);
 
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(_rowConverter.Width, _rowConverter.Height));
-
-        _imageParameters = new PdfImageRowDecodingParameters(
-            Context,
-            _rowConverter.Width,
-            _rowConverter.Height,
+        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
+            ctm,
+            new PdfIntegerSize(_rowConverter.Width, _rowConverter.Height),
             _rowConverter.BitsPerComponent,
-            Image.RenderingIntent,
             _resolvedConverter,
-            Image.HasImageMask,
-            Image.MaskArray,
-            Image.Decode,
-            downscaledSize: downscaledSize,
             hasAlphaChannel: _rowConverter.HasAlphaChannel);
 
         _fullWidthRowBuffer = new byte[((_rowConverter.Width * _rowConverter.ComponentCount * _rowConverter.BitsPerComponent) + 7) / 8];
 
-        _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
-        _currentImageRow = 0;
+        return parameters;
     }
 
-    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
     {
-        if (_imageParameters == null || _rowConverter == null || _tilingContext == null)
+        if (_rowConverter == null || _fullWidthRowBuffer == null)
         {
-            return null;
+            row = default;
+            return false;
         }
 
         JpxObserver jpxObserver = new(observer);
-        while (_currentImageRow < _imageParameters.Height)
+        if (!_rowConverter.TryGetNextRow(_fullWidthRowBuffer, jpxObserver))
         {
-            if (!_rowConverter.TryGetNextRow(_fullWidthRowBuffer, jpxObserver))
-            {
-                throw new InvalidOperationException($"JPX decode failed at row {_currentImageRow} (SourceReference={Image.SourceReference}).");
-            }
-
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
-            _currentImageRow++;
-            observer?.Notify();
-            if (tiles != null)
-            {
-                return tiles;
-            }
+            throw new InvalidOperationException($"JPX decode failed (SourceReference={Image.SourceReference}).");
         }
 
-        return null;
+        row = _fullWidthRowBuffer;
+        return true;
     }
 
     private static int GetColorComponentCount(JpxHeader header)
@@ -161,16 +144,15 @@ internal class JpxImageDecoder : PdfImageDecoder
     private static JpxDecodingParameters ComputeDecodingParameters(
         JpxHeader header,
         in PdfMatrix ctm,
-        PdfTileInfo tileInfo,
-        HashSet<int>? tileIndexesToDecode,
+        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
         PdfColorSpaceConverter resolvedConverter)
     {
-        IReadOnlyList<JpxRectangle>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
+        IReadOnlyList<JpxRectangle>? jpxRegionsOfInterest = ToJpxRegions(regionsOfInterest);
 
         // Indexed samples are palette indices; never reconstruct them at a reduced DWT level.
         if (resolvedConverter is PdfIndexedColorSpaceConverter)
         {
-            return new JpxDecodingParameters(1, regionsOfInterest);
+            return new JpxDecodingParameters(1, jpxRegionsOfInterest);
         }
 
         PdfIntegerSize sourceSize = new((int)header.Width, (int)header.Height);
@@ -178,7 +160,7 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         if (!targetSize.HasValue || header.CodingStyle == null)
         {
-            return new JpxDecodingParameters(1, regionsOfInterest);
+            return new JpxDecodingParameters(1, jpxRegionsOfInterest);
         }
 
         int maxLevels = header.CodingStyle.DecompositionLevels;
@@ -199,24 +181,24 @@ internal class JpxImageDecoder : PdfImageDecoder
             }
         }
 
-        return new JpxDecodingParameters(descaleFactor, regionsOfInterest);
+        return new JpxDecodingParameters(descaleFactor, jpxRegionsOfInterest);
     }
 
-    private static List<JpxRectangle>? ComputeRegionsOfInterest(PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)
+    private static List<JpxRectangle>? ToJpxRegions(IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest)
     {
-        if (tileIndexesToDecode == null)
+        if (regionsOfInterest == null)
         {
             return null;
         }
 
-        List<JpxRectangle> regionsOfInterest = new(tileIndexesToDecode.Count);
-        foreach (int tileIndex in tileIndexesToDecode)
+        List<JpxRectangle> jpxRegionsOfInterest = new(regionsOfInterest.Count);
+        for (int index = 0; index < regionsOfInterest.Count; index++)
         {
-            PdfIntegerRectangle tilePosition = tileInfo.GetTilePosition(tileIndex);
-            regionsOfInterest.Add(new JpxRectangle(tilePosition.Left, tilePosition.Top, tilePosition.Width, tilePosition.Height));
+            PdfIntegerRectangle region = regionsOfInterest[index];
+            jpxRegionsOfInterest.Add(new JpxRectangle(region.Left, region.Top, region.Width, region.Height));
         }
 
-        return regionsOfInterest;
+        return jpxRegionsOfInterest;
     }
 
     private sealed class JpxObserver : IJpxExectionObserver
@@ -232,9 +214,6 @@ internal class JpxImageDecoder : PdfImageDecoder
     {
         _rowConverter = null;
         _resolvedConverter = null;
-        _tilingContext = null;
-        _imageParameters = null;
         _fullWidthRowBuffer = null;
-        _currentImageRow = 0;
     }
 }

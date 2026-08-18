@@ -19,9 +19,8 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
     private Jbig2Bitmap? _cachedBitmap;
 
     private byte[]? _fullWidthRowBuffer;
-    private PdfImageTilingContext? _tilingContext;
-    private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
+    private int _rowCount;
 
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
@@ -35,7 +34,11 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter;
 
-    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override PdfImageRowDecodingParameters Initialize(
+        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
+        object contentLocker,
+        in PdfMatrix ctm,
+        IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -48,47 +51,33 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"JBIG2 page decoding failed (SourceReference={Image.SourceReference}).");
         }
 
-        PdfColorSpaceConverter converter = _colorSpaceConverter;
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(Image.Width, Image.Height));
-
-        _imageParameters = new PdfImageRowDecodingParameters(
-            Context,
-            Image.Width,
-            Image.Height,
+        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
+            ctm,
+            new PdfIntegerSize(Image.Width, Image.Height),
             Image.BitsPerComponent,
-            Image.RenderingIntent,
-            converter,
-            Image.HasImageMask,
-            Image.MaskArray,
-            Image.Decode,
-            downscaledSize);
+            _colorSpaceConverter);
 
         _fullWidthRowBuffer = new byte[_cachedBitmap.Stride];
-        _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
         _currentImageRow = 0;
+        _rowCount = parameters.Height;
+
+        return parameters;
     }
 
-    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
     {
-        if (_imageParameters == null || _cachedBitmap == null || _fullWidthRowBuffer == null || _tilingContext == null)
+        if (_cachedBitmap == null || _fullWidthRowBuffer == null || _currentImageRow >= _rowCount)
         {
-            return null;
+            row = default;
+            return false;
         }
 
-        while (_currentImageRow < _imageParameters.Height)
-        {
-            _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(_fullWidthRowBuffer);
-            InvertRow(_fullWidthRowBuffer);
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
-            _currentImageRow++;
-            observer?.Notify();
-            if (tiles != null)
-            {
-                return tiles;
-            }
-        }
+        _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(_fullWidthRowBuffer);
+        InvertRow(_fullWidthRowBuffer);
+        _currentImageRow++;
 
-        return null;
+        row = _fullWidthRowBuffer;
+        return true;
     }
 
     private void EnsureBitmapDecoded(object contentLocker, IPdfExecutionObserver? observer)
@@ -181,8 +170,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
     public override void Cleanup()
     {
         _fullWidthRowBuffer = null;
-        _tilingContext = null;
-        _imageParameters = null;
         _currentImageRow = 0;
+        _rowCount = 0;
     }
 }

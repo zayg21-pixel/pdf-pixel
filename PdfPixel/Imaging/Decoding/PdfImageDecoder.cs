@@ -116,25 +116,62 @@ public abstract class PdfImageDecoder
     }
 
     /// <summary>
-    /// Prepares the decoder for a decode pass over the given tile grid and region of interest.
-    /// Derived classes override this to parse format-specific stream headers and allocate buffers.
+    /// Prepares the decoder for a decode pass and reports the sample grid it will produce.
+    /// Derived classes parse format-specific stream headers and allocate buffers here.
     /// </summary>
-    /// <param name="tileInfo">Tile grid dimensions for this decode pass.</param>
+    /// <param name="regionsOfInterest">Regions, in original image sample coordinates, that must be reconstructed; every other region may be produced blank. Null means the whole image must be reconstructed.</param>
     /// <param name="contentLocker">Lock object used to serialize access to the compressed image data.</param>
     /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
-    /// <param name="tileIndexesToDecode">Indexes of tiles that must be decoded; every other tile is produced as a skipped placeholder. Null means every tile must be decoded.</param>
     /// <param name="observer">Observer notified during initialization steps.</param>
-    public virtual void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
-    {
-    }
+    /// <returns>The parameters describing the rows this decoder will produce.</returns>
+    public abstract PdfImageRowDecodingParameters Initialize(
+        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
+        object contentLocker,
+        in PdfMatrix ctm,
+        IPdfExecutionObserver? observer);
 
     /// <summary>
-    /// Decodes the next batch of image rows and returns any tiles completed during this call.
-    /// Returns null when all tiles have been produced.
+    /// Reads the next full-width row of decoded samples, in the layout reported by
+    /// <see cref="Initialize"/>. Returns false once no further row can be produced.
     /// </summary>
     /// <param name="observer">Observer notified on progress; may be null.</param>
-    /// <returns>Completed <see cref="PdfImageTile"/> instances, or null when decoding is finished.</returns>
-    public virtual PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer) => null;
+    /// <param name="row">The decoded row, valid until the next call.</param>
+    /// <returns>True when a row was produced; false when the decoder is exhausted.</returns>
+    public abstract bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row);
+
+    /// <summary>
+    /// Builds the row decoding parameters for a decode pass, taking the entries that describe the
+    /// samples from the caller and the rest from the image dictionary.
+    /// </summary>
+    /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
+    /// <param name="decodedSize">Size of the sample grid this decoder produces.</param>
+    /// <param name="bitsPerComponent">Bit depth of the samples this decoder produces.</param>
+    /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
+    /// <param name="scaledSizeSource">Size the scaled output size is measured against, when it differs from <paramref name="decodedSize"/>.</param>
+    /// <param name="hasAlphaChannel">True when the produced rows carry alpha as their last component.</param>
+    protected PdfImageRowDecodingParameters CreateRowDecodingParameters(
+        in PdfMatrix ctm,
+        in PdfIntegerSize decodedSize,
+        int bitsPerComponent,
+        PdfColorSpaceConverter colorSpaceConverter,
+        PdfIntegerSize? scaledSizeSource = null,
+        bool hasAlphaChannel = false)
+    {
+        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, scaledSizeSource ?? decodedSize);
+
+        return new PdfImageRowDecodingParameters(
+            Context,
+            decodedSize.Width,
+            decodedSize.Height,
+            bitsPerComponent,
+            Image.RenderingIntent,
+            colorSpaceConverter,
+            Image.HasImageMask,
+            Image.MaskArray,
+            Image.Decode,
+            downscaledSize,
+            hasAlphaChannel);
+    }
 
     /// <summary>
     /// Validate image parameters and return key values needed for processing.
