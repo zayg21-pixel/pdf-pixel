@@ -3,6 +3,7 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.Skia.Fonts;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
@@ -18,6 +19,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 {
     private readonly object _documentLocker = new();
     private readonly IPdfDocument _document;
+    private readonly SkiaFontSubstitutor _fontSubstitutor;
     private readonly PagesDrawingRequest _request;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
     private readonly IPdfCancellableExecutionObserver? _parseObserver;
@@ -29,7 +31,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     /// subsequent <see cref="PdfPageCacheEntry.InitializeForRendering"/> calls on the
     /// UI thread cannot affect this already-enqueued item.
     /// </summary>
-    public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, IPdfDocument document, object documentLocker, PagesDrawingRequest request, Action<PageUpdatedArgs>? onPageUpdated)
+    public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, IPdfDocument document, SkiaFontSubstitutor fontSubstitutor, object documentLocker, PagesDrawingRequest request, Action<PageUpdatedArgs>? onPageUpdated)
     {
         if (cacheEntry == null)
         {
@@ -39,6 +41,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         CacheEntry = cacheEntry;
         _documentLocker = documentLocker;
         _document = document;
+        _fontSubstitutor = fontSubstitutor ?? throw new ArgumentNullException(nameof(fontSubstitutor));
         _request = request;
         _onPageUpdated = onPageUpdated;
         _parseObserver = cacheEntry.ParseObserver;
@@ -95,7 +98,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _contentObserver,
                     _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
-                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, executionContext, canvas, _document.LoggerFactory);
+                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, executionContext, canvas, _fontSubstitutor, _document.LoggerFactory);
 
                 SKPicture? contentPicture = recorder.EndRecording();
                 List<PdfCharacter> characters = PdfTextBlockFlattener.Flatten(executionContext.RootTextBlock);
@@ -151,7 +154,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _contentObserver,
                     _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
-                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, annotationContext, annotationCanvas, _document.LoggerFactory);
+                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, annotationContext, annotationCanvas, _fontSubstitutor, _document.LoggerFactory);
 
                 SKPicture? annotationPicture = annotationRecorder.EndRecording();
 

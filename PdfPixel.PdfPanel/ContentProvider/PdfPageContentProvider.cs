@@ -2,6 +2,7 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.Skia.Fonts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +16,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 public sealed class PdfPageContentProvider : IPdfPageContentProvider
 {
     private readonly IPdfDocument _document;
+    private readonly SkiaFontSubstitutor _fontSubstitutor;
     private readonly IWorkQueue _processingQueue;
     private readonly IPdfExecutionObserverFactory _observerFactory;
     private readonly PdfPageCacheEntry[] _cache;
@@ -23,9 +25,10 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work
     /// and <paramref name="observerFactory"/> to create per-page cancellation observers.
     /// </summary>
-    public PdfPageContentProvider(IPdfDocument document, IWorkQueue processingQueue, IPdfExecutionObserverFactory? observerFactory = null)
+    public PdfPageContentProvider(IPdfDocument document, SkiaFontSubstitutor fontSubstitutor, IWorkQueue processingQueue, IPdfExecutionObserverFactory? observerFactory = null)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
+        _fontSubstitutor = fontSubstitutor ?? throw new ArgumentNullException(nameof(fontSubstitutor));
         _observerFactory = observerFactory ?? new PdfCancellationSourceObserverFactory();
         _cache = new PdfPageCacheEntry[document.Pages.Count];
 
@@ -81,7 +84,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
             }
 
             cacheEntry.InitializeForRendering(_observerFactory);
-            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request, OnPageUpdated));
+            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, _fontSubstitutor, DocumentLocker, request, OnPageUpdated));
         }
     }
 

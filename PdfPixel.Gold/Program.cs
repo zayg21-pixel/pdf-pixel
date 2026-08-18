@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
 using PdfPixel.Skia.Fonts;
@@ -46,12 +46,13 @@ internal sealed class Program
 
         // A font provider is used to substitute system fonts for fonts not embedded in the PDF, and
         // PdfDocumentReader is the entry point for parsing PDF files.
-        FontProvider fontProvider = new(new SkiaFontSubstitutor(NullLoggerFactory.Instance), FontSubstitutionMaps.Current);
+        SkiaFontSubstitutor fontSubstitutor = new(NullLoggerFactory.Instance);
+        FontProvider fontProvider = new(fontSubstitutor, FontSubstitutionMaps.Current);
         PdfDocumentReader reader = new(NullLoggerFactory.Instance, fontProvider);
 
         if (args.Length > 0 && args[0] == "add")
         {
-            return Add(reader, manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
+            return Add(reader, fontSubstitutor, manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
         }
 
         if (args.Length > 0 && args[0] == "remove")
@@ -68,6 +69,7 @@ internal sealed class Program
 
         bool fullRun = false;
         bool inspect = false;
+        bool measureMemory = false;
         List<string> filters = new();
 
         foreach (string argument in runArguments)
@@ -79,6 +81,10 @@ internal sealed class Program
             else if (string.Equals(argument, "--inspect", StringComparison.OrdinalIgnoreCase))
             {
                 inspect = true;
+            }
+            else if (string.Equals(argument, "--memory", StringComparison.OrdinalIgnoreCase))
+            {
+                measureMemory = true;
             }
             else
             {
@@ -125,7 +131,7 @@ internal sealed class Program
             {
                 if (analyze)
                 {
-                    Analyze(reader, pdfPath, entry.Pages, entry.Password, timeOutliers, memoryOutliers);
+                    Analyze(reader, fontSubstitutor, pdfPath, entry.Pages, entry.Password, measureMemory, timeOutliers, memoryOutliers);
                 }
                 else
                 {
@@ -134,9 +140,9 @@ internal sealed class Program
 
                     if (generate)
                     {
-                        Generate(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
+                        Generate(reader, fontSubstitutor, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
                     }
-                    else if (!Compare(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password, inspectDirectory))
+                    else if (!Compare(reader, fontSubstitutor, pdfPath, snapshotDirectory, entry.Pages, entry.Password, inspectDirectory))
                     {
                         differentCount++;
                     }
@@ -172,7 +178,7 @@ internal sealed class Program
 
         if (analyze)
         {
-            PrintOutliers(timeOutliers, memoryOutliers);
+            PrintOutliers(timeOutliers, memoryOutliers, measureMemory);
         }
 
         return problemCount == 0 ? 0 : 1;
@@ -184,6 +190,7 @@ internal sealed class Program
     /// </summary>
     private static int Add(
         PdfDocumentReader reader,
+        SkiaFontSubstitutor fontSubstitutor,
         GoldManifest manifest,
         string manifestPath,
         string sourceDirectory,
@@ -277,7 +284,7 @@ internal sealed class Program
         {
             stopwatch.Start();
 
-            foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
+            foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password))
             {
                 stopwatch.Stop();
 
@@ -402,16 +409,18 @@ internal sealed class Program
 
     /// <summary>
     /// Renders one PDF to measure it only: nothing is compared against a golden snapshot and no file
-    /// is written. Every page reports the time it took and the managed memory the document grew by
-    /// while it rendered, the document reports the totals, and the pages that go over the outlier
-    /// thresholds are collected into <paramref name="timeOutliers"/> and
-    /// <paramref name="memoryOutliers"/>.
+    /// is written. Every page reports the time it took and, when <paramref name="measureMemory"/> is
+    /// set, the managed and unmanaged memory the document grew by while it rendered; the document
+    /// reports the totals, and the pages that go over the outlier thresholds are collected into
+    /// <paramref name="timeOutliers"/> and <paramref name="memoryOutliers"/>.
     /// </summary>
     private static void Analyze(
         PdfDocumentReader reader,
+        SkiaFontSubstitutor fontSubstitutor,
         string pdfPath,
         List<int> pages,
         string? password,
+        bool measureMemory,
         List<PageStatistics> timeOutliers,
         List<PageStatistics> memoryOutliers)
     {
@@ -419,15 +428,25 @@ internal sealed class Program
         Stopwatch stopwatch = new();
         int pageCount = 0;
         double documentSeconds = 0;
-        long documentMemoryBytes = 0;
+        long documentManagedBytes = 0;
+        long documentUnmanagedBytes = 0;
+        long heldManagedBytes = 0;
+        long heldUnmanagedBytes = 0;
 
         // The pages are pulled one at a time, so the clock and the memory reading cover the render of
         // a single page; the first page carries the cost of opening the document with it.
-        using IEnumerator<(int PageNumber, SKBitmap Bitmap)> renderedPages = PageRenderer.RenderPages(reader, pdfPath, pages, password).GetEnumerator();
+        using IEnumerator<(int PageNumber, SKBitmap Bitmap)> renderedPages = PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password).GetEnumerator();
 
         while (true)
         {
-            long memoryBefore = GC.GetTotalMemory(forceFullCollection: true);
+            long managedBefore = 0;
+            long unmanagedBefore = 0;
+
+            if (measureMemory)
+            {
+                managedBefore = GC.GetTotalMemory(forceFullCollection: true);
+                unmanagedBefore = GetUnmanagedMemoryBytes();
+            }
 
             stopwatch.Restart();
             bool hasPage = renderedPages.MoveNext();
@@ -444,16 +463,27 @@ internal sealed class Program
             // is released before the memory is read back.
             renderedPage.Bitmap.Dispose();
 
-            long memoryBytes = GC.GetTotalMemory(forceFullCollection: true) - memoryBefore;
+            PageMemory? pageMemory = null;
+
+            if (measureMemory)
+            {
+                heldManagedBytes = GC.GetTotalMemory(forceFullCollection: true);
+                heldUnmanagedBytes = GetUnmanagedMemoryBytes();
+
+                pageMemory = new(heldManagedBytes - managedBefore, heldUnmanagedBytes - unmanagedBefore);
+                documentManagedBytes += pageMemory.ManagedBytes;
+                documentUnmanagedBytes += pageMemory.UnmanagedBytes;
+            }
+
             double seconds = stopwatch.Elapsed.TotalSeconds;
-            PageStatistics statistics = new(pdfName, renderedPage.PageNumber, seconds, memoryBytes);
+            PageStatistics statistics = new(pdfName, renderedPage.PageNumber, seconds, pageMemory);
 
             pageCount++;
             documentSeconds += seconds;
-            documentMemoryBytes += memoryBytes;
 
             bool slow = seconds > PageTimeOutlierSeconds;
-            bool heavy = memoryBytes > PageMemoryOutlierBytes;
+            bool heavy = pageMemory != null
+                && (pageMemory.ManagedBytes > PageMemoryOutlierBytes || pageMemory.UnmanagedBytes > PageMemoryOutlierBytes);
 
             if (slow)
             {
@@ -465,52 +495,70 @@ internal sealed class Program
                 memoryOutliers.Add(statistics);
             }
 
-            Write(
-                slow || heavy ? ConsoleColor.Red : ConsoleColor.Gray,
-                $"{pdfName,-60} page {renderedPage.PageNumber,-4} {seconds,8:F3} s {memoryBytes / BytesPerMegabyte,10:F1} MB");
+            Write(slow || heavy ? ConsoleColor.Red : ConsoleColor.Gray, FormatStatistics(statistics));
         }
 
-        Write(
-            ConsoleColor.Cyan,
-            $"{pdfName,-60} TOTAL {pageCount,-4} page(s) {documentSeconds,6:F3} s {documentMemoryBytes / BytesPerMegabyte,10:F1} MB");
+        string total = $"{pdfName,-60} TOTAL {pageCount,-4} page(s) {documentSeconds,6:F3} s";
+
+        if (measureMemory)
+        {
+            total += $" managed {documentManagedBytes / BytesPerMegabyte,8:F1} MB"
+                + $" native {documentUnmanagedBytes / BytesPerMegabyte,8:F1} MB"
+                + $" | held heap {heldManagedBytes / BytesPerMegabyte,8:F1} MB"
+                + $" held native {heldUnmanagedBytes / BytesPerMegabyte,8:F1} MB";
+        }
+
+        Write(ConsoleColor.Cyan, total);
     }
 
     /// <summary>
     /// Prints the pages an analysis run found to be outliers, the slow ones first and the memory
     /// hungry ones after them, each group ordered by what made it an outlier.
     /// </summary>
-    private static void PrintOutliers(List<PageStatistics> timeOutliers, List<PageStatistics> memoryOutliers)
+    private static void PrintOutliers(List<PageStatistics> timeOutliers, List<PageStatistics> memoryOutliers, bool measureMemory)
     {
         timeOutliers.Sort(static (left, right) => right.Seconds.CompareTo(left.Seconds));
-        memoryOutliers.Sort(static (left, right) => right.MemoryBytes.CompareTo(left.MemoryBytes));
 
         Console.WriteLine();
         Write(ConsoleColor.Cyan, $"{timeOutliers.Count} slow page(s):");
 
         foreach (PageStatistics statistics in timeOutliers)
         {
-            Write(
-                ConsoleColor.Red,
-                $"{statistics.PdfName,-60} page {statistics.PageNumber,-4} {statistics.Seconds,8:F3} s {statistics.MemoryBytes / BytesPerMegabyte,10:F1} MB");
+            Write(ConsoleColor.Red, FormatStatistics(statistics));
         }
+
+        if (!measureMemory)
+        {
+            return;
+        }
+
+        memoryOutliers.Sort(static (left, right) => TotalMemoryBytes(right).CompareTo(TotalMemoryBytes(left)));
 
         Console.WriteLine();
         Write(ConsoleColor.Cyan, $"{memoryOutliers.Count} memory hungry page(s):");
 
         foreach (PageStatistics statistics in memoryOutliers)
         {
-            Write(
-                ConsoleColor.Red,
-                $"{statistics.PdfName,-60} page {statistics.PageNumber,-4} {statistics.MemoryBytes / BytesPerMegabyte,10:F1} MB {statistics.Seconds,8:F3} s");
+            Write(ConsoleColor.Red, FormatStatistics(statistics));
+        }
+
+        static long TotalMemoryBytes(PageStatistics statistics)
+        {
+            if (statistics.Memory == null)
+            {
+                return 0;
+            }
+
+            return statistics.Memory.ManagedBytes + statistics.Memory.UnmanagedBytes;
         }
     }
 
 
-    private static void Generate(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
+    private static void Generate(PdfDocumentReader reader, SkiaFontSubstitutor fontSubstitutor, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
     {
         int pageCount = 0;
 
-        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
+        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password))
         {
             using SKBitmap bitmap = renderedPage.Bitmap;
 
@@ -524,12 +572,12 @@ internal sealed class Program
         Write(ConsoleColor.Green, $"{Path.GetFileName(pdfPath),-60} {pageCount} page(s)");
     }
 
-    private static bool Compare(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password, string? inspectDirectory)
+    private static bool Compare(PdfDocumentReader reader, SkiaFontSubstitutor fontSubstitutor, string pdfPath, string snapshotDirectory, List<int> pages, string? password, string? inspectDirectory)
     {
         string pdfName = Path.GetFileName(pdfPath);
         bool matched = true;
 
-        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
+        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password))
         {
             using SKBitmap page = renderedPage.Bitmap;
             int pageNumber = renderedPage.PageNumber;
@@ -649,9 +697,10 @@ internal sealed class Program
         Console.WriteLine("  generate                rewrites the golden snapshots of the short set");
         Console.WriteLine("  generate --fullRun      rewrites the golden snapshots of every registered PDF");
         Console.WriteLine("  generate a* b           rewrites the golden snapshots of the selected PDFs only");
-        Console.WriteLine("  analyze                 renders the short set and prints its time and memory statistics");
+        Console.WriteLine("  analyze                 renders the short set and prints how long every page took");
         Console.WriteLine("  analyze --fullRun       renders every registered PDF and prints its statistics");
         Console.WriteLine("  analyze a* b            renders the selected PDFs only and prints their statistics");
+        Console.WriteLine("  analyze --memory        also measures the managed and unmanaged memory of every page");
         Console.WriteLine("  add <pdf> [pages] [--password <user password>]");
         Console.WriteLine("                          registers one PDF in gold.json");
         Console.WriteLine("  remove <pdf>            unregisters one PDF and deletes its source and snapshots");
@@ -664,7 +713,7 @@ internal sealed class Program
         Console.WriteLine("With --inspect, the Inspect folder is cleared and refilled with, per differing page,");
         Console.WriteLine("the source PDF and its golden/result/diff PNGs, flat and named by PDF and page.");
         Console.WriteLine("Analyze renders to measure only: it compares no page and writes no file, and it closes");
-        Console.WriteLine("with the pages that are outliers, the slow ones first and the memory hungry ones after.");
+        Console.WriteLine("with the slow pages, followed by the memory hungry ones when --memory is given.");
     }
 
     // Snapshots taken from a debug build are not comparable with the ones taken from a release build.
@@ -682,9 +731,34 @@ internal sealed class Program
         Console.ResetColor();
     }
 
+    private static string FormatStatistics(PageStatistics statistics)
+    {
+        string line = $"{statistics.PdfName,-60} page {statistics.PageNumber,-4} {statistics.Seconds,8:F3} s";
+
+        if (statistics.Memory != null)
+        {
+            line += $" managed {statistics.Memory.ManagedBytes / BytesPerMegabyte,8:F1} MB"
+                + $" native {statistics.Memory.UnmanagedBytes / BytesPerMegabyte,8:F1} MB";
+        }
+
+        return line;
+    }
+
+    private static long GetUnmanagedMemoryBytes()
+    {
+        using Process process = Process.GetCurrentProcess();
+
+        return process.PrivateMemorySize64 - GC.GetGCMemoryInfo().TotalCommittedBytes;
+    }
+
     /// <summary>
-    /// What one page of an analysis run cost: the time it took to render, and the managed memory the
-    /// document grew by while it did.
+    /// What one page of an analysis run cost: the time it took to render, and the memory it grew by
+    /// while it did when the run was asked to measure memory.
     /// </summary>
-    private sealed record PageStatistics(string PdfName, int PageNumber, double Seconds, long MemoryBytes);
+    private sealed record PageStatistics(string PdfName, int PageNumber, double Seconds, PageMemory? Memory);
+
+    /// <summary>
+    /// The managed and unmanaged memory a document grew by while one of its pages rendered.
+    /// </summary>
+    private sealed record PageMemory(long ManagedBytes, long UnmanagedBytes);
 }

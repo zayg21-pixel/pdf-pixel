@@ -118,7 +118,7 @@ public sealed partial class SkCanvasCommandProcessor
         // The shader's local matrix undoes this, so it never reaches the frames.
         canvas.Scale(tileScaleX, tileScaleY);
 
-        SkCanvasCommandProcessor childProcessor = new(canvas, childContext, _logger);
+        SkCanvasCommandProcessor childProcessor = new(canvas, childContext, _fontSubstitutor, _logger);
 
         for (int column = grid.Left; column <= grid.Right; column++)
         {
@@ -152,7 +152,7 @@ public sealed partial class SkCanvasCommandProcessor
         // do not apply AA to clip BBox to avoid seams
         canvas.ClipRect(command.BBox.ToSkRect(), SKClipOperation.Intersect);
 
-        SkCanvasCommandProcessor childProcessor = new(canvas, childContext, _logger);
+        SkCanvasCommandProcessor childProcessor = new(canvas, childContext, _fontSubstitutor, _logger);
         childProcessor.ExecuteDrawRecording(command.RecordingCommand);
 
         return recorder.EndRecording();

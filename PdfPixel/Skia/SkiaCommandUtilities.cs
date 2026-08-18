@@ -3,8 +3,10 @@ using PdfPixel.Commands;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Image;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using PdfPixel.Skia.Cache;
+using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System;
 using System.IO;
@@ -101,11 +103,13 @@ internal static class SkiaCommandUtilities
     public static void ApplyAntialias(SKFont font, bool antialias) => font.Edging = antialias ? SKFontEdging.SubpixelAntialias : SKFontEdging.Alias;
 
     /// <summary>
-    /// Returns the <see cref="SKTypeface"/> backing <paramref name="typeface"/>, building it from font
-    /// bytes only once per document and caching it on <see cref="IPdfDocument.CommandCache"/> so every
-    /// command drawing with the same typeface reuses the same native typeface.
+    /// Returns the <see cref="SKTypeface"/> backing <paramref name="typeface"/>, building it only once
+    /// per document and caching it on <see cref="IPdfDocument.CommandCache"/> so every command drawing
+    /// with the same typeface reuses the same native typeface. A typeface a substitutor resolved from
+    /// an installed font is matched back through <paramref name="fontSubstitutor"/>; any other is built
+    /// from its font bytes.
     /// </summary>
-    public static SKTypeface GetOrCreateSkTypeface(PdfCommandExecutionContext executionContext, IPdfTypeface typeface)
+    public static SKTypeface GetOrCreateSkTypeface(PdfCommandExecutionContext executionContext, SkiaFontSubstitutor fontSubstitutor, IPdfTypeface typeface)
     {
         TypefaceCommandCacheKey key = new(typeface);
         CommandCache cache = executionContext.Document.CommandCache;
@@ -117,8 +121,7 @@ internal static class SkiaCommandUtilities
                 return existing.Typeface;
             }
 
-            using Stream fontStream = typeface.GetFontStream();
-            SKTypeface skTypeface = SKTypeface.FromStream(fontStream) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
+            SKTypeface skTypeface = CreateSkTypeface(fontSubstitutor, typeface);
 
             cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
 
@@ -157,4 +160,23 @@ internal static class SkiaCommandUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKSamplingOptions GetSamplingOptions(bool interpolate)
         => interpolate ? new SKSamplingOptions(SKFilterMode.Linear) : new SKSamplingOptions(SKFilterMode.Nearest);
+
+    private static SKTypeface CreateSkTypeface(SkiaFontSubstitutor fontSubstitutor, IPdfTypeface typeface)
+    {
+        SfntPdfTypefaceParameters? parameters = (typeface as SfntPdfTypeface)?.Parameters;
+
+        if (parameters != null && parameters.IsSystemFont)
+        {
+            SKTypeface? systemTypeface = fontSubstitutor.MatchSystemTypeface(typeface.Metrics);
+
+            if (systemTypeface != null)
+            {
+                return systemTypeface;
+            }
+        }
+
+        Stream fontStream = typeface.GetFontStream();
+
+        return SKTypeface.FromStream(fontStream, parameters?.TtcIndex ?? 0) ?? throw new InvalidOperationException("Failed to create typeface from font data.");
+    }
 }

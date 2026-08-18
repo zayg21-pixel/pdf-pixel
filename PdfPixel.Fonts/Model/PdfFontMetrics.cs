@@ -17,6 +17,11 @@ public sealed class PdfFontMetrics
     public PdfFontString FontName { get; set; }
 
     /// <summary>
+    /// The font family name (typographic family, or the legacy family when the font has none).
+    /// </summary>
+    public PdfFontString FamilyName { get; set; }
+
+    /// <summary>
     /// Design units per em square. Every other size on this type is already divided by this value;
     /// it is exposed only so callers can convert a raw <see cref="IPdfTypeface.GetWidth(ushort)"/>
     /// result (still in design units, being per-glyph) to the same em-relative units.
@@ -77,6 +82,11 @@ public sealed class PdfFontMetrics
     /// Font weight (100-900, matching OS/2 usWeightClass).
     /// </summary>
     public int Weight { get; set; }
+
+    /// <summary>
+    /// Font width (1-9, matching OS/2 usWidthClass).
+    /// </summary>
+    public int Width { get; set; }
 
     /// <summary>
     /// Whether the font should be rendered bold even without a matching glyph program.

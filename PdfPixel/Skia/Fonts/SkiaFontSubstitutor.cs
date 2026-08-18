@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Typeface;
 using SkiaSharp;
 using System;
@@ -73,6 +74,29 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
     public SfntPdfTypeface GetFallbackTypeface()
         => BuildTypeface(SKTypeface.Default) ?? throw new InvalidOperationException("Could not load Skia's default typeface.");
 
+    /// <summary>
+    /// Loads the installed font <paramref name="metrics"/> names, in the style it describes.
+    /// </summary>
+    /// <param name="metrics">Names the font family and style to load.</param>
+    /// <returns>The matched typeface, or <see langword="null"/> when the family is not installed.</returns>
+    public SKTypeface? MatchSystemTypeface(PdfFontMetrics metrics)
+    {
+        if (metrics == null)
+        {
+            throw new ArgumentNullException(nameof(metrics));
+        }
+
+        string familyName = metrics.FamilyName.ToString();
+        if (!_knownFontFamilies.Contains(familyName))
+        {
+            return null;
+        }
+
+        SKFontStyle style = CreateFontStyle(metrics.Weight, metrics.Width, metrics.IsItalic);
+
+        return SKFontManager.Default.MatchFamily(familyName, style);
+    }
+
     private static SKFontStyle CreateFontStyle(int weight, int width, bool isItalic)
     {
         SKFontStyleSlant slant = isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
@@ -92,7 +116,7 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
             return null;
         }
 
-        SfntPdfTypefaceParameters parameters = new() { RepackTypeface = false, TtcIndex = ttcIndex };
+        SfntPdfTypefaceParameters parameters = new() { RepackTypeface = false, TtcIndex = ttcIndex, IsSystemFont = true };
         return new SfntPdfTypeface(new SkStreamAssetStream(streamAsset), _loggerFactory, parameters);
     }
 }

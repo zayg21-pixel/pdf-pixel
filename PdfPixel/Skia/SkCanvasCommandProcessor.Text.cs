@@ -83,7 +83,7 @@ public sealed partial class SkCanvasCommandProcessor
 
     private void DrawShapedTextSpan(SKPaint paint, bool antialias, in ReadOnlySpan<ShapedGlyph> span, IPdfTypeface typeface, float scale)
     {
-        SKTypeface skTypeface = SkiaCommandUtilities.GetOrCreateSkTypeface(_executionContext, typeface);
+        SKTypeface skTypeface = SkiaCommandUtilities.GetOrCreateSkTypeface(_executionContext, _fontSubstitutor, typeface);
         using SKFont font = CreateShapedTextFont(skTypeface, scale);
         SkiaCommandUtilities.ApplyAntialias(font, antialias);
 

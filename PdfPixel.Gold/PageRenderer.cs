@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Skia;
+using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
@@ -29,7 +30,7 @@ internal static class PageRenderer
     /// A page is rendered only as the caller asks for it, so that a long document never holds more
     /// than one page bitmap at a time. The caller disposes each bitmap before taking the next one.
     /// </remarks>
-    public static IEnumerable<(int PageNumber, SKBitmap Bitmap)> RenderPages(PdfDocumentReader reader, string pdfPath, IReadOnlyList<int> pageNumbers, string? password)
+    public static IEnumerable<(int PageNumber, SKBitmap Bitmap)> RenderPages(PdfDocumentReader reader, SkiaFontSubstitutor fontSubstitutor, string pdfPath, IReadOnlyList<int> pageNumbers, string? password)
     {
         // The reader parses lazily from the stream it is given, so the whole document is read into
         // memory first and never touches the disk again while it renders.
@@ -55,7 +56,7 @@ internal static class PageRenderer
 
             // Optional content groups are the PDF's layers; passing the document's groups renders
             // every layer in its default visibility state.
-            yield return (page.PageNumber, RenderPage(document, page, document.OptionalContentGroups));
+            yield return (page.PageNumber, RenderPage(document, fontSubstitutor, page, document.OptionalContentGroups));
         }
     }
 
@@ -139,7 +140,7 @@ internal static class PageRenderer
         return diff;
     }
 
-    private static SKBitmap RenderPage(IPdfDocument document, IPdfPage page, IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
+    private static SKBitmap RenderPage(IPdfDocument document, SkiaFontSubstitutor fontSubstitutor, IPdfPage page, IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
     {
         // CropBox is the visible page area in PDF units; scale it to get the output image size.
         int width = (int)(page.CropBox.Width * Scale);
@@ -189,7 +190,7 @@ internal static class PageRenderer
             executionObserver);
 
         // Executes each drawing command immediately against canvas.
-        SkCanvasCommandProcessor processor = new(canvas, executionContext, NullLogger<SkCanvasCommandProcessor>.Instance);
+        SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, NullLogger<SkCanvasCommandProcessor>.Instance);
 
         // Save the execution context's state before applying the page transform, so it can be restored afterwards.
         processor.Process(SaveStateCommand.Instance);

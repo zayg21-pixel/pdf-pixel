@@ -21,8 +21,14 @@ public sealed class SfntPdfTypefaceParameters
     public int TtcIndex { get; set; }
 
     /// <summary>
+    /// When <see langword="true"/>, the font program comes from a font installed on the system, and
+    /// <see cref="PdfFontMetrics"/> names the font the substitutor resolved it from.
+    /// </summary>
+    public bool IsSystemFont { get; set; }
+
+    /// <summary>
     /// Gets the default parameters: <see cref="RepackTypeface"/> = <see langword="true"/>,
-    /// <see cref="TtcIndex"/> = 0.
+    /// <see cref="TtcIndex"/> = 0, <see cref="IsSystemFont"/> = <see langword="false"/>.
     /// </summary>
     public static SfntPdfTypefaceParameters Default { get; } = new();
 }

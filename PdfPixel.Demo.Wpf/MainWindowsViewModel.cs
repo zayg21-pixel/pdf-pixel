@@ -34,6 +34,7 @@ public class MainWindowsViewModel : ObservableObject
 {
     private static readonly Dictionary<int, List<PdfWord>> _extractedWords = new Dictionary<int, List<PdfWord>>();
     private readonly PdfTextChunker _chunker = new PdfTextChunker();
+    private readonly SkiaFontSubstitutor _fontSubstitutor;
     private readonly FontProvider _fontProvider;
     private readonly PdfDocumentReader _reader;
     private readonly ObservableLoggerFactory _loggerFactory;
@@ -51,7 +52,8 @@ public class MainWindowsViewModel : ObservableObject
         LogMessages = new ObservableCollection<LogMessage>();
         System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, _logMessagesLock);
         _loggerFactory = new ObservableLoggerFactory(LogMessages, _logMessagesLock);
-        _fontProvider = new FontProvider(new SkiaFontSubstitutor(_loggerFactory), FontSubstitutionMaps.Current.WithFallbackFamily("Times New Roman"));
+        _fontSubstitutor = new SkiaFontSubstitutor(_loggerFactory);
+        _fontProvider = new FontProvider(_fontSubstitutor, FontSubstitutionMaps.Current.WithFallbackFamily("Times New Roman"));
         _reader = new PdfDocumentReader(_loggerFactory, _fontProvider);
 
         PanelInterface = new WpfPdfPanelInterface();
@@ -310,7 +312,7 @@ public class MainWindowsViewModel : ObservableObject
         }
 
         _document = document;
-        Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory);
+        Pages = PdfPanelPageCollection.FromDocument(_document, _fontSubstitutor, _loggerFactory);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToHeight;
     }
 

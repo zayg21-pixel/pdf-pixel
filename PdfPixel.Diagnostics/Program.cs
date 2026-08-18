@@ -131,7 +131,8 @@ internal sealed class Program
         ILogger logger = loggerFactory.CreateLogger<Program>();
 
         // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
-        FontProvider fontProvider = new(new SkiaFontSubstitutor(loggerFactory), FontSubstitutionMaps.Current);
+        SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
+        FontProvider fontProvider = new(fontSubstitutor, FontSubstitutionMaps.Current);
 
         // PdfDocumentReader is the entry point for parsing PDF files.
         PdfDocumentReader reader = new(loggerFactory, fontProvider);
@@ -156,6 +157,7 @@ internal sealed class Program
             {
                 MeasurePage(
                     reader,
+                    fontSubstitutor,
                     loggerFactory,
                     logger,
                     pdfPath,
@@ -190,6 +192,7 @@ internal sealed class Program
 
     private static void MeasurePage(
         PdfDocumentReader reader,
+        SkiaFontSubstitutor fontSubstitutor,
         ILoggerFactory loggerFactory,
         ILogger logger,
         string pdfPath,
@@ -232,7 +235,12 @@ internal sealed class Program
             // and replayed independently.
             PdfCommandRecorder contentRecorder = new();
             RecordPageTransform(contentRecorder, page, scale);
-            page.Render(contentRecorder, new PdfRenderingParameters(), executionObserver);
+            PdfRenderingParameters renderingParameters = new()
+            {
+                RenderImages = Environment.GetEnvironmentVariable("MEMPROBE_NO_IMAGES") == null,
+                RenderText = Environment.GetEnvironmentVariable("MEMPROBE_NO_TEXT") == null,
+            };
+            page.Render(contentRecorder, renderingParameters, executionObserver);
             contentRecorder.Process(RestoreStateCommand.Instance);
 
             PdfCommandRecorder annotationRecorder = new();
@@ -281,7 +289,7 @@ internal sealed class Program
                 document.OptionalContentGroups,
                 executionObserver);
 
-            SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+            SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
             contentRecorder.Replay(processor);
             annotationRecorder.Replay(processor);
 
@@ -317,6 +325,24 @@ internal sealed class Program
             decodeMilliseconds[iteration] = decodeStopwatch.Elapsed.TotalMilliseconds;
             rasterMilliseconds[iteration] = rasterStopwatch.Elapsed.TotalMilliseconds;
             totalMilliseconds[iteration] = decodeMilliseconds[iteration] + rasterMilliseconds[iteration];
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            if (Environment.GetEnvironmentVariable("MEMPROBE_PURGE") != null)
+            {
+                SKGraphics.PurgeAllCaches();
+            }
+
+            using Process currentProcess = Process.GetCurrentProcess();
+            Console.WriteLine(
+                $"MEMPROBE iteration {iteration,-3}"
+                    + $" private {currentProcess.PrivateMemorySize64 / 1048576.0,8:F1} MB"
+                    + $" gcCommitted {GC.GetGCMemoryInfo().TotalCommittedBytes / 1048576.0,8:F1} MB"
+                    + $" live {GC.GetTotalMemory(forceFullCollection: false) / 1048576.0,8:F1} MB"
+                    + $" font {SKGraphics.GetFontCacheUsed() / 1048576.0,6:F1} MB"
+                    + $" resource {SKGraphics.GetResourceCacheTotalBytesUsed() / 1048576.0,6:F1} MB");
         }
 
         logger.LogInformation(

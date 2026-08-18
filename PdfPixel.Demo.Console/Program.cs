@@ -29,7 +29,8 @@ namespace PdfPixel.Console.Demo
             ILogger logger = loggerFactory.CreateLogger<Program>();
 
             // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
-            FontProvider fontProvider = new(new SkiaFontSubstitutor(loggerFactory), FontSubstitutionMaps.Current);
+            SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
+            FontProvider fontProvider = new(fontSubstitutor, FontSubstitutionMaps.Current);
 
             // PdfDocumentReader is the entry point for parsing PDF files.
             PdfDocumentReader reader = new(loggerFactory, fontProvider);
@@ -80,7 +81,7 @@ namespace PdfPixel.Console.Demo
                     executionObserver);
 
                 // Executes each drawing command immediately against canvas.
-                SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+                SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
                 // Save the execution context's state before applying the page transform, so it can be restored afterwards.
                 processor.Process(SaveStateCommand.Instance);

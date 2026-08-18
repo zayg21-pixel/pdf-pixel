@@ -3,6 +3,7 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -67,11 +68,12 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// Generates <see cref="PdfPanelPageCollection"/> from PDF document.
     /// </summary>
     /// <param name="document">PDF document.</param>
+    /// <param name="fontSubstitutor">Font substitutor the document's substituted typefaces are matched back through.</param>
     /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
-    public static PdfPanelPageCollection FromDocument(IPdfDocument document, ILoggerFactory loggerFactory)
+    public static PdfPanelPageCollection FromDocument(IPdfDocument document, SkiaFontSubstitutor fontSubstitutor, ILoggerFactory loggerFactory)
     {
-        PdfPageContentProvider contentProvider = new(document, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()));
+        PdfPageContentProvider contentProvider = new(document, fontSubstitutor, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()));
         return FromContentProvider(contentProvider);
     }
 

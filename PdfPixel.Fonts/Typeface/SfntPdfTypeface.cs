@@ -27,6 +27,15 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         (0, 0) // Unicode, Unicode 1.0 semantics
     ];
 
+    private static readonly Encoding MacintoshEncoding = Encoding.GetEncoding("ISO-8859-1");
+
+    private static readonly (ushort PlatformId, Encoding Encoding)[] PreferredNamePlatforms =
+    [
+        (3, Encoding.BigEndianUnicode), // Windows, big-endian UTF-16 in every encoding it defines
+        (0, Encoding.BigEndianUnicode), // Unicode, big-endian UTF-16
+        (1, MacintoshEncoding) // Macintosh, single byte per character
+    ];
+
     private static readonly CffCharStringEvaluator PathEvaluator = new(NullLogger<CffCharStringEvaluator>.Instance);
 
     private readonly SfntFont _font;
@@ -101,6 +110,11 @@ public sealed class SfntPdfTypeface : IPdfTypeface
 
     /// <inheritdoc/>
     public PdfFontMetrics Metrics { get; }
+
+    /// <summary>
+    /// Gets the parameters this instance was constructed with.
+    /// </summary>
+    public SfntPdfTypefaceParameters Parameters => _parameters;
 
     /// <inheritdoc/>
     public Stream GetFontStream()
@@ -257,6 +271,7 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         return new PdfFontMetrics
         {
             FontName = ResolveFontName(font.Name),
+            FamilyName = ResolveFamilyName(font.Name),
             UnitsPerEm = unitsPerEm,
             Ascent = ascent / unitsPerEm,
             Descent = descent / unitsPerEm,
@@ -269,6 +284,7 @@ public sealed class SfntPdfTypeface : IPdfTypeface
             BoundingBoxTop = head.YMax / unitsPerEm,
             AvgWidth = (os2?.XAvgCharWidth ?? 0f) / unitsPerEm,
             Weight = os2?.UsWeightClass ?? 400,
+            Width = os2?.UsWidthClass ?? 5,
             IsForceBold = (fsSelection & 0x0020) != 0, // OS/2 fsSelection bit 5: BOLD
             IsItalic = italicAngle != 0f || (fsSelection & 0x0001) != 0, // OS/2 fsSelection bit 0: ITALIC
             Panose = os2?.Panose
@@ -282,24 +298,41 @@ public sealed class SfntPdfTypeface : IPdfTypeface
             return PdfFontString.Empty;
         }
 
-        return FindWindowsNameRecord(name, nameId: 6)
-            ?? FindWindowsNameRecord(name, nameId: 4)
-            ?? FindWindowsNameRecord(name, nameId: 1)
+        return FindNameRecord(name, nameId: 6)
+            ?? FindNameRecord(name, nameId: 4)
+            ?? FindNameRecord(name, nameId: 1)
+            ?? PdfFontString.Empty;
+    }
+
+    private static PdfFontString ResolveFamilyName(SfntName? name)
+    {
+        if (name == null)
+        {
+            return PdfFontString.Empty;
+        }
+
+        return FindNameRecord(name, nameId: 16)
+            ?? FindNameRecord(name, nameId: 1)
             ?? PdfFontString.Empty;
     }
 
     /// <summary>
-    /// Finds a Windows-platform (platformId 3), Unicode BMP (encodingId 1) name record - the encoding
-    /// this codebase's own writer uses, and the one virtually every real font carries - and decodes
-    /// its big-endian UTF-16 bytes.
+    /// Finds the name record carrying <paramref name="nameId"/>, taking the platforms in
+    /// <see cref="PreferredNamePlatforms"/> order and decoding the record in the text encoding its
+    /// platform stores names in.
     /// </summary>
-    private static PdfFontString? FindWindowsNameRecord(SfntName name, ushort nameId)
+    private static PdfFontString? FindNameRecord(SfntName name, ushort nameId)
     {
-        foreach (SfntNameRecord record in name.Records)
+        foreach ((ushort platformId, Encoding encoding) in PreferredNamePlatforms)
         {
-            if (record.NameId == nameId && record.PlatformId == 3 && record.EncodingId == 1)
+            foreach (SfntNameRecord record in name.Records)
             {
-                return (PdfFontString)Encoding.BigEndianUnicode.GetString(record.Value.ToArray());
+                if (record.NameId != nameId || record.PlatformId != platformId)
+                {
+                    continue;
+                }
+
+                return (PdfFontString)encoding.GetString(record.Value.ToArray());
             }
         }
 
