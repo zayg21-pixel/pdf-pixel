@@ -17,7 +17,6 @@ namespace PdfPixel.Imaging.Decoding;
 internal sealed class JpegImageDecoder : PdfImageDecoder
 {
     private IJpgDecoder? _jpgRowDecoder;
-    private byte[]? _fullWidthRowBuffer;
 
     public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
@@ -68,25 +67,22 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             resolvedConverter);
 
         _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
-        _fullWidthRowBuffer = new byte[checked(header.ComponentCount * header.Width)];
 
         return parameters;
     }
 
-    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
+    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
     {
-        if (_jpgRowDecoder == null || _fullWidthRowBuffer == null)
+        if (_jpgRowDecoder == null)
         {
-            row = default;
             return false;
         }
 
-        if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
+        if (!_jpgRowDecoder.TryReadRow(destination))
         {
             throw new InvalidOperationException($"JPEG decode failed (SourceReference={Image.SourceReference}).");
         }
 
-        row = _fullWidthRowBuffer;
         return true;
     }
 
@@ -119,6 +115,5 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
     public override void Cleanup()
     {
         _jpgRowDecoder = null;
-        _fullWidthRowBuffer = null;
     }
 }

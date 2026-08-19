@@ -18,11 +18,13 @@ public sealed class PdfDecodedImage
     /// <param name="width">Width in pixels.</param>
     /// <param name="height">Height in pixels.</param>
     /// <param name="colorFormat">Layout of each pixel in the buffer.</param>
-    public PdfDecodedImage(int width, int height, PdfImageColorFormat colorFormat)
+    /// <param name="alphaType">How the buffer's alpha relates to its color samples.</param>
+    public PdfDecodedImage(int width, int height, PdfImageColorFormat colorFormat, PdfImageAlphaType alphaType)
     {
         Width = width;
         Height = height;
         ColorFormat = colorFormat;
+        AlphaType = alphaType;
         _rowBytes = width * ((colorFormat == PdfImageColorFormat.Gray) ? 1 : 4);
 
         int bufferLength = _rowBytes * height;
@@ -47,6 +49,11 @@ public sealed class PdfDecodedImage
     /// Gets the layout of each pixel in the buffer.
     /// </summary>
     public PdfImageColorFormat ColorFormat { get; }
+
+    /// <summary>
+    /// Gets how the buffer's alpha relates to its color samples.
+    /// </summary>
+    public PdfImageAlphaType AlphaType { get; }
 
     /// <summary>
     /// Gets the number of bytes occupied by a single row of the pixel buffer.

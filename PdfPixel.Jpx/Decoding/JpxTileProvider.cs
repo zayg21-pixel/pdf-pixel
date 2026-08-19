@@ -67,8 +67,6 @@ public readonly struct JpxTileProvider
 
     /// <summary>
     /// Gets the indices of the components reconstructed by this provider, in codestream order.
-    /// Resolved once from the header and the decoding parameters; every decoding stage iterates
-    /// it rather than the header's full component count.
     /// </summary>
     public IReadOnlyList<int> ComponentSelection { get; }
 

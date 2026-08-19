@@ -14,7 +14,6 @@ namespace PdfPixel.Imaging.Decoding;
 internal sealed class CcittImageDecoder : PdfImageDecoder
 {
     private CcittRowDecoder? _rowDecoder;
-    private byte[]? _fullWidthRowBuffer;
     private int _currentImageRow;
 
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
@@ -62,43 +61,37 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 
         PdfImageRowDecodingParameters rowDecodingParameters = CreateRowDecodingParameters(
             ctm,
-            new PdfIntegerSize(Image.Width, Image.Height),
+            new PdfIntegerSize(columns, rows),
             Image.BitsPerComponent,
-            _colorSpaceConverter,
-            scaledSizeSource: new PdfIntegerSize(columns, rows));
+            _colorSpaceConverter);
 
         _rowDecoder = new CcittRowDecoder(encodedData, columns, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);
-        _fullWidthRowBuffer = new byte[_rowDecoder.RowStride];
         _currentImageRow = 0;
 
         return rowDecodingParameters;
     }
 
-    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
+    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
     {
-        if (_rowDecoder == null || _fullWidthRowBuffer == null)
+        if (_rowDecoder == null)
         {
-            row = default;
             return false;
         }
 
-        Span<byte> buffer = _fullWidthRowBuffer;
+        Span<byte> buffer = destination;
         if (!_rowDecoder.DecodeNextRow(ref buffer))
         {
             Logger.LogWarning("CCITT row decoder ended early at image row {Row} (SourceReference={SourceReference}).", _currentImageRow, Image.SourceReference);
-            row = default;
             return false;
         }
 
         _currentImageRow++;
-        row = _fullWidthRowBuffer;
         return true;
     }
 
     public override void Cleanup()
     {
         _rowDecoder = null;
-        _fullWidthRowBuffer = null;
         _currentImageRow = 0;
     }
 }

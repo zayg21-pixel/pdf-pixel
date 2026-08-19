@@ -17,7 +17,6 @@ internal class JpxImageDecoder : PdfImageDecoder
 {
     private PdfColorSpaceConverter? _resolvedConverter;
     private JpxTileToRowConverter? _rowConverter;
-    private byte[]? _fullWidthRowBuffer;
 
     private readonly PdfColorSpaceConverter? _deviceGray;
     private readonly PdfColorSpaceConverter? _deviceRgb;
@@ -68,33 +67,34 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);
 
+        PdfImageAlphaType alphaType = _rowConverter.HasAlphaChannel
+            ? PdfImageAlphaType.Unpremultiplied
+            : PdfImageAlphaType.Opaque;
+
         PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
             ctm,
             new PdfIntegerSize(_rowConverter.Width, _rowConverter.Height),
             _rowConverter.BitsPerComponent,
             _resolvedConverter,
-            hasAlphaChannel: _rowConverter.HasAlphaChannel);
-
-        _fullWidthRowBuffer = new byte[((_rowConverter.Width * _rowConverter.ComponentCount * _rowConverter.BitsPerComponent) + 7) / 8];
+            alphaType: alphaType,
+            isAlphaInterleaved: _rowConverter.HasAlphaChannel);
 
         return parameters;
     }
 
-    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
+    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
     {
-        if (_rowConverter == null || _fullWidthRowBuffer == null)
+        if (_rowConverter == null)
         {
-            row = default;
             return false;
         }
 
         JpxObserver jpxObserver = new(observer);
-        if (!_rowConverter.TryGetNextRow(_fullWidthRowBuffer, jpxObserver))
+        if (!_rowConverter.TryGetNextRow(destination, jpxObserver))
         {
             throw new InvalidOperationException($"JPX decode failed (SourceReference={Image.SourceReference}).");
         }
 
-        row = _fullWidthRowBuffer;
         return true;
     }
 
@@ -206,6 +206,5 @@ internal class JpxImageDecoder : PdfImageDecoder
     {
         _rowConverter = null;
         _resolvedConverter = null;
-        _fullWidthRowBuffer = null;
     }
 }

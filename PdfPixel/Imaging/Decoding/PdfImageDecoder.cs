@@ -131,13 +131,13 @@ public abstract class PdfImageDecoder
         IPdfExecutionObserver? observer);
 
     /// <summary>
-    /// Reads the next full-width row of decoded samples, in the layout reported by
-    /// <see cref="Initialize"/>. Returns false once no further row can be produced.
+    /// Reads the next full-width row of decoded samples into <paramref name="destination"/>, in the
+    /// layout reported by <see cref="Initialize"/>. Returns false once no further row can be produced.
     /// </summary>
+    /// <param name="destination">Row buffer, at least <see cref="PdfImageRowDecodingParameters.RowBytes"/> long.</param>
     /// <param name="observer">Observer notified on progress; may be null.</param>
-    /// <param name="row">The decoded row, valid until the next call.</param>
     /// <returns>True when a row was produced; false when the decoder is exhausted.</returns>
-    public abstract bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row);
+    public abstract bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer);
 
     /// <summary>
     /// Builds the row decoding parameters for a decode pass, taking the entries that describe the
@@ -147,17 +147,17 @@ public abstract class PdfImageDecoder
     /// <param name="decodedSize">Size of the sample grid this decoder produces.</param>
     /// <param name="bitsPerComponent">Bit depth of the samples this decoder produces.</param>
     /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
-    /// <param name="scaledSizeSource">Size the scaled output size is measured against, when it differs from <paramref name="decodedSize"/>.</param>
-    /// <param name="hasAlphaChannel">True when the produced rows carry alpha as their last component.</param>
+    /// <param name="alphaType">How the alpha accompanying the produced rows relates to the color samples.</param>
+    /// <param name="isAlphaInterleaved">True when the produced rows carry alpha as their last component.</param>
     protected PdfImageRowDecodingParameters CreateRowDecodingParameters(
         in PdfMatrix ctm,
         in PdfIntegerSize decodedSize,
         int bitsPerComponent,
         PdfColorSpaceConverter colorSpaceConverter,
-        PdfIntegerSize? scaledSizeSource = null,
-        bool hasAlphaChannel = false)
+        PdfImageAlphaType alphaType = PdfImageAlphaType.Opaque,
+        bool isAlphaInterleaved = false)
     {
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, scaledSizeSource ?? decodedSize);
+        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize);
 
         return new PdfImageRowDecodingParameters(
             Context,
@@ -170,7 +170,8 @@ public abstract class PdfImageDecoder
             Image.MaskArray,
             Image.Decode,
             downscaledSize,
-            hasAlphaChannel);
+            alphaType,
+            isAlphaInterleaved);
     }
 
     /// <summary>

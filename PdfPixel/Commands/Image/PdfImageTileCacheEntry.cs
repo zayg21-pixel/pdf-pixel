@@ -21,6 +21,7 @@ public sealed class PdfImageTileCacheEntry
 
     private PdfImageTilingContext? _tilingContext;
     private PdfImageRowDecodingParameters? _imageParameters;
+    private byte[]? _rowBuffer;
     private int _currentImageRow;
 
     /// <summary>
@@ -63,6 +64,7 @@ public sealed class PdfImageTileCacheEntry
 
         _tilingContext = null;
         _imageParameters = null;
+        _rowBuffer = null;
         _currentImageRow = 0;
         _tileIndex = 0;
 
@@ -86,6 +88,7 @@ public sealed class PdfImageTileCacheEntry
         {
             _imageParameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), contentLocker, ctm, observer);
             _tilingContext = new PdfImageTilingContext(TileInfo, _imageParameters, tileIndexesToDecode, _loggerFactory);
+            _rowBuffer = new byte[_imageParameters.RowBytes];
             _decoderActive = true;
         }
     }
@@ -124,19 +127,19 @@ public sealed class PdfImageTileCacheEntry
     /// </summary>
     private PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
     {
-        if (_imageParameters == null || _tilingContext == null)
+        if (_imageParameters == null || _tilingContext == null || _rowBuffer == null)
         {
             return null;
         }
 
         while (_currentImageRow < _imageParameters.Height)
         {
-            if (!Decoder.TryReadNextRow(observer, out ReadOnlySpan<byte> decodedRow))
+            if (!Decoder.TryReadNextRow(_rowBuffer, observer))
             {
                 return null;
             }
 
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, decodedRow, observer);
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _rowBuffer, default, observer);
             _currentImageRow++;
             observer?.Notify();
 

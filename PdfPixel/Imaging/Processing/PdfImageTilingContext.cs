@@ -47,7 +47,7 @@ internal sealed class PdfImageTilingContext
 
         _columnSampleRanges = ComputeSampleRanges(tileInfo.TilesHorizontal, tileInfo.TileWidth, tileInfo.ImageSize.Width, imageParameters.Width);
         _rowSampleRanges = ComputeSampleRanges(tileInfo.TilesVertical, tileInfo.TileHeight, tileInfo.ImageSize.Height, imageParameters.Height);
-        _componentCount = imageParameters.ColorSpaceConverter.Components + ((imageParameters.HasAlphaChannel) ? 1 : 0);
+        _componentCount = imageParameters.ComponentCount;
 
         int maxTilePixelWidth = 0;
         for (int i = 0; i < _columnSampleRanges.Length; i++)
@@ -68,10 +68,14 @@ internal sealed class PdfImageTilingContext
     /// that complete as a result (or null if none completed yet).
     /// </summary>
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
-    public PdfImageTile[]? WriteRowAndTryGetTiles(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
+    public PdfImageTile[]? WriteRowAndTryGetTiles(
+        int imageRowIndex,
+        in ReadOnlySpan<byte> fullWidthRow,
+        in ReadOnlySpan<byte> fullWidthAlphaRow,
+        IPdfExecutionObserver? observer)
     {
         OpenNewTileRows(imageRowIndex, observer);
-        WriteRowToOpenTileRows(imageRowIndex, fullWidthRow, observer);
+        WriteRowToOpenTileRows(imageRowIndex, fullWidthRow, fullWidthAlphaRow, observer);
         return CloseFinishedTileRows(imageRowIndex, observer);
     }
 
@@ -113,7 +117,8 @@ internal sealed class PdfImageTilingContext
                     _imageParameters.MaskArray,
                     _imageParameters.Decode,
                     downscaledSize: downscaledSize,
-                    hasAlphaChannel: _imageParameters.HasAlphaChannel);
+                    alphaType: _imageParameters.AlphaType,
+                    isAlphaInterleaved: _imageParameters.IsAlphaInterleaved);
 
                 tileParameters[column] = parameters;
 
@@ -135,7 +140,11 @@ internal sealed class PdfImageTilingContext
     }
 
     [MethodImpl(methodImplOptions:  MethodImplOptions.AggressiveInlining)]
-    private void WriteRowToOpenTileRows(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
+    private void WriteRowToOpenTileRows(
+        int imageRowIndex,
+        in ReadOnlySpan<byte> fullWidthRow,
+        in ReadOnlySpan<byte> fullWidthAlphaRow,
+        IPdfExecutionObserver? observer)
     {
         int bitsPerComponent = _imageParameters.BitsPerComponent;
 
@@ -155,7 +164,12 @@ internal sealed class PdfImageTilingContext
                 int byteCount = (tilePixelWidth * _componentCount * bitsPerComponent + 7) / 8;
                 Span<byte> slice = _tileRowSliceBuffer.AsSpan(0, byteCount);
                 ExtractTileRowSlice(fullWidthRow, columnRange.Start, tilePixelWidth, bitsPerComponent, _componentCount, slice);
-                openTileRow.Processors[column]?.WriteRow(rowWithinTile, slice);
+
+                ReadOnlySpan<byte> alphaSlice = fullWidthAlphaRow.IsEmpty
+                    ? default
+                    : fullWidthAlphaRow.Slice(columnRange.Start, tilePixelWidth);
+
+                openTileRow.Processors[column]?.WriteRow(rowWithinTile, slice, alphaSlice);
                 observer?.Notify();
             }
         }

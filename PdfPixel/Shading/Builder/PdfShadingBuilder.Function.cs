@@ -67,7 +67,7 @@ internal partial class PdfShadingBuilder
         int bitmapWidth = Math.Max(1, xSamples.Length);
         int bitmapHeight = Math.Max(1, ySamples.Length);
 
-        PdfDecodedImage decodedImage = new(bitmapWidth, bitmapHeight, PdfImageColorFormat.Rgba);
+        PdfDecodedImage decodedImage = new(bitmapWidth, bitmapHeight, PdfImageColorFormat.Rgba, PdfImageAlphaType.Unpremultiplied);
         Span<byte> imageBuffer = decodedImage.GetRawBuffer();
         ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref imageBuffer[0]);
 

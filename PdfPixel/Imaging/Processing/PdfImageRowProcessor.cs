@@ -43,6 +43,8 @@ internal sealed partial class PdfImageRowProcessor
     private readonly int _components;
     private readonly int _totalComponents;
     private readonly bool _hasAlpha;
+    private readonly bool _hasAlphaPlane;
+    private readonly bool _isAlphaInterleaved;
 
     private readonly OutputMode _outputMode;
     private readonly PdfImageColorFormat _colorFormat;
@@ -61,6 +63,10 @@ internal sealed partial class PdfImageRowProcessor
 
     private readonly IRowConverter _rowConverter;
     private byte[]? _convertedRowBuffer;
+
+    // Same geometry as _rowConverter, over the single-channel alpha plane.
+    private readonly IRowConverter? _alphaRowConverter;
+    private byte[]? _convertedAlphaBuffer;
 
     private readonly ProcessingStages _stages;
     private readonly PdfRange[] _decodeRanges;
@@ -89,8 +95,10 @@ internal sealed partial class PdfImageRowProcessor
         }
 
         _components = _converter.Components;
-        _hasAlpha = parameters.HasAlphaChannel;
-        _totalComponents = _components + (_hasAlpha ? 1 : 0);
+        _isAlphaInterleaved = parameters.IsAlphaInterleaved;
+        _hasAlphaPlane = parameters.HasAlphaPlane;
+        _hasAlpha = _isAlphaInterleaved || _hasAlphaPlane;
+        _totalComponents = _components + (_isAlphaInterleaved ? 1 : 0);
         _decodeRanges = parameters.Decode ?? Array.Empty<PdfRange>();
         _maskArray = parameters.MaskArray ?? Array.Empty<int>();
         _stages = GetProcessingStages(parameters);
@@ -102,7 +110,7 @@ internal sealed partial class PdfImageRowProcessor
                 _outputMode = OutputMode.IndexedRgbaColorConverted;
                 _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.TransferFunction);
             }
-            else if (_components == 1 && bitsPerComponent <= 8 && !_hasAlpha)
+            else if (_components == 1 && bitsPerComponent <= 8 && !_isAlphaInterleaved)
             {
                 _outputMode = OutputMode.IndexedRgbaColorConverted;
                 _indexedPalette = BuildPackedPalette(_parameters, bitsPerComponent);
@@ -136,17 +144,29 @@ internal sealed partial class PdfImageRowProcessor
             rowConverterSourceBitsPerComponent = NormalizedBitsPerComponent;
         }
 
+        bool needsAlphaRowConverter = _hasAlphaPlane && _outputMode != OutputMode.IndexedRgbaColorConverted;
+
         if (parameters.DownscaledSize.HasValue)
         {
             _width = parameters.DownscaledSize.Value.Width;
             _height = parameters.DownscaledSize.Value.Height;
             _rowConverter = new AveragingDownsampleRowConverter(_totalComponents, rowConverterSourceBitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+
+            if (needsAlphaRowConverter)
+            {
+                _alphaRowConverter = new AveragingDownsampleRowConverter(1, NormalizedBitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+            }
         }
         else
         {
             _width = sourceWidth;
             _height = sourceHeight;
             _rowConverter = new SampleNormalizingRowConverter(_totalComponents, rowConverterSourceBitsPerComponent, _width);
+
+            if (needsAlphaRowConverter)
+            {
+                _alphaRowConverter = new SampleNormalizingRowConverter(1, NormalizedBitsPerComponent, _width);
+            }
         }
 
         if (_outputMode == OutputMode.Gray)
@@ -186,7 +206,12 @@ internal sealed partial class PdfImageRowProcessor
             return;
         }
 
-        _decodedImage = new PdfDecodedImage(_width, _height, _colorFormat);
+        _decodedImage = new PdfDecodedImage(_width, _height, _colorFormat, _parameters.AlphaType);
+
+        if (_alphaRowConverter != null)
+        {
+            _convertedAlphaBuffer = new byte[_width];
+        }
 
         switch (_outputMode)
         {
@@ -212,7 +237,7 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void WriteRow(int rowIndex, in Span<byte> decodedRow)
+    public void WriteRow(int rowIndex, in Span<byte> decodedRow, in ReadOnlySpan<byte> alphaRow)
     {
         if (!_initialized)
         {
@@ -224,6 +249,7 @@ internal sealed partial class PdfImageRowProcessor
             case OutputMode.IndexedRgbaColorConverted:
             {
                 WriteIndexedRow(decodedRow);
+                ApplyAlphaToIndexedRow(alphaRow);
 
                 if (!_rowConverter.TryConvertRow(rowIndex, _rgbaBuffer, _convertedRowBuffer))
                 {
@@ -236,6 +262,8 @@ internal sealed partial class PdfImageRowProcessor
             }
             case OutputMode.RgbaColorConverted:
             {
+                bool hasConvertedAlpha = TryConvertAlphaRow(rowIndex, alphaRow);
+
                 if (!_rowConverter.TryConvertRow(rowIndex, decodedRow, _convertedRowBuffer))
                 {
                     return;
@@ -248,6 +276,11 @@ internal sealed partial class PdfImageRowProcessor
                 else
                 {
                     WriteWithFullColor(_convertedRowBuffer);
+                }
+
+                if (hasConvertedAlpha)
+                {
+                    ApplyAlphaToRgbaBuffer();
                 }
 
                 CopyRowToPixelBuffer(_rgbaBuffer);
@@ -265,30 +298,105 @@ internal sealed partial class PdfImageRowProcessor
             }
             case OutputMode.Rgba:
             {
+                bool hasConvertedAlpha = TryConvertAlphaRow(rowIndex, alphaRow);
+
                 if (!_rowConverter.TryConvertRow(rowIndex, decodedRow, _convertedRowBuffer))
                 {
                     return;
                 }
 
-                if (_hasAlpha)
+                if (_isAlphaInterleaved)
                 {
                     if (_components == 1)
                     {
-                        WriteGrayAlphaRow(_convertedRowBuffer);
+                        WriteInterleavedGrayAlphaRow(_convertedRowBuffer);
                     }
                     else
                     {
                         CopyRowToPixelBuffer(_convertedRowBuffer);
                     }
+
+                    break;
+                }
+
+                ReadOnlySpan<byte> convertedAlpha = hasConvertedAlpha ? _convertedAlphaBuffer : default;
+
+                if (_components == 1)
+                {
+                    WriteGrayAlphaRow(_convertedRowBuffer, convertedAlpha);
                 }
                 else
                 {
-                    WriteRgba8Row(_convertedRowBuffer);
+                    WriteRgba8Row(_convertedRowBuffer, convertedAlpha);
                 }
 
                 break;
             }
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryConvertAlphaRow(int rowIndex, in ReadOnlySpan<byte> alphaRow)
+    {
+        if (_alphaRowConverter == null || _convertedAlphaBuffer == null || alphaRow.IsEmpty)
+        {
+            return false;
+        }
+
+        return _alphaRowConverter.TryConvertRow(rowIndex, alphaRow, _convertedAlphaBuffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ApplyAlphaToIndexedRow(in ReadOnlySpan<byte> alphaRow)
+    {
+        if (!_hasAlphaPlane || _rgbaBuffer == null || alphaRow.IsEmpty)
+        {
+            return;
+        }
+
+        int pixelCount = Math.Min(_parameters.Width, alphaRow.Length);
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
+        ref byte sourceAlpha = ref Unsafe.AsRef(in alphaRow[0]);
+
+        for (int x = 0; x < pixelCount; x++)
+        {
+            ref RgbaPacked pixel = ref Unsafe.Add(ref destPixel, x);
+            pixel.A = MultiplyAlpha(pixel.A, Unsafe.Add(ref sourceAlpha, x));
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ApplyAlphaToRgbaBuffer()
+    {
+        if (_rgbaBuffer == null || _convertedAlphaBuffer == null)
+        {
+            return;
+        }
+
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
+        ref byte sourceAlpha = ref _convertedAlphaBuffer[0];
+
+        for (int x = 0; x < _width; x++)
+        {
+            ref RgbaPacked pixel = ref Unsafe.Add(ref destPixel, x);
+            pixel.A = MultiplyAlpha(pixel.A, Unsafe.Add(ref sourceAlpha, x));
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte MultiplyAlpha(byte left, byte right)
+    {
+        if (left == byte.MaxValue)
+        {
+            return right;
+        }
+
+        if (left == 0)
+        {
+            return 0;
+        }
+
+        return (byte)(((left * right) + 127) / 255);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -402,7 +510,7 @@ internal sealed partial class PdfImageRowProcessor
 
             ColorVectorUtilities.Load01ToRgba(_sampler.Sample(componentValues), ref destPixel);
 
-            if (_hasAlpha)
+            if (_isAlphaInterleaved)
             {
                 destPixel.A = sourceByte;
                 sourceByte = ref Unsafe.Add(ref sourceByte, 1);
@@ -463,7 +571,7 @@ internal sealed partial class PdfImageRowProcessor
             Vector4 colorVector = _sampler.Sample(componentValues);
             ColorVectorUtilities.Load01ToRgba(colorVector, ref destPixel);
 
-            if (_hasAlpha)
+            if (_isAlphaInterleaved)
             {
                 destPixel.A = sourceByte;
                 sourceByte = ref Unsafe.Add(ref sourceByte, 1);
@@ -486,7 +594,7 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteGrayAlphaRow(in ReadOnlySpan<byte> normalizedRow)
+    private void WriteInterleavedGrayAlphaRow(in ReadOnlySpan<byte> normalizedRow)
     {
         Span<byte> destRow = GetDecodedImage().GetRow(_outputRowIndex++);
 
@@ -496,24 +604,75 @@ internal sealed partial class PdfImageRowProcessor
         for (int x = 0; x < _width; x++)
         {
             int offset = x * 2;
-            byte gray = Unsafe.Add(ref source, offset);
-            byte alpha = Unsafe.Add(ref source, offset + 1);
-            Unsafe.Add(ref destPixel, x) = (uint)(gray | (gray << 8) | (gray << 16) | (alpha << 24));
+            uint gray = Unsafe.Add(ref source, offset);
+            uint alpha = Unsafe.Add(ref source, offset + 1);
+            Unsafe.Add(ref destPixel, x) = gray | (gray << 8) | (gray << 16) | (alpha << 24);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteRgba8Row(in ReadOnlySpan<byte> normalizedRow)
+    private void WriteGrayAlphaRow(in ReadOnlySpan<byte> normalizedRow, in ReadOnlySpan<byte> alphaRow)
     {
         Span<byte> destRow = GetDecodedImage().GetRow(_outputRowIndex++);
 
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
         ref uint destPixel = ref Unsafe.As<byte, uint>(ref destRow[0]);
 
+        if (alphaRow.IsEmpty)
+        {
+            for (int x = 0; x < _width; x++)
+            {
+                uint gray = Unsafe.Add(ref source, x);
+                Unsafe.Add(ref destPixel, x) = gray | (gray << 8) | (gray << 16) | 0xFF000000;
+            }
+
+            return;
+        }
+
+        ref byte sourceAlpha = ref Unsafe.AsRef(in alphaRow[0]);
+
         for (int x = 0; x < _width; x++)
         {
-            uint rgb = Unsafe.As<byte, uint>(ref Unsafe.Add(ref source, x * 3));
-            Unsafe.Add(ref destPixel, x) = rgb | 0xFF000000;
+            uint gray = Unsafe.Add(ref source, x);
+            uint alpha = Unsafe.Add(ref sourceAlpha, x);
+            Unsafe.Add(ref destPixel, x) = gray | (gray << 8) | (gray << 16) | (alpha << 24);
+        }
+    }
+
+    // TODO: [high] rework fully
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteRgba8Row(in ReadOnlySpan<byte> normalizedRow, in ReadOnlySpan<byte> alphaRow)
+    {
+        Span<byte> destRow = GetDecodedImage().GetRow(_outputRowIndex++);
+
+        ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
+        ref uint destPixel = ref Unsafe.As<byte, uint>(ref destRow[0]);
+
+        // The last pixel's three bytes end the buffer; a wider load would reach past them.
+        if (alphaRow.IsEmpty)
+        {
+            for (int x = 0; x < _width; x++)
+            {
+                int offset = x * 3;
+                uint red = Unsafe.Add(ref source, offset);
+                uint green = Unsafe.Add(ref source, offset + 1);
+                uint blue = Unsafe.Add(ref source, offset + 2);
+                Unsafe.Add(ref destPixel, x) = red | (green << 8) | (blue << 16) | 0xFF000000;
+            }
+
+            return;
+        }
+
+        ref byte sourceAlpha = ref Unsafe.AsRef(in alphaRow[0]);
+
+        for (int x = 0; x < _width; x++)
+        {
+            int offset = x * 3;
+            uint red = Unsafe.Add(ref source, offset);
+            uint green = Unsafe.Add(ref source, offset + 1);
+            uint blue = Unsafe.Add(ref source, offset + 2);
+            uint alpha = Unsafe.Add(ref sourceAlpha, x);
+            Unsafe.Add(ref destPixel, x) = red | (green << 8) | (blue << 16) | (alpha << 24);
         }
     }
 

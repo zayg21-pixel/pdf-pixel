@@ -27,10 +27,8 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="maskArray">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
     /// <param name="decode">Sample remapping table from the PDF /Decode entry, or null for the default.</param>
     /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
-    /// <param name="hasAlphaChannel">
-    /// True when the interleaved row samples contain an alpha component as
-    /// the last component (by contract from the JPX row converter).
-    /// </param>
+    /// <param name="alphaType">How the alpha accompanying the color samples relates to them, or Opaque when there is none.</param>
+    /// <param name="isAlphaInterleaved">True when alpha is the last component of each packed sample, false when it arrives as a separate 8-bit plane.</param>
     public PdfImageRowDecodingParameters(
         ImageDecodingContext context,
         int width,
@@ -42,7 +40,8 @@ public sealed class PdfImageRowDecodingParameters
         int[]? maskArray,
         PdfRange[]? decode,
         PdfIntegerSize? downscaledSize,
-        bool hasAlphaChannel = false)
+        PdfImageAlphaType alphaType = PdfImageAlphaType.Opaque,
+        bool isAlphaInterleaved = false)
     {
         Width = width;
         Height = height;
@@ -54,7 +53,8 @@ public sealed class PdfImageRowDecodingParameters
         MaskArray = maskArray;
         Decode = decode;
         DownscaledSize = downscaledSize;
-        HasAlphaChannel = hasAlphaChannel;
+        AlphaType = alphaType;
+        IsAlphaInterleaved = isAlphaInterleaved;
     }
 
     /// <summary>
@@ -103,10 +103,29 @@ public sealed class PdfImageRowDecodingParameters
     public PdfIntegerSize? DownscaledSize { get; }
 
     /// <summary>
-    /// True when the interleaved row samples contain an alpha component as
-    /// the last component.
+    /// How the alpha accompanying the color samples relates to them, or Opaque when there is none.
     /// </summary>
-    public bool HasAlphaChannel { get; }
+    public PdfImageAlphaType AlphaType { get; }
+
+    /// <summary>
+    /// True when alpha is the last component of each packed sample, false when it arrives as a separate 8-bit plane.
+    /// </summary>
+    public bool IsAlphaInterleaved { get; }
+
+    /// <summary>
+    /// True when alpha arrives as a separate 8-bit plane alongside each row.
+    /// </summary>
+    public bool HasAlphaPlane => AlphaType != PdfImageAlphaType.Opaque && !IsAlphaInterleaved;
+
+    /// <summary>
+    /// Number of components in each packed sample, counting interleaved alpha.
+    /// </summary>
+    public int ComponentCount => ColorSpaceConverter.Components + ((IsAlphaInterleaved) ? 1 : 0);
+
+    /// <summary>
+    /// Size in bytes of one full-width row of packed samples.
+    /// </summary>
+    public int RowBytes => ((Width * ComponentCount * BitsPerComponent) + 7) / 8;
 
     /// <summary>
     /// Rendering context for the current decode pass.

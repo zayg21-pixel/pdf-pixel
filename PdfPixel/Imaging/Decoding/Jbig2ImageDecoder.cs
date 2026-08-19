@@ -18,7 +18,6 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 {
     private Jbig2Bitmap? _cachedBitmap;
 
-    private byte[]? _fullWidthRowBuffer;
     private int _currentImageRow;
     private int _rowCount;
 
@@ -57,26 +56,23 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             Image.BitsPerComponent,
             _colorSpaceConverter);
 
-        _fullWidthRowBuffer = new byte[_cachedBitmap.Stride];
         _currentImageRow = 0;
         _rowCount = parameters.Height;
 
         return parameters;
     }
 
-    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
+    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
     {
-        if (_cachedBitmap == null || _fullWidthRowBuffer == null || _currentImageRow >= _rowCount)
+        if (_cachedBitmap == null || _currentImageRow >= _rowCount)
         {
-            row = default;
             return false;
         }
 
-        _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(_fullWidthRowBuffer);
-        InvertRow(_fullWidthRowBuffer);
+        _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(destination);
+        InvertRow(destination);
         _currentImageRow++;
 
-        row = _fullWidthRowBuffer;
         return true;
     }
 
@@ -169,7 +165,6 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     public override void Cleanup()
     {
-        _fullWidthRowBuffer = null;
         _currentImageRow = 0;
         _rowCount = 0;
     }

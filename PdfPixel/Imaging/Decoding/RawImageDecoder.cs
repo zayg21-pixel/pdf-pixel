@@ -15,7 +15,6 @@ internal class RawImageDecoder : PdfImageDecoder
 {
     private object? _contentLocker;
     private Stream? _dataStream;
-    private byte[]? _fullWidthRowBuffer;
 
     public RawImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
@@ -41,9 +40,6 @@ internal class RawImageDecoder : PdfImageDecoder
             Image.BitsPerComponent,
             ResolvedColorSpaceConverter);
 
-        int rowBytes = checked(((Image.Width * ResolvedColorSpaceConverter.Components * Image.BitsPerComponent) + 7) / 8);
-        _fullWidthRowBuffer = new byte[rowBytes];
-
         lock (contentLocker)
         {
             _dataStream = Image.GetImageDataStream();
@@ -52,20 +48,18 @@ internal class RawImageDecoder : PdfImageDecoder
         return parameters;
     }
 
-    public override bool TryReadNextRow(IPdfExecutionObserver? observer, out ReadOnlySpan<byte> row)
+    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
     {
-        if (_contentLocker == null || _dataStream == null || _fullWidthRowBuffer == null)
+        if (_contentLocker == null || _dataStream == null)
         {
-            row = default;
             return false;
         }
 
         lock (_contentLocker)
         {
-            ReadFull(_dataStream, _fullWidthRowBuffer);
+            ReadFull(_dataStream, destination);
         }
 
-        row = _fullWidthRowBuffer;
         return true;
     }
 
@@ -89,7 +83,6 @@ internal class RawImageDecoder : PdfImageDecoder
     {
         _dataStream?.Dispose();
         _dataStream = null;
-        _fullWidthRowBuffer = null;
         _contentLocker = null;
     }
 }

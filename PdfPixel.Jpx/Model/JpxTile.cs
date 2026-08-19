@@ -66,7 +66,7 @@ public sealed class JpxTile
 
     /// <summary>
     /// Gets the indices of the components this tile holds samples for. Components outside the
-    /// selection keep an empty <see cref="ComponentData"/> entry and are never reconstructed.
+    /// selection keep an empty <see cref="ComponentData"/> entry.
     /// </summary>
     public IReadOnlyList<int> ComponentSelection { get; }
 
