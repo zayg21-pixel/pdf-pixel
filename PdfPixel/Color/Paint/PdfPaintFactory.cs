@@ -19,8 +19,8 @@ internal static class PdfPaintFactory
     {
         PdfPaint fillPaint = state.FillPaint;
         return new PdfPaint(PdfPaintStyle.Fill)
-            .WithSolidColor(PdfColors.White)
-            .WithAlpha(fillPaint.Alpha)
+            .WithColor(PdfColors.White)
+            .WithAlpha(fillPaint.Color.Alpha)
             .WithBlendMode(fillPaint.BlendMode);
     }
 

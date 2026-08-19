@@ -115,7 +115,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 if (charInfo.IsDefined && charInfo.Recording != null)
                 {
                     PdfColor? tintColor = (charInfo.IsColored)
-                        ? default
+                        ? null
                         : state.FillPaint.Color;
 
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).

@@ -84,7 +84,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         PdfShadingContent content = Shading.GetContent(shadingState);
 
-        recorder.Process(new DrawShadingCommand(content, shadingState.FillPaint.Alpha));
+        recorder.Process(new DrawShadingCommand(content, shadingState.FillPaint.Color.Alpha));
 
         recorder.Process(RestoreStateCommand.Instance);
 

@@ -117,7 +117,7 @@ public sealed class PdfTilingPattern : PdfPattern
 
         PdfColor? tintColor = (PaintTypeKind == PdfTilingPaintType.Uncolored)
             ? renderTarget.Color
-            : default;
+            : null;
 
         PdfRectangle bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 

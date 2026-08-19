@@ -91,8 +91,8 @@ public class PathRenderer : IPathRenderer
             }
             case PdfPaintOperation.FillAndStroke:
             {
-                bool overlapAffectsCompositing = state.FillPaint.Alpha < 1
-                    || state.StrokePaint.Alpha < 1
+                bool overlapAffectsCompositing = state.FillPaint.Color.Alpha < 1
+                    || state.StrokePaint.Color.Alpha < 1
                     || state.FillPaint.BlendMode != PdfBlendMode.Normal;
 
                 if (overlapAffectsCompositing)

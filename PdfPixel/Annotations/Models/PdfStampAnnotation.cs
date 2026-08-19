@@ -114,7 +114,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         float shadowOffset = fontSize * 0.05f;
         float shadowSigma = fontSize * 0.03f;
         PdfPaintShadowEffect shadowEffect = new(shadowOffset, shadowOffset, shadowSigma, shadowSigma, PdfColors.Black.WithAlpha(ShadowAlpha / 255f));
-        PdfPaint textPaint = new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color).WithShadowEffect(shadowEffect);
+        PdfPaint textPaint = new PdfPaint(PdfPaintStyle.Fill).WithColor(color).WithShadowEffect(shadowEffect);
 
         List<ShapedGlyph> glyphs = [];
         ShapedGlyphBuilder.BuildFromText(labelText, typeface, glyphs);

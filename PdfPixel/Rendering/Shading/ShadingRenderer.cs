@@ -87,6 +87,6 @@ public class ShadingRenderer : IShadingRenderer
             processor.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        processor.Process(new DrawShadingCommand(content, state.FillPaint.Alpha));
+        processor.Process(new DrawShadingCommand(content, state.FillPaint.Color.Alpha));
     }
 }

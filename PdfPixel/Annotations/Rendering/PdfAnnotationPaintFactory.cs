@@ -16,7 +16,7 @@ internal static class PdfAnnotationPaintFactory
     /// <summary>
     /// Fill paint used for the translucent opacity layer wrapping fallback rendering (CA entry).
     /// </summary>
-    public static PdfPaint CreateOpacityLayerPaint(float opacity) => new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(PdfColors.White.WithAlpha(opacity));
+    public static PdfPaint CreateOpacityLayerPaint(float opacity) => new PdfPaint(PdfPaintStyle.Fill).WithColor(PdfColors.White.WithAlpha(opacity));
 
     /// <summary>
     /// Fill paint for a Highlight annotation's marked region (Multiply blend so the mark darkens the text
@@ -24,7 +24,7 @@ internal static class PdfAnnotationPaintFactory
     /// blend from the page it has to darken.
     /// </summary>
     public static PdfPaint CreateHighlightPaint(in PdfColor color, float opacity)
-        => new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color).WithBlendMode(PdfBlendMode.Multiply).WithAlpha(opacity);
+        => new PdfPaint(PdfPaintStyle.Fill).WithColor(color).WithBlendMode(PdfBlendMode.Multiply).WithAlpha(opacity);
 
     /// <summary>
     /// Border stroke paint for a Stamp annotation's rounded-rectangle frame, with a drop-shadow effect
@@ -35,18 +35,18 @@ internal static class PdfAnnotationPaintFactory
         float shadowOffset = borderWidth * 0.5f;
         PdfPaintShadowEffect shadowEffect = new(shadowOffset, -shadowOffset, borderWidth * 0.3f, borderWidth * 0.3f, PdfColors.Black.WithAlpha(80f / 255f));
         PdfStrokeStyle strokeStyle = new(lineWidth: borderWidth);
-        return new PdfPaint(strokeStyle).WithSolidColor(color).WithShadowEffect(shadowEffect);
+        return new PdfPaint(strokeStyle).WithColor(color).WithShadowEffect(shadowEffect);
     }
 
     /// <summary>
     /// Plain fill paint.
     /// </summary>
-    public static PdfPaint CreateFillPaint(in PdfColor color) => new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color);
+    public static PdfPaint CreateFillPaint(in PdfColor color) => new PdfPaint(PdfPaintStyle.Fill).WithColor(color);
 
     /// <summary>
     /// Plain stroke paint using default stroke styling (width 1, Butt cap, Miter join, no dash/border effect).
     /// </summary>
-    public static PdfPaint CreateStrokePaint(in PdfColor color) => new PdfPaint(PdfPaintStyle.Stroke).WithSolidColor(color);
+    public static PdfPaint CreateStrokePaint(in PdfColor color) => new PdfPaint(PdfPaintStyle.Stroke).WithColor(color);
 
     /// <summary>
     /// Plain stroke paint with a specific line width; otherwise default stroke styling
@@ -63,7 +63,7 @@ internal static class PdfAnnotationPaintFactory
     /// (it depends on the page's color space); width, cap, join, and dash are expected to already be
     /// set on <paramref name="strokeStyle"/>.
     /// </summary>
-    public static PdfPaint CreateStrokePaint(in PdfColor color, PdfStrokeStyle strokeStyle) => new PdfPaint(strokeStyle).WithSolidColor(color);
+    public static PdfPaint CreateStrokePaint(in PdfColor color, PdfStrokeStyle strokeStyle) => new PdfPaint(strokeStyle).WithColor(color);
 
     /// <summary>
     /// Stroke paint from a fully resolved stroke style plus a parsed annotation border effect (BE entry).

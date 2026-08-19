@@ -1,4 +1,3 @@
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Geometry;
@@ -47,7 +46,7 @@ internal static class PdfPaintConverter
         {
             BlendMode = (paint.MaskParameters != null) ? SKBlendMode.DstIn : paint.BlendMode.ToSkiaBlendMode(),
             Style = style,
-            Color = ApplyAlpha(paint.Color, paint.Alpha).ToSkiaColor()
+            Color = paint.Color.ToSkiaColor()
         };
 
         if (paint.ShadowEffect is { } shadowEffect)
@@ -155,7 +154,4 @@ internal static class PdfPaintConverter
 
     private static SKImageFilter ComposeFilter(SKImageFilter outer, SKImageFilter? existing)
         => (existing != null) ? SKImageFilter.CreateCompose(outer, existing) : outer;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static PdfColor ApplyAlpha(in PdfColor color, float alpha) => color.WithAlpha(color.Alpha * Math.Max(0f, Math.Min(1f, alpha)));
 }
