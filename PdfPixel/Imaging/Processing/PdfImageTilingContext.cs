@@ -118,7 +118,8 @@ internal sealed class PdfImageTilingContext
                     _imageParameters.Decode,
                     downscaledSize: downscaledSize,
                     alphaType: _imageParameters.AlphaType,
-                    isAlphaInterleaved: _imageParameters.IsAlphaInterleaved);
+                    isAlphaInterleaved: _imageParameters.IsAlphaInterleaved,
+                    matte: _imageParameters.Matte);
 
                 tileParameters[column] = parameters;
 

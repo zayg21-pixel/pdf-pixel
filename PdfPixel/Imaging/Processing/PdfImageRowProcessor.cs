@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
@@ -49,6 +50,7 @@ internal sealed partial class PdfImageRowProcessor
     private readonly OutputMode _outputMode;
     private readonly PdfImageColorFormat _colorFormat;
     private readonly PdfImageAlphaType _alphaType;
+    private readonly PdfColor? _backdrop;
     private readonly int _rowBytes;
 
     private readonly ColorTransformSampler? _sampler;
@@ -180,10 +182,13 @@ internal sealed partial class PdfImageRowProcessor
         {
             // Colour key masking and the folded palette write zero alpha into buffers with no alpha source.
             _colorFormat = PdfImageColorFormat.Rgba;
-            _alphaType = (parameters.AlphaType == PdfImageAlphaType.Premultiplied)
-                ? PdfImageAlphaType.Premultiplied
-                : PdfImageAlphaType.Unpremultiplied;
+            _alphaType = PdfImageAlphaType.Unpremultiplied;
             _rowBytes = _width * 4;
+
+            if (parameters.Matte != null)
+            {
+                _backdrop = _converter.ToSrgb(parameters.Matte, parameters.RenderingIntent, parameters.Context.TransferFunction);
+            }
         }
 
         if (_outputMode == OutputMode.IndexedRgbaColorConverted)
@@ -250,6 +255,74 @@ internal sealed partial class PdfImageRowProcessor
             throw new InvalidOperationException("InitializeBuffer must be called before WriteRow.");
         }
 
+        int outputRowsBefore = _outputRowIndex;
+
+        WriteRowCore(rowIndex, decodedRow, alphaRow);
+
+        if (_backdrop.HasValue && _outputRowIndex > outputRowsBefore)
+        {
+            UndoMattePreblend(GetDecodedImage().GetRow(_outputRowIndex - 1));
+        }
+    }
+
+    /// <summary>
+    /// Recovers the unblended color of samples the soft mask's /Matte declares preblended,
+    /// as c = m + (c' - m) / a. Samples with zero alpha take the backdrop.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void UndoMattePreblend(in Span<byte> destRow)
+    {
+        if (!_backdrop.HasValue)
+        {
+            return;
+        }
+
+        PdfColor backdrop = _backdrop.Value;
+        float backdropRed = backdrop.Red * 255f;
+        float backdropGreen = backdrop.Green * 255f;
+        float backdropBlue = backdrop.Blue * 255f;
+
+        ref RgbaPacked pixel = ref Unsafe.As<byte, RgbaPacked>(ref destRow[0]);
+
+        for (int x = 0; x < _width; x++)
+        {
+            ref RgbaPacked current = ref Unsafe.Add(ref pixel, x);
+
+            if (current.A == 0)
+            {
+                current.R = ClampToByte(backdropRed);
+                current.G = ClampToByte(backdropGreen);
+                current.B = ClampToByte(backdropBlue);
+                continue;
+            }
+
+            float inverseAlpha = 255f / current.A;
+
+            current.R = ClampToByte(backdropRed + ((current.R - backdropRed) * inverseAlpha));
+            current.G = ClampToByte(backdropGreen + ((current.G - backdropGreen) * inverseAlpha));
+            current.B = ClampToByte(backdropBlue + ((current.B - backdropBlue) * inverseAlpha));
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte ClampToByte(float value)
+    {
+        if (value <= 0f)
+        {
+            return 0;
+        }
+
+        if (value >= 255f)
+        {
+            return byte.MaxValue;
+        }
+
+        return (byte)value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteRowCore(int rowIndex, in Span<byte> decodedRow, in ReadOnlySpan<byte> alphaRow)
+    {
         switch (_outputMode)
         {
             case OutputMode.IndexedRgbaColorConverted:

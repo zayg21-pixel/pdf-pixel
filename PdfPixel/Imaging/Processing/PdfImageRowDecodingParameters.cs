@@ -1,5 +1,7 @@
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Image;
+using System;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
@@ -29,7 +31,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
     /// <param name="alphaType">How the alpha accompanying the color samples relates to them, or Opaque when there is none.</param>
     /// <param name="isAlphaInterleaved">True when alpha is the last component of each packed sample, false when it arrives as a separate 8-bit plane.</param>
-    /// <param name="premultipliedBackdrop">Backdrop color the samples were blended with, required when <paramref name="alphaType"/> is Premultiplied and null otherwise.</param>
+    /// <param name="matte">Backdrop components from the soft mask's /Matte, required when <paramref name="alphaType"/> is Premultiplied and null otherwise.</param>
     public PdfImageRowDecodingParameters(
         ImageDecodingContext context,
         int width,
@@ -42,8 +44,14 @@ public sealed class PdfImageRowDecodingParameters
         PdfRange[]? decode,
         PdfIntegerSize? downscaledSize,
         PdfImageAlphaType alphaType = PdfImageAlphaType.Opaque,
-        bool isAlphaInterleaved = false)
+        bool isAlphaInterleaved = false,
+        float[]? matte = null)
     {
+        if ((alphaType == PdfImageAlphaType.Premultiplied) != (matte != null))
+        {
+            throw new ArgumentException("A premultiplied alpha type requires matte components, and no other type accepts them.", nameof(matte));
+        }
+
         Width = width;
         Height = height;
         BitsPerComponent = bitsPerComponent;
@@ -56,6 +64,7 @@ public sealed class PdfImageRowDecodingParameters
         DownscaledSize = downscaledSize;
         AlphaType = alphaType;
         IsAlphaInterleaved = isAlphaInterleaved;
+        Matte = matte;
     }
 
     /// <summary>
@@ -112,6 +121,11 @@ public sealed class PdfImageRowDecodingParameters
     /// True when alpha is the last component of each packed sample, false when it arrives as a separate 8-bit plane.
     /// </summary>
     public bool IsAlphaInterleaved { get; }
+
+    /// <summary>
+    /// Backdrop components from the soft mask's /Matte entry, set when <see cref="AlphaType"/> is Premultiplied.
+    /// </summary>
+    public float[]? Matte { get; }
 
     /// <summary>
     /// True when alpha arrives as a separate 8-bit plane alongside each row.

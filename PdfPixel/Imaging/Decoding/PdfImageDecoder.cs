@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
@@ -154,6 +155,7 @@ public abstract class PdfImageDecoder
         PdfColorSpaceConverter colorSpaceConverter)
     {
         PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize);
+        float[]? matte = ResolveSoftMaskMatte();
 
         return new PdfImageRowDecodingParameters(
             Context,
@@ -166,20 +168,41 @@ public abstract class PdfImageDecoder
             Image.MaskArray,
             Image.Decode,
             downscaledSize,
-            ResolveSoftMaskAlphaType());
+            ResolveSoftMaskAlphaType(matte),
+            isAlphaInterleaved: false,
+            matte: matte);
     }
 
     /// <summary>
     /// Returns the alpha type contributed by the image's soft mask, or Opaque when it has none.
     /// </summary>
-    protected PdfImageAlphaType ResolveSoftMaskAlphaType()
+    /// <param name="matte">Matte components returned by <see cref="ResolveSoftMaskMatte"/>.</param>
+    protected PdfImageAlphaType ResolveSoftMaskAlphaType(float[]? matte)
     {
         if (Image.SoftMask == null)
         {
             return PdfImageAlphaType.Opaque;
         }
 
-        return PdfImageAlphaType.Unpremultiplied;
+        return (matte != null)
+            ? PdfImageAlphaType.Premultiplied
+            : PdfImageAlphaType.Unpremultiplied;
+    }
+
+    /// <summary>
+    /// Returns the soft mask's /Matte components when they match this image's component count,
+    /// or null when the mask declares none.
+    /// </summary>
+    protected float[]? ResolveSoftMaskMatte()
+    {
+        float[]? matteArray = Image.SoftMask?.MatteArray;
+
+        if (matteArray == null || matteArray.Length != ResolvedColorSpaceConverter.Components)
+        {
+            return null;
+        }
+
+        return matteArray;
     }
 
     /// <summary>

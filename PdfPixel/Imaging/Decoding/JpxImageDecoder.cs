@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
@@ -68,9 +69,10 @@ internal class JpxImageDecoder : PdfImageDecoder
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);
 
         bool hasInterleavedAlpha = _rowConverter.HasAlphaChannel;
+        float[]? matte = hasInterleavedAlpha ? null : ResolveSoftMaskMatte();
         PdfImageAlphaType alphaType = hasInterleavedAlpha
             ? PdfImageAlphaType.Unpremultiplied
-            : ResolveSoftMaskAlphaType();
+            : ResolveSoftMaskAlphaType(matte);
 
         PdfIntegerSize decodedSize = new(_rowConverter.Width, _rowConverter.Height);
 
@@ -86,7 +88,8 @@ internal class JpxImageDecoder : PdfImageDecoder
             Image.Decode,
             PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize),
             alphaType,
-            hasInterleavedAlpha);
+            hasInterleavedAlpha,
+            matte);
 
         return parameters;
     }
