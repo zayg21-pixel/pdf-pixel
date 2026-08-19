@@ -5,7 +5,11 @@ using PdfPixel.Color.Icc;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
+/// <summary>
+/// The Lab color space: a lightness component and two chromatic components, a* and b*, in the
+/// CIE 1976 L*a*b* space.
+/// </summary>
+public sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
 {
     private static readonly Vector4 _labOffset = new(0, 128, 128, 0);
     private static readonly Vector4 _labScale = new(1f / 100, 1f / 255, 1f / 255, 1);
@@ -15,6 +19,9 @@ internal sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
     private readonly FunctionColorTransform _normalizeTransform;
     private readonly ChainedColorTransform _labTransform;
 
+    /// <summary>
+    /// Initializes the space from its white point, black point, and the ranges bounding a* and b*.
+    /// </summary>
     public PdfLabColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? rangeArray)
     {
         Vector4 whitePointVector;
@@ -49,12 +56,16 @@ internal sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
         _labTransform = new ChainedColorTransform(toXyzTransform, toSrgbTransform);
     }
 
+    /// <inheritdoc />
     public override int Components => 3;
 
+    /// <inheritdoc />
     public override bool IsDevice => false;
 
+    /// <inheritdoc />
     public override IColorTransform NormalizeTransform => _normalizeTransform;
 
+    /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
     {
         IColorTransform? firstStage = normalize ? _normalizeTransform : null;

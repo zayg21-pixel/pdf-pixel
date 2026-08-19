@@ -8,7 +8,11 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
+/// <summary>
+/// The Indexed color space: color values are indices into a palette of colors defined in a base
+/// color space.
+/// </summary>
+public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfColorSpaceConverter _baseConv;
     private readonly int _hiVal;
@@ -16,6 +20,10 @@ internal sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
 
     private readonly Dictionary<PaletteCacheKey, Vector4[]> _paletteCache = [];
 
+    /// <summary>
+    /// Initializes the space from its base color space, its highest valid index, and the bytes of
+    /// its palette.
+    /// </summary>
     public PdfIndexedColorSpaceConverter(PdfColorSpaceConverter baseConv, int hiVal, byte[] lookup)
     {
         _baseConv = baseConv ?? throw new ArgumentNullException(nameof(baseConv));
@@ -23,8 +31,10 @@ internal sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
         _lookup = lookup ?? Array.Empty<byte>();
     }
 
+    /// <inheritdoc />
     public override int Components => 1;
 
+    /// <inheritdoc />
     public override bool IsDevice => false;
 
     /// <summary>
@@ -63,6 +73,10 @@ internal sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
         return palette;
     }
 
+    /// <summary>
+    /// Build (or retrieve cached) palette for this Indexed color space under the specified rendering
+    /// intent, packed as RGBA bytes.
+    /// </summary>
     public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, TransferFunctionTransform? postTransform)
     {
         Vector4[] palette = BuildPalette(renderingIntent, postTransform);
@@ -76,6 +90,7 @@ internal sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
         return packedPalette;
     }
 
+    /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
         => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
 

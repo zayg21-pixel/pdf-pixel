@@ -6,8 +6,16 @@ using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
 
-internal class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
+/// <summary>
+/// The CalRGB color space: red, green, and blue components defined by CIE colorimetry rather than
+/// by the output device.
+/// </summary>
+public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
 {
+    /// <summary>
+    /// Initializes the space from its white point, black point, per-component gamma, and the matrix
+    /// mapping its components to CIE XYZ.
+    /// </summary>
     public PdfCalRgbColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)
     {
         // TODO: [LOW] Handle blackPoint if needed, it's unused currently and seems to be ignored by all major PDF viewers.
@@ -48,12 +56,18 @@ internal class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
         ToSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, IccTransforms.XyzD50ToSrgbTransform);
     }
 
+    /// <inheritdoc />
     public override int Components => 3;
 
+    /// <inheritdoc />
     public override bool IsDevice => false;
 
+    /// <summary>
+    /// Gets the transform taking this space's components to sRGB.
+    /// </summary>
     protected ChainedColorTransform ToSrgbTransform { get; }
 
+    /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
         => new(new ChainedColorTransform(ToSrgbTransform, postTransform));
 }
