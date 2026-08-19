@@ -58,6 +58,7 @@ public class PdfImage
         }
 
         MatteArray = dictionary.GetArray(PdfTokens.MatteKey)?.GetFloatArray();
+        SoftMaskInData = MapSoftMaskInData(dictionary.GetIntegerOrDefault(PdfTokens.SoftMaskInDataKey));
         RenderingIntent = dictionary.GetNameOrDefault(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
         var type = PdfImageType.Raw;
@@ -200,6 +201,12 @@ public class PdfImage
     public float[]? MatteArray { get; }
 
     /// <summary>
+    /// Where a JPEG 2000 image's opacity comes from (/SMaskInData). Defaults to
+    /// <see cref="PdfImageSoftMaskInData.None"/> when the entry is absent or out of range.
+    /// </summary>
+    public PdfImageSoftMaskInData SoftMaskInData { get; }
+
+    /// <summary>
     /// The soft mask image associated with this image, if any.
     /// </summary>
     public PdfImage? SoftMask { get; }
@@ -241,6 +248,16 @@ public class PdfImage
         }
 
         return image;
+    }
+
+    private static PdfImageSoftMaskInData MapSoftMaskInData(int value)
+    {
+        return value switch
+        {
+            1 => PdfImageSoftMaskInData.Alpha,
+            2 => PdfImageSoftMaskInData.PremultipliedAlpha,
+            _ => PdfImageSoftMaskInData.None
+        };
     }
 
     private static PdfImageType MapImageType(PdfFilterType filterType)

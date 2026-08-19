@@ -1,6 +1,7 @@
 using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace PdfPixel.Jpx.Decoding;
@@ -39,7 +40,8 @@ public readonly struct JpxTileProvider
 
         var progressionOrder = (JpxProgressionOrder)header.CodingStyle.ProgressionOrder;
         IJpxPacketParser packetParser = JpxPacketParserFactory.CreateParser(progressionOrder, header);
-        _tileDecoder = new JpxTileDecoder(header, packetParser);
+        ComponentSelection = ResolveComponentSelection(header, _decodingParameters);
+        _tileDecoder = new JpxTileDecoder(header, packetParser, ComponentSelection);
 
         TilesHorizontal = (int)Math.Ceiling((double)header.Width / header.TileWidth);
         TilesVertical = (int)Math.Ceiling((double)header.Height / header.TileHeight);
@@ -62,6 +64,13 @@ public readonly struct JpxTileProvider
     /// Gets the total number of tiles in the image.
     /// </summary>
     public int TotalTiles { get; }
+
+    /// <summary>
+    /// Gets the indices of the components reconstructed by this provider, in codestream order.
+    /// Resolved once from the header and the decoding parameters; every decoding stage iterates
+    /// it rather than the header's full component count.
+    /// </summary>
+    public IReadOnlyList<int> ComponentSelection { get; }
 
 
     /// <summary>
@@ -115,8 +124,40 @@ public readonly struct JpxTileProvider
     }
 
     /// <summary>
-    /// Creates tile storage sized for this image's components, suitable for passing to
+    /// Creates tile storage sized for this image's selected components, suitable for passing to
     /// <see cref="DecodeTile"/> and reusing across tiles.
     /// </summary>
-    public JpxTile CreateTile() => new(_header);
+    public JpxTile CreateTile() => new(_header, ComponentSelection);
+
+    /// <summary>
+    /// Resolves which components are reconstructed, leaving out the cdef opacity component when
+    /// the parameters say it is not needed.
+    /// </summary>
+    private static int[] ResolveComponentSelection(JpxHeader header, in JpxDecodingParameters decodingParameters)
+    {
+        int opacityComponentIndex = header.OpacityComponentIndex;
+
+        if (decodingParameters.IncludeOpacityComponent || opacityComponentIndex < 0)
+        {
+            var allComponents = new int[header.ComponentCount];
+            for (int component = 0; component < allComponents.Length; component++)
+            {
+                allComponents[component] = component;
+            }
+
+            return allComponents;
+        }
+
+        var selection = new int[header.ComponentCount - 1];
+        int selectionIndex = 0;
+        for (int component = 0; component < header.ComponentCount; component++)
+        {
+            if (component != opacityComponentIndex)
+            {
+                selection[selectionIndex++] = component;
+            }
+        }
+
+        return selection;
+    }
 }

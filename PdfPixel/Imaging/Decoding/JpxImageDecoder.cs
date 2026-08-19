@@ -52,24 +52,15 @@ internal class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (SourceReference={Image.SourceReference}).");
         }
 
-        // TODO: [MEDIUM] Honour /SMaskInData, which nothing parses today. It decides where an
-        // image's opacity comes from: absent or 0 means the codestream's opacity channel shall be
-        // ignored and /SMask carries the alpha, 1 means the codestream's channel is the soft mask,
-        // and 2 means the same with the colour premultiplied. The default of 0 is what almost every
-        // file relies on, but a cdef opacity channel is always reconstructed and emitted here, so an
-        // image holding both applies its mask twice and pays for a component it never reads — a
-        // whole extra full-size component buffer on a single-tile image such as issue19517.
-        // Dropping it belongs in a component selection resolved once from the header and these
-        // parameters, which JpxTileDecoder, JpxTile and JpxTileToRowConverter then iterate, rather
-        // than a skip test repeated at every stage; that also replaces the row converter's separate
-        // colour and alpha branches with one loop. Mode 2 is /Matte with a black backdrop —
-        // c' = m + a(c - m) at m = 0 — so it wants the same un-blend as the MatteArray that
-        // SoftMaskImageExecutionContext already carries, and SKAlphaType.Premul can hold it
-        // untouched while the colour space needs no transform. The two do not unify in one place
-        // though: mode 2 has its alpha in the row, while /Matte gets it from a separately tiled
-        // image and can only be undone once both tiles meet at composition. The corpus sets the
-        // entry in issue11306, issue16782 and isssue18194.
-        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, regionsOfInterest, _resolvedConverter);
+        // TODO: [MEDIUM] Un-blend the colour for /SMaskInData 2, which is read here but treated as
+        // mode 1. Mode 2 says the colour channels are premultiplied, which is /Matte with a black
+        // backdrop — c' = m + a(c - m) at m = 0 — so it wants the same un-blend as the MatteArray
+        // that SoftMaskImageExecutionContext already carries, and the colour space needs no
+        // transform. The two do not unify at the same point though: mode 2 has its alpha in the
+        // row, while /Matte gets it from a separately tiled image and can only be undone once both
+        // tiles meet. The corpus sets the entry in issue11306, issue16782 and isssue18194.
+        bool includeOpacityComponent = Image.SoftMaskInData != PdfImageSoftMaskInData.None;
+        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, regionsOfInterest, _resolvedConverter, includeOpacityComponent);
         JpxTileProvider tileProvider = new(
             jpxHeader,
             encodedData.Span.Slice(jpxHeader.CodestreamOffset),
@@ -145,14 +136,15 @@ internal class JpxImageDecoder : PdfImageDecoder
         JpxHeader header,
         in PdfMatrix ctm,
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        PdfColorSpaceConverter resolvedConverter)
+        PdfColorSpaceConverter resolvedConverter,
+        bool includeOpacityComponent)
     {
         IReadOnlyList<JpxRectangle>? jpxRegionsOfInterest = ToJpxRegions(regionsOfInterest);
 
         // Indexed samples are palette indices; never reconstruct them at a reduced DWT level.
         if (resolvedConverter is PdfIndexedColorSpaceConverter)
         {
-            return new JpxDecodingParameters(1, jpxRegionsOfInterest);
+            return new JpxDecodingParameters(1, jpxRegionsOfInterest, includeOpacityComponent);
         }
 
         PdfIntegerSize sourceSize = new((int)header.Width, (int)header.Height);
@@ -160,7 +152,7 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         if (!targetSize.HasValue || header.CodingStyle == null)
         {
-            return new JpxDecodingParameters(1, jpxRegionsOfInterest);
+            return new JpxDecodingParameters(1, jpxRegionsOfInterest, includeOpacityComponent);
         }
 
         int maxLevels = header.CodingStyle.DecompositionLevels;
@@ -181,7 +173,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             }
         }
 
-        return new JpxDecodingParameters(descaleFactor, jpxRegionsOfInterest);
+        return new JpxDecodingParameters(descaleFactor, jpxRegionsOfInterest, includeOpacityComponent);
     }
 
     private static List<JpxRectangle>? ToJpxRegions(IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest)

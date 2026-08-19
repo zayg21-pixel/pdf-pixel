@@ -185,6 +185,7 @@ internal static class PdfTokens
     public static readonly PdfString InterpolateKey = (PdfString)"Interpolate"u8;
     public static readonly PdfString IntentKey = (PdfString)"Intent"u8;
     public static readonly PdfString MatteKey = (PdfString)"Matte"u8; // Soft mask image dematting color components
+    public static readonly PdfString SoftMaskInDataKey = (PdfString)"SMaskInData"u8; // JPX opacity channel handling, 0..2
 
     // Shading Dictionary Keys
     public static readonly PdfString ShadingTypeKey = (PdfString)"ShadingType"u8; // 1..7

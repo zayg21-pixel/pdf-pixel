@@ -26,6 +26,7 @@ internal sealed class JpxTileDecoder
     private readonly JpxCodingStyle _codingStyle;
     private readonly IJpxPacketParser _packetParser;
     private readonly JpxInverseMct _inverseMct;
+    private readonly IReadOnlyList<int> _componentSelection;
 
     // Scratch shared by every tile and component of the image.
     private readonly JpxSubbandData _subbands;
@@ -34,10 +35,11 @@ internal sealed class JpxTileDecoder
     private int[] _codeBlockCoefficients = [];
     private uint[] _codeBlockState = [];
 
-    public JpxTileDecoder(JpxHeader header, IJpxPacketParser packetParser)
+    public JpxTileDecoder(JpxHeader header, IJpxPacketParser packetParser, IReadOnlyList<int> componentSelection)
     {
         _header = header ?? throw new ArgumentNullException(nameof(header));
         _packetParser = packetParser ?? throw new ArgumentNullException(nameof(packetParser));
+        _componentSelection = componentSelection ?? throw new ArgumentNullException(nameof(componentSelection));
 
         if (_header.CodingStyle == null)
         {
@@ -103,8 +105,9 @@ internal sealed class JpxTileDecoder
         // (levels - r), and the transform reads levels down to levelsToSkip.
         int highestNeededResolution = decompositionLevels - levelsToSkip;
 
-        for (int component = 0; component < destination.ComponentCount; component++)
+        for (int index = 0; index < _componentSelection.Count; index++)
         {
+            int component = _componentSelection[index];
             _subbands.Reset(tileBounds, levelsToSkip);
 
             // Stages 2-3: Entropy decode each of this component's code-blocks and place
@@ -129,8 +132,9 @@ internal sealed class JpxTileDecoder
         observer?.Notify();
 
         // Stage 6b: DC level shift and clamp for each component
-        for (int component = 0; component < destination.ComponentCount; component++)
+        for (int index = 0; index < _componentSelection.Count; index++)
         {
+            int component = _componentSelection[index];
             ApplyDcLevelShift(destination.ComponentData[component].AsSpan(0, sampleCount), _header.Components[component]);
             observer?.Notify();
         }

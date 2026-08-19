@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Jpx.Model;
 
@@ -14,17 +15,20 @@ namespace PdfPixel.Jpx.Model;
 public sealed class JpxTile
 {
     /// <summary>
-    /// Initializes a tile that can hold samples for the image's components.
-    /// The tile has no dimensions until <see cref="Reset"/> is called.
+    /// Initializes a tile that can hold samples for the components in
+    /// <paramref name="componentSelection"/>. The tile has no dimensions until
+    /// <see cref="Reset"/> is called.
     /// </summary>
     /// <param name="header">The JPX header containing component info.</param>
-    public JpxTile(JpxHeader header)
+    /// <param name="componentSelection">Indices of the components this tile holds samples for.</param>
+    public JpxTile(JpxHeader header, IReadOnlyList<int> componentSelection)
     {
         if (header == null)
         {
             throw new ArgumentNullException(nameof(header));
         }
 
+        ComponentSelection = componentSelection ?? throw new ArgumentNullException(nameof(componentSelection));
         ComponentCount = header.ComponentCount;
         ComponentData = new int[ComponentCount][];
 
@@ -61,6 +65,12 @@ public sealed class JpxTile
     public int ComponentCount { get; }
 
     /// <summary>
+    /// Gets the indices of the components this tile holds samples for. Components outside the
+    /// selection keep an empty <see cref="ComponentData"/> entry and are never reconstructed.
+    /// </summary>
+    public IReadOnlyList<int> ComponentSelection { get; }
+
+    /// <summary>
     /// Gets the decoded component data. Each component is stored as a flat array indexed
     /// by [y * Width + x]. Entries beyond <see cref="SampleCount"/> are spare capacity
     /// left over from a previously decoded, larger tile.
@@ -81,8 +91,10 @@ public sealed class JpxTile
 
         int sampleCount = width * height;
 
-        for (int component = 0; component < ComponentCount; component++)
+        for (int index = 0; index < ComponentSelection.Count; index++)
         {
+            int component = ComponentSelection[index];
+
             if (ComponentData[component].Length < sampleCount)
             {
                 ComponentData[component] = new int[sampleCount];
@@ -108,6 +120,23 @@ public sealed class JpxTile
     /// Gets the tile Y coordinate in the tile grid.
     /// </summary>
     public int TileY => TileHeader?.TileY ?? 0;
+
+    /// <summary>
+    /// Returns whether <paramref name="component"/> is part of <see cref="ComponentSelection"/>
+    /// and therefore holds reconstructed samples.
+    /// </summary>
+    public bool IsComponentDecoded(int component)
+    {
+        for (int index = 0; index < ComponentSelection.Count; index++)
+        {
+            if (ComponentSelection[index] == component)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Gets the raw signed-or-unsigned component value at the specified coordinates.

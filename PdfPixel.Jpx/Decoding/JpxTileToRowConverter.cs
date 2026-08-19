@@ -74,34 +74,35 @@ public sealed class JpxTileToRowConverter
         Width = _decodingParameters.ReduceDimension((int)header.Width);
         Height = _decodingParameters.ReduceDimension((int)header.Height);
 
-        _alphaComponentIndex = header.OpacityComponentIndex;
+        // The provider's selection is the authority on what was reconstructed: an opacity
+        // component left out of it never reaches a tile, so it is not an output channel either.
+        IReadOnlyList<int> componentSelection = tileProvider.ComponentSelection;
+        int opacityComponentIndex = header.OpacityComponentIndex;
+        _alphaComponentIndex = -1;
 
-        if (_alphaComponentIndex >= 0)
+        for (int index = 0; index < componentSelection.Count; index++)
         {
-            _colorComponentIndices = new int[header.ComponentCount - 1];
-            int colorIndex = 0;
-            for (int i = 0; i < header.ComponentCount; i++)
+            if (componentSelection[index] == opacityComponentIndex)
             {
-                if (i != _alphaComponentIndex)
-                {
-                    _colorComponentIndices[colorIndex++] = i;
-                }
+                _alphaComponentIndex = opacityComponentIndex;
+                break;
             }
-
-            ColorComponentCount = _colorComponentIndices.Length;
-        }
-        else
-        {
-            _colorComponentIndices = new int[header.ComponentCount];
-            for (int i = 0; i < header.ComponentCount; i++)
-            {
-                _colorComponentIndices[i] = i;
-            }
-
-            ColorComponentCount = header.ComponentCount;
         }
 
-        ComponentCount = header.ComponentCount;
+        ComponentCount = componentSelection.Count;
+        ColorComponentCount = ComponentCount - ((_alphaComponentIndex >= 0) ? 1 : 0);
+        _colorComponentIndices = new int[ColorComponentCount];
+
+        int colorIndex = 0;
+        for (int index = 0; index < componentSelection.Count; index++)
+        {
+            int component = componentSelection[index];
+
+            if (component != _alphaComponentIndex)
+            {
+                _colorComponentIndices[colorIndex++] = component;
+            }
+        }
 
         _reducedTileWidth = _decodingParameters.ReduceDimension((int)header.TileWidth);
         _reducedTileHeight = _decodingParameters.ReduceDimension((int)header.TileHeight);

@@ -36,6 +36,13 @@ public readonly struct JpxDecodingParameters
     public IReadOnlyList<JpxRectangle>? RegionsOfInterest { get; }
 
     /// <summary>
+    /// Whether the component the cdef box declares as opacity is reconstructed. When false it is
+    /// left out of the component selection entirely, so it is never entropy decoded, transformed,
+    /// or allocated, and the produced rows carry colour components only.
+    /// </summary>
+    public bool IncludeOpacityComponent { get; }
+
+    /// <summary>
     /// Default parameters representing full-resolution decoding of the entire image.
     /// </summary>
     public static JpxDecodingParameters Default { get; } = new(1);
@@ -45,8 +52,9 @@ public readonly struct JpxDecodingParameters
     /// </summary>
     /// <param name="descaleFactor">Power-of-2 reduction factor. Must be &gt;= 1.</param>
     /// <param name="regionsOfInterest">Regions, in full-resolution image coordinates, that must be decoded. Null means every tile must be decoded.</param>
+    /// <param name="includeOpacityComponent">Whether the cdef opacity component is reconstructed.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="descaleFactor"/> is less than 1 or not a power of 2.</exception>
-    public JpxDecodingParameters(int descaleFactor, IReadOnlyList<JpxRectangle>? regionsOfInterest = null)
+    public JpxDecodingParameters(int descaleFactor, IReadOnlyList<JpxRectangle>? regionsOfInterest = null, bool includeOpacityComponent = true)
     {
         if (descaleFactor < 1)
         {
@@ -61,6 +69,7 @@ public readonly struct JpxDecodingParameters
         DescaleFactor = descaleFactor;
         LevelsToSkip = Log2(descaleFactor);
         RegionsOfInterest = regionsOfInterest;
+        IncludeOpacityComponent = includeOpacityComponent;
     }
 
     /// <summary>

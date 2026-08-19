@@ -45,7 +45,14 @@ internal sealed class JpxInverseMct
             throw new ArgumentNullException(nameof(tile));
         }
 
+        // The transform reads the first three components together, so it can only run when all
+        // three were reconstructed.
         if (!IsEnabled || tile.ComponentCount < 3)
+        {
+            return;
+        }
+
+        if (!tile.IsComponentDecoded(0) || !tile.IsComponentDecoded(1) || !tile.IsComponentDecoded(2))
         {
             return;
         }
