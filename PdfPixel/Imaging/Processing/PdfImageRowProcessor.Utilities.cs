@@ -22,7 +22,7 @@ internal sealed partial class PdfImageRowProcessor
         for (int code = 0; code < paletteSize; code++)
         {
             comps[0] = (maxCode == 0) ? 0f : (float)code / maxCode;
-            palette[code] = sampler.Sample(comps).From01ToRgba();
+            ColorVectorUtilities.Load01ToRgba(sampler.Sample(comps), ref palette[code]);
         }
 
         return palette;
@@ -35,7 +35,9 @@ internal sealed partial class PdfImageRowProcessor
     private static RgbaPacked[] BuildStencilMaskPalette(PdfImageRowDecodingParameters parameters)
     {
         PdfColor fillColor = parameters.Context.FillPaint.Color;
-        RgbaPacked painted = new Vector4(fillColor.Red, fillColor.Green, fillColor.Blue, 0f).From01ToRgba();
+        Vector4 fillVector = new(fillColor.Red, fillColor.Green, fillColor.Blue, 0f);
+        RgbaPacked painted = default;
+        ColorVectorUtilities.Load01ToRgba(fillVector, ref painted);
         RgbaPacked clear = painted;
         clear.A = 0;
 
@@ -45,6 +47,70 @@ internal sealed partial class PdfImageRowProcessor
         return paintsOnZero
             ? new[] { painted, clear }
             : new[] { clear, painted };
+    }
+
+    /// <summary>
+    /// Rebuilds the palette so that a raw sample read from the row selects its final pixel directly, with the
+    /// /Decode mapping and the colour key mask already applied. The result is indexed by sample value and so
+    /// spans the whole sample domain rather than the source palette's entry count. Returns the source palette
+    /// unchanged when neither stage applies.
+    /// </summary>
+    /// <param name="palette">The palette built from the image's colour space.</param>
+    private RgbaPacked[] FoldDecodeAndMaskIntoPalette(RgbaPacked[] palette)
+    {
+        bool applyDecode = (_stages & RowStages.Decode) != 0;
+        bool applyMask = (_stages & RowStages.ColorKeyMask) != 0;
+
+        if (!applyDecode && !applyMask)
+        {
+            return palette;
+        }
+
+        float decodeMin = 0f;
+        float decodeScale = 0f;
+
+        if (applyDecode)
+        {
+            PdfRange decodeRange = _decodeRanges[0];
+            decodeMin = decodeRange.Min;
+            decodeScale = decodeRange.Range * _scale;
+        }
+
+        uint maskMinCode = 0;
+        uint maskMaxCode = 0;
+
+        if (applyMask)
+        {
+            maskMinCode = (uint)_maskArray[0];
+            maskMaxCode = (uint)_maskArray[1];
+        }
+
+        var maxPaletteIndex = (uint)(palette.Length - 1);
+        int sampleCount = 1 << _indexedBitsPerComponent;
+        var foldedPalette = new RgbaPacked[sampleCount];
+
+        for (int sample = 0; sample < sampleCount; sample++)
+        {
+            var paletteIndex = (uint)sample;
+
+            if (applyDecode)
+            {
+                paletteIndex = (uint)Math.Max(0f, decodeMin + (paletteIndex * decodeScale));
+            }
+
+            paletteIndex = Math.Min(paletteIndex, maxPaletteIndex);
+
+            RgbaPacked pixel = palette[paletteIndex];
+
+            if (applyMask && paletteIndex >= maskMinCode && paletteIndex <= maskMaxCode)
+            {
+                pixel.A = 0;
+            }
+
+            foldedPalette[sample] = pixel;
+        }
+
+        return foldedPalette;
     }
 
     private static bool ShouldApplyDecode(PdfRange[]? decode, int componentCount, int bitsPerComponent, bool indexed)
@@ -67,34 +133,59 @@ internal sealed partial class PdfImageRowProcessor
         return false;
     }
 
-    private static ProcessingStages GetProcessingStages(PdfImageRowDecodingParameters parameters)
+    /// <summary>
+    /// Collects the stages a row has to run. Matte is added later by the constructor, which is where
+    /// the backdrop it needs is resolved. A stencil mask carries its /Decode in its own palette, so it
+    /// reports none of the colour stages.
+    /// </summary>
+    private static RowStages GetRowStages(PdfImageRowDecodingParameters parameters)
     {
-        PdfColorSpaceConverter converter = parameters.ColorSpaceConverter;
+        var stages = RowStages.None;
 
-        if (converter == null || parameters.HasImageMask)
+        if (parameters.IsAlphaInterleaved)
         {
-            return ProcessingStages.None;
+            stages |= RowStages.AlphaInterleaved;
+        }
+        else if (parameters.HasAlphaPlane)
+        {
+            stages |= RowStages.AlphaPlane;
         }
 
-        var stages = ProcessingStages.None;
+        if (parameters.HasImageMask)
+        {
+            return stages;
+        }
+
+        PdfColorSpaceConverter converter = parameters.ColorSpaceConverter;
 
         if (ShouldApplyDecode(parameters.Decode, converter.Components, parameters.BitsPerComponent, converter is PdfIndexedColorSpaceConverter))
         {
-            stages |= ProcessingStages.Decode;
+            stages |= RowStages.Decode;
         }
 
         if (parameters.MaskArray != null && parameters.MaskArray.Length == converter.Components * 2)
         {
-            stages |= ProcessingStages.Mask;
-        }
-
-        if (!converter.IsDevice
-            || (converter.Components != 1 && converter.Components != 3)
-            || parameters.Context.TransferFunction != null)
-        {
-            stages |= ProcessingStages.SampleColor;
+            stages |= RowStages.ColorKeyMask;
         }
 
         return stages;
+    }
+
+    /// <summary>
+    /// Whether the samples have to reach a colour space converter at all, which is what rules out the
+    /// direct routes even when no other stage applies.
+    /// </summary>
+    private static bool RequiresColorTransform(PdfImageRowDecodingParameters parameters)
+    {
+        if (parameters.HasImageMask)
+        {
+            return false;
+        }
+
+        PdfColorSpaceConverter converter = parameters.ColorSpaceConverter;
+
+        return !converter.IsDevice
+            || (converter.Components != 1 && converter.Components != 3)
+            || parameters.Context.TransferFunction != null;
     }
 }

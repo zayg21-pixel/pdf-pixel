@@ -49,17 +49,8 @@ internal sealed class PdfImageTilingContext
         _rowSampleRanges = ComputeSampleRanges(tileInfo.TilesVertical, tileInfo.TileHeight, tileInfo.ImageSize.Height, imageParameters.Height);
         _componentCount = imageParameters.ComponentCount;
 
-        int maxTilePixelWidth = 0;
-        for (int i = 0; i < _columnSampleRanges.Length; i++)
-        {
-            int width = _columnSampleRanges[i].End - _columnSampleRanges[i].Start;
-            if (width > maxTilePixelWidth)
-            {
-                maxTilePixelWidth = width;
-            }
-        }
-
-        _tileRowSliceBuffer = new byte[(maxTilePixelWidth * _componentCount * imageParameters.BitsPerComponent + 7) / 8];
+        // No tile spans more than the full image width, so a full-width row always holds a slice.
+        _tileRowSliceBuffer = new byte[imageParameters.RowBytes];
     }
 
     /// <summary>
@@ -166,7 +157,7 @@ internal sealed class PdfImageTilingContext
                 Span<byte> slice = _tileRowSliceBuffer.AsSpan(0, byteCount);
                 ExtractTileRowSlice(fullWidthRow, columnRange.Start, tilePixelWidth, bitsPerComponent, _componentCount, slice);
 
-                ReadOnlySpan<byte> alphaSlice = fullWidthAlphaRow.IsEmpty
+                ReadOnlySpan<byte> alphaSlice = (fullWidthAlphaRow.IsEmpty)
                     ? default
                     : fullWidthAlphaRow.Slice(columnRange.Start, tilePixelWidth);
 

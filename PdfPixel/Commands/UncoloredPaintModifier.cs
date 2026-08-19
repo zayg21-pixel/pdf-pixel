@@ -2,6 +2,8 @@ using PdfPixel.Color;
 
 namespace PdfPixel.Commands;
 
+// TODO: [high] can be removed
+
 /// <summary>
 /// Command modifier that tints recorded content with a specific color. Used for uncolored tiling
 /// patterns and uncolored Type 3 glyphs where the drawn shapes should adopt the current fill/stroke

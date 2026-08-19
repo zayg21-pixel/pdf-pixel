@@ -70,8 +70,7 @@ internal sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
         var packedPalette = new RgbaPacked[paletteSize];
         for (int i = 0; i < paletteSize; i++)
         {
-
-            packedPalette[i] = palette[i].From01ToRgba();
+            ColorVectorUtilities.Load01ToRgba(palette[i], ref packedPalette[i]);
         }
 
         return packedPalette;

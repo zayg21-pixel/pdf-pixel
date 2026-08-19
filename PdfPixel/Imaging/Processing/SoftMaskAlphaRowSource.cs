@@ -20,6 +20,9 @@ internal sealed class SoftMaskAlphaRowSource
     private byte[]? _targetRow;
     private int _targetWidth;
     private int _targetHeight;
+    private int _maskSampleStride;
+    private float _horizontalScale;
+    private float _verticalScale;
     private int _bufferedSourceRow = -1;
 
     public SoftMaskAlphaRowSource(PdfImageDecoder decoder, ILoggerFactory loggerFactory)
@@ -63,6 +66,9 @@ internal sealed class SoftMaskAlphaRowSource
 
         _decodedMask = processor.GetDecoded();
         _targetRow = new byte[_targetWidth];
+        _maskSampleStride = (_decodedMask.ColorFormat == PdfImageColorFormat.Gray) ? 1 : 4;
+        _horizontalScale = (float)_decodedMask.Width / _targetWidth;
+        _verticalScale = (float)_decodedMask.Height / _targetHeight;
         _decoder.Cleanup();
     }
 
@@ -76,9 +82,9 @@ internal sealed class SoftMaskAlphaRowSource
             return default;
         }
 
-        int sourceRow = (_targetHeight == _decodedMask.Height)
+        int sourceRow = (_decodedMask.Height == _targetHeight)
             ? rowIndex
-            : Math.Min(_decodedMask.Height - 1, (int)((long)rowIndex * _decodedMask.Height / _targetHeight));
+            : Math.Min(_decodedMask.Height - 1, (int)(rowIndex * _verticalScale));
 
         if (sourceRow != _bufferedSourceRow)
         {
@@ -106,22 +112,30 @@ internal sealed class SoftMaskAlphaRowSource
 
         ReadOnlySpan<byte> source = _decodedMask.GetRow(sourceRow);
         Span<byte> destination = _targetRow;
-        int sourceWidth = _decodedMask.Width;
-        bool isGray = _decodedMask.ColorFormat == PdfImageColorFormat.Gray;
+        bool matchesTargetWidth = _decodedMask.Width == _targetWidth;
 
-        if (isGray && sourceWidth == _targetWidth)
+        if (matchesTargetWidth && _maskSampleStride == 1)
         {
             source.Slice(0, _targetWidth).CopyTo(destination);
             return;
         }
 
+        if (!matchesTargetWidth)
+        {
+            int maximumSourceColumn = _decodedMask.Width - 1;
+
+            for (int x = 0; x < _targetWidth; x++)
+            {
+                int sourceColumn = Math.Min(maximumSourceColumn, (int)(x * _horizontalScale));
+                destination[x] = source[sourceColumn * _maskSampleStride];
+            }
+
+            return;
+        }
+
         for (int x = 0; x < _targetWidth; x++)
         {
-            int sourceX = (sourceWidth == _targetWidth)
-                ? x
-                : Math.Min(sourceWidth - 1, (int)((long)x * sourceWidth / _targetWidth));
-
-            destination[x] = isGray ? source[sourceX] : source[sourceX * 4];
+            destination[x] = source[x * _maskSampleStride];
         }
     }
 }

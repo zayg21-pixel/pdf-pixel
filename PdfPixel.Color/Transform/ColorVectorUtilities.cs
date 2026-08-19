@@ -12,6 +12,7 @@ public static class ColorVectorUtilities
 {
     private static readonly Vector4 MaxByte = new(255f);
     private static readonly Vector4 ByteOffset = new(0.5f);
+    private static readonly Vector4 InverseMaxByte = new(1f / 255f);
 
     /// <summary>
     /// Converts a 3x3 float matrix to a 4x4 matrix suitable for use with <see cref="Matrix4x4"/>.
@@ -80,24 +81,29 @@ public static class ColorVectorUtilities
     }
 
     /// <summary>
-    /// Converts a Vector4 with components in the range [0, 1] to an RgbaPacked structure with 8-bit per channel color
-    /// values.
+    /// Converts a normalized <see cref="Vector4"/> (0-1 range) to the color channels of a packed RGBA
+    /// value, leaving its alpha channel untouched.
     /// </summary>
-    /// <param name="source">The source vector containing normalized color components, where each component should be in the range [0, 1].</param>
-    /// <returns>An RgbaPacked structure representing the color, with each channel mapped to the 0–255 byte range and the alpha
-    /// channel set to 255.</returns>
+    /// <param name="source">Source color vector (0-1 range).</param>
+    /// <param name="destination">Destination packed RGBA value (by reference).</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static RgbaPacked From01ToRgba(this Vector4 source)
+    public static void Load01ToRgb(Vector4 source, ref RgbaPacked destination)
     {
         Vector4 scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
-        return new RgbaPacked
-        {
-            R = (byte)scaled.X,
-            G = (byte)scaled.Y,
-            B = (byte)scaled.Z,
-            A = 255
-        };
+
+        destination.R = (byte)scaled.X;
+        destination.G = (byte)scaled.Y;
+        destination.B = (byte)scaled.Z;
     }
+
+    /// <summary>
+    /// Converts a packed RGBA value to a normalized <see cref="Vector4"/> (0-1 range), alpha included.
+    /// </summary>
+    /// <param name="source">Source packed RGBA value.</param>
+    /// <returns>A <see cref="Vector4"/> holding the four channels scaled to the 0-1 range.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4 FromRgbaTo01(this RgbaPacked source)
+        => new Vector4(source.R, source.G, source.B, source.A) * InverseMaxByte;
 
     /// <summary>
     /// Converts a span of floats to a <see cref="Vector4"/>, padding with 0.0 for missing components.
