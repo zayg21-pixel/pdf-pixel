@@ -26,7 +26,7 @@ internal static class PdfPaintFactory
 
     /// <summary>
     /// Creates default background paint.
-    /// Antialiasing is deferred to command Execute time via <see cref="PdfPixel.Commands.PdfCommandExecutionContext"/>.
+    /// Antialiasing is deferred to command Execute time via <see cref="Commands.Context.PdfCommandExecutionContext"/>.
     /// </summary>
     /// <param name="background">Background color.</param>
     public static PdfPaint CreateBackgroundPaint(in PdfColor background) => PdfPaint.Solid(background, PdfPaintStyle.Fill);
@@ -36,7 +36,7 @@ internal static class PdfPaintFactory
     /// the layer below. <paramref name="subtype"/> and <paramref name="transferFunction"/> travel with
     /// the paint as <see cref="PdfMaskPaintParameters"/>, so the Skia conversion can build the
     /// subtype-appropriate color filter (luminosity-to-alpha, plus the transfer function) at replay time.
-    /// Antialiasing is deferred to command Execute time via <see cref="PdfPixel.Commands.PdfCommandExecutionContext"/>.
+    /// Antialiasing is deferred to command Execute time via <see cref="Commands.Context.PdfCommandExecutionContext"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfPaint CreateSoftMaskPaint(PdfSoftMaskSubtype subtype, TransferFunctionTransform? transferFunction)

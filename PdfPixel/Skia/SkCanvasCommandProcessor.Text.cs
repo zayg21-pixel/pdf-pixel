@@ -8,6 +8,7 @@ using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Skia;
 

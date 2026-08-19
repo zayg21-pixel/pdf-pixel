@@ -1,7 +1,7 @@
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Model;

@@ -3,11 +3,11 @@ using PdfPixel.Text;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Commands;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using System;
 using PdfPixel.Geometry;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Annotations.Models;
 

@@ -1,3 +1,5 @@
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Processing;
 using PdfPixel.Geometry;
 using System;
 using System.Runtime.CompilerServices;
@@ -17,11 +19,11 @@ internal static class PdfImageCommandUtilities
     public static SnappedTilePlacement GetSnappedTilePlacement(
         PdfCommandExecutionContext executionContext, in PdfIntegerSize imageSize, in PdfIntegerRectangle tilePosition, bool interpolate)
     {
-        PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
+        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(executionContext);
         PdfMatrix imageCtm = GetImageCtm(deviceMatrix);
         bool shouldInterpolate = ShouldInterpolate(imageCtm, imageSize, interpolate);
 
-        if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsGridPreserving(deviceMatrix))
+        if (!executionContext.Parameters.SnapToDevicePixels || !PdfCommandProcessingUtilities.IsGridPreserving(deviceMatrix))
         {
             return GetUnsnappedTilePlacement(imageSize, tilePosition, shouldInterpolate);
         }
@@ -32,13 +34,13 @@ internal static class PdfImageCommandUtilities
             tilePosition.Right / (float)imageSize.Width,
             tilePosition.Bottom / (float)imageSize.Height);
 
-        PdfRectangle deviceRect = CommandHelpers.SnapToDevicePixels(imageCtm.MapRect(tileImageRect));
+        PdfRectangle deviceRect = PdfCommandProcessingUtilities.SnapToDevicePixels(imageCtm.MapRect(tileImageRect));
         PdfRectangle sourceRect = deviceMatrix.Invert().MapRect(deviceRect);
 
         // How many device pixels the tile is sampled to along each of its own axes. A quarter turn
         // carries those axes onto the other one, so the device rectangle measures them the other way
         // round; where the tile ends up on the page is the transformation's business, not this one's.
-        bool isQuarterTurn = !CommandHelpers.IsAxisAligned(deviceMatrix);
+        bool isQuarterTurn = !PdfCommandProcessingUtilities.IsAxisAligned(deviceMatrix);
         PdfSize deviceSize = new(
             isQuarterTurn ? deviceRect.Height : deviceRect.Width,
             isQuarterTurn ? deviceRect.Width : deviceRect.Height);
@@ -110,19 +112,19 @@ internal static class PdfImageCommandUtilities
             return default;
         }
 
-        if (CommandHelpers.IsGridPreserving(ctm))
+        if (PdfCommandProcessingUtilities.IsGridPreserving(ctm))
         {
             // A quarter turn carries the image's own x axis onto the device y axis and its y axis onto
             // the device x axis, so each is measured wherever the matrix put it. Measuring between
             // snapped coordinates is what makes the size decoded here the size the tile is placed at.
-            bool isQuarterTurn = !CommandHelpers.IsAxisAligned(ctm);
+            bool isQuarterTurn = !PdfCommandProcessingUtilities.IsAxisAligned(ctm);
             float imageXAxisStart = isQuarterTurn ? origin.Y : origin.X;
             float imageXAxisEnd = isQuarterTurn ? edgeX.Y : edgeX.X;
             float imageYAxisStart = isQuarterTurn ? origin.X : origin.Y;
             float imageYAxisEnd = isQuarterTurn ? edgeY.X : edgeY.Y;
 
-            var scaledWidth = (int)MathF.Abs(CommandHelpers.SnapToWholePixel(imageXAxisEnd) - CommandHelpers.SnapToWholePixel(imageXAxisStart));
-            var scaledHeight = (int)MathF.Abs(CommandHelpers.SnapToWholePixel(imageYAxisEnd) - CommandHelpers.SnapToWholePixel(imageYAxisStart));
+            var scaledWidth = (int)MathF.Abs(PdfCommandProcessingUtilities.SnapToWholePixel(imageXAxisEnd) - PdfCommandProcessingUtilities.SnapToWholePixel(imageXAxisStart));
+            var scaledHeight = (int)MathF.Abs(PdfCommandProcessingUtilities.SnapToWholePixel(imageYAxisEnd) - PdfCommandProcessingUtilities.SnapToWholePixel(imageYAxisStart));
 
             return new PdfIntegerSize(Math.Max(1, scaledWidth), Math.Max(1, scaledHeight));
         }

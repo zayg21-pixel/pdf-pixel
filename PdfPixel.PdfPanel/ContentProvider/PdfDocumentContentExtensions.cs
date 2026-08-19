@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
-using PdfPixel.Commands;
 using PdfPixel.Skia;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
@@ -8,6 +7,8 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 

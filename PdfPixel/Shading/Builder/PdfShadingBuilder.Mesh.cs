@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Color.Sampling;
-using PdfPixel.Commands;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.Shading.Builder;
 using PdfPixel.Shading.Decoding;
 using PdfPixel.Shading.Model;

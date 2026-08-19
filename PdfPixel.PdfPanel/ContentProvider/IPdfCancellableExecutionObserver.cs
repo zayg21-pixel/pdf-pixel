@@ -1,4 +1,4 @@
-using PdfPixel.Commands;
+using PdfPixel.Models;
 using System;
 
 namespace PdfPixel.PdfPanel.ContentProvider;

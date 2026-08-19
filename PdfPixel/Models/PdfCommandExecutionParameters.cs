@@ -3,8 +3,8 @@
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Execution parameters for <see cref="Commands.PdfCommandExecutionContext"/>.
-/// Contains <see cref="Commands.IPdfCommand"/> specific parameters that can change between command execution.
+/// Execution parameters for <see cref="Commands.Context.PdfCommandExecutionContext"/>.
+/// Contains <see cref="Commands.Model.IPdfCommand"/> specific parameters that can change between command execution.
 /// </summary>
 public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParameters>, ICloneable
 {

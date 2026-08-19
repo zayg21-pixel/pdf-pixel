@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 

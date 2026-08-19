@@ -1,5 +1,6 @@
-﻿using PdfPixel.Commands;
-using PdfPixel.Commands.Image;
+﻿using PdfPixel.Commands.Image;
+using PdfPixel.Commands.Model;
+using PdfPixel.Commands.Processing;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
@@ -10,7 +11,7 @@ public sealed partial class SkCanvasCommandProcessor
 {
     private void ExecuteInitializeTileCache(InitializeTileCacheCommand command)
     {
-        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(CommandHelpers.GetScaledMatrix(_executionContext));
+        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(PdfCommandProcessingUtilities.GetScaledMatrix(_executionContext));
         PdfIntegerRectangle imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(command.ImageSize, _executionContext);
 
         command.TileCache.Initialize(ctm, imageRegion, _executionContext.ContentLocker, _executionContext.ExecutionObserver);

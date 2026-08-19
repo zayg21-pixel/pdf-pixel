@@ -1,6 +1,5 @@
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Models;
-using PdfPixel.Commands;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
@@ -8,6 +7,7 @@ using PdfPixel.Transparency.Utilities;
 using System;
 using System.Collections.Generic;
 using PdfPixel.Geometry;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Models;
 

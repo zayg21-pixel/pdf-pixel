@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Model;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System;
@@ -158,11 +161,11 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private void ExecuteDrawRecording(DrawRecordingCommand command)
     {
-        UncoloredPaintModifier? previousModifier = _executionContext.UncoloredModifier;
+        PdfColor? previousTintColor = _executionContext.TintColor;
 
-        if (command.Modifier != null)
+        if (command.TintColor != null)
         {
-            _executionContext.UncoloredModifier = command.Modifier;
+            _executionContext.TintColor = command.TintColor;
         }
 
         _canvas.Save();
@@ -179,7 +182,7 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
         _canvas.Restore();
         _executionContext.Frames.OnRestoreState();
 
-        _executionContext.UncoloredModifier = previousModifier;
+        _executionContext.TintColor = previousTintColor;
     }
 
     private void ReplayRecorder(PdfCommandRecorder recorder)

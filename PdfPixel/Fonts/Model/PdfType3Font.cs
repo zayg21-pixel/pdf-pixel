@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;

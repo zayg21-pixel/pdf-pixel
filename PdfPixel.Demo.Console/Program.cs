@@ -8,6 +8,8 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
 using System.Diagnostics;
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Console.Demo
 {

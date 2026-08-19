@@ -1,7 +1,7 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Resources;
 using System;

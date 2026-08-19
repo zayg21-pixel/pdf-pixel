@@ -7,6 +7,8 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
 using System.Runtime.InteropServices;
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Gold;
 

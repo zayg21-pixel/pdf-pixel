@@ -1,6 +1,6 @@
 using PdfPixel.Color;
-using PdfPixel.Commands;
 using PdfPixel.Commands.Cache;
+using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Image;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Typeface;
@@ -20,17 +20,17 @@ namespace PdfPixel.Skia;
 internal static class SkiaCommandUtilities
 {
     /// <summary>
-    /// Applies the execution context's uncolored paint modifier to <paramref name="paint"/>, if one is set.
+    /// Applies the execution context's tint color to <paramref name="paint"/>, if one is set.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void ModifyPaint(SKPaint paint, PdfCommandExecutionContext executionContext)
     {
-        if (executionContext.UncoloredModifier == null)
+        if (executionContext.TintColor == null)
         {
             return;
         }
 
-        using SKColorFilter filter = CreateUncoloredColorFilter(executionContext.UncoloredModifier.Color);
+        using SKColorFilter filter = CreateUncoloredColorFilter(executionContext.TintColor.Value);
 
         if (paint.ColorFilter != null)
         {

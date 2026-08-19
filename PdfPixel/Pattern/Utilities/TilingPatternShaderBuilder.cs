@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Forms;
 using PdfPixel.Rendering.State;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Pattern.Utilities;
 

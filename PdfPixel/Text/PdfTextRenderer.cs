@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -112,13 +114,13 @@ public class PdfTextRenderer : IPdfTextRenderer
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
                 if (charInfo.IsDefined && charInfo.Recording != null)
                 {
-                    UncoloredPaintModifier? modifier = (charInfo.IsColored)
+                    PdfColor? tintColor = (charInfo.IsColored)
                         ? default
-                        : new UncoloredPaintModifier(state.FillPaint.Color);
+                        : state.FillPaint.Color;
 
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).
                     PdfMatrix glyphMatrix = PdfMatrix.CreateTranslation(glyph.X, glyph.Y).PreConcat(type3Font.FontMatrix);
-                    processor.Process(new DrawRecordingCommand(charInfo.Recording, glyphMatrix, modifier));
+                    processor.Process(new DrawRecordingCommand(charInfo.Recording, glyphMatrix, tintColor));
                 }
             }
 

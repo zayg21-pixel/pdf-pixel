@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Models;
 using System;
 
 namespace PdfPixel.Imaging.Processing;

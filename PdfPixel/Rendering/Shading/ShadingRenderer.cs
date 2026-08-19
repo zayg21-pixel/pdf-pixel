@@ -1,6 +1,5 @@
 using System;
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
@@ -9,6 +8,7 @@ using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Geometry;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Rendering.Shading;
 

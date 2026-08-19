@@ -1,5 +1,7 @@
-using PdfPixel.Commands;
 using PdfPixel.Commands.Cache;
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Model;
+using PdfPixel.Commands.Processing;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Skia.Cache;
@@ -18,9 +20,9 @@ public sealed partial class SkCanvasCommandProcessor
 
         // Taken after the command's own matrix is in, so it carries everything that shapes the
         // recorded picture and tells apart two uses of the pattern that do not.
-        PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(_executionContext);
+        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(_executionContext);
 
-        if (CommandHelpers.CanTileByRepeating(command, _executionContext))
+        if (PdfCommandProcessingUtilities.CanTileByRepeating(command, _executionContext))
         {
             TilingCommandCacheEntry entry = GetOrBuildTile(command, deviceMatrix);
 
@@ -71,7 +73,7 @@ public sealed partial class SkCanvasCommandProcessor
 
         PdfRectangle tileUnit = new(0, 0, command.XStep, command.YStep);
 
-        PdfSize deviceStep = CommandHelpers.GetDeviceStepSize(command, _executionContext);
+        PdfSize deviceStep = PdfCommandProcessingUtilities.GetDeviceStepSize(command, _executionContext);
         float tileScaleX = deviceStep.Width / command.XStep;
         float tileScaleY = deviceStep.Height / command.YStep;
         SKRect deviceTile = new(0, 0, deviceStep.Width, deviceStep.Height);

@@ -1,4 +1,4 @@
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;

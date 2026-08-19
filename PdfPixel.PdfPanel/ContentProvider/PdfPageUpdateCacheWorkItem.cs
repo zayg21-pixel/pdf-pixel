@@ -1,4 +1,6 @@
 using PdfPixel.Commands;
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Model;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
@@ -31,7 +33,13 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     /// subsequent <see cref="PdfPageCacheEntry.InitializeForRendering"/> calls on the
     /// UI thread cannot affect this already-enqueued item.
     /// </summary>
-    public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, IPdfDocument document, SkiaFontSubstitutor fontSubstitutor, object documentLocker, PagesDrawingRequest request, Action<PageUpdatedArgs>? onPageUpdated)
+    public PdfPageUpdateCacheWorkItem(
+        PdfPageCacheEntry cacheEntry,
+        IPdfDocument document,
+        SkiaFontSubstitutor fontSubstitutor,
+        object documentLocker,
+        PagesDrawingRequest request,
+        Action<PageUpdatedArgs>? onPageUpdated)
     {
         if (cacheEntry == null)
         {

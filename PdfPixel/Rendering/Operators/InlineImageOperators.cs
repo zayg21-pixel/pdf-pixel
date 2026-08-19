@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Pattern.Model;

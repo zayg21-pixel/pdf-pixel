@@ -1,4 +1,3 @@
-using PdfPixel.Commands;
 using PdfPixel.Streams;
 using System;
 using System.IO;

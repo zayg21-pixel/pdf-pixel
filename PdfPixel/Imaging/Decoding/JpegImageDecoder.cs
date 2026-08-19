@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
@@ -9,6 +8,7 @@ using PdfPixel.Jpg.Color;
 using PdfPixel.Jpg.Decoding;
 using PdfPixel.Jpg.Model;
 using PdfPixel.Jpg.Readers;
+using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 

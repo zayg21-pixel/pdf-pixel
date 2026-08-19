@@ -1,6 +1,6 @@
 using PdfPixel.Color;
-using PdfPixel.Commands;
 using PdfPixel.Commands.Cache;
+using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using System;
 
@@ -24,7 +24,7 @@ internal sealed class TilingCommandCacheKey : ICommandCacheKey
         }
 
         _recorder = command.RecordingCommand.Recorder;
-        _tintColor = command.RecordingCommand.Modifier?.Color;
+        _tintColor = command.RecordingCommand.TintColor;
         _deviceMatrix = deviceMatrix;
         _repeating = repeating;
     }

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;

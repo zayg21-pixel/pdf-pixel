@@ -2,10 +2,10 @@
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
-using PdfPixel.Commands;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;

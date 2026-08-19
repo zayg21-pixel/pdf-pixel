@@ -1,6 +1,6 @@
-using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
 using PdfPixel.Rendering.State;
+using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Rendering.Shading;
 

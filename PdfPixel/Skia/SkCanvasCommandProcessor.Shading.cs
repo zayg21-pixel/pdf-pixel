@@ -1,4 +1,4 @@
-using PdfPixel.Commands;
+using PdfPixel.Commands.Model;
 using PdfPixel.Shading.Model;
 using PdfPixel.Skia.Cache;
 using PdfPixel.Skia.Converters;

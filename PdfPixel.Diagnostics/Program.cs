@@ -10,6 +10,8 @@ using SkiaSharp;
 using System.CommandLine;
 using System.Diagnostics;
 using System.Linq;
+using PdfPixel.Commands.Model;
+using PdfPixel.Commands.Context;
 
 namespace PdfPixel.Diagnostics;
 
