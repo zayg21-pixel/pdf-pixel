@@ -35,6 +35,11 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     /// <inheritdoc />
     public void Initialize()
     {
+        if (_glContext != null)
+        {
+            return;
+        }
+
         _glContext = CreateGlContext(_canvasSelector);
     }
 
