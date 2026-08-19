@@ -41,6 +41,26 @@ public sealed class FontSubstitutionMap
     public string? FallbackFamilyName { get; }
 
     /// <summary>
+    /// Enumerates every family name this map names: the fallback family, then each Standard 14
+    /// candidate in preference order.
+    /// </summary>
+    public IEnumerable<string> EnumerateFamilyNames()
+    {
+        if (FallbackFamilyName != null)
+        {
+            yield return FallbackFamilyName;
+        }
+
+        foreach (IReadOnlyList<string> candidates in Candidates.Values)
+        {
+            foreach (string candidate in candidates)
+            {
+                yield return candidate;
+            }
+        }
+    }
+
+    /// <summary>
     /// Returns a copy of this map that falls back to <paramref name="fallbackFamilyName"/> instead.
     /// </summary>
     /// <param name="fallbackFamilyName">The family name to fall back to.</param>

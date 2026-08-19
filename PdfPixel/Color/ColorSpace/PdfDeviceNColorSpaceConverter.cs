@@ -3,6 +3,7 @@ using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
 using PdfPixel.Models;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Color.ColorSpace;
 
@@ -11,7 +12,6 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public sealed class PdfDeviceNColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly PdfString?[] _componentNames;
     private readonly PdfColorSpaceConverter _alternate;
     private readonly PdfFunction? _tintFunction;
 
@@ -20,13 +20,18 @@ public sealed class PdfDeviceNColorSpaceConverter : PdfColorSpaceConverter
     /// </summary>
     public PdfDeviceNColorSpaceConverter(PdfString?[]? componentNames, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
     {
-        _componentNames = componentNames ?? Array.Empty<PdfString?>();
+        Names = componentNames ?? Array.Empty<PdfString?>();
         _alternate = alternate ?? PdfDeviceRgbColorSpaceConverter.Instance;
         _tintFunction = tintFunction;
     }
 
+    /// <summary>
+    /// Gets the names of the colorants this space's components are tints of.
+    /// </summary>
+    public IReadOnlyList<PdfString?> Names { get; }
+
     /// <inheritdoc />
-    public override int Components => (_componentNames.Length > 0) ? _componentNames.Length : 1;
+    public override int Components => (Names.Count > 0) ? Names.Count : 1;
 
     /// <inheritdoc />
     public override bool IsDevice => false;
