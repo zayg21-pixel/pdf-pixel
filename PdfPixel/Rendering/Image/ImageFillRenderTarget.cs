@@ -8,7 +8,6 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
 using System;
 
 namespace PdfPixel.Rendering.Image;
@@ -84,11 +83,11 @@ internal class ImageFillRenderTarget : IRenderTarget
             }
 
             ImageDecodingContext imageLayerContext = new(context, image, OpaqueWhiteFill, isStencilMaskComposite: false);
-            NormalImageExecutionContext imageCtx = NormalImageExecutionContext.Create(image, imageLayerContext, _loggerFactory);
+            ImageExecutionContext imageCtx = ImageExecutionContext.Create(image, imageLayerContext, _loggerFactory);
             processor.Process(new InitializeTileCacheCommand(imageCtx.TileCache, imageCtx.ImageSize));
 
             ImageDecodingContext maskContext = new(context, stencilMask, OpaqueWhiteFill, isStencilMaskComposite: true);
-            NormalImageExecutionContext maskCtx = NormalImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
+            ImageExecutionContext maskCtx = ImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
             processor.Process(new InitializeTileCacheCommand(maskCtx.TileCache, maskCtx.ImageSize));
 
             PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
@@ -97,23 +96,23 @@ internal class ImageFillRenderTarget : IRenderTarget
 
             for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)
             {
-                processor.Process(new DrawNormalImageTileCommand(imageCtx, i));
+                processor.Process(new DrawImageTileCommand(imageCtx, i));
             }
 
             for (int i = 0; i < maskCtx.TileInfo.TotalTiles; i++)
             {
-                processor.Process(new DrawNormalImageTileCommand(maskCtx, i));
+                processor.Process(new DrawImageTileCommand(maskCtx, i));
             }
 
             processor.Process(RestoreLayerCommand.Instance);
         }
         else
         {
-            NormalImageExecutionContext ctx = NormalImageExecutionContext.Create(image, context, _loggerFactory);
+            ImageExecutionContext ctx = ImageExecutionContext.Create(image, context, _loggerFactory);
             processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
             for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
             {
-                processor.Process(new DrawNormalImageTileCommand(ctx, i));
+                processor.Process(new DrawImageTileCommand(ctx, i));
             }
         }
     }

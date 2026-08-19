@@ -29,9 +29,9 @@ public enum PdfCommandKind
     ConcatMatrix,
 
     /// <summary>
-    /// <see cref="DrawNormalImageTileCommand"/>.
+    /// <see cref="DrawImageTileCommand"/>.
     /// </summary>
-    DrawNormalImageTile,
+    DrawImageTile,
 
     /// <summary>
     /// <see cref="DrawPathCommand"/>.

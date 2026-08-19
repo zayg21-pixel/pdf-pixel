@@ -17,9 +17,9 @@ public sealed partial class SkCanvasCommandProcessor
         command.TileCache.Initialize(ctm, imageRegion, _executionContext.ContentLocker, _executionContext.ExecutionObserver);
     }
 
-    private void ExecuteDrawNormalImageTile(DrawNormalImageTileCommand command)
+    private void ExecuteDrawImageTile(DrawImageTileCommand command)
     {
-        NormalImageExecutionContext context = command.Context;
+        ImageExecutionContext context = command.Context;
         PdfImageTile tile = context.TileCache.GetNextTile(_executionContext.ExecutionObserver);
 
         if (tile.IsSkipped || tile.Image == null)

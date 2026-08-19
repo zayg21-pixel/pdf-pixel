@@ -4,11 +4,11 @@ using System.Globalization;
 namespace PdfPixel.Commands.Model;
 
 /// <summary>
-/// Represents one tile of an image with no mask, placed directly with no blending.
+/// Draws one tile of an image, using the fill paint and compositing captured in its context.
 /// </summary>
-public sealed class DrawNormalImageTileCommand : PdfCommand
+public sealed class DrawImageTileCommand : PdfCommand
 {
-    internal DrawNormalImageTileCommand(NormalImageExecutionContext context, int tileIndex)
+    internal DrawImageTileCommand(ImageExecutionContext context, int tileIndex)
     {
         Context = context;
         TileIndex = tileIndex;
@@ -17,7 +17,7 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
     /// <summary>
     /// The context this command was constructed with.
     /// </summary>
-    public NormalImageExecutionContext Context { get; }
+    public ImageExecutionContext Context { get; }
 
     /// <summary>
     /// The index of the tile this command draws.
@@ -28,9 +28,9 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
-    public override PdfCommandKind Kind => PdfCommandKind.DrawNormalImageTile;
+    public override PdfCommandKind Kind => PdfCommandKind.DrawImageTile;
 
     /// <inheritdoc />
     public override string ToString()
-        => $"{nameof(DrawNormalImageTileCommand)} tile={TileIndex.ToString(CultureInfo.InvariantCulture)}";
+        => $"{nameof(DrawImageTileCommand)} tile={TileIndex.ToString(CultureInfo.InvariantCulture)}";
 }

@@ -1,11 +1,9 @@
-using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
 using System;
 
 namespace PdfPixel.Commands.Image;

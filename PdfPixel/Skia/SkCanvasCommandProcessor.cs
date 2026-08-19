@@ -88,9 +88,9 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
                 _executionContext.Frames.OnConcatMatrix(concatMatrixCommand.Matrix);
                 break;
             }
-            case PdfCommandKind.DrawNormalImageTile:
+            case PdfCommandKind.DrawImageTile:
             {
-                ExecuteDrawNormalImageTile((DrawNormalImageTileCommand)command);
+                ExecuteDrawImageTile((DrawImageTileCommand)command);
                 break;
             }
             case PdfCommandKind.DrawPath:

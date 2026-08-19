@@ -9,11 +9,11 @@ using System;
 namespace PdfPixel.Commands.Image;
 
 /// <summary>
-/// Constructed context for a <see cref="DrawNormalImageTileCommand"/>: an image with no mask, drawn tile by tile.
+/// Constructed context for a <see cref="DrawImageTileCommand"/>: an image drawn tile by tile.
 /// </summary>
-public sealed class NormalImageExecutionContext
+public sealed class ImageExecutionContext
 {
-    private NormalImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
+    private ImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
     {
         ImageSize = imageSize;
         DecodingContext = decodingContext;
@@ -24,7 +24,7 @@ public sealed class NormalImageExecutionContext
     /// <summary>
     /// Builds the context for <paramref name="pdfImage"/>, resolving its decoder and tile cache.
     /// </summary>
-    public static NormalImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
+    public static ImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         if (pdfImage == null)
         {
@@ -47,7 +47,7 @@ public sealed class NormalImageExecutionContext
         SoftMaskAlphaRowSource? alphaRowSource = CreateAlphaRowSource(pdfImage, context, loggerFactory);
 
         PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
-        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory, alphaRowSource), pdfImage.Interpolate);
+        return new ImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory, alphaRowSource), pdfImage.Interpolate);
     }
 
     /// <summary>
