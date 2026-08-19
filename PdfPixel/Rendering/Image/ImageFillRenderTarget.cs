@@ -87,18 +87,6 @@ internal class ImageFillRenderTarget : IRenderTarget
 
                 break;
             }
-            case PdfImageAlphaMode.ImageWithSoftAlphaMask:
-            {
-                SoftMaskImageExecutionContext ctx = SoftMaskImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize));
-                processor.Process(new InitializeTileCacheCommand(ctx.MaskCache, ctx.MaskSize));
-                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
-                {
-                    processor.Process(new DrawSoftMaskImageTileCommand(ctx, i));
-                }
-
-                break;
-            }
             case PdfImageAlphaMode.ImageWithStencilMask:
             {
                 PdfImage? stencilMask = image.StencilMask;

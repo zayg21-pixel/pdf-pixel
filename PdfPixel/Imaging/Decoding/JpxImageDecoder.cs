@@ -67,17 +67,26 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);
 
-        PdfImageAlphaType alphaType = _rowConverter.HasAlphaChannel
+        bool hasInterleavedAlpha = _rowConverter.HasAlphaChannel;
+        PdfImageAlphaType alphaType = hasInterleavedAlpha
             ? PdfImageAlphaType.Unpremultiplied
-            : PdfImageAlphaType.Opaque;
+            : ResolveSoftMaskAlphaType();
 
-        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
-            ctm,
-            new PdfIntegerSize(_rowConverter.Width, _rowConverter.Height),
+        PdfIntegerSize decodedSize = new(_rowConverter.Width, _rowConverter.Height);
+
+        PdfImageRowDecodingParameters parameters = new(
+            Context,
+            decodedSize.Width,
+            decodedSize.Height,
             _rowConverter.BitsPerComponent,
+            Image.RenderingIntent,
             _resolvedConverter,
-            alphaType: alphaType,
-            isAlphaInterleaved: _rowConverter.HasAlphaChannel);
+            Image.HasImageMask,
+            Image.MaskArray,
+            Image.Decode,
+            PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize),
+            alphaType,
+            hasInterleavedAlpha);
 
         return parameters;
     }

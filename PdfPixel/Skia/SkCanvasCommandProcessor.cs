@@ -110,11 +110,6 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
                 ExecuteDrawShapedText((DrawShapedTextCommand)command);
                 break;
             }
-            case PdfCommandKind.DrawSoftMaskImageTile:
-            {
-                ExecuteDrawSoftMaskImageTile((DrawSoftMaskImageTileCommand)command);
-                break;
-            }
             case PdfCommandKind.DrawStencilMaskImageTile:
             {
                 ExecuteDrawStencilMaskImageTile((DrawStencilMaskImageTileCommand)command);

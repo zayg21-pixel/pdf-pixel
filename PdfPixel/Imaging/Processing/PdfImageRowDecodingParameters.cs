@@ -29,6 +29,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
     /// <param name="alphaType">How the alpha accompanying the color samples relates to them, or Opaque when there is none.</param>
     /// <param name="isAlphaInterleaved">True when alpha is the last component of each packed sample, false when it arrives as a separate 8-bit plane.</param>
+    /// <param name="premultipliedBackdrop">Backdrop color the samples were blended with, required when <paramref name="alphaType"/> is Premultiplied and null otherwise.</param>
     public PdfImageRowDecodingParameters(
         ImageDecodingContext context,
         int width,

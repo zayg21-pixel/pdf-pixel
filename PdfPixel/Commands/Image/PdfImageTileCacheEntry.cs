@@ -14,6 +14,7 @@ public sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly SoftMaskAlphaRowSource? _alphaRowSource;
 
     private PdfIntegerSize? _scaledSize;
     private int _tileIndex;
@@ -27,11 +28,12 @@ public sealed class PdfImageTileCacheEntry
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfImageTileCacheEntry"/> class.
     /// </summary>
-    public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
+    internal PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory, SoftMaskAlphaRowSource? alphaRowSource = null)
     {
         Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
         TileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        _alphaRowSource = alphaRowSource;
 
         _tiles = new CachedTile[tileInfo.TotalTiles];
         for (int tileIndex = 0; tileIndex < _tiles.Length; tileIndex++)
@@ -59,6 +61,7 @@ public sealed class PdfImageTileCacheEntry
         if (_decoderActive)
         {
             Decoder.Cleanup();
+            _alphaRowSource?.Cleanup();
             _decoderActive = false;
         }
 
@@ -89,6 +92,7 @@ public sealed class PdfImageTileCacheEntry
             _imageParameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), contentLocker, ctm, observer);
             _tilingContext = new PdfImageTilingContext(TileInfo, _imageParameters, tileIndexesToDecode, _loggerFactory);
             _rowBuffer = new byte[_imageParameters.RowBytes];
+            _alphaRowSource?.Initialize(new PdfIntegerSize(_imageParameters.Width, _imageParameters.Height), contentLocker, observer);
             _decoderActive = true;
         }
     }
@@ -139,7 +143,8 @@ public sealed class PdfImageTileCacheEntry
                 return null;
             }
 
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _rowBuffer, default, observer);
+            ReadOnlySpan<byte> alphaRow = (_alphaRowSource != null) ? _alphaRowSource.GetRow(_currentImageRow) : default;
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _rowBuffer, alphaRow, observer);
             _currentImageRow++;
             observer?.Notify();
 

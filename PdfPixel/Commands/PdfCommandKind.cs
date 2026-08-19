@@ -52,11 +52,6 @@ public enum PdfCommandKind
     DrawShapedText,
 
     /// <summary>
-    /// <see cref="DrawSoftMaskImageTileCommand"/>.
-    /// </summary>
-    DrawSoftMaskImageTile,
-
-    /// <summary>
     /// <see cref="DrawStencilMaskImageTileCommand"/>.
     /// </summary>
     DrawStencilMaskImageTile,

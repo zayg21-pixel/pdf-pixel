@@ -147,15 +147,11 @@ public abstract class PdfImageDecoder
     /// <param name="decodedSize">Size of the sample grid this decoder produces.</param>
     /// <param name="bitsPerComponent">Bit depth of the samples this decoder produces.</param>
     /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
-    /// <param name="alphaType">How the alpha accompanying the produced rows relates to the color samples.</param>
-    /// <param name="isAlphaInterleaved">True when the produced rows carry alpha as their last component.</param>
     protected PdfImageRowDecodingParameters CreateRowDecodingParameters(
         in PdfMatrix ctm,
         in PdfIntegerSize decodedSize,
         int bitsPerComponent,
-        PdfColorSpaceConverter colorSpaceConverter,
-        PdfImageAlphaType alphaType = PdfImageAlphaType.Opaque,
-        bool isAlphaInterleaved = false)
+        PdfColorSpaceConverter colorSpaceConverter)
     {
         PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize);
 
@@ -170,8 +166,20 @@ public abstract class PdfImageDecoder
             Image.MaskArray,
             Image.Decode,
             downscaledSize,
-            alphaType,
-            isAlphaInterleaved);
+            ResolveSoftMaskAlphaType());
+    }
+
+    /// <summary>
+    /// Returns the alpha type contributed by the image's soft mask, or Opaque when it has none.
+    /// </summary>
+    protected PdfImageAlphaType ResolveSoftMaskAlphaType()
+    {
+        if (Image.SoftMask == null)
+        {
+            return PdfImageAlphaType.Opaque;
+        }
+
+        return PdfImageAlphaType.Unpremultiplied;
     }
 
     /// <summary>

@@ -48,6 +48,7 @@ internal sealed partial class PdfImageRowProcessor
 
     private readonly OutputMode _outputMode;
     private readonly PdfImageColorFormat _colorFormat;
+    private readonly PdfImageAlphaType _alphaType;
     private readonly int _rowBytes;
 
     private readonly ColorTransformSampler? _sampler;
@@ -172,11 +173,16 @@ internal sealed partial class PdfImageRowProcessor
         if (_outputMode == OutputMode.Gray)
         {
             _colorFormat = PdfImageColorFormat.Gray;
+            _alphaType = PdfImageAlphaType.Opaque;
             _rowBytes = _width;
         }
         else
         {
+            // Colour key masking and the folded palette write zero alpha into buffers with no alpha source.
             _colorFormat = PdfImageColorFormat.Rgba;
+            _alphaType = (parameters.AlphaType == PdfImageAlphaType.Premultiplied)
+                ? PdfImageAlphaType.Premultiplied
+                : PdfImageAlphaType.Unpremultiplied;
             _rowBytes = _width * 4;
         }
 
@@ -206,7 +212,7 @@ internal sealed partial class PdfImageRowProcessor
             return;
         }
 
-        _decodedImage = new PdfDecodedImage(_width, _height, _colorFormat, _parameters.AlphaType);
+        _decodedImage = new PdfDecodedImage(_width, _height, _colorFormat, _alphaType);
 
         if (_alphaRowConverter != null)
         {

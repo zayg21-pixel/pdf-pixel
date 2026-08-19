@@ -39,46 +39,6 @@ public sealed partial class SkCanvasCommandProcessor
         _canvas.Restore();
     }
 
-    private void ExecuteDrawSoftMaskImageTile(DrawSoftMaskImageTileCommand command)
-    {
-        // TODO: [HIGH] for stencil and soft masks we shall crop to decode region if defined to avoid leaking content over mask
-        SoftMaskImageExecutionContext context = command.Context;
-        PdfImageTile imageTile = context.ImageCache.GetNextTile(_executionContext.ExecutionObserver);
-        PdfImageTile maskTile = context.MaskCache.GetNextTile(_executionContext.ExecutionObserver);
-
-        if (imageTile.Image == null || maskTile.Image == null)
-        {
-            return;
-        }
-
-        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
-            _executionContext, context.ImageSize, imageTile.TilePosition, context.Interpolate);
-
-        SKColor? matte = null;
-        if (context.MatteArray != null && maskTile.Parameters != null)
-        {
-            // TODO: this is lacking transfer function, can lead to incorrect results, better resolve Matte from graphics state
-            matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(context.MatteArray, maskTile.Parameters.RenderingIntent, default).ToSkiaColor();
-        }
-
-        SKSamplingOptions sampling = SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate);
-
-        // TODO: blending is used for inversion of stencil and soft mask blending, both can be done on CPU pretty fast as we resize tiles without shaders
-        using SKImage skImage = imageTile.Image.ToSkImage();
-        using SKImage skMaskImage = maskTile.Image.ToSkImage();
-        using SKShader imageShader = SkiaImageBlending.BuildImageShader(skImage, placement.DeviceSize.ToSkSize(), sampling);
-        using SKShader maskShader = SkiaImageBlending.BuildImageShader(skMaskImage, placement.DeviceSize.ToSkSize(), sampling);
-        using SKShader blendingShader = SkiaImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
-        using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(blendingShader, context.DecodingContext);
-        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-
-        _canvas.Save();
-        _canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        _canvas.ClipRect(placement.PlacementRectangle.ToSkRect());
-        _canvas.DrawPaint(paint);
-        _canvas.Restore();
-    }
-
     private void ExecuteDrawStencilMaskImageTile(DrawStencilMaskImageTileCommand command)
     {
         StencilMaskImageExecutionContext context = command.Context;

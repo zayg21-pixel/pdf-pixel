@@ -43,8 +43,10 @@ public sealed class NormalImageExecutionContext
             throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
         }
 
+        SoftMaskAlphaRowSource? alphaRowSource = CreateAlphaRowSource(pdfImage, context, loggerFactory);
+
         PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
-        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory), pdfImage.Interpolate);
+        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory, alphaRowSource), pdfImage.Interpolate);
     }
 
     /// <summary>
@@ -71,4 +73,23 @@ public sealed class NormalImageExecutionContext
     /// Gets the tiling layout of <see cref="TileCache"/>.
     /// </summary>
     public PdfTileInfo TileInfo => TileCache.TileInfo;
+
+    private static SoftMaskAlphaRowSource? CreateAlphaRowSource(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
+    {
+        PdfImage? softMask = pdfImage.SoftMask;
+        if (softMask == null)
+        {
+            return null;
+        }
+
+        ImageDecodingContext maskContext = new(context, softMask, context.FillPaint, isStencilMaskComposite: false);
+        PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(softMask, maskContext, loggerFactory);
+
+        if (maskDecoder == null)
+        {
+            throw new ArgumentException($"Mask decoder for image {softMask.Type} is not defined.");
+        }
+
+        return new SoftMaskAlphaRowSource(maskDecoder, loggerFactory);
+    }
 }
