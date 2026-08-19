@@ -1,6 +1,7 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using SkiaSharp;
 
 namespace PdfPixel.Skia;
@@ -32,12 +33,36 @@ public sealed partial class SkCanvasCommandProcessor
 
     private void ExecuteClipRectangle(ClipRectangleCommand command)
     {
-        PdfPathDeviceGeometry clipGeometry = PdfPathDeviceGeometry.CreateForClipping(command.Rect, _executionContext);
-        PdfRectangle clipRect = clipGeometry.SnappedRectangle ?? command.Rect;
+        PdfRectangle? sourceRect = (command.Source == PdfClipRectangleSource.Region)
+            ? GetRegionOfInterestRect()
+            : command.Rect;
+
+        if (sourceRect == null)
+        {
+            return;
+        }
+
+        PdfRectangle rect = sourceRect.Value;
+        PdfPathDeviceGeometry clipGeometry = PdfPathDeviceGeometry.CreateForClipping(rect, _executionContext);
+        PdfRectangle clipRect = clipGeometry.SnappedRectangle ?? rect;
         SKClipOperation skOperation = command.Operation.ToSkClipOperation();
 
         _canvas.ClipRect(clipRect.ToSkRect(), skOperation, clipGeometry.IsAntialias);
-        _executionContext.Frames.OnClipRect(command.Rect, command.Operation);
+        _executionContext.Frames.OnClipRect(rect, command.Operation);
+    }
+
+    /// <summary>
+    /// Maps the visible page region into current user space, so it passes through the same device
+    /// mapping as any other clip rectangle. Returns null when the whole page is visible.
+    /// </summary>
+    private PdfRectangle? GetRegionOfInterestRect()
+    {
+        if (!_executionContext.PageRegionOfInterest.HasValue)
+        {
+            return null;
+        }
+
+        return _executionContext.Frames.TotalMatrix.Invert().MapRect(_executionContext.PageRegionOfInterest.Value);
     }
 
     private void ExecuteDrawPath(DrawPathCommand command)

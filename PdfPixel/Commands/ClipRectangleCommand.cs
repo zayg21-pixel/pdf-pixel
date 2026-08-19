@@ -1,5 +1,6 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using System;
 
 namespace PdfPixel.Commands;
 
@@ -12,22 +13,48 @@ public sealed class ClipRectangleCommand : PdfCommand
     /// Initializes the command with the given rectangle and clip operation.
     /// </summary>
     public ClipRectangleCommand(in PdfRectangle rect, PdfClipOperation operation)
+        : this(rect, operation, PdfClipRectangleSource.Rectangle)
     {
-        Rect = rect;
-        Operation = operation;
     }
 
     /// <summary>
-    /// Gets the rectangle this command clips to.
+    /// Initializes the command with the given clip operation and rectangle source.
     /// </summary>
-    public PdfRectangle Rect { get; }
+    /// <param name="rect">Rectangle to clip to, required by <see cref="PdfClipRectangleSource.Rectangle"/>.</param>
+    /// <param name="operation">Clip operation to apply.</param>
+    /// <param name="source">Where the command takes its rectangle from.</param>
+    public ClipRectangleCommand(PdfRectangle? rect, PdfClipOperation operation, PdfClipRectangleSource source)
+    {
+        if (source == PdfClipRectangleSource.Rectangle && rect == null)
+        {
+            throw new ArgumentNullException(nameof(rect), $"{PdfClipRectangleSource.Rectangle} requires a rectangle.");
+        }
+
+        Rect = rect;
+        Operation = operation;
+        Source = source;
+    }
+
+    /// <summary>
+    /// Gets the rectangle this command clips to, set when <see cref="Source"/> is
+    /// <see cref="PdfClipRectangleSource.Rectangle"/>.
+    /// </summary>
+    public PdfRectangle? Rect { get; }
 
     /// <summary>
     /// Gets the clip operation this command applies.
     /// </summary>
     public PdfClipOperation Operation { get; }
 
+    /// <summary>
+    /// Gets where this command takes its rectangle from.
+    /// </summary>
+    public PdfClipRectangleSource Source { get; }
+
+    /// <inheritdoc />
+    public override PdfCommandFeatures Features
+        => (Source == PdfClipRectangleSource.Region) ? PdfCommandFeatures.Region : PdfCommandFeatures.None;
+
     /// <inheritdoc />
     public override PdfCommandKind Kind => PdfCommandKind.ClipRectangle;
-
 }

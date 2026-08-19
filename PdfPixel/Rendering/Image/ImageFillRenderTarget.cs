@@ -46,6 +46,7 @@ internal class ImageFillRenderTarget : IRenderTarget
         PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
         processor.Process(new SaveLayerCommand(Bounds, layerPaint));
         processor.Process(new ClipRectangleCommand(Bounds, PdfClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(null, PdfClipOperation.Intersect, PdfClipRectangleSource.Region));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
@@ -92,6 +93,7 @@ internal class ImageFillRenderTarget : IRenderTarget
 
             PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
             processor.Process(new SaveLayerCommand(Bounds, layerPaint));
+            processor.Process(new ClipRectangleCommand(null, PdfClipOperation.Intersect, PdfClipRectangleSource.Region));
 
             for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)
             {
