@@ -34,7 +34,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
         for (int i = 0; i < document.Pages.Count; i++)
         {
-            _cache[i] = new PdfPageCacheEntry(i + 1, PdfDocumentContentExtensions.GetPageInfo(_document, i + 1), _document.CreateAnnotationPopups(i + 1));
+            _cache[i] = new PdfPageCacheEntry(i + 1, PdfDocumentContentExtensions.GetPageInfo(_document, i + 1));
         }
 
         _processingQueue = processingQueue;
@@ -47,7 +47,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     public Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
 
     /// <inheritdoc />
-    public PdfAnnotationPopup[]? GetAnnotationPopups(int pageNumber) => _cache[pageNumber - 1].Annotations;
+    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _cache[pageNumber - 1].GetAnnotations(_document, DocumentLocker);
 
     /// <inheritdoc />
     public int GetPagesCount() => _cache.Length;

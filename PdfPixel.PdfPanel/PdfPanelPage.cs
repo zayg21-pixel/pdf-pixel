@@ -1,6 +1,7 @@
 ﻿using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.ContentProvider;
 using System;
 
 namespace PdfPixel.PdfPanel;
@@ -10,11 +11,13 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelPage
 {
-    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, PdfAnnotationPopup[]? popups)
+    private readonly IPdfPageContentProvider _contentProvider;
+
+    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, IPdfPageContentProvider contentProvider)
     {
         Info = info;
         PageNumber = pageNumber;
-        Popups = popups ?? Array.Empty<PdfAnnotationPopup>();
+        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
     }
 
     /// <summary>
@@ -30,7 +33,7 @@ public class PdfPanelPage
     /// <summary>
     /// Collection of annotation popups for this page.
     /// </summary>
-    public PdfAnnotationPopup[] Popups { get; }
+    public PdfAnnotationPopup[] Popups => _contentProvider.GetAnnotationPopups(PageNumber);
 
     /// <summary>
     /// Gets the offset of the page.

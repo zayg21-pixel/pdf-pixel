@@ -4,7 +4,6 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,6 +37,7 @@ internal static class PdfDocumentAnnotationExtractor
             return Array.Empty<PdfAnnotationPopup>();
         }
 
+        HashSet<PdfReference> pageReferences = BuildPageReferences(pdfPage);
         Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = BuildRepliesByParent(pdfPage);
         List<PdfAnnotationPopup> popups = [];
         HashSet<PdfAnnotationBase> processedAnnotations = [];
@@ -46,51 +46,81 @@ internal static class PdfDocumentAnnotationExtractor
         {
             PdfAnnotationBase annotation = pageAnnotation.Content;
 
-            if (processedAnnotations.Contains(annotation))
+            if (processedAnnotations.Contains(annotation) || !IsThreadRoot(annotation, pageReferences))
             {
                 continue;
             }
 
-            if (annotation.InReplyTo.HasValue)
-            {
-                continue;
-            }
-
-            PdfAnnotationMessage[] thread = BuildAnnotationThread(annotation, repliesByParent, processedAnnotations);
-            PdfAnnotationNavigation? navigation = BuildAnnotationNavigation(annotation);
-            popups.Add(new PdfAnnotationPopup(pageAnnotation, navigation, thread));
+            PdfAnnotationMessage[] thread = BuildThread(annotation, repliesByParent, processedAnnotations);
+            popups.Add(new PdfAnnotationPopup(pageAnnotation, thread));
         }
 
         return popups.ToArray();
     }
 
-    private static PdfAnnotationMessage[] BuildAnnotationThread(
-        PdfAnnotationBase rootAnnotation,
+    /// <summary>
+    /// Whether <paramref name="annotation"/> starts a thread: it either replies to nothing, or replies
+    /// to an annotation that <paramref name="pageReferences"/> does not contain.
+    /// </summary>
+    private static bool IsThreadRoot(PdfAnnotationBase annotation, HashSet<PdfReference> pageReferences)
+    {
+        if (!annotation.InReplyTo.HasValue)
+        {
+            return true;
+        }
+
+        return !pageReferences.Contains(annotation.InReplyTo.Value);
+    }
+
+    /// <summary>
+    /// Builds the message tree rooted at <paramref name="annotation"/>. An annotation carrying no
+    /// contents produces no message of its own and its replies take its place.
+    /// </summary>
+    private static PdfAnnotationMessage[] BuildThread(
+        PdfAnnotationBase annotation,
         Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
-        List<PdfAnnotationMessage> messages = [];
-
-        PdfAnnotationMessage? rootMessage = CreateAnnotationMessage(rootAnnotation);
-        if (rootMessage.HasValue)
+        if (!processedAnnotations.Add(annotation))
         {
-            messages.Add(rootMessage.Value);
+            return Array.Empty<PdfAnnotationMessage>();
         }
 
-        processedAnnotations.Add(rootAnnotation);
+        List<PdfAnnotationMessage> replies = [];
 
-        List<PdfAnnotationBase> replies = FindAllReplies(rootAnnotation, repliesByParent, processedAnnotations);
-
-        foreach (PdfAnnotationBase reply in replies)
+        foreach (PdfAnnotationBase reply in FindDirectReplies(annotation, repliesByParent))
         {
-            PdfAnnotationMessage? replyMessage = CreateAnnotationMessage(reply);
-            if (replyMessage.HasValue)
+            replies.AddRange(BuildThread(reply, repliesByParent, processedAnnotations));
+        }
+
+        PdfAnnotationMessage? message = CreateAnnotationMessage(annotation, replies.ToArray());
+
+        if (message == null)
+        {
+            return replies.ToArray();
+        }
+
+        return new PdfAnnotationMessage[] { message };
+    }
+
+    /// <summary>
+    /// Collects the references of every annotation on the page.
+    /// </summary>
+    private static HashSet<PdfReference> BuildPageReferences(IPdfPage pdfPage)
+    {
+        HashSet<PdfReference> pageReferences = [];
+
+        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
+        {
+            PdfAnnotationBase annotation = pageAnnotation.Content;
+
+            if (annotation.Reference.IsValid)
             {
-                messages.Add(replyMessage.Value);
+                pageReferences.Add(annotation.Reference);
             }
         }
 
-        return messages.ToArray();
+        return pageReferences;
     }
 
     /// <summary>
@@ -127,7 +157,7 @@ internal static class PdfDocumentAnnotationExtractor
     /// <summary>
     /// Creates annotation message from an annotation's metadata.
     /// </summary>
-    private static PdfAnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation)
+    private static PdfAnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation, PdfAnnotationMessage[] replies)
     {
         if (annotation.Contents == null)
         {
@@ -145,124 +175,21 @@ internal static class PdfDocumentAnnotationExtractor
         string? messageTitle = (!string.IsNullOrEmpty(title)) ? title : null;
         DateTimeOffset? messageDate = (annotation.CreationDate.HasValue) ? new DateTimeOffset(annotation.CreationDate.Value) : (DateTimeOffset?)null;
 
-        return new PdfAnnotationMessage(messageDate, messageTitle, contents);
-    }
-
-    private static List<PdfAnnotationBase> FindAllReplies(
-        PdfAnnotationBase annotation,
-        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent,
-        HashSet<PdfAnnotationBase> processedAnnotations)
-    {
-        List<PdfAnnotationBase> replies = [];
-        PdfReference annotationRef = annotation.Reference;
-
-        if (!annotationRef.IsValid)
-        {
-            return replies;
-        }
-
-        List<PdfAnnotationBase> directReplies = FindDirectReplies(annotationRef, repliesByParent, processedAnnotations);
-
-        foreach (PdfAnnotationBase reply in directReplies)
-        {
-            replies.Add(reply);
-
-            if (reply.ReplyType == PdfAnnotationReplyType.Reply)
-            {
-                List<PdfAnnotationBase> nestedReplies = FindAllReplies(reply, repliesByParent, processedAnnotations);
-                replies.AddRange(nestedReplies);
-            }
-        }
-
-        return replies;
-    }
-
-    private static PdfAnnotationNavigation BuildAnnotationNavigation(PdfAnnotationBase annotation)
-    {
-        if (annotation is not PdfLinkAnnotation link)
-        {
-            return new PdfAnnotationNavigation
-            {
-                NavigationType = PdfAnnotationNavigationType.None,
-                CursorType = annotation.CursorType
-            };
-        }
-
-        if (link.Action is PdfUriAction uriAction && uriAction.Uri != null)
-        {
-            return new PdfAnnotationNavigation
-            {
-                NavigationType = PdfAnnotationNavigationType.Uri,
-                CursorType = link.CursorType,
-                Uri = uriAction.Uri.Value.ToString()
-            };
-        }
-
-        if (link.Action is PdfGoToAction goToAction)
-        {
-            PdfDestination? actionDestination = goToAction.GetDestination();
-
-            if (actionDestination != null)
-            {
-                return new PdfAnnotationNavigation
-                {
-                    NavigationType = PdfAnnotationNavigationType.GoToDestination,
-                    CursorType = link.CursorType,
-                    Destination = actionDestination
-                };
-            }
-        }
-
-        if (link.Action is PdfGoToRemoteAction)
-        {
-            // TODO: handle remote file loading
-            return new PdfAnnotationNavigation
-            {
-                NavigationType = PdfAnnotationNavigationType.GoToRemote,
-                CursorType = link.CursorType
-            };
-        }
-
-        PdfDestination? linkDestination = link.GetDestination();
-
-        if (linkDestination != null)
-        {
-            return new PdfAnnotationNavigation
-            {
-                NavigationType = PdfAnnotationNavigationType.GoToDestination,
-                CursorType = link.CursorType,
-                Destination = linkDestination
-            };
-        }
-
-        return new PdfAnnotationNavigation
-        {
-            NavigationType = PdfAnnotationNavigationType.None,
-            CursorType = link.CursorType
-        };
+        return new PdfAnnotationMessage(messageDate, messageTitle, contents, replies);
     }
 
     private static List<PdfAnnotationBase> FindDirectReplies(
-        in PdfReference parentRef,
-        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent,
-        HashSet<PdfAnnotationBase> processedAnnotations)
+        PdfAnnotationBase annotation,
+        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent)
     {
-        List<PdfAnnotationBase> replies = [];
-
-        if (!repliesByParent.TryGetValue(parentRef, out List<PdfAnnotationBase>? candidates))
+        if (!annotation.Reference.IsValid)
         {
-            return replies;
+            return new List<PdfAnnotationBase>();
         }
 
-        foreach (PdfAnnotationBase candidate in candidates)
+        if (!repliesByParent.TryGetValue(annotation.Reference, out List<PdfAnnotationBase>? replies))
         {
-            if (processedAnnotations.Contains(candidate))
-            {
-                continue;
-            }
-
-            processedAnnotations.Add(candidate);
-            replies.Add(candidate);
+            return new List<PdfAnnotationBase>();
         }
 
         return replies;

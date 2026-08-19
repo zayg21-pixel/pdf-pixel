@@ -347,7 +347,7 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        Cursor = popup.Navigation?.CursorType switch
+        Cursor = popup.PageAnnotation?.Content.CursorType switch
         {
             PdfAnnotationCursorType.Hand => Cursors.Hand,
             PdfAnnotationCursorType.IBeam => Cursors.IBeam,
@@ -357,23 +357,41 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void HandleAnnotationClick(PdfAnnotationPopup popup)
     {
-        if (popup.Navigation == null)
+        if (popup.PageAnnotation?.Content is not PdfLinkAnnotation link)
         {
             return;
         }
 
-        switch (popup.Navigation.NavigationType)
+        if (link.Action is PdfUriAction uriAction && uriAction.Uri != null)
         {
-            case PdfAnnotationNavigationType.Uri:
-                HandleUriAction(popup.Navigation.Uri);
-                break;
-            case PdfAnnotationNavigationType.GoToDestination:
-                _context?.ScrollToDestination(popup.Navigation.Destination);
+            HandleUriAction(uriAction.Uri.Value.ToString());
+            return;
+        }
+
+        if (link.Action is PdfGoToAction goToAction)
+        {
+            PdfDestination actionDestination = goToAction.GetDestination();
+
+            if (actionDestination != null)
+            {
+                _context?.ScrollToDestination(actionDestination);
                 InvalidateVisual();
-                break;
-            case PdfAnnotationNavigationType.GoToRemote:
-                // TODO: handle remote file loading
-                break;
+                return;
+            }
+        }
+
+        if (link.Action is PdfGoToRemoteAction)
+        {
+            // TODO: handle remote file loading
+            return;
+        }
+
+        PdfDestination linkDestination = link.GetDestination();
+
+        if (linkDestination != null)
+        {
+            _context?.ScrollToDestination(linkDestination);
+            InvalidateVisual();
         }
     }
 

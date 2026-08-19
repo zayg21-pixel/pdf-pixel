@@ -1,4 +1,5 @@
 using PdfPixel.Commands;
+using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using System;
 
@@ -9,12 +10,13 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 public sealed class PdfPageCacheEntry : IDisposable
 {
+    private PdfAnnotationPopup[]? _annotations;
     private bool _disposed;
 
     /// <summary>
     /// Initializes a cache entry for the given page number, info, and annotations.
     /// </summary>
-    public PdfPageCacheEntry(int pageNumber, in PdfPanelPageInfo pageInfo, PdfAnnotationPopup[]? annotations)
+    public PdfPageCacheEntry(int pageNumber, in PdfPanelPageInfo pageInfo)
     {
         if (pageNumber < 1)
         {
@@ -23,7 +25,6 @@ public sealed class PdfPageCacheEntry : IDisposable
 
         PageNumber = pageNumber;
         PageInfo = pageInfo;
-        Annotations = annotations;
         Content = new PdfPageCacheEntryItem(pageNumber);
         AnnotationContent = new PdfPageCacheEntryItem(pageNumber);
     }
@@ -49,9 +50,27 @@ public sealed class PdfPageCacheEntry : IDisposable
     public PdfPageCacheEntryItem AnnotationContent { get; }
 
     /// <summary>
-    /// Page annotations.
+    /// Returns the page's annotation popups, creating them on first call.
     /// </summary>
-    public PdfAnnotationPopup[]? Annotations { get; }
+    public PdfAnnotationPopup[] GetAnnotations(IPdfDocument document, object documentLocker)
+    {
+        if (document == null)
+        {
+            throw new ArgumentNullException(nameof(document));
+        }
+
+        ThrowIfDisposed();
+
+        if (_annotations == null)
+        {
+            lock (documentLocker)
+            {
+                _annotations = document.CreateAnnotationPopups(PageNumber);
+            }
+        }
+
+        return _annotations;
+    }
 
     /// <summary>
     /// True if this entry has a pending or completed decode request.

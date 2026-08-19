@@ -98,8 +98,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         {
             int pageNumber = i + 1;
             PdfPanelPageInfo info = contentProvider.GetPageInfo(pageNumber);
-            PdfAnnotationPopup[]? popups = contentProvider.GetAnnotationPopups(pageNumber);
-            PdfPanelPage page = new(info, pageNumber, popups);
+            PdfPanelPage page = new(info, pageNumber, contentProvider);
             pages.Add(page);
         }
 

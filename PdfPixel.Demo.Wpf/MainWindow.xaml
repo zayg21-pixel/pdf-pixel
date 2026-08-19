@@ -149,19 +149,19 @@
                                      PanelInterface="{Binding PanelInterface}">
                 <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip>
+                        <ToolTip.Resources>
+                            <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationMessage}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" Margin="4" FontSize="14" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding Contents}" Margin="4" FontSize="12" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding CreationDate}" Margin="4" FontSize="10" />
+                                    <ItemsControl ItemsSource="{Binding Replies}" Margin="12,0,0,0" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ToolTip.Resources>
                         <ToolTip.ContentTemplate>
                             <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationPopup}">
-                                <ItemsControl ItemsSource="{Binding Messages}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Title}" Margin="4" FontSize="14" FontWeight="Bold" />
-                                                <TextBlock Text="{Binding Contents}" Margin="4" FontSize="12" />
-                                                <TextBlock Text="{Binding CreationDate}" Margin="4" FontSize="10" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <ItemsControl ItemsSource="{Binding Messages}" MaxWidth="360" />
                             </DataTemplate>
                         </ToolTip.ContentTemplate>
                     </ToolTip>

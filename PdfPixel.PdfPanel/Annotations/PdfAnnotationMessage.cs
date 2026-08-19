@@ -2,24 +2,20 @@
 
 namespace PdfPixel.PdfPanel.Annotations;
 
-// TODO: rework into a hierarchy. Replies form a tree through /IRT, and flattening a thread into an
-// ordered array loses which message each reply answers. The type needs to carry its own replies so the
-// tree survives extraction, and PdfDocumentAnnotationExtractor must then walk it without dropping
-// subtrees under a non-/R node or discarding replies whose parent is not on the page.
-
 /// <summary>
-/// Contains information about a single annotation message.
+/// Contains information about a single annotation message and the messages that reply to it.
 /// </summary>
-public readonly struct PdfAnnotationMessage
+public sealed class PdfAnnotationMessage
 {
     /// <summary>
-    /// Initializes a message with the given date, title, and body text.
+    /// Initializes a message with the given date, title, body text, and replies.
     /// </summary>
-    public PdfAnnotationMessage(DateTimeOffset? date, string? title, string contents)
+    public PdfAnnotationMessage(DateTimeOffset? date, string? title, string contents, PdfAnnotationMessage[] replies)
     {
         CreationDate = date;
         Title = title;
         Contents = contents;
+        Replies = replies ?? throw new ArgumentNullException(nameof(replies));
     }
 
     /// <summary>
@@ -36,5 +32,9 @@ public readonly struct PdfAnnotationMessage
     /// Contents of the message.
     /// </summary>
     public string Contents { get; }
-}
 
+    /// <summary>
+    /// Messages replying to this one, in document order.
+    /// </summary>
+    public PdfAnnotationMessage[] Replies { get; }
+}

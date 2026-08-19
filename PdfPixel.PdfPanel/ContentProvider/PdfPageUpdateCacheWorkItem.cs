@@ -134,7 +134,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
         lock (_documentLocker)
         {
-            if (CacheEntry.Annotations?.Length > 0
+            if (CacheEntry.GetAnnotations(_document, _documentLocker).Length > 0
                 && (!CacheEntry.AnnotationContent.ContentCommandRecording.HasContent
                     || CacheEntry.AnnotationContent.LastRequest == null
                     || CacheEntry.AnnotationContent.LastRequest.ActiveAnnotation != _request.ActiveAnnotation

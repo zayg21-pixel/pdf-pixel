@@ -1,6 +1,5 @@
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Requests;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -24,7 +23,7 @@ public interface IPdfPageContentProvider : IDisposable
     /// <summary>
     /// Returns the annotation popups for the specified 1-based page number.
     /// </summary>
-    PdfAnnotationPopup[]? GetAnnotationPopups(int pageNumber);
+    PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber);
 
     /// <summary>
     /// Returns the total number of pages in the document.
