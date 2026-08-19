@@ -135,7 +135,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <summary>
     /// Number of components in each packed sample, counting interleaved alpha.
     /// </summary>
-    public int ComponentCount => ColorSpaceConverter.Components + ((IsAlphaInterleaved) ? 1 : 0);
+    public int ComponentCount => ColorSpaceConverter.Components + (IsAlphaInterleaved ? 1 : 0);
 
     /// <summary>
     /// Size in bytes of one full-width row of packed samples.

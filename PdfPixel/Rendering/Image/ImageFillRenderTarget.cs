@@ -30,7 +30,7 @@ internal class ImageFillRenderTarget : IRenderTarget
         _context = new ImageDecodingContext(image, state);
         _loggerFactory = loggerFactory;
 
-        if (image.AlphaMode == PdfImageAlphaMode.StencilMask && state.FillPaint.IsPattern)
+        if (image.HasImageMask && state.FillPaint.IsPattern)
         {
             _pattern = state.FillPaint.Pattern;
         }
@@ -50,7 +50,7 @@ internal class ImageFillRenderTarget : IRenderTarget
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
     {
-        if (_image.AlphaMode == PdfImageAlphaMode.StencilMask)
+        if (_image.HasImageMask)
         {
             ImageDecodingContext maskContext = new(_context, _image, OpaqueWhiteFill, isStencilMaskComposite: true);
             processor.Process(SaveStateCommand.Instance);
@@ -74,62 +74,44 @@ internal class ImageFillRenderTarget : IRenderTarget
 
     private void ProcessTileCommands(IPdfCommandProcessor processor, PdfImage image, ImageDecodingContext context)
     {
-        switch (image.AlphaMode)
+        if (image.StencilMask != null)
         {
-            case PdfImageAlphaMode.StencilMask:
+            PdfImage? stencilMask = image.StencilMask;
+            if (stencilMask == null)
             {
-                StencilMaskImageExecutionContext ctx = StencilMaskImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
-                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
-                {
-                    processor.Process(new DrawStencilMaskImageTileCommand(ctx, i));
-                }
-
-                break;
+                throw new ArgumentException($"Stencil mask not defined for image {image.SourceReference}.");
             }
-            case PdfImageAlphaMode.ImageWithStencilMask:
+
+            ImageDecodingContext imageLayerContext = new(context, image, OpaqueWhiteFill, isStencilMaskComposite: false);
+            NormalImageExecutionContext imageCtx = NormalImageExecutionContext.Create(image, imageLayerContext, _loggerFactory);
+            processor.Process(new InitializeTileCacheCommand(imageCtx.TileCache, imageCtx.ImageSize));
+
+            ImageDecodingContext maskContext = new(context, stencilMask, OpaqueWhiteFill, isStencilMaskComposite: true);
+            NormalImageExecutionContext maskCtx = NormalImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
+            processor.Process(new InitializeTileCacheCommand(maskCtx.TileCache, maskCtx.ImageSize));
+
+            PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
+            processor.Process(new SaveLayerCommand(Bounds, layerPaint));
+
+            for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)
             {
-                PdfImage? stencilMask = image.StencilMask;
-                if (stencilMask == null)
-                {
-                    throw new ArgumentException($"Stencil mask not defined for image {image.SourceReference}.");
-                }
-
-                ImageDecodingContext imageLayerContext = new(context, image, OpaqueWhiteFill, isStencilMaskComposite: false);
-                NormalImageExecutionContext imageCtx = NormalImageExecutionContext.Create(image, imageLayerContext, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(imageCtx.TileCache, imageCtx.ImageSize));
-
-                ImageDecodingContext maskContext = new(context, stencilMask, OpaqueWhiteFill, isStencilMaskComposite: true);
-                StencilMaskImageExecutionContext maskCtx = StencilMaskImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(maskCtx.TileCache, maskCtx.ImageSize));
-
-                PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
-                processor.Process(new SaveLayerCommand(Bounds, layerPaint));
-
-                for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)
-                {
-                    processor.Process(new DrawNormalImageTileCommand(imageCtx, i));
-                }
-
-                for (int i = 0; i < maskCtx.TileInfo.TotalTiles; i++)
-                {
-                    processor.Process(new DrawStencilMaskImageTileCommand(maskCtx, i));
-                }
-
-                processor.Process(RestoreLayerCommand.Instance);
-
-                break;
+                processor.Process(new DrawNormalImageTileCommand(imageCtx, i));
             }
-            default:
-            {
-                NormalImageExecutionContext ctx = NormalImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
-                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
-                {
-                    processor.Process(new DrawNormalImageTileCommand(ctx, i));
-                }
 
-                break;
+            for (int i = 0; i < maskCtx.TileInfo.TotalTiles; i++)
+            {
+                processor.Process(new DrawNormalImageTileCommand(maskCtx, i));
+            }
+
+            processor.Process(RestoreLayerCommand.Instance);
+        }
+        else
+        {
+            NormalImageExecutionContext ctx = NormalImageExecutionContext.Create(image, context, _loggerFactory);
+            processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
+            for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+            {
+                processor.Process(new DrawNormalImageTileCommand(ctx, i));
             }
         }
     }

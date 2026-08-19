@@ -1,9 +1,11 @@
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
 using PdfPixel.Models;
 using System;
+using System.Numerics;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -24,6 +26,25 @@ internal sealed partial class PdfImageRowProcessor
         }
 
         return palette;
+    }
+
+    /// <summary>
+    /// Builds the two-entry palette of a stencil mask, mapping each sample straight to the fill
+    /// color at full or zero coverage. A Decode of [1 0] swaps which sample value paints.
+    /// </summary>
+    private static RgbaPacked[] BuildStencilMaskPalette(PdfImageRowDecodingParameters parameters)
+    {
+        PdfColor fillColor = parameters.Context.FillPaint.Color;
+        RgbaPacked painted = new Vector4(fillColor.Red, fillColor.Green, fillColor.Blue, 0f).From01ToRgba();
+        RgbaPacked clear = painted;
+        clear.A = 0;
+
+        PdfRange[]? decode = parameters.Decode;
+        bool paintsOnZero = decode == null || decode.Length < 1 || decode[0].Min < decode[0].Max;
+
+        return paintsOnZero
+            ? new[] { painted, clear }
+            : new[] { clear, painted };
     }
 
     private static bool ShouldApplyDecode(PdfRange[]? decode, int componentCount, int bitsPerComponent, bool indexed)

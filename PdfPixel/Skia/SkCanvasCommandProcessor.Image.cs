@@ -38,29 +38,4 @@ public sealed partial class SkCanvasCommandProcessor
         _canvas.DrawImage(skImage, placement.PlacementRectangle.ToSkRect(), SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate), paint);
         _canvas.Restore();
     }
-
-    private void ExecuteDrawStencilMaskImageTile(DrawStencilMaskImageTileCommand command)
-    {
-        StencilMaskImageExecutionContext context = command.Context;
-        PdfImageTile tile = context.TileCache.GetNextTile(_executionContext.ExecutionObserver);
-
-        if (tile.IsSkipped || tile.Image == null)
-        {
-            return;
-        }
-
-        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(_executionContext, context.ImageSize, tile.TilePosition, context.Interpolate);
-
-        SKColor fillColor = context.DecodingContext.FillPaint.Color.ToSkiaColor();
-        using SKColorFilter colorFilter = SkiaImageBlending.CreateImageMaskColorFilter(in fillColor, context.InvertMask);
-        using SKImage skImage = tile.Image.ToSkImage();
-        using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(context.DecodingContext);
-        paint.ColorFilter = colorFilter;
-        SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
-
-        _canvas.Save();
-        _canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        _canvas.DrawImage(skImage, placement.PlacementRectangle.ToSkRect(), SkiaCommandUtilities.GetSamplingOptions(placement.Interpolate), paint);
-        _canvas.Restore();
-    }
 }

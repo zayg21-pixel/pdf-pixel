@@ -95,22 +95,6 @@ public class PdfImage
         {
             SoftMask = GetImage(softMaskObject);
         }
-
-        var alphaMode = PdfImageAlphaMode.Normal;
-        if (HasImageMask)
-        {
-            alphaMode = PdfImageAlphaMode.StencilMask;
-        }
-        else if (SoftMask != null)
-        {
-            alphaMode = PdfImageAlphaMode.ImageWithSoftAlphaMask;
-        }
-        else if (StencilMask != null)
-        {
-            alphaMode = PdfImageAlphaMode.ImageWithStencilMask;
-        }
-
-        AlphaMode = alphaMode;
     }
 
     /// <summary>
@@ -158,11 +142,6 @@ public class PdfImage
     /// Simplified image type classification derived from /Filter (e.g., JPEG, JPEG2000, CCITT, JBIG2, Raw).
     /// </summary>
     public PdfImageType Type { get; }
-
-    /// <summary>
-    /// Image alpha mode depending on parameters.
-    /// </summary>
-    public PdfImageAlphaMode AlphaMode { get; }
 
     /// <summary>
     /// Parsed /DecodeParms entries (single dictionary or first image-related entry when array) used by certain filters and predictors.

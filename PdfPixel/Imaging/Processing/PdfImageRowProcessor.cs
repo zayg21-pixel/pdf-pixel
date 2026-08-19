@@ -106,7 +106,12 @@ internal sealed partial class PdfImageRowProcessor
         _maskArray = parameters.MaskArray ?? Array.Empty<int>();
         _stages = GetProcessingStages(parameters);
 
-        if (_stages != ProcessingStages.None)
+        if (parameters.HasImageMask)
+        {
+            _outputMode = OutputMode.IndexedRgbaColorConverted;
+            _indexedPalette = BuildStencilMaskPalette(parameters);
+        }
+        else if (_stages != ProcessingStages.None)
         {
             if (parameters.ColorSpaceConverter is PdfIndexedColorSpaceConverter indexedConverter)
             {
@@ -172,22 +177,28 @@ internal sealed partial class PdfImageRowProcessor
             }
         }
 
-        if (_outputMode == OutputMode.Gray)
+        switch (_outputMode)
         {
-            _colorFormat = PdfImageColorFormat.Gray;
-            _alphaType = PdfImageAlphaType.Opaque;
-            _rowBytes = _width;
-        }
-        else
-        {
-            // Colour key masking and the folded palette write zero alpha into buffers with no alpha source.
-            _colorFormat = PdfImageColorFormat.Rgba;
-            _alphaType = PdfImageAlphaType.Unpremultiplied;
-            _rowBytes = _width * 4;
-
-            if (parameters.Matte != null)
+            case OutputMode.Gray:
             {
-                _backdrop = _converter.ToSrgb(parameters.Matte, parameters.RenderingIntent, parameters.Context.TransferFunction);
+                _colorFormat = PdfImageColorFormat.Gray;
+                _alphaType = PdfImageAlphaType.Opaque;
+                _rowBytes = _width;
+                break;
+            }
+            default:
+            {
+                // Colour key masking and the folded palette write zero alpha into buffers with no alpha source.
+                _colorFormat = PdfImageColorFormat.Rgba;
+                _alphaType = PdfImageAlphaType.Unpremultiplied;
+                _rowBytes = _width * 4;
+
+                if (parameters.Matte != null)
+                {
+                    _backdrop = _converter.ToSrgb(parameters.Matte, parameters.RenderingIntent, parameters.Context.TransferFunction);
+                }
+
+                break;
             }
         }
 
