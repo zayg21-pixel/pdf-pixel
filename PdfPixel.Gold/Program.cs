@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Management;
-using PdfPixel.Models;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System.Diagnostics;
@@ -85,7 +84,7 @@ internal sealed class Program
 
         foreach (string argument in runArguments)
         {
-            if (string.Equals(argument, "--fullRun", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(argument, "--full", StringComparison.OrdinalIgnoreCase))
             {
                 fullRun = true;
             }
@@ -722,14 +721,14 @@ internal sealed class Program
     {
         Console.WriteLine("Usage: PdfPixel.Gold [add|generate|compare] [options]");
         Console.WriteLine("  <no arguments>          compares the short set against its golden snapshots");
-        Console.WriteLine("  --fullRun               compares every registered PDF, slow ones included");
+        Console.WriteLine("  --full                  compares every registered PDF, slow ones included");
         Console.WriteLine("  --inspect               also collects every differing page into the Inspect folder");
         Console.WriteLine("  a* b                    compares the selected PDFs only, short or full alike");
         Console.WriteLine("  generate                rewrites the golden snapshots of the short set");
-        Console.WriteLine("  generate --fullRun      rewrites the golden snapshots of every registered PDF");
+        Console.WriteLine("  generate --full         rewrites the golden snapshots of every registered PDF");
         Console.WriteLine("  generate a* b           rewrites the golden snapshots of the selected PDFs only");
         Console.WriteLine("  analyze                 renders the short set and prints how long every page took");
-        Console.WriteLine("  analyze --fullRun       renders every registered PDF and prints its statistics");
+        Console.WriteLine("  analyze --full          renders every registered PDF and prints its statistics");
         Console.WriteLine("  analyze a* b            renders the selected PDFs only and prints their statistics");
         Console.WriteLine("  analyze --memory        also measures the peak and the retained memory of every page");
         Console.WriteLine("  add <pdf> [pages] [--password <user password>]");
