@@ -28,7 +28,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
             _pattern = state.StrokePaint.Pattern;
         }
 
-        Bounds = (_pattern != null) ? _path.GetStrokeBounds(state.StrokePaint) : PdfRectangle.Empty;
+        Bounds = _path.GetStrokeBounds(state.StrokePaint);
     }
 
     public PdfRectangle Bounds { get; }

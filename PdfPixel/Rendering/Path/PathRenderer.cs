@@ -58,14 +58,7 @@ public class PathRenderer : IPathRenderer
             return;
         }
 
-        PdfRectangle contentBounds = (operation == PdfPaintOperation.Fill)
-            ? path.GetBounds()
-            : path.GetStrokeBounds(state.StrokePaint);
-
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
-        softMaskScope.BeginDrawContent();
         DrawPathCore(processor, path, state, operation);
-        softMaskScope.EndDrawContent();
     }
 
     /// <summary>
@@ -80,17 +73,30 @@ public class PathRenderer : IPathRenderer
             case PdfPaintOperation.Stroke:
             {
                 PathStrokeRenderTarget target = new(path, state);
+
+                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, target.Bounds);
+                softMaskScope.BeginDrawContent();
                 target.Render(processor);
+                softMaskScope.EndDrawContent();
                 break;
             }
             case PdfPaintOperation.Fill:
             {
                 PathFillRenderTarget target = new(path, state);
+
+                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, target.Bounds);
+                softMaskScope.BeginDrawContent();
                 target.Render(processor);
+                softMaskScope.EndDrawContent();
                 break;
             }
             case PdfPaintOperation.FillAndStroke:
             {
+                PathStrokeRenderTarget strokeTarget = new(path, state);
+
+                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, strokeTarget.Bounds);
+                softMaskScope.BeginDrawContent();
+
                 bool overlapAffectsCompositing = state.FillPaint.Color.Alpha < 1
                     || state.StrokePaint.Color.Alpha < 1
                     || state.FillPaint.BlendMode != PdfBlendMode.Normal;
@@ -111,9 +117,8 @@ public class PathRenderer : IPathRenderer
                     fillTarget.Render(processor);
                 }
 
-                PathStrokeRenderTarget strokeTarget = new(path, state);
                 strokeTarget.Render(processor);
-
+                softMaskScope.EndDrawContent();
                 break;
             }
         }

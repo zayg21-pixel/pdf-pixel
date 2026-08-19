@@ -99,7 +99,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             PdfMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
 
-            PdfRectangle contentBounds = GetType3Bounds(glyphsSpan, state, type3Font, fullTextMatrix) ?? state.GetUserSpaceClipBounds();
+            PdfRectangle contentBounds = TextRenderUtilities.GetType3Bounds(_renderer, glyphsSpan, state, type3Font, fullTextMatrix) ?? state.GetUserSpaceClipBounds();
 
             using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
             softMaskScope.BeginDrawContent();
@@ -164,18 +164,12 @@ public class PdfTextRenderer : IPdfTextRenderer
         if (state.RenderingParameters.RenderText)
         {
             bool shouldFill = ShouldFill(state.TextRenderingMode);
-            bool shouldStroke = ShouldStroke(state.TextRenderingMode);
 
-            if (shouldFill || shouldStroke)
+            if (ShouldStroke(state.TextRenderingMode))
             {
-                PdfRectangle contentBounds = TextRenderUtilities.GetTextBounds(shapingResult, state) ?? state.GetUserSpaceClipBounds();
+                TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
 
-                if (shouldStroke)
-                {
-                    contentBounds = contentBounds.InflateForStroke(state.StrokePaint);
-                }
-
-                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
+                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textStrokeTarget.Bounds);
                 softMaskScope.BeginDrawContent();
 
                 if (shouldFill)
@@ -184,12 +178,17 @@ public class PdfTextRenderer : IPdfTextRenderer
                     textFillTarget.Render(processor);
                 }
 
-                if (shouldStroke)
-                {
-                    TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
-                    textStrokeTarget.Render(processor);
-                }
+                textStrokeTarget.Render(processor);
+                softMaskScope.EndDrawContent();
+            }
+            else if (shouldFill)
+            {
+                // TODO: [HIGH] missing fill + stroke path and alpha present (see Path renderer)
+                TextFillRenderTarget textFillTarget = new(shapingResult, state);
 
+                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textFillTarget.Bounds);
+                softMaskScope.BeginDrawContent();
+                textFillTarget.Render(processor);
                 softMaskScope.EndDrawContent();
             }
 
@@ -243,59 +242,6 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             processor.Process(new EndMarkedContentCommand());
         }
-    }
-
-    /// <summary>
-    /// Computes the area the Type 3 glyphs of <paramref name="glyphs"/> can cover, in the space
-    /// <paramref name="fullTextMatrix"/> maps into. Each glyph contributes the box its CharProc declared
-    /// through d1, or the font's own box when it declared none, and a glyph with neither yields
-    /// <see langword="null"/>.
-    /// </summary>
-    private PdfRectangle? GetType3Bounds(in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font, in PdfMatrix fullTextMatrix)
-    {
-        var hasBounds = false;
-        float left = float.MaxValue;
-        float top = float.MaxValue;
-        float right = float.MinValue;
-        float bottom = float.MinValue;
-
-        for (int i = 0; i < glyphs.Length; i++)
-        {
-            ShapedGlyph glyph = glyphs[i];
-            PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
-
-            if (!charInfo.IsDefined || charInfo.Recording == null)
-            {
-                continue;
-            }
-
-            PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
-
-            if (glyphBBox == null)
-            {
-                return null;
-            }
-
-            PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
-
-            if (mapped.Width <= 0 || mapped.Height <= 0)
-            {
-                return null;
-            }
-
-            hasBounds = true;
-            left = Math.Min(left, glyph.X + mapped.Left);
-            top = Math.Min(top, glyph.Y + mapped.Top);
-            right = Math.Max(right, glyph.X + mapped.Right);
-            bottom = Math.Max(bottom, glyph.Y + mapped.Bottom);
-        }
-
-        if (!hasBounds)
-        {
-            return null;
-        }
-
-        return fullTextMatrix.MapRect(new PdfRectangle(left, top, right, bottom));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

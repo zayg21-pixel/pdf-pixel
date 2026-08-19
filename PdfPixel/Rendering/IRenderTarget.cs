@@ -18,10 +18,8 @@ internal interface IRenderTarget
     void Render(IPdfCommandProcessor processor);
 
     /// <summary>
-    /// Bounding rectangle of this render target in current CTM space.
-    /// Used by pattern tiling to determine which tiles are needed.
-    /// For path/text targets this is derived from the clip path bounds;
-    /// for image targets it is the unit square [0,0,1,1].
+    /// Area the content of this render target can cover, in current CTM space.
+    /// Always a rectangle that contains everything <see cref="Render"/> draws.
     /// </summary>
     PdfRectangle Bounds { get; }
 

@@ -28,9 +28,12 @@ internal class TextFillRenderTarget : IRenderTarget
         {
             _pattern = state.FillPaint.Pattern;
             _clipPath = TextRenderUtilities.GetTextPath(shapingResult, state);
+            Bounds = _clipPath.GetBounds();
         }
-
-        Bounds = _clipPath?.GetBounds() ?? PdfRectangle.Empty;
+        else
+        {
+            Bounds = TextRenderUtilities.GetTextBounds(shapingResult.Span, state) ?? state.GetUserSpaceClipBounds();
+        }
     }
 
     public PdfRectangle Bounds { get; }
