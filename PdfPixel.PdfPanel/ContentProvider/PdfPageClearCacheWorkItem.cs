@@ -1,4 +1,5 @@
 using PdfPixel.PdfPanel.WorkQueue;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -24,11 +25,13 @@ public sealed class PdfPageClearCacheWorkItem : IWorkItem
     public bool IsSkippable => false;
 
     /// <inheritdoc />
-    public void Process()
+    public ValueTask ProcessAsync()
     {
         lock (_documentLocker)
         {
             _cacheEntry.Clear();
         }
+
+        return default;
     }
 }

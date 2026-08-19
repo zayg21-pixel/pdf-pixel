@@ -7,6 +7,7 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
+using System.Threading.Tasks;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
 
@@ -88,7 +89,7 @@ internal static class PdfDocumentContentExtensions
     /// beginning recording, constructing the <see cref="PdfCommandExecutionContext"/>,
     /// and calling <see cref="SKPictureRecorder.EndRecording"/> after this method returns.
     /// </summary>
-    public static void RecordingToSkPicture(
+    public static async ValueTask RecordingToSkPictureAsync(
         PdfCommandRecorder commandRecording,
         PdfCommandExecutionContext executionContext,
         SKCanvas canvas,
@@ -123,7 +124,7 @@ internal static class PdfDocumentContentExtensions
         executionContext.Frames.Reset();
 
         SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
-        commandRecording.Replay(processor);
+        await commandRecording.ReplayAsync(processor).ConfigureAwait(false);
 
         canvas.Flush();
     }

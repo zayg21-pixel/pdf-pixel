@@ -60,7 +60,7 @@ public sealed class AsyncWorkQueue : IWorkQueue
 
                 try
                 {
-                    workItem.Process();
+                    await workItem.ProcessAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {

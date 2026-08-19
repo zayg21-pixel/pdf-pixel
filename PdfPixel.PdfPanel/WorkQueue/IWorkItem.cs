@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace PdfPixel.PdfPanel.WorkQueue;
 
 /// <summary>
@@ -13,5 +15,5 @@ public interface IWorkItem
     /// <summary>
     /// Executes the work item. Called on the worker thread.
     /// </summary>
-    void Process();
+    ValueTask ProcessAsync();
 }

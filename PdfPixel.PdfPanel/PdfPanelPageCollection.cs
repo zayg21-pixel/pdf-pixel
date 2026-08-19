@@ -73,7 +73,9 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
     public static PdfPanelPageCollection FromDocument(IPdfDocument document, SkiaFontSubstitutor fontSubstitutor, ILoggerFactory loggerFactory)
     {
-        PdfPageContentProvider contentProvider = new(document, fontSubstitutor, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()));
+        PdfPageContentProvider contentProvider = new(document, fontSubstitutor, new ImmidiateWorkQueue(loggerFactory.CreateLogger<ImmidiateWorkQueue>()), new PdfYieldingObserverFactory());
+        //PdfPageContentProvider contentProvider = new(document, fontSubstitutor, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()));
+
         return FromContentProvider(contentProvider);
     }
 

@@ -10,6 +10,7 @@ using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -71,7 +72,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     public PdfPageCacheEntry CacheEntry { get; }
 
     /// <inheritdoc />
-    public void Process()
+    public async ValueTask ProcessAsync()
     {
         if (_parseObserver == null ||  _contentObserver == null)
         {
@@ -92,9 +93,14 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
         if (CacheEntry.Content.NeedsUpdate(_request))
         {
-            using LockedContent<PdfCommandRecorder> contentRecording = CacheEntry.Content.ContentCommandRecording.GetContent();
+            PdfCommandRecorder? contentRecording;
 
-            if (contentRecording.Content != null)
+            using (LockedContent<PdfCommandRecorder> lockedRecording = CacheEntry.Content.ContentCommandRecording.GetContent())
+            {
+                contentRecording = lockedRecording.Content;
+            }
+
+            if (contentRecording != null)
             {
                 using SKPictureRecorder recorder = new();
                 SKCanvas canvas = recorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
@@ -106,7 +112,9 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _contentObserver,
                     _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
-                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, executionContext, canvas, _fontSubstitutor, _document.LoggerFactory);
+                await PdfDocumentContentExtensions
+                    .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, _fontSubstitutor, _document.LoggerFactory)
+                    .ConfigureAwait(false);
 
                 SKPicture? contentPicture = recorder.EndRecording();
                 List<PdfCharacter> characters = PdfTextBlockFlattener.Flatten(executionContext.RootTextBlock);
@@ -140,17 +148,22 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _contentObserver);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 annotationRecordingUpdated = true;
-            }// TODO: [MEDIUM] explore capabilities for partial update of annotation recording
+            }
         }
 
         if (CacheEntry.AnnotationContent.ContentCommandRecording.HasContent
             && (annotationRecordingUpdated || CacheEntry.AnnotationContent.NeedsUpdate(_request)))
         {
-            using LockedContent<PdfCommandRecorder> contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
+            PdfCommandRecorder? annotationContentRecording;
+
+            using (LockedContent<PdfCommandRecorder> lockedRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent())
+            {
+                annotationContentRecording = lockedRecording.Content;
+            }
 
             var annotationIsPartial = false;
 
-            if (contentRecording.Content != null)
+            if (annotationContentRecording != null)
             {
                 using SKPictureRecorder annotationRecorder = new();
                 SKCanvas annotationCanvas = annotationRecorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
@@ -162,7 +175,9 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _contentObserver,
                     _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
-                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, annotationContext, annotationCanvas, _fontSubstitutor, _document.LoggerFactory);
+                await PdfDocumentContentExtensions
+                    .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, _fontSubstitutor, _document.LoggerFactory)
+                    .ConfigureAwait(false);
 
                 SKPicture? annotationPicture = annotationRecorder.EndRecording();
 

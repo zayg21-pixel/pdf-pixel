@@ -4,7 +4,7 @@ using System;
 namespace PdfPixel.PdfPanel.WorkQueue;
 
 /// <summary>
-/// Work queue that processes each item synchronously on the calling thread.
+/// Work queue that starts each item on the calling thread.
 /// Intended for contexts where a dedicated worker thread is not available.
 /// </summary>
 public sealed class ImmidiateWorkQueue : IWorkQueue
@@ -24,9 +24,19 @@ public sealed class ImmidiateWorkQueue : IWorkQueue
             throw new ArgumentNullException(nameof(item));
         }
 
+        ProcessItem(item);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+    }
+
+    private async void ProcessItem(IWorkItem item)
+    {
         try
         {
-            item.Process();
+            await item.ProcessAsync().ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {
@@ -40,10 +50,5 @@ public sealed class ImmidiateWorkQueue : IWorkQueue
             _logger.LogError(ex, "An error occurred while processing a work item.");
         }
 #pragma warning restore CA1031
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
     }
 }

@@ -7,7 +7,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// <summary>
 /// <see cref="IPdfCancellableExecutionObserver"/> backed by a <see cref="System.Threading.CancellationTokenSource"/>.
 /// </summary>
-public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExecutionObserver
+public abstract class PdfCancellationSourceExecutionObserver : IPdfCancellableExecutionObserver
 {
     private bool _disposed;
 
@@ -15,6 +15,9 @@ public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExec
     /// The cancellation source that controls this observer.
     /// </summary>
     public CancellationTokenSource CancellationTokenSource { get; } = new();
+
+    /// <inheritdoc/>
+    public abstract ValueTask YieldAsync();
 
     /// <inheritdoc/>
     public void Notify()
@@ -35,9 +38,6 @@ public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExec
     }
 
     /// <inheritdoc/>
-    public async ValueTask YieldAsync() => await Task.Yield();
-
-    /// <inheritdoc/>
     public void Cancel()
     {
         try
@@ -55,6 +55,21 @@ public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExec
     /// <inheritdoc/>
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Cancels the observer and releases its cancellation source.
+    /// </summary>
+    /// <param name="disposing">True when called from <see cref="Dispose()"/>.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
         Cancel();
         CancellationTokenSource.Dispose();
         _disposed = true;

@@ -29,7 +29,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _fontSubstitutor = fontSubstitutor ?? throw new ArgumentNullException(nameof(fontSubstitutor));
-        _observerFactory = observerFactory ?? new PdfCancellationSourceObserverFactory();
+        _observerFactory = observerFactory ?? new PdfNonYieldingObserverFactory();
         _cache = new PdfPageCacheEntry[document.Pages.Count];
 
         for (int i = 0; i < document.Pages.Count; i++)
