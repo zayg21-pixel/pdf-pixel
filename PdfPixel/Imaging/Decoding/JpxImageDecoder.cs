@@ -52,13 +52,6 @@ internal class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (SourceReference={Image.SourceReference}).");
         }
 
-        // TODO: [MEDIUM] Un-blend the colour for /SMaskInData 2, which is read here but treated as
-        // mode 1. Mode 2 says the colour channels are premultiplied, which is /Matte with a black
-        // backdrop — c' = m + a(c - m) at m = 0 — so it wants the same un-blend as the MatteArray
-        // that SoftMaskImageExecutionContext already carries, and the colour space needs no
-        // transform. The two do not unify at the same point though: mode 2 has its alpha in the
-        // row, while /Matte gets it from a separately tiled image and can only be undone once both
-        // tiles meet. The corpus sets the entry in issue11306, issue16782 and isssue18194.
         bool includeOpacityComponent = Image.SoftMaskInData != PdfImageSoftMaskInData.None;
         JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, regionsOfInterest, _resolvedConverter, includeOpacityComponent);
         JpxTileProvider tileProvider = new(

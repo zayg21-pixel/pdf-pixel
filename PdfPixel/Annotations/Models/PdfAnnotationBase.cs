@@ -4,7 +4,6 @@ using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
-using PdfPixel.Color.Paint;
 using System;
 using PdfPixel.Geometry;
 using PdfPixel.Commands.Model;
@@ -210,7 +209,7 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Gets the appearance dictionary that specifies how the annotation is presented visually on the page.
     /// </summary>
-    public PdfDictionary? AppearanceDictionary { get; }
+    public PdfDictionary? AppearanceDictionary { get; } // TODO: [HIGH] need to split into states to avoid re-reading appearance objects
 
     /// <summary>
     /// Gets the appearance state that, along with the appearance dictionary, controls

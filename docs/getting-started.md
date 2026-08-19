@@ -12,13 +12,16 @@ dotnet add package PdfPixel
 using Microsoft.Extensions.Logging;
 using PdfPixel;
 using PdfPixel.Annotations.Models;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Context;
+using PdfPixel.Commands.Model;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Skia;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 
 // The only thing you need to change to run this example.
@@ -33,7 +36,8 @@ using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.Add
 // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
 // SkiaFontSubstitutor loads the installed system fonts; the map names the families that stand in
 // for the Standard 14 fonts on the operating system this process is running on.
-FontProvider fontProvider = new(new SkiaFontSubstitutor(loggerFactory), FontSubstitutionMaps.Current);
+SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
+FontProvider fontProvider = new(fontSubstitutor, FontSubstitutionMaps.Current);
 
 // PdfDocumentReader is the entry point for parsing PDF files.
 PdfDocumentReader reader = new(loggerFactory, fontProvider);
@@ -77,7 +81,7 @@ foreach (IPdfPage page in document.Pages)
         executionObserver);
 
     // Executes each drawing command immediately against canvas.
-    SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+    SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
     // Save the execution context's state before applying the page transform, so it can be restored afterwards.
     processor.Process(SaveStateCommand.Instance);

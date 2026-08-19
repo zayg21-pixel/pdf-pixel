@@ -163,6 +163,31 @@ public static class PdfToSkiaExtensions
     }
 
     /// <summary>
+    /// Converts a <see cref="PdfImageColorFormat"/> to the matching <see cref="SKColorType"/>.
+    /// </summary>
+    public static SKColorType ToSkColorType(this PdfImageColorFormat colorFormat)
+    {
+        return colorFormat switch
+        {
+            PdfImageColorFormat.Gray => SKColorType.Gray8,
+            _ => SKColorType.Rgba8888
+        };
+    }
+
+    /// <summary>
+    /// Converts a <see cref="PdfImageAlphaType"/> to the matching <see cref="SKAlphaType"/>.
+    /// </summary>
+    public static SKAlphaType ToSkAlphaType(this PdfImageAlphaType alphaType)
+    {
+        return alphaType switch
+        {
+            PdfImageAlphaType.Premultiplied => SKAlphaType.Premul,
+            PdfImageAlphaType.Unpremultiplied => SKAlphaType.Unpremul,
+            _ => SKAlphaType.Opaque
+        };
+    }
+
+    /// <summary>
     /// Converts a <see cref="PdfDecodedImage"/> to an <see cref="SKImage"/>.
     /// </summary>
     public static SKImage ToSkImage(this PdfDecodedImage image)

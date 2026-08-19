@@ -49,7 +49,6 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Gets the array of selected option indices for multiselect list boxes.
     /// </summary>
-    // TODO: [LOW] parse into an int array. Blocked on nothing.
     public PdfArray? SelectedIndices { get; }
 
     /// <summary>

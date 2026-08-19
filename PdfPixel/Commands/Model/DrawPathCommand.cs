@@ -4,7 +4,7 @@ using PdfPixel.Geometry;
 namespace PdfPixel.Commands.Model;
 
 /// <summary>
-/// Draws a path using a paint, applying the command modifier to the paint before drawing.
+/// Draws a path using a paint.
 /// </summary>
 public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
 {

@@ -8,8 +8,6 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Commands.Context;
 
-// TODO: [high] move to context
-
 /// <summary>
 /// Execution-time context passed to every command during replay.
 /// Groups rendering parameters and cancellation into a single object so the shape stays
