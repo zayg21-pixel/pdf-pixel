@@ -1,7 +1,6 @@
 const views = new Map();
 let interop = null;
 let emscriptenModule = null;
-let contentWorker = null;
 
 class PdfPanelView {
     constructor(id, containerElement, configuration) {
@@ -398,31 +397,6 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
     interop.Initialize();
 
     console.log('Panel interop initialized');
-
-    contentWorker = new Worker('pdfContentWorker.js', { type: 'module' });
-
-    const handshakePromise = new Promise((resolve, reject) => {
-        function onHandshake(e) {
-            if (Array.isArray(e.data) && e.data[2] === 'Initialize') {
-                contentWorker.removeEventListener('message', onHandshake);
-                resolve();
-            }
-        }
-        contentWorker.addEventListener('message', onHandshake);
-        sendToWorker(null, null, 'Initialize', null, null);
-        setTimeout(() => {
-            contentWorker.removeEventListener('message', onHandshake);
-            reject(new Error('Worker handshake timeout'));
-        }, 30000);
-    });
-
-    await handshakePromise;
-
-    contentWorker.onmessage = (e) => {
-        panelInterop.ReceivedFromWorker(e.data[0], e.data[1], e.data[2], e.data[3], e.data[4]);
-    };
-
-    console.log('Content worker initialized');
 }
 
 /**
@@ -475,35 +449,12 @@ export function unregisterPanel(id) {
 }
 
 /**
- * Register font data for a standard PDF font by name.
- * The name must match a PdfStandardFontName enum value (e.g. "Times", "Helvetica", "Courier").
- * Must be called before loading documents that use the font.
- * @param {string} name Standard font name (case-insensitive).
- * @param {Uint8Array} fontData Raw font file bytes (TTF, OTF, etc.).
- * @returns {Promise<void>} Resolves when the font is registered.
- */
-export async function setFont(name, fontData) {
-    await interop.SetFont(name, fontData);
-}
-
-/**
- * Register font data to use as the fallback typeface when no registered font matches a requested name or glyph.
- * Must be called before loading documents.
- * @param {Uint8Array} fontData Raw font file bytes (TTF, OTF, WOFF2, etc.).
- * @returns {Promise<void>} Resolves when the fallback font is registered.
- */
-export async function setFallbackFont(fontData) {
-    await interop.SetFallbackFont(fontData);
-}
-
-/**
  * Set the PDF document for the specified view.
  * @param {string} id View id.
  * @param {Uint8Array} documentData PDF file bytes.
- * @returns {Promise<void>} Resolves when the document is set.
  */
-export async function setDocument(id, documentData) {
-     await interop.SetDocument(id, documentData);
+export function setDocument(id, documentData) {
+    interop.SetDocument(id, documentData);
 }
 
 /**
@@ -622,13 +573,4 @@ export function addAnnotationPopupMessage(state, title, content, date) {
  */
 export function clearAnnotationPopupState(state) {
     state.annotationPopup = null;
-}
-
-export function sendToWorker(containerId, id, message, parameters, data) {
-    if (message === 'UpdateContent' && containerId && id) {
-        const sab = globalThis.mainRequestSabMap?.[containerId]?.[id] ?? null;
-        contentWorker.postMessage([containerId, id, message, parameters, data, sab]);
-    } else {
-        contentWorker.postMessage([containerId, id, message, parameters, data]);
-    }
 }

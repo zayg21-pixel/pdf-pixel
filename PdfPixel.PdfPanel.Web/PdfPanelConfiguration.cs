@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.Web;
@@ -15,5 +16,5 @@ internal struct PdfPanelConfiguration
 
     public float MinimumPageGap { get; set; }
 
-    public SKRect PagesPadding { get; set; }
+    public PdfRectangle PagesPadding { get; set; }
 }

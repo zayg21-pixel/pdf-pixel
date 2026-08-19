@@ -71,6 +71,25 @@ public static class FontSubstitutionMaps
         "Helvetica");
 
     /// <summary>
+    /// The families a browser resolves without a downloaded font file, as used by CSS font stacks.
+    /// </summary>
+    public static FontSubstitutionMap Browser { get; } = new(
+        new Dictionary<PdfStandardFontName, IReadOnlyList<string>>
+        {
+            { PdfStandardFontName.Times, ["Times New Roman", "Times", "serif"] },
+            { PdfStandardFontName.TimesNewRoman, ["Times New Roman", "Times", "serif"] },
+            { PdfStandardFontName.TimesNewRomanPS, ["Times New Roman", "Times", "serif"] },
+            { PdfStandardFontName.Helvetica, ["Helvetica", "Arial", "sans-serif"] },
+            { PdfStandardFontName.Arial, ["Arial", "Helvetica", "sans-serif"] },
+            { PdfStandardFontName.Courier, ["Courier New", "Courier", "monospace"] },
+            { PdfStandardFontName.CourierNew, ["Courier New", "Courier", "monospace"] },
+            { PdfStandardFontName.CourierNewPS, ["Courier New", "Courier", "monospace"] },
+            { PdfStandardFontName.Symbol, ["Symbol", "Segoe UI Symbol", "serif"] },
+            { PdfStandardFontName.ZapfDingbats, ["ZapfDingbats", "Segoe UI Symbol", "sans-serif"] }
+        },
+        "sans-serif");
+
+    /// <summary>
     /// The names PDF documents themselves use for the Standard 14 fonts, for use with a font source
     /// that resolves only the names it was explicitly given. Carries no fallback family name, so the
     /// font source's own last-resort typeface is used directly.
@@ -102,6 +121,11 @@ public static class FontSubstitutionMaps
 
     private static FontSubstitutionMap GetCurrentPlatformMap()
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("BROWSER")))
+        {
+            return Browser;
+        }
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return Windows;

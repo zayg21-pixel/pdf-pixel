@@ -342,17 +342,6 @@
         <div id="annotationPopup" class="annotation-popup"></div>
     </div>
 
-    <!--
-        coi-serviceworker.js registers a Service Worker that injects the
-        Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers
-        client-side. This is required on GitHub Pages (a static host that
-        cannot set HTTP headers) so that SharedArrayBuffer is available for
-        Blazor WASM threading. When running locally, Program.cs middleware
-        already provides those headers, so the service worker skips registration.
-        This script must be a plain (non-module) blocking script loaded before
-        the dotnet module to ensure the page reloads before the runtime starts.
-    -->
-    <script src="coi-serviceworker.js"></script>
     <script type="module">
         import * as canvasInterop from './canvasInterop.js';
         import { dotnet } from './_framework/dotnet.js';
@@ -363,53 +352,6 @@
             .create();
 
         await canvasInterop.initialize(setModuleImports, getAssemblyExports, dotnet.instance.Module);
-
-        // Register free metric-compatible fonts for standard PDF font families.
-        // Tinos ≈ Times New Roman, Arimo ≈ Arial/Helvetica, Cousine ≈ Courier New.
-        // Noto Sans is used as the fallback for glyphs not covered by the standard fonts.
-        // All are OFL-licensed from the Google Fonts project, served via jsDelivr CDN.
-        const fontBaseUrl = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl';
-        const fontMappings = [
-            { names: ['Times', 'TimesNewRoman', 'TimesNewRomanPS'], url: `${fontBaseUrl}/tinos/Tinos-Regular.ttf` },
-            { names: ['Helvetica', 'Arial'], url: `${fontBaseUrl}/arimo/Arimo%5Bwght%5D.ttf` },
-            { names: ['Courier', 'CourierNew', 'CourierNewPS'], url: `${fontBaseUrl}/cousine/Cousine-Regular.ttf` },
-        ];
-
-        const fallbackFontUrl = `${fontBaseUrl}/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf`;
-
-        async function fetchFont(url) {
-            const response = await fetch(url);
-            if (!response.ok) {
-                console.warn(`Failed to fetch font from ${url}: ${response.status}`);
-                return null;
-            }
-            return new Uint8Array(await response.arrayBuffer());
-        }
-
-        await Promise.all([
-            ...fontMappings.map(async ({ names, url }) => {
-                try {
-                    const bytes = await fetchFont(url);
-                    if (bytes) {
-                        for (const name of names) {
-                            await canvasInterop.setFont(name, bytes);
-                        }
-                    }
-                } catch (err) {
-                    console.warn(`Failed to load font for ${names.join(', ')}:`, err);
-                }
-            }),
-            (async () => {
-                try {
-                    const bytes = await fetchFont(fallbackFontUrl);
-                    if (bytes) {
-                        await canvasInterop.setFallbackFont(bytes);
-                    }
-                } catch (err) {
-                    console.warn('Failed to load fallback font:', err);
-                }
-            })()
-        ]);
 
         const container = document.getElementById('canvasContainer');
         const containerId = container.id;

@@ -1,40 +1,7 @@
 #include "emscripten.h"
-#include <emscripten/threading.h>
+#include <emscripten/html5.h>
 #include <emscripten/console.h>
 #include <stdint.h>
-
-// Run func() on the browser main thread and block until it returns.
-// Safe to call from any thread, including the main thread itself.
-void dotnet_sync_main_thread(void (*func)(void)) {
-    if (emscripten_is_main_browser_thread()) {
-        func();
-    } else {
-        emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_V, func);
-    }
-}
-
-// Pointer-sized integer type and matching EM_FUNC_SIG for emscripten threading:
-//   MEMORY64=0 (wasm32): void* == int32_t  → EM_FUNC_SIG_VI
-//   MEMORY64=1 (wasm64): void* == int64_t  → EM_FUNC_SIG_VJ
-//   MEMORY64=2 (wasm64 lowered to wasm32 by Binaryen): not clearly defined yet.
-#ifdef __wasm64__
-#  define EM_FUNC_SIG_VPTR EM_FUNC_SIG_VJ
-   typedef int64_t em_ptr_int_t;
-#else
-#  define EM_FUNC_SIG_VPTR EM_FUNC_SIG_VI
-   typedef int32_t em_ptr_int_t;
-#endif
-
-// Same as dotnet_sync_main_thread, but forwards a single pointer-sized argument.
-// On the C# side use nint / delegate* unmanaged<nint, void> — nint matches em_ptr_int_t
-// on both wasm32 and wasm64.
-void dotnet_sync_main_thread_arg(void (*func)(em_ptr_int_t), em_ptr_int_t arg) {
-    if (emscripten_is_main_runtime_thread()) {
-        func(arg);
-    } else {
-        emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VPTR, func, arg);
-    }
-}
 
 // Makes the given WebGL context current on the calling thread.
 int dotnet_webgl_make_context_current(int ctx) {
@@ -123,126 +90,10 @@ void dotnet_console_log(const char* message, int log_level) {
 	}
 }
 
-// Sets the OffscreenCanvas size from the worker thread.
-// The canvas must be registered in GL.offscreenCanvases (transferred via 'run' command).
-// Key is canvasId with leading '#' stripped (substring(1)).
-EM_JS(void, dotnet_set_offscreen_canvas_size_js, (const char* canvasIdPtr, int width, int height), {
-	const canvasId = UTF8ToString(canvasIdPtr);
-	const temp = document.querySelector(canvasId);
-	// TODO: find out why emscripten_set_canvas_element_size fails
-	if (temp)
-	{
-		temp.width = width;
-		temp.height = height;
-			console.log(`dotnet_set_offscreen_canvas_size_js: Set size of ${canvasId} to ${width}x${height}`);
-	}
-	else {
-		console.warn(`dotnet_set_offscreen_canvas_size_js: Could not find element with id ${canvasId}`);
-	}
-	return;
-
-	const key = canvasId.substring(1);
-
-	if (typeof GL === 'undefined' || !GL.offscreenCanvases) {
-		return;
-	}
-
-	const canvas = GL.offscreenCanvases[key];
-	if (canvas) {
-		canvas.width = width;
-		canvas.height = height;
-	}
-});
-
-// Sets canvas size: OffscreenCanvas on worker, main canvas dispatched to main thread.
-// Can be called from any thread.
+// Sets the canvas size and its CSS size, scaled by the device pixel ratio.
 void dotnet_set_canvas_size(const char* canvasId, int width, int height) {
-	//dotnet_set_offscreen_canvas_size_js(canvasId, width, height);
 	emscripten_set_canvas_element_size(canvasId, width, height);
 
 	double dpr = emscripten_get_device_pixel_ratio();
 	emscripten_set_element_css_size(canvasId, width / dpr, height / dpr);
 }
-
-// Render loop callback - stored globally since emscripten_set_main_loop doesn't support userData.
-static void (*g_render_callback)(void) = NULL;
-
-static void main_loop_iteration(void) {
-	if (g_render_callback != NULL) {
-		g_render_callback();
-	}
-}
-
-// Starts the render loop. The callback is called once per frame by the browser.
-// fps: target frames per second. Use 0 to use requestAnimationFrame timing (recommended).
-// simulate_infinite_loop: if 1, this function never returns (use for main thread).
-//                         if 0, returns immediately and the loop runs asynchronously.
-void dotnet_start_main_loop(void (*callback)(void), int fps, int simulate_infinite_loop) {
-	g_render_callback = callback;
-	emscripten_set_main_loop(main_loop_iteration, fps, simulate_infinite_loop);
-}
-
-// Stops the render loop.
-void dotnet_stop_main_loop(void) {
-	emscripten_cancel_main_loop();
-	g_render_callback = NULL;
-}
-
-// Pauses the render loop without canceling it.
-void dotnet_pause_main_loop(void) {
-	emscripten_pause_main_loop();
-}
-
-// Resumes a paused render loop.
-void dotnet_resume_main_loop(void) {
-	emscripten_resume_main_loop();
-}
-
-// Allocates a 2-byte SharedArrayBuffer for the given request and stores it at
-// globalThis.mainRequestSabMap[containerId][requestId].
-// Must be called on the main thread before the UpdateContent message is sent to the worker.
-// TODO: [HIGH] these SABs are never freed — known memory leak until cleanup is implemented.
-EM_JS(void, dotnet_alloc_request_sab, (const char* containerIdPtr, const char* requestIdPtr), {
-	if (!globalThis.mainRequestSabMap) globalThis.mainRequestSabMap = {};
-	const containerId = UTF8ToString(containerIdPtr);
-	const requestId = UTF8ToString(requestIdPtr);
-	if (!globalThis.mainRequestSabMap[containerId]) globalThis.mainRequestSabMap[containerId] = {};
-	globalThis.mainRequestSabMap[containerId][requestId] = new SharedArrayBuffer(2);
-});
-
-// Atomics.store on the main-thread SAB for the given request.
-EM_JS(void, dotnet_set_main_request_flag, (const char* containerIdPtr, const char* requestIdPtr, int flagType, int value), {
-	const sab = globalThis.mainRequestSabMap?.[UTF8ToString(containerIdPtr)]?.[UTF8ToString(requestIdPtr)];
-	if (sab) Atomics.store(new Int8Array(sab), flagType, value);
-});
-
-// Atomics.load on the worker-thread SAB for the given request.
-// Returns 0 if no SAB is registered for the requestId.
-EM_JS(int, dotnet_worker_read_request_flag, (const char* requestIdPtr, int flagType), {
-	const arr = globalThis.workerRequestSabMap?.[UTF8ToString(requestIdPtr)];
-	if (!arr) return 0;
-	return Atomics.load(arr, flagType);
-});
-
-// Atomics.store on the worker-thread SAB for the given request.
-EM_JS(void, dotnet_worker_set_request_flag, (const char* requestIdPtr, int flagType, int value), {
-	const arr = globalThis.workerRequestSabMap?.[UTF8ToString(requestIdPtr)];
-	if (arr) Atomics.store(arr, flagType, value);
-});
-
-// Removes the main-thread SAB entry for the given request.
-EM_JS(void, dotnet_free_main_request_sab, (const char* containerIdPtr, const char* requestIdPtr), {
-	const containerId = UTF8ToString(containerIdPtr);
-	const requestId = UTF8ToString(requestIdPtr);
-	if (globalThis.mainRequestSabMap?.[containerId]) {
-		delete globalThis.mainRequestSabMap[containerId][requestId];
-	}
-});
-
-// Removes the worker-thread SAB entry for the given request.
-EM_JS(void, dotnet_free_worker_request_sab, (const char* requestIdPtr), {
-	const requestId = UTF8ToString(requestIdPtr);
-	if (globalThis.workerRequestSabMap) {
-		delete globalThis.workerRequestSabMap[requestId];
-	}
-});

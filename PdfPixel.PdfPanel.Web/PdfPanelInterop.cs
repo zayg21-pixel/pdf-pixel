@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Mapping;
+using PdfPixel.Annotations.Models;
+using PdfPixel.Fonts.Management;
+using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
@@ -7,32 +10,16 @@ using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
-using PdfPixel.PdfPanel.Web.WorkerCommands;
-using PdfPixel.PdfPanel.Web.WorkerInterface;
+using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Data;
+using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
-using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Web;
-
-public class EventData
-{
-    public string ContainerId { get; set; }
-
-    public Guid Id { get; set; }
-
-    public WorkerCommandType CommandType { get; set; }
-
-    public string Header { get; set; }
-
-    public byte[] Data { get; set; }
-}
 
 [SupportedOSPlatform("browser")]
 public partial class PdfPanelInterop
@@ -40,38 +27,15 @@ public partial class PdfPanelInterop
     private static bool _isInitialized = false;
 
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
-    private static Dictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new Dictionary<string, TaskCompletionSource<byte[]>>();
 
-    public static event Action<EventData> OnDataReceived;
+    private static SkiaFontSubstitutor FontSubstitutor;
+    private static PdfDocumentReader DocumentReader;
 
     /// <summary>Gets the application-wide logger factory, available after <see cref="Initialize"/> has been called.</summary>
     public static ILoggerFactory LoggerFactory { get; private set; }
 
     /// <summary>Gets the logger for <see cref="PdfPanelInterop"/>, available after <see cref="Initialize"/> has been called.</summary>
     public static ILogger Logger { get; private set; }
-
-    [JSExport]
-    public static void ReceivedFromWorker(string containerId, string id, string commandType, string header, byte[] data)
-    {
-        if (_pendingRequests.TryGetValue(id, out var taskCompletionSource))
-        {
-            taskCompletionSource.TrySetResult(data);
-            _pendingRequests.Remove(id);
-        }
-
-        OnDataReceived?.Invoke(new EventData { ContainerId = containerId, Id = Guid.Parse(id), CommandType = Enum.Parse<WorkerCommandType>(commandType), Header = header, Data = data });
-    }
-
-    [JSImport("sendToWorker", "canvasInterop.js")]
-    public static partial void SendToWorker(string containerId, string id, string commandType, string header, byte[] data);
-
-    public static Task<byte[]> SendToWorkerAsync(string containerId, Guid id, WorkerCommandType commandType, string header, byte[] data)
-    {
-        var tcs = new TaskCompletionSource<byte[]>();
-        _pendingRequests[id.ToString()] = tcs;
-        SendToWorker(containerId, id.ToString(), commandType.ToString(), header, data);
-        return tcs.Task;
-    }
 
     [JSExport]
     internal static void Initialize()
@@ -83,39 +47,11 @@ public partial class PdfPanelInterop
 
         LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddEmscriptenConsole());
         Logger = LoggerFactory.CreateLogger<PdfPanelInterop>();
+        FontSubstitutor = new SkiaFontSubstitutor(LoggerFactory);
+        DocumentReader = new PdfDocumentReader(LoggerFactory, new FontProvider(FontSubstitutor, FontSubstitutionMaps.Browser));
         Logger.LogInformation("PdfPanelInterop initialized");
 
         _isInitialized = true;
-    }
-
-    /// <summary>
-    /// Registers font data for a standard PDF font identified by its <see cref="PdfStandardFontName"/> text name.
-    /// Must be called before loading any PDF documents that use the font.
-    /// </summary>
-    [JSExport]
-    public static async Task SetFont(string name, byte[] fontData)
-    {
-        if (!_isInitialized)
-        {
-            return;
-        }
-        var request = JsonSerializer.Serialize(new SetFontRequest { Name = name }, InterfaceJsonContext.Default.SetFontRequest);
-        await SendToWorkerAsync(string.Empty, Guid.NewGuid(), WorkerCommandType.SetFont, request, fontData);
-    }
-
-    /// <summary>
-    /// Registers font data to use as the fallback typeface when no registered font matches a requested name or glyph.
-    /// Must be called before loading any PDF documents.
-    /// </summary>
-    [JSExport]
-    public static async Task SetFallbackFont(byte[] fontData)
-    {
-        if (!_isInitialized)
-        {
-            return;
-        }
-
-        await SendToWorkerAsync(string.Empty, Guid.NewGuid(), WorkerCommandType.SetFallbackFont, string.Empty, fontData);
     }
 
     [JSExport]
@@ -163,7 +99,7 @@ public partial class PdfPanelInterop
                 MinZoom = (float)(double)configuration.GetPropertyAsDouble("minZoom"),
                 MaxZoom = (float)(double)configuration.GetPropertyAsDouble("maxZoom"),
                 MinimumPageGap = (float)(double)configuration.GetPropertyAsDouble("minimumPageGap"),
-                PagesPadding = SKRect.Create(
+                PagesPadding = PdfRectangle.FromLocationAndSize(
                     (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("left"),
                     (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("top"),
                     (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("right"),
@@ -183,12 +119,7 @@ public partial class PdfPanelInterop
 
             resources.Configuration = parsed;
 
-            var contentProvider = new WebDocumentContentProvider(containerId);
-
-            resources.ContentProvider = contentProvider;
-
             resources.AnimationClock = new PdfAnimationClock();
-            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, contentProvider, resources.AnimationClock, SynchronizationContext.Current);
             ResourcesMap[containerId] = resources;
         }
         catch (Exception ex)
@@ -203,7 +134,7 @@ public partial class PdfPanelInterop
     [JSExport]
     public static string GetSelectedText(string containerId)
     {
-        if (!ResourcesMap.TryGetValue(containerId, out var resources))
+        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Renderer == null)
         {
             return string.Empty;
         }
@@ -222,8 +153,9 @@ public partial class PdfPanelInterop
         if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
             resources.AnimationClock.Dispose();
-            resources.Renderer.Dispose();
-            resources.ContentProvider.Dispose();
+            resources.Renderer?.Dispose();
+            resources.Pages?.Dispose();
+            resources.Document?.Dispose();
             resources.SkSurfaceFactory.Dispose();
 
             ResourcesMap.Remove(containerId);
@@ -231,7 +163,7 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    internal static async Task SetDocument(string containerId, byte[] document)
+    internal static void SetDocument(string containerId, byte[] document)
     {
         if (!_isInitialized)
         {
@@ -244,19 +176,32 @@ public partial class PdfPanelInterop
             return;
         }
 
-        var responseJson = await SendToWorkerAsync(containerId, Guid.NewGuid(), WorkerCommandType.SetDocument, null, document);
+        try
+        {
+            Logger.LogInformation("Reading PDF document, size={Size} bytes", document.Length);
 
-        var documentData = JsonSerializer.Deserialize(responseJson, InterfaceJsonContext.Default.WebDocumentData);
+            resources.Pages?.Dispose();
+            resources.Document?.Dispose();
 
-        resources.ContentProvider.UpdateDocument(documentData);
+            resources.Document = DocumentReader.Read(new MemoryStream(document), string.Empty);
+            resources.Pages = PdfPanelPageCollection.FromDocument(resources.Document, FontSubstitutor, LoggerFactory);
 
-        var pages = PdfPanelPageCollection.FromContentProvider(resources.ContentProvider);
-        resources.Context = new PdfPanelContext(pages, resources.Renderer, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
+            Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 
-        var panelConfiguration = resources.Configuration;
-        resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
-        resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
-        resources.Context.PagesPadding = panelConfiguration.PagesPadding;
+            resources.Renderer?.Dispose();
+            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.AnimationClock, SynchronizationContext.Current);
+
+            resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
+
+            var panelConfiguration = resources.Configuration;
+            resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
+            resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
+            resources.Context.PagesPadding = panelConfiguration.PagesPadding;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading PDF document for container '{Id}'", containerId);
+        }
     }
 
     [JSExport]
@@ -305,7 +250,7 @@ public partial class PdfPanelInterop
             {
                 float pointerX = (float)(double)state.GetPropertyAsDouble("pointerX");
                 float pointerY = (float)(double)state.GetPropertyAsDouble("pointerY");
-                resources.Context.PointerPosition = new SKPoint(pointerX, pointerY);
+                resources.Context.PointerPosition = new PdfPoint(pointerX, pointerY);
             }
             else
             {
@@ -348,15 +293,7 @@ public partial class PdfPanelInterop
                 // TODO: [HIGH] need to also parse type here or refactor JS to eliminate this entierly.
                 CreateAnnotationPopupState(state, string.Empty, isInteractiveAnnotation);
 
-                foreach (var message in activeAnnotation.Messages)
-                {
-                    string dateStr = message.CreationDate?.ToString("o") ?? string.Empty;
-                    AddAnnotationPopupMessage(
-                        state,
-                        message.Title ?? string.Empty,
-                        message.Contents ?? string.Empty,
-                        dateStr);
-                }
+                AddAnnotationPopupMessages(state, activeAnnotation.Messages);
             }
             else
             {
@@ -390,22 +327,56 @@ public partial class PdfPanelInterop
     {
         openUri = string.Empty;
 
-        if (popup.Navigation == null)
+        if (popup.PageAnnotation?.Content is not PdfLinkAnnotation link)
         {
             return;
         }
 
-        switch (popup.Navigation.NavigationType)
+        if (link.Action is PdfUriAction uriAction && uriAction.Uri != null)
         {
-            case PdfAnnotationNavigationType.Uri:
-                openUri = popup.Navigation.Uri ?? string.Empty;
-                break;
-            case PdfAnnotationNavigationType.GoToDestination:
-                resources.Context?.ScrollToDestination(popup.Navigation.Destination);
-                break;
-            case PdfAnnotationNavigationType.GoToRemote:
-                // TODO: handle remote file loading
-                break;
+            openUri = uriAction.Uri.Value.ToString();
+            return;
+        }
+
+        if (link.Action is PdfGoToAction goToAction)
+        {
+            PdfDestination actionDestination = goToAction.GetDestination();
+
+            if (actionDestination != null)
+            {
+                resources.Context?.ScrollToDestination(actionDestination);
+                return;
+            }
+        }
+
+        if (link.Action is PdfGoToRemoteAction)
+        {
+            // TODO: handle remote file loading
+            return;
+        }
+
+        PdfDestination linkDestination = link.GetDestination();
+
+        if (linkDestination != null)
+        {
+            resources.Context?.ScrollToDestination(linkDestination);
+        }
+    }
+
+    /// <summary>
+    /// Sends each message and its replies to the JS popup state, depth first.
+    /// </summary>
+    private static void AddAnnotationPopupMessages(JSObject state, PdfAnnotationMessage[] messages)
+    {
+        foreach (PdfAnnotationMessage message in messages)
+        {
+            AddAnnotationPopupMessage(
+                state,
+                message.Title ?? string.Empty,
+                message.Contents ?? string.Empty,
+                message.CreationDate?.ToString("o") ?? string.Empty);
+
+            AddAnnotationPopupMessages(state, message.Replies);
         }
     }
 

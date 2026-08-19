@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Animation;
+﻿using PdfPixel.Models;
+using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Rendering;
 
@@ -35,9 +36,14 @@ internal class PdfPanelResources
     public PdfPanelContext Context { get; set; }
 
     /// <summary>
-    /// Document content provider.
+    /// Gets or sets the document currently loaded into the panel.
     /// </summary>
-    public WebDocumentContentProvider ContentProvider { get; set; }
+    public IPdfDocument Document { get; set; }
+
+    /// <summary>
+    /// Gets or sets the pages of the currently loaded document.
+    /// </summary>
+    public PdfPanelPageCollection Pages { get; set; }
 
     /// <summary>
     /// Gets or sets the parsed configuration for the panel.
