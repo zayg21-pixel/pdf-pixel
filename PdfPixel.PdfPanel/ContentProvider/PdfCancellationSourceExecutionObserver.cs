@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -32,6 +33,9 @@ public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExec
             throw new OperationCanceledException();
         }
     }
+
+    /// <inheritdoc/>
+    public async ValueTask YieldAsync() => await Task.Yield();
 
     /// <inheritdoc/>
     public void Cancel()

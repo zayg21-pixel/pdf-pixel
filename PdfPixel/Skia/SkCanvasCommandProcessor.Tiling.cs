@@ -110,7 +110,7 @@ public sealed partial class SkCanvasCommandProcessor
         // A cell bigger than its step overlaps its neighbours, so every grid position reaching the
         // tile is recorded into it and the shader brings back from the next repeat what the cull
         // rectangle drops here.
-        PdfIntegerRectangle grid = command.GetCellGrid(tileUnit);
+        PdfIntegerRectangle grid = command.ComputeCellGrid(tileUnit);
 
         using SKPictureRecorder recorder = new();
         using SKCanvas canvas = recorder.BeginRecording(deviceTile);

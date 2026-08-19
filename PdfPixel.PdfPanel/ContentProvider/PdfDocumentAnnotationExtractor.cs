@@ -26,8 +26,6 @@ internal static class PdfDocumentAnnotationExtractor
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this IPdfDocument document, int pageNumber)
     {
-        // TODO: rework
-        return Array.Empty<PdfAnnotationPopup>();
         if (pageNumber < 1 || pageNumber > document.Pages.Count)
         {
             return Array.Empty<PdfAnnotationPopup>();

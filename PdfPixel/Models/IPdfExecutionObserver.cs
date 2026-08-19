@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace PdfPixel.Models;
 
 /// <summary>
@@ -10,4 +12,9 @@ public interface IPdfExecutionObserver
     /// Notifies that some work chunk has been done.
     /// </summary>
     void Notify();
+
+    /// <summary>
+    /// Yields the thread before the next work chunk starts.
+    /// </summary>
+    ValueTask YieldAsync();
 }

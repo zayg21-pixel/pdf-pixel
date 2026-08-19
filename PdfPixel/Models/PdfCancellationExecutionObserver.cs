@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Models;
 
@@ -18,4 +19,7 @@ public sealed class PdfCancellationExecutionObserver : IPdfExecutionObserver
 
     /// <inheritdoc/>
     public void Notify() => _token.ThrowIfCancellationRequested();
+
+    /// <inheritdoc/>
+    public async ValueTask YieldAsync() => await Task.Yield();
 }

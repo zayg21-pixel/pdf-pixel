@@ -49,6 +49,11 @@ public static class PdfCMapScanner
     /// </summary>
     public static PdfCMap Scan(in ReadOnlyMemory<byte> cmapBytes, Func<PdfString, PdfCMap?> cmapProvider)
     {
+        if (cmapProvider == null)
+        {
+            throw new ArgumentNullException(nameof(cmapProvider));
+        }
+
         PdfCMap cmap = new();
         ReadOnlySpan<byte> data = cmapBytes.Span;
         int position = 0;

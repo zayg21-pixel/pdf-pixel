@@ -27,7 +27,7 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         float endY = MathF.Ceiling(bounds.Bottom / yStep) * yStep;
 
         TilingArea = new PdfRectangle(startX, startY, endX, endY);
-        CellGrid = GetCellGrid(TilingArea);
+        CellGrid = ComputeCellGrid(TilingArea);
 
         PaintedArea = new PdfRectangle(
             (CellGrid.Left * xStep) + bbox.Left,
@@ -90,7 +90,7 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// the area, so a cell wider than its step brings in the neighbours that overlap it. A step that
     /// does not advance leaves the single cell at the origin.
     /// </summary>
-    public PdfIntegerRectangle GetCellGrid(in PdfRectangle area)
+    public PdfIntegerRectangle ComputeCellGrid(in PdfRectangle area)
     {
         int firstColumn = 0;
         int lastColumn = 0;

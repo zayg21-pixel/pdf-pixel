@@ -6,6 +6,7 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Skia;
 
@@ -41,6 +42,26 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
 
         _executionContext.ExecutionObserver.Notify();
 
+        ExecuteCommand(command);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask ProcessAsync(IPdfCommand command)
+    {
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
+        _executionContext.ExecutionObserver.Notify();
+
+        await _executionContext.ExecutionObserver.YieldAsync().ConfigureAwait(false);
+
+        await ExecuteCommandAsync(command).ConfigureAwait(false);
+    }
+
+    private void ExecuteCommand(IPdfCommand command)
+    {
         if (!_executionContext.MarkedContent.ShouldExecute(command))
         {
             return;
@@ -49,6 +70,36 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
         try
         {
             ProcessInternal(command);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+#pragma warning disable CA1031 // Do not catch general exception types
+        catch (Exception exception)
+#pragma warning restore CA1031 // Do not catch general exception types
+        {
+            _logger.LogWarning(exception, "Command {CommandType} failed during execution.", command.GetType().Name);
+        }
+    }
+
+    private async ValueTask ExecuteCommandAsync(IPdfCommand command)
+    {
+        if (command.Kind != PdfCommandKind.DrawRecording)
+        {
+            ExecuteCommand(command);
+
+            return;
+        }
+
+        if (!_executionContext.MarkedContent.ShouldExecute(command))
+        {
+            return;
+        }
+
+        try
+        {
+            await ExecuteDrawRecordingAsync((DrawRecordingCommand)command).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -161,6 +212,24 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private void ExecuteDrawRecording(DrawRecordingCommand command)
     {
+        DrawRecordingScope scope = BeginDrawRecording(command);
+
+        ReplayRecorder(command.Recorder);
+
+        EndDrawRecording(in scope);
+    }
+
+    private async ValueTask ExecuteDrawRecordingAsync(DrawRecordingCommand command)
+    {
+        DrawRecordingScope scope = BeginDrawRecording(command);
+
+        await ReplayRecorderAsync(command.Recorder).ConfigureAwait(false);
+
+        EndDrawRecording(in scope);
+    }
+
+    private DrawRecordingScope BeginDrawRecording(DrawRecordingCommand command)
+    {
         PdfColor? previousTintColor = _executionContext.TintColor;
 
         if (command.TintColor != null)
@@ -173,44 +242,38 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
         _canvas.Concat(command.Matrix.ToSkMatrix());
         _executionContext.Frames.OnConcatMatrix(command.Matrix);
 
-        int savesCountAfterOwnSave = _executionContext.Frames.SavesCount;
+        return new DrawRecordingScope(previousTintColor, _executionContext.Frames.SavesCount);
+    }
 
-        ReplayRecorder(command.Recorder);
-
-        BalanceFrames(savesCountAfterOwnSave);
+    private void EndDrawRecording(in DrawRecordingScope scope)
+    {
+        BalanceFrames(scope.SavesCountAfterOwnSave);
 
         _canvas.Restore();
         _executionContext.Frames.OnRestoreState();
 
-        _executionContext.TintColor = previousTintColor;
+        _executionContext.TintColor = scope.PreviousTintColor;
     }
 
     private void ReplayRecorder(PdfCommandRecorder recorder)
     {
         foreach (IPdfCommand recordedCommand in recorder.Commands)
         {
-            if (!_executionContext.MarkedContent.ShouldExecute(recordedCommand))
-            {
-                continue;
-            }
+            ExecuteCommand(recordedCommand);
 
-            try
-            {
-                ProcessInternal(recordedCommand);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-#pragma warning disable CA1031 // Do not catch general exception types
-            catch (Exception exception)
-#pragma warning restore CA1031 // Do not catch general exception types
-            {
-                _logger.LogWarning(exception, "Command {CommandType} failed during replay.", recordedCommand.GetType().Name);
-                continue;
-            }
+            _executionContext.ExecutionObserver.Notify();
+        }
+    }
 
-            _executionContext.ExecutionObserver?.Notify();
+    private async ValueTask ReplayRecorderAsync(PdfCommandRecorder recorder)
+    {
+        foreach (IPdfCommand recordedCommand in recorder.Commands)
+        {
+            await ExecuteCommandAsync(recordedCommand).ConfigureAwait(false);
+
+            _executionContext.ExecutionObserver.Notify();
+
+            await _executionContext.ExecutionObserver.YieldAsync().ConfigureAwait(false);
         }
     }
 
@@ -247,5 +310,12 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
         }
 
         _executionContext.Frames.OnSaveLayer();
+    }
+
+    private readonly struct DrawRecordingScope(PdfColor? previousTintColor, int savesCountAfterOwnSave)
+    {
+        public PdfColor? PreviousTintColor { get; } = previousTintColor;
+
+        public int SavesCountAfterOwnSave { get; } = savesCountAfterOwnSave;
     }
 }

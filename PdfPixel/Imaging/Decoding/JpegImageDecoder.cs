@@ -112,8 +112,5 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         };
     }
 
-    public override void Cleanup()
-    {
-        _jpgRowDecoder = null;
-    }
+    public override void Cleanup() => _jpgRowDecoder = null;
 }
