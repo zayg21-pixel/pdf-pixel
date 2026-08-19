@@ -1,6 +1,7 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.Skia;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
@@ -23,7 +24,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly Dictionary<int, SKPicture> _selectionPictures = [];
     private int? _anchorPageNumber;
-    private SKPoint _anchorPoint;
+    private PdfPoint _anchorPoint;
     private int? _anchorCharIndex;
     private int? _currentCharIndex;
     private List<PdfCharacter>? _selectedCharacters;
@@ -206,7 +207,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         _selectionPictures.Clear();
     }
 
-    private static int? HitTestCharacterNearest(List<PdfCharacter> characters, SKPoint point, float? maxDistance = null)
+    private static int? HitTestCharacterNearest(List<PdfCharacter> characters, in PdfPoint point, float? maxDistance = null)
     {
         int closestIndex = 0;
         float closestDistance = float.MaxValue;
@@ -214,11 +215,8 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         for (int i = 0; i < characters.Count; i++)
         {
             PdfRectangle characterBox = characters[i].BoundingBox;
-            SKRect box = new(characterBox.Left, characterBox.Top, characterBox.Right, characterBox.Bottom);
-            float centerX = (box.Left + box.Right) / 2f;
-            float centerY = (box.Top + box.Bottom) / 2f;
-            float dx = point.X - centerX;
-            float dy = point.Y - centerY;
+            float dx = point.X - characterBox.MidX;
+            float dy = point.Y - characterBox.MidY;
             float distance = (dx * dx) + (dy * dy);
 
             if (distance < closestDistance)
@@ -254,12 +252,11 @@ public sealed partial class PdfPanelTextSelector : IDisposable
             Color = HighlightColor
         };
 
-        SKRect? currentStrip = null;
+        PdfRectangle? currentStrip = null;
 
         foreach (PdfCharacter character in _selectedCharacters)
         {
-            PdfRectangle characterBox = character.BoundingBox;
-            SKRect box = new(characterBox.Left, characterBox.Top, characterBox.Right, characterBox.Bottom);
+            PdfRectangle box = character.BoundingBox;
 
             if (currentStrip == null)
             {
@@ -267,18 +264,18 @@ public sealed partial class PdfPanelTextSelector : IDisposable
             }
             else if (Math.Abs(box.Top - currentStrip.Value.Top) < currentStrip.Value.Height * LineMergeThreshold)
             {
-                currentStrip = SKRect.Union(currentStrip.Value, box);
+                currentStrip = PdfRectangle.Union(currentStrip.Value, box);
             }
             else
             {
-                canvas.DrawRect(currentStrip.Value, highlightPaint);
+                canvas.DrawRect(currentStrip.Value.ToSkRect(), highlightPaint);
                 currentStrip = box;
             }
         }
 
         if (currentStrip != null)
         {
-            canvas.DrawRect(currentStrip.Value, highlightPaint);
+            canvas.DrawRect(currentStrip.Value.ToSkRect(), highlightPaint);
         }
 
         highlightPaint.Dispose();

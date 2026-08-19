@@ -6,6 +6,7 @@ using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 using System.Diagnostics;
@@ -213,7 +214,7 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.ViewportWidth = (float)CanvasSize.Width;
         _context.ViewportHeight = (float)CanvasSize.Height;
         _context.MinimumPageGap = (float)PageGap;
-        _context.PagesPadding = new SKRect(
+        _context.PagesPadding = new PdfRectangle(
             (float)PagesPadding.Left,
             (float)PagesPadding.Top,
             (float)PagesPadding.Right,
@@ -292,7 +293,7 @@ public partial class WpfPdfPanel : FrameworkElement
     {
         Point position = Mouse.GetPosition(this);
         Point canvasPosition = GetCanvasPosition(position);
-        var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
+        var viewportPoint = new PdfPoint((float)canvasPosition.X, (float)canvasPosition.Y);
         var state = Mouse.LeftButton == MouseButtonState.Pressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
         _context.PointerPosition = viewportPoint;

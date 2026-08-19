@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
@@ -54,7 +55,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <param name="pageNumber">Number of the page.</param>
     /// <param name="pagePosition">Position on the page in PDF coordinates.</param>
     /// <returns>The annotation popup if found; otherwise, null.</returns>
-    public PdfAnnotationPopup? GetAnnotationPopupAt(int pageNumber, SKPoint pagePosition)
+    public PdfAnnotationPopup? GetAnnotationPopupAt(int pageNumber, in PdfPoint pagePosition)
     {
         if (!TryGetPage(pageNumber, out PdfPanelPage? page) || page == null)
         {

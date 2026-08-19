@@ -2,6 +2,7 @@ using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.Skia;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -97,13 +98,13 @@ public sealed class PdfPageContentTiler : IDisposable
             ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)
             : SKSamplingOptions.Default;
 
-        SKMatrix contentTransform = pageInfo.ContentTransform;
+        SKMatrix contentTransform = pageInfo.ContentTransform.ToSkMatrix();
         int savedCount = canvas.Save();
         canvas.Concat(in contentTransform);
 
         foreach (CachedTile tile in pageCache.Tiles)
         {
-            canvas.DrawImage(tile.Image, tile.Destination, sampling);
+            canvas.DrawImage(tile.Image, tile.Destination.ToSkRect(), sampling);
         }
 
         canvas.RestoreToCount(savedCount);
@@ -161,7 +162,7 @@ public sealed class PdfPageContentTiler : IDisposable
         {
             for (int col = startCol; col < endCol; col++)
             {
-                SKRect destination = SKRect.Create(
+                PdfRectangle destination = PdfRectangle.FromLocationAndSize(
                     col * scaledTileSize,
                     row * scaledTileSize,
                     scaledTileSize,
@@ -183,10 +184,9 @@ public sealed class PdfPageContentTiler : IDisposable
 
     private static void ClearTilesInRegion(PageTileCache pageCache, in PdfRectangle region)
     {
-        SKRect skRectRegion = new(region.Left, region.Top, region.Right, region.Bottom);
         for (int i = pageCache.Tiles.Count - 1; i >= 0; i--)
         {
-            if (pageCache.Tiles[i].Destination.IntersectsWith(skRectRegion))
+            if (PdfRectangle.IntersectsWith(pageCache.Tiles[i].Destination, region))
             {
                 pageCache.Tiles[i].Dispose();
                 pageCache.Tiles.RemoveAt(i);
@@ -194,7 +194,7 @@ public sealed class PdfPageContentTiler : IDisposable
         }
     }
 
-    private static bool HasTileAt(PageTileCache pageCache, SKRect destination)
+    private static bool HasTileAt(PageTileCache pageCache, in PdfRectangle destination)
     {
         for (int i = 0; i < pageCache.Tiles.Count; i++)
         {
@@ -235,11 +235,11 @@ public sealed class PdfPageContentTiler : IDisposable
         return tileSurface.Snapshot();
     }
 
-private sealed class CachedTile(SKImage image, SKRect destination) : IDisposable
+    private sealed class CachedTile(SKImage image, in PdfRectangle destination) : IDisposable
     {
         public SKImage Image { get; } = image;
 
-        public SKRect Destination { get; } = destination;
+        public PdfRectangle Destination { get; } = destination;
 
         public void Dispose() => Image.Dispose();
     }

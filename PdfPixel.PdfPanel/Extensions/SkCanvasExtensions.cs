@@ -1,8 +1,10 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.Skia;
 using SkiaSharp;
 using System;
 
@@ -83,7 +85,7 @@ internal static class SkCanvasExtensions
             return;
         }
 
-        SKMatrix transform = page.ContentTransform;
+        SKMatrix transform = page.ContentTransform.ToSkMatrix();
         int saveCount = canvas.Save();
         try
         {
@@ -105,7 +107,7 @@ internal static class SkCanvasExtensions
 
         using LockedContent<SKPicture> contentPicture = content.GetContent();
 
-        SKMatrix transform = page.ContentTransform;
+        SKMatrix transform = page.ContentTransform.ToSkMatrix();
         int saveCount = canvas.Save();
         try
         {

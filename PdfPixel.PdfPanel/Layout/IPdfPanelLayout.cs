@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.PdfPanel.Layout;
 
@@ -17,10 +17,10 @@ public interface IPdfPanelLayout
     /// <param name="viewportWidth">The width of the viewport in device pixels.</param>
     /// <param name="viewportHeight">The height of the viewport in device pixels.</param>
     /// <returns>The total extent size in scaled space (device pixels).</returns>
-    SKSize CalculateDimensions(
+    PdfSize CalculateDimensions(
         PdfPanelPageCollection pages,
         float scale,
-        SKRect pagesPadding,
+        in PdfRectangle pagesPadding,
         float pageGap,
         float viewportWidth,
         float viewportHeight);
@@ -38,7 +38,7 @@ public interface IPdfPanelLayout
     void CalculatePageOffsets(
         PdfPanelPageCollection pages,
         float scale,
-        SKRect pagesPadding,
+        in PdfRectangle pagesPadding,
         float pageGap,
         float extentWidth,
         float extentHeight);

@@ -1,5 +1,5 @@
-﻿using PdfPixel.PdfPanel.Extensions;
-using SkiaSharp;
+﻿using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Extensions;
 
 namespace PdfPixel.PdfPanel;
 
@@ -11,7 +11,7 @@ public readonly struct VisiblePageInfo
     /// <summary>
     /// Initialises a new snapshot for a visible page.
     /// </summary>
-    public VisiblePageInfo(int pageNumber, SKPoint offset, in PdfPanelPageInfo pageInfo, int userRotation)
+    public VisiblePageInfo(int pageNumber, in PdfPoint offset, in PdfPanelPageInfo pageInfo, int userRotation)
     {
         PageNumber = pageNumber;
         Offset = offset;
@@ -36,7 +36,7 @@ public readonly struct VisiblePageInfo
     /// Gets the offset of the page.
     /// Page offset is the unscaled distance from the top-left corner of the page to the top-left corner of the document.
     /// </summary>
-    public SKPoint Offset { get; }
+    public PdfPoint Offset { get; }
 
     /// <summary>
     /// Gets the page information.
@@ -51,29 +51,29 @@ public readonly struct VisiblePageInfo
     /// <summary>
     /// Gets the rotated size of the page.
     /// </summary>
-    public SKSize RotatedSize => Info.GetRotatedSize(UserRotation);
+    public PdfSize RotatedSize => Info.GetRotatedSize(UserRotation);
 
     /// <summary>
     /// Rotation matrix that maps unrotated page content coordinates to the rotated drawing space.
     /// Used when drawing SKPictures onto the canvas after Scale and Translate have been applied.
     /// Returns identity when the page has no rotation.
     /// </summary>
-    public SKMatrix ContentTransform
+    public PdfMatrix ContentTransform
     {
         get
         {
             int rotation = Info.GetTotalRotation(UserRotation);
             if (rotation == 0)
             {
-                return SKMatrix.Identity;
+                return PdfMatrix.Identity;
             }
 
             float tx = rotation switch { 180 or 270 => -Info.Width, _ => 0f };
             float ty = rotation switch { 90 or 180 => -Info.Height, _ => 0f };
 
-            return SKMatrix.Concat(
-                SKMatrix.CreateRotationDegrees(rotation),
-                SKMatrix.CreateTranslation(tx, ty));
+            return PdfMatrix.Concat(
+                PdfMatrix.CreateRotationDegrees(rotation),
+                PdfMatrix.CreateTranslation(tx, ty));
         }
     }
 
@@ -85,11 +85,11 @@ public readonly struct VisiblePageInfo
     /// content is drawn. Invert it to map canvas pixels back to content coordinates, e.g. to
     /// derive a region of interest from the visible canvas area.
     /// </summary>
-    public SKMatrix GetContentToCanvasMatrix(float scale)
+    public PdfMatrix GetContentToCanvasMatrix(float scale)
     {
         return ContentTransform
-            .PostConcat(SKMatrix.CreateTranslation(Offset.X, Offset.Y))
-            .PostConcat(SKMatrix.CreateScale(scale, scale));
+            .PostConcat(PdfMatrix.CreateTranslation(Offset.X, Offset.Y))
+            .PostConcat(PdfMatrix.CreateScale(scale, scale));
     }
 
     /// <summary>
@@ -97,9 +97,9 @@ public readonly struct VisiblePageInfo
     /// </summary>
     /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
     /// <returns>Rectangle in page coordinates.</returns>
-    public SKRect FromPdfRect(SKRect pdfRect)
+    public PdfRectangle FromPdfRect(in PdfRectangle pdfRect)
     {
-        return SKRect.Create(
+        return PdfRectangle.FromLocationAndSize(
             pdfRect.Left - Info.Left,
             Info.Height + Info.Top - pdfRect.Bottom,
             pdfRect.Width,

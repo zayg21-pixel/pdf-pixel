@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
@@ -132,12 +133,12 @@ public sealed class PdfPanelRenderer : IDisposable
             return null;
         }
 
-        SKPoint pointerPosition = request.PointerPosition.Value;
+        PdfPoint pointerPosition = request.PointerPosition.Value;
 
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
-            SKMatrix canvasToContent = page.GetContentToCanvasMatrix(request.Scale).Invert();
-            SKPoint contentPoint = canvasToContent.MapPoint(pointerPosition);
+            PdfMatrix canvasToContent = page.GetContentToCanvasMatrix(request.Scale).Invert();
+            PdfPoint contentPoint = canvasToContent.MapPoint(pointerPosition);
 
             if (contentPoint.X >= 0
                 && contentPoint.X <= page.Info.Width

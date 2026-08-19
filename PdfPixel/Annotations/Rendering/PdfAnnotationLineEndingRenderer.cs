@@ -134,7 +134,7 @@ internal static class PdfAnnotationLineEndingRenderer
 
     private static void DrawSquare(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
     {
-        PdfRectangle rect = new(-size / 2, -size / 2, size / 2, size / 2);
+        PdfRectangle rect = PdfRectangle.FromLocationAndSize(-size / 2, -size / 2, size, size);
 
         PdfPathBuilder path = new();
         path.AddRect(rect);

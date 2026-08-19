@@ -1,6 +1,6 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Rendering;
-using SkiaSharp;
 using System;
 using System.Linq;
 
@@ -19,12 +19,12 @@ public abstract class DrawingRequest
     /// <summary>
     /// Horizontal and vertical scroll offset in scaled canvas space.
     /// </summary>
-    public SKPoint Offset { get; set; }
+    public PdfPoint Offset { get; set; }
 
     /// <summary>
     /// Width and height of the drawing surface in device pixels.
     /// </summary>
-    public SKSize CanvasSize { get; set; }
+    public PdfSize CanvasSize { get; set; }
 
     /// <summary>
     /// Target that receives the rendered surface for display.

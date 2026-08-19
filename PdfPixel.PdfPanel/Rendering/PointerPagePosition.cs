@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.PdfPanel.Rendering;
 
@@ -10,7 +10,7 @@ public readonly struct PointerPagePosition
     /// <summary>
     /// Initializes a new <see cref="PointerPagePosition"/> with the given page number, content-space position, and button state.
     /// </summary>
-    public PointerPagePosition(int pageNumber, SKPoint position, PdfPanelButtonState state)
+    public PointerPagePosition(int pageNumber, in PdfPoint position, PdfPanelButtonState state)
     {
         PageNumber = pageNumber;
         Position = position;
@@ -25,7 +25,7 @@ public readonly struct PointerPagePosition
     /// <summary>
     /// Pointer position in the page's content coordinate space.
     /// </summary>
-    public SKPoint Position { get; }
+    public PdfPoint Position { get; }
 
     /// <summary>
     /// Pointer button state at the time of this position snapshot.

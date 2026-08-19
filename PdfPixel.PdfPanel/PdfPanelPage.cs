@@ -1,6 +1,6 @@
-﻿using PdfPixel.Models;
+﻿using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel;
@@ -38,7 +38,7 @@ public class PdfPanelPage
     /// represents the distance in device pixels from the top-left corner of the content area to
     /// the top-left corner of this page.
     /// </summary>
-    public SKPoint Offset { get; set; }
+    public PdfPoint Offset { get; set; }
 
     /// <summary>
     /// User defined rotation of the page in degrees.

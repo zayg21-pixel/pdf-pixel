@@ -1,6 +1,5 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Requests;
-using SkiaSharp;
 using System.Linq;
 
 namespace PdfPixel.PdfPanel.Extensions;
@@ -16,13 +15,12 @@ internal static class DrawingRequestExtensions
     {
         VisiblePageInfo pageInfo = request.VisiblePages.First(page => page.PageNumber == pageNumber);
 
-        SKMatrix contentToCanvas = pageInfo.GetContentToCanvasMatrix(request.Scale);
-        SKRect canvasRect = SKRect.Create(0, 0, request.CanvasSize.Width, request.CanvasSize.Height);
-        SKRect regionOfInterest = contentToCanvas.Invert().MapRect(canvasRect);
+        PdfMatrix contentToCanvas = pageInfo.GetContentToCanvasMatrix(request.Scale);
+        PdfRectangle canvasRect = PdfRectangle.FromLocationAndSize(0, 0, request.CanvasSize.Width, request.CanvasSize.Height);
+        PdfRectangle regionOfInterest = contentToCanvas.Invert().MapRect(canvasRect);
 
-        SKRect pageBounds = SKRect.Create(0, 0, pageInfo.Info.Width, pageInfo.Info.Height);
-        regionOfInterest.Intersect(pageBounds);
+        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.Width, pageInfo.Info.Height);
 
-        return new PdfRectangle(regionOfInterest.Left, regionOfInterest.Top, regionOfInterest.Right, regionOfInterest.Bottom);
+        return PdfRectangle.Intersect(regionOfInterest, pageBounds);
     }
 }

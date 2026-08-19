@@ -74,6 +74,19 @@ public readonly struct PdfRectangle : IEquatable<PdfRectangle>
     public bool IsEmpty => this == Empty;
 
     /// <summary>
+    /// Creates a rectangle with its top-left corner at <paramref name="left"/>, <paramref name="top"/>
+    /// and the given <paramref name="width"/> and <paramref name="height"/>.
+    /// </summary>
+    public static PdfRectangle FromLocationAndSize(float left, float top, float width, float height)
+        => new(left, top, left + width, top + height);
+
+    /// <summary>
+    /// Creates a rectangle with its top-left corner at <paramref name="location"/> and the given <paramref name="size"/>.
+    /// </summary>
+    public static PdfRectangle FromLocationAndSize(in PdfPoint location, in PdfSize size)
+        => new(location.X, location.Y, location.X + size.Width, location.Y + size.Height);
+
+    /// <summary>
     /// Creates a <see cref="PdfRectangle"/> from a PDF bounding box array.
     /// Returns null if the array is not defined or has insufficient elements.
     /// </summary>
@@ -158,6 +171,19 @@ public readonly struct PdfRectangle : IEquatable<PdfRectangle>
     /// </summary>
     public static bool IntersectsWith(in PdfRectangle a, in PdfRectangle b)
         => a.Left <= b.Right && a.Right >= b.Left && a.Top <= b.Bottom && a.Bottom >= b.Top;
+
+    /// <summary>
+    /// Whether <paramref name="point"/> lies within this rectangle, counting the left and top edges
+    /// but not the right and bottom ones.
+    /// </summary>
+    public bool Contains(in PdfPoint point)
+        => point.X >= Left && point.X < Right && point.Y >= Top && point.Y < Bottom;
+
+    /// <summary>
+    /// Whether <paramref name="rect"/> lies entirely within this rectangle, edges included.
+    /// </summary>
+    public bool Contains(in PdfRectangle rect)
+        => Left <= rect.Left && Top <= rect.Top && Right >= rect.Right && Bottom >= rect.Bottom;
 
     /// <summary>
     /// Returns this rectangle grown by <paramref name="amount"/> on every edge.

@@ -1,7 +1,8 @@
+using PdfPixel.Geometry;
+using SkiaSharp;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Layout;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -93,7 +94,7 @@ public class PdfPanelContext
     /// Padding from the edges of the viewing area to the pages, in device pixels.
     /// Unlike <see cref="MinimumPageGap"/>, this value is not scaled with <see cref="Scale"/>.
     /// </summary>
-    public SKRect PagesPadding { get; set; } = SKRect.Create(10, 10, 10, 10);
+    public PdfRectangle PagesPadding { get; set; } = PdfRectangle.FromLocationAndSize(10, 10, 10, 10);
 
     /// <summary>
     /// Gets or sets the spacing between pages in the layout, in unscaled page space.
@@ -115,7 +116,7 @@ public class PdfPanelContext
     /// <summary>
     /// Current pointer position in viewport coordinates, or null if pointer is not over the panel.
     /// </summary>
-    public SKPoint? PointerPosition { get; set; }
+    public PdfPoint? PointerPosition { get; set; }
 
     /// <summary>
     /// Current pointer button state.
@@ -140,7 +141,7 @@ public class PdfPanelContext
     /// <summary>
     /// Gets the viewport rectangle in scaled coordinate space.
     /// </summary>
-    public SKRect ViewportRectangle => SKRect.Create(HorizontalOffset, VerticalOffset, ViewportWidth, ViewportHeight);
+    public PdfRectangle ViewportRectangle => PdfRectangle.FromLocationAndSize(HorizontalOffset, VerticalOffset, ViewportWidth, ViewportHeight);
 
     /// <summary>
     /// Updates the layout by recalculating dimensions, page positions, and clamping scroll offsets.
@@ -150,7 +151,7 @@ public class PdfPanelContext
     {
         Scale = Clamp(Scale, MinScale, MaxScale);
 
-        SKSize extentSize = _layout.CalculateDimensions(
+        PdfSize extentSize = _layout.CalculateDimensions(
             Pages, Scale, PagesPadding, MinimumPageGap, ViewportWidth, ViewportHeight);
 
         ExtentWidth = extentSize.Width;
@@ -191,8 +192,8 @@ public class PdfPanelContext
             Scale = Scale,
             ActiveAnnotation = ActiveAnnotation,
             ActiveAnnotationState = ActiveAnnotationState,
-            Offset = new SKPoint(HorizontalOffset, VerticalOffset),
-            CanvasSize = new SKSize(ViewportWidth, ViewportHeight),
+            Offset = new PdfPoint(HorizontalOffset, VerticalOffset),
+            CanvasSize = new PdfSize(ViewportWidth, ViewportHeight),
             RenderTarget = _renderTargetFactory.GetRenderTarget(this),
             VisiblePages = GetVisiblePages().ToArray()
         };
@@ -233,7 +234,7 @@ public class PdfPanelContext
             {
                 float offsetX = (page.Offset.X - HorizontalOffset) / Scale;
                 float offsetY = (page.Offset.Y - VerticalOffset) / Scale;
-                yield return new VisiblePageInfo(i + 1, new SKPoint(offsetX, offsetY), page.Info, page.UserRotation);
+                yield return new VisiblePageInfo(i + 1, new PdfPoint(offsetX, offsetY), page.Info, page.UserRotation);
             }
         }
     }
@@ -257,8 +258,8 @@ public class PdfPanelContext
                     continue;
                 }
 
-                SKMatrix matrix = page.ViewportToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
-                SKPoint pagePoint = matrix.MapPoint(PointerPosition.Value);
+                PdfMatrix matrix = page.ViewportToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
+                PdfPoint pagePoint = matrix.MapPoint(PointerPosition.Value);
 
                 if (!page.IsPointInPageBounds(pagePoint))
                 {

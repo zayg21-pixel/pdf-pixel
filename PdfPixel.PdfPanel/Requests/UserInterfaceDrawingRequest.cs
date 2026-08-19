@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 using System;
 
 namespace PdfPixel.PdfPanel.Requests;
@@ -11,7 +11,7 @@ public class UserInterfaceDrawingRequest : DrawingRequest
     /// <summary>
     /// Current pointer position in viewport coordinates, or <see langword="null"/> if pointer is not over the panel.
     /// </summary>
-    public SKPoint? PointerPosition { get; set; }
+    public PdfPoint? PointerPosition { get; set; }
 
     /// <summary>
     /// Current pointer button state.

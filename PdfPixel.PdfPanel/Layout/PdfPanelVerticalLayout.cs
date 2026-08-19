@@ -1,5 +1,5 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.Layout;
@@ -10,10 +10,10 @@ namespace PdfPixel.PdfPanel.Layout;
 public class PdfPanelVerticalLayout : IPdfPanelLayout
 {
     /// <inheritdoc />
-    public SKSize CalculateDimensions(
+    public PdfSize CalculateDimensions(
         PdfPanelPageCollection pages,
         float scale,
-        SKRect pagesPadding,
+        in PdfRectangle pagesPadding,
         float pageGap,
         float viewportWidth,
         float viewportHeight)
@@ -37,7 +37,7 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         for (int i = 0; i < pageCount; i++)
         {
             PdfPanelPage page = pages[i];
-            SKSize rotatedScaledSize = page.GetRotatedScaledSize(scale);
+            PdfSize rotatedScaledSize = page.GetRotatedScaledSize(scale);
 
             maxPageWidthScaled = Math.Max(maxPageWidthScaled, rotatedScaledSize.Width);
             totalHeightScaled += rotatedScaledSize.Height;
@@ -52,14 +52,14 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         float extentWidth = Math.Max(viewportWidth, contentWidth);
         float extentHeight = totalHeightScaled + paddingTop + paddingBottom;
 
-        return new SKSize(extentWidth, extentHeight);
+        return new PdfSize(extentWidth, extentHeight);
     }
 
     /// <inheritdoc />
     public void CalculatePageOffsets(
         PdfPanelPageCollection pages,
         float scale,
-        SKRect pagesPadding,
+        in PdfRectangle pagesPadding,
         float pageGap,
         float extentWidth,
         float extentHeight)
@@ -77,11 +77,11 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         for (int i = 0; i < pageCount; i++)
         {
             PdfPanelPage page = pages[i];
-            SKSize rotatedScaledSize = page.GetRotatedScaledSize(scale);
+            PdfSize rotatedScaledSize = page.GetRotatedScaledSize(scale);
 
             float pageOffsetLeft = (extentWidth - rotatedScaledSize.Width) / 2f;
 
-            page.Offset = new SKPoint(pageOffsetLeft, verticalOffset);
+            page.Offset = new PdfPoint(pageOffsetLeft, verticalOffset);
 
             verticalOffset += rotatedScaledSize.Height + scaledPageGap;
         }

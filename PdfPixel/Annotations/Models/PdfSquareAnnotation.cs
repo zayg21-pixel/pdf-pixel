@@ -62,11 +62,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle.StrokeStyle, BorderEffect);
 
             float halfBorder = BorderStyle.StrokeStyle.LineWidth / 2f;
-            PdfRectangle adjustedRect = new(
-                ContentRectangle.Left + halfBorder,
-                ContentRectangle.Top + halfBorder,
-                ContentRectangle.Right - halfBorder,
-                ContentRectangle.Bottom - halfBorder);
+            PdfRectangle adjustedRect = ContentRectangle.Inflate(-halfBorder);
 
             PdfPathBuilder strokePath = new();
             strokePath.AddRect(adjustedRect);

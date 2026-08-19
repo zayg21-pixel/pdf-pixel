@@ -33,7 +33,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
         PdfRectangle rectangle = base.Rectangle;
         Rectangle = (rectangle.Width > 0 && rectangle.Height > 0)
             ? rectangle
-            : new PdfRectangle(rectangle.Left, rectangle.Top, rectangle.Left + PdfAnnotationGraphics.DefaultBubbleSize, rectangle.Top + PdfAnnotationGraphics.DefaultBubbleSize);
+            : PdfRectangle.FromLocationAndSize(rectangle.Left, rectangle.Top, PdfAnnotationGraphics.DefaultBubbleSize, PdfAnnotationGraphics.DefaultBubbleSize);
     }
 
     /// <inheritdoc/>

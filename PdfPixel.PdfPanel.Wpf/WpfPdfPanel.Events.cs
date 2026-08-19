@@ -1,4 +1,5 @@
 ﻿using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System.Windows;
 using System.Windows.Input;
@@ -117,7 +118,7 @@ public partial class WpfPdfPanel
         Point position = args.GetPosition(this);
         Point canvasPosition = GetCanvasPosition(position);
 
-        var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
+        var viewportPoint = new PdfPoint((float)canvasPosition.X, (float)canvasPosition.Y);
 
         PdfPanelPage page = _context?.GetPageAtViewportPoint(viewportPoint);
 
@@ -126,8 +127,8 @@ public partial class WpfPdfPanel
 
         if (page != null)
         {
-            SKMatrix matrix = page.ViewportToPageMatrix(_context);
-            SKPoint pagePoint = matrix.MapPoint(viewportPoint);
+            PdfMatrix matrix = page.ViewportToPageMatrix(_context);
+            PdfPoint pagePoint = matrix.MapPoint(viewportPoint);
             positionOnPage = new Point(pagePoint.X, pagePoint.Y);
         }
 

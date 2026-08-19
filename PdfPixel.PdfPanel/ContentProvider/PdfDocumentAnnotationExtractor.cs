@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Annotations.Models;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
@@ -12,7 +13,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 
 internal static class PdfDocumentAnnotationExtractor
 {
-    public static PdfAnnotationPopup? GetActiveAnnotation(PdfPanelPage page, SKPoint pagePosition)
+    public static PdfAnnotationPopup? GetActiveAnnotation(PdfPanelPage page, PdfPoint pagePosition)
     {
         if (page == null)
         {

@@ -2,7 +2,6 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
-using SkiaSharp;
 using System;
 using System.Linq;
 
@@ -37,7 +36,7 @@ public static class PdfPanelContextExtensions
         for (int i = 0; i < pageCount; i++)
         {
             PdfPanelPage page = context.Pages[i];
-            SKSize rotatedScaledSize = page.GetRotatedScaledSize(context.Scale);
+            PdfSize rotatedScaledSize = page.GetRotatedScaledSize(context.Scale);
 
             float pageCenterX = page.Offset.X + (rotatedScaledSize.Width / 2f);
             float pageCenterY = page.Offset.Y + (rotatedScaledSize.Height / 2f);
@@ -243,7 +242,7 @@ public static class PdfPanelContextExtensions
     /// <param name="viewportPoint">Point in viewport coordinate space.</param>
     /// <returns>The page at the specified point, or <see langword="null"/> if no page is found.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static PdfPanelPage? GetPageAtViewportPoint(this PdfPanelContext context, SKPoint viewportPoint)
+    public static PdfPanelPage? GetPageAtViewportPoint(this PdfPanelContext context, in PdfPoint viewportPoint)
     {
         if (context == null)
         {
@@ -262,8 +261,8 @@ public static class PdfPanelContextExtensions
                 continue;
             }
 
-            SKMatrix matrix = page.ViewportToPageMatrix(context);
-            SKPoint testPagePoint = matrix.MapPoint(viewportPoint);
+            PdfMatrix matrix = page.ViewportToPageMatrix(context);
+            PdfPoint testPagePoint = matrix.MapPoint(viewportPoint);
 
             if (page.IsPointInPageBounds(testPagePoint))
             {
@@ -312,11 +311,11 @@ public static class PdfPanelContextExtensions
         if (destination.TargetLocation.HasValue)
         {
             PdfRectangle pdfRect = destination.TargetLocation.Value;
-            SKPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
-            SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
+            PdfPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
+            PdfPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
 
-            SKMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
-            SKPoint canvasLocation = pageToCanvas.MapPoint(pageLocation);
+            PdfMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
+            PdfPoint canvasLocation = pageToCanvas.MapPoint(pageLocation);
 
             context.HorizontalOffset = canvasLocation.X;
             context.VerticalOffset = canvasLocation.Y;
@@ -329,7 +328,7 @@ public static class PdfPanelContextExtensions
 
     private static float? ComputeFitZoom(PdfPanelPage page, PdfDestination destination, float viewportWidth, float viewportHeight)
     {
-        SKSize pageSize = page.GetRotatedSize();
+        PdfSize pageSize = page.GetRotatedSize();
 
         return destination.FitType switch
         {

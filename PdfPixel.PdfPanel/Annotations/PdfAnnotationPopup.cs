@@ -1,6 +1,5 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Geometry;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.Annotations;
@@ -15,7 +14,7 @@ public class PdfAnnotationPopup
     /// Used when the document is not directly accessible — for example, on the WASM main thread
     /// after annotation data has been serialized from the worker.
     /// </summary>
-    public PdfAnnotationPopup(PdfAnnotationNavigation? navigation, bool isInteractive, SKRect hoverRectangle, PdfAnnotationMessage[] messages)
+    public PdfAnnotationPopup(PdfAnnotationNavigation? navigation, bool isInteractive, in PdfRectangle hoverRectangle, PdfAnnotationMessage[] messages)
     {
         Navigation = navigation;
         IsInteractive = isInteractive;
@@ -28,12 +27,10 @@ public class PdfAnnotationPopup
     /// Used when the document is loaded in-process (WPF path).
     /// </summary>
     internal PdfAnnotationPopup(PdfPageAnnotation pageAnnotation, PdfAnnotationNavigation? navigation, PdfAnnotationMessage[] messages)
-        : this(navigation, pageAnnotation.Content.IsInteractive, ToSkRect(pageAnnotation.GetHoverRectangle()), messages)
+        : this(navigation, pageAnnotation.Content.IsInteractive, pageAnnotation.GetHoverRectangle(), messages)
     {
         PageAnnotation = pageAnnotation ?? throw new ArgumentNullException(nameof(pageAnnotation));
     }
-
-    private static SKRect ToSkRect(in PdfRectangle rect) => new(rect.Left, rect.Top, rect.Right, rect.Bottom);
 
     /// <summary>
     /// The page-bound annotation this popup represents.
@@ -49,7 +46,7 @@ public class PdfAnnotationPopup
     /// <summary>
     /// Hover rectangle in PDF coordinates. Used for hit-testing.
     /// </summary>
-    public SKRect HoverRectangle { get; }
+    public PdfRectangle HoverRectangle { get; }
 
     /// <summary>
     /// Navigation data for this annotation (navigation type, URI, destination, cursor type).

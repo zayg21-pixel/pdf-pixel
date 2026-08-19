@@ -1,4 +1,4 @@
-﻿using SkiaSharp;
+﻿using PdfPixel.Geometry;
 using System;
 
 namespace PdfPixel.PdfPanel.Extensions;
@@ -33,16 +33,16 @@ public static class PdfPanelPageExtensions
     /// <param name="pageInfo">The page information.</param>
     /// <param name="userRotation">User-applied rotation in degrees.</param>
     /// <returns>The rotated page size with width and height swapped if rotated 90 or 270 degrees.</returns>
-    public static SKSize GetRotatedSize(this in PdfPanelPageInfo pageInfo, int userRotation)
+    public static PdfSize GetRotatedSize(this in PdfPanelPageInfo pageInfo, int userRotation)
     {
         int totalRotation = pageInfo.GetTotalRotation(userRotation);
 
         if (totalRotation % 180 != 0)
         {
-            return new SKSize(pageInfo.Height, pageInfo.Width);
+            return new PdfSize(pageInfo.Height, pageInfo.Width);
         }
 
-        return new SKSize(pageInfo.Width, pageInfo.Height);
+        return new PdfSize(pageInfo.Width, pageInfo.Height);
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public static class PdfPanelPageExtensions
     /// </summary>
     /// <param name="page">The page.</param>
     /// <returns>The rotated page size.</returns>
-    public static SKSize GetRotatedSize(this PdfPanelPage page) => page?.Info.GetRotatedSize(page.UserRotation) ?? throw new ArgumentNullException(nameof(page));
+    public static PdfSize GetRotatedSize(this PdfPanelPage page) => page?.Info.GetRotatedSize(page.UserRotation) ?? throw new ArgumentNullException(nameof(page));
 
     /// <summary>
     /// Gets the size of the page after applying rotation and scale.
@@ -65,15 +65,15 @@ public static class PdfPanelPageExtensions
     /// <param name="page">The page.</param>
     /// <param name="scale">Scale factor.</param>
     /// <returns>The rotated and scaled page size.</returns>
-    public static SKSize GetRotatedScaledSize(this PdfPanelPage page, float scale)
+    public static PdfSize GetRotatedScaledSize(this PdfPanelPage page, float scale)
     {
         if (page == null)
         {
-            throw new System.ArgumentNullException(nameof(page));
+            throw new ArgumentNullException(nameof(page));
         }
 
-        SKSize rotatedSize = page.GetRotatedSize();
-        return new SKSize(rotatedSize.Width * scale, rotatedSize.Height * scale);
+        PdfSize rotatedSize = page.GetRotatedSize();
+        return new PdfSize(rotatedSize.Width * scale, rotatedSize.Height * scale);
     }
 
     /// <summary>
@@ -81,10 +81,10 @@ public static class PdfPanelPageExtensions
     /// </summary>
     /// <param name="page">The page.</param>
     /// <returns>The page bounds.</returns>
-    public static SKRect GetBounds(this PdfPanelPage page)
+    public static PdfRectangle GetBounds(this PdfPanelPage page)
     {
-        SKSize rotatedSize = page.GetRotatedSize();
-        return SKRect.Create(page.Offset, rotatedSize);
+        PdfSize rotatedSize = page.GetRotatedSize();
+        return PdfRectangle.FromLocationAndSize(page.Offset, rotatedSize);
     }
 
     /// <summary>
@@ -93,10 +93,10 @@ public static class PdfPanelPageExtensions
     /// <param name="page">The page.</param>
     /// <param name="scale">Scale factor.</param>
     /// <returns>The scaled page bounds.</returns>
-    public static SKRect GetScaledBounds(this PdfPanelPage page, float scale)
+    public static PdfRectangle GetScaledBounds(this PdfPanelPage page, float scale)
     {
-        SKSize rotatedSize = page.GetRotatedSize();
-        return SKRect.Create(page.Offset.X * scale, page.Offset.Y * scale, rotatedSize.Width * scale, rotatedSize.Height * scale);
+        PdfSize rotatedSize = page.GetRotatedSize();
+        return PdfRectangle.FromLocationAndSize(page.Offset.X * scale, page.Offset.Y * scale, rotatedSize.Width * scale, rotatedSize.Height * scale);
     }
 
     /// <summary>
@@ -105,10 +105,10 @@ public static class PdfPanelPageExtensions
     /// <param name="page">The page.</param>
     /// <param name="scale">Scale factor.</param>
     /// <returns>The page bounds with scaled dimensions.</returns>
-    public static SKRect GetScaledPageBounds(this PdfPanelPage page, float scale)
+    public static PdfRectangle GetScaledPageBounds(this PdfPanelPage page, float scale)
     {
-        SKSize rotatedScaledSize = page.GetRotatedScaledSize(scale);
-        return SKRect.Create(page.Offset, rotatedScaledSize);
+        PdfSize rotatedScaledSize = page.GetRotatedScaledSize(scale);
+        return PdfRectangle.FromLocationAndSize(page.Offset, rotatedScaledSize);
     }
 
     /// <summary>
@@ -118,15 +118,15 @@ public static class PdfPanelPageExtensions
     /// <param name="viewportRectangle">The viewport rectangle in scaled coordinate space.</param>
     /// <param name="scale">Scale factor.</param>
     /// <returns><see langword="true"/> if the page intersects with the viewport; otherwise, <see langword="false"/>.</returns>
-    public static bool IsPageVisible(this PdfPanelPage page, SKRect viewportRectangle, float scale)
+    public static bool IsPageVisible(this PdfPanelPage page, in PdfRectangle viewportRectangle, float scale)
     {
         if (page == null)
         {
-            throw new System.ArgumentNullException(nameof(page));
+            throw new ArgumentNullException(nameof(page));
         }
 
-        SKRect pageBounds = page.GetScaledPageBounds(scale);
-        return viewportRectangle.IntersectsWith(pageBounds);
+        PdfRectangle pageBounds = page.GetScaledPageBounds(scale);
+        return PdfRectangle.IntersectsWith(viewportRectangle, pageBounds);
     }
 
     /// <summary>
@@ -135,11 +135,11 @@ public static class PdfPanelPageExtensions
     /// <param name="page">The page.</param>
     /// <param name="pagePoint">Point in page coordinate space (unrotated).</param>
     /// <returns><see langword="true"/> if the point is within the page bounds; otherwise, <see langword="false"/>.</returns>
-    public static bool IsPointInPageBounds(this PdfPanelPage page, SKPoint pagePoint)
+    public static bool IsPointInPageBounds(this PdfPanelPage page, in PdfPoint pagePoint)
     {
         if (page == null)
         {
-            throw new System.ArgumentNullException(nameof(page));
+            throw new ArgumentNullException(nameof(page));
         }
 
         return pagePoint.X >= 0
@@ -155,11 +155,11 @@ public static class PdfPanelPageExtensions
     /// <param name="page">The page.</param>
     /// <param name="context">The panel context providing viewport and scroll information.</param>
     /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
-    public static SKMatrix ViewportToPageMatrix(this PdfPanelPage page, PdfPanelContext context)
+    public static PdfMatrix ViewportToPageMatrix(this PdfPanelPage page, PdfPanelContext context)
     {
         if (context == null)
         {
-            throw new System.ArgumentNullException(nameof(context));
+            throw new ArgumentNullException(nameof(context));
         }
 
         return page.ViewportToPageMatrix(context.Scale, context.HorizontalOffset, context.VerticalOffset);
@@ -174,29 +174,29 @@ public static class PdfPanelPageExtensions
     /// <param name="horizontalOffset">Horizontal scroll offset.</param>
     /// <param name="verticalOffset">Vertical scroll offset.</param>
     /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
-    public static SKMatrix ViewportToPageMatrix(this PdfPanelPage page, float scale, float horizontalOffset, float verticalOffset)
+    public static PdfMatrix ViewportToPageMatrix(this PdfPanelPage page, float scale, float horizontalOffset, float verticalOffset)
     {
         if (page == null)
         {
-            throw new System.ArgumentNullException(nameof(page));
+            throw new ArgumentNullException(nameof(page));
         }
 
-        SKMatrix matrix = SKMatrix.Identity;
+        PdfMatrix matrix = PdfMatrix.Identity;
 
         // Step 1: Add scroll offset to reverse viewport translation
-        matrix = matrix.PostConcat(SKMatrix.CreateTranslation(horizontalOffset, verticalOffset));
+        matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(horizontalOffset, verticalOffset));
 
         // Step 2: Subtract page offset (in scaled space) to get to page origin
-        matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-page.Offset.X, -page.Offset.Y));
+        matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(-page.Offset.X, -page.Offset.Y));
 
         // Step 3: Apply inverse scale to get to unscaled page space
-        matrix = matrix.PostConcat(SKMatrix.CreateScale(1f / scale, 1f / scale));
+        matrix = matrix.PostConcat(PdfMatrix.CreateScale(1f / scale, 1f / scale));
 
         // Step 4: Apply inverse rotation to get to unrotated page space
         int totalRotation = page.GetTotalRotation();
         if (totalRotation != 0)
         {
-            SKSize unrotatedSize = new(page.Info.Width, page.Info.Height);
+            PdfSize unrotatedSize = new(page.Info.Width, page.Info.Height);
             matrix = matrix.PostConcat(GetInverseRotationMatrix(unrotatedSize.Width, unrotatedSize.Height, totalRotation));
         }
 
@@ -211,8 +211,8 @@ public static class PdfPanelPageExtensions
     /// <param name="height">The height of the area to which the rotation is applied. Must be a positive value.</param>
     /// <param name="rotationDegrees">The rotation angle, in degrees, to invert. Valid values are between 0 and 359; negative values are normalized to
     /// this range.</param>
-    /// <returns>An SKMatrix representing the inverse rotation transformation for the specified area and angle.</returns>
-    public static SKMatrix GetInverseRotationMatrix(float width, float height, int rotationDegrees)
+    /// <returns>A <see cref="PdfMatrix"/> representing the inverse rotation transformation for the specified area and angle.</returns>
+    public static PdfMatrix GetInverseRotationMatrix(float width, float height, int rotationDegrees)
     {
         rotationDegrees %= 360;
         if (rotationDegrees < 0)
@@ -220,24 +220,24 @@ public static class PdfPanelPageExtensions
             rotationDegrees += 360;
         }
 
-        SKMatrix matrix = SKMatrix.Identity;
+        PdfMatrix matrix = PdfMatrix.Identity;
 
         switch (rotationDegrees)
         {
             case 90:
                 {
-                    matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-height, 0));
-                    return matrix.PostConcat(SKMatrix.CreateRotationDegrees(-90));
+                    matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(-height, 0));
+                    return matrix.PostConcat(PdfMatrix.CreateRotationDegrees(-90));
                 }
             case 180:
                 {
-                    matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-width, -height));
-                    return matrix.PostConcat(SKMatrix.CreateRotationDegrees(-180));
+                    matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(-width, -height));
+                    return matrix.PostConcat(PdfMatrix.CreateRotationDegrees(-180));
                 }
             case 270:
                 {
-                    matrix = matrix.PostConcat(SKMatrix.CreateTranslation(0, -width));
-                    return matrix.PostConcat(SKMatrix.CreateRotationDegrees(-270));
+                    matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(0, -width));
+                    return matrix.PostConcat(PdfMatrix.CreateRotationDegrees(-270));
                 }
         }
 
@@ -250,14 +250,14 @@ public static class PdfPanelPageExtensions
     /// <param name="page">The page.</param>
     /// <param name="pdfPoint">Point in PDF coordinates.</param>
     /// <returns>Point in page coordinates.</returns>
-    public static SKPoint FromPdfPoint(this PdfPanelPage page, SKPoint pdfPoint)
+    public static PdfPoint FromPdfPoint(this PdfPanelPage page, in PdfPoint pdfPoint)
     {
         if (page == null)
         {
             throw new ArgumentNullException(nameof(page));
         }
 
-        return new SKPoint(
+        return new PdfPoint(
             pdfPoint.X - page.Info.Left,
             page.Info.Height + page.Info.Top - pdfPoint.Y);
     }
@@ -268,18 +268,17 @@ public static class PdfPanelPageExtensions
     /// <param name="page">The page.</param>
     /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
     /// <returns>Rectangle in page coordinates.</returns>
-    public static SKRect FromPdfRect(this PdfPanelPage page, SKRect pdfRect)
+    public static PdfRectangle FromPdfRect(this PdfPanelPage page, in PdfRectangle pdfRect)
     {
         if (page == null)
         {
             throw new ArgumentNullException(nameof(page));
         }
 
-        return SKRect.Create(
+        return PdfRectangle.FromLocationAndSize(
             pdfRect.Left - page.Info.Left,
             page.Info.Height + page.Info.Top - pdfRect.Bottom,
             pdfRect.Width,
             pdfRect.Height);
     }
 }
-
