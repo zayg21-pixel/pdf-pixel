@@ -127,7 +127,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
         if (contentUpdated)
         {
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, _request.GetPage(CacheEntry.PageNumber).RegionOfInterest));
+            _onPageUpdated?.Invoke(
+                new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, _request.GetPage(CacheEntry.PageNumber).RegionOfInterest));
         }
 
         var annotationRecordingUpdated = false;

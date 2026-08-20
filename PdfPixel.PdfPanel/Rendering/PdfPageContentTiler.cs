@@ -109,12 +109,6 @@ public sealed class PdfPageContentTiler : IDisposable
     }
 
     /// <summary>
-    /// Returns true if there are any cached tiles for the given page.
-    /// </summary>
-    /// <param name="pageNumber">The page number to check.</param>
-    public bool HasTiles(int pageNumber) => _pageCache.TryGetValue(pageNumber, out PageTileCache? pageCache) && pageCache.Tiles.Count > 0;
-
-    /// <summary>
     /// Evicts cached tiles for pages not in the given visible set.
     /// </summary>
     /// <param name="visiblePages">Pages to keep tiles for.</param>

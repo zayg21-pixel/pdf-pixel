@@ -20,7 +20,7 @@ public class CcittBitReaderTests
         // 000000000001 then a single set bit.
         byte[] data = [0x00, 0x18];
         ReadOnlySpan<byte> span = data;
-        CcittBitReader reader = new(ref span, 0, 0, 0);
+        CcittBitReader reader = new(span, 0, 0, 0);
 
         Assert.True(reader.TryConsumeEol());
         Assert.Equal(1, reader.ReadBit());
@@ -36,7 +36,7 @@ public class CcittBitReaderTests
         // Four fill zeros, then 000000000001, then a single set bit.
         byte[] data = [0x00, 0x01, 0x80];
         ReadOnlySpan<byte> span = data;
-        CcittBitReader reader = new(ref span, 0, 0, 0);
+        CcittBitReader reader = new(span, 0, 0, 0);
 
         Assert.True(reader.TryConsumeEol());
         Assert.Equal(1, reader.ReadBit());
@@ -50,7 +50,7 @@ public class CcittBitReaderTests
     {
         byte[] data = [0xB4, 0x2C];
         ReadOnlySpan<byte> span = data;
-        CcittBitReader reader = new(ref span, 0, 0, 0);
+        CcittBitReader reader = new(span, 0, 0, 0);
 
         Assert.False(reader.TryConsumeEol());
         Assert.Equal(1, reader.ReadBit());
@@ -68,7 +68,7 @@ public class CcittBitReaderTests
     {
         byte[] data = [0x00, 0x00, 0x00];
         ReadOnlySpan<byte> span = data;
-        CcittBitReader reader = new(ref span, 0, 0, 0);
+        CcittBitReader reader = new(span, 0, 0, 0);
 
         Assert.False(reader.TryConsumeEol());
         Assert.Equal(0, reader.ReadBit());

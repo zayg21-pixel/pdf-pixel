@@ -31,19 +31,27 @@ internal static class SkCanvasExtensions
 
             canvas.Scale(request.Scale, request.Scale);
 
-            SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
-
+            SKRect pageRect = new(
+                0,
+                0,
+                PdfCommandProcessingUtilities.SnapToWholePixel(page.RotatedSize.Width),
+                PdfCommandProcessingUtilities.SnapToWholePixel(page.RotatedSize.Height));
 
             if ((flags & PageDrawFlags.Shadow) != 0)
             {
-                DrawPageShadow(canvas, page);
+                DrawPageShadow(canvas, pageRect);
             }
 
             canvas.ClipRect(pageRect);
 
             if ((flags & PageDrawFlags.Background) != 0)
             {
-                DrawPageBackground(canvas, page);
+                DrawPageBackground(canvas, pageRect);
+            }
+
+            if ((flags & PageDrawFlags.Placeholder) != 0 && animation != null)
+            {
+                DrawPlaceholder(canvas, pageRect, animation.Value);
             }
 
             if ((flags & PageDrawFlags.Content) != 0)
@@ -51,11 +59,6 @@ internal static class SkCanvasExtensions
                 tiler.DrawTiles(canvas, in page, request.Scale);
                 DrawPagePicture(canvas, pictures?.Annotations, page);
                 DrawSelectionPicture(canvas, textSelector, page);
-
-                if (!tiler.HasTiles(page.PageNumber) && (flags & PageDrawFlags.Placeholder) != 0 && animation != null)
-                {
-                    DrawPlaceholder(canvas, page, animation.Value);
-                }
             }
         }
         finally
@@ -107,15 +110,15 @@ internal static class SkCanvasExtensions
         }
     }
 
-    private static void DrawPlaceholder(SKCanvas canvas, in VisiblePageInfo page, in AnimationState animation)
+    private static void DrawPlaceholder(SKCanvas canvas, SKRect pageRect, in AnimationState animation)
     {
-        float minDimension = Math.Min(page.RotatedSize.Width, page.RotatedSize.Height);
+        float minDimension = Math.Min(pageRect.Width, pageRect.Height);
         float radius = minDimension * 0.05f;
         float strokeWidth = radius * 0.15f;
-        float cx = page.RotatedSize.Width / 2f;
-        float cy = page.RotatedSize.Height / 2f;
+        float centerX = pageRect.MidX;
+        float centerY = pageRect.MidY;
 
-        SKRect arcRect = new(cx - radius, cy - radius, cx + radius, cy + radius);
+        SKRect arcRect = new(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
         float startAngle = (animation.Tick % animation.Fps) / (float)animation.Fps * 360f;
 
         using SKPaint paint = new()
@@ -130,10 +133,8 @@ internal static class SkCanvasExtensions
         canvas.DrawArc(arcRect, startAngle, 270f, false, paint);
     }
 
-    private static void DrawPageShadow(SKCanvas canvas, in VisiblePageInfo page)
+    private static void DrawPageShadow(SKCanvas canvas, SKRect pageRect)
     {
-        SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
-
         if (pageRect.Contains(canvas.LocalClipBounds))
         {
             return;
@@ -152,10 +153,8 @@ internal static class SkCanvasExtensions
         canvas.RestoreToCount(saveCount);
     }
 
-    private static void DrawPageBackground(SKCanvas canvas, in VisiblePageInfo page)
+    private static void DrawPageBackground(SKCanvas canvas, SKRect pageRect)
     {
-        SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
-
         using SKPaint paint = new()
         {
             Style = SKPaintStyle.Fill,
