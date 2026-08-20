@@ -66,10 +66,9 @@ public sealed class PdfPageContentTiler : IDisposable
             pageCache.Scale = request.Scale;
         }
 
-        PdfRectangle visibleRegion = request.ComputeRegionOfInterest(pageInfo.PageNumber);
         PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.Width, pageInfo.Info.Height);
 
-        PdfIntegerRectangle visiblePixels = ToPixels(visibleRegion, request.Scale);
+        PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.RegionOfInterest, request.Scale);
         PdfIntegerRectangle pagePixels = ToPixels(pageBounds, request.Scale);
 
         RasterizeTiles(pageCache, contentLocker, request.Scale, visiblePixels, pagePixels, forceClearVisible);
@@ -139,6 +138,23 @@ public sealed class PdfPageContentTiler : IDisposable
         }
 
         _pageCache.Clear();
+    }
+
+    /// <summary>
+    /// Expands <paramref name="region"/> outward to the boundaries of the tile grid.
+    /// </summary>
+    /// <param name="region">Region in content coordinates.</param>
+    /// <param name="scale">Rendering scale the tiles are rasterized at.</param>
+    /// <param name="tileSize">Edge length of a single tile in device pixels.</param>
+    public static PdfRectangle SnapToTileGrid(in PdfRectangle region, float scale, int tileSize)
+    {
+        float tileContentSize = tileSize / scale;
+
+        return new PdfRectangle(
+            MathF.Floor(region.Left / tileContentSize) * tileContentSize,
+            MathF.Floor(region.Top / tileContentSize) * tileContentSize,
+            MathF.Ceiling(region.Right / tileContentSize) * tileContentSize,
+            MathF.Ceiling(region.Bottom / tileContentSize) * tileContentSize);
     }
 
     /// <inheritdoc />

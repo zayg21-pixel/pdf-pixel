@@ -226,6 +226,8 @@ public class PdfPanelContext
 
     private IEnumerable<VisiblePageInfo> GetVisiblePages()
     {
+        PdfSize canvasSize = new(ViewportWidth, ViewportHeight);
+
         for (int i = 0; i < Pages.Count; i++)
         {
             PdfPanelPage page = Pages[i];
@@ -234,7 +236,14 @@ public class PdfPanelContext
             {
                 float offsetX = (page.Offset.X - HorizontalOffset) / Scale;
                 float offsetY = (page.Offset.Y - VerticalOffset) / Scale;
-                yield return new VisiblePageInfo(i + 1, new PdfPoint(offsetX, offsetY), page.Info, page.UserRotation);
+                yield return new VisiblePageInfo(
+                    i + 1,
+                    new PdfPoint(offsetX, offsetY),
+                    page.Info,
+                    page.UserRotation,
+                    canvasSize,
+                    Scale,
+                    _renderer.Properties.TileSize);
             }
         }
     }

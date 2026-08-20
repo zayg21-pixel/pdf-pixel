@@ -46,6 +46,11 @@ public abstract class DrawingRequest
     /// </summary>
     public VisiblePageInfo[] VisiblePages { get; set; } = [];
 
+    /// <summary>
+    /// Returns the visible page with the given page number.
+    /// </summary>
+    public VisiblePageInfo GetPage(int pageNumber) => VisiblePages.First(page => page.PageNumber == pageNumber);
+
     /// <inheritdoc />
     public override bool Equals(object? obj)
     {

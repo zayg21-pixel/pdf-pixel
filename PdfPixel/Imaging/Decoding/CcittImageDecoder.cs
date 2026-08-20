@@ -79,7 +79,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         }
 
         Span<byte> buffer = destination;
-        if (!_rowDecoder.DecodeNextRow(ref buffer))
+        if (!_rowDecoder.DecodeNextRow(buffer))
         {
             Logger.LogWarning("CCITT row decoder ended early at image row {Row} (SourceReference={SourceReference}).", _currentImageRow, Image.SourceReference);
             return false;

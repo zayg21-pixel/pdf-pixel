@@ -117,7 +117,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         if (pointerPagePosition != null && _lastRequest.RenderTarget != null)
         {
-            VisiblePageInfo page = _lastRequest.VisiblePages.First(p => p.PageNumber == pointerPagePosition.Value.PageNumber);
+            VisiblePageInfo page = _lastRequest.GetPage(pointerPagePosition.Value.PageNumber);
 
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
@@ -212,8 +212,8 @@ public sealed class PdfPanelRenderer : IDisposable
 
             bool regionChanged = scaleChanged
                 || _lastRequest == null
-                || !_lastRequest.VisiblePages.Any(previousPage => previousPage.PageNumber == page.PageNumber)
-                || _lastRequest.ComputeRegionOfInterest(page.PageNumber) != request.ComputeRegionOfInterest(page.PageNumber);
+                || !_lastRequest.VisiblePages.Any(previousPage => previousPage.PageNumber == page.PageNumber
+                    && previousPage.RegionOfInterest == page.RegionOfInterest);
 
             // A pending OnPageUpdated is only expected when the request actually invalidated the
             // cached picture for a feature it depends on; otherwise the cache is already current and
@@ -326,7 +326,7 @@ public sealed class PdfPanelRenderer : IDisposable
             return;
         }
 
-        VisiblePageInfo page = _lastRequest.VisiblePages.First(p => p.PageNumber == args.PageNumber);
+        VisiblePageInfo page = _lastRequest.GetPage(args.PageNumber);
 
         _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 

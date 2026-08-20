@@ -1,4 +1,4 @@
-using PdfPixel.Commands;
+﻿using PdfPixel.Commands;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
 using PdfPixel.Models;
@@ -110,7 +110,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
-                    _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
+                    _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
 
                 await PdfDocumentContentExtensions
                     .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, _fontSubstitutor, _document.LoggerFactory)
@@ -127,7 +127,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
         if (contentUpdated)
         {
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, CacheEntry.Content.LastRegionOfInterest));
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, _request.GetPage(CacheEntry.PageNumber).RegionOfInterest));
         }
 
         var annotationRecordingUpdated = false;
@@ -173,7 +173,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
-                    _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
+                    _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
 
                 await PdfDocumentContentExtensions
                     .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, _fontSubstitutor, _document.LoggerFactory)
@@ -186,7 +186,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             }
 
             _onPageUpdated?.Invoke(
-                new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial, CacheEntry.AnnotationContent.LastRegionOfInterest));
+                new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial, _request.GetPage(CacheEntry.PageNumber).RegionOfInterest));
         }
     }
 }

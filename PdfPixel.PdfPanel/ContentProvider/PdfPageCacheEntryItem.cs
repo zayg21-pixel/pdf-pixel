@@ -49,11 +49,6 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     public PagesDrawingRequest? LastRequest { get; private set; }
 
     /// <summary>
-    /// Visible region within the page content coordinate space used when the current picture was decoded.
-    /// </summary>
-    public PdfRectangle LastRegionOfInterest { get; private set; }
-
-    /// <summary>
     /// Flattened characters extracted during the last content picture generation, in reading order.
     /// </summary>
     public List<PdfCharacter>? Characters { get; private set; }
@@ -85,7 +80,6 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ThrowIfDisposed();
         ContentPicture.SetContent(picture);
         LastRequest = request;
-        LastRegionOfInterest = request.ComputeRegionOfInterest(PageNumber);
         Characters = characters;
     }
 
@@ -103,7 +97,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         return !ContentPicture.HasContent
             || LastRequest == null
             || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor)
-            || ((Features & PdfCommandFeatures.Region) != 0 && LastRegionOfInterest != request.ComputeRegionOfInterest(PageNumber));
+            || ((Features & PdfCommandFeatures.Region) != 0 && LastRequest.GetPage(PageNumber).RegionOfInterest != request.GetPage(PageNumber).RegionOfInterest);
     }
 
     /// <summary>
@@ -116,7 +110,6 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ContentCommandRecording.SetContent(default);
         ContentPicture.SetContent(default);
         LastRequest = null;
-        LastRegionOfInterest = default;
         Characters = null;
     }
 

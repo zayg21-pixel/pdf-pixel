@@ -1,5 +1,6 @@
 ﻿using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Rendering;
 
 namespace PdfPixel.PdfPanel;
 
@@ -11,7 +12,14 @@ public readonly struct VisiblePageInfo
     /// <summary>
     /// Initialises a new snapshot for a visible page.
     /// </summary>
-    public VisiblePageInfo(int pageNumber, in PdfPoint offset, in PdfPanelPageInfo pageInfo, int userRotation)
+    public VisiblePageInfo(
+        int pageNumber,
+        in PdfPoint offset,
+        in PdfPanelPageInfo pageInfo,
+        int userRotation,
+        in PdfSize canvasSize,
+        float scale,
+        int tileSize)
     {
         PageNumber = pageNumber;
         Offset = offset;
@@ -25,6 +33,14 @@ public readonly struct VisiblePageInfo
         }
 
         UserRotation = normalizedUserRotation;
+
+        PdfRectangle canvasRect = PdfRectangle.FromLocationAndSize(0, 0, canvasSize.Width, canvasSize.Height);
+        PdfRectangle visibleContent = GetContentToCanvasMatrix(scale).Invert().MapRect(canvasRect);
+        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Width, pageInfo.Height);
+
+        RegionOfInterest = PdfRectangle.Intersect(
+            PdfPageContentTiler.SnapToTileGrid(visibleContent, scale, tileSize),
+            pageBounds);
     }
 
     /// <summary>
@@ -47,6 +63,12 @@ public readonly struct VisiblePageInfo
     /// Gets the user rotation of the page.
     /// </summary>
     public int UserRotation { get; }
+
+    /// <summary>
+    /// Gets the part of the page covered by the canvas, in content coordinates,
+    /// expanded to the tile grid and clamped to the page bounds.
+    /// </summary>
+    public PdfRectangle RegionOfInterest { get; }
 
     /// <summary>
     /// Gets the rotated size of the page.
