@@ -1,4 +1,5 @@
 using PdfPixel.Commands.Processing;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Rendering;
@@ -23,48 +24,38 @@ internal static class SkCanvasExtensions
         AnimationState? animation)
     {
         int savedCount = canvas.Save();
-        try
+        PdfMatrix deviceMatrix = page.GetContentToCanvasMatrix(request.Scale);
+
+        canvas.Concat(deviceMatrix.ToSkMatrix());
+
+        PdfRectangle pageBounds = new(0, 0, page.Info.Width, page.Info.Height);
+        SKRect pageRect = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(pageBounds, deviceMatrix).ToSkRect();
+
+        if ((flags & PageDrawFlags.Shadow) != 0)
         {
-            canvas.Translate(
-                PdfCommandProcessingUtilities.SnapToWholePixel(page.Offset.X * request.Scale),
-                PdfCommandProcessingUtilities.SnapToWholePixel(page.Offset.Y * request.Scale));
-
-            canvas.Scale(request.Scale, request.Scale);
-
-            SKRect pageRect = new(
-                0,
-                0,
-                PdfCommandProcessingUtilities.SnapToWholePixel(page.RotatedSize.Width),
-                PdfCommandProcessingUtilities.SnapToWholePixel(page.RotatedSize.Height));
-
-            if ((flags & PageDrawFlags.Shadow) != 0)
-            {
-                DrawPageShadow(canvas, pageRect);
-            }
-
-            canvas.ClipRect(pageRect);
-
-            if ((flags & PageDrawFlags.Background) != 0)
-            {
-                DrawPageBackground(canvas, pageRect);
-            }
-
-            if ((flags & PageDrawFlags.Placeholder) != 0 && animation != null)
-            {
-                DrawPlaceholder(canvas, pageRect, animation.Value);
-            }
-
-            if ((flags & PageDrawFlags.Content) != 0)
-            {
-                tiler.DrawTiles(canvas, in page, request.Scale);
-                DrawPagePicture(canvas, pictures?.Annotations, page);
-                DrawSelectionPicture(canvas, textSelector, page);
-            }
+            DrawPageShadow(canvas, pageRect);
         }
-        finally
+
+        canvas.ClipRect(pageRect);
+
+        if ((flags & PageDrawFlags.Background) != 0)
         {
-            canvas.RestoreToCount(savedCount);
+            DrawPageBackground(canvas, pageRect);
         }
+
+        if ((flags & PageDrawFlags.Placeholder) != 0 && animation != null)
+        {
+            DrawPlaceholder(canvas, pageRect, animation.Value);
+        }
+
+        if ((flags & PageDrawFlags.Content) != 0)
+        {
+            tiler.DrawTiles(canvas, in page, request.Scale, deviceMatrix);
+            DrawPagePicture(canvas, pictures?.Annotations);
+            DrawSelectionPicture(canvas, textSelector, page);
+        }
+
+        canvas.RestoreToCount(savedCount);
     }
 
     private static void DrawSelectionPicture(SKCanvas canvas, PdfPanelTextSelector textSelector, in VisiblePageInfo page)
@@ -75,20 +66,10 @@ internal static class SkCanvasExtensions
             return;
         }
 
-        SKMatrix transform = page.ContentTransform.ToSkMatrix();
-        int saveCount = canvas.Save();
-        try
-        {
-            canvas.Concat(in transform);
-            canvas.DrawPicture(picture);
-        }
-        finally
-        {
-            canvas.RestoreToCount(saveCount);
-        }
+        canvas.DrawPicture(picture);
     }
 
-    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content, in VisiblePageInfo page)
+    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content)
     {
         if (content?.HasContent != true)
         {
@@ -97,17 +78,7 @@ internal static class SkCanvasExtensions
 
         using LockedContent<SKPicture> contentPicture = content.GetContent();
 
-        SKMatrix transform = page.ContentTransform.ToSkMatrix();
-        int saveCount = canvas.Save();
-        try
-        {
-            canvas.Concat(in transform);
-            canvas.DrawPicture(contentPicture.Content);
-        }
-        finally
-        {
-            canvas.RestoreToCount(saveCount);
-        }
+        canvas.DrawPicture(contentPicture.Content);
     }
 
     private static void DrawPlaceholder(SKCanvas canvas, SKRect pageRect, in AnimationState animation)
@@ -148,9 +119,7 @@ internal static class SkCanvasExtensions
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f)
         };
 
-        int saveCount = canvas.Save();
         canvas.DrawRect(pageRect, shadowPaint);
-        canvas.RestoreToCount(saveCount);
     }
 
     private static void DrawPageBackground(SKCanvas canvas, SKRect pageRect)

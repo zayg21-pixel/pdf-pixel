@@ -131,7 +131,7 @@ public sealed class CcittRowDecoder
 
         // Reconstruct reader for current state
         ReadOnlySpan<byte> encodedSpan = _encoded.Span;
-        CcittBitReader reader = new(ref encodedSpan, _byteIndex, _bufferedBits, _buffer);
+        CcittBitReader reader = new(encodedSpan, _byteIndex, _bufferedBits, _buffer);
 
         bool isOneDLine = DetermineLineKind(ref reader);
 

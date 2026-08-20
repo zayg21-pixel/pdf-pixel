@@ -1,3 +1,5 @@
+using PdfPixel.Commands;
+using PdfPixel.Commands.Processing;
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
@@ -80,7 +82,8 @@ public sealed class PdfPageContentTiler : IDisposable
     /// <param name="canvas">The canvas to draw on.</param>
     /// <param name="pageInfo">Visible page layout snapshot.</param>
     /// <param name="currentScale">Current rendering scale.</param>
-    public void DrawTiles(SKCanvas canvas, in VisiblePageInfo pageInfo, float currentScale)
+    /// <param name="deviceMatrix">Matrix mapping page content coordinates to canvas pixels.</param>
+    public void DrawTiles(SKCanvas canvas, in VisiblePageInfo pageInfo, float currentScale, in PdfMatrix deviceMatrix)
     {
         if (canvas == null)
         {
@@ -96,16 +99,11 @@ public sealed class PdfPageContentTiler : IDisposable
             ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)
             : SKSamplingOptions.Default;
 
-        SKMatrix contentTransform = pageInfo.ContentTransform.ToSkMatrix();
-        int savedCount = canvas.Save();
-        canvas.Concat(in contentTransform);
-
         foreach (CachedTile tile in pageCache.Tiles.Values)
         {
-            canvas.DrawImage(tile.Image, tile.Destination.ToSkRect(), sampling);
+            PdfRectangle snappedDestination = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(tile.Destination, deviceMatrix);
+            canvas.DrawImage(tile.Image, snappedDestination.ToSkRect(), sampling);
         }
-
-        canvas.RestoreToCount(savedCount);
     }
 
     /// <summary>

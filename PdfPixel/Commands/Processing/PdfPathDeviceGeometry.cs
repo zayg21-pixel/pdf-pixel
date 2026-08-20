@@ -159,7 +159,7 @@ internal readonly struct PdfPathDeviceGeometry
         // which rounding to those bounds would swallow.
         if (isOnGrid && geometryInfo.IsRectangle && executionContext.Parameters.SnapToDevicePixels)
         {
-            PdfRectangle snappedRectangle = SnapToWholeDevicePixels(geometryInfo.Bounds, deviceMatrix);
+            PdfRectangle snappedRectangle = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(geometryInfo.Bounds, deviceMatrix);
 
             return new PdfPathDeviceGeometry(snappedRectangle, fillType, snappedRectangle, isStrokeOutline, isAntialias: false);
         }
@@ -173,14 +173,6 @@ internal readonly struct PdfPathDeviceGeometry
         }
 
         return new PdfPathDeviceGeometry(sourcePath, isStrokeOutline, isAntialias);
-    }
-
-    // Rounds each edge to the nearest whole device pixel and maps the result back to the source space.
-    private static PdfRectangle SnapToWholeDevicePixels(in PdfRectangle bounds, in PdfMatrix deviceMatrix)
-    {
-        PdfRectangle deviceRect = PdfCommandProcessingUtilities.SnapToDevicePixels(deviceMatrix.MapRect(bounds));
-
-        return deviceMatrix.Invert().MapRect(deviceRect);
     }
 
     // Device-pixel thickness of a fill. Anything but a single rectangle covers less than its bounds and

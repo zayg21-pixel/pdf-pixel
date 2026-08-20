@@ -77,44 +77,26 @@ public readonly struct VisiblePageInfo
     public PdfSize RotatedSize => Info.GetRotatedSize(UserRotation);
 
     /// <summary>
-    /// Rotation matrix that maps unrotated page content coordinates to the rotated drawing space.
-    /// Used when drawing SKPictures onto the canvas after Scale and Translate have been applied.
-    /// Returns identity when the page has no rotation.
-    /// </summary>
-    public PdfMatrix ContentTransform
-    {
-        get
-        {
-            int rotation = Info.GetTotalRotation(UserRotation);
-            if (rotation == 0)
-            {
-                return PdfMatrix.Identity;
-            }
-
-            float tx = rotation switch { 180 or 270 => -Info.Width, _ => 0f };
-            float ty = rotation switch { 90 or 180 => -Info.Height, _ => 0f };
-
-            return PdfMatrix.Concat(
-                PdfMatrix.CreateRotationDegrees(rotation),
-                PdfMatrix.CreateTranslation(tx, ty));
-        }
-    }
-
-    /// <summary>
     /// Matrix that maps this page's content coordinates (top-left origin, Y-down, unrotated,
     /// matching <see cref="Info"/> dimensions — the space recorded pictures and command
-    /// replay operate in) directly to canvas pixels. Combines <see cref="ContentTransform"/>
-    /// with the same scroll-offset translation and render scale applied to the canvas before
-    /// content is drawn. Invert it to map canvas pixels back to content coordinates, e.g. to
-    /// derive a region of interest from the visible canvas area.
+    /// replay operate in) directly to canvas pixels. Combines page rotation with the
+    /// scroll-offset translation and render scale applied to the canvas before content is
+    /// drawn. Invert it to map canvas pixels back to content coordinates, e.g. to derive a
+    /// region of interest from the visible canvas area.
     /// </summary>
     public PdfMatrix GetContentToCanvasMatrix(float scale)
     {
-        return ContentTransform
+        int rotation = Info.GetTotalRotation(UserRotation);
+        PdfSize rotatedSize = RotatedSize;
+
+        float rotationOffsetX = rotation switch { 90 or 180 => rotatedSize.Width, _ => 0f };
+        float rotationOffsetY = rotation switch { 180 or 270 => rotatedSize.Height, _ => 0f };
+
+        return PdfMatrix.CreateRotationDegrees(rotation)
             .PostConcat(PdfMatrix.CreateScale(scale, scale))
             .PostConcat(PdfMatrix.CreateTranslation(
-                PdfCommandProcessingUtilities.SnapToWholePixel(Offset.X * scale),
-                PdfCommandProcessingUtilities.SnapToWholePixel(Offset.Y * scale)));
+                PdfCommandProcessingUtilities.SnapToWholePixel((Offset.X + rotationOffsetX) * scale),
+                PdfCommandProcessingUtilities.SnapToWholePixel((Offset.Y + rotationOffsetY) * scale)));
     }
 
     /// <summary>

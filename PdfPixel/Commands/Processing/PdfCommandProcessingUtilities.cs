@@ -55,6 +55,30 @@ public static class PdfCommandProcessingUtilities
     }
 
     /// <summary>
+    /// Maps <paramref name="bounds"/> through <paramref name="deviceMatrix"/>, puts every edge on the
+    /// whole device pixel nearest to it, and maps the result back.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static PdfRectangle SnapToWholeDevicePixels(in PdfRectangle bounds, in PdfMatrix deviceMatrix)
+    {
+        PdfRectangle deviceRect = SnapToDevicePixels(deviceMatrix.MapRect(bounds));
+
+        return deviceMatrix.Invert().MapRect(deviceRect);
+    }
+
+    /// <summary>
+    /// Maps <paramref name="position"/> through <paramref name="deviceMatrix"/>, puts it on the whole
+    /// device pixel nearest to it, and maps the result back.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static PdfPoint SnapToWholeDevicePixels(in PdfPoint position, in PdfMatrix deviceMatrix)
+    {
+        PdfPoint devicePoint = SnapToDevicePixels(deviceMatrix.MapPoint(position));
+
+        return deviceMatrix.Invert().MapPoint(devicePoint);
+    }
+
+    /// <summary>
     /// Puts every edge of <paramref name="deviceRect"/> on the whole device pixel nearest to it, and
     /// gives an axis whose edges rounded onto the same boundary a whole pixel of its own, so that a mark
     /// too thin to round to anything still covers a row. The rescued axis keeps the edge it rounded to
@@ -71,6 +95,18 @@ public static class PdfCommandProcessingUtilities
             top,
             MathF.Max(SnapToWholePixel(deviceRect.Right), left + 1f),
             MathF.Max(SnapToWholePixel(deviceRect.Bottom), top + 1f));
+    }
+
+    /// <summary>
+    /// Puts <paramref name="point"/> on the whole device pixel nearest to it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static PdfPoint SnapToDevicePixels(in PdfPoint point)
+    {
+        float x = SnapToWholePixel(point.X);
+        float y = SnapToWholePixel(point.Y);
+
+        return new PdfPoint(x, y);
     }
 
     /// <summary>
