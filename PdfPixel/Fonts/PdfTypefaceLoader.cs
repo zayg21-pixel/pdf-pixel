@@ -8,7 +8,6 @@ using PdfPixel.Models;
 using System;
 using System.Buffers.Binary;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace PdfPixel.Fonts;
 
@@ -21,6 +20,10 @@ namespace PdfPixel.Fonts;
 /// </summary>
 public sealed class PdfTypefaceLoader
 {
+    // Enough of the program's start to carry an sfnt version tag or a Type1 marker past any
+    // leading whitespace, without pulling the body of the font into memory to decide.
+    private const int LayoutProbeBytes = 64;
+
     private static readonly PdfFontProgramLayout[] AllLayouts =
     [
         PdfFontProgramLayout.Sfnt,
@@ -96,9 +99,16 @@ public sealed class PdfTypefaceLoader
     /// </summary>
     private IPdfTypeface LoadTypeface()
     {
-        ReadOnlyMemory<byte> fontProgram = _fontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
-        PdfFontProgramLayout detectedLayout = DetectLayout(fontProgram.Span);
-        IPdfTypeface? typeface = TryLoad(detectedLayout, fontProgram);
+        Stream? decodedStream = _fontDescriptor.FontFileStream?.DecodeAsStream();
+        if (decodedStream == null)
+        {
+            throw new InvalidDataException("The font descriptor embeds no font program.");
+        }
+
+        ReadOnlyFontStream fontStream = ReadOnlyFontStream.Create(decodedStream, leaveOpen: false);
+
+        PdfFontProgramLayout detectedLayout = DetectLayout(fontStream);
+        IPdfTypeface? typeface = TryLoad(detectedLayout, fontStream);
 
         if (typeface != null)
         {
@@ -112,7 +122,7 @@ public sealed class PdfTypefaceLoader
                 continue;
             }
 
-            typeface = TryLoad(fallbackLayout, fontProgram);
+            typeface = TryLoad(fallbackLayout, fontStream);
 
             if (typeface != null)
             {
@@ -126,31 +136,40 @@ public sealed class PdfTypefaceLoader
             }
         }
 
+        fontStream.Dispose();
+
         throw new InvalidDataException("Data is not a valid font program.");
     }
 
-    private IPdfTypeface? TryLoad(PdfFontProgramLayout layout, in ReadOnlyMemory<byte> fontProgram)
+    /// <summary>
+    /// Attempts one layout against <paramref name="fontStream"/>, rewinding it first so a failed
+    /// attempt hands the next one a stream positioned at the start. Ownership passes to the typeface
+    /// this returns; a failed attempt leaves the stream open for the next layout to try.
+    /// </summary>
+    private IPdfTypeface? TryLoad(PdfFontProgramLayout layout, ReadOnlyFontStream fontStream)
     {
-        if (fontProgram.IsEmpty)
+        if (fontStream.Length == 0)
         {
             return null;
         }
 
         try
         {
+            fontStream.Position = 0;
+
             switch (layout)
             {
                 case PdfFontProgramLayout.Sfnt:
                 {
-                    return LoadSfnt(fontProgram);
+                    return LoadSfnt(fontStream);
                 }
                 case PdfFontProgramLayout.Type1:
                 {
-                    return LoadType1(fontProgram);
+                    return LoadType1(fontStream);
                 }
                 default:
                 {
-                    return LoadCff(fontProgram);
+                    return LoadCff(fontStream);
                 }
             }
         }
@@ -163,28 +182,38 @@ public sealed class PdfTypefaceLoader
 #pragma warning restore CA1031
     }
 
-    private IPdfTypeface LoadSfnt(in ReadOnlyMemory<byte> fontProgram)
+    private IPdfTypeface LoadSfnt(ReadOnlyFontStream fontStream)
     {
-        ReadOnlyFontStream stream = ReadOnlyFontStream.Create(CreateReadOnlyStream(fontProgram), leaveOpen: false);
         SfntContainerProcessor containerProcessor = new(_loggerFactory.CreateLogger<SfntContainerProcessor>());
-        SfntContainer? container = containerProcessor.Read(stream, ttcIndex: 0);
+        SfntContainer? container = containerProcessor.Read(fontStream, ttcIndex: 0);
         SfntTableRecord? cffRecord = container?.FindTable(SfntTableTags.Cff);
 
         // A composite font addresses glyphs by index, so an sfnt wrapper around CFF outlines only
         // earns its place when it carries the tables that describe the font as a whole.
         if (container != null && cffRecord != null && (!_isComposite || !HasSfntTables(container)))
         {
-            ReadOnlyMemory<byte> cffProgram = stream.GetMemory(cffRecord.Value);
-            stream.Dispose();
+            SfntCffProcessor cffProcessor = new(_loggerFactory);
+            CffTypeface? cffTypeface = cffProcessor.Read(fontStream.GetMemory(cffRecord.Value));
 
-            return LoadCff(cffProgram);
+            if (cffTypeface == null)
+            {
+                throw new InvalidDataException("The sfnt 'CFF ' table is not a valid CFF font program.");
+            }
+
+            fontStream.Dispose();
+
+            return new CffPdfTypeface(cffTypeface);
         }
 
-        return new SfntPdfTypeface(stream, _loggerFactory);
+        return new SfntPdfTypeface(fontStream, _loggerFactory);
     }
 
-    private CffPdfTypeface LoadType1(in ReadOnlyMemory<byte> fontProgram)
+    private CffPdfTypeface LoadType1(ReadOnlyFontStream fontStream)
     {
+        // The eexec-encrypted section is decrypted as one block and converted to CFF up front, so
+        // there is no part of a Type1 program this can leave unread.
+        ReadOnlyMemory<byte> fontProgram = fontStream.GetMemory(0, (int)fontStream.Length);
+
         Type1RawFontProgram rawProgram = new(
             fontProgram,
             _fontDescriptor.FontFileLength1,
@@ -198,21 +227,12 @@ public sealed class PdfTypefaceLoader
             throw new InvalidDataException("Data is not a valid Type1 font program.");
         }
 
-        return new CffPdfTypeface(cffTypeface);
-    }
-
-    private CffPdfTypeface LoadCff(in ReadOnlyMemory<byte> fontProgram)
-    {
-        CffTypefaceReader reader = new(_loggerFactory);
-        CffTypeface? cffTypeface = reader.Read(fontProgram);
-
-        if (cffTypeface == null)
-        {
-            throw new InvalidDataException("Data is not a valid CFF font program.");
-        }
+        fontStream.Dispose();
 
         return new CffPdfTypeface(cffTypeface);
     }
+
+    private CffPdfTypeface LoadCff(Stream fontStream) => new(fontStream, _loggerFactory);
 
     private static bool HasSfntTables(SfntContainer container)
     {
@@ -222,18 +242,10 @@ public sealed class PdfTypefaceLoader
             && container.FindTable(SfntTableTags.Post) != null;
     }
 
-    private static MemoryStream CreateReadOnlyStream(in ReadOnlyMemory<byte> fontProgram)
+    private static PdfFontProgramLayout DetectLayout(ReadOnlyFontStream fontStream)
     {
-        if (MemoryMarshal.TryGetArray(fontProgram, out ArraySegment<byte> segment) && segment.Array != null)
-        {
-            return new MemoryStream(segment.Array, segment.Offset, segment.Count, writable: false);
-        }
+        ReadOnlySpan<byte> fontProgram = fontStream.GetMemory(0, LayoutProbeBytes).Span;
 
-        return new MemoryStream(fontProgram.ToArray(), writable: false);
-    }
-
-    private static PdfFontProgramLayout DetectLayout(in ReadOnlySpan<byte> fontProgram)
-    {
         if (LooksLikeSfnt(fontProgram))
         {
             return PdfFontProgramLayout.Sfnt;
