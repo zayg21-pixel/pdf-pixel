@@ -144,7 +144,6 @@
             <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
                                      CurrentPage="{Binding PageNumber}"
                                      Pages="{Binding Pages}"
-                                     PageCornerRadius="4"
                                      AutoScaleMode="{Binding AutoScaleMode}"
                                      PanelInterface="{Binding PanelInterface}">
                 <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>

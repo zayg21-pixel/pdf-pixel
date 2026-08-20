@@ -225,7 +225,6 @@ public partial class WpfPdfPanel : FrameworkElement
             (float)PagesPadding.Top,
             (float)PagesPadding.Right,
             (float)PagesPadding.Bottom);
-        _context.PageCornerRadius = (float)PageCornerRadius;
 
         var backgroundColor = BackgroundColor;
         _context.BackgroundColor = new SKColor(backgroundColor.R, backgroundColor.G, backgroundColor.B, backgroundColor.A);

@@ -103,12 +103,6 @@ public class PdfPanelContext
     public float MinimumPageGap { get; set; } = 10;
 
     /// <summary>
-    /// Corner radius for page rendering in unscaled page space.
-    /// A value of 0 renders pages with sharp corners. The effective on-screen radius is affected by <see cref="Scale"/>.
-    /// </summary>
-    public float PageCornerRadius { get; set; }
-
-    /// <summary>
     /// Background color drawn behind the pages.
     /// </summary>
     public SKColor BackgroundColor { get; set; } = SKColors.LightGray;
@@ -207,7 +201,6 @@ public class PdfPanelContext
         parameters.ScaleFactor = Scale;
 
         request.BackgroundColor = BackgroundColor;
-        request.PageCornerRadius = PageCornerRadius;
         request.CommandExecutionParameters = parameters;
         request.RenderingParameters = RenderingParameters;
 

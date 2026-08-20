@@ -36,24 +36,14 @@ internal static class SkCanvasExtensions
 
             if ((flags & PageDrawFlags.Shadow) != 0)
             {
-                DrawPageShadow(canvas, page, request.CommandExecutionParameters.Antialias, request.PageCornerRadius);
+                DrawPageShadow(canvas, page);
             }
 
-            if (request.PageCornerRadius > 0)
-            {
-                using SKPathBuilder builder = new();
-                builder.AddRoundRect(pageRect, request.PageCornerRadius, request.PageCornerRadius);
-                using SKPath clipPath = builder.Detach();
-                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.CommandExecutionParameters.Antialias);
-            }
-            else
-            {
-                canvas.ClipRect(pageRect);
-            }
+            canvas.ClipRect(pageRect);
 
             if ((flags & PageDrawFlags.Background) != 0)
             {
-                DrawPageBackground(canvas, page, request.CommandExecutionParameters.Antialias, request.PageCornerRadius);
+                DrawPageBackground(canvas, page);
             }
 
             if ((flags & PageDrawFlags.Content) != 0)
@@ -140,7 +130,7 @@ internal static class SkCanvasExtensions
         canvas.DrawArc(arcRect, startAngle, 270f, false, paint);
     }
 
-    private static void DrawPageShadow(SKCanvas canvas, in VisiblePageInfo page, bool antialias, float cornerRadius)
+    private static void DrawPageShadow(SKCanvas canvas, in VisiblePageInfo page)
     {
         SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
 
@@ -152,26 +142,17 @@ internal static class SkCanvasExtensions
         using SKPaint shadowPaint = new()
         {
             Style = SKPaintStyle.Fill,
-            IsAntialias = antialias,
+            IsAntialias = false,
             Color = SKColors.Gray.WithAlpha(160),
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f)
         };
 
         int saveCount = canvas.Save();
-
-        if (cornerRadius > 0)
-        {
-            canvas.DrawRoundRect(pageRect, cornerRadius, cornerRadius, shadowPaint);
-        }
-        else
-        {
-            canvas.DrawRect(pageRect, shadowPaint);
-        }
-
+        canvas.DrawRect(pageRect, shadowPaint);
         canvas.RestoreToCount(saveCount);
     }
 
-    private static void DrawPageBackground(SKCanvas canvas, in VisiblePageInfo page, bool antialias, float cornerRadius)
+    private static void DrawPageBackground(SKCanvas canvas, in VisiblePageInfo page)
     {
         SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
 
@@ -179,16 +160,9 @@ internal static class SkCanvasExtensions
         {
             Style = SKPaintStyle.Fill,
             Color = SKColors.White,
-            IsAntialias = antialias
+            IsAntialias = false
         };
 
-        if (cornerRadius > 0)
-        {
-            canvas.DrawRoundRect(pageRect, cornerRadius, cornerRadius, paint);
-        }
-        else
-        {
-            canvas.DrawRect(pageRect, paint);
-        }
+        canvas.DrawRect(pageRect, paint);
     }
 }

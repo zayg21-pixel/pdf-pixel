@@ -15,11 +15,6 @@ public class PagesDrawingRequest : DrawingRequest
     public SKColor BackgroundColor { get; set; }
 
     /// <summary>
-    /// Corner radius applied to page rectangles in unscaled page space. Zero for sharp corners.
-    /// </summary>
-    public float PageCornerRadius { get; set; }
-
-    /// <summary>
     /// PDF command execution parameters such as scale factor and quality settings.
     /// </summary>
     public PdfCommandExecutionParameters CommandExecutionParameters { get; set; } = new();
@@ -36,7 +31,6 @@ public class PagesDrawingRequest : DrawingRequest
         {
             return base.Equals(obj)
                 && BackgroundColor == other.BackgroundColor
-                && PageCornerRadius == other.PageCornerRadius
                 && CommandExecutionParameters == other.CommandExecutionParameters;
         }
 
@@ -56,7 +50,6 @@ public class PagesDrawingRequest : DrawingRequest
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);
         hash.Add(BackgroundColor);
-        hash.Add(PageCornerRadius);
         hash.Add(CommandExecutionParameters);
         return hash.ToHashCode();
     }
