@@ -20,6 +20,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     private readonly IWorkQueue _processingQueue;
     private readonly IPdfExecutionObserverFactory _observerFactory;
     private readonly PdfPageCacheEntry[] _cache;
+    private readonly HashSet<int> _visiblePageNumbers = [];
 
     /// <summary>
     /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work
@@ -69,20 +70,23 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
             throw new ArgumentNullException(nameof(request));
         }
 
-        // TODO: [MEDIUM] hold a burst of requests behind a cancellable delay of about 200 ms pushed to the
-        // processing queue, so a zoom or scroll gesture decodes once when it settles rather than once per
-        // intermediate step.
-        HashSet<int> visiblePageNumbers = new(request.VisiblePages.Select(x => x.PageNumber));
+        HashSet<int> requestedPageNumbers = new(request.VisiblePages.Select(x => x.PageNumber));
 
-        foreach (PdfPageCacheEntry cacheEntry in _cache)
+        foreach (int pageNumber in _visiblePageNumbers.Except(requestedPageNumbers).ToList())
         {
-            if (!visiblePageNumbers.Contains(cacheEntry.PageNumber))
-            {
-                cacheEntry.Cancel();
-                _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(cacheEntry, DocumentLocker));
-                continue;
-            }
+            PdfPageCacheEntry hiddenEntry = _cache[pageNumber - 1];
 
+            hiddenEntry.Cancel();
+            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(hiddenEntry, DocumentLocker));
+        }
+
+        _visiblePageNumbers.Clear();
+
+        foreach (VisiblePageInfo page in request.VisiblePages)
+        {
+            PdfPageCacheEntry cacheEntry = _cache[page.PageNumber - 1];
+
+            _visiblePageNumbers.Add(page.PageNumber);
             cacheEntry.InitializeForRendering(_observerFactory);
             _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, _fontSubstitutor, DocumentLocker, request, OnPageUpdated));
         }

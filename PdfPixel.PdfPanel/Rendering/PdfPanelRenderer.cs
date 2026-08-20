@@ -24,9 +24,11 @@ public sealed class PdfPanelRenderer : IDisposable
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly PdfPageContentTiler _tiler;
     private readonly PdfAnimationClock? _clock;
+    private readonly Timer? _contentUpdateTimer;
     private PagesDrawingRequest? _lastRequest;
     private UserInterfaceDrawingRequest? _lastUserInterfaceRequest;
     private long _lastTick;
+    private bool _contentUpdatePending;
     private bool _disposed;
 
     /// <summary>
@@ -40,6 +42,12 @@ public sealed class PdfPanelRenderer : IDisposable
         _tiler = new PdfPageContentTiler(surfaceFactory, properties.TileSize);
         _clock = clock;
         TextSelector = new PdfPanelTextSelector(contentProvider);
+
+        if (properties.ContentUpdateDelay > TimeSpan.Zero)
+        {
+            _contentUpdateTimer = new Timer(OnContentUpdateDue, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        }
+
         _contentProvider.OnPageUpdated = OnPageUpdated;
         _surfaceFactory.Initialize();
     }
@@ -74,10 +82,20 @@ public sealed class PdfPanelRenderer : IDisposable
             return;
         }
 
+        PagesDrawingRequest? previousRequest = _lastRequest;
+
         RenderAll(request);
         _lastRequest = request;
 
-        _contentProvider.UpdateContent(request);
+        if (_contentUpdateTimer == null || AnyPageAppeared(previousRequest, request))
+        {
+            StartContentUpdate();
+        }
+        else
+        {
+            _contentUpdatePending = true;
+            _contentUpdateTimer.Change(Properties.ContentUpdateDelay, Timeout.InfiniteTimeSpan);
+        }
 
         UpdateClockSubscription();
     }
@@ -183,6 +201,9 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             _clock.Tick -= OnAnimationTick;
         }
+
+        _contentUpdatePending = false;
+        _contentUpdateTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.Clear(SKColors.Transparent);
@@ -302,6 +323,52 @@ public sealed class PdfPanelRenderer : IDisposable
         }
     }
 
+    private static bool AnyPageAppeared(PagesDrawingRequest? previousRequest, PagesDrawingRequest request)
+    {
+        if (previousRequest == null)
+        {
+            return true;
+        }
+
+        VisiblePageInfo[] previousPages = previousRequest.VisiblePages;
+
+        return request.VisiblePages.Any(page => !previousPages.Any(previousPage => previousPage.PageNumber == page.PageNumber));
+    }
+
+    private void StartContentUpdate()
+    {
+        if (_lastRequest == null)
+        {
+            return;
+        }
+
+        _contentUpdatePending = false;
+        _contentUpdateTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _contentProvider.UpdateContent(_lastRequest);
+    }
+
+    private void OnContentUpdateDue(object? state)
+    {
+        if (Properties.SynchronizationContext != null)
+        {
+            Properties.SynchronizationContext.Post(OnContentUpdateDueSync, null);
+        }
+        else
+        {
+            OnContentUpdateDueSync(null);
+        }
+    }
+
+    private void OnContentUpdateDueSync(object? state)
+    {
+        if (_disposed || !_contentUpdatePending)
+        {
+            return;
+        }
+
+        StartContentUpdate();
+    }
+
     private void OnPageUpdated(PageUpdatedArgs args)
     {
         if (Properties.SynchronizationContext != null)
@@ -354,6 +421,7 @@ public sealed class PdfPanelRenderer : IDisposable
             _clock.Tick -= OnAnimationTick;
         }
 
+        _contentUpdateTimer?.Dispose();
         TextSelector.Dispose();
         _tiler.Dispose();
         _contentProvider.OnPageUpdated = null;
