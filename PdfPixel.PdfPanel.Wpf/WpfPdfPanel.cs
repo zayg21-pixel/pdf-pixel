@@ -201,7 +201,13 @@ public partial class WpfPdfPanel : FrameworkElement
         }
 
         _animationClock = new PdfAnimationClock();
-        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _animationClock, SynchronizationContext.Current);
+
+        PdfPanelRendererProperties rendererProperties = new()
+        {
+            SynchronizationContext = SynchronizationContext.Current
+        };
+
+        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _animationClock, rendererProperties);
         _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory, new PdfPanelVerticalLayout());
     }
 

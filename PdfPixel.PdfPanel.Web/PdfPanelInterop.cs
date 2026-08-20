@@ -189,7 +189,13 @@ public partial class PdfPanelInterop
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 
             resources.Renderer?.Dispose();
-            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.AnimationClock, SynchronizationContext.Current);
+
+            PdfPanelRendererProperties rendererProperties = new()
+            {
+                SynchronizationContext = SynchronizationContext.Current
+            };
+
+            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.AnimationClock, rendererProperties);
 
             resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
 

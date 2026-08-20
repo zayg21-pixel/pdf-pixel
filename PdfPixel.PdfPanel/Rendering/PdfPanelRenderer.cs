@@ -20,17 +20,29 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// </summary>
 public sealed class PdfPanelRenderer : IDisposable
 {
-    private const int TileSize = 1024;
-
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly PdfPageContentTiler _tiler;
     private readonly PdfAnimationClock? _clock;
-    private readonly SynchronizationContext? _syncContext;
     private PagesDrawingRequest? _lastRequest;
     private UserInterfaceDrawingRequest? _lastUserInterfaceRequest;
     private long _lastTick;
     private bool _disposed;
+
+    /// <summary>
+    /// Initializes the renderer, registers the page-updated callback, and calls <see cref="ISkSurfaceFactory.Initialize"/>.
+    /// </summary>
+    public PdfPanelRenderer(ISkSurfaceFactory surfaceFactory, IPdfPageContentProvider contentProvider, PdfAnimationClock? clock, PdfPanelRendererProperties properties)
+    {
+        _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
+        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        Properties = properties ?? throw new ArgumentNullException(nameof(properties));
+        _tiler = new PdfPageContentTiler(surfaceFactory, properties.TileSize);
+        _clock = clock;
+        TextSelector = new PdfPanelTextSelector(contentProvider);
+        _contentProvider.OnPageUpdated = OnPageUpdated;
+        _surfaceFactory.Initialize();
+    }
 
     /// <summary>
     /// Text selection state and highlight renderer for the panel.
@@ -38,19 +50,9 @@ public sealed class PdfPanelRenderer : IDisposable
     public PdfPanelTextSelector TextSelector { get; }
 
     /// <summary>
-    /// Initializes the renderer, registers the page-updated callback, and calls <see cref="ISkSurfaceFactory.Initialize"/>.
+    /// Configuration values the renderer was created with.
     /// </summary>
-    public PdfPanelRenderer(ISkSurfaceFactory surfaceFactory, IPdfPageContentProvider contentProvider, PdfAnimationClock? clock, SynchronizationContext? syncContext)
-    {
-        _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        _tiler = new PdfPageContentTiler(surfaceFactory, TileSize);
-        _clock = clock;
-        _syncContext = syncContext;
-        TextSelector = new PdfPanelTextSelector(contentProvider);
-        _contentProvider.OnPageUpdated = OnPageUpdated;
-        _surfaceFactory.Initialize();
-    }
+    public PdfPanelRendererProperties Properties { get; }
 
     /// <summary>
     /// Renders the current cache state immediately, then starts background decoding for visible pages.
@@ -232,9 +234,9 @@ public sealed class PdfPanelRenderer : IDisposable
 
     private void OnAnimationTick(object? sender, AnimationTickEventArgs args)
     {
-        if (_syncContext != null)
+        if (Properties.SynchronizationContext != null)
         {
-            _syncContext.Post(_ => OnAnimationTick(args.Tick), null);
+            Properties.SynchronizationContext.Post(_ => OnAnimationTick(args.Tick), null);
         }
         else
         {
@@ -302,9 +304,9 @@ public sealed class PdfPanelRenderer : IDisposable
 
     private void OnPageUpdated(PageUpdatedArgs args)
     {
-        if (_syncContext != null)
+        if (Properties.SynchronizationContext != null)
         {
-            _syncContext.Post(_ => OnPageUpdatedSync(args), null);
+            Properties.SynchronizationContext.Post(_ => OnPageUpdatedSync(args), null);
         }
         else
         {

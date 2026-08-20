@@ -234,11 +234,13 @@ public sealed class PdfPageContentTiler : IDisposable
     }
 
     private static PdfIntegerRectangle ToPixels(in PdfRectangle rectangle, float scale)
-        => new(
+    {
+        return new(
             (int)Math.Floor(rectangle.Left * scale),
             (int)Math.Floor(rectangle.Top * scale),
             (int)Math.Ceiling(rectangle.Right * scale),
             (int)Math.Ceiling(rectangle.Bottom * scale));
+    }
 
     private sealed class CachedTile(SKImage image, in PdfRectangle destination) : IDisposable
     {
