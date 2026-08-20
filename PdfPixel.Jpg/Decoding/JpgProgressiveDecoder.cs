@@ -25,7 +25,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
     {
         public int BlocksX;
         public int BlocksY;
-        public int[] Coeffs; // Per-block coefficients (natural order expected by IDCT path)
+        public short[] Coeffs; // Per-block coefficients (natural order expected by IDCT path)
     }
 
     private readonly CoeffBuffers[] _coeffBuffers;
@@ -252,7 +252,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             int blocksY = parameters.McuRows * parameters.ComponentBlocksV[componentIndex];
             buffers[componentIndex].BlocksX = blocksX;
             buffers[componentIndex].BlocksY = blocksY;
-            buffers[componentIndex].Coeffs = new int[blocksX * blocksY * DctBlockSize];
+            buffers[componentIndex].Coeffs = new short[blocksX * blocksY * DctBlockSize];
         }
 
         return buffers;

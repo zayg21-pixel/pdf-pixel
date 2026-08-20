@@ -13,7 +13,6 @@ namespace PdfPixel.Jpg.Readers;
 /// metadata needed by our custom decoder (quant tables presence, Huffman presence, components,
 /// APP markers like JFIF/Adobe/ICC). It does not parse entropy-coded data.
 /// Additionally, records the offset to the entropy-coded data in the returned header and parses DRI/SOS.
-/// Also scans after the first SOS for any DQT/DHT/DRI/DNL segments that may appear between scans.
 /// </summary>
 public static class JpgReader
 {
@@ -24,8 +23,9 @@ public static class JpgReader
     private const byte SOS = 0xDA;
     private const byte DQT = 0xDB;
     private const byte DHT = 0xC4;
-    private const byte DNL = 0xDC;
     private const byte DRI = 0xDD;
+    private const byte RST0 = 0xD0;
+    private const byte RST7 = 0xD7;
     private const byte APP0 = 0xE0;
     private const byte APP1 = 0xE1;
     private const byte APP2 = 0xE2;
@@ -93,8 +93,11 @@ public static class JpgReader
 
                 header.ContentOffset = reader.Position;
 
-                // After the first SOS header, scan the remainder for DQT/DHT/DRI that may appear between scans
-                CollectTablesAfterSos(bytes, header.ContentOffset, header);
+                if (header.FrameType == JpgFrameType.ExtendedSequentialDct)
+                {
+                    header.HasMultipleScans = HasFurtherScan(bytes, header.ContentOffset);
+                }
+
                 break;
             }
 
@@ -156,129 +159,69 @@ public static class JpgReader
         return header;
     }
 
-    private static void CollectTablesAfterSos(in ReadOnlySpan<byte> bytes, int start, JpgHeader header)
+    /// <summary>
+    /// Reports whether a further scan follows the entropy-coded data starting at <paramref name="start"/>,
+    /// by walking forward to the next marker that is not part of that data.
+    /// </summary>
+    /// <param name="bytes">Complete JPEG byte span.</param>
+    /// <param name="start">Offset of the entropy-coded data following the first SOS header.</param>
+    private static bool HasFurtherScan(in ReadOnlySpan<byte> bytes, int start)
     {
-        int i = start;
-        while (i + 1 < bytes.Length)
+        int position = start;
+
+        while (position + 1 < bytes.Length)
         {
-            // Find marker prefix 0xFF
-            if (bytes[i++] != 0xFF)
+            if (bytes[position++] != MarkerPrefix)
             {
                 continue;
             }
 
-            // Skip fill 0xFF bytes
-            while (i < bytes.Length && bytes[i] == 0xFF)
+            while (position < bytes.Length && bytes[position] == MarkerPrefix)
             {
-                i++;
+                position++;
             }
 
-            if (i >= bytes.Length)
+            if (position >= bytes.Length)
             {
-                break;
+                return false;
             }
 
-            byte code = bytes[i++];
-            if (code == 0x00)
+            byte code = bytes[position++];
+
+            // A stuffed zero and a restart marker both belong to the entropy-coded data.
+            if (code == 0x00 || (code >= RST0 && code <= RST7))
             {
-                // Stuffed 0x00: not a marker
                 continue;
-            }
-
-            if (code >= 0xD0 && code <= 0xD7)
-            {
-                // RSTn: no payload
-                continue;
-            }
-
-            if (code == EOI)
-            {
-                break;
             }
 
             if (code == SOS)
             {
-                // Next scan begins; multi-scan layout detected.
-                header.HasMultipleScans = true;
-                break;
+                return true;
             }
 
-            if (i + 2 > bytes.Length)
+            if (code == EOI)
             {
-                break;
+                return false;
             }
 
-            var segLen = (ushort)(bytes[i] << 8 | bytes[i + 1]);
-            i += 2;
-            int payloadLen = segLen - 2;
-            if (payloadLen < 0 || i + payloadLen > bytes.Length)
+            if (position + 2 > bytes.Length)
             {
-                break;
+                return false;
             }
 
-            ReadOnlySpan<byte> payload = bytes.Slice(i, payloadLen);
+            var segmentLength = (ushort)((bytes[position] << 8) | bytes[position + 1]);
+            int payloadLength = segmentLength - 2;
+            position += 2;
 
-            switch (code)
+            if (payloadLength < 0 || position + payloadLength > bytes.Length)
             {
-                case DQT:
-                    {
-                        header.HasQuantizationTables = true;
-                        header.QuantizationTables.AddRange(JpgQuantizationTable.ParseDqtPayload(payload));
-                        break;
-                    }
-                case DHT:
-                    {
-                        header.HasHuffmanTables = true;
-                        header.HuffmanTables.AddRange(JpgHuffmanTable.ParseDhtPayload(payload));
-                        break;
-                    }
-                case DRI:
-                    {
-                        if (payloadLen >= 2)
-                        {
-                            header.RestartInterval = ReadUInt16BE(payload);
-                        }
-
-                        break;
-                    }
-                case DNL:
-                    {
-                        // The number of lines carried here supersedes the one in the SOF segment.
-                        if (payloadLen >= 2)
-                        {
-                            int numberOfLines = ReadUInt16BE(payload);
-                            if (numberOfLines > 0)
-                            {
-                                header.Height = numberOfLines;
-                            }
-                        }
-
-                        break;
-                    }
-                case APP14:
-                    {
-                        ParseApp14Adobe(payload, header);
-                        break;
-                    }
-                case APP0:
-                    {
-                        ParseApp0(payload, header);
-                        break;
-                    }
-                case APP1:
-                    {
-                        ParseApp1(payload, header);
-                        break;
-                    }
-                case APP2:
-                    {
-                        ParseApp2Icc(payload, header);
-                        break;
-                    }
+                return false;
             }
 
-            i += payloadLen;
+            position += payloadLength;
         }
+
+        return false;
     }
 
     /// <summary>

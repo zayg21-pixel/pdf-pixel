@@ -20,7 +20,7 @@ internal static class JpgProgressiveBlockDecoder
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder dcDecoder,
         ref int previousDcValue,
-        int[] coefficients,
+        short[] coefficients,
         int coefficientBase,
         bool isFirstPass,
         int successiveApproxLow)
@@ -56,7 +56,7 @@ internal static class JpgProgressiveBlockDecoder
 
             int dcValue = previousDcValue + dcDifference;
             previousDcValue = dcValue;
-            coefficients[coefficientBase + 0] = dcValue << successiveApproxLow; // natural index 0
+            coefficients[coefficientBase + 0] = (short)(dcValue << successiveApproxLow); // natural index 0
         }
         else
         {
@@ -64,7 +64,7 @@ internal static class JpgProgressiveBlockDecoder
             if (bit != 0)
             {
                 int sign = (coefficients[coefficientBase + 0] >= 0) ? 1 : -1;
-                coefficients[coefficientBase + 0] += sign * (1 << successiveApproxLow);
+                coefficients[coefficientBase + 0] += (short)(sign * (1 << successiveApproxLow));
             }
         }
     }
@@ -76,7 +76,7 @@ internal static class JpgProgressiveBlockDecoder
     public static void DecodeAcCoefficientsFirstPass(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder acDecoder,
-        int[] coefficients,
+        short[] coefficients,
         int coefficientBase,
         int spectralStart,
         int spectralEnd,
@@ -151,7 +151,7 @@ internal static class JpgProgressiveBlockDecoder
 
                 int coefficient = bitReader.ReadSigned(size);
                 int naturalIndex = JpgZigZag.Table[k];
-                coefficients[coefficientBase + naturalIndex] = coefficient << successiveApproxLow;
+                coefficients[coefficientBase + naturalIndex] = (short)(coefficient << successiveApproxLow);
                 k++;
             }
         }
@@ -164,7 +164,7 @@ internal static class JpgProgressiveBlockDecoder
     public static void DecodeAcCoefficientsRefinement(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder acDecoder,
-        int[] coefficients,
+        short[] coefficients,
         int coefficientBase,
         int spectralStart,
         int spectralEnd,
@@ -205,7 +205,7 @@ internal static class JpgProgressiveBlockDecoder
                     if (bit != 0)
                     {
                         int sign = (existing >= 0) ? 1 : -1;
-                        coefficients[idx] = existing + (sign * (1 << successiveApproxLow));
+                        coefficients[idx] = (short)(existing + (sign * (1 << successiveApproxLow)));
                     }
                 }
             }
@@ -248,7 +248,7 @@ internal static class JpgProgressiveBlockDecoder
                             if (bit != 0)
                             {
                                 int sign = (existing >= 0) ? 1 : -1;
-                                coefficients[idx] = existing + (sign * (1 << successiveApproxLow));
+                                coefficients[idx] = (short)(existing + (sign * (1 << successiveApproxLow)));
                             }
                         }
                     }
@@ -270,7 +270,7 @@ internal static class JpgProgressiveBlockDecoder
                             if (bit != 0)
                             {
                                 int sign = (existing >= 0) ? 1 : -1;
-                                coefficients[idx] = existing + (sign * (1 << successiveApproxLow));
+                                coefficients[idx] = (short)(existing + (sign * (1 << successiveApproxLow)));
                             }
                         }
                         else
@@ -299,7 +299,7 @@ internal static class JpgProgressiveBlockDecoder
                         if (bit != 0)
                         {
                             int sign = (coefficients[idx] >= 0) ? 1 : -1;
-                            coefficients[idx] += sign * (1 << successiveApproxLow);
+                            coefficients[idx] += (short)(sign * (1 << successiveApproxLow));
                         }
 
                         k++;
@@ -308,7 +308,7 @@ internal static class JpgProgressiveBlockDecoder
                     {
                         if (run == 0)
                         {
-                            coefficients[idx] = newCoefficient;
+                            coefficients[idx] = (short)newCoefficient;
                             k++;
                             break;
                         }
