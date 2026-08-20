@@ -9,7 +9,7 @@ namespace PdfPixel.Commands.Processing;
 /// <summary>
 /// Helper methods for command processing, e.g. for device matrices, pixel snapping, and tiling.
 /// </summary>
-internal static class PdfCommandProcessingUtilities
+public static class PdfCommandProcessingUtilities
 {
     private const float AxisAlignEpsilon = 0.01f;
 
@@ -19,6 +19,11 @@ internal static class PdfCommandProcessingUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfMatrix GetScaledMatrix(PdfCommandExecutionContext executionContext)
     {
+        if (executionContext == null)
+        {
+            throw new ArgumentNullException(nameof(executionContext));
+        }
+
         PdfMatrix totalMatrix = executionContext.Frames.TotalMatrix;
 
         if (executionContext.Parameters.ScaleFactor.HasValue)
@@ -85,6 +90,11 @@ internal static class PdfCommandProcessingUtilities
     /// </summary>
     public static PdfSize GetDeviceStepSize(DrawTilingCommand command, PdfCommandExecutionContext executionContext)
     {
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
         PdfMatrix deviceMatrix = GetScaledMatrix(executionContext);
         PdfPoint deviceOrigin = deviceMatrix.MapPoint(PdfPoint.Empty);
         PdfPoint mappedX = deviceMatrix.MapPoint(new PdfPoint(command.XStep, 0));
@@ -107,6 +117,16 @@ internal static class PdfCommandProcessingUtilities
     /// </summary>
     public static bool CanTileByRepeating(DrawTilingCommand command, PdfCommandExecutionContext executionContext)
     {
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
+        if (executionContext == null)
+        {
+            throw new ArgumentNullException(nameof(executionContext));
+        }
+
         if (command.XStep <= 0 || command.YStep <= 0)
         {
             return false;

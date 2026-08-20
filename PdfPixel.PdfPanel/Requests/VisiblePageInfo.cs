@@ -1,4 +1,5 @@
-﻿using PdfPixel.Geometry;
+﻿using PdfPixel.Commands.Processing;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Rendering;
 
@@ -110,8 +111,10 @@ public readonly struct VisiblePageInfo
     public PdfMatrix GetContentToCanvasMatrix(float scale)
     {
         return ContentTransform
-            .PostConcat(PdfMatrix.CreateTranslation(Offset.X, Offset.Y))
-            .PostConcat(PdfMatrix.CreateScale(scale, scale));
+            .PostConcat(PdfMatrix.CreateScale(scale, scale))
+            .PostConcat(PdfMatrix.CreateTranslation(
+                PdfCommandProcessingUtilities.SnapToWholePixel(Offset.X * scale),
+                PdfCommandProcessingUtilities.SnapToWholePixel(Offset.Y * scale)));
     }
 
     /// <summary>
