@@ -87,7 +87,7 @@ public sealed class PdfPanelRenderer : IDisposable
         RenderAll(request);
         _lastRequest = request;
 
-        if (_contentUpdateTimer == null || AnyPageAppeared(previousRequest, request))
+        if (_contentUpdateTimer == null || NeedsImmediateContentUpdate(previousRequest, request))
         {
             StartContentUpdate();
         }
@@ -309,7 +309,7 @@ public sealed class PdfPanelRenderer : IDisposable
         }
     }
 
-    private static bool AnyPageAppeared(PagesDrawingRequest? previousRequest, PagesDrawingRequest request)
+    private bool NeedsImmediateContentUpdate(PagesDrawingRequest? previousRequest, PagesDrawingRequest request)
     {
         if (previousRequest == null)
         {
@@ -318,7 +318,17 @@ public sealed class PdfPanelRenderer : IDisposable
 
         VisiblePageInfo[] previousPages = previousRequest.VisiblePages;
 
-        return request.VisiblePages.Any(page => !previousPages.Any(previousPage => previousPage.PageNumber == page.PageNumber));
+        foreach (VisiblePageInfo page in request.VisiblePages)
+        {
+            bool pageAppeared = !previousPages.Any(previousPage => previousPage.PageNumber == page.PageNumber);
+
+            if (pageAppeared || _contentProvider.NeedsAnnotationUpdate(page.PageNumber, request))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void StartContentUpdate()

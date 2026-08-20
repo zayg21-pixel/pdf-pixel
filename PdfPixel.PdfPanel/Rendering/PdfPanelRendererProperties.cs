@@ -19,8 +19,7 @@ public sealed class PdfPanelRendererProperties
     public int TileSize { get; set; } = 1024;
 
     /// <summary>
-    /// Time a request that brings no new page into view waits before background decoding starts.
-    /// Each further such request restarts the wait. <see cref="TimeSpan.Zero"/> starts decoding on every request.
+    /// Time a request waits before page content decoding starts.
     /// </summary>
     public TimeSpan ContentUpdateDelay { get; set; } = TimeSpan.FromMilliseconds(200);
 }

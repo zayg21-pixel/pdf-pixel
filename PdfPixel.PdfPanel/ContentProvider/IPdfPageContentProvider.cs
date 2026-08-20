@@ -43,6 +43,12 @@ public interface IPdfPageContentProvider : IDisposable
     bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request);
 
     /// <summary>
+    /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the annotation
+    /// recording of the specified 1-based page number for <paramref name="request"/>.
+    /// </summary>
+    bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request);
+
+    /// <summary>
     /// Starts or updates background decoding for the pages described by <paramref name="request"/>.
     /// Pages no longer visible are cancelled and their cache cleared.
     /// </summary>

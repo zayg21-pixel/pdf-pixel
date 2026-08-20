@@ -66,6 +66,15 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     public bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
 
     /// <inheritdoc />
+    public bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request)
+    {
+        PdfPageCacheEntry cacheEntry = _cache[pageNumber - 1];
+
+        return cacheEntry.GetAnnotations(_document, DocumentLocker).Length > 0
+            && cacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(request);
+    }
+
+    /// <inheritdoc />
     public void UpdateContent(PagesDrawingRequest request)
     {
         if (request == null)

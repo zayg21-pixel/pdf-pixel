@@ -18,7 +18,6 @@ public sealed class PdfImageTileCacheEntry
     private readonly SoftMaskAlphaRowSource? _alphaRowSource;
 
     private PdfIntegerSize? _scaledSize;
-    private int _tileIndex;
     private bool _decoderActive;
 
     private PdfImageTilingContext? _tilingContext;
@@ -70,7 +69,6 @@ public sealed class PdfImageTileCacheEntry
         _imageParameters = null;
         _rowBuffer = null;
         _currentImageRow = 0;
-        _tileIndex = 0;
 
         PdfIntegerSize? scaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, TileInfo.ImageSize);
         if (!Equals(scaledSize, _scaledSize))
@@ -99,16 +97,15 @@ public sealed class PdfImageTileCacheEntry
     }
 
     /// <summary>
-    /// Returns the next tile in iteration order, decoding it first if it is pending an update.
+    /// Returns the tile at <paramref name="tileIndex"/>, decoding it first if it is pending an update.
     /// </summary>
-    public PdfImageTile GetNextTile(IPdfExecutionObserver observer)
+    public PdfImageTile GetTile(int tileIndex, IPdfExecutionObserver observer)
     {
-        if (_tileIndex >= TileInfo.TotalTiles)
+        if (tileIndex < 0 || tileIndex >= TileInfo.TotalTiles)
         {
-            throw new InvalidOperationException($"Tile index {_tileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
+            throw new ArgumentOutOfRangeException(nameof(tileIndex), $"Tile index {tileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
         }
 
-        int tileIndex = _tileIndex++;
         CachedTile cachedTile = _tiles[tileIndex];
 
         if (_decoderActive && cachedTile.IsPendingUpdate)

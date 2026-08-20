@@ -20,7 +20,7 @@ public sealed partial class SkCanvasCommandProcessor
     private void ExecuteDrawImageTile(DrawImageTileCommand command)
     {
         ImageExecutionContext context = command.Context;
-        PdfImageTile tile = context.TileCache.GetNextTile(_executionContext.ExecutionObserver);
+        PdfImageTile tile = context.TileCache.GetTile(command.TileIndex, _executionContext.ExecutionObserver);
 
         if (tile.IsSkipped || tile.Image == null)
         {
