@@ -226,7 +226,7 @@ public sealed class PdfPanelRenderer : IDisposable
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
 
-            surface.Canvas.DrawPage(page, request, pictures, _tiler, TextSelector, PageDrawFlags.All, animation);
+            surface.Canvas.DrawPage(page, request, pictures, _tiler, TextSelector, PageDrawFlags.AllContent, animation);
         }
 
         request.RenderTarget.Render(surface, request);
@@ -266,7 +266,7 @@ public sealed class PdfPanelRenderer : IDisposable
                 continue;
             }
 
-            surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextSelector, PageDrawFlags.Background | PageDrawFlags.Content | PageDrawFlags.Placeholder, animation);
+            surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextSelector, PageDrawFlags.Background | PageDrawFlags.Placeholder, animation);
             anyRedrawn = true;
         }
 

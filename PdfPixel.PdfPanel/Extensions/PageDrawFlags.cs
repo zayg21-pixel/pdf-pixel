@@ -9,5 +9,5 @@ internal enum PageDrawFlags
     Background = 1 << 1,
     Content = 1 << 2,
     Placeholder = 1 << 3,
-    All = Shadow | Background | Content | Placeholder
+    AllContent = Shadow | Background | Content
 }
