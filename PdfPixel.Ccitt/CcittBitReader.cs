@@ -20,7 +20,7 @@ public ref struct CcittBitReader
     /// <summary>
     /// Create a reader over the given data, resuming from a previously captured state.
     /// </summary>
-    public CcittBitReader(ref readonly ReadOnlySpan<byte> data, int byteIndex, int bufferedBits, ulong buffer)
+    public CcittBitReader(in ReadOnlySpan<byte> data, int byteIndex, int bufferedBits, ulong buffer)
     {
         _data = data;
         _byteIndex = byteIndex;
