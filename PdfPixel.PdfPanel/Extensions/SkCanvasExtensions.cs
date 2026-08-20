@@ -61,7 +61,7 @@ internal static class SkCanvasExtensions
 
             if ((flags & PageDrawFlags.Content) != 0)
             {
-                tiler.DrawTiles(canvas, page.PageNumber, in page, request.Scale);
+                tiler.DrawTiles(canvas, in page, request.Scale);
                 DrawPagePicture(canvas, pictures?.Annotations, page);
                 DrawSelectionPicture(canvas, textSelector, page);
 

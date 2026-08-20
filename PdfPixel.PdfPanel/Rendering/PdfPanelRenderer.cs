@@ -20,6 +20,8 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// </summary>
 public sealed class PdfPanelRenderer : IDisposable
 {
+    private const int TileSize = 1024;
+
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly PdfPageContentTiler _tiler;
@@ -42,7 +44,7 @@ public sealed class PdfPanelRenderer : IDisposable
     {
         _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        _tiler = new PdfPageContentTiler(surfaceFactory);
+        _tiler = new PdfPageContentTiler(surfaceFactory, TileSize);
         _clock = clock;
         _syncContext = syncContext;
         TextSelector = new PdfPanelTextSelector(contentProvider);
@@ -219,7 +221,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
             if (!awaitingPageUpdate)
             {
-                _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, forceClearVisible: false);
+                _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
 
             surface.Canvas.DrawPage(page, request, pictures, _tiler, TextSelector, PageDrawFlags.All, animation);
@@ -324,7 +326,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         VisiblePageInfo page = _lastRequest.VisiblePages.First(p => p.PageNumber == args.PageNumber);
 
-        _tiler.UpdateTiles(page.PageNumber, args.ContentPictures.Content, in page, in _lastRequest, forceClearVisible: true);
+        _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, TextSelector, PageDrawFlags.Background | PageDrawFlags.Content, null);

@@ -39,6 +39,12 @@ public static class PdfToSkiaExtensions
     public static SKRect ToSkRect(this in PdfRectangle rect) => new(rect.Left, rect.Top, rect.Right, rect.Bottom);
 
     /// <summary>
+    /// Converts a <see cref="PdfIntegerRectangle"/> to an <see cref="SKRectI"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKRectI ToSkRectI(this in PdfIntegerRectangle rect) => new(rect.Left, rect.Top, rect.Right, rect.Bottom);
+
+    /// <summary>
     /// Converts a <see cref="PdfSize"/> to an <see cref="SKSize"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

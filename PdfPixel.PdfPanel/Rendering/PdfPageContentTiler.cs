@@ -16,31 +16,32 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// </summary>
 public sealed class PdfPageContentTiler : IDisposable
 {
-    private const int TileSize = 1024;
-
     private readonly ISkSurfaceFactory _surfaceFactory;
+    private readonly int _tileSize;
     private readonly Dictionary<int, PageTileCache> _pageCache = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfPageContentTiler"/> class.
     /// </summary>
     /// <param name="surfaceFactory">Factory used to create surfaces for tile rasterization.</param>
-    public PdfPageContentTiler(ISkSurfaceFactory surfaceFactory)
-        => _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
+    /// <param name="tileSize">Edge length of a single tile in device pixels.</param>
+    public PdfPageContentTiler(ISkSurfaceFactory surfaceFactory, int tileSize)
+    {
+        _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
+        _tileSize = tileSize;
+    }
 
     /// <summary>
     /// Ensures tiles are rasterized for the visible region of the given page.
     /// </summary>
-    /// <param name="pageNumber">The page number to update tiles for.</param>
     /// <param name="contentLocker">Locked content picture to rasterize.</param>
     /// <param name="pageInfo">Visible page layout snapshot.</param>
     /// <param name="request">Current drawing request.</param>
     /// <param name="forceClearVisible">When true, re-rasterizes tiles in the visible region.</param>
     public void UpdateTiles(
-        int pageNumber,
         ContentLocker<SKPicture>? contentLocker,
-        ref readonly VisiblePageInfo pageInfo,
-        ref readonly PagesDrawingRequest request,
+        in VisiblePageInfo pageInfo,
+        PagesDrawingRequest request,
         bool forceClearVisible)
     {
         if (request == null)
@@ -53,10 +54,10 @@ public sealed class PdfPageContentTiler : IDisposable
             return;
         }
 
-        if (!_pageCache.TryGetValue(pageNumber, out PageTileCache? pageCache))
+        if (!_pageCache.TryGetValue(pageInfo.PageNumber, out PageTileCache? pageCache))
         {
             pageCache = new PageTileCache();
-            _pageCache[pageNumber] = pageCache;
+            _pageCache[pageInfo.PageNumber] = pageCache;
         }
 
         if (pageCache.Scale != request.Scale)
@@ -66,30 +67,28 @@ public sealed class PdfPageContentTiler : IDisposable
         }
 
         PdfRectangle visibleRegion = request.ComputeRegionOfInterest(pageInfo.PageNumber);
+        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.Width, pageInfo.Info.Height);
 
-        if (forceClearVisible)
-        {
-            ClearTilesInRegion(pageCache, visibleRegion);
-        }
+        PdfIntegerRectangle visiblePixels = ToPixels(visibleRegion, request.Scale);
+        PdfIntegerRectangle pagePixels = ToPixels(pageBounds, request.Scale);
 
-        RasterizeVisibleTiles(pageCache, contentLocker, request.Scale, visibleRegion);
+        RasterizeTiles(pageCache, contentLocker, request.Scale, visiblePixels, pagePixels, forceClearVisible);
     }
 
     /// <summary>
     /// Draws cached tiles for the given page onto the canvas.
     /// </summary>
     /// <param name="canvas">The canvas to draw on.</param>
-    /// <param name="pageNumber">The page number to draw tiles for.</param>
     /// <param name="pageInfo">Visible page layout snapshot.</param>
     /// <param name="currentScale">Current rendering scale.</param>
-    public void DrawTiles(SKCanvas canvas, int pageNumber, ref readonly VisiblePageInfo pageInfo, float currentScale)
+    public void DrawTiles(SKCanvas canvas, in VisiblePageInfo pageInfo, float currentScale)
     {
         if (canvas == null)
         {
             throw new ArgumentNullException(nameof(canvas));
         }
 
-        if (!_pageCache.TryGetValue(pageNumber, out PageTileCache? pageCache))
+        if (!_pageCache.TryGetValue(pageInfo.PageNumber, out PageTileCache? pageCache))
         {
             return;
         }
@@ -102,7 +101,7 @@ public sealed class PdfPageContentTiler : IDisposable
         int savedCount = canvas.Save();
         canvas.Concat(in contentTransform);
 
-        foreach (CachedTile tile in pageCache.Tiles)
+        foreach (CachedTile tile in pageCache.Tiles.Values)
         {
             canvas.DrawImage(tile.Image, tile.Destination.ToSkRect(), sampling);
         }
@@ -114,7 +113,7 @@ public sealed class PdfPageContentTiler : IDisposable
     /// Returns true if there are any cached tiles for the given page.
     /// </summary>
     /// <param name="pageNumber">The page number to check.</param>
-    public bool HasTiles(int pageNumber) => _pageCache.ContainsKey(pageNumber) && _pageCache[pageNumber].Tiles.Count > 0;
+    public bool HasTiles(int pageNumber) => _pageCache.TryGetValue(pageNumber, out PageTileCache? pageCache) && pageCache.Tiles.Count > 0;
 
     /// <summary>
     /// Evicts cached tiles for pages not in the given visible set.
@@ -145,95 +144,101 @@ public sealed class PdfPageContentTiler : IDisposable
     /// <inheritdoc />
     public void Dispose() => Clear();
 
-    private void RasterizeVisibleTiles(
+    private void RasterizeTiles(
         PageTileCache pageCache,
         ContentLocker<SKPicture> contentLocker,
         float scale,
-        in PdfRectangle visibleRegion)
+        in PdfIntegerRectangle visiblePixels,
+        in PdfIntegerRectangle pagePixels,
+        bool forceClearVisible)
     {
-        float scaledTileSize = TileSize / scale;
+        int endColumn = (visiblePixels.Right + _tileSize - 1) / _tileSize;
+        int endRow = (visiblePixels.Bottom + _tileSize - 1) / _tileSize;
 
-        int startCol = Math.Max(0, (int)Math.Floor(visibleRegion.Left / scaledTileSize));
-        int startRow = Math.Max(0, (int)Math.Floor(visibleRegion.Top / scaledTileSize));
-        var endCol = (int)Math.Ceiling(visibleRegion.Right / scaledTileSize);
-        var endRow = (int)Math.Ceiling(visibleRegion.Bottom / scaledTileSize);
-
-        for (int row = startRow; row < endRow; row++)
+        for (int row = visiblePixels.Top / _tileSize; row < endRow; row++)
         {
-            for (int col = startCol; col < endCol; col++)
+            for (int column = visiblePixels.Left / _tileSize; column < endColumn; column++)
             {
-                PdfRectangle destination = PdfRectangle.FromLocationAndSize(
-                    col * scaledTileSize,
-                    row * scaledTileSize,
-                    scaledTileSize,
-                    scaledTileSize);
+                PdfIntegerPoint index = new(column, row);
 
-                if (HasTileAt(pageCache, destination))
+                if (pageCache.Tiles.TryGetValue(index, out CachedTile? cached))
                 {
-                    continue;
+                    if (!forceClearVisible)
+                    {
+                        continue;
+                    }
+
+                    cached.Dispose();
+                    pageCache.Tiles.Remove(index);
                 }
 
-                SKImage? tileImage = RasterizeTile(contentLocker, scale, col, row, scaledTileSize);
-                if (tileImage != null)
+                CachedTile? tile = RasterizeTile(contentLocker, scale, index, pagePixels);
+                if (tile != null)
                 {
-                    pageCache.Tiles.Add(new CachedTile(tileImage, destination));
+                    pageCache.Tiles.Add(index, tile);
                 }
             }
         }
     }
 
-    private static void ClearTilesInRegion(PageTileCache pageCache, in PdfRectangle region)
-    {
-        for (int i = pageCache.Tiles.Count - 1; i >= 0; i--)
-        {
-            if (PdfRectangle.IntersectsWith(pageCache.Tiles[i].Destination, region))
-            {
-                pageCache.Tiles[i].Dispose();
-                pageCache.Tiles.RemoveAt(i);
-            }
-        }
-    }
-
-    private static bool HasTileAt(PageTileCache pageCache, in PdfRectangle destination)
-    {
-        for (int i = 0; i < pageCache.Tiles.Count; i++)
-        {
-            if (pageCache.Tiles[i].Destination == destination)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private SKImage? RasterizeTile(
+    private CachedTile? RasterizeTile(
         ContentLocker<SKPicture> contentLocker,
         float scale,
-        int col,
-        int row,
-        float scaledTileSize)
+        in PdfIntegerPoint index,
+        in PdfIntegerRectangle pagePixels)
     {
+        PdfIntegerRectangle tilePixels = new(
+            index.X * _tileSize,
+            index.Y * _tileSize,
+            (index.X + 1) * _tileSize,
+            (index.Y + 1) * _tileSize);
+
+        PdfIntegerRectangle coveredPixels = PdfIntegerRectangle.Intersect(tilePixels, pagePixels);
+
+        if (coveredPixels.Width <= 0 || coveredPixels.Height <= 0)
+        {
+            return null;
+        }
+
         using LockedContent<SKPicture> lockedPicture = contentLocker.GetContent();
         if (lockedPicture.Content == null)
         {
             return null;
         }
 
-        SKSurface tileSurface = _surfaceFactory.GetTilingSurface(TileSize, TileSize);
+        SKSurface tileSurface = _surfaceFactory.GetTilingSurface(_tileSize, _tileSize);
         SKCanvas tileCanvas = tileSurface.Canvas;
 
         int savedCount = tileCanvas.Save();
         tileCanvas.Clear(SKColors.Transparent);
 
+        tileCanvas.Translate(-tilePixels.Left, -tilePixels.Top);
         tileCanvas.Scale(scale, scale);
-        tileCanvas.Translate(-col * scaledTileSize, -row * scaledTileSize);
 
         tileCanvas.DrawPicture(lockedPicture.Content);
         tileCanvas.RestoreToCount(savedCount);
 
-        return tileSurface.Snapshot();
+        PdfIntegerRectangle surfacePixels = new(
+            coveredPixels.Left - tilePixels.Left,
+            coveredPixels.Top - tilePixels.Top,
+            coveredPixels.Right - tilePixels.Left,
+            coveredPixels.Bottom - tilePixels.Top);
+
+        PdfRectangle destination = PdfRectangle.FromLocationAndSize(
+            coveredPixels.Left / scale,
+            coveredPixels.Top / scale,
+            coveredPixels.Width / scale,
+            coveredPixels.Height / scale);
+
+        return new CachedTile(tileSurface.Snapshot(surfacePixels.ToSkRectI()), destination);
     }
+
+    private static PdfIntegerRectangle ToPixels(in PdfRectangle rectangle, float scale)
+        => new(
+            (int)Math.Floor(rectangle.Left * scale),
+            (int)Math.Floor(rectangle.Top * scale),
+            (int)Math.Ceiling(rectangle.Right * scale),
+            (int)Math.Ceiling(rectangle.Bottom * scale));
 
     private sealed class CachedTile(SKImage image, in PdfRectangle destination) : IDisposable
     {
@@ -246,13 +251,13 @@ public sealed class PdfPageContentTiler : IDisposable
 
     private sealed class PageTileCache
     {
-        public List<CachedTile> Tiles { get; } = [];
+        public Dictionary<PdfIntegerPoint, CachedTile> Tiles { get; } = [];
 
         public float Scale { get; set; }
 
         public void Clear()
         {
-            foreach (CachedTile tile in Tiles)
+            foreach (CachedTile tile in Tiles.Values)
             {
                 tile.Dispose();
             }
