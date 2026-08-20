@@ -224,25 +224,11 @@ public sealed class PdfPanelRenderer : IDisposable
 
         _tiler.EvictExcept(request.VisiblePages);
 
-        bool scaleChanged = _lastRequest == null
-            || _lastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor;
-
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
-            bool regionChanged = scaleChanged
-                || _lastRequest == null
-                || !_lastRequest.VisiblePages.Any(previousPage => previousPage.PageNumber == page.PageNumber
-                    && previousPage.RegionOfInterest == page.RegionOfInterest);
-
-            // A pending OnPageUpdated is only expected when the request actually invalidated the
-            // cached picture for a feature it depends on; otherwise the cache is already current and
-            // tiles for the newly visible region must be materialized immediately.
-            bool awaitingPageUpdate = ((pictures.ContentFeatures & PdfCommandFeatures.Scale) != 0 && scaleChanged)
-                || ((pictures.ContentFeatures & PdfCommandFeatures.Region) != 0 && regionChanged);
-
-            if (!awaitingPageUpdate)
+            if (!_contentProvider.NeedsContentUpdate(page.PageNumber, request))
             {
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }

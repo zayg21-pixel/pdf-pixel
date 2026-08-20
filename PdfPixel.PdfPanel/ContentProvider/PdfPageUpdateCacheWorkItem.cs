@@ -91,7 +91,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             }
         }
 
-        if (CacheEntry.Content.NeedsUpdate(_request))
+        if (CacheEntry.Content.NeedsPictureUpdate(_request))
         {
             PdfCommandRecorder? contentRecording;
 
@@ -136,10 +136,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         lock (_documentLocker)
         {
             if (CacheEntry.GetAnnotations(_document, _documentLocker).Length > 0
-                && (!CacheEntry.AnnotationContent.ContentCommandRecording.HasContent
-                    || CacheEntry.AnnotationContent.LastRequest == null
-                    || CacheEntry.AnnotationContent.LastRequest.ActiveAnnotation != _request.ActiveAnnotation
-                    || CacheEntry.AnnotationContent.LastRequest.ActiveAnnotationState != _request.ActiveAnnotationState))
+                && CacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(_request))
             {
                 PdfCommandRecorder? annotationRecording = _document.GetAnnotationRecording(
                     CacheEntry.PageNumber,
@@ -153,7 +150,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         }
 
         if (CacheEntry.AnnotationContent.ContentCommandRecording.HasContent
-            && (annotationRecordingUpdated || CacheEntry.AnnotationContent.NeedsUpdate(_request)))
+            && (annotationRecordingUpdated || CacheEntry.AnnotationContent.NeedsPictureUpdate(_request)))
         {
             PdfCommandRecorder? annotationContentRecording;
 

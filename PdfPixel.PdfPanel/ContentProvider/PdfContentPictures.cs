@@ -1,4 +1,3 @@
-using PdfPixel.Commands;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -19,11 +18,6 @@ public class PdfContentPictures
     /// Locked reference to the annotation layer picture, or <see langword="null"/> if not yet decoded.
     /// </summary>
     public ContentLocker<SKPicture>? Annotations { get; set; }
-
-    /// <summary>
-    /// Combined features of all commands in the main content picture.
-    /// </summary>
-    public PdfCommandFeatures ContentFeatures { get; set; }
 
     /// <summary>
     /// Flattened characters extracted from the main content, in reading order.

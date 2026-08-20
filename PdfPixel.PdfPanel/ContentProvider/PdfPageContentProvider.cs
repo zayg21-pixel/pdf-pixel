@@ -63,6 +63,9 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     }
 
     /// <inheritdoc />
+    public bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
+
+    /// <inheritdoc />
     public void UpdateContent(PagesDrawingRequest request)
     {
         if (request == null)

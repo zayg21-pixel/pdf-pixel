@@ -37,6 +37,12 @@ public interface IPdfPageContentProvider : IDisposable
     PdfContentPictures GetExistingContentPictures(int pageNumber);
 
     /// <summary>
+    /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the content
+    /// picture of the specified 1-based page number for <paramref name="request"/>.
+    /// </summary>
+    bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request);
+
+    /// <summary>
     /// Starts or updates background decoding for the pages described by <paramref name="request"/>.
     /// Pages no longer visible are cancelled and their cache cleared.
     /// </summary>

@@ -87,7 +87,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// Returns <see langword="true"/> when the cached picture must be regenerated for <paramref name="request"/>:
     /// no picture is cached yet, no request was recorded, or a feature-specific dependency changed.
     /// </summary>
-    public bool NeedsUpdate(PagesDrawingRequest request)
+    public bool NeedsPictureUpdate(PagesDrawingRequest request)
     {
         if (request == null)
         {
@@ -98,6 +98,23 @@ public sealed class PdfPageCacheEntryItem : IDisposable
             || LastRequest == null
             || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor)
             || ((Features & PdfCommandFeatures.Region) != 0 && LastRequest.GetPage(PageNumber).RegionOfInterest != request.GetPage(PageNumber).RegionOfInterest);
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the cached annotation recording must be regenerated for <paramref name="request"/>:
+    /// no recording is cached yet, no request was recorded, or the active annotation or its state changed.
+    /// </summary>
+    public bool NeedsAnnotationRecordingUpdate(PagesDrawingRequest request)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return !ContentCommandRecording.HasContent
+            || LastRequest == null
+            || LastRequest.ActiveAnnotation != request.ActiveAnnotation
+            || LastRequest.ActiveAnnotationState != request.ActiveAnnotationState;
     }
 
     /// <summary>

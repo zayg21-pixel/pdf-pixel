@@ -22,5 +22,5 @@ public sealed class PdfPanelRendererProperties
     /// Time a request that brings no new page into view waits before background decoding starts.
     /// Each further such request restarts the wait. <see cref="TimeSpan.Zero"/> starts decoding on every request.
     /// </summary>
-    public TimeSpan ContentUpdateDelay { get; set; } = TimeSpan.FromMilliseconds(100);
+    public TimeSpan ContentUpdateDelay { get; set; } = TimeSpan.FromMilliseconds(200);
 }
