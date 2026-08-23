@@ -21,8 +21,6 @@ public static class SingleByteEncodings
     private static readonly PdfFontString[] _symbol;
     private static readonly PdfFontString[] _zapfDingbats;
 
-    private static readonly ConcurrentDictionary<PdfFontEncoding, HashSet<PdfFontString>> EncodingNames = [];
-
     private static readonly ConcurrentDictionary<PdfFontEncoding, Dictionary<PdfFontString, byte>> EncodingCodesByName = [];
 
     // Predefined Standard 14 font name mappings to encodings
@@ -78,19 +76,6 @@ public static class SingleByteEncodings
             PdfFontEncoding.ZapfDingbatsEncoding => _zapfDingbats,
             _ => default
         };
-    }
-
-    /// <summary>
-    /// Reports whether <paramref name="encoding"/> maps <paramref name="name"/> at any code. Returns
-    /// <see langword="false"/> for an encoding with no glyph names of its own.
-    /// </summary>
-    /// <param name="encoding">The font encoding to look in.</param>
-    /// <param name="name">The glyph name to look for.</param>
-    public static bool ContainsName(PdfFontEncoding encoding, in PdfFontString name)
-    {
-        HashSet<PdfFontString>? names = GetEncodingNames(encoding);
-
-        return names != null && names.Contains(name);
     }
 
     /// <summary>
@@ -199,36 +184,6 @@ public static class SingleByteEncodings
         }
 
         return default;
-    }
-
-    /// <summary>
-    /// The distinct glyph names one encoding maps, built on first use and held afterward.
-    /// </summary>
-    private static HashSet<PdfFontString>? GetEncodingNames(PdfFontEncoding encoding)
-    {
-        if (EncodingNames.TryGetValue(encoding, out HashSet<PdfFontString>? cached))
-        {
-            return cached;
-        }
-
-        PdfFontString[]? encodingSet = GetEncodingSet(encoding);
-        if (encodingSet == null)
-        {
-            return null;
-        }
-
-        HashSet<PdfFontString> names = [];
-        foreach (PdfFontString name in encodingSet)
-        {
-            if (!name.IsEmpty)
-            {
-                names.Add(name);
-            }
-        }
-
-        EncodingNames[encoding] = names;
-
-        return names;
     }
 
     /// <summary>

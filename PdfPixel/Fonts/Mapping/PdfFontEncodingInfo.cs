@@ -64,26 +64,6 @@ public class PdfFontEncodingInfo
     }
 
     /// <summary>
-    /// Reports whether every glyph name <see cref="Differences"/> states is one
-    /// <paramref name="encoding"/> maps as well, which an empty <see cref="Differences"/> satisfies. A
-    /// differences array that only moves that encoding's own glyphs to other codes stays within its
-    /// character set; one that names a glyph from outside it does not.
-    /// </summary>
-    /// <param name="encoding">The encoding whose glyph names bound what the differences may name.</param>
-    public bool AreDifferencesWithin(PdfFontEncoding encoding)
-    {
-        foreach (PdfString differenceName in Differences.Values)
-        {
-            if (!SingleByteEncodings.ContainsName(encoding, differenceName.ToPdfFontString()))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
     /// Gets the lowest character code this encoding maps to the given glyph name.
     /// </summary>
     /// <param name="name">The glyph name to look up.</param>

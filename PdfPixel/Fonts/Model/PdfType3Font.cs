@@ -249,12 +249,20 @@ public class PdfType3Font : PdfSingleByteFont
     private PdfString GetCharacterName(PdfCharacterCode charCode) => Encoding.GetNameByCode((byte)charCode).ToPdfString();
 
     /// <summary>
+    /// Gets the advance width for the specified character code in a Type3 font.
+    /// A code the font's /Widths array does not cover has a width of zero.
+    /// </summary>
+    /// <param name="code">The character code to retrieve the width for.</param>
+    /// <returns>The advance width in user space units.</returns>
+    public override float? GetWidth(PdfCharacterCode code) => base.GetWidth(code) ?? 0f;
+
+    /// <summary>
     /// Gets the glyph ID (GID) for the specified character code in a Type3 font.
-    /// Type3 fonts do not use GIDs; always returns 1.
+    /// Type3 fonts do not use GIDs; always returns <see langword="null"/>.
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
-    /// <returns>Always 1 for Type3 fonts.</returns>
-    public override ushort? GetGid(PdfCharacterCode code) => 1;
+    /// <returns>Always <see langword="null"/> for Type3 fonts.</returns>
+    public override ushort? GetGid(PdfCharacterCode code) => null;
 
     /// <summary>
     /// A Type3 glyph is drawn by running the character procedure its /CharProcs names for the code, so
