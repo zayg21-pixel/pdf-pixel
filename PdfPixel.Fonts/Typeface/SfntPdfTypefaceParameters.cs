@@ -27,6 +27,12 @@ public sealed class SfntPdfTypefaceParameters
     public bool IsSystemFont { get; set; }
 
     /// <summary>
+    /// The glyph subset and character mapping the repack writes. Null repacks the font as it stands.
+    /// Ignored when <see cref="RepackTypeface"/> is <see langword="false"/>.
+    /// </summary>
+    public SfntPdfTypefaceRepackParameters? Repack { get; set; }
+
+    /// <summary>
     /// Gets the default parameters: <see cref="RepackTypeface"/> = <see langword="true"/>,
     /// <see cref="TtcIndex"/> = 0, <see cref="IsSystemFont"/> = <see langword="false"/>.
     /// </summary>

@@ -290,8 +290,9 @@ public class SfntFontProcessor
 
     /// <summary>
     /// Writes a full SFNT font back to bytes. Tables with a dedicated model are re-serialized from it
-    /// and every other source table is dropped. "cmap" and "post" always get a minimal empty stub:
-    /// neither has a writer, and passing the source's own bytes through would carry a corrupt subtable
+    /// and every other source table is dropped. "post", and "cmap" when
+    /// <paramref name="repackParameters"/> states no mapping, always get a minimal empty stub: neither
+    /// has a writer, and passing the source's own bytes through would carry a corrupt subtable
     /// into an otherwise sound font - enough for a rasterizer to reject the whole font. "OS/2" falls
     /// back to a stub of its own when the source carries none, since a font written without it is
     /// equally rejected. "gasp" gets no stub in turn: a font that asks for no particular grid-fitting
@@ -299,7 +300,8 @@ public class SfntFontProcessor
     /// </summary>
     /// <param name="font">The font to write.</param>
     /// <param name="sourceStream">The stream <paramref name="font"/> was read from, used to resolve passthrough tables' bytes.</param>
-    public byte[] Write(SfntFont font, ReadOnlyFontStream sourceStream)
+    /// <param name="repackParameters">The glyph subset and character mapping to write. Null writes every glyph at the id it already had, and no character mapping.</param>
+    public byte[] Write(SfntFont font, ReadOnlyFontStream sourceStream, SfntPdfTypefaceRepackParameters? repackParameters = null)
     {
         if (font == null)
         {
@@ -311,6 +313,8 @@ public class SfntFontProcessor
             throw new ArgumentNullException(nameof(sourceStream));
         }
 
+        IReadOnlyList<ushort>? glyphOrder = repackParameters?.GlyphOrder;
+
         List<SfntTableData> tables = [];
 
         if (font.Head != null)
@@ -318,19 +322,24 @@ public class SfntFontProcessor
             tables.Add(new SfntTableData(SfntTableTags.Head, _headProcessor.Write(font.Head)));
         }
 
+        ushort numGlyphs = (glyphOrder != null) ? (ushort)glyphOrder.Count : (font.Maxp?.NumGlyphs ?? 0);
+
         if (font.Hhea != null)
         {
-            tables.Add(new SfntTableData(SfntTableTags.Hhea, _hheaProcessor.Write(font.Hhea)));
+            ushort numberOfHMetrics = (glyphOrder != null) ? numGlyphs : font.Hhea.NumberOfHMetrics;
+            tables.Add(new SfntTableData(SfntTableTags.Hhea, _hheaProcessor.Write(font.Hhea, numberOfHMetrics)));
         }
 
         if (font.Maxp != null)
         {
-            tables.Add(new SfntTableData(SfntTableTags.Maxp, _maxpProcessor.Write(font.Maxp)));
+            tables.Add(new SfntTableData(SfntTableTags.Maxp, _maxpProcessor.Write(font.Maxp, numGlyphs)));
         }
 
         if (font.Hmtx != null && font.Hhea != null)
         {
-            tables.Add(new SfntTableData(SfntTableTags.Hmtx, _hmtxProcessor.Write(font.Hmtx, font.Hhea.NumberOfHMetrics)));
+            SfntHmtx hmtx = (glyphOrder != null) ? ReorderHmtx(font.Hmtx, glyphOrder) : font.Hmtx;
+            ushort numberOfHMetrics = (glyphOrder != null) ? numGlyphs : font.Hhea.NumberOfHMetrics;
+            tables.Add(new SfntTableData(SfntTableTags.Hmtx, _hmtxProcessor.Write(hmtx, numberOfHMetrics)));
         }
 
         if (font.Os2 != null)
@@ -360,7 +369,7 @@ public class SfntFontProcessor
         {
             if (font.GlyfRecord != null)
             {
-                SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value));
+                SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value), glyphOrder);
                 tables.Add(new SfntTableData(SfntTableTags.Glyf, glyfResult.GlyfData));
 
                 byte[] locaData = _locaProcessor.Write(glyfResult.Loca, font.Head.IndexToLocFormat);
@@ -373,9 +382,46 @@ public class SfntFontProcessor
             tables.Add(new SfntTableData(SfntTableTags.Gasp, _gaspProcessor.Write(font.Gasp)));
         }
 
-        tables.Add(new SfntTableData(SfntTableTags.Cmap, SfntCmapProcessor.CreateEmptyStub()));
+        tables.Add(new SfntTableData(SfntTableTags.Cmap, WriteCmap(repackParameters)));
         tables.Add(new SfntTableData(SfntTableTags.Post, SfntPostProcessor.CreateEmptyStub()));
 
         return _containerProcessor.Write(font.Version, tables);
+    }
+
+    /// <summary>
+    /// Writes the "cmap" <paramref name="repackParameters"/> states, or an empty placeholder when it
+    /// states none.
+    /// </summary>
+    private static byte[] WriteCmap(SfntPdfTypefaceRepackParameters? repackParameters)
+    {
+        IReadOnlyDictionary<int, ushort>? codeToGid = repackParameters?.CodeToGid;
+
+        if (repackParameters == null || codeToGid == null)
+        {
+            return SfntCmapProcessor.CreateEmptyStub();
+        }
+
+        return SfntCmapGenerator.Write(repackParameters.CmapPlatformId, repackParameters.CmapEncodingId, codeToGid);
+    }
+
+    /// <summary>
+    /// Builds one metric per entry of <paramref name="glyphOrder"/>, taken from the source metric of
+    /// the glyph it names. A named glyph the source has no metric for takes a zero-width one.
+    /// </summary>
+    private static SfntHmtx ReorderHmtx(SfntHmtx hmtx, IReadOnlyList<ushort> glyphOrder)
+    {
+        IReadOnlyList<SfntHorizontalMetric> sourceMetrics = hmtx.Metrics;
+        var metrics = new SfntHorizontalMetric[glyphOrder.Count];
+
+        for (int gid = 0; gid < glyphOrder.Count; gid++)
+        {
+            ushort sourceGid = glyphOrder[gid];
+
+            metrics[gid] = (sourceGid < sourceMetrics.Count)
+                ? sourceMetrics[sourceGid]
+                : new SfntHorizontalMetric(0, 0);
+        }
+
+        return new SfntHmtx { Metrics = metrics };
     }
 }

@@ -81,20 +81,25 @@ public class SfntGlyfProcessor
     }
 
     /// <summary>
-    /// Writes a full "glyf" table's binary content, along with the "loca" table that indexes them.
-    /// Every glyph keeps the glyph id it already had, so a composite glyph is written back as it
-    /// stands - what its components reference still resolves - and only a simple glyph is decoded and
-    /// repacked. Each glyph is padded to an even byte boundary, since a short-format "loca" can only
-    /// represent even offsets.
+    /// Writes a "glyf" table's binary content, along with the "loca" table that indexes them. Without
+    /// <paramref name="glyphOrder"/> every glyph keeps the glyph id it already had, so a composite
+    /// glyph is written back as it stands - what its components reference still resolves - and only a
+    /// simple glyph is decoded and repacked. With one, the table holds only the glyphs it names, at the
+    /// ids it names them, and every glyph is written as a simple glyph with a composite's components
+    /// resolved into its own outline. Each glyph is padded to an even byte boundary, since a
+    /// short-format "loca" can only represent even offsets.
     /// </summary>
-    public SfntGlyfWriteResult Write(SfntGlyf glyf, in SfntGlyfSource source)
+    /// <param name="glyf">The font's "glyf" table cache, whose "loca" indexes the source glyphs.</param>
+    /// <param name="source">The stream and table range to read this font's "glyf" table from.</param>
+    /// <param name="glyphOrder">The source glyph ids to write, in the order the result numbers them. Null writes every glyph at the id it already had.</param>
+    public SfntGlyfWriteResult Write(SfntGlyf glyf, in SfntGlyfSource source, IReadOnlyList<ushort>? glyphOrder = null)
     {
         if (glyf == null)
         {
             throw new ArgumentNullException(nameof(glyf));
         }
 
-        int numGlyphs = glyf.NumGlyphs;
+        int numGlyphs = glyphOrder?.Count ?? glyf.NumGlyphs;
 
         // A repacked simple glyph is its source's size and a composite is copied at its own, so the
         // source table plus a pad byte per glyph writes the whole table without growing.
@@ -106,9 +111,10 @@ public class SfntGlyfProcessor
         {
             var startOffset = (uint)writer.Length;
 
-            ReadOnlyMemory<byte> glyphData = FetchRawGlyph(gid, glyf.Loca, source);
+            int sourceGid = (glyphOrder != null) ? glyphOrder[gid] : gid;
+            ReadOnlyMemory<byte> glyphData = FetchRawGlyph(sourceGid, glyf.Loca, source);
 
-            if (IsComposite(glyphData.Span))
+            if (glyphOrder == null && IsComposite(glyphData.Span))
             {
                 writer.WriteBytes(glyphData.Span);
             }

@@ -90,9 +90,12 @@ public class SfntHheaProcessor
     }
 
     /// <summary>
-    /// Writes an "hhea" table's binary content.
+    /// Writes an "hhea" table's binary content, stating <paramref name="numberOfHMetrics"/> in place of
+    /// <see cref="SfntHhea.NumberOfHMetrics"/>.
     /// </summary>
-    public byte[] Write(SfntHhea hhea)
+    /// <param name="hhea">The table to write.</param>
+    /// <param name="numberOfHMetrics">The number of long horizontal metrics "hmtx" is written with.</param>
+    public byte[] Write(SfntHhea hhea, ushort numberOfHMetrics)
     {
         if (hhea == null)
         {
@@ -119,7 +122,7 @@ public class SfntHheaProcessor
         }
 
         writer.WriteInt16(hhea.MetricDataFormat);
-        writer.WriteUInt16(hhea.NumberOfHMetrics);
+        writer.WriteUInt16(numberOfHMetrics);
 
         return writer.Detach();
     }

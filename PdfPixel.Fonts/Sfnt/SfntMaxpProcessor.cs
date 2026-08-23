@@ -115,9 +115,12 @@ public class SfntMaxpProcessor
     /// <summary>
     /// Writes a "maxp" table's binary content: 6 bytes for version 0.5, or 32 bytes for version 1.0
     /// (the TrueType-only fields are expected to be set whenever <see cref="SfntMaxp.Version"/> is
-    /// 1.0; a missing field writes as 0).
+    /// 1.0; a missing field writes as 0). <paramref name="numGlyphs"/> is stated in place of
+    /// <see cref="SfntMaxp.NumGlyphs"/>.
     /// </summary>
-    public byte[] Write(SfntMaxp maxp)
+    /// <param name="maxp">The table to write.</param>
+    /// <param name="numGlyphs">The number of glyphs the font is written with.</param>
+    public byte[] Write(SfntMaxp maxp, ushort numGlyphs)
     {
         if (maxp == null)
         {
@@ -126,7 +129,7 @@ public class SfntMaxpProcessor
 
         SfntWriter writer = new();
         writer.WriteUInt32((maxp.Version == 0.5f) ? Version05Fixed : Version10Fixed);
-        writer.WriteUInt16(maxp.NumGlyphs);
+        writer.WriteUInt16(numGlyphs);
 
         if (maxp.Version == 0.5f)
         {

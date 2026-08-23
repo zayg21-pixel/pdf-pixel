@@ -121,7 +121,7 @@ public sealed class SfntPdfTypeface : IPdfTypeface
     {
         if (_parameters.RepackTypeface)
         {
-            byte[] repackedFontBytes = _processor.Write(_font, _fontStream);
+            byte[] repackedFontBytes = _processor.Write(_font, _fontStream, _parameters.Repack);
             return new MemoryStream(repackedFontBytes, writable: false);
         }
 

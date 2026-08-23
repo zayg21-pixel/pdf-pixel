@@ -26,10 +26,10 @@ public class CffTypeface
     /// <summary>
     /// Gets or sets the entries of the String INDEX (custom strings referenced by SID from DICTs).
     /// </summary>
-    public ReadOnlyMemory<byte>[] Strings { get; set; } = Array.Empty<ReadOnlyMemory<byte>>();
+    internal ReadOnlyMemory<byte>[] Strings { get; set; } = Array.Empty<ReadOnlyMemory<byte>>();
 
     /// <summary>
     /// Gets or sets the entries of the Global Subr INDEX (charstring subroutines callable via <c>callgsubr</c>).
     /// </summary>
-    public ReadOnlyMemory<byte>[] GlobalSubrs { get; set; } = Array.Empty<ReadOnlyMemory<byte>>();
+    internal ReadOnlyMemory<byte>[] GlobalSubrs { get; set; } = Array.Empty<ReadOnlyMemory<byte>>();
 }

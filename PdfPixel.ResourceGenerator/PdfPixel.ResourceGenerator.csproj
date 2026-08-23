@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
+    <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,6 +41,15 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Encodings\StandardFontGlyphMapCalibri.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Fonts\FontMetrics\**\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Fonts\EncodingMetrics\**\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Fonts\FoxitFonts\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

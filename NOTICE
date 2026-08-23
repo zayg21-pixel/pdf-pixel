@@ -9,7 +9,39 @@ Adobe CMap Resources Attribution
 The files located in 'PdfPixel/Resources/External' are copyright Adobe and licensed under the BSD 3-Clause License. The BSD 3-Clause license text is included in that directory.
 
 
+Adobe Core 14 AFM Files Attribution
+-----------------------------------
+
+The AFM files located in 'PdfPixel.ResourceGenerator/Fonts/FontMetrics' are copyright Adobe Systems Incorporated. They are redistributed unmodified, together with the 'MustRead.html' notice that accompanies them and states their terms. The advance widths they state are built into the Standard 14 substitution fonts described below.
+
+
+Croscore Fonts Attribution
+--------------------------
+
+The Standard 14 substitution fonts for the Times, Helvetica and Courier families are derived from the Croscore fonts Tinos, Arimo and Cousine:
+
+    Digitized data copyright (c) 2010-2012 Google Corporation
+    Licensed under the Apache License, Version 2.0
+
+These fonts are modified. Each is subset to the glyphs its corresponding Adobe AFM names, and the advance width of every retained glyph is replaced with the width that AFM states, scaled into the font's em square. The family names in each font's 'name' table are left as they are upstream.
+
+A copy of the Apache License, Version 2.0 is included in this repository as 'LICENSE-APACHE-2.0'.
+
+
+PDFium / Foxit Fonts Attribution
+--------------------------------
+
+The Standard 14 substitution fonts for Symbol and ZapfDingbats are the CFF font programs extracted from PDFium, held in this repository as 'PdfPixel.ResourceGenerator/Fonts/FoxitFonts'. Their outlines are unmodified; they are wrapped in an OpenType container and given a character mapping:
+
+    Copyright 2014 PDFium Authors. All rights reserved.
+    Use of this source code is governed by a BSD-style license.
+
+    Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
+
+The full license text is included in that directory as 'LICENSE_FOXIT'.
+
+
 All other code in this repository is licensed under the MIT License.
 
 
-For details, see the LICENSE file and the Adobe BSD 3-Clause license in 'PdfPixel/Resources/External'.
+For details, see the LICENSE file, the Adobe BSD 3-Clause license in 'PdfPixel/Resources/External', 'LICENSE-APACHE-2.0', and 'PdfPixel.ResourceGenerator/Fonts/FoxitFonts/LICENSE_FOXIT'.

@@ -137,9 +137,9 @@ dblGrave;030F
 dblgrave;030F
 dieresisacute;0308 0301
 dieresisgrave;0308 0300
-commaaccent;0313
-commainferior;0315
-commasuperior;0313
+commaaccent;0326
+commainferior;002C
+commasuperior;002C
 LL;004C 004C
 ll;006C 006C
 Ogoneksmall;01EB
