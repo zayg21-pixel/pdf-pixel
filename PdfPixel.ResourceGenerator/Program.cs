@@ -27,7 +27,6 @@ internal static class Program
 
     private const string CmapOutputDirectory = "CMaps";
     private const string CidToUnicodeOutputDirectory = "CidToUnicode";
-    private const string Cid2CodeOutputDirectory = "Cid2Code";
     private const string GlyphNamesOutputDirectory = "GlyphNames";
     private const string Standard14WidthsOutputDirectory = "Standard14Widths";
     private const string PostGlyphOrderOutputDirectory = "PostGlyphOrder";
@@ -40,7 +39,6 @@ internal static class Program
     private static readonly string[] SectionNames =
     [
         CmapOutputDirectory,
-        Cid2CodeOutputDirectory,
         CidToUnicodeOutputDirectory,
         GlyphNamesOutputDirectory,
         Standard14WidthsOutputDirectory,
@@ -80,7 +78,7 @@ internal static class Program
             }
         }
 
-        if (IsSelected(sections, CmapOutputDirectory) || IsSelected(sections, Cid2CodeOutputDirectory))
+        if (IsSelected(sections, CmapOutputDirectory))
         {
             string cmapWorkDirectory = Path.Combine(AppContext.BaseDirectory, "temp", CmapWorkDirectory);
             if (Directory.Exists(cmapWorkDirectory))
@@ -90,19 +88,10 @@ internal static class Program
 
             string sourceRoot = await CmapSourceDownloader.DownloadAndExtractAsync(CmapSourceUrl, cmapWorkDirectory).ConfigureAwait(false);
 
-            if (IsSelected(sections, CmapOutputDirectory))
-            {
-                IReadOnlyList<PdfCMap> cmaps = CmapSourceParser.ParseAll(sourceRoot, loggerFactory);
+            IReadOnlyList<PdfCMap> cmaps = CmapSourceParser.ParseAll(sourceRoot, loggerFactory);
 
-                Console.WriteLine($"Compressing CMaps to {CmapOutputDirectory} ...");
-                CmapCompressor.CompressCmaps(cmaps, GetOutputDirectory(CmapOutputDirectory));
-            }
-
-            if (IsSelected(sections, Cid2CodeOutputDirectory))
-            {
-                Console.WriteLine($"Generating CID-to-Unicode (cid2code) to {Cid2CodeOutputDirectory} ...");
-                CidToUnicodeGenerator.GenerateAll(sourceRoot, GetOutputDirectory(Cid2CodeOutputDirectory));
-            }
+            Console.WriteLine($"Compressing CMaps to {CmapOutputDirectory} ...");
+            CmapCompressor.CompressCmaps(cmaps, GetOutputDirectory(CmapOutputDirectory));
         }
 
         if (IsSelected(sections, CidToUnicodeOutputDirectory))
