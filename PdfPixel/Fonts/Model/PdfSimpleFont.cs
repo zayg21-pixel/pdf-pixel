@@ -81,7 +81,7 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// <inheritdoc/>
     public override string? GetRenderingUnicodeString(PdfCharacterCode code)
     {
-        if (_resolution.SubstitutesUndefinedCodesWithSpace
+        if (_resolution.SpaceWidth != null
             && Encoding.GetNameByCodeOrUndefined((byte)(uint)code) == SingleByteEncodings.UndefinedCharacter)
         {
             return " ";
@@ -155,13 +155,7 @@ public class PdfSimpleFont : PdfSingleByteFont
             Encoding.UpdateEncoding(PdfEncoding.StandardEncoding);
         }
 
-        return new TypefaceResolution(
-            default,
-            default,
-            isSubstituted: true,
-            descriptor: null,
-            Type == PdfFontSubType.Type1 || Type == PdfFontSubType.MMType1,
-            ResolveSpaceWidth(mapper: null));
+        return new TypefaceResolution(default, default, isSubstituted: true, descriptor: null, ResolveSpaceWidth(mapper: null));
     }
 
     private TypefaceResolution? ResolveStandard14Typeface()
@@ -192,13 +186,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         PdfFontDescriptor descriptor = PdfFontDescriptor.FromMetrics(typeface.Metrics, typeface.IsSymbolEncoded);
         SfntByteCodeToGidMapper mapper = new(typeface, descriptor.Flags, substituted: false, Encoding);
 
-        return new TypefaceResolution(
-            typeface,
-            mapper,
-            isSubstituted: false,
-            descriptor,
-            Type == PdfFontSubType.Type1 || Type == PdfFontSubType.MMType1,
-            ResolveSpaceWidth(mapper));
+        return new TypefaceResolution(typeface, mapper, isSubstituted: false, descriptor, ResolveSpaceWidth(mapper));
     }
 
     /// <summary>
@@ -213,7 +201,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
         CffByteCodeToGidMapper mapper = new(typeface.CffTypeface, typeface, Encoding);
 
-        return new TypefaceResolution(typeface, mapper, isSubstituted: false, descriptor: null, substitutesUndefinedCodesWithSpace: false, spaceWidth: null);
+        return new TypefaceResolution(typeface, mapper, isSubstituted: false, descriptor: null, spaceWidth: null);
     }
 
     private TypefaceResolution BuildFromTypeface(IPdfTypeface typeface)
@@ -238,7 +226,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                 SfntByteCodeToGidMapper mapper = new(sfntPdfTypeface, FontDescriptor?.Flags ?? default, substituted: false, Encoding);
 
-                return new TypefaceResolution(typeface, mapper, isSubstituted: false, descriptor: null, substitutesUndefinedCodesWithSpace: false, spaceWidth: null);
+                return new TypefaceResolution(typeface, mapper, isSubstituted: false, descriptor: null, spaceWidth: null);
             }
             default:
             {
@@ -249,6 +237,11 @@ public class PdfSimpleFont : PdfSingleByteFont
 
     private float? ResolveSpaceWidth(SfntByteCodeToGidMapper? mapper)
     {
+        if (Type != PdfFontSubType.Type1 && Type != PdfFontSubType.MMType1)
+        {
+            return null;
+        }
+
         byte? spaceCode = Encoding.GetCodeByName(SpaceGlyphName);
 
         if (spaceCode == null)
@@ -275,19 +268,12 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// </summary>
     private readonly struct TypefaceResolution
     {
-        public TypefaceResolution(
-            IPdfTypeface? typeface,
-            IByteCodeToGidMapper? mapper,
-            bool isSubstituted,
-            PdfFontDescriptor? descriptor,
-            bool substitutesUndefinedCodesWithSpace,
-            float? spaceWidth)
+        public TypefaceResolution(IPdfTypeface? typeface, IByteCodeToGidMapper? mapper, bool isSubstituted, PdfFontDescriptor? descriptor, float? spaceWidth)
         {
             Typeface = typeface;
             Mapper = mapper;
             IsSubstituted = isSubstituted;
             Descriptor = descriptor;
-            SubstitutesUndefinedCodesWithSpace = substitutesUndefinedCodesWithSpace;
             SpaceWidth = spaceWidth;
         }
 
@@ -298,8 +284,6 @@ public class PdfSimpleFont : PdfSingleByteFont
         public bool IsSubstituted { get; }
 
         public PdfFontDescriptor? Descriptor { get; }
-
-        public bool SubstitutesUndefinedCodesWithSpace { get; }
 
         public float? SpaceWidth { get; }
     }
