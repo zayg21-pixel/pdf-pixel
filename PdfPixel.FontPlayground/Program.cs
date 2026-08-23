@@ -41,7 +41,7 @@ internal static class Program
         MemorySnapshot previousMemory = memoryBefore;
 
         Stopwatch stopwatch = Stopwatch.StartNew();
-        FontProvider fontProvider = new(new SkiaFontSubstitutor(NullLoggerFactory.Instance), FontSubstitutionMaps.Current);
+        FontProvider fontProvider = new(new SkiaFontSubstitutor(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
         previousMemory = ReportStep("FontProvider construction", previousMemory);
 
         foreach ((PdfSubstitutionInfo substitutionInfo, string unicode, string description) in cases)

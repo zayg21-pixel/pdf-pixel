@@ -6,7 +6,20 @@ This project is licensed under the MIT License, except for certain third-party r
 Adobe CMap Resources Attribution
 --------------------------------
 
-The files located in 'PdfPixel/Resources/External' are copyright Adobe and licensed under the BSD 3-Clause License. The BSD 3-Clause license text is included in that directory.
+The files located in 'PdfPixel/Resources/External' are copyright Adobe and licensed under the BSD 3-Clause License. The BSD 3-Clause license text is included in that directory as 'LICENSE.md'.
+
+
+Mozilla pdf.js Attribution
+--------------------------
+
+The standard font glyph maps are ported from pdf.js's 'standard_fonts.js':
+
+    Copyright Mozilla Foundation
+    Licensed under the Apache License, Version 2.0
+
+The port covers the 'StandardFontGlyphMap.txt', 'StandardFontGlyphMapArialBlack.txt' and 'StandardFontGlyphMapCalibri.txt' source lists in 'PdfPixel.ResourceGenerator/Encodings', the generator that reads them, and the 'StandardFontGlyphMap*.bin' resources it writes into 'PdfPixel/Resources/GlyphMaps'.
+
+A copy of the Apache License, Version 2.0 is included in this repository as 'LICENSE-APACHE-2.0'.
 
 
 Adobe Core 14 AFM Files Attribution
@@ -15,17 +28,20 @@ Adobe Core 14 AFM Files Attribution
 The AFM files located in 'PdfPixel.ResourceGenerator/Fonts/FontMetrics' are copyright Adobe Systems Incorporated. They are redistributed unmodified, together with the 'MustRead.html' notice that accompanies them and states their terms. The advance widths they state are built into the Standard 14 substitution fonts described below.
 
 
-Croscore Fonts Attribution
---------------------------
+URW Core 35 Fonts Attribution
+-----------------------------
 
-The Standard 14 substitution fonts for the Times, Helvetica and Courier families are derived from the Croscore fonts Tinos, Arimo and Cousine:
+The Standard 14 substitution fonts for the Times, Helvetica and Courier families are derived from the URW Core 35 fonts, Version 2.00 - Nimbus Roman, Nimbus Sans and Nimbus Mono PS respectively:
 
-    Digitized data copyright (c) 2010-2012 Google Corporation
-    Licensed under the Apache License, Version 2.0
+    Copyright 2014, 2015 by (URW)++ Design & Development
 
-These fonts are modified. Each is subset to the glyphs its corresponding Adobe AFM names, and the advance width of every retained glyph is replaced with the width that AFM states, scaled into the font's em square. The family names in each font's 'name' table are left as they are upstream.
+URW++ offers Version 2.00 under a choice of three licenses: the GNU Affero General Public License Version 3 with a font-embedding exemption, the LaTeX Project Public License Version 1.3c, and the SIL Open Font License Version 1.1. This project uses these fonts under the SIL Open Font License, Version 1.1 alone, which the URW++ release carries with no Reserved Font Name. A copy of that license is included next to the fonts it covers, as 'PdfPixel.Fonts/Resources/Standard14Fonts/LICENSE.OFL'.
 
-A copy of the Apache License, Version 2.0 is included in this repository as 'LICENSE-APACHE-2.0'.
+The source fonts are cloned from 'https://github.com/twardoch/urw-core35-fonts' when 'PdfPixel.ResourceGenerator' generates the Standard14Fonts section; they are not held in this repository.
+
+These fonts are modified. Each is subset to the glyphs its corresponding Adobe AFM names, the advance width of every retained glyph is replaced with the width that AFM states scaled into the font's em square, and the 'name' table is replaced with a PdfPixel family name so that the result is not presented under the URW++ names. Each font states the copyright notice above and its license in its own 'name' table.
+
+As the SIL Open Font License requires, these font files remain licensed under that license, modified or unmodified, and are not covered by the MIT License that applies to the rest of this repository. That requirement does not extend to any document produced with them.
 
 
 PDFium / Foxit Fonts Attribution
@@ -44,4 +60,4 @@ The full license text is included in that directory as 'LICENSE_FOXIT'.
 All other code in this repository is licensed under the MIT License.
 
 
-For details, see the LICENSE file, the Adobe BSD 3-Clause license in 'PdfPixel/Resources/External', 'LICENSE-APACHE-2.0', and 'PdfPixel.ResourceGenerator/Fonts/FoxitFonts/LICENSE_FOXIT'.
+For details, see the LICENSE file, the Adobe BSD 3-Clause license in 'PdfPixel/Resources/External', 'LICENSE-APACHE-2.0', 'PdfPixel.Fonts/Resources/Standard14Fonts/LICENSE.OFL', and 'PdfPixel.ResourceGenerator/Fonts/FoxitFonts/LICENSE_FOXIT'.

@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\**\*.bin" />
+    <EmbeddedResource Include="Resources\Standard14Fonts\*.ttf" />
+    <EmbeddedResource Include="Resources\Standard14Fonts\*.otf" />
   </ItemGroup>
 
   <ItemGroup>

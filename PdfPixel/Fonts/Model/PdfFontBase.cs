@@ -62,18 +62,9 @@ public abstract class PdfFontBase
 
     /// <summary>
     /// <see langword="true"/> when a substitute glyph's own shaped width should be rescaled to match this
-    /// font's declared advance width, rather than trusted as-is. Skipped when the substitute resolves to a
-    /// Standard 14 family, since its metrics are already trusted to match.
+    /// font's declared advance width, rather than trusted as-is.
     /// </summary>
-    protected internal bool ShouldRescale
-    {
-        get
-        {
-            return IsSubstitutedFont
-                && HasWidths
-                && !SubstitutionInfo.GetStandardName().HasValue;
-        }
-    }
+    protected internal bool ShouldRescale => IsSubstitutedFont && HasWidths;
 
     /// <summary>
     /// Original PDF font object.

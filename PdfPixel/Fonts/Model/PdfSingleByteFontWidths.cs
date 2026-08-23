@@ -34,7 +34,7 @@ public class PdfSingleByteFontWidths
 
     /// <summary>
     /// <see langword="true"/> when at least one code in <see cref="Widths"/> has an assigned width.
-    /// Computed once by <see cref="Parse"/>/<see cref="FromStandardFont"/> alongside the array itself.
+    /// Computed once by <see cref="Parse"/> alongside the array itself.
     /// </summary>
     public bool HasWidths { get; private set; }
 
@@ -100,41 +100,6 @@ public class PdfSingleByteFontWidths
         {
             FirstChar = firstChar,
             LastChar = lastChar,
-            Widths = widthsArray,
-            HasWidths = hasWidths
-        };
-    }
-
-    /// <summary>
-    /// Builds the default (code 0-255) width table for a Standard 14 font, from the embedded AFM width
-    /// resources. Used when a PDF font dictionary omits <c>/Widths</c>.
-    /// </summary>
-    /// <param name="fontName">The Standard 14 font family.</param>
-    /// <param name="bold">Whether to resolve the bold style variant.</param>
-    /// <param name="italic">Whether to resolve the italic/oblique style variant.</param>
-    /// <param name="encoding">The font's actual encoding, matching what the glyph-ID resolution path uses.</param>
-    /// <returns>The resolved widths, or <see langword="null"/> if the family or style variant is unknown.</returns>
-    internal static PdfSingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfFontEncodingInfo encoding)
-    {
-        int?[]? widths = Standard14Metrics.GetWidths(fontName, bold, italic, encoding);
-        if (widths == null)
-        {
-            return null;
-        }
-
-        var widthsArray = new float?[widths.Length];
-        var hasWidths = false;
-        for (int i = 0; i < widths.Length; i++)
-        {
-            int? width = widths[i];
-            widthsArray[i] = (width.HasValue) ? width.Value * WidthToUserSpaceCoeff : null;
-            hasWidths |= width.HasValue;
-        }
-
-        return new PdfSingleByteFontWidths
-        {
-            FirstChar = 0,
-            LastChar = (uint)(widths.Length - 1),
             Widths = widthsArray,
             HasWidths = hasWidths
         };

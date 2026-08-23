@@ -57,7 +57,7 @@ internal sealed class Program
         // A font provider is used to substitute system fonts for fonts not embedded in the PDF, and
         // PdfDocumentReader is the entry point for parsing PDF files.
         SkiaFontSubstitutor fontSubstitutor = new(NullLoggerFactory.Instance);
-        FontProvider fontProvider = new(fontSubstitutor, FontSubstitutionMaps.Current);
+        FontProvider fontProvider = new(fontSubstitutor, NullLoggerFactory.Instance);
         PdfDocumentReader reader = new(NullLoggerFactory.Instance, fontProvider);
 
         if (args.Length > 0 && args[0] == "add")

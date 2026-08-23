@@ -12,8 +12,8 @@ namespace PdfPixel.ResourceGenerator.Fonts;
 
 /// <summary>
 /// Builds one substitute font file per Standard 14 font. The twelve text fonts are subsets of the
-/// matching Croscore font, carrying the advance widths of the Adobe AFM they stand in for; Symbol and
-/// ZapfDingbats are PDFium's CFF programs wrapped whole in an OpenType container.
+/// matching URW Core 35 font, carrying the advance widths of the Adobe AFM they stand in for; Symbol
+/// and ZapfDingbats are PDFium's CFF programs wrapped whole in an OpenType container.
 /// </summary>
 internal static class Standard14FontGenerator
 {
@@ -30,20 +30,50 @@ internal static class Standard14FontGenerator
 
     private const float AfmUnitsPerEm = 1000f;
 
-    private static readonly (string Standard14Name, string SourceFileName)[] TextFonts =
+    private const string SerifFamilyName = "PdfPixel Serif";
+    private const string SansFamilyName = "PdfPixel Sans";
+    private const string MonoFamilyName = "PdfPixel Mono";
+
+    private const string RegularStyleName = "Regular";
+    private const string BoldStyleName = "Bold";
+    private const string ItalicStyleName = "Italic";
+    private const string BoldItalicStyleName = "Bold Italic";
+
+    /// <summary>
+    /// The copyright notice and license the SIL Open Font License requires every copy of a URW Core 35
+    /// derivative to carry, stated in the "name" table records that hold them.
+    /// </summary>
+    private const string UrwCopyrightNotice = "Copyright 2014, 2015 by (URW)++ Design & Development";
+
+    private const string OpenFontLicenseDescription = "This font is a modified subset of a URW Core 35 font, "
+        + "licensed under the SIL Open Font License, Version 1.1.";
+
+    private const string OpenFontLicenseUrl = "https://openfontlicense.org";
+
+    private const string OpenFontLicenseFileName = "LICENSE.OFL";
+
+    private const ushort CopyrightNameId = 0;
+    private const ushort FamilyNameId = 1;
+    private const ushort StyleNameId = 2;
+    private const ushort FullNameId = 4;
+    private const ushort PostScriptNameId = 6;
+    private const ushort LicenseDescriptionNameId = 13;
+    private const ushort LicenseUrlNameId = 14;
+
+    private static readonly (string Standard14Name, string SourceFileName, string FamilyName, string StyleName)[] TextFonts =
     [
-        ("Courier", "Cousine-Regular.ttf"),
-        ("Courier-Bold", "Cousine-Bold.ttf"),
-        ("Courier-Oblique", "Cousine-Italic.ttf"),
-        ("Courier-BoldOblique", "Cousine-BoldItalic.ttf"),
-        ("Helvetica", "Arimo-Regular.ttf"),
-        ("Helvetica-Bold", "Arimo-Bold.ttf"),
-        ("Helvetica-Oblique", "Arimo-Italic.ttf"),
-        ("Helvetica-BoldOblique", "Arimo-BoldItalic.ttf"),
-        ("Times-Roman", "Tinos-Regular.ttf"),
-        ("Times-Bold", "Tinos-Bold.ttf"),
-        ("Times-Italic", "Tinos-Italic.ttf"),
-        ("Times-BoldItalic", "Tinos-BoldItalic.ttf")
+        ("Courier", "NimbusMonoPS-Regular.ttf", MonoFamilyName, RegularStyleName),
+        ("Courier-Bold", "NimbusMonoPS-Bold.ttf", MonoFamilyName, BoldStyleName),
+        ("Courier-Oblique", "NimbusMonoPS-Italic.ttf", MonoFamilyName, ItalicStyleName),
+        ("Courier-BoldOblique", "NimbusMonoPS-BoldItalic.ttf", MonoFamilyName, BoldItalicStyleName),
+        ("Helvetica", "NimbusSans-Regular.ttf", SansFamilyName, RegularStyleName),
+        ("Helvetica-Bold", "NimbusSans-Bold.ttf", SansFamilyName, BoldStyleName),
+        ("Helvetica-Oblique", "NimbusSans-Oblique.ttf", SansFamilyName, ItalicStyleName),
+        ("Helvetica-BoldOblique", "NimbusSans-BoldOblique.ttf", SansFamilyName, BoldItalicStyleName),
+        ("Times-Roman", "NimbusRoman-Regular.ttf", SerifFamilyName, RegularStyleName),
+        ("Times-Bold", "NimbusRoman-Bold.ttf", SerifFamilyName, BoldStyleName),
+        ("Times-Italic", "NimbusRoman-Italic.ttf", SerifFamilyName, ItalicStyleName),
+        ("Times-BoldItalic", "NimbusRoman-BoldItalic.ttf", SerifFamilyName, BoldItalicStyleName)
     ];
 
     private static readonly (string Standard14Name, string SourceFileName)[] SymbolicFonts =
@@ -57,7 +87,7 @@ internal static class Standard14FontGenerator
     /// font each stands in for.
     /// </summary>
     public static void GenerateAll(
-        string croscoreDirectory,
+        string urwCore35Directory,
         string foxitDirectory,
         string metricsDirectory,
         string outputDirectory,
@@ -65,13 +95,20 @@ internal static class Standard14FontGenerator
     {
         Directory.CreateDirectory(outputDirectory);
 
-        foreach ((string standard14Name, string sourceFileName) in TextFonts)
+        File.Copy(
+            Path.Combine(urwCore35Directory, OpenFontLicenseFileName),
+            Path.Combine(outputDirectory, OpenFontLicenseFileName),
+            overwrite: true);
+
+        foreach ((string standard14Name, string sourceFileName, string familyName, string styleName) in TextFonts)
         {
             GenerateTextFont(
                 standard14Name,
-                Path.Combine(croscoreDirectory, sourceFileName),
+                Path.Combine(urwCore35Directory, sourceFileName),
                 Path.Combine(metricsDirectory, standard14Name + ".afm"),
                 Path.Combine(outputDirectory, standard14Name + ".ttf"),
+                familyName,
+                styleName,
                 loggerFactory);
         }
 
@@ -87,7 +124,7 @@ internal static class Standard14FontGenerator
     }
 
     /// <summary>
-    /// Subsets the Croscore font at <paramref name="sourcePath"/> to the glyphs the AFM at
+    /// Subsets the URW Core 35 font at <paramref name="sourcePath"/> to the glyphs the AFM at
     /// <paramref name="afmPath"/> names, in AFM order behind a leading notdef, replacing each one's
     /// advance width with the AFM's scaled into the source font's em square.
     /// </summary>
@@ -96,6 +133,8 @@ internal static class Standard14FontGenerator
         string sourcePath,
         string afmPath,
         string outputPath,
+        string familyName,
+        string styleName,
         ILoggerFactory loggerFactory)
     {
         IReadOnlyList<AfmCharacterMetric> characters = AfmParser.Parse(afmPath);
@@ -138,6 +177,7 @@ internal static class Standard14FontGenerator
         }
 
         font.Hmtx.Metrics = metrics;
+        font.Name = BuildTextFontName(familyName, styleName);
 
         parameters.RepackTypeface = true;
         parameters.Repack = new SfntPdfTypefaceRepackParameters
@@ -156,7 +196,7 @@ internal static class Standard14FontGenerator
     /// <summary>
     /// Resolves an AFM glyph to its source glyph id through the font's own "post" name, then through
     /// the Unicode the Adobe Glyph List resolves that name to. Returns null when neither addresses a
-    /// glyph, which a Croscore font naming its glyphs "uniXXXX" makes the ordinary case for the first.
+    /// glyph.
     /// </summary>
     private static ushort? ResolveGid(SfntPdfTypeface typeface, in PdfFontString glyphName, string? unicode)
     {
@@ -310,6 +350,30 @@ internal static class Standard14FontGenerator
             SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, 2, "Regular"),
             SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, 4, family),
             SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, 6, family)
+        ];
+
+        return new SfntName { Records = records };
+    }
+
+    /// <summary>
+    /// Builds a "name" table naming the font <paramref name="family"/> in style
+    /// <paramref name="style"/>, carrying the copyright notice and license the SIL Open Font License
+    /// requires the font itself to state.
+    /// </summary>
+    private static SfntName BuildTextFontName(string family, string style)
+    {
+        string fullName = $"{family} {style}";
+        string postScriptName = $"{family.Replace(" ", string.Empty)}-{style.Replace(" ", string.Empty)}";
+
+        List<SfntNameRecord> records =
+        [
+            SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, CopyrightNameId, UrwCopyrightNotice),
+            SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, FamilyNameId, family),
+            SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, StyleNameId, style),
+            SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, FullNameId, fullName),
+            SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, PostScriptNameId, postScriptName),
+            SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, LicenseDescriptionNameId, OpenFontLicenseDescription),
+            SfntNameRecord.CreateWindowsUnicode(NameLanguageEnUs, LicenseUrlNameId, OpenFontLicenseUrl)
         ];
 
         return new SfntName { Records = records };

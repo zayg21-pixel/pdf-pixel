@@ -34,10 +34,10 @@ float scale = 2f;
 using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
 
 // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
-// SkiaFontSubstitutor loads the installed system fonts; the map names the families that stand in
-// for the Standard 14 fonts on the operating system this process is running on.
+// SkiaFontSubstitutor loads the installed system fonts. The Standard 14 fonts are served from
+// PdfPixel's own embedded resources and do not go through substitution.
 SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
-FontProvider fontProvider = new(fontSubstitutor, FontSubstitutionMaps.Current);
+FontProvider fontProvider = new(fontSubstitutor, loggerFactory);
 
 // PdfDocumentReader is the entry point for parsing PDF files.
 PdfDocumentReader reader = new(loggerFactory, fontProvider);

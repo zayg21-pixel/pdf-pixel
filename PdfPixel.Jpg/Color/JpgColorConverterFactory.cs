@@ -55,10 +55,6 @@ internal static class JpgColorConverterFactory
         return new ColorClampConverter();
     }
 
-    /// <summary>
-    /// Matches pdf.js _isColorConversionNeeded for 3-component images (colorTransform = -1 / Default).
-    /// Adobe APP14 marker overrides; otherwise falls back to RGB component ID heuristic.
-    /// </summary>
     private static bool IsYuvNeeded(JpgHeader header)
     {
         if (header.HasAdobeApp14)

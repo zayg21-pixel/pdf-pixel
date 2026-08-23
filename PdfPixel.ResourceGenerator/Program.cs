@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,7 +8,6 @@ using PdfPixel.Fonts.Mapping;
 using PdfPixel.ResourceGenerator.Cmaps;
 using PdfPixel.ResourceGenerator.Encodings;
 using PdfPixel.ResourceGenerator.Fonts;
-using PdfPixel.ResourceGenerator.Metrics;
 
 namespace PdfPixel.ResourceGenerator;
 
@@ -18,19 +17,18 @@ internal static class Program
     private const string MappingResourcesUrl = "https://github.com/adobe-type-tools/mapping-resources-pdf/archive/refs/tags/20230118.zip";
     private const string AglUrl = "https://raw.githubusercontent.com/adobe-type-tools/agl-aglfn/master/glyphlist.txt";
     private const string ZapfDingbatsUrl = "https://raw.githubusercontent.com/adobe-type-tools/agl-aglfn/master/zapfdingbats.txt";
-    private const string CroscoreUrl = "https://storage.googleapis.com/chromeos-localmirror/distfiles/croscorefonts-1.23.0.tar.gz";
+    private const string UrwCore35RepositoryUrl = "https://github.com/twardoch/urw-core35-fonts.git";
 
     private const string CmapWorkDirectory = "CMaps";
     private const string MappingResourcesWorkDirectory = "MappingResources";
     private const string AglWorkDirectory = "AGL";
-    private const string CroscoreWorkDirectory = "Croscore";
+    private const string UrwCore35WorkDirectory = "UrwCore35";
 
     private const string CmapOutputDirectory = "CMaps";
     private const string CidToUnicodeOutputDirectory = "CidToUnicode";
     private const string GlyphNamesOutputDirectory = "GlyphNames";
-    private const string Standard14WidthsOutputDirectory = "Standard14Widths";
     private const string PostGlyphOrderOutputDirectory = "PostGlyphOrder";
-    private const string StandardFontGlyphMapOutputDirectory = "StandardFontGlyphMap";
+    private const string GlyphMapsOutputDirectory = "GlyphMaps";
     private const string Standard14FontsOutputDirectory = "Standard14Fonts";
 
     /// <summary>
@@ -41,9 +39,8 @@ internal static class Program
         CmapOutputDirectory,
         CidToUnicodeOutputDirectory,
         GlyphNamesOutputDirectory,
-        Standard14WidthsOutputDirectory,
         PostGlyphOrderOutputDirectory,
-        StandardFontGlyphMapOutputDirectory,
+        GlyphMapsOutputDirectory,
         Standard14FontsOutputDirectory
     ];
 
@@ -123,12 +120,6 @@ internal static class Program
             AglGenerator.GenerateFromFile(aglOverridesPath, GetOutputDirectory(GlyphNamesOutputDirectory));
         }
 
-        if (IsSelected(sections, Standard14WidthsOutputDirectory))
-        {
-            Console.WriteLine($"Generating Standard 14 widths to {Standard14WidthsOutputDirectory} ...");
-            Standard14WidthGenerator.GenerateAll(GetOutputDirectory(Standard14WidthsOutputDirectory));
-        }
-
         if (IsSelected(sections, PostGlyphOrderOutputDirectory))
         {
             Console.WriteLine($"Generating post table standard glyph order to {PostGlyphOrderOutputDirectory} ...");
@@ -136,23 +127,23 @@ internal static class Program
             PostGlyphOrderGenerator.Generate(postGlyphOrderSourcePath, GetOutputDirectory(PostGlyphOrderOutputDirectory));
         }
 
-        if (IsSelected(sections, StandardFontGlyphMapOutputDirectory))
+        if (IsSelected(sections, GlyphMapsOutputDirectory))
         {
-            Console.WriteLine($"Generating standard font glyph maps to {StandardFontGlyphMapOutputDirectory} ...");
+            Console.WriteLine($"Generating standard font glyph maps to {GlyphMapsOutputDirectory} ...");
             string standardFontGlyphMapSourceDirectory = Path.Combine(AppContext.BaseDirectory, "Encodings");
-            StandardFontGlyphMapGenerator.GenerateAll(standardFontGlyphMapSourceDirectory, GetOutputDirectory(StandardFontGlyphMapOutputDirectory));
+            StandardFontGlyphMapGenerator.GenerateAll(standardFontGlyphMapSourceDirectory, GetOutputDirectory(GlyphMapsOutputDirectory));
         }
 
         if (IsSelected(sections, Standard14FontsOutputDirectory))
         {
             Console.WriteLine($"Generating Standard 14 substitute fonts to {Standard14FontsOutputDirectory} ...");
 
-            string croscoreWorkDirectory = Path.Combine(AppContext.BaseDirectory, "temp", CroscoreWorkDirectory);
-            string croscoreRoot = await Standard14FontSourceDownloader.DownloadCroscoreAsync(CroscoreUrl, croscoreWorkDirectory).ConfigureAwait(false);
+            string urwCore35WorkDirectory = Path.Combine(AppContext.BaseDirectory, "temp", UrwCore35WorkDirectory);
+            string urwCore35Root = await Standard14FontSourceDownloader.CloneAsync(UrwCore35RepositoryUrl, urwCore35WorkDirectory).ConfigureAwait(false);
 
             string foxitFontsDirectory = Path.Combine(AppContext.BaseDirectory, "Fonts", "FoxitFonts");
             string fontMetricsDirectory = Path.Combine(AppContext.BaseDirectory, "Fonts", "FontMetrics");
-            Standard14FontGenerator.GenerateAll(croscoreRoot, foxitFontsDirectory, fontMetricsDirectory, GetOutputDirectory(Standard14FontsOutputDirectory), loggerFactory);
+            Standard14FontGenerator.GenerateAll(urwCore35Root, foxitFontsDirectory, fontMetricsDirectory, GetOutputDirectory(Standard14FontsOutputDirectory), loggerFactory);
         }
 
         Console.WriteLine("Done.");

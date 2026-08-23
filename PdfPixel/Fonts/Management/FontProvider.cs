@@ -1,5 +1,6 @@
-using PdfPixel.Fonts.Mapping;
+using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Resources;
 using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
@@ -7,13 +8,13 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Management;
 
 /// <summary>
-/// Locates a typeface to substitute for a PDF font whose own program is unavailable.
+/// Locates a typeface to substitute for a PDF font whose own program is unavailable and which is not
+/// one of the Standard 14 - those are served from this assembly's own resources and never reach here.
 /// </summary>
 public sealed class FontProvider : IDisposable
 {
     private readonly IFontSubstitutor _substitutor;
-    private readonly FontSubstitutionMap _substitutionMap;
-    private readonly HashSet<string> _standardFonts;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly Dictionary<PdfSubstitutionInfo, SfntPdfTypeface> _familyTypefaces = [];
     private readonly Dictionary<PdfSubstitutionInfo, List<SfntPdfTypeface>> _characterFallbackTypefaces = [];
     private SfntPdfTypeface? _fallback;
@@ -22,22 +23,21 @@ public sealed class FontProvider : IDisposable
     /// Initializes a new instance of the <see cref="FontProvider"/> class.
     /// </summary>
     /// <param name="substitutor">Loads typefaces from the underlying font source.</param>
-    /// <param name="substitutionMap">Names the families that stand in for each Standard 14 font.</param>
-    public FontProvider(IFontSubstitutor substitutor, FontSubstitutionMap substitutionMap)
+    /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
+    public FontProvider(IFontSubstitutor substitutor, ILoggerFactory loggerFactory)
     {
         if (substitutor == null)
         {
             throw new ArgumentNullException(nameof(substitutor));
         }
 
-        if (substitutionMap == null)
+        if (loggerFactory == null)
         {
-            throw new ArgumentNullException(nameof(substitutionMap));
+            throw new ArgumentNullException(nameof(loggerFactory));
         }
 
         _substitutor = substitutor;
-        _substitutionMap = substitutionMap;
-        _standardFonts = new HashSet<string>(substitutionMap.EnumerateFamilyNames(), StringComparer.OrdinalIgnoreCase);
+        _loggerFactory = loggerFactory;
     }
 
     /// <summary>
@@ -69,49 +69,33 @@ public sealed class FontProvider : IDisposable
     /// <param name="characterCode">The PDF character code to look up in the family's built-in encoding.</param>
     /// <returns>The resolved typeface, or <see langword="null"/> when the family is not symbol-encoded or does not map the code.</returns>
     public SfntPdfTypeface? GetSymbolTypefaceByCode(in PdfSubstitutionInfo substitutionInfo, int characterCode)
-        => ResolveSymbolFamilyByCode(substitutionInfo, characterCode);
+    {
+        SfntPdfTypeface? resolved = ResolveByFamilyName(substitutionInfo);
+
+        if (resolved != null && resolved.IsSymbolEncoded && resolved.GetGidByCode(characterCode) != null)
+        {
+            return resolved;
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Returns the last-resort typeface to measure against when a character resolves to no glyph at all.
     /// </summary>
     /// <param name="substitutionInfo">Normalized font substitution hints, used to match style where possible.</param>
-    public SfntPdfTypeface GetFallbackTypeface(in PdfSubstitutionInfo substitutionInfo)
-    {
-        string? fallbackFamilyName = _substitutionMap.FallbackFamilyName;
-        if (fallbackFamilyName != null)
-        {
-            SfntPdfTypeface? resolved = ResolveByFamilyName(new PdfSubstitutionInfo(fallbackFamilyName, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle));
-            if (resolved != null)
-            {
-                return resolved;
-            }
-        }
-
-        return GetSubstitutorFallbackTypeface();
-    }
+    public SfntPdfTypeface GetFallbackTypeface(in PdfSubstitutionInfo substitutionInfo) => GetStandard14Fallback(substitutionInfo);
 
     /// <summary>
-    /// Disposes and discards every cached typeface that isn't one of the provider's core substitution
-    /// targets - the Standard 14 family candidates and the configured fallback font - freeing memory
-    /// held by transient Unicode-fallback resolutions.
+    /// Disposes and discards every typeface cached here, freeing the memory held by resolutions this
+    /// provider owns. The Standard 14 resources are not among them: they are shared process-wide and
+    /// never held in these caches.
     /// </summary>
     public void Cleanup()
     {
-        List<PdfSubstitutionInfo> familyKeysToRemove = [];
-        foreach (KeyValuePair<PdfSubstitutionInfo, SfntPdfTypeface> entry in _familyTypefaces)
+        foreach (SfntPdfTypeface typeface in _familyTypefaces.Values)
         {
-            if (_standardFonts.Contains(entry.Key.NormalizedStem))
-            {
-                continue;
-            }
-
-            entry.Value.Dispose();
-            familyKeysToRemove.Add(entry.Key);
-        }
-
-        foreach (PdfSubstitutionInfo key in familyKeysToRemove)
-        {
-            _familyTypefaces.Remove(key);
+            typeface.Dispose();
         }
 
         foreach (List<SfntPdfTypeface> candidates in _characterFallbackTypefaces.Values)
@@ -122,6 +106,7 @@ public sealed class FontProvider : IDisposable
             }
         }
 
+        _familyTypefaces.Clear();
         _characterFallbackTypefaces.Clear();
     }
 
@@ -139,26 +124,18 @@ public sealed class FontProvider : IDisposable
     }
 
     /// <summary>
-    /// Walks the families that stand in for the requested one - the Standard 14 candidates first, then
-    /// the requested family itself, then the configured fallback family - returning the first that
-    /// covers <paramref name="unicode"/>.
+    /// Returns the embedded Standard 14 Helvetica in the requested style. The instance is shared
+    /// process-wide, so it is never cached here and never disposed.
+    /// </summary>
+    private SfntPdfTypeface GetStandard14Fallback(in PdfSubstitutionInfo substitutionInfo)
+        => Standard14TypefaceLoader.GetTypeface(PdfFontStandardName.Helvetica, substitutionInfo.IsBold, substitutionInfo.IsItalic, _loggerFactory);
+
+    /// <summary>
+    /// Walks the families that stand in for the requested one - the requested family itself, then the
+    /// embedded Standard 14 fallback - returning the first that covers <paramref name="unicode"/>.
     /// </summary>
     private SfntPdfTypeface? ResolveFamilyByUnicode(in PdfSubstitutionInfo substitutionInfo, string unicode)
     {
-        PdfStandardFontName? standardName = substitutionInfo.GetStandardName();
-        if (standardName.HasValue && _substitutionMap.Candidates.TryGetValue(standardName.Value, out IReadOnlyList<string>? candidates) && candidates != null)
-        {
-            foreach (string candidate in candidates)
-            {
-                SfntPdfTypeface? resolvedCandidate = ResolveByFamilyName(new PdfSubstitutionInfo(candidate, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle));
-
-                if (resolvedCandidate != null && resolvedCandidate.ContainsAllGlyphs(unicode))
-                {
-                    return resolvedCandidate;
-                }
-            }
-        }
-
         SfntPdfTypeface? resolved = ResolveByFamilyName(substitutionInfo);
 
         if (resolved != null && resolved.ContainsAllGlyphs(unicode))
@@ -166,49 +143,9 @@ public sealed class FontProvider : IDisposable
             return resolved;
         }
 
-        string? fallbackFamilyName = _substitutionMap.FallbackFamilyName;
-        if (fallbackFamilyName != null)
-        {
-            SfntPdfTypeface? resolvedFallback = ResolveByFamilyName(new PdfSubstitutionInfo(fallbackFamilyName, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle));
+        SfntPdfTypeface standard14Fallback = GetStandard14Fallback(substitutionInfo);
 
-            if (resolvedFallback != null && resolvedFallback.ContainsAllGlyphs(unicode))
-            {
-                return resolvedFallback;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Walks the families that stand in for the requested one - the Standard 14 candidates first, then
-    /// the requested family itself - returning the first that is symbol-encoded and maps
-    /// <paramref name="characterCode"/>.
-    /// </summary>
-    private SfntPdfTypeface? ResolveSymbolFamilyByCode(in PdfSubstitutionInfo substitutionInfo, int characterCode)
-    {
-        PdfStandardFontName? standardName = substitutionInfo.GetStandardName();
-        if (standardName.HasValue && _substitutionMap.Candidates.TryGetValue(standardName.Value, out IReadOnlyList<string>? candidates) && candidates != null)
-        {
-            foreach (string candidate in candidates)
-            {
-                SfntPdfTypeface? resolvedCandidate = ResolveByFamilyName(new PdfSubstitutionInfo(candidate, substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.ItalicAngle));
-
-                if (resolvedCandidate != null && resolvedCandidate.IsSymbolEncoded && resolvedCandidate.GetGidByCode(characterCode) != null)
-                {
-                    return resolvedCandidate;
-                }
-            }
-        }
-
-        SfntPdfTypeface? resolved = ResolveByFamilyName(substitutionInfo);
-
-        if (resolved != null && resolved.IsSymbolEncoded && resolved.GetGidByCode(characterCode) != null)
-        {
-            return resolved;
-        }
-
-        return null;
+        return (standard14Fallback.ContainsAllGlyphs(unicode)) ? standard14Fallback : null;
     }
 
     private SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
@@ -258,22 +195,9 @@ public sealed class FontProvider : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        foreach (SfntPdfTypeface typeface in _familyTypefaces.Values)
-        {
-            typeface.Dispose();
-        }
-
-        foreach (List<SfntPdfTypeface> candidates in _characterFallbackTypefaces.Values)
-        {
-            foreach (SfntPdfTypeface typeface in candidates)
-            {
-                typeface.Dispose();
-            }
-        }
+        Cleanup();
 
         _fallback?.Dispose();
-
-        _familyTypefaces.Clear();
-        _characterFallbackTypefaces.Clear();
+        _fallback = null;
     }
 }

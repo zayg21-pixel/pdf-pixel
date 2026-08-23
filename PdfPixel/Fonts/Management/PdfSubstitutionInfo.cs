@@ -138,6 +138,11 @@ public readonly struct PdfSubstitutionInfo : IEquatable<PdfSubstitutionInfo>
     public float ItalicAngle { get; }
 
     /// <summary>
+    /// <see langword="true"/> when <see cref="Weight"/> is at least <see cref="BoldWeight"/>.
+    /// </summary>
+    public bool IsBold => Weight >= BoldWeight;
+
+    /// <summary>
     /// <see langword="true"/> when <see cref="ItalicAngle"/> is non-zero.
     /// </summary>
     public bool IsItalic => ItalicAngle != 0f;

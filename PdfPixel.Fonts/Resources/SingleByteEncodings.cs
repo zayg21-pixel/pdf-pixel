@@ -1,4 +1,6 @@
 using PdfPixel.Fonts.Model;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Resources;
 
@@ -18,6 +20,10 @@ public static class SingleByteEncodings
     private static readonly PdfFontString[] _macExpert;
     private static readonly PdfFontString[] _symbol;
     private static readonly PdfFontString[] _zapfDingbats;
+
+    private static readonly ConcurrentDictionary<PdfFontEncoding, HashSet<PdfFontString>> EncodingNames = [];
+
+    private static readonly ConcurrentDictionary<PdfFontEncoding, Dictionary<PdfFontString, byte>> EncodingCodesByName = [];
 
     // Predefined Standard 14 font name mappings to encodings
     private static readonly (PdfFontStandardName Name, PdfFontEncoding Encoding)[] Standard14NameEncodings =
@@ -75,6 +81,19 @@ public static class SingleByteEncodings
     }
 
     /// <summary>
+    /// Reports whether <paramref name="encoding"/> maps <paramref name="name"/> at any code. Returns
+    /// <see langword="false"/> for an encoding with no glyph names of its own.
+    /// </summary>
+    /// <param name="encoding">The font encoding to look in.</param>
+    /// <param name="name">The glyph name to look for.</param>
+    public static bool ContainsName(PdfFontEncoding encoding, in PdfFontString name)
+    {
+        HashSet<PdfFontString>? names = GetEncodingNames(encoding);
+
+        return names != null && names.Contains(name);
+    }
+
+    /// <summary>
     /// Gets the glyph name for a given code and encoding.
     /// </summary>
     /// <param name="code">The single-byte code to look up.</param>
@@ -92,6 +111,24 @@ public static class SingleByteEncodings
             PdfFontEncoding.ZapfDingbatsEncoding => _zapfDingbats[code],
             _ => default
         };
+    }
+
+    /// <summary>
+    /// Gets the lowest code <paramref name="encoding"/> maps to <paramref name="name"/>, or
+    /// <see langword="null"/> when it maps no code to it.
+    /// </summary>
+    /// <param name="encoding">The font encoding to look in.</param>
+    /// <param name="name">The glyph name to look for.</param>
+    public static byte? GetCodeByName(PdfFontEncoding encoding, in PdfFontString name)
+    {
+        Dictionary<PdfFontString, byte>? codesByName = GetEncodingCodesByName(encoding);
+
+        if (codesByName != null && codesByName.TryGetValue(name, out byte code))
+        {
+            return code;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -162,5 +199,67 @@ public static class SingleByteEncodings
         }
 
         return default;
+    }
+
+    /// <summary>
+    /// The distinct glyph names one encoding maps, built on first use and held afterward.
+    /// </summary>
+    private static HashSet<PdfFontString>? GetEncodingNames(PdfFontEncoding encoding)
+    {
+        if (EncodingNames.TryGetValue(encoding, out HashSet<PdfFontString>? cached))
+        {
+            return cached;
+        }
+
+        PdfFontString[]? encodingSet = GetEncodingSet(encoding);
+        if (encodingSet == null)
+        {
+            return null;
+        }
+
+        HashSet<PdfFontString> names = [];
+        foreach (PdfFontString name in encodingSet)
+        {
+            if (!name.IsEmpty)
+            {
+                names.Add(name);
+            }
+        }
+
+        EncodingNames[encoding] = names;
+
+        return names;
+    }
+
+    /// <summary>
+    /// The code each glyph name one encoding maps is addressed by, built on first use and held
+    /// afterward. Where an encoding maps a name at more than one code, the lowest is kept.
+    /// </summary>
+    private static Dictionary<PdfFontString, byte>? GetEncodingCodesByName(PdfFontEncoding encoding)
+    {
+        if (EncodingCodesByName.TryGetValue(encoding, out Dictionary<PdfFontString, byte>? cached))
+        {
+            return cached;
+        }
+
+        PdfFontString[]? encodingSet = GetEncodingSet(encoding);
+        if (encodingSet == null)
+        {
+            return null;
+        }
+
+        Dictionary<PdfFontString, byte> codesByName = [];
+        for (int code = encodingSet.Length - 1; code >= 0; code--)
+        {
+            PdfFontString name = encodingSet[code];
+            if (!name.IsEmpty)
+            {
+                codesByName[name] = (byte)code;
+            }
+        }
+
+        EncodingCodesByName[encoding] = codesByName;
+
+        return codesByName;
     }
 }

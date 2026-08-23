@@ -1,55 +1,73 @@
 using System;
-using System.Formats.Tar;
+using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace PdfPixel.ResourceGenerator.Fonts;
 
 /// <summary>
-/// Downloads and extracts the Croscore font archive.
+/// Clones the URW Core 35 font repository the Standard 14 text substitutes are built from.
 /// </summary>
 internal static class Standard14FontSourceDownloader
 {
+    private const string GitExecutable = "git";
+
     /// <summary>
-    /// Downloads the gzipped tar archive at <paramref name="sourceUrl"/> and extracts it into
-    /// <paramref name="workDirectory"/>. Returns the path to the extracted root folder.
+    /// Clones <paramref name="repositoryUrl"/> into <paramref name="workDirectory"/>, replacing any
+    /// clone already there. Returns the path to the working tree.
     /// </summary>
-    public static async Task<string> DownloadCroscoreAsync(string sourceUrl, string workDirectory)
+    /// <exception cref="InvalidOperationException">Git could not be started, or the clone failed.</exception>
+    public static async Task<string> CloneAsync(string repositoryUrl, string workDirectory)
     {
-        Directory.CreateDirectory(workDirectory);
+        DeleteClone(workDirectory);
 
-        string archivePath = Path.Combine(workDirectory, "croscorefonts.tar.gz");
+        Console.WriteLine($"Cloning {repositoryUrl} ...");
 
-        Console.WriteLine($"Downloading {sourceUrl} ...");
-        using (HttpClient httpClient = new())
+        ProcessStartInfo startInfo = new(GitExecutable)
         {
-            byte[] archiveBytes = await httpClient.GetByteArrayAsync(new Uri(sourceUrl)).ConfigureAwait(false);
-            await File.WriteAllBytesAsync(archivePath, archiveBytes).ConfigureAwait(false);
+            UseShellExecute = false,
+            RedirectStandardError = true
+        };
+
+        startInfo.ArgumentList.Add("clone");
+        startInfo.ArgumentList.Add("--depth");
+        startInfo.ArgumentList.Add("1");
+        startInfo.ArgumentList.Add(repositoryUrl);
+        startInfo.ArgumentList.Add(workDirectory);
+
+        using Process? process = Process.Start(startInfo);
+        if (process == null)
+        {
+            throw new InvalidOperationException($"'{GitExecutable}' could not be started.");
         }
 
-        string extractPath = Path.Combine(workDirectory, "croscorefonts");
-        if (Directory.Exists(extractPath))
+        string error = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
+        await process.WaitForExitAsync().ConfigureAwait(false);
+
+        if (process.ExitCode != 0)
         {
-            Directory.Delete(extractPath, recursive: true);
+            throw new InvalidOperationException($"Cloning '{repositoryUrl}' failed with exit code {process.ExitCode}: {error}");
         }
 
-        Directory.CreateDirectory(extractPath);
+        return workDirectory;
+    }
 
-        Console.WriteLine($"Extracting to {extractPath} ...");
-        using (FileStream archiveStream = File.OpenRead(archivePath))
+    /// <summary>
+    /// Deletes a clone left by an earlier run, clearing the read-only attribute git sets on the files
+    /// in its object store first.
+    /// </summary>
+    private static void DeleteClone(string workDirectory)
+    {
+        if (!Directory.Exists(workDirectory))
         {
-            using GZipStream decompressed = new(archiveStream, CompressionMode.Decompress);
-            await TarFile.ExtractToDirectoryAsync(decompressed, extractPath, overwriteFiles: true).ConfigureAwait(false);
+            return;
         }
 
-        string[] topLevel = Directory.GetDirectories(extractPath);
-        if (topLevel.Length == 1)
+        foreach (string path in Directory.EnumerateFiles(workDirectory, "*", SearchOption.AllDirectories))
         {
-            return topLevel[0];
+            File.SetAttributes(path, FileAttributes.Normal);
         }
 
-        return extractPath;
+        Directory.Delete(workDirectory, recursive: true);
     }
 }

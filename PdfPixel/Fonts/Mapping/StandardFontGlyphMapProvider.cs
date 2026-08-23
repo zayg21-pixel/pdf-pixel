@@ -14,6 +14,8 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public static class StandardFontGlyphMapProvider
 {
+    private const string ResourceDirectory = "GlyphMaps";
+
     private static readonly Lazy<Dictionary<uint, string>> _base = new(() => Load("StandardFontGlyphMap.bin"));
     private static readonly Lazy<Dictionary<uint, string>> _arialBlack = new(() => Load("StandardFontGlyphMapArialBlack.bin"));
     private static readonly Lazy<Dictionary<uint, string>> _calibri = new(() => Load("StandardFontGlyphMapCalibri.bin"));
@@ -60,7 +62,7 @@ public static class StandardFontGlyphMapProvider
 
     private static Dictionary<uint, string> Load(string resourceName)
     {
-        byte[] resource = PdfResourceLoader.GetResource($"External.{resourceName}");
+        byte[] resource = PdfResourceLoader.GetResource($"{ResourceDirectory}.{resourceName}");
         Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;

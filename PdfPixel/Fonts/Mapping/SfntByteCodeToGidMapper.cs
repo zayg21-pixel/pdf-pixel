@@ -90,6 +90,18 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         IReadOnlyDictionary<PdfFontString, ushort> nameToGid,
         IReadOnlyList<SfntCmapSubtable> orderedCmapSubtables)
     {
+        PdfFontString name = encodingInfo.GetNameByCode(code);
+
+        if (!name.IsEmpty)
+        {
+            ushort? gidByBuiltInCode = ResolveGidByBuiltInCode(typeface, encoding, name);
+
+            if (gidByBuiltInCode != null)
+            {
+                return gidByBuiltInCode;
+            }
+        }
+
         if (singleByteCodeToGid != null)
         {
             ushort? gid = singleByteCodeToGid[code];
@@ -99,8 +111,6 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
                 return gid;
             }
         }
-
-        PdfFontString name = encodingInfo.GetNameByCode(code);
 
         if (name.IsEmpty)
         {
@@ -124,6 +134,33 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The glyph a symbol typeface addresses <paramref name="name"/> through, found by taking the code
+    /// its built-in encoding gives the name. A glyph name is the only thing a <c>/Differences</c> array
+    /// states, and such a typeface maps neither the character code it states it at nor the Unicode the
+    /// name stands for.
+    /// </summary>
+    /// <param name="typeface">The typeface to look the glyph up in.</param>
+    /// <param name="encoding">The encoding in force, of which only the built-in symbol ones apply.</param>
+    /// <param name="name">The glyph name to resolve.</param>
+    /// <returns>The glyph id, or <see langword="null"/> when this route does not address a glyph.</returns>
+    private static ushort? ResolveGidByBuiltInCode(SfntPdfTypeface typeface, PdfFontEncoding encoding, in PdfFontString name)
+    {
+        if (!typeface.IsSymbolEncoded)
+        {
+            return null;
+        }
+
+        if (encoding != PdfFontEncoding.SymbolEncoding && encoding != PdfFontEncoding.ZapfDingbatsEncoding)
+        {
+            return null;
+        }
+
+        byte? builtInCode = SingleByteEncodings.GetCodeByName(encoding, name);
+
+        return (builtInCode == null) ? null : typeface.GetGidByCode(builtInCode.Value);
     }
 
     private static ushort?[]? ExtractSingleByteCodeToGid(SfntPdfTypeface typeface, IReadOnlyList<SfntCmapSubtable> cmapSubtables, bool hasEncoding)

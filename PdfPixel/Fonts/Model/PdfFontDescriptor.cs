@@ -1,7 +1,9 @@
+using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
+using System;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -11,6 +13,11 @@ namespace PdfPixel.Fonts.Model;
 /// </summary>
 public class PdfFontDescriptor
 {
+    /// <summary>
+    /// The glyph space units one em is divided into, which every descriptor metric is stated in.
+    /// </summary>
+    private const float GlyphSpaceUnitsPerEm = 1000f;
+
     /// <summary>
     /// The font name as specified in the PDF dictionary (/FontName).
     /// </summary>
@@ -157,6 +164,54 @@ public class PdfFontDescriptor
     /// Gets a value indicating whether this font descriptor has any embedded font stream.
     /// </summary>
     public bool HasEmbeddedFont => FontFileStream != null;
+
+    /// <summary>
+    /// Creates a <see cref="PdfFontDescriptor"/> from a typeface's own metrics, for a font whose
+    /// dictionary states no descriptor of its own - which the specification allows a Standard 14 font
+    /// to omit. Metrics arrive as fractions of the em square and are stated here in glyph space units
+    /// (1/1000 em), as a descriptor read from a dictionary would be.
+    /// </summary>
+    /// <param name="metrics">The typeface's metrics.</param>
+    /// <param name="isSymbolic">Whether the typeface addresses its glyphs through a built-in symbol encoding.</param>
+    public static PdfFontDescriptor FromMetrics(PdfFontMetrics metrics, bool isSymbolic)
+    {
+        if (metrics == null)
+        {
+            throw new ArgumentNullException(nameof(metrics));
+        }
+
+        PdfFontFlags flags = isSymbolic ? PdfFontFlags.Symbolic : PdfFontFlags.Nonsymbolic;
+
+        if (metrics.IsItalic)
+        {
+            flags |= PdfFontFlags.Italic;
+        }
+
+        if (metrics.IsForceBold)
+        {
+            flags |= PdfFontFlags.ForceBold;
+        }
+
+        return new PdfFontDescriptor
+        {
+            FontName = metrics.FontName.ToPdfString(),
+            FontFamily = metrics.FamilyName.ToPdfString(),
+            Flags = flags,
+            ItalicAngle = metrics.ItalicAngle,
+            Ascent = metrics.Ascent * GlyphSpaceUnitsPerEm,
+            Descent = metrics.Descent * GlyphSpaceUnitsPerEm,
+            CapHeight = metrics.CapHeight * GlyphSpaceUnitsPerEm,
+            XHeight = metrics.XHeight * GlyphSpaceUnitsPerEm,
+            AvgWidth = metrics.AvgWidth * GlyphSpaceUnitsPerEm,
+            FontWeight = metrics.Weight,
+            Panose = metrics.Panose,
+            FontBBox = new PdfRectangle(
+                metrics.BoundingBoxLeft * GlyphSpaceUnitsPerEm,
+                metrics.BoundingBoxBottom * GlyphSpaceUnitsPerEm,
+                metrics.BoundingBoxRight * GlyphSpaceUnitsPerEm,
+                metrics.BoundingBoxTop * GlyphSpaceUnitsPerEm)
+        };
+    }
 
     /// <summary>
     /// Creates a <see cref="PdfFontDescriptor"/> from a PDF font descriptor dictionary.
