@@ -18,6 +18,7 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly HashSet<string> _knownFontFamilies;
+    private readonly Dictionary<string, string> _postscriptFamilies = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SkiaFontSubstitutor"/> class.
@@ -27,6 +28,20 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
     {
         _loggerFactory = loggerFactory;
         _knownFontFamilies = new HashSet<string>(SKFontManager.Default.FontFamilies, StringComparer.OrdinalIgnoreCase);
+
+        foreach (string family in _knownFontFamilies)
+        {
+            using SKTypeface skiaTypeface = SKFontManager.Default.MatchFamily(family);
+
+            string postscriptName = skiaTypeface.PostScriptName;
+
+            if (postscriptName.EndsWith("MT"))
+            {
+                postscriptName = postscriptName.Substring(0, postscriptName.Length - 2);
+            }
+
+            _postscriptFamilies.Add(postscriptName, family);
+        }
     }
 
     /// <inheritdoc />
@@ -37,14 +52,14 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
     /// </remarks>
     public SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
     {
-        if (!_knownFontFamilies.Contains(substitutionInfo.NormalizedStem))
+        if (!TryResolveFamilyName(substitutionInfo.NormalizedStem, out string? familyName) || familyName == null)
         {
             return null;
         }
 
         SKFontStyle style = CreateFontStyle(substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.IsItalic);
 
-        using SKTypeface? matchedTypeface = SKFontManager.Default.MatchFamily(substitutionInfo.NormalizedStem, style);
+        using SKTypeface? matchedTypeface = SKFontManager.Default.MatchFamily(familyName, style);
         if (matchedTypeface == null)
         {
             return null;
@@ -101,6 +116,24 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
     {
         SKFontStyleSlant slant = isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
         return new SKFontStyle((SKFontStyleWeight)weight, (SKFontStyleWidth)width, slant);
+    }
+
+    private bool TryResolveFamilyName(string fontName, out string? resolvedName)
+    {
+        if (_knownFontFamilies.Contains(fontName))
+        {
+            resolvedName = fontName;
+            return true;
+        }
+
+        if (_postscriptFamilies.TryGetValue(fontName, out string? familyName))
+        {
+            resolvedName = familyName;
+            return true;
+        }
+
+        resolvedName = null;
+        return false;
     }
 
     private SfntPdfTypeface? BuildTypeface(SKTypeface? typeface)
