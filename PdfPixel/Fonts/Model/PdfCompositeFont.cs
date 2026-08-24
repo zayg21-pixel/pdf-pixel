@@ -1,5 +1,6 @@
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
@@ -358,8 +359,7 @@ public class PdfCompositeFont : PdfFontBase
             return null;
         }
 
-        uint cid;
-        if (!TryMapCodeToCid(code, out cid))
+        if (!TryMapCodeToCid(code, out uint cid))
         {
             return null;
         }
@@ -376,7 +376,71 @@ public class PdfCompositeFont : PdfFontBase
     {
         PdfGlyphResolution resolution = ResolveFromFontProgram(characterCode, renderingUnicode);
 
-        return (!resolution.IsEmpty) ? resolution : SubstituteByUnicode(renderingUnicode);
+        if (!resolution.IsEmpty)
+        {
+            return resolution;
+        }
+
+        PdfGlyphResolution installedResolution = ResolveByInstalledFamilyGlyphIndex(characterCode);
+
+        return (!installedResolution.IsEmpty) ? installedResolution : SubstituteByUnicode(renderingUnicode);
+    }
+
+    /// <summary>
+    /// The glyph an installed copy of the family this font names addresses by glyph index. A
+    /// non-embedded CIDFontType2 with an Identity ordering states the glyph indices of the font it was
+    /// produced with, and those indices select the intended glyphs only in that same font; a substitute
+    /// standing in for it is reached through <see cref="PdfFontBase.SubstituteByUnicode"/> instead.
+    /// A /CIDToGIDMap turns the CID into that glyph index; without one the CID is the glyph index.
+    /// </summary>
+    /// <param name="characterCode">The character code to resolve a glyph for.</param>
+    /// <returns>The resolved glyph, or an empty resolution when this route does not address one.</returns>
+    private PdfGlyphResolution ResolveByInstalledFamilyGlyphIndex(PdfCharacterCode characterCode)
+    {
+        PdfCidFont? descendant = PrimaryDescendant;
+
+        if (descendant == null
+            || descendant.Type != PdfFontSubType.CidFontType2
+            || descendant.Typeface != null
+            || descendant.CidSystemInfo == null
+            || descendant.CidSystemInfo.Ordering != PdfTokens.IdentityKey)
+        {
+            return default;
+        }
+
+        if (!TryMapCodeToCid(characterCode, out uint cid))
+        {
+            return default;
+        }
+
+        uint glyphIndex = cid;
+        PdfCidToGidMap? cidToGidMap = descendant.CidToGidMap;
+
+        if (cidToGidMap != null)
+        {
+            ushort? mappedIndex = cidToGidMap.GetGID(cid);
+
+            if (mappedIndex == null)
+            {
+                return default;
+            }
+
+            glyphIndex = mappedIndex.Value;
+        }
+
+        if (glyphIndex > ushort.MaxValue)
+        {
+            return default;
+        }
+
+        SfntPdfTypeface? installed = Document.FontProvider.ResolveByFamilyName(SubstitutionInfo);
+
+        if (installed == null || !installed.IsGidExists((ushort)glyphIndex))
+        {
+            return default;
+        }
+
+        return new PdfGlyphResolution(installed, [(ushort)glyphIndex], isMappedByFont: true);
     }
 
     /// <summary>

@@ -148,7 +148,13 @@ public sealed class FontProvider : IDisposable
         return (standard14Fallback.ContainsAllGlyphs(unicode)) ? standard14Fallback : null;
     }
 
-    private SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
+    /// <summary>
+    /// Resolves the requested family to a font installed under that name, or <see langword="null"/>
+    /// when no such family is installed. A substitute the platform offers in its place is never
+    /// returned, so the result is the family the document names or nothing.
+    /// </summary>
+    /// <param name="substitutionInfo">Normalized font substitution hints (stem, weight, width, slant).</param>
+    public SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
     {
         if (_familyTypefaces.TryGetValue(substitutionInfo, out SfntPdfTypeface? cached))
         {
