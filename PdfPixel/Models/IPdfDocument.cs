@@ -25,7 +25,7 @@ public interface IPdfDocument : IDisposable
     /// Gets the cache holding values built during command execution that stay valid for the lifetime
     /// of the document, so every replay of any of its pages reuses the same entries.
     /// </summary>
-    CommandCache CommandCache { get; } // TODO: this is part of internals, need to cleanup
+    CommandCache CommandCache { get; }
 
     /// <summary>
     /// Gets the optional content groups (layers) defined in the document,

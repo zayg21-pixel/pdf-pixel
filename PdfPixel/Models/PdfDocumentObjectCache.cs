@@ -16,6 +16,8 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
+// TODO: [HIGH] investigate reworking to use single PdfReference cache, cache other things that can be big and shared, as CMaps
+
 /// <summary>
 /// Holds the PDF object index and the document-wide caches of the resources parsed out of it, and
 /// resolves objects from the index.
@@ -38,95 +40,95 @@ internal class PdfDocumentObjectCache
     /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
     /// Populated by <see cref="Parsing.PdfOutputIntentParser"/> post xref/catalog load.
     /// </summary>
-    internal IccProfile? OutputIntentProfile { get; set; }
+    public IccProfile? OutputIntentProfile { get; set; }
 
     /// <summary>
     /// Parsed catalog output intent profile converter. Null when none present or invalid.
     /// </summary>
-    internal PdfIccColorSpaceConverter? OutputIntentProfileConverter { get; set; }
+    public PdfIccColorSpaceConverter? OutputIntentProfileConverter { get; set; }
 
     /// <summary>
     /// Catalog output intent converter parsed from <see cref="IccProfile"/>. Null when none present or invalid.
     /// </summary>
-    internal PdfIccColorSpaceConverter? OutputIntentConverter { get; set; }
+    public PdfIccColorSpaceConverter? OutputIntentConverter { get; set; }
 
     /// <summary>
     /// Document font cache.
     /// </summary>
-    internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = [];
+    public Dictionary<PdfReference, PdfFontBase> Fonts { get; } = [];
 
     /// <summary>
     /// Document typeface cache, keyed by the reference of the object holding the embedded font
     /// program, so a program several font descriptors share is parsed only once. Owns the typefaces
     /// it holds; they live as long as the document.
     /// </summary>
-    internal Dictionary<PdfReference, IPdfTypeface> Typefaces { get; } = [];
+    public Dictionary<PdfReference, IPdfTypeface> Typefaces { get; } = [];
 
     /// <summary>
     /// Document color space converter cache.
     /// </summary>
-    internal Dictionary<PdfReference, PdfColorSpaceConverter?> ColorSpaceConverters { get; } = [];
+    public Dictionary<PdfReference, PdfColorSpaceConverter?> ColorSpaceConverters { get; } = [];
 
     /// <summary>
     /// High-level cache for parsed PDF functions, keyed by reference.
     /// </summary>
-    internal Dictionary<PdfReference, PdfFunction> Functions { get; } = [];
+    public Dictionary<PdfReference, PdfFunction> Functions { get; } = [];
 
     /// <summary>
     /// Document cache for parsed transfer function transforms (TR), keyed by reference.
     /// </summary>
-    internal Dictionary<PdfReference, TransferFunctionTransform> TransferFunctionTransforms { get; } = [];
+    public Dictionary<PdfReference, TransferFunctionTransform> TransferFunctionTransforms { get; } = [];
 
     /// <summary>
     /// High-level cache for parsed PDF shadings, keyed by reference.
     /// </summary>
-    internal Dictionary<PdfReference, PdfShading> Shadings { get; } = [];
+    public Dictionary<PdfReference, PdfShading> Shadings { get; } = [];
 
     /// <summary>
     /// Document cache for parsed ExtGState parameters, keyed by reference. Holds only parameters
     /// without a soft mask, a soft mask being bound to the page it was parsed from.
     /// </summary>
-    internal Dictionary<PdfReference, PdfGraphicsStateParameters> GraphicsStateParameters { get; } = [];
+    public Dictionary<PdfReference, PdfGraphicsStateParameters> GraphicsStateParameters { get; } = [];
 
     /// <summary>
     /// High-level cache for parsed PDF image XObjects, keyed by reference.
     /// </summary>
-    internal Dictionary<PdfReference, PdfImage> Images { get; } = [];
+    public Dictionary<PdfReference, PdfImage> Images { get; } = [];
 
     /// <summary>
     /// High-level cache for XObject wrappers, keyed by reference.
     /// </summary>
-    internal Dictionary<PdfReference, PdfXObject> XObjects { get; } = [];
+    public Dictionary<PdfReference, PdfXObject> XObjects { get; } = [];
 
     /// <summary>
     /// High-level cache for optional content memberships, keyed by the reference of the OCG or OCMD object.
     /// </summary>
-    internal Dictionary<PdfReference, PdfOptionalContentMembership?> OptionalContentMemberships { get; } = [];
+    public Dictionary<PdfReference, PdfOptionalContentMembership?> OptionalContentMemberships { get; } = [];
 
     /// <summary>
     /// High-level cache for parsed PDF patterns, keyed by reference. Holds only patterns that are
     /// page independent.
     /// </summary>
-    internal Dictionary<PdfReference, PdfPattern> Patterns { get; } = [];
+    public Dictionary<PdfReference, PdfPattern> Patterns { get; } = [];
 
     /// <summary>
     /// High-level cache for parsed transparency groups, keyed by the reference of the /Group
     /// dictionary. Holds only groups whose blending colour space is an indirect reference.
     /// </summary>
-    internal Dictionary<PdfReference, PdfTransparencyGroup> TransparencyGroups { get; } = [];
+    public Dictionary<PdfReference, PdfTransparencyGroup> TransparencyGroups { get; } = [];
 
     /// <summary>
     /// Cache for recorded soft mask form content, keyed by the mask form and the matrix it was recorded
     /// under. A mask applies to every painting operation carried out under it, so without this its
     /// content stream is parsed and recorded once per operation rather than once per use.
     /// </summary>
-    internal Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> SoftMaskForms { get; } = [];
+    public Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> SoftMaskForms { get; } = [];
 
     /// <summary>
     /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.
     /// Populated on first use so each globals stream is decoded only once per document.
     /// </summary>
-    internal Dictionary<PdfReference, Jbig2SegmentCache> Jbig2GlobalCaches { get; } = [];
+    public Dictionary<PdfReference, Jbig2SegmentCache> Jbig2GlobalCaches { get; } = [];
 
     /// <summary>
     /// Document object index collection.
@@ -161,7 +163,7 @@ internal class PdfDocumentObjectCache
     /// Rebuilds the object index and the document root by scanning the file itself. Runs at most once
     /// per document, so that resolving objects while the scan picks a root cannot recurse into it.
     /// </summary>
-    internal void RunRecoveryScan()
+    public void RunRecoveryScan()
     {
         if (_recoveryScanAttempted)
         {
@@ -179,7 +181,7 @@ internal class PdfDocumentObjectCache
     /// </summary>
     /// <param name="reference">Object reference declared by the object header.</param>
     /// <param name="fileOffset">Absolute byte offset in the source file where the object header begins.</param>
-    internal void SetObjectOffset(in PdfReference reference, long fileOffset)
+    public void SetObjectOffset(in PdfReference reference, long fileOffset)
         => ObjectIndex[reference] = PdfObjectInfo.ForUncompressed(fileOffset);
 
     private PdfObject? ResolveIndexedObject(in PdfReference reference)

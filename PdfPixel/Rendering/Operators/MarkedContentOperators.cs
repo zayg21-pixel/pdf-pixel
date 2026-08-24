@@ -170,7 +170,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             mcid = propertiesDictionary.GetInteger(PdfTokens.MCIDKey);
         }
 
-        // TODO: fall back to the structure element the MCID belongs to for /ActualText and /Lang,
+        // TODO: [MEDIUM] fall back to the structure element the MCID belongs to for /ActualText and /Lang,
         // resolving it through the structure tree's /ParentTree entry named by /StructParents
 
         if (tag == PdfTextTag.Custom && actualText == null && lang == null && mcid == null)
