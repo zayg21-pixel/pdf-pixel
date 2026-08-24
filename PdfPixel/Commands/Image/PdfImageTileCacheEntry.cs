@@ -58,17 +58,7 @@ public sealed class PdfImageTileCacheEntry
     /// </summary>
     public void Initialize(in PdfMatrix ctm, in PdfIntegerRectangle imageRegion, object contentLocker, IPdfExecutionObserver observer)
     {
-        if (_decoderActive)
-        {
-            Decoder.Cleanup();
-            _alphaRowSource?.Cleanup();
-            _decoderActive = false;
-        }
-
-        _tilingContext = null;
-        _imageParameters = null;
-        _rowBuffer = null;
-        _currentImageRow = 0;
+        FinishDecoding();
 
         PdfIntegerSize? scaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, TileInfo.ImageSize);
         if (!Equals(scaledSize, _scaledSize))
@@ -198,12 +188,11 @@ public sealed class PdfImageTileCacheEntry
                 {
                     producedRequestedTile = true;
                 }
+            }
 
-                if (tile.TileIndex == TileInfo.TotalTiles - 1)
-                {
-                    _decoderActive = false;
-                    Decoder.Cleanup();
-                }
+            if (!HasPendingTiles())
+            {
+                FinishDecoding();
             }
 
             if (producedRequestedTile)
@@ -213,6 +202,37 @@ public sealed class PdfImageTileCacheEntry
         }
 
         throw new InvalidOperationException($"Tile {tileIndex} was not produced by decoder {Decoder.GetType().Name}.");
+    }
+
+    /// <summary>
+    /// Releases the decoder state and the buffers the current pass reconstructs through.
+    /// </summary>
+    private void FinishDecoding()
+    {
+        if (_decoderActive)
+        {
+            Decoder.Cleanup();
+            _alphaRowSource?.Cleanup();
+            _decoderActive = false;
+        }
+
+        _tilingContext = null;
+        _imageParameters = null;
+        _rowBuffer = null;
+        _currentImageRow = 0;
+    }
+
+    private bool HasPendingTiles()
+    {
+        foreach (CachedTile cachedTile in _tiles)
+        {
+            if (cachedTile.IsPendingUpdate)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private HashSet<int> ComputeRegionTileIndexes(in PdfIntegerRectangle imageRegion)
@@ -290,6 +310,10 @@ public sealed class PdfImageTileCacheEntry
             _tile = tile;
         }
 
-        public void Clear() => _tile = PdfImageTile.CreateEmpty(Index);
+        public void Clear()
+        {
+            IsPendingUpdate = false;
+            _tile = PdfImageTile.CreateEmpty(Index);
+        }
     }
 }
