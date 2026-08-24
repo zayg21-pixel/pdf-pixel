@@ -10,9 +10,8 @@ namespace PdfPixel.Fonts.Sfnt;
 /// (format/platform/encoding/offset per subtable); a subtable's actual mapping is parsed lazily by
 /// <see cref="GetGid"/> on first query and cached on the <see cref="SfntCmapSubtable"/> itself, so a
 /// subtable nothing ever queries is never parsed. A parsed <see cref="SfntCmap"/> is read-only - edits
-/// to it are never written back, "cmap" is always passed through unchanged as raw bytes.
-/// <see cref="CreateEmptyStub"/> covers the other case: synthesizing a placeholder "cmap" from scratch
-/// for a brand new font that has none, since a valid OTTO container requires one.
+/// to it are never written back, and a written font states the mapping its repack parameters carry or,
+/// through <see cref="CreateEmptyStub"/>, none at all.
 /// </summary>
 public class SfntCmapProcessor
 {

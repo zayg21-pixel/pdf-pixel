@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts.Sfnt;
 /// Reads and writes a full SFNT font through its per-table models: decodes the container via
 /// <see cref="SfntContainerProcessor"/>, then parses every table that has a dedicated processor
 /// (head, hhea, maxp, hmtx, OS/2, name, cmap, post, gasp, glyf/loca, CFF). Tables without one remain
-/// accessible only as raw bytes on <see cref="SfntFont.Tables"/>, and writing drops them.
+/// accessible only as a byte range on <see cref="SfntFont.Tables"/>, and writing drops them.
 /// </summary>
 public class SfntFontProcessor
 {
@@ -291,15 +291,12 @@ public class SfntFontProcessor
     /// <summary>
     /// Writes a full SFNT font back to bytes. Tables with a dedicated model are re-serialized from it
     /// and every other source table is dropped. "post", and "cmap" when
-    /// <paramref name="repackParameters"/> states no mapping, always get a minimal empty stub: neither
-    /// has a writer, and passing the source's own bytes through would carry a corrupt subtable
-    /// into an otherwise sound font - enough for a rasterizer to reject the whole font. "OS/2" falls
-    /// back to a stub of its own when the source carries none, since a font written without it is
-    /// equally rejected. "gasp" gets no stub in turn: a font that asks for no particular grid-fitting
-    /// is rendered by the rasterizer's own defaults, which is what dropping it restores.
+    /// <paramref name="repackParameters"/> states no mapping, always get a minimal empty stub. "OS/2"
+    /// falls back to a stub of its own when the source carries none. "gasp" gets no stub in turn: a
+    /// font that carries none is written without it.
     /// </summary>
     /// <param name="font">The font to write.</param>
-    /// <param name="sourceStream">The stream <paramref name="font"/> was read from, used to resolve passthrough tables' bytes.</param>
+    /// <param name="sourceStream">The stream <paramref name="font"/> was read from, read for the source glyph bytes.</param>
     /// <param name="repackParameters">The glyph subset and character mapping to write. Null writes every glyph at the id it already had, and no character mapping.</param>
     public byte[] Write(SfntFont font, ReadOnlyFontStream sourceStream, SfntPdfTypefaceRepackParameters? repackParameters = null)
     {

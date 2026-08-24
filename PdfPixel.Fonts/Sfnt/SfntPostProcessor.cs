@@ -8,9 +8,8 @@ namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
 /// Reads the binary form of the SFNT "post" table. A parsed <see cref="SfntPost"/> is read-only -
-/// edits to it are never written back, "post" is always passed through unchanged as raw bytes.
-/// <see cref="CreateEmptyStub"/> covers the other case: synthesizing a placeholder "post" from
-/// scratch for a brand new font that has none, since a valid OTTO container requires one.
+/// edits to it are never written back, and a written font always states the placeholder
+/// <see cref="CreateEmptyStub"/> builds.
 /// </summary>
 public class SfntPostProcessor
 {

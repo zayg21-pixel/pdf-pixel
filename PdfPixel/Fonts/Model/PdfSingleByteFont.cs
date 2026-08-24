@@ -37,7 +37,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
     protected internal override bool HasWidths => Widths.HasWidths;
 
     /// <summary>
-    /// Get character width from font metrics
+    /// Gets the character width from font metrics.
     /// </summary>
     public override float? GetWidth(PdfCharacterCode code) => Widths.GetWidth(code);
 

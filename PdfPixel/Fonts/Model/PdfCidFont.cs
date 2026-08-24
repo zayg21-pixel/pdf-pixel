@@ -19,7 +19,8 @@ public class PdfCidFont : PdfFontBase
     private readonly IPdfTypeface? _typeface;
 
     /// <summary>
-    /// Constructor for CID fonts - lightweight operations only
+    /// Constructor for CID fonts. Parses the widths, vertical metrics, CID system info and
+    /// /CIDToGIDMap, and loads the embedded font program.
     /// </summary>
     /// <param name="fontObject">PDF object containing the font definition</param>
     internal PdfCidFont(PdfObject fontObject)
@@ -71,7 +72,8 @@ public class PdfCidFont : PdfFontBase
 
     /// <summary>
     /// Gets the width for a given CID in this CID font.
-    /// Returns explicit width if defined, otherwise DefaultWidth, otherwise 0f.
+    /// Returns the explicit width if defined, otherwise <c>/DW</c>, otherwise the 1000 glyph space
+    /// units the specification defaults <c>/DW</c> to.
     /// </summary>
     /// <param name="cid">The CID to get the width for.</param>
     /// <returns>The width for the CID.</returns>
@@ -89,7 +91,7 @@ public class PdfCidFont : PdfFontBase
     public PdfVerticalMetric GetVerticalDisplacementByCid(uint cid) => VerticalMetrics.GetMetrics(cid);
 
     /// <summary>
-    /// Get character width for a given character code. A CID font always defines one: the "W" entry
+    /// Gets the character width for a given character code. A CID font always defines one: the "W" entry
     /// for the CID, the font's "DW", or the default the specification gives "DW".
     /// </summary>
     public override float? GetWidth(PdfCharacterCode code) => GetWidthByCid((uint)code);
@@ -102,8 +104,8 @@ public class PdfCidFont : PdfFontBase
     public override PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => VerticalMetrics.GetMetrics((uint)code);
 
     /// <summary>
-    /// Convert Character ID (CID) to Glyph ID (GID) for font rendering.
-    /// Uses lazy-loaded CIDToGIDMap, or returns <see langword="null"/> if no mapping exists.
+    /// Converts a Character ID (CID) to a Glyph ID (GID) through <see cref="CidToGidMap"/>, or the CID
+    /// itself when the font states no map. Returns <see langword="null"/> when the font is substituted.
     /// </summary>
     public ushort? GetGidByCid(uint cid)
     {
@@ -184,7 +186,6 @@ public class PdfCidFont : PdfFontBase
             return PdfCidToGidMap.CreateIdentityMapping();
         }
 
-        // Use GetPageObject instead of stored reference
         PdfObject? cidToGidObj = Dictionary.GetObject(PdfTokens.CidToGidMapKey);
         if (cidToGidObj != null)
         {
@@ -199,7 +200,6 @@ public class PdfCidFont : PdfFontBase
     /// <summary>
     /// Extracts character codes from raw bytes for CID fonts.
     /// Always uses fixed-length segmentation (2 bytes per CID).
-    /// This method does not use codespace ranges or ToUnicode CMap, as those are only defined at the composite font (Type0) level.
     /// </summary>
     /// <param name="bytes">Raw bytes to extract character codes from.</param>
     /// <returns>Array of extracted PdfCharacterCode items, each representing a 2-byte CID.</returns>
@@ -239,11 +239,8 @@ public class PdfCidFont : PdfFontBase
     }
 
     /// <summary>
-    /// Resolves glyphs for a CID through this font's CIDToGIDMap. A CID addresses a glyph in the
-    /// embedded program alone and means nothing to an installed font, so once that program is
-    /// unavailable the Unicode the code stands for is the only channel left. Reached only when a
-    /// malformed file names a descendant font directly; a well-formed one is shown through the
-    /// <see cref="PdfCompositeFont"/> that owns it.
+    /// Resolves glyphs for a CID through this font's CIDToGIDMap, falling back to the Unicode the code
+    /// stands for once the embedded program is unavailable.
     /// </summary>
     protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
     {

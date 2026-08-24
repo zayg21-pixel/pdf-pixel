@@ -9,8 +9,7 @@ namespace PdfPixel.Fonts.Management;
 /// </summary>
 /// <remarks>
 /// Every method returns a freshly constructed typeface that the caller owns and disposes. An
-/// implementation must never hand back an instance it keeps a reference to, because the caller
-/// disposes what it receives.
+/// implementation must never hand back an instance it keeps a reference to.
 /// </remarks>
 public interface IFontSubstitutor
 {

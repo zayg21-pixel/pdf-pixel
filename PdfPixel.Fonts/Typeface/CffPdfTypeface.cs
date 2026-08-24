@@ -19,7 +19,7 @@ public sealed class CffPdfTypeface : IPdfTypeface
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CffPdfTypeface"/> class by reading a CFF font
-    /// program from a stream, then parsing and repacking it. Takes ownership of <paramref name="fontStream"/>;
+    /// program from a stream, then parsing it. Takes ownership of <paramref name="fontStream"/>;
     /// it is disposed together with this instance.
     /// </summary>
     /// <param name="fontStream">Stream containing the raw CFF font program bytes.</param>
@@ -32,7 +32,7 @@ public sealed class CffPdfTypeface : IPdfTypeface
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CffPdfTypeface"/> class from an already-parsed
-    /// CFF typeface. Repacking into an OpenType (OTTO) container happens lazily, on every call to
+    /// CFF typeface. Repacking into an OpenType (OTTO) container is redone on every call to
     /// <see cref="GetFontStream"/>.
     /// </summary>
     /// <param name="typeface">The parsed CFF typeface. Must contain at least one font.</param>
@@ -108,8 +108,7 @@ public sealed class CffPdfTypeface : IPdfTypeface
     public ReadOnlyMemory<byte> GetPath(ushort gid) => (IsGidExists(gid)) ? PathEvaluator.ResolvePath(_font, _font.Characters[gid]) : ReadOnlyMemory<byte>.Empty;
 
     /// <summary>
-    /// Always returns null. Fallback/substitution typefaces are always TrueType in this codebase, so
-    /// a CFF typeface never needs a Unicode-to-GID lookup.
+    /// Always returns null.
     /// </summary>
     public ushort? GetGid(string unicode) => null;
 

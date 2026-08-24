@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts.Mapping;
 public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
 {
     /// <summary>
-    /// Create a new Character code from a read-only byte slice. The data is not copied.
+    /// Creates a new character code from a read-only byte slice. The data is not copied.
     /// </summary>
     public PdfCharacterCode(in ReadOnlyMemory<byte> bytes) => Bytes = bytes;
 
@@ -108,7 +108,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
     private static char GetHexNibble(int v) => (char)((v < 10) ? '0' + v : 'A' + (v - 10));
 
     /// <summary>
-    /// Pack a uint into minimal-length big-endian bytes (no leading zero bytes).
+    /// Packs a uint into minimal-length big-endian bytes (no leading zero bytes).
     /// </summary>
     public static ReadOnlyMemory<byte> PackUIntToMinimalBigEndian(uint value)
     {
@@ -134,10 +134,8 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
     }
 
     /// <summary>
-    /// Implicit conversion from uint to character code.
-    /// FAST-PATH COMPAT: Packs the integer value into a minimal-length big-endian byte sequence.
-    /// LIMITATION: Leading zero bytes are not preserved (e.g., 0x0041 becomes [0x41]).
-    /// This is intended for transitional compatibility with existing uint-based code.
+    /// Implicit conversion from uint to character code, packing the value into a minimal-length
+    /// big-endian byte sequence. Leading zero bytes are not preserved (e.g. 0x0041 becomes [0x41]).
     /// </summary>
     public static implicit operator PdfCharacterCode(uint value) => new(PackUIntToMinimalBigEndian(value));
 
@@ -157,7 +155,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
 
 
     /// <summary>
-    /// Pack a uint into exactly 'length' big-endian bytes (1..4), padding with leading zeros if needed.
+    /// Packs a uint into exactly 'length' big-endian bytes (1..4), padding with leading zeros if needed.
     /// </summary>
     public static ReadOnlyMemory<byte> PackUIntToBigEndian(uint value, int length)
     {

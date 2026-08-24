@@ -13,12 +13,12 @@ public sealed class PdfCidToGidMap
     private readonly Dictionary<uint, ushort> _cidToGidMap = [];
 
     /// <summary>
-    /// Create an identity mapping (CID == GID)
+    /// Creates an identity mapping (CID == GID).
     /// </summary>
     public static PdfCidToGidMap CreateIdentityMapping() => new(true);
 
     /// <summary>
-    /// Create a mapping from stream data
+    /// Creates a mapping from stream data.
     /// </summary>
     public static PdfCidToGidMap FromStreamData(in ReadOnlyMemory<byte> streamData)
     {
@@ -71,7 +71,7 @@ public sealed class PdfCidToGidMap
     private PdfCidToGidMap(bool isIdentity) => IsIdentityMapping = isIdentity;
 
     /// <summary>
-    /// Parse CIDToGIDMap stream data
+    /// Parses CIDToGIDMap stream data.
     /// The stream contains a sequence of 2-byte glyph indices, where the CID is the index position
     /// </summary>
     private void ParseStreamData(in ReadOnlyMemory<byte> data)
@@ -97,7 +97,7 @@ public sealed class PdfCidToGidMap
     }
 
     /// <summary>
-    /// Get the GID for a given CID or null if not defined.
+    /// Gets the GID for a given CID, or null if not defined.
     /// </summary>
     public ushort? GetGID(uint cid)
     {
@@ -115,7 +115,7 @@ public sealed class PdfCidToGidMap
     }
 
     /// <summary>
-    /// Check if this is an identity mapping
+    /// Gets whether this is an identity mapping.
     /// </summary>
     public bool IsIdentityMapping { get; }
 

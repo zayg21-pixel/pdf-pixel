@@ -63,10 +63,8 @@ public sealed class PdfTypefaceLoader
     }
 
     /// <summary>
-    /// Returns the typeface this loader's font descriptor embeds, parsing the program only the first
-    /// time it is asked for: several descriptors commonly share one font program object - a producer
-    /// emitting a bold and an italic descriptor over the same system font - and the result is cached
-    /// on the document by that object's reference so they all read one parse.
+    /// Returns the typeface this loader's font descriptor embeds. The result is cached on the document
+    /// by the font program object's reference, and parsed only on the first call for that object.
     /// </summary>
     /// <returns>The typeface the font program parses as.</returns>
     /// <exception cref="InvalidDataException">The font program does not parse as any known layout.</exception>
@@ -92,10 +90,8 @@ public sealed class PdfTypefaceLoader
     }
 
     /// <summary>
-    /// Parses the embedded font program. PDF producers mislabel embedded programs often enough - an
-    /// sfnt file declared /Type1C, a PostScript Type1 program declared /FontFile on a CID-keyed font -
-    /// that the declared format is used for nothing here: the layout is detected from the leading
-    /// bytes, and if that parse fails the remaining layouts are tried before giving up.
+    /// Parses the embedded font program. The declared format is used for nothing: the layout is detected
+    /// from the leading bytes, and if that parse fails the remaining layouts are tried before giving up.
     /// </summary>
     private IPdfTypeface LoadTypeface()
     {

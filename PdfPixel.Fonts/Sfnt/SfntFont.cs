@@ -4,10 +4,9 @@ using System.Collections.Generic;
 namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
-/// A decoded SFNT font: every table's raw bytes, plus the parsed model for each table that has a
-/// dedicated processor. Tables without one remain accessible only through <see cref="Tables"/>, which
-/// is mutable so a table can be added (e.g. a repacked "CFF " table when assembling a brand new font)
-/// or removed before writing.
+/// A decoded SFNT font: every table's byte range within the stream it was read from, plus the parsed
+/// model for each table that has a dedicated processor. Tables without one remain accessible only as a
+/// range on <see cref="Tables"/>, which writing does not consult.
 /// </summary>
 public class SfntFont
 {
@@ -55,7 +54,7 @@ public class SfntFont
 
     /// <summary>
     /// Gets or sets the parsed "cmap" table, or null if the font has none or it failed to parse.
-    /// Read-only: edits here are never written back, "cmap" is always passed through as raw bytes.
+    /// Read-only: edits here are never written back.
     /// </summary>
     public SfntCmap? Cmap { get; set; }
 
@@ -67,7 +66,7 @@ public class SfntFont
 
     /// <summary>
     /// Gets or sets the parsed "post" table, or null if the font has none or it failed to parse.
-    /// Read-only: edits here are never written back, "post" is always passed through as raw bytes.
+    /// Read-only: edits here are never written back.
     /// </summary>
     public SfntPost? Post { get; set; }
 

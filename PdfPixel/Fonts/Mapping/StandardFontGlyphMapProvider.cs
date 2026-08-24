@@ -9,8 +9,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// <summary>
 /// Provides the built-in CID-to-Unicode glyph maps for well-known non-embedded standard TrueType
 /// fonts. Non-embedded CIDFontType2 fonts with an Identity CID ordering are commonly produced with
-/// CIDs equal to the glyph indices of one of these fonts, so this table lets such CIDs be resolved
-/// to Unicode without relying on the font's own (often missing or unusable) /ToUnicode CMap.
+/// CIDs equal to the glyph indices of one of these fonts.
 /// </summary>
 public static class StandardFontGlyphMapProvider
 {
@@ -24,7 +23,7 @@ public static class StandardFontGlyphMapProvider
     /// Resolves a CID to its Unicode string, applying the supplemental overrides for
     /// <paramref name="baseFontName"/> when it names a font with known overrides (e.g. "ArialBlack",
     /// "Arial-Black", "Calibri"). <paramref name="baseFontName"/> is the font's raw /BaseFont name,
-    /// not a substitution-normalized family stem, since "Black" is otherwise stripped as a weight hint.
+    /// not a substitution-normalized family stem.
     /// </summary>
     /// <param name="baseFontName">The font's raw /BaseFont name.</param>
     /// <param name="cid">The CID to resolve.</param>

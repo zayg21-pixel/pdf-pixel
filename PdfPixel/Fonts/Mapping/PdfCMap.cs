@@ -78,7 +78,7 @@ public class PdfCMap
     public ReadOnlyDictionary<PdfCharacterCode, string> CodeToUnicode => new(_characterCodeToUnicode);
 
     /// <summary>
-    /// Add a codespace range pair. Start and end must have the same length (1..4 bytes).
+    /// Adds a codespace range pair. Start and end must have the same length (1..4 bytes).
     /// Values are interpreted as big-endian.
     /// </summary>
     public void AddCodespaceRange(in ReadOnlySpan<byte> start, in ReadOnlySpan<byte> end)
@@ -102,7 +102,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Return the longest matching codespace length for the provided input prefix.
+    /// Returns the longest matching codespace length for the provided input prefix.
     /// Returns 0 if no length matches any declared range.
     /// </summary>
     public int GetMaxMatchingLength(in ReadOnlySpan<byte> input)
@@ -155,7 +155,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Add a single mapping for a length-aware code (byte sequence) to Unicode.
+    /// Adds a single mapping for a length-aware code (byte sequence) to Unicode.
     /// </summary>
     public void AddMapping(PdfCharacterCode code, string unicode)
     {
@@ -168,7 +168,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Add a single mapping for a length-aware code (byte sequence) to CID.
+    /// Adds a single mapping for a length-aware code (byte sequence) to CID.
     /// </summary>
     public void AddCidMapping(PdfCharacterCode code, int cid)
     {
@@ -181,7 +181,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Add a sequential range mapping using length-aware start/end codes to Unicode.
+    /// Adds a sequential range mapping using length-aware start/end codes to Unicode.
     /// Both start and end must be the same length (1..4 bytes), inclusive.
     /// Stored as a compressed range for efficient lookup and memory usage.
     /// </summary>
@@ -207,7 +207,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Add a sequential range mapping using length-aware start/end codes to CIDs.
+    /// Adds a sequential range mapping using length-aware start/end codes to CIDs.
     /// Both start and end must be the same length (1..4 bytes), inclusive.
     /// Stored as a compressed range for efficient lookup and memory usage.
     /// </summary>
@@ -233,7 +233,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Lookup by length-aware code for Unicode mapping.
+    /// Looks up the Unicode mapping for a length-aware code.
     /// </summary>
     public string? GetUnicode(PdfCharacterCode code)
     {
@@ -277,7 +277,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Lookup by length-aware code for CID mapping.
+    /// Looks up the CID mapping for a length-aware code.
     /// </summary>
     public bool TryGetCid(PdfCharacterCode code, out int cid)
     {
@@ -356,7 +356,7 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// Merge mappings from another CMap. Keys are treated the same (PdfCharacterCode).
+    /// Merges mappings from another CMap. Keys are treated the same (PdfCharacterCode).
     /// Codespace ranges are merged and Min/Max recalculated.
     /// Also merges range-based maps per code length (1..4).
     /// </summary>

@@ -6,9 +6,6 @@ namespace PdfPixel.Fonts.Model;
 /// <summary>
 /// Represents the CIDSystemInfo dictionary for a PDF font, describing the character collection registry, ordering, and supplement.
 /// </summary>
-/// <remarks>
-/// This class is used to parse and store the CID system information required for composite (CID) fonts in PDF documents.
-/// </remarks>
 public class PdfCidSystemInfo
 {
     /// <summary>

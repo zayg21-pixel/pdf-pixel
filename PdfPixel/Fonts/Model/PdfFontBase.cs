@@ -17,8 +17,8 @@ public abstract class PdfFontBase
     private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = [];
 
     /// <summary>
-    /// Constructor for all PDF fonts with essential immutable properties
-    /// Performs only lightweight dictionary operations
+    /// Constructor for all PDF fonts. Parses the subtype, base font name, /ToUnicode CMap, font
+    /// descriptor and substitution info from <paramref name="fontObject"/>'s dictionary.
     /// </summary>
     /// <param name="fontObject">PDF object containing the font definition</param>
     protected PdfFontBase(PdfObject fontObject)
@@ -97,29 +97,26 @@ public abstract class PdfFontBase
     public PdfCMap? ToUnicodeCMap { get; }
 
     /// <summary>
-    /// Get the font descriptor (contains metrics and embedding info)
+    /// Gets the font descriptor (contains metrics and embedding info)
     /// May be direct or inherited from descendant fonts
-    /// Implementation may use lazy loading
     /// </summary>
     public virtual PdfFontDescriptor? FontDescriptor { get; }
 
     /// <summary>
-    /// Get the width of a character/glyph, or <see langword="null"/> when this font defines none for
+    /// Gets the width of a character/glyph, or <see langword="null"/> when this font defines none for
     /// the code - a width the font defines as zero is a width, not an absent one.
-    /// Implementation varies by font type
     /// </summary>
     public abstract float? GetWidth(PdfCharacterCode code);
 
     /// <summary>
     /// Returns the vertical displacement vector for the specified character code.
     /// </summary>
-    /// <param name="code"></param>
+    /// <param name="code">The character code to retrieve vertical metrics for.</param>
     public abstract PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
 
     /// <summary>
     /// Resolves the glyphs <paramref name="characterCode"/> draws as, together with the typeface they
-    /// belong to. Implemented per font type, since what a character code means - and therefore how a
-    /// glyph is found for it - is a property of that font type's code space alone.
+    /// belong to. Implemented per font type.
     /// </summary>
     /// <param name="characterCode">The character code to resolve glyphs for.</param>
     /// <param name="renderingUnicode">The Unicode text the code stands for, for font types that substitute by Unicode.</param>
@@ -127,9 +124,8 @@ public abstract class PdfFontBase
 
     /// <summary>
     /// Resolves glyphs from this font's own program: the mapping the font defines for the code, and
-    /// failing that the program's own "cmap" for the character the code stands for. Identical for every
-    /// font type - the mapping itself is what differs, and each supplies that through
-    /// <see cref="GetGid"/> - so the step is shared. Empty when no font program is available.
+    /// failing that the program's own "cmap" for the character the code stands for. Empty when no font
+    /// program is available.
     /// </summary>
     /// <param name="characterCode">The character code to resolve glyphs for.</param>
     /// <param name="renderingUnicode">The Unicode text the code stands for.</param>
@@ -158,9 +154,7 @@ public abstract class PdfFontBase
 
     /// <summary>
     /// Resolves glyphs for the Unicode a character code stands for against a substitute typeface.
-    /// Identical for every font type that reaches this point - once a code has been reduced to Unicode,
-    /// nothing about the original code space is left to distinguish them - so the step is shared, while
-    /// deciding whether to reach it at all stays with each <see cref="ResolveGlyphs"/> implementation.
+    /// Whether to reach it at all stays with each <see cref="ResolveGlyphs"/> implementation.
     /// </summary>
     /// <param name="renderingUnicode">The Unicode text to shape against a substitute.</param>
     protected PdfGlyphResolution SubstituteByUnicode(string? renderingUnicode)
@@ -201,7 +195,6 @@ public abstract class PdfFontBase
 
     /// <summary>
     /// Extracts character codes from raw bytes for this font.
-    /// Abstract in base; must be overridden in derived font types.
     /// </summary>
     /// <param name="bytes">Raw bytes to extract character codes from.</param>
     /// <returns>Array of extracted PdfCharacterCode items.</returns>
@@ -216,7 +209,7 @@ public abstract class PdfFontBase
 
     /// <summary>
     /// Extracts all resolved information for a single PDF character code.
-    /// Caches results for each character code. Calls the protected virtual ExtractCharacterInfoCore for font-specific logic.
+    /// Caches results for each character code.
     /// </summary>
     /// <param name="characterCode">The character code to extract info for.</param>
     /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
@@ -320,11 +313,11 @@ public abstract class PdfFontBase
     }
 
     /// <summary>
-    /// Load ToUnicode CMap (heavy operation - lazy loaded using GetPageObject)
+    /// Parses the /ToUnicode CMap stream, or returns null when the font states none. A CMap already
+    /// parsed for the same stream object is taken from the document's CMap cache.
     /// </summary>
     private PdfCMap? LoadToUnicodeCMap()
     {
-        // Use GetPageObject instead of storing reference
         PdfObject? toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
 
         if (toUnicodeObj == null || !toUnicodeObj.HasStream)

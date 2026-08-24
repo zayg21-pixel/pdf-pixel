@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts;
 public static class PdfFontFactory
 {
     /// <summary>
-    /// Determine if a PdfDictionary is a font dictionary by inspecting its Type/Subtype.
+    /// Determines whether a PdfDictionary is a font dictionary by inspecting its Type/Subtype.
     /// </summary>
     public static bool IsFont(PdfDictionary pdfDictionary)
     {

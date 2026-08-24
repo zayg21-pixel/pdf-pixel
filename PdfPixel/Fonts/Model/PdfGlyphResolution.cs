@@ -2,7 +2,7 @@ namespace PdfPixel.Fonts.Model;
 
 /// <summary>
 /// The glyphs a PDF character code draws as, together with the typeface they belong to. Produced by
-/// each font type's own resolution logic, since only the font knows what its code space means.
+/// each font type's own resolution logic.
 /// </summary>
 public readonly struct PdfGlyphResolution
 {

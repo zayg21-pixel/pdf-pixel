@@ -22,7 +22,7 @@ public static class PdfCmapBinary
     }
 
     /// <summary>
-    /// Parse a CMap from the custom binary format written by this class.
+    /// Parses a CMap from the custom binary format written by this class.
     /// If an OverridesHeader block is present, the provided baseResolver will be used to merge the cluster base.
     /// </summary>
     public static PdfCMap ParseCMapBinary(in ReadOnlyMemory<byte> data, Func<PdfString, PdfCMap?> baseResolver)

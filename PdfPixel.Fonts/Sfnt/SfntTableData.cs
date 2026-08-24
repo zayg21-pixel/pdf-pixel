@@ -6,7 +6,7 @@ namespace PdfPixel.Fonts.Sfnt;
 /// A table's tag together with its final content bytes, ready to be assembled into an SFNT
 /// container by <see cref="SfntContainerProcessor.Write"/>. Unlike <see cref="SfntTableRecord"/>,
 /// which describes a table's range within a font that was read, this always carries concrete bytes -
-/// either freshly serialized from a table model, or resolved from a source stream for a passthrough table.
+/// freshly serialized from a table model.
 /// </summary>
 public readonly struct SfntTableData
 {

@@ -75,7 +75,7 @@ public class PdfCompositeFont : PdfFontBase
     public PdfCMap? CodeToCidCMap { get; }
 
     /// <summary>
-    /// Get character width (delegated to appropriate descendant CID font by CID).
+    /// Gets the character width, delegated to the appropriate descendant CID font by CID.
     /// </summary>
     public override float? GetWidth(PdfCharacterCode code)
     {
@@ -121,9 +121,7 @@ public class PdfCompositeFont : PdfFontBase
     }
 
     /// <summary>
-    /// Try to map a length-aware content code (PdfCid) to a numeric CID using the parent encoding.
-    /// For Identity-H/V, the mapping is an identity of the big-endian integer value.
-    /// For embedded CMap streams, uses the parsed CodeToCidCMap.
+    /// Maps a length-aware content code to a numeric CID through <see cref="CodeToCidCMap"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
@@ -140,13 +138,13 @@ public class PdfCompositeFont : PdfFontBase
     }
 
     /// <summary>
-    /// Load descendant fonts (heavy operation - lazy loaded using GetPageObjects)
+    /// Builds a <see cref="PdfCidFont"/> for every entry of the /DescendantFonts array. Entries that do
+    /// not construct as a CID font are left out.
     /// </summary>
     private List<PdfCidFont> LoadDescendantFonts()
     {
         List<PdfCidFont> descendants = [];
 
-        // Use GetPageObjects to get all descendant font objects
         List<PdfObject>? descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
         if (descendantObjects == null || descendantObjects.Count == 0)
         {
@@ -168,8 +166,8 @@ public class PdfCompositeFont : PdfFontBase
     }
 
     /// <summary>
-    /// Load an embedded /Encoding CMap stream (if present) into a code->CID map.
-    /// Returns null if /Encoding is a name or if parsing fails.
+    /// Loads /Encoding into a code-to-CID map: the predefined CMap it names, or the embedded CMap
+    /// stream it points at. Returns null when /Encoding is absent or does not parse.
     /// </summary>
     private PdfCMap? LoadCodeToCidCMap()
     {
@@ -417,11 +415,10 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// Converts a character code to the Unicode string used to select and shape a substitute glyph.
     /// When the descendant is a non-embedded CIDFontType2 font with an Identity CID ordering and the
-    /// /ToUnicode CMap has no genuine bfchar/bfrange entries (only cidchar/cidrange, which some
-    /// producers mislabel as /ToUnicode), resolves the glyph index against the built-in standard-font
-    /// glyph map instead, since such fonts commonly address a well-known non-embedded font by glyph
-    /// index. A /CIDToGIDMap turns the CID into that glyph index; without one the CID is the glyph
-    /// index itself. Falls back to <see cref="GetUnicodeString"/> in every other case.
+    /// /ToUnicode CMap has no genuine bfchar/bfrange entries, resolves the glyph index against the
+    /// built-in standard-font glyph map instead. A /CIDToGIDMap turns the CID into that glyph index;
+    /// without one the CID is the glyph index itself. Falls back to <see cref="GetUnicodeString"/> in
+    /// every other case.
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string to shape against, or <see langword="null"/> if none is available.</returns>

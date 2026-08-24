@@ -56,9 +56,8 @@ public class PdfSimpleFont : PdfSingleByteFont
     }
 
     /// <summary>
-    /// Resolves glyphs for a single-byte code: the embedded program's own mapping first, then - because
-    /// a simple font's code is a code, not a character - a symbol typeface's built-in encoding, and only
-    /// then the Unicode the code stands for.
+    /// Resolves glyphs for a single-byte code: the embedded program's own mapping first, then a symbol
+    /// typeface's built-in encoding, and only then the Unicode the code stands for.
     /// </summary>
     protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
     {

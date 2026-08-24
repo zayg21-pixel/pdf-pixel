@@ -244,7 +244,7 @@ public class PdfType3Font : PdfSingleByteFont
     }
 
     /// <summary>
-    /// Convert character code to character name based on encoding
+    /// Converts a character code to a character name based on the encoding.
     /// </summary>
     private PdfString GetCharacterName(PdfCharacterCode charCode) => Encoding.GetNameByCode((byte)charCode).ToPdfString();
 

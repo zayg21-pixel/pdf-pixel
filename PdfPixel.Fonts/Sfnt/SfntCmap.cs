@@ -4,7 +4,7 @@ namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
 /// Represents a parsed SFNT "cmap" table: every subtable it contains. Read-only - "cmap" is never
-/// written back, only ever passed through unchanged as raw bytes.
+/// written back from this model.
 /// </summary>
 public class SfntCmap
 {

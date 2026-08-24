@@ -59,7 +59,7 @@ public class PdfCidFontVerticalMetrics
     }
 
     /// <summary>
-    /// Parse vertical metrics from the CID font dictionary according to PDF spec.
+    /// Parses vertical metrics from the CID font dictionary according to PDF spec.
     /// DW2: [V1y, W1y]
     /// W2: c [W1y V1x V1y] ... or cFirst cLast W1y V1x V1y
     /// </summary>

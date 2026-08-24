@@ -35,13 +35,13 @@ public class PdfCidFontWidths
     public float? DefaultWidth { get; }
 
     /// <summary>
-    /// Explicit CID widths for CID fonts. Null if not defined.
+    /// Explicit CID widths for CID fonts. Empty when the font declares no <c>/W</c> entries.
     /// </summary>
     public Dictionary<uint, float> CidWidths { get; }
 
     /// <summary>
     /// <see langword="true"/> when at least one CID has an explicit width entry from <c>/W</c>.
-    /// The <c>/DW</c> default does not count, since it isn't a per-CID declared width.
+    /// The <c>/DW</c> default does not count as a per-CID declared width.
     /// </summary>
     public bool HasWidths => CidWidths.Count > 0;
 
