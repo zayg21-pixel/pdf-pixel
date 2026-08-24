@@ -26,7 +26,9 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
     <None Include="..\logo.png" Pack="true" PackagePath="" />
-    <None Include="NOTICE.txt" Pack="true" PackagePath="THIRD-PARTY-NOTICES.txt" />
+    <None Include="NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.txt" />
+    <None Include="..\PdfPixel.Fonts\NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.Fonts.txt" />
+    <None Include="..\PdfPixel.Color\NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.Color.txt" />
   </ItemGroup>
 
   <ItemGroup>

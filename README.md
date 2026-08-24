@@ -4,7 +4,7 @@
 [![Publish NuGet Package](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml)
 [![CI](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml)
 
-PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp as its rendering engine. It renders PDF documents to raster output with full fidelity, optimized for both CPU and GPU rendering, with no dependency on external PDF frameworks — just SkiaSharp, standard Microsoft libraries, and bundled Adobe CMap resources for character mapping. Coverage spans the full PDF specification for static content, with all essential rendering features supported. A ready-made panel component makes it straightforward to embed PDF viewing directly into any application.
+PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp as its rendering engine. It renders PDF documents to raster output with full fidelity, optimized for both CPU and GPU rendering, with no dependency on external PDF frameworks — just SkiaSharp, standard Microsoft libraries, bundled Adobe CMap resources for character mapping, and the bundled URW Core 35 fonts used for the Standard 14 fonts. Coverage spans the full PDF specification for static content, with all essential rendering features supported. A ready-made panel component makes it straightforward to embed PDF viewing directly into any application.
 
 ---
 
@@ -117,3 +117,15 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - Add AcroForm / Widget annotation support
 - Add Avalonia and MAUI support
 - Full test coverage
+
+---
+
+## License
+
+PDF Pixel is licensed under the [MIT License](LICENSE). Bundled third-party resources keep their own licenses, each recorded next to the project that embeds it:
+
+- [PdfPixel/NOTICE.txt](PdfPixel/NOTICE.txt)
+- [PdfPixel.Fonts/NOTICE.txt](PdfPixel.Fonts/NOTICE.txt)
+- [PdfPixel.Color/NOTICE.txt](PdfPixel.Color/NOTICE.txt)
+
+Every package carries the notices for the assemblies it ships, under `notices/`.

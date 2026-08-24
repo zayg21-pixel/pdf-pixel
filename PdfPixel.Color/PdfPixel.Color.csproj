@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Profiles\CompactCmyk.icc" />
+    <None Include="NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.Color.txt" />
   </ItemGroup>
 
   <ItemGroup>
