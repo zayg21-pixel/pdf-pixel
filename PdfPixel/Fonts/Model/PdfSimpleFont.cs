@@ -183,7 +183,14 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         PdfFontDescriptor descriptor = PdfFontDescriptor.FromMetrics(typeface.Metrics, typeface.IsSymbolEncoded);
-        SfntByteCodeToGidMapper mapper = new(typeface, descriptor.Flags, substituted: false, Encoding);
+        CffTypeface? cffTypeface = typeface.SfntFont.CffTypeface;
+
+        if (cffTypeface == null)
+        {
+            throw new InvalidOperationException($"The Standard 14 resource font for '{standardFontName.Value}' carries no CFF outlines.");
+        }
+
+        CffByteCodeToGidMapper mapper = new(cffTypeface, typeface, Encoding);
 
         return new TypefaceResolution(typeface, mapper, isSubstituted: false, descriptor, ResolveSpaceWidth(mapper));
     }
@@ -234,7 +241,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
     }
 
-    private float? ResolveSpaceWidth(SfntByteCodeToGidMapper? mapper)
+    private float? ResolveSpaceWidth(IByteCodeToGidMapper? mapper)
     {
         if (Type != PdfFontSubType.Type1 && Type != PdfFontSubType.MMType1)
         {

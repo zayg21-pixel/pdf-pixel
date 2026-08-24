@@ -19,16 +19,16 @@ public static class Standard14TypefaceLoader
 
     private static readonly Dictionary<PdfFontStandardName, Standard14FontFiles> FontFilesByName = new()
     {
-        [PdfFontStandardName.Times] = new Standard14FontFiles("Times-Roman.ttf", "Times-Bold.ttf", "Times-Italic.ttf", "Times-BoldItalic.ttf"),
-        [PdfFontStandardName.TimesNewRoman] = new Standard14FontFiles("Times-Roman.ttf", "Times-Bold.ttf", "Times-Italic.ttf", "Times-BoldItalic.ttf"),
-        [PdfFontStandardName.TimesNewRomanPS] = new Standard14FontFiles("Times-Roman.ttf", "Times-Bold.ttf", "Times-Italic.ttf", "Times-BoldItalic.ttf"),
-        [PdfFontStandardName.Helvetica] = new Standard14FontFiles("Helvetica.ttf", "Helvetica-Bold.ttf", "Helvetica-Oblique.ttf", "Helvetica-BoldOblique.ttf"),
-        [PdfFontStandardName.Arial] = new Standard14FontFiles("Helvetica.ttf", "Helvetica-Bold.ttf", "Helvetica-Oblique.ttf", "Helvetica-BoldOblique.ttf"),
-        [PdfFontStandardName.Courier] = new Standard14FontFiles("Courier.ttf", "Courier-Bold.ttf", "Courier-Oblique.ttf", "Courier-BoldOblique.ttf"),
-        [PdfFontStandardName.CourierNew] = new Standard14FontFiles("Courier.ttf", "Courier-Bold.ttf", "Courier-Oblique.ttf", "Courier-BoldOblique.ttf"),
-        [PdfFontStandardName.CourierNewPS] = new Standard14FontFiles("Courier.ttf", "Courier-Bold.ttf", "Courier-Oblique.ttf", "Courier-BoldOblique.ttf"),
-        [PdfFontStandardName.Symbol] = new Standard14FontFiles("Symbol.otf", "Symbol.otf", "Symbol.otf", "Symbol.otf"),
-        [PdfFontStandardName.ZapfDingbats] = new Standard14FontFiles("ZapfDingbats.otf", "ZapfDingbats.otf", "ZapfDingbats.otf", "ZapfDingbats.otf")
+        [PdfFontStandardName.Times] = new Standard14FontFiles("NimbusRoman-Regular.otf", "NimbusRoman-Bold.otf", "NimbusRoman-Italic.otf", "NimbusRoman-BoldItalic.otf"),
+        [PdfFontStandardName.TimesNewRoman] = new Standard14FontFiles("NimbusRoman-Regular.otf", "NimbusRoman-Bold.otf", "NimbusRoman-Italic.otf", "NimbusRoman-BoldItalic.otf"),
+        [PdfFontStandardName.TimesNewRomanPS] = new Standard14FontFiles("NimbusRoman-Regular.otf", "NimbusRoman-Bold.otf", "NimbusRoman-Italic.otf", "NimbusRoman-BoldItalic.otf"),
+        [PdfFontStandardName.Helvetica] = new Standard14FontFiles("NimbusSans-Regular.otf", "NimbusSans-Bold.otf", "NimbusSans-Oblique.otf", "NimbusSans-BoldOblique.otf"),
+        [PdfFontStandardName.Arial] = new Standard14FontFiles("NimbusSans-Regular.otf", "NimbusSans-Bold.otf", "NimbusSans-Oblique.otf", "NimbusSans-BoldOblique.otf"),
+        [PdfFontStandardName.Courier] = new Standard14FontFiles("NimbusMonoPS-Regular.otf", "NimbusMonoPS-Bold.otf", "NimbusMonoPS-Italic.otf", "NimbusMonoPS-BoldItalic.otf"),
+        [PdfFontStandardName.CourierNew] = new Standard14FontFiles("NimbusMonoPS-Regular.otf", "NimbusMonoPS-Bold.otf", "NimbusMonoPS-Italic.otf", "NimbusMonoPS-BoldItalic.otf"),
+        [PdfFontStandardName.CourierNewPS] = new Standard14FontFiles("NimbusMonoPS-Regular.otf", "NimbusMonoPS-Bold.otf", "NimbusMonoPS-Italic.otf", "NimbusMonoPS-BoldItalic.otf"),
+        [PdfFontStandardName.Symbol] = new Standard14FontFiles("StandardSymbolsPS.otf", "StandardSymbolsPS.otf", "StandardSymbolsPS.otf", "StandardSymbolsPS.otf"),
+        [PdfFontStandardName.ZapfDingbats] = new Standard14FontFiles("D050000L.otf", "D050000L.otf", "D050000L.otf", "D050000L.otf")
     };
 
     // Keyed by resource file name, so the families that share one file - Times and Times New Roman,
@@ -62,8 +62,7 @@ public static class Standard14TypefaceLoader
     }
 
     /// <summary>
-    /// Parses one Standard 14 resource font. The program is served to a rasterizer as it stands, since
-    /// it is generated with the "cmap" and metrics a repack would otherwise have to supply.
+    /// Parses one Standard 14 resource font. The program is served to a rasterizer as it stands.
     /// </summary>
     private static SfntPdfTypeface LoadTypeface(string fileName, ILoggerFactory loggerFactory)
     {
