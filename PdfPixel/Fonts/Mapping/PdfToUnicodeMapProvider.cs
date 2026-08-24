@@ -1,4 +1,4 @@
-using PdfPixel.Fonts.Model;
+﻿using PdfPixel.Fonts.Model;
 using PdfPixel.Resources;
 using PdfPixel.Text;
 using System;
@@ -13,7 +13,7 @@ public static class PdfToUnicodeMapProvider
 {
     private static readonly Lazy<Dictionary<uint, string>> _japanToUnicode = new(() =>
     {
-        byte[] resource = PdfResourceLoader.GetResource("External.Adobe-Japan1-UCS2.bin");
+        byte[] resource = PdfResourceLoader.GetResource("External.CidToUnicode.Adobe-Japan1-UCS2.bin");
         Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -21,7 +21,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _cnsToUnicode = new(() =>
     {
-        byte[] resource = PdfResourceLoader.GetResource("External.Adobe-CNS1-UCS2.bin");
+        byte[] resource = PdfResourceLoader.GetResource("External.CidToUnicode.Adobe-CNS1-UCS2.bin");
         Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -29,7 +29,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _gbToUnicode = new(() =>
     {
-        byte[] resource = PdfResourceLoader.GetResource("External.Adobe-GB1-UCS2.bin");
+        byte[] resource = PdfResourceLoader.GetResource("External.CidToUnicode.Adobe-GB1-UCS2.bin");
         Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -37,7 +37,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _koreaToUnicode = new(() =>
     {
-        byte[] resource = PdfResourceLoader.GetResource("External.Adobe-Korea1-UCS2.bin");
+        byte[] resource = PdfResourceLoader.GetResource("External.CidToUnicode.Adobe-Korea1-UCS2.bin");
         Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -45,7 +45,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _krToUnicode = new(() =>
     {
-        byte[] resource = PdfResourceLoader.GetResource("External.Adobe-KR-UCS2.bin");
+        byte[] resource = PdfResourceLoader.GetResource("External.CidToUnicode.Adobe-KR-UCS2.bin");
         Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;

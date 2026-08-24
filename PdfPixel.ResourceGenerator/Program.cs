@@ -25,7 +25,6 @@ internal static class Program
     private const string CidToUnicodeOutputDirectory = "CidToUnicode";
     private const string GlyphNamesOutputDirectory = "GlyphNames";
     private const string PostGlyphOrderOutputDirectory = "PostGlyphOrder";
-    private const string GlyphMapsOutputDirectory = "GlyphMaps";
 
     /// <summary>
     /// Every section that can be generated, named by the directory it writes to.
@@ -35,8 +34,7 @@ internal static class Program
         CmapOutputDirectory,
         CidToUnicodeOutputDirectory,
         GlyphNamesOutputDirectory,
-        PostGlyphOrderOutputDirectory,
-        GlyphMapsOutputDirectory
+        PostGlyphOrderOutputDirectory
     ];
 
     /// <summary>
@@ -120,13 +118,6 @@ internal static class Program
             Console.WriteLine($"Generating post table standard glyph order to {PostGlyphOrderOutputDirectory} ...");
             string postGlyphOrderSourcePath = Path.Combine(AppContext.BaseDirectory, "Encodings", "PostGlyphOrder.txt");
             PostGlyphOrderGenerator.Generate(postGlyphOrderSourcePath, GetOutputDirectory(PostGlyphOrderOutputDirectory));
-        }
-
-        if (IsSelected(sections, GlyphMapsOutputDirectory))
-        {
-            Console.WriteLine($"Generating standard font glyph maps to {GlyphMapsOutputDirectory} ...");
-            string standardFontGlyphMapSourceDirectory = Path.Combine(AppContext.BaseDirectory, "Encodings");
-            StandardFontGlyphMapGenerator.GenerateAll(standardFontGlyphMapSourceDirectory, GetOutputDirectory(GlyphMapsOutputDirectory));
         }
 
         Console.WriteLine("Done.");

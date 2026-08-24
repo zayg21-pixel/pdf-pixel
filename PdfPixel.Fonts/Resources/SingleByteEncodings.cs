@@ -1,6 +1,4 @@
 using PdfPixel.Fonts.Model;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Resources;
 
@@ -20,8 +18,6 @@ public static class SingleByteEncodings
     private static readonly PdfFontString[] _macExpert;
     private static readonly PdfFontString[] _symbol;
     private static readonly PdfFontString[] _zapfDingbats;
-
-    private static readonly ConcurrentDictionary<PdfFontEncoding, Dictionary<PdfFontString, byte>> EncodingCodesByName = [];
 
     // Predefined Standard 14 font name mappings to encodings
     private static readonly (PdfFontStandardName Name, PdfFontEncoding Encoding)[] Standard14NameEncodings =
@@ -167,5 +163,4 @@ public static class SingleByteEncodings
 
         return default;
     }
-
 }

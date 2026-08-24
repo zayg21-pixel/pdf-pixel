@@ -34,15 +34,6 @@
     <None Update="Encodings\PostGlyphOrder.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Encodings\StandardFontGlyphMap.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Encodings\StandardFontGlyphMapArialBlack.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Encodings\StandardFontGlyphMapCalibri.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

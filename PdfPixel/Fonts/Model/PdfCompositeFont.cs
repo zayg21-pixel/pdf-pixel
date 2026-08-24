@@ -412,60 +412,6 @@ public class PdfCompositeFont : PdfFontBase
         return (PdfCMap.IsValidCodePoint(codePoint)) ? char.ConvertFromUtf32(codePoint) : null;
     }
 
-    /// <summary>
-    /// Converts a character code to the Unicode string used to select and shape a substitute glyph.
-    /// When the descendant is a non-embedded CIDFontType2 font with an Identity CID ordering and the
-    /// /ToUnicode CMap has no genuine bfchar/bfrange entries, resolves the glyph index against the
-    /// built-in standard-font glyph map instead. A /CIDToGIDMap turns the CID into that glyph index;
-    /// without one the CID is the glyph index itself. Falls back to <see cref="GetUnicodeString"/> in
-    /// every other case.
-    /// </summary>
-    /// <param name="code">The character code to convert.</param>
-    /// <returns>The Unicode string to shape against, or <see langword="null"/> if none is available.</returns>
-    public override string? GetRenderingUnicodeString(PdfCharacterCode code)
-    {
-        if (ToUnicodeCMap?.HasUnicodeMappings != true
-            && TryMapCodeToCid(code, out uint cid)
-            && TryGetStandardFontGlyphUnicode(cid, out string? standardFontUnicode))
-        {
-            return standardFontUnicode;
-        }
-
-        return base.GetRenderingUnicodeString(code);
-    }
-
-    private bool TryGetStandardFontGlyphUnicode(uint cid, out string? unicode)
-    {
-        PdfCidFont? descendant = PrimaryDescendant;
-        if (descendant == null
-            || descendant.Type != PdfFontSubType.CidFontType2
-            || descendant.Typeface != null
-            || descendant.CidSystemInfo == null
-            || descendant.CidSystemInfo.Ordering != PdfTokens.IdentityKey)
-        {
-            unicode = null;
-            return false;
-        }
-
-        PdfCidToGidMap? cidToGidMap = descendant.CidToGidMap;
-        uint glyphIndex = cid;
-
-        if (cidToGidMap != null)
-        {
-            ushort? cidToGidIndex = cidToGidMap.GetGID(cid);
-
-            if (cidToGidIndex == null)
-            {
-                unicode = null;
-                return false;
-            }
-
-            glyphIndex = cidToGidIndex.Value;
-        }
-
-        return StandardFontGlyphMapProvider.TryGetUnicode(descendant.BaseFont, glyphIndex, out unicode);
-    }
-
     // A /ToUnicode CMap that declares only cidchar/cidrange entries carries its target values as CIDs
     // rather than as the byte strings bfchar/bfrange would use; those values are Unicode code points.
     private bool TryGetToUnicodeCidAsCodePoint(PdfCharacterCode code, out string? unicode)

@@ -241,7 +241,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
     }
 
-    private float? ResolveSpaceWidth(IByteCodeToGidMapper? mapper)
+    private float? ResolveSpaceWidth(CffByteCodeToGidMapper? mapper)
     {
         if (Type != PdfFontSubType.Type1 && Type != PdfFontSubType.MMType1)
         {
