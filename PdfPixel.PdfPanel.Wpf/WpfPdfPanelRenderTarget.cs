@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Rendering;
+﻿using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
@@ -11,7 +12,7 @@ namespace PdfPixel.PdfPanel.Wpf;
 
 partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 {
-    public WpfPdfPanelRenderTarget(WriteableBitmap writeableBitmap, WpfPdfPanel panel, SKSize canvasSize, SKPoint canvasScale, SKPoint canvasOffset)
+    public WpfPdfPanelRenderTarget(WriteableBitmap writeableBitmap, WpfPdfPanel panel, PdfSize canvasSize, PdfPoint canvasScale, PdfPoint canvasOffset)
     {
         WriteableBitmap = writeableBitmap ?? throw new ArgumentNullException(nameof(writeableBitmap));
         Panel = panel ?? throw new ArgumentNullException(nameof(panel));
@@ -24,11 +25,11 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 
     public WpfPdfPanel Panel { get; }
 
-    public SKSize CanvasSize { get; }
+    public PdfSize CanvasSize { get; }
 
-    public SKPoint CanvasScale { get; }
+    public PdfPoint CanvasScale { get; }
 
-    public SKPoint CanvasOffset { get; }
+    public PdfPoint CanvasOffset { get; }
 
     public void Render(SKSurface surface, DrawingRequest request)
     {

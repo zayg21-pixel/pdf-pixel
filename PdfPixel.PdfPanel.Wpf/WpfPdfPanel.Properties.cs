@@ -1,7 +1,7 @@
-﻿using PdfPixel.PdfPanel.Annotations;
+﻿using PdfPixel.Color;
+using PdfPixel.PdfPanel.Annotations;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 
 namespace PdfPixel.PdfPanel.Wpf;
 
@@ -33,9 +33,6 @@ public partial class WpfPdfPanel
 
     public static readonly DependencyProperty CurrentPageProperty = DependencyProperty.Register(nameof(CurrentPage), typeof(int), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentPageProperty_Changed));
-
-    public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(Colors.LightGray, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty AutoScaleModeProperty = DependencyProperty.Register(nameof(AutoScaleMode), typeof(PdfPanelAutoScaleMode), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(PdfPanelAutoScaleMode.NoAutoScale, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
@@ -148,13 +145,14 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets or sets the background color.
+    /// Gets or sets the background color drawn behind the pages.
     /// </summary>
-    public System.Windows.Media.Color BackgroundColor
-    {
-        get => (System.Windows.Media.Color)GetValue(BackgroundColorProperty);
-        set => SetValue(BackgroundColorProperty, value);
-    }
+    public PdfColor BackgroundColor { get; set; } = PdfColors.LightGray;
+
+    /// <summary>
+    /// Gets or sets the page corner radius (in unscaled page space).
+    /// </summary>
+    public float PageCornerRadius { get; set; }
 
     /// <summary>
     /// Gets or sets the automatic scaling mode.

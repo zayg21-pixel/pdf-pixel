@@ -102,23 +102,7 @@ internal static class PdfAnnotationIconParser
             return (PdfAnnotationIconColorType.Exterior, PdfColors.Transparent);
         }
 
-        return (PdfAnnotationIconColorType.Override, ParseHexColor(value));
-    }
-
-    private static PdfColor ParseHexColor(string value)
-    {
-        string hex = value.TrimStart('#');
-#if NETSTANDARD2_0
-        var red = byte.Parse(hex.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-        var green = byte.Parse(hex.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-        var blue = byte.Parse(hex.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-#else
-        var red = byte.Parse(hex.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-        var green = byte.Parse(hex.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-        var blue = byte.Parse(hex.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-#endif
-
-        return new PdfColor(red / 255f, green / 255f, blue / 255f);
+        return (PdfAnnotationIconColorType.Override, PdfColor.ParseHexColor(value));
     }
 
     private static PdfMatrix ParseViewBox(string value, float width, float height)

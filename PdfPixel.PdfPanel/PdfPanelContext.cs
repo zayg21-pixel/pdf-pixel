@@ -1,5 +1,4 @@
 using PdfPixel.Geometry;
-using SkiaSharp;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Layout;
@@ -19,17 +18,16 @@ public class PdfPanelContext
 {
     private readonly PdfPanelRenderer _renderer;
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
-    private readonly IPdfPanelLayout _layout;
+    private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
 
     /// <summary>
-    /// Initializes the context with the given page collection, renderer, render target factory, and layout.
+    /// Initializes the context with the given page collection, renderer, and render target factory.
     /// </summary>
-    public PdfPanelContext(PdfPanelPageCollection pages, PdfPanelRenderer renderer, IPdfPanelRenderTargetFactory renderTargetFactory, IPdfPanelLayout layout)
+    public PdfPanelContext(PdfPanelPageCollection pages, PdfPanelRenderer renderer, IPdfPanelRenderTargetFactory renderTargetFactory)
     {
         Pages = pages ?? throw new ArgumentNullException(nameof(pages));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
-        _layout = layout ?? throw new ArgumentNullException(nameof(layout));
     }
 
     /// <summary>
@@ -103,11 +101,6 @@ public class PdfPanelContext
     public float MinimumPageGap { get; set; } = 10;
 
     /// <summary>
-    /// Background color drawn behind the pages.
-    /// </summary>
-    public SKColor BackgroundColor { get; set; } = SKColors.LightGray;
-
-    /// <summary>
     /// Current pointer position in viewport coordinates, or null if pointer is not over the panel.
     /// </summary>
     public PdfPoint? PointerPosition { get; set; }
@@ -133,6 +126,15 @@ public class PdfPanelContext
     public PdfPanelPageCollection Pages { get; }
 
     /// <summary>
+    /// Layout that positions the pages within the viewport.
+    /// </summary>
+    public IPdfPanelLayout Layout
+    {
+        get => _layout;
+        set => _layout = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    /// <summary>
     /// Gets the viewport rectangle in scaled coordinate space.
     /// </summary>
     public PdfRectangle ViewportRectangle => PdfRectangle.FromLocationAndSize(HorizontalOffset, VerticalOffset, ViewportWidth, ViewportHeight);
@@ -145,13 +147,13 @@ public class PdfPanelContext
     {
         Scale = Clamp(Scale, MinScale, MaxScale);
 
-        PdfSize extentSize = _layout.CalculateDimensions(
+        PdfSize extentSize = Layout.CalculateDimensions(
             Pages, Scale, PagesPadding, MinimumPageGap, ViewportWidth, ViewportHeight);
 
         ExtentWidth = extentSize.Width;
         ExtentHeight = extentSize.Height;
 
-        _layout.CalculatePageOffsets(
+        Layout.CalculatePageOffsets(
             Pages, Scale, PagesPadding, MinimumPageGap, ExtentWidth, ExtentHeight);
 
         VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - ViewportHeight));
@@ -200,7 +202,6 @@ public class PdfPanelContext
         PdfCommandExecutionParameters parameters = CommandExecutionParameters.Clone();
         parameters.ScaleFactor = Scale;
 
-        request.BackgroundColor = BackgroundColor;
         request.CommandExecutionParameters = parameters;
         request.RenderingParameters = RenderingParameters;
 

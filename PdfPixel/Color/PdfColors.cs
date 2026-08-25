@@ -34,4 +34,9 @@ public static class PdfColors
     /// Opaque yellow.
     /// </summary>
     public static PdfColor Yellow { get; } = new(1f, 1f, 0f);
+
+    /// <summary>
+    /// Opaque light gray.
+    /// </summary>
+    public static PdfColor LightGray { get; } = new(211f / 255f, 211f / 255f, 211f / 255f);
 }

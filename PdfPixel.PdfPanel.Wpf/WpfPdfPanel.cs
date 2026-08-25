@@ -2,7 +2,6 @@
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
@@ -85,6 +84,20 @@ public partial class WpfPdfPanel : FrameworkElement
         DrawingVisual = new DrawingVisual();
         children.Add(DrawingVisual);
 
+        if (RenderMode == WpfRenderMode.OpenGl)
+        {
+            var glFactory = new OpenGlRenderTargetFactory(this, sampleCount: 1);
+            _surfaceFactory = glFactory;
+            _renderTargetFactory = glFactory;
+        }
+        else
+        {
+            _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul);
+            _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
+        }
+
+        _animationClock = new PdfAnimationClock();
+
         InvalidateVisual();
     }
 
@@ -95,8 +108,16 @@ public partial class WpfPdfPanel : FrameworkElement
 
         InputManager.Current.PreNotifyInput -= OnPreNotifyInput;
 
+        _renderer?.Dispose();
+        _renderer = null;
+        _context = null;
+
         _animationClock?.Dispose();
         _animationClock = null;
+
+        _surfaceFactory?.Dispose();
+        _surfaceFactory = null;
+        _renderTargetFactory = null;
     }
 
     protected override Size ArrangeOverride(Size finalSize)
@@ -132,7 +153,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     protected override void OnRender(DrawingContext drawingContext)
     {
-        var brush = new SolidColorBrush(BackgroundColor);
+        var brush = new SolidColorBrush(ToMediaColor(BackgroundColor));
         brush.Freeze();
 
         var size = new Size(ActualWidth, ActualHeight);
@@ -149,7 +170,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void Update()
     {
-        if (Pages == null)
+        if (Pages == null || !IsLoaded)
         {
             return;
         }
@@ -183,32 +204,17 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        // TODO: [HIGH] there's no need to dispose it every time
         _renderer?.Dispose();
-        _surfaceFactory?.Dispose();
-        _animationClock?.Dispose();
-
-        if (RenderMode == WpfRenderMode.OpenGl)
-        {
-            var glFactory = new OpenGlRenderTargetFactory(this, sampleCount: 1);
-            _surfaceFactory = glFactory;
-            _renderTargetFactory = glFactory;
-        }
-        else
-        {
-            _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul);
-            _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
-        }
-
-        _animationClock = new PdfAnimationClock();
 
         PdfPanelRendererProperties rendererProperties = new()
         {
-            SynchronizationContext = SynchronizationContext.Current
+            SynchronizationContext = SynchronizationContext.Current,
+            BackgroundColor = BackgroundColor,
+            PageCornerRadius = PageCornerRadius
         };
 
         _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _animationClock, rendererProperties);
-        _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory, new PdfPanelVerticalLayout());
+        _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory);
     }
 
     private void SyncViewerCanvasState()
@@ -226,8 +232,6 @@ public partial class WpfPdfPanel : FrameworkElement
             (float)PagesPadding.Right,
             (float)PagesPadding.Bottom);
 
-        var backgroundColor = BackgroundColor;
-        _context.BackgroundColor = new SKColor(backgroundColor.R, backgroundColor.G, backgroundColor.B, backgroundColor.A);
         UpdatePointerState();
 
         _context.Update();
@@ -437,4 +441,9 @@ public partial class WpfPdfPanel : FrameworkElement
         }
 #endif
     }
+
+    private static System.Windows.Media.Color ToMediaColor(in PdfPixel.Color.PdfColor color)
+        => System.Windows.Media.Color.FromArgb(ToByte(color.Alpha), ToByte(color.Red), ToByte(color.Green), ToByte(color.Blue));
+
+    private static byte ToByte(float channel) => (byte)((Math.Max(0f, Math.Min(1f, channel)) * 255f) + 0.5f);
 }

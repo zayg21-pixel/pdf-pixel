@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf.Drawing;
@@ -43,9 +44,9 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
     // Presentation state (created/updated on UI thread via GetRenderTarget)
     private WriteableBitmap _writeableBitmap;
-    private SKSize _lastCanvasSize;
-    private SKPoint _lastCanvasScale;
-    private SKPoint _lastCanvasOffset;
+    private PdfSize _lastCanvasSize;
+    private PdfPoint _lastCanvasScale;
+    private PdfPoint _lastCanvasOffset;
 
     /// <summary>
     /// Initializes a new <see cref="OpenGlRenderTargetFactory"/> for the specified panel.
@@ -62,10 +63,14 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     /// <inheritdoc />
     /// <remarks>
     /// Creates the offscreen WGL context and SkiaSharp <see cref="GRContext"/> on the render thread.
-    /// Called once by <see cref="PdfRenderingQueue"/> when the render thread starts.
     /// </remarks>
     public void Initialize()
     {
+        if (_glContext != null)
+        {
+            return;
+        }
+
         _glContext = WglContext.Create();
 
         using var glInterface = GRGlInterface.Create();
@@ -127,9 +132,9 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     /// </remarks>
     public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context)
     {
-        var canvasSize = new SKSize((float)_panel.CanvasSize.Width, (float)_panel.CanvasSize.Height);
-        var canvasScale = new SKPoint((float)_panel.CanvasScale.X, (float)_panel.CanvasScale.Y);
-        var canvasOffset = new SKPoint((float)_panel.CanvasOffset.X, (float)_panel.CanvasOffset.Y);
+        var canvasSize = new PdfSize((float)_panel.CanvasSize.Width, (float)_panel.CanvasSize.Height);
+        var canvasScale = new PdfPoint((float)_panel.CanvasScale.X, (float)_panel.CanvasScale.Y);
+        var canvasOffset = new PdfPoint((float)_panel.CanvasOffset.X, (float)_panel.CanvasOffset.Y);
 
         if (_writeableBitmap == null ||
             _lastCanvasSize != canvasSize ||

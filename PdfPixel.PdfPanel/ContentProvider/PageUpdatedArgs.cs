@@ -1,5 +1,4 @@
 using PdfPixel.Geometry;
-using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 

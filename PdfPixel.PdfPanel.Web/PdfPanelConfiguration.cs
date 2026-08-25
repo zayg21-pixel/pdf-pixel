@@ -1,5 +1,5 @@
+using PdfPixel.Color;
 using PdfPixel.Geometry;
-using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.Web;
 
@@ -12,7 +12,7 @@ internal struct PdfPanelConfiguration
 
     public float MaxZoom { get; set; }
 
-    public SKColor BackgroundColor { get; set; }
+    public PdfColor BackgroundColor { get; set; }
 
     public float MinimumPageGap { get; set; }
 

@@ -10,7 +10,8 @@ namespace PdfPixel.PdfPanel.Rendering;
 public interface ISkSurfaceFactory : IDisposable
 {
     /// <summary>
-    /// Performs any platform-specific initialisation. Must be called once before <see cref="GetDrawingSurface"/>.
+    /// Performs any platform-specific initialisation. Must be called before <see cref="GetDrawingSurface"/>;
+    /// calling it again on an already initialised factory has no effect.
     /// </summary>
     void Initialize();
 

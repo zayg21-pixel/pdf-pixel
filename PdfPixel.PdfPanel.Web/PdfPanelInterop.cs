@@ -1,17 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
+using PdfPixel.Color;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
 using PdfPixel.Skia.Fonts;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -106,18 +104,10 @@ public partial class PdfPanelInterop
             };
 
             var background = configuration.GetPropertyAsString("backgroundColor");
-            if (!string.IsNullOrEmpty(background) && SKColor.TryParse(background, out var backgroundColor))
-            {
-                parsed.BackgroundColor = backgroundColor;
-            }
-            else
-            {
-                parsed.BackgroundColor = SKColors.LightGray;
-            }
+            parsed.BackgroundColor = string.IsNullOrEmpty(background) ? PdfColors.LightGray : PdfColor.ParseHexColor(background);
 
             resources.Configuration = parsed;
 
-            resources.AnimationClock = new PdfAnimationClock();
             ResourcesMap[containerId] = resources;
         }
         catch (Exception ex)
@@ -150,7 +140,6 @@ public partial class PdfPanelInterop
 
         if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
-            resources.AnimationClock.Dispose();
             resources.Renderer?.Dispose();
             resources.Pages?.Dispose();
             resources.Document?.Dispose();
@@ -188,17 +177,18 @@ public partial class PdfPanelInterop
 
             resources.Renderer?.Dispose();
 
+            var panelConfiguration = resources.Configuration;
+
             PdfPanelRendererProperties rendererProperties = new()
             {
-                SynchronizationContext = SynchronizationContext.Current
+                SynchronizationContext = SynchronizationContext.Current,
+                BackgroundColor = panelConfiguration.BackgroundColor
             };
 
-            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.AnimationClock, rendererProperties);
+            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, null, rendererProperties);
 
-            resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
+            resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory);
 
-            var panelConfiguration = resources.Configuration;
-            resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
             resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
             resources.Context.PagesPadding = panelConfiguration.PagesPadding;
         }
@@ -233,8 +223,8 @@ public partial class PdfPanelInterop
             // Sync configuration on each redraw in case it changed
             var panelConfiguration = resources.Configuration;
 
-            resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
-                resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
+            resources.Renderer.Properties.BackgroundColor = panelConfiguration.BackgroundColor;
+            resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
             resources.Context.PagesPadding = panelConfiguration.PagesPadding;
 
             resources.Context.VerticalOffset = verticalOffset;

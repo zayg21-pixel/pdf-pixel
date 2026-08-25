@@ -1,3 +1,5 @@
+using PdfPixel.Color;
+using PdfPixel.PdfPanel.Text;
 using System;
 using System.Threading;
 
@@ -12,6 +14,22 @@ public sealed class PdfPanelRendererProperties
     /// Context that page and animation callbacks are posted to, or <see langword="null"/> to invoke them on the calling thread.
     /// </summary>
     public SynchronizationContext? SynchronizationContext { get; set; }
+
+    /// <summary>
+    /// Background color drawn behind the pages.
+    /// </summary>
+    public PdfColor BackgroundColor { get; set; } = PdfColors.LightGray;
+
+    /// <summary>
+    /// Corner radius for page rendering in unscaled page space.
+    /// A value of 0 renders pages with sharp corners.
+    /// </summary>
+    public float PageCornerRadius { get; set; }
+
+    /// <summary>
+    /// Configuration the renderer's <see cref="PdfPanelTextSelector"/> is created with.
+    /// </summary>
+    public PdfPanelTextSelectorParameters TextSelectorParameters { get; set; } = new();
 
     /// <summary>
     /// Edge length of a single content tile in device pixels.

@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.Requests;
@@ -9,11 +8,6 @@ namespace PdfPixel.PdfPanel.Requests;
 /// </summary>
 public class PagesDrawingRequest : DrawingRequest
 {
-    /// <summary>
-    /// Color drawn behind all pages.
-    /// </summary>
-    public SKColor BackgroundColor { get; set; }
-
     /// <summary>
     /// PDF command execution parameters such as scale factor and quality settings.
     /// </summary>
@@ -30,7 +24,6 @@ public class PagesDrawingRequest : DrawingRequest
         if (obj is PagesDrawingRequest other)
         {
             return base.Equals(obj)
-                && BackgroundColor == other.BackgroundColor
                 && CommandExecutionParameters == other.CommandExecutionParameters;
         }
 
@@ -49,7 +42,6 @@ public class PagesDrawingRequest : DrawingRequest
         hash.Add(RenderTarget);
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);
-        hash.Add(BackgroundColor);
         hash.Add(CommandExecutionParameters);
         return hash.ToHashCode();
     }

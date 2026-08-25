@@ -13,15 +13,10 @@ namespace PdfPixel.PdfPanel.Text;
 /// <summary>
 /// Tracks text selection state and produces highlight graphics for the selected range.
 /// </summary>
-public sealed partial class PdfPanelTextSelector : IDisposable
+public sealed class PdfPanelTextSelector : IDisposable
 {
-    private const float MinDragDistance = 4f;
-    private const float CharacterHitRadius = 10;
-    private const float LineMergeThreshold = 0.5f;
-
-    private static readonly SKColor HighlightColor = new(50, 100, 220, 80);
-
     private readonly IPdfPageContentProvider _contentProvider;
+    private readonly PdfPanelTextSelectorParameters _parameters;
     private readonly Dictionary<int, SKPicture> _selectionPictures = [];
     private int? _anchorPageNumber;
     private PdfPoint _anchorPoint;
@@ -32,10 +27,13 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     private bool _isPointerOverText;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfPanelTextSelector"/> with the given content provider.
+    /// Initializes a new <see cref="PdfPanelTextSelector"/> with the given content provider and parameters.
     /// </summary>
-    public PdfPanelTextSelector(IPdfPageContentProvider contentProvider)
-        => _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+    public PdfPanelTextSelector(IPdfPageContentProvider contentProvider, PdfPanelTextSelectorParameters parameters)
+    {
+        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
+    }
 
     /// <summary>
     /// Returns the selection highlight picture for the given page, or <see langword="null"/> if that page has no selection.
@@ -95,7 +93,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
 
         List<PdfCharacter> characters = pictures.ContentCharacters;
 
-        _isPointerOverText = HitTestCharacterNearest(characters, pos.Position, CharacterHitRadius) != null;
+        _isPointerOverText = HitTestCharacterNearest(characters, pos.Position, _parameters.CharacterHitRadius) != null;
         UpdateSelectionState(pos, characters);
 
         SKPicture? newPicture = GenerateSelectionPicture(pos.PageNumber);
@@ -149,7 +147,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         _currentCharIndex = null;
         _selectedCharacters = null;
 
-        int? charIndex = HitTestCharacterNearest(characters, position.Position, CharacterHitRadius);
+        int? charIndex = HitTestCharacterNearest(characters, position.Position, _parameters.CharacterHitRadius);
         if (charIndex == null)
         {
             return;
@@ -169,7 +167,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
 
         float dx = position.Position.X - _anchorPoint.X;
         float dy = position.Position.Y - _anchorPoint.Y;
-        if ((dx * dx) + (dy * dy) < MinDragDistance * MinDragDistance)
+        if ((dx * dx) + (dy * dy) < _parameters.MinimumDragDistance * _parameters.MinimumDragDistance)
         {
             return;
         }
@@ -249,7 +247,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         SKPaint highlightPaint = new()
         {
             Style = SKPaintStyle.Fill,
-            Color = HighlightColor
+            Color = _parameters.HighlightColor.ToSkiaColor()
         };
 
         PdfRectangle? currentStrip = null;
@@ -262,7 +260,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
             {
                 currentStrip = box;
             }
-            else if (Math.Abs(box.Top - currentStrip.Value.Top) < currentStrip.Value.Height * LineMergeThreshold)
+            else if (Math.Abs(box.Top - currentStrip.Value.Top) < currentStrip.Value.Height * _parameters.LineMergeThreshold)
             {
                 currentStrip = PdfRectangle.Union(currentStrip.Value, box);
             }
