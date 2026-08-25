@@ -30,7 +30,7 @@ public class Jbig2DecodingTests
         _logger = NullLogger.Instance;
     }
 
-    //[Theory]
+    [Theory(Skip = "Not implemented")]
     [InlineData("bitmap-symbol-context-reuse.jb2")] // not implemented
     [InlineData("bitmap-symbol-symhuffrefine-textrefine.jb2")] // not implemented
     [InlineData("bitmap-symbol-symhuffrefineseveral.jb2")] // not implemented
@@ -39,7 +39,6 @@ public class Jbig2DecodingTests
         AssertDecodesWithSimilarityToReference(fileName);
     }
 
-    // TODO: enableSkip is not implemented (NYI in pdf.js as well).
     [Theory]
     [InlineData("bitmap-halftone-skip-dummy.jb2")]
     [InlineData("bitmap-halftone-skip-grid.jb2")]
