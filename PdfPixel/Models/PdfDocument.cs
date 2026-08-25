@@ -50,6 +50,9 @@ internal class PdfDocument : IPdfDocumentInternal
     public ILoggerFactory LoggerFactory { get; }
 
     /// <inheritdoc />
+    public FontProvider FontProvider => _fontProvider;
+
+    /// <inheritdoc />
     public CommandCache CommandCache { get; } = new();
 
     IReadOnlyList<IPdfPage> IPdfDocument.Pages => _pages;
@@ -71,8 +74,6 @@ internal class PdfDocument : IPdfDocumentInternal
     BasePdfDecryptor? IPdfDocumentInternal.Decryptor { get; set; }
 
     string? IPdfDocumentInternal.Password { get; set; }
-
-    FontProvider IPdfDocumentInternal.FontProvider => _fontProvider;
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;
 

@@ -62,7 +62,7 @@ internal sealed class Program
 
         if (args.Length > 0 && args[0] == "add")
         {
-            return Add(reader, fontSubstitutor, manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
+            return Add(reader, manifest, manifestPath, sourceDirectory, snapshotsDirectory, args.AsSpan(1).ToArray());
         }
 
         if (args.Length > 0 && args[0] == "remove")
@@ -153,7 +153,7 @@ internal sealed class Program
             {
                 if (analyze)
                 {
-                    Analyze(reader, fontSubstitutor, pdfPath, entry.Pages, entry.Password, measureMemory, timeOutliers, memoryOutliers);
+                    Analyze(reader, pdfPath, entry.Pages, entry.Password, measureMemory, timeOutliers, memoryOutliers);
                 }
                 else
                 {
@@ -162,9 +162,9 @@ internal sealed class Program
 
                     if (generate)
                     {
-                        Generate(reader, fontSubstitutor, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
+                        Generate(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password);
                     }
-                    else if (!Compare(reader, fontSubstitutor, pdfPath, snapshotDirectory, entry.Pages, entry.Password, inspectDirectory))
+                    else if (!Compare(reader, pdfPath, snapshotDirectory, entry.Pages, entry.Password, inspectDirectory))
                     {
                         differentCount++;
                     }
@@ -212,7 +212,6 @@ internal sealed class Program
     /// </summary>
     private static int Add(
         PdfDocumentReader reader,
-        SkiaFontSubstitutor fontSubstitutor,
         GoldManifest manifest,
         string manifestPath,
         string sourceDirectory,
@@ -306,7 +305,7 @@ internal sealed class Program
         {
             stopwatch.Start();
 
-            foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password))
+            foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
             {
                 stopwatch.Stop();
 
@@ -438,7 +437,6 @@ internal sealed class Program
     /// </summary>
     private static void Analyze(
         PdfDocumentReader reader,
-        SkiaFontSubstitutor fontSubstitutor,
         string pdfPath,
         List<int> pages,
         string? password,
@@ -457,7 +455,7 @@ internal sealed class Program
 
         // The pages are pulled one at a time, so the clock and the memory reading cover the render of
         // a single page; the first page carries the cost of opening the document with it.
-        using IEnumerator<(int PageNumber, SKBitmap Bitmap)> renderedPages = PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password).GetEnumerator();
+        using IEnumerator<(int PageNumber, SKBitmap Bitmap)> renderedPages = PageRenderer.RenderPages(reader, pdfPath, pages, password).GetEnumerator();
 
         while (true)
         {
@@ -584,11 +582,11 @@ internal sealed class Program
     }
 
 
-    private static void Generate(PdfDocumentReader reader, SkiaFontSubstitutor fontSubstitutor, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
+    private static void Generate(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password)
     {
         int pageCount = 0;
 
-        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password))
+        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
         {
             using SKBitmap bitmap = renderedPage.Bitmap;
 
@@ -602,12 +600,12 @@ internal sealed class Program
         Write(ConsoleColor.Green, $"{Path.GetFileName(pdfPath),-60} {pageCount} page(s)");
     }
 
-    private static bool Compare(PdfDocumentReader reader, SkiaFontSubstitutor fontSubstitutor, string pdfPath, string snapshotDirectory, List<int> pages, string? password, string? inspectDirectory)
+    private static bool Compare(PdfDocumentReader reader, string pdfPath, string snapshotDirectory, List<int> pages, string? password, string? inspectDirectory)
     {
         string pdfName = Path.GetFileName(pdfPath);
         bool matched = true;
 
-        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, fontSubstitutor, pdfPath, pages, password))
+        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PageRenderer.RenderPages(reader, pdfPath, pages, password))
         {
             using SKBitmap page = renderedPage.Bitmap;
             int pageNumber = renderedPage.PageNumber;

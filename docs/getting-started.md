@@ -81,7 +81,7 @@ foreach (IPdfPage page in document.Pages)
         executionObserver);
 
     // Executes each drawing command immediately against canvas.
-    SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+    SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
     // Save the execution context's state before applying the page transform, so it can be restored afterwards.
     processor.Process(SaveStateCommand.Instance);

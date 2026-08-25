@@ -5,7 +5,6 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
-using PdfPixel.Skia.Fonts;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
@@ -22,7 +21,6 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 {
     private readonly object _documentLocker = new();
     private readonly IPdfDocument _document;
-    private readonly SkiaFontSubstitutor _fontSubstitutor;
     private readonly PagesDrawingRequest _request;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
     private readonly IPdfCancellableExecutionObserver? _parseObserver;
@@ -37,7 +35,6 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     public PdfPageUpdateCacheWorkItem(
         PdfPageCacheEntry cacheEntry,
         IPdfDocument document,
-        SkiaFontSubstitutor fontSubstitutor,
         object documentLocker,
         PagesDrawingRequest request,
         Action<PageUpdatedArgs>? onPageUpdated)
@@ -50,7 +47,6 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         CacheEntry = cacheEntry;
         _documentLocker = documentLocker;
         _document = document;
-        _fontSubstitutor = fontSubstitutor ?? throw new ArgumentNullException(nameof(fontSubstitutor));
         _request = request;
         _onPageUpdated = onPageUpdated;
         _parseObserver = cacheEntry.ParseObserver;
@@ -113,7 +109,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
 
                 await PdfDocumentContentExtensions
-                    .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, _fontSubstitutor, _document.LoggerFactory)
+                    .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, _document.LoggerFactory)
                     .ConfigureAwait(false);
 
                 SKPicture? contentPicture = recorder.EndRecording();
@@ -174,7 +170,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
 
                 await PdfDocumentContentExtensions
-                    .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, _fontSubstitutor, _document.LoggerFactory)
+                    .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, _document.LoggerFactory)
                     .ConfigureAwait(false);
 
                 SKPicture? annotationPicture = annotationRecorder.EndRecording();

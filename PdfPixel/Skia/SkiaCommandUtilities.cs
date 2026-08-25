@@ -106,10 +106,10 @@ internal static class SkiaCommandUtilities
     /// Returns the <see cref="SKTypeface"/> backing <paramref name="typeface"/>, building it only once
     /// per document and caching it on <see cref="IPdfDocument.CommandCache"/> so every command drawing
     /// with the same typeface reuses the same native typeface. A typeface a substitutor resolved from
-    /// an installed font is matched back through <paramref name="fontSubstitutor"/>; any other is built
-    /// from its font bytes.
+    /// an installed font is matched back through <paramref name="fontSubstitutor"/> when one is given;
+    /// any other is built from its font bytes.
     /// </summary>
-    public static SKTypeface GetOrCreateSkTypeface(PdfCommandExecutionContext executionContext, SkiaFontSubstitutor fontSubstitutor, IPdfTypeface typeface)
+    public static SKTypeface GetOrCreateSkTypeface(PdfCommandExecutionContext executionContext, SkiaFontSubstitutor? fontSubstitutor, IPdfTypeface typeface)
     {
         TypefaceCommandCacheKey key = new(typeface);
         CommandCache cache = executionContext.Document.CommandCache;
@@ -161,11 +161,11 @@ internal static class SkiaCommandUtilities
     public static SKSamplingOptions GetSamplingOptions(bool interpolate)
         => interpolate ? new SKSamplingOptions(SKFilterMode.Linear) : new SKSamplingOptions(SKFilterMode.Nearest);
 
-    private static SKTypeface CreateSkTypeface(SkiaFontSubstitutor fontSubstitutor, IPdfTypeface typeface)
+    private static SKTypeface CreateSkTypeface(SkiaFontSubstitutor? fontSubstitutor, IPdfTypeface typeface)
     {
         SfntPdfTypefaceParameters? parameters = (typeface as SfntPdfTypeface)?.Parameters;
 
-        if (parameters != null && parameters.IsSystemFont)
+        if (fontSubstitutor != null && parameters != null && parameters.IsSystemFont)
         {
             SKTypeface? systemTypeface = fontSubstitutor.MatchSystemTypeface(typeface.Metrics);
 

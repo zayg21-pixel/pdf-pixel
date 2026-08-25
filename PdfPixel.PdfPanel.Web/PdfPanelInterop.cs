@@ -28,7 +28,6 @@ public partial class PdfPanelInterop
 
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
 
-    private static SkiaFontSubstitutor FontSubstitutor;
     private static PdfDocumentReader DocumentReader;
 
     /// <summary>Gets the application-wide logger factory, available after <see cref="Initialize"/> has been called.</summary>
@@ -47,8 +46,7 @@ public partial class PdfPanelInterop
 
         LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddEmscriptenConsole());
         Logger = LoggerFactory.CreateLogger<PdfPanelInterop>();
-        FontSubstitutor = new SkiaFontSubstitutor(LoggerFactory);
-        DocumentReader = new PdfDocumentReader(LoggerFactory, new FontProvider(FontSubstitutor, LoggerFactory));
+        DocumentReader = new PdfDocumentReader(LoggerFactory, new FontProvider(new SkiaFontSubstitutor(LoggerFactory), LoggerFactory));
         Logger.LogInformation("PdfPanelInterop initialized");
 
         _isInitialized = true;
@@ -184,7 +182,7 @@ public partial class PdfPanelInterop
             resources.Document?.Dispose();
 
             resources.Document = DocumentReader.Read(new MemoryStream(document), string.Empty);
-            resources.Pages = PdfPanelPageCollection.FromDocument(resources.Document, FontSubstitutor, LoggerFactory);
+            resources.Pages = PdfPanelPageCollection.FromDocument(resources.Document, LoggerFactory);
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 

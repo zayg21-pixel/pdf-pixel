@@ -41,6 +41,11 @@ public sealed class FontProvider : IDisposable
     }
 
     /// <summary>
+    /// Gets the font source every substituted typeface this provider hands out was loaded from.
+    /// </summary>
+    public IFontSubstitutor Substitutor => _substitutor;
+
+    /// <summary>
     /// Resolves a typeface able to render <paramref name="unicode"/>: the requested family when it
     /// covers the text, then any available font that does, then the last-resort typeface.
     /// </summary>

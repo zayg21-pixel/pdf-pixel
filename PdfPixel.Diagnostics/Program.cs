@@ -159,7 +159,6 @@ internal sealed class Program
             {
                 MeasurePage(
                     reader,
-                    fontSubstitutor,
                     loggerFactory,
                     logger,
                     pdfPath,
@@ -194,7 +193,6 @@ internal sealed class Program
 
     private static void MeasurePage(
         PdfDocumentReader reader,
-        SkiaFontSubstitutor fontSubstitutor,
         ILoggerFactory loggerFactory,
         ILogger logger,
         string pdfPath,
@@ -291,7 +289,7 @@ internal sealed class Program
                 document.OptionalContentGroups,
                 executionObserver);
 
-            SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+            SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
             contentRecorder.Replay(processor);
             annotationRecorder.Replay(processor);
 

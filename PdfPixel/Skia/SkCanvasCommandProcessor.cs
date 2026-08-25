@@ -17,18 +17,20 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
 {
     private readonly SKCanvas _canvas;
     private readonly PdfCommandExecutionContext _executionContext;
-    private readonly SkiaFontSubstitutor _fontSubstitutor;
+    private readonly SkiaFontSubstitutor? _fontSubstitutor;
     private readonly ILogger<SkCanvasCommandProcessor> _logger;
 
     /// <summary>
-    /// Initializes the processor with the canvas to draw on, the execution context to draw with, the
-    /// font substitutor its substituted typefaces are matched back through, and a logger.
+    /// Initializes the processor with the canvas to draw on, the execution context to draw with, and
+    /// a logger. A typeface the document substituted through <see cref="SkiaFontSubstitutor"/> is
+    /// matched back through that same substitutor; under any other font source it is built from its
+    /// font bytes instead.
     /// </summary>
-    public SkCanvasCommandProcessor(SKCanvas canvas, PdfCommandExecutionContext executionContext, SkiaFontSubstitutor fontSubstitutor, ILogger<SkCanvasCommandProcessor> logger)
+    public SkCanvasCommandProcessor(SKCanvas canvas, PdfCommandExecutionContext executionContext, ILogger<SkCanvasCommandProcessor> logger)
     {
         _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
         _executionContext = executionContext ?? throw new ArgumentNullException(nameof(executionContext));
-        _fontSubstitutor = fontSubstitutor ?? throw new ArgumentNullException(nameof(fontSubstitutor));
+        _fontSubstitutor = _executionContext.Document.FontProvider.Substitutor as SkiaFontSubstitutor;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 

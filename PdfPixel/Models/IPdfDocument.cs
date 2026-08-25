@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
+using PdfPixel.Fonts.Management;
 using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
@@ -20,6 +21,11 @@ public interface IPdfDocument : IDisposable
     /// Gets the list of pages in the PDF document.
     /// </summary>
     IReadOnlyList<IPdfPage> Pages { get; }
+
+    /// <summary>
+    /// Gets the document-level font provider.
+    /// </summary>
+    FontProvider FontProvider { get; }
 
     /// <summary>
     /// Gets the cache holding values built during command execution that stay valid for the lifetime

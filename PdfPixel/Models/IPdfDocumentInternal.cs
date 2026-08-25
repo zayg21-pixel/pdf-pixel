@@ -1,5 +1,4 @@
 using PdfPixel.Encryption;
-using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
@@ -34,11 +33,6 @@ internal interface IPdfDocumentInternal : IPdfDocument
     /// only when the file carries junk bytes ahead of the header.
     /// </summary>
     int HeaderOffset { get; set; }
-
-    /// <summary>
-    /// Gets the document-level font provider.
-    /// </summary>
-    FontProvider FontProvider { get; }
 
     /// <summary>
     /// Gets the object cache for PDF objects in the document.

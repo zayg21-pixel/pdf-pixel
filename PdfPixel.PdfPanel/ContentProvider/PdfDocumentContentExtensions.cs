@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Skia;
-using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -93,7 +92,6 @@ internal static class PdfDocumentContentExtensions
         PdfCommandRecorder commandRecording,
         PdfCommandExecutionContext executionContext,
         SKCanvas canvas,
-        SkiaFontSubstitutor fontSubstitutor,
         ILoggerFactory loggerFactory)
     {
         if (commandRecording == null)
@@ -111,11 +109,6 @@ internal static class PdfDocumentContentExtensions
             throw new ArgumentNullException(nameof(canvas));
         }
 
-        if (fontSubstitutor == null)
-        {
-            throw new ArgumentNullException(nameof(fontSubstitutor));
-        }
-
         if (loggerFactory == null)
         {
             throw new ArgumentNullException(nameof(loggerFactory));
@@ -123,7 +116,7 @@ internal static class PdfDocumentContentExtensions
 
         executionContext.Frames.Reset();
 
-        SkCanvasCommandProcessor processor = new(canvas, executionContext, fontSubstitutor, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+        SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
         await commandRecording.ReplayAsync(processor).ConfigureAwait(false);
 
         canvas.Flush();
