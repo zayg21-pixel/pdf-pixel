@@ -18,7 +18,11 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
     /// </summary>
     public PdfCalRgbColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)
     {
-        // TODO: [LOW] Handle blackPoint if needed, it's unused currently and seems to be ignored by all major PDF viewers.
+        // blackPoint is deliberately unused. The Acrobat desktop application is the only viewer that
+        // applies it at all, its behavior is documented nowhere, and it could not be reproduced across
+        // the range of black point values. The Edge build of Acrobat renders pages that use one
+        // entirely white. Every other viewer ignores blackPoint, which agrees with ICC, where the
+        // media black point is obsolete and carries no colorimetric meaning.
         Vector4 whitePointVector;
 
         if (whitePoint?.Length >= 3)
