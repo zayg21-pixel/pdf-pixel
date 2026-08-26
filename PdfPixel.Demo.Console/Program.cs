@@ -30,12 +30,11 @@ namespace PdfPixel.Console.Demo
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
             ILogger logger = loggerFactory.CreateLogger<Program>();
 
-            // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
+            // ...and a font substitutor, used to substitute system fonts for fonts not embedded in the PDF.
             SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
-            FontProvider fontProvider = new(fontSubstitutor, loggerFactory);
 
             // PdfDocumentReader is the entry point for parsing PDF files.
-            PdfDocumentReader reader = new(loggerFactory, fontProvider);
+            PdfDocumentReader reader = new(loggerFactory, fontSubstitutor);
 
             // The reader needs a seekable, readable stream; it reads the whole document into memory.
             using FileStream fileStream = File.OpenRead(pdfPath);

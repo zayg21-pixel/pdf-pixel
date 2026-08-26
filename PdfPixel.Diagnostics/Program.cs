@@ -132,12 +132,11 @@ internal sealed class Program
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         ILogger logger = loggerFactory.CreateLogger<Program>();
 
-        // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
+        // ...and a font substitutor, used to substitute system fonts for fonts not embedded in the PDF.
         SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
-        FontProvider fontProvider = new(fontSubstitutor, loggerFactory);
 
         // PdfDocumentReader is the entry point for parsing PDF files.
-        PdfDocumentReader reader = new(loggerFactory, fontProvider);
+        PdfDocumentReader reader = new(loggerFactory, fontSubstitutor);
 
         // Each PDF gets its own output subfolder, named after the source file, under pdfs/.
         string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", Path.GetFileNameWithoutExtension(pdfPath));

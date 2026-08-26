@@ -92,30 +92,6 @@ public sealed class FontProvider : IDisposable
     public SfntPdfTypeface GetFallbackTypeface(in PdfSubstitutionInfo substitutionInfo) => GetStandard14Fallback(substitutionInfo);
 
     /// <summary>
-    /// Disposes and discards every typeface cached here, freeing the memory held by resolutions this
-    /// provider owns. The Standard 14 resources are not among them: they are shared process-wide and
-    /// never held in these caches.
-    /// </summary>
-    public void Cleanup()
-    {
-        foreach (SfntPdfTypeface typeface in _familyTypefaces.Values)
-        {
-            typeface.Dispose();
-        }
-
-        foreach (List<SfntPdfTypeface> candidates in _characterFallbackTypefaces.Values)
-        {
-            foreach (SfntPdfTypeface typeface in candidates)
-            {
-                typeface.Dispose();
-            }
-        }
-
-        _familyTypefaces.Clear();
-        _characterFallbackTypefaces.Clear();
-    }
-
-    /// <summary>
     /// Returns the font source's own last-resort typeface.
     /// </summary>
     private SfntPdfTypeface GetSubstitutorFallbackTypeface()
@@ -206,7 +182,21 @@ public sealed class FontProvider : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        Cleanup();
+        foreach (SfntPdfTypeface typeface in _familyTypefaces.Values)
+        {
+            typeface.Dispose();
+        }
+
+        foreach (List<SfntPdfTypeface> candidates in _characterFallbackTypefaces.Values)
+        {
+            foreach (SfntPdfTypeface typeface in candidates)
+            {
+                typeface.Dispose();
+            }
+        }
+
+        _familyTypefaces.Clear();
+        _characterFallbackTypefaces.Clear();
 
         _fallback?.Dispose();
         _fallback = null;

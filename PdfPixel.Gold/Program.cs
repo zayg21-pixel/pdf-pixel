@@ -54,11 +54,10 @@ internal sealed class Program
 
         GoldManifest manifest = GoldManifest.Load(manifestPath);
 
-        // A font provider is used to substitute system fonts for fonts not embedded in the PDF, and
+        // A font substitutor is used to substitute system fonts for fonts not embedded in the PDF, and
         // PdfDocumentReader is the entry point for parsing PDF files.
         SkiaFontSubstitutor fontSubstitutor = new(NullLoggerFactory.Instance);
-        FontProvider fontProvider = new(fontSubstitutor, NullLoggerFactory.Instance);
-        PdfDocumentReader reader = new(NullLoggerFactory.Instance, fontProvider);
+        PdfDocumentReader reader = new(NullLoggerFactory.Instance, fontSubstitutor);
 
         if (args.Length > 0 && args[0] == "add")
         {

@@ -17,16 +17,16 @@ namespace PdfPixel;
 public class PdfDocumentReader
 {
     private readonly ILoggerFactory _loggerFactory;
-    private readonly FontProvider _fontProvider;
+    private readonly IFontSubstitutor _fontSubstitutor;
     private readonly ILogger _logger;
 
     /// <summary>
-    /// Initializes the reader with a logger factory and font provider for non-embedded font substitution.
+    /// Initializes the reader with a logger factory and font source for non-embedded font substitution.
     /// </summary>
-    public PdfDocumentReader(ILoggerFactory loggerFactory, FontProvider fontProvider)
+    public PdfDocumentReader(ILoggerFactory loggerFactory, IFontSubstitutor fontSubstitutor)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-        _fontProvider = fontProvider ?? throw new ArgumentNullException(nameof(fontProvider));
+        _fontSubstitutor = fontSubstitutor ?? throw new ArgumentNullException(nameof(fontSubstitutor));
         _logger = loggerFactory.CreateLogger<PdfDocumentReader>();
     }
 
@@ -65,10 +65,10 @@ public class PdfDocumentReader
         if (length <= 0)
         {
             _logger.LogWarning("Empty stream encountered when attempting to read PDF.");
-            return new PdfDocument(_loggerFactory, _fontProvider, stream);
+            return new PdfDocument(_loggerFactory, _fontSubstitutor, stream);
         }
 
-        IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontProvider, stream);
+        IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontSubstitutor, stream);
         document.Password = password;
         document.HeaderOffset = PdfByteScanner.LocateHeader(document.Stream);
 
