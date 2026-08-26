@@ -22,7 +22,7 @@ internal static class SkCanvasExtensions
         PdfPanelTextSelector textSelector,
         float cornerRadius,
         PageDrawFlags flags,
-        AnimationState? animation)
+        in AnimationState animation)
     {
         int savedCount = canvas.Save();
         PdfMatrix deviceMatrix = page.GetContentToCanvasMatrix(request.Scale);
@@ -44,9 +44,9 @@ internal static class SkCanvasExtensions
             DrawPageBackground(canvas, pageRect, cornerRadius);
         }
 
-        if ((flags & PageDrawFlags.Placeholder) != 0 && animation != null)
+        if ((flags & PageDrawFlags.Placeholder) != 0)
         {
-            DrawPlaceholder(canvas, pageRect, animation.Value);
+            DrawPlaceholder(canvas, pageRect, animation);
         }
 
         if ((flags & PageDrawFlags.Content) != 0)

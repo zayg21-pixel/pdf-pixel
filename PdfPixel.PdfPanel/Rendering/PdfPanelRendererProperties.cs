@@ -40,4 +40,14 @@ public sealed class PdfPanelRendererProperties
     /// Time a request waits before page content decoding starts.
     /// </summary>
     public TimeSpan ContentUpdateDelay { get; set; } = TimeSpan.FromMilliseconds(200);
+
+    /// <summary>
+    /// Draws an animated placeholder over pages that have no decoded content yet.
+    /// </summary>
+    public bool ShowPageLoadingAnimation { get; set; } = true;
+
+    /// <summary>
+    /// Frames per second the renderer drives its animations at.
+    /// </summary>
+    public int AnimationFps { get; set; } = 60;
 }

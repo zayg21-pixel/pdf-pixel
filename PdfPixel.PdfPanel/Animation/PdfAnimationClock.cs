@@ -8,15 +8,15 @@ namespace PdfPixel.PdfPanel.Animation;
 /// Global animation timer. Runs indefinitely on a background thread and fires <see cref="Tick"/>
 /// from the background thread at the requested frame rate. Zero UI-thread pressure when no subscribers are attached.
 /// </summary>
-public sealed class PdfAnimationClock : IDisposable
+internal sealed class PdfAnimationClock : IDisposable
 {
     private readonly CancellationTokenSource _cts = new();
 
     /// <summary>
     /// Initializes the clock and starts the background loop.
     /// </summary>
-    /// <param name="fps">Target frames per second. Default is 60.</param>
-    public PdfAnimationClock(int fps = 60)
+    /// <param name="fps">Target frames per second.</param>
+    public PdfAnimationClock(int fps)
     {
         Fps = (fps > 0) ? fps : throw new ArgumentOutOfRangeException(nameof(fps));
         _ = RunAsync(_cts.Token);

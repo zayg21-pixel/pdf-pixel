@@ -1,5 +1,4 @@
 ﻿using PdfPixel.Annotations.Models;
-using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Rendering;
@@ -28,7 +27,6 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private PdfPanelContext _context;
     private PdfPanelRenderer _renderer;
-    private PdfAnimationClock _animationClock;
     private IPdfPanelRenderTargetFactory _renderTargetFactory;
     private ISkSurfaceFactory _surfaceFactory;
     private bool _updatingScale;
@@ -96,8 +94,6 @@ public partial class WpfPdfPanel : FrameworkElement
             _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
         }
 
-        _animationClock = new PdfAnimationClock();
-
         InvalidateVisual();
     }
 
@@ -111,9 +107,6 @@ public partial class WpfPdfPanel : FrameworkElement
         _renderer?.Dispose();
         _renderer = null;
         _context = null;
-
-        _animationClock?.Dispose();
-        _animationClock = null;
 
         _surfaceFactory?.Dispose();
         _surfaceFactory = null;
@@ -213,7 +206,7 @@ public partial class WpfPdfPanel : FrameworkElement
             PageCornerRadius = PageCornerRadius
         };
 
-        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _animationClock, rendererProperties);
+        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, rendererProperties);
         _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory);
     }
 

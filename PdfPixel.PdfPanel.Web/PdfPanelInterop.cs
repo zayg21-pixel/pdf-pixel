@@ -4,7 +4,6 @@ using PdfPixel.Color;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
@@ -110,7 +109,6 @@ public partial class PdfPanelInterop
             parsed.BackgroundColor = string.IsNullOrEmpty(background) ? PdfColors.LightGray : PdfColor.ParseHexColor(background);
 
             resources.Configuration = parsed;
-            resources.AnimationClock = new PdfAnimationClock();
 
             ResourcesMap[containerId] = resources;
         }
@@ -144,7 +142,6 @@ public partial class PdfPanelInterop
 
         if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
-            resources.AnimationClock?.Dispose();
             resources.Renderer?.Dispose();
             resources.Pages?.Dispose();
             resources.Document?.Dispose();
@@ -196,7 +193,7 @@ public partial class PdfPanelInterop
                 BackgroundColor = panelConfiguration.BackgroundColor
             };
 
-            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.AnimationClock, rendererProperties);
+            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, rendererProperties);
 
             resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory);
 

@@ -3,7 +3,7 @@
 /// <summary>
 /// Captures the current animation tick and frame rate for use in draw calls.
 /// </summary>
-public readonly struct AnimationState
+internal readonly struct AnimationState
 {
     /// <summary>
     /// Initializes the state from a clock's current values.

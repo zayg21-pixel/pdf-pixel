@@ -5,7 +5,7 @@ namespace PdfPixel.PdfPanel.Animation;
 /// <summary>
 /// Provides tick data for <see cref="PdfAnimationClock.Tick"/>.
 /// </summary>
-public sealed class AnimationTickEventArgs : EventArgs
+internal sealed class AnimationTickEventArgs : EventArgs
 {
     /// <summary>
     /// Initializes the event args with the current tick count.
