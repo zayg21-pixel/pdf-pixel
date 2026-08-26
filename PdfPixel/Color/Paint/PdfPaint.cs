@@ -98,6 +98,12 @@ public sealed class PdfPaint
     public bool IsPattern => Pattern != null;
 
     /// <summary>
+    /// True if this paint carries partial alpha or a blend mode other than <see cref="PdfBlendMode.Normal"/>,
+    /// otherwise false.
+    /// </summary>
+    internal bool RequiresComposition => Color.Alpha < 1 || BlendMode != PdfBlendMode.Normal;
+
+    /// <summary>
     /// Returns <see cref="StrokeStyle"/>, guaranteed non-null because <see cref="Style"/> is
     /// <see cref="PdfPaintStyle.Stroke"/>. Throws if called on a fill paint.
     /// </summary>

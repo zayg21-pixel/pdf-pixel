@@ -4,7 +4,6 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
 using System;
 using System.Runtime.CompilerServices;
@@ -97,9 +96,8 @@ public class PathRenderer : IPathRenderer
                 using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, strokeTarget.Bounds);
                 softMaskScope.BeginDrawContent();
 
-                bool overlapAffectsCompositing = state.FillPaint.Color.Alpha < 1
-                    || state.StrokePaint.Color.Alpha < 1
-                    || state.FillPaint.BlendMode != PdfBlendMode.Normal;
+                bool overlapAffectsCompositing = state.FillPaint.RequiresComposition
+                    || state.StrokePaint.RequiresComposition;
 
                 if (overlapAffectsCompositing)
                 {

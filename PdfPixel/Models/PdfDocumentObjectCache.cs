@@ -16,7 +16,7 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
-// TODO: [HIGH] investigate reworking to use single PdfReference cache, cache other things that can be big and shared, as CMaps
+// TODO: [MEDIUM] investigate reworking to use single PdfReference cache, cache other things that can be big and shared, as CMaps
 
 /// <summary>
 /// Holds the PDF object index and the document-wide caches of the resources parsed out of it, and

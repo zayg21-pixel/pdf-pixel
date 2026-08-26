@@ -163,43 +163,49 @@ public class PdfTextRenderer : IPdfTextRenderer
     {
         if (state.RenderingParameters.RenderText)
         {
-            bool shouldFill = ShouldFill(state.TextRenderingMode);
-
-            if (ShouldStroke(state.TextRenderingMode))
+            switch (state.TextRenderingMode)
             {
-                TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
-
-                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textStrokeTarget.Bounds);
-                softMaskScope.BeginDrawContent();
-
-                if (shouldFill)
+                case PdfTextRenderingMode.Fill:
                 {
-                    TextFillRenderTarget textFillTarget = new(shapingResult, state);
-                    textFillTarget.Render(processor);
+                    DrawTextFill(processor, shapingResult, state);
+                    break;
                 }
-
-                textStrokeTarget.Render(processor);
-                softMaskScope.EndDrawContent();
-            }
-            else if (shouldFill)
-            {
-                // TODO: [HIGH] missing fill + stroke path and alpha present (see Path renderer)
-                TextFillRenderTarget textFillTarget = new(shapingResult, state);
-
-                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textFillTarget.Bounds);
-                softMaskScope.BeginDrawContent();
-                textFillTarget.Render(processor);
-                softMaskScope.EndDrawContent();
-            }
-
-            // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
-            if (ShouldClip(state.TextRenderingMode))
-            {
-                PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, state);
-                if (!textPath.IsEmpty)
+                case PdfTextRenderingMode.Stroke:
                 {
-                    state.TextClipPath ??= new PdfPathBuilder();
-                    state.TextClipPath.AddPath(textPath);
+                    DrawTextStroke(processor, shapingResult, state);
+                    break;
+                }
+                case PdfTextRenderingMode.FillAndStroke:
+                {
+                    DrawTextFillAndStroke(processor, shapingResult, state);
+                    break;
+                }
+                case PdfTextRenderingMode.Invisible:
+                {
+                    break;
+                }
+                case PdfTextRenderingMode.FillAndClip:
+                {
+                    DrawTextFill(processor, shapingResult, state);
+                    AppendTextClip(shapingResult, state);
+                    break;
+                }
+                case PdfTextRenderingMode.StrokeAndClip:
+                {
+                    DrawTextStroke(processor, shapingResult, state);
+                    AppendTextClip(shapingResult, state);
+                    break;
+                }
+                case PdfTextRenderingMode.FillAndStrokeAndClip:
+                {
+                    DrawTextFillAndStroke(processor, shapingResult, state);
+                    AppendTextClip(shapingResult, state);
+                    break;
+                }
+                case PdfTextRenderingMode.Clip:
+                {
+                    AppendTextClip(shapingResult, state);
+                    break;
                 }
             }
         }
@@ -225,6 +231,61 @@ public class PdfTextRenderer : IPdfTextRenderer
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void DrawTextFill(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    {
+        TextFillRenderTarget textFillTarget = new(shapingResult, state);
+
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textFillTarget.Bounds);
+        softMaskScope.BeginDrawContent();
+        textFillTarget.Render(processor);
+        softMaskScope.EndDrawContent();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void DrawTextStroke(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    {
+        TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
+
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textStrokeTarget.Bounds);
+        softMaskScope.BeginDrawContent();
+        textStrokeTarget.Render(processor);
+        softMaskScope.EndDrawContent();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void DrawTextFillAndStroke(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    {
+        TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
+
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textStrokeTarget.Bounds);
+        softMaskScope.BeginDrawContent();
+
+        bool overlapAffectsCompositing = state.FillPaint.RequiresComposition
+            || state.StrokePaint.RequiresComposition;
+
+        if (overlapAffectsCompositing)
+        {
+            PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, state);
+
+            processor.Process(SaveStateCommand.Instance);
+            processor.Process(new ClipPathCommand(textPath, PdfClipOperation.Difference, state.StrokePaint));
+
+            TextFillRenderTarget clippedFillTarget = new(shapingResult, state);
+            clippedFillTarget.Render(processor);
+
+            processor.Process(RestoreStateCommand.Instance);
+        }
+        else
+        {
+            TextFillRenderTarget textFillTarget = new(shapingResult, state);
+            textFillTarget.Render(processor);
+        }
+
+        textStrokeTarget.Render(processor);
+        softMaskScope.EndDrawContent();
+    }
+
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     private static void EmitTextCharacters(IPdfCommandProcessor processor, PdfGraphicsState state, in PdfMatrix matrix, PdfCharacter[] characters)
     {
@@ -245,50 +306,13 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ShouldFill(PdfTextRenderingMode mode)
+    private static void AppendTextClip(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        switch (mode)
+        PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, state);
+        if (!textPath.IsEmpty)
         {
-            case PdfTextRenderingMode.Fill:
-            case PdfTextRenderingMode.FillAndStroke:
-            case PdfTextRenderingMode.FillAndClip:
-            case PdfTextRenderingMode.FillAndStrokeAndClip:
-                return true;
-
-            default:
-                return false;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ShouldStroke(PdfTextRenderingMode mode)
-    {
-        switch (mode)
-        {
-            case PdfTextRenderingMode.Stroke:
-            case PdfTextRenderingMode.FillAndStroke:
-            case PdfTextRenderingMode.StrokeAndClip:
-            case PdfTextRenderingMode.FillAndStrokeAndClip:
-                return true;
-
-            default:
-                return false;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ShouldClip(PdfTextRenderingMode mode)
-    {
-        switch (mode)
-        {
-            case PdfTextRenderingMode.Clip:
-            case PdfTextRenderingMode.FillAndClip:
-            case PdfTextRenderingMode.StrokeAndClip:
-            case PdfTextRenderingMode.FillAndStrokeAndClip:
-                return true;
-
-            default:
-                return false;
+            state.TextClipPath ??= new PdfPathBuilder();
+            state.TextClipPath.AddPath(textPath);
         }
     }
 }

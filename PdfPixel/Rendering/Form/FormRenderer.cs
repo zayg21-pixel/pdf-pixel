@@ -71,8 +71,7 @@ public class FormRenderer : IFormRenderer
 
         bool needsGroupLayer = formXObject.TransparencyGroup != null
             && (formXObject.TransparencyGroup.RequiresLayer
-                || graphicsState.FillPaint.Color.Alpha < 1
-                || graphicsState.FillPaint.BlendMode != PdfBlendMode.Normal);
+                || graphicsState.FillPaint.RequiresComposition);
 
         if (needsGroupLayer)
         {
