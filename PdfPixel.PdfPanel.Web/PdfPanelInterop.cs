@@ -190,7 +190,8 @@ public partial class PdfPanelInterop
             PdfPanelRendererProperties rendererProperties = new()
             {
                 SynchronizationContext = SynchronizationContext.Current,
-                BackgroundColor = panelConfiguration.BackgroundColor
+                BackgroundColor = panelConfiguration.BackgroundColor,
+                ShowPageLoadingAnimation = false
             };
 
             resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, rendererProperties);
