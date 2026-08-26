@@ -13,9 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
-    <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" />
-    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
-    <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="TestData\**\*">

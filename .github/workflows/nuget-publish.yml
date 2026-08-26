@@ -1,4 +1,4 @@
-name: Publish NuGet Package
+name: Publish NuGet Packages
 
 on:
   workflow_dispatch:
@@ -23,11 +23,22 @@ jobs:
             9.0.x
             10.0.x
 
-      - name: Restore
-        run: dotnet restore PdfPixel/PdfPixel.csproj
-
       - name: Pack
-        run: dotnet pack PdfPixel/PdfPixel.csproj --configuration Release --no-restore --output "${{ github.workspace }}/nupkg"
+        run: |
+          $projects = @(
+            'PdfPixel.PostScript',
+            'PdfPixel.Ccitt',
+            'PdfPixel.Jbig2',
+            'PdfPixel.Jpg',
+            'PdfPixel.Jpx',
+            'PdfPixel.Color',
+            'PdfPixel.Fonts',
+            'PdfPixel'
+          )
+          foreach ($project in $projects) {
+            dotnet pack "$project/$project.csproj" --configuration Release --output "${{ github.workspace }}/nupkg"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: NuGet login (OIDC to temp API key)
         uses: NuGet/login@v1
@@ -37,5 +48,7 @@ jobs:
 
       - name: Push to NuGet.org
         run: |
-          $package = Get-ChildItem -Path "${{ github.workspace }}/nupkg" -Filter *.nupkg | Select-Object -First 1
-          dotnet nuget push $package.FullName --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
+          foreach ($package in Get-ChildItem -Path "${{ github.workspace }}/nupkg" -Filter *.nupkg) {
+            dotnet nuget push $package.FullName --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

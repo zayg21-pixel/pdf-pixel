@@ -1,14 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net8.0;net9.0;net10.0</TargetFrameworks>
-    <LangVersion>13</LangVersion>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisMode>All</AnalysisMode>
-    <Nullable>enable</Nullable>
-    <IsAotCompatible>true</IsAotCompatible>
-    <IsPackable>false</IsPackable>
+    <Description>PostScript tokenizer, expression compiler and evaluator for .NET. A standalone managed implementation with no rendering dependencies, used by PdfPixel for Type 4 (PostScript calculator) functions and Type 1 font programs.</Description>
+    <PackageTags>postscript;interpreter;tokenizer;evaluator</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,21 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageReference Include="System.Memory" Version="4.6.3" />
-    <PackageReference Include="Microsoft.Bcl.Numerics" Version="10.0.10" />
     <PackageReference Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
   </ItemGroup>
 
 </Project>

@@ -1,34 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net8.0;net9.0;net10.0</TargetFrameworks>
-    <LangVersion>13</LangVersion>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisMode>All</AnalysisMode>
-    <Nullable>enable</Nullable>
-    <IsAotCompatible>true</IsAotCompatible>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <PackageId>PdfPixel</PackageId>
-    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\Version.txt').Trim())</Version>
     <Description>A native C# PDF rendering library for .NET, built around SkiaSharp, with no dependency on external PDF frameworks.</Description>
-    <Authors>PDF Pixel</Authors>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/zayg21-pixel/pdf-pixel</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/zayg21-pixel/pdf-pixel</RepositoryUrl>
-    <PackageIcon>logo.png</PackageIcon>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>pdf;rendering;skiasharp;raster</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="" />
-    <None Include="..\logo.png" Pack="true" PackagePath="" />
     <None Include="NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.txt" />
-    <None Include="..\PdfPixel.Fonts\NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.Fonts.txt" />
-    <None Include="..\PdfPixel.Color\NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.Color.txt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -51,45 +29,17 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageReference Include="SkiaSharp" Version="4.150.1" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.10" />
-    <PackageReference Include="System.Memory" Version="4.6.3" />
-    <PackageReference Include="Microsoft.Bcl.Numerics" Version="10.0.10" />
     <PackageReference Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!--
-      PrivateAssets="all" stops NuGet from emitting a <dependency> on these projects' own
-      PackageId/Version (they are IsPackable=false and never published); AddProjectReferenceAssembliesToPackage
-      below bundles their compiled assemblies into this package instead.
-    -->
-    <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.PostScript\PdfPixel.PostScript.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
+    <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
+    <ProjectReference Include="..\PdfPixel.PostScript\PdfPixel.PostScript.csproj" />
+    <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <PropertyGroup>
-    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);AddProjectReferenceAssembliesToPackage</TargetsForTfmSpecificBuildOutput>
-  </PropertyGroup>
-
-  <Target Name="AddProjectReferenceAssembliesToPackage" DependsOnTargets="ResolveReferences">
-    <ItemGroup>
-      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
-    </ItemGroup>
-  </Target>
-
-  </Project>
+</Project>

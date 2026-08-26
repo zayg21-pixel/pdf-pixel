@@ -14,20 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj" />
-    <!--
-      PdfPixel references these with PrivateAssets="all" so they aren't listed as NuGet
-      dependencies of the published PdfPixel package. That also stops them from flowing
-      transitively in the restore graph, which the Blazor WASM publish/AOT pipeline relies
-      on to pick assemblies for the wasm output. Referenced directly here so they're included.
-      TODO: [LOW] remove when all packages will be published as separate NuGet packages
-    -->
-    <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.PostScript\PdfPixel.PostScript.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

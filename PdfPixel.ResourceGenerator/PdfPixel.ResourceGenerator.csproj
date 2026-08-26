@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
-    <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

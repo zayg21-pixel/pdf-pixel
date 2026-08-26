@@ -1,30 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net8.0;net9.0;net10.0</TargetFrameworks>
-    <LangVersion>13</LangVersion>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisMode>All</AnalysisMode>
-    <Nullable>enable</Nullable>
-    <IsAotCompatible>true</IsAotCompatible>
-    <IsPackable>false</IsPackable>
+    <Description>CCITT Group 3 and Group 4 fax image decoder for .NET. A standalone managed decoder with no rendering dependencies, used by PdfPixel for CCITTFaxDecode image streams.</Description>
+    <PackageTags>ccitt;fax;group3;group4;image;decoder</PackageTags>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="System.Memory" Version="4.6.3" />
-    <PackageReference Include="Microsoft.Bcl.Numerics" Version="10.0.10" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
 
 </Project>

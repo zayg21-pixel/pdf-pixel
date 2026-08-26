@@ -1,0 +1,65 @@
+﻿<Project>
+
+  <PropertyGroup>
+    <!--
+      The projects published to NuGet. Everything else in the repository is a demo, a tool,
+      or a test project, and is excluded from packing and from the settings below.
+    -->
+    <PdfPixelPackageIds>;PdfPixel;PdfPixel.Ccitt;PdfPixel.Color;PdfPixel.Fonts;PdfPixel.Jbig2;PdfPixel.Jpg;PdfPixel.Jpx;PdfPixel.PostScript;</PdfPixelPackageIds>
+    <IsPdfPixelPackage Condition="$(PdfPixelPackageIds.Contains(';$(MSBuildProjectName);'))">true</IsPdfPixelPackage>
+    <IsPdfPixelPackage Condition="'$(IsPdfPixelPackage)' == ''">false</IsPdfPixelPackage>
+    <IsPackable>$(IsPdfPixelPackage)</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsPdfPixelPackage)' == 'true'">
+    <TargetFrameworks>netstandard2.0;net8.0;net9.0;net10.0</TargetFrameworks>
+    <LangVersion>13</LangVersion>
+    <Nullable>enable</Nullable>
+    <AnalysisMode>All</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsPdfPixelPackage)' == 'true'">
+    <PackageId>$(MSBuildProjectName)</PackageId>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)Version.txt').Trim())</Version>
+    <Authors>PDF Pixel</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/zayg21-pixel/pdf-pixel</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/zayg21-pixel/pdf-pixel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>logo.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsPdfPixelPackage)' == 'true'">
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPdfPixelPackage)' == 'true'">
+    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="$(MSBuildThisFileDirectory)logo.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IsPdfPixelPackage)' == 'true'">
+    <PackageReference Include="System.Memory" Version="4.6.3" />
+    <PackageReference Include="Microsoft.Bcl.Numerics" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IsPdfPixelPackage)' == 'true'">
+    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
