@@ -4,11 +4,14 @@ using PdfPixel.Color;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
+using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.Skia.Fonts;
 using System;
 using System.Collections.Generic;
@@ -107,6 +110,7 @@ public partial class PdfPanelInterop
             parsed.BackgroundColor = string.IsNullOrEmpty(background) ? PdfColors.LightGray : PdfColor.ParseHexColor(background);
 
             resources.Configuration = parsed;
+            resources.AnimationClock = new PdfAnimationClock();
 
             ResourcesMap[containerId] = resources;
         }
@@ -140,6 +144,7 @@ public partial class PdfPanelInterop
 
         if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
+            resources.AnimationClock?.Dispose();
             resources.Renderer?.Dispose();
             resources.Pages?.Dispose();
             resources.Document?.Dispose();
@@ -171,7 +176,13 @@ public partial class PdfPanelInterop
             resources.Document?.Dispose();
 
             resources.Document = DocumentReader.Read(new MemoryStream(document), string.Empty);
-            resources.Pages = PdfPanelPageCollection.FromDocument(resources.Document, LoggerFactory);
+
+            PdfPageContentProvider contentProvider = new(
+                resources.Document,
+                new ImmidiateWorkQueue(LoggerFactory.CreateLogger<ImmidiateWorkQueue>()),
+                new PdfYieldingObserverFactory());
+
+            resources.Pages = PdfPanelPageCollection.FromContentProvider(contentProvider);
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 
@@ -185,7 +196,7 @@ public partial class PdfPanelInterop
                 BackgroundColor = panelConfiguration.BackgroundColor
             };
 
-            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, null, rendererProperties);
+            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.AnimationClock, rendererProperties);
 
             resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory);
 

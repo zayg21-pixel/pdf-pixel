@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Models;
+using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Rendering;
 
@@ -13,6 +14,11 @@ internal class PdfPanelResources
     /// Gets or sets the render target factory for the panel.
     /// </summary>
     public IPdfPanelRenderTargetFactory RenderTargetFactory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the animation clock for the panel.
+    /// </summary>
+    public PdfAnimationClock AnimationClock { get; set; }
 
     /// <summary>
     /// Gets or sets the renderer for the panel.

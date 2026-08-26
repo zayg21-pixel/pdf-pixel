@@ -34,6 +34,11 @@ public sealed class ImmidiateWorkQueue : IWorkQueue
 
     private async void ProcessItem(IWorkItem item)
     {
+        if (item.IsSkippable)
+        {
+            return;
+        }
+
         try
         {
             await item.ProcessAsync().ConfigureAwait(false);
