@@ -9,10 +9,7 @@ using System.Collections.Generic;
 namespace PdfPixel.Skia.Fonts;
 
 /// <summary>
-/// Loads installed system fonts through Skia's own font manager (<see cref="SKFontManager"/>), which
-/// on each platform delegates to that platform's native font substitution mechanism (DirectWrite on
-/// Windows, CoreText on macOS, fontconfig on Linux). The resolved font's program bytes are read
-/// lazily from Skia's own font data, without buffering into managed memory up front.
+/// Loads installed system fonts through Skia's <see cref="SKFontManager"/>.
 /// </summary>
 public sealed class SkiaFontSubstitutor : IFontSubstitutor
 {
@@ -45,11 +42,6 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Skia's <see cref="SKFontManager.MatchFamily(string, SKFontStyle)"/> answers an uninstalled family
-    /// with its own idea of a substitute rather than with nothing, so the family name is checked against
-    /// the installed set first.
-    /// </remarks>
     public SfntPdfTypeface? ResolveByFamilyName(in PdfSubstitutionInfo substitutionInfo)
     {
         if (!TryResolveFamilyName(substitutionInfo.NormalizedStem, out string? familyName) || familyName == null)
