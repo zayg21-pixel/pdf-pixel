@@ -57,8 +57,10 @@ namespace PdfPixel.Console.Demo
             // Render every page in the document.
             foreach (IPdfPage page in document.Pages)
             {
-                // CropBox is the visible page area in PDF units; scale it to get the output image size.
-                SKImageInfo imageInfo = new((int)(page.CropBox.Width * scale), (int)(page.CropBox.Height * scale));
+                // CropBox is the visible page area in PDF units; rotating and scaling it gives the
+                // output image size, with width and height swapped when /Rotate is a quarter turn.
+                PdfSize outputSize = page.CropBox.GetTransformedSize(page.Rotation, scale);
+                SKImageInfo imageInfo = new((int)outputSize.Width, (int)outputSize.Height);
                 using SKSurface surface = SkSurfaceFactory.GetSkiaSurface(imageInfo, gpuMode);
                 SKCanvas canvas = surface.Canvas;
                 canvas.Clear(SKColors.White);
@@ -85,14 +87,9 @@ namespace PdfPixel.Console.Demo
                 // Save the execution context's state before applying the page transform, so it can be restored afterwards.
                 processor.Process(SaveStateCommand.Instance);
 
-                // Scales the whole page up or down to the requested output resolution.
-                processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(scale, scale)));
-
-                // PDF content is authored with the origin at the bottom-left and Y increasing upward.
-                // The canvas has the origin at the top-left and Y increasing downward, so the page must
-                // be translated and flipped vertically to land right-side-up in the output image.
-                processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
-                processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(1, -1)));
+                // Clips to the crop box, flips the page onto the canvas' top-left origin, applies the
+                // page's own /Rotate, and scales it to the requested output resolution.
+                processor.ApplyPageTransformations(page, scale: scale);
 
                 // Draws the page content: paths, text, images, and shadings.
                 page.Render(processor, new PdfRenderingParameters(), executionObserver);

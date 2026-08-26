@@ -192,14 +192,10 @@ internal static class PageRenderer
         // Save the execution context's state before applying the page transform, so it can be restored afterwards.
         processor.Process(SaveStateCommand.Instance);
 
-        // Scales the whole page up or down to the requested output resolution.
-        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(Scale, Scale)));
-
         // PDF content is authored with the origin at the bottom-left and Y increasing upward, while
         // the canvas has the origin at the top-left and Y increasing downward, so the page must be
         // translated and flipped vertically to land right-side-up in the output image.
-        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
-        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(1, -1)));
+        processor.ApplyPageTransformations(page.CropBox, scale: Scale, clipToBounds: false);
 
         // Draws the page content: paths, text, images, and shadings.
         page.Render(processor, new PdfRenderingParameters(), executionObserver);

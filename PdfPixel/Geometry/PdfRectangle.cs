@@ -54,6 +54,23 @@ public readonly struct PdfRectangle : IEquatable<PdfRectangle>
     public float Height => Bottom - Top;
 
     /// <summary>
+    /// Returns the size this rectangle covers after <paramref name="rotation"/> and <paramref name="scale"/>,
+    /// with <see cref="Width"/> and <see cref="Height"/> swapped on a quarter turn.
+    /// </summary>
+    /// <param name="rotation">Clockwise rotation in degrees; must be a multiple of 90.</param>
+    /// <param name="scale">Uniform scale applied to both dimensions.</param>
+    public PdfSize GetTransformedSize(int rotation = 0, float scale = 1f)
+    {
+        PdfRotationUtilities.Validate(rotation, nameof(rotation));
+
+        bool isQuarterTurn = PdfRotationUtilities.Normalize(rotation) % 180 != 0;
+
+        return new PdfSize(
+            (isQuarterTurn ? Height : Width) * scale,
+            (isQuarterTurn ? Width : Height) * scale);
+    }
+
+    /// <summary>
     /// Midpoint between <see cref="Left"/> and <see cref="Right"/>.
     /// </summary>
     public float MidX => (Left + Right) / 2f;

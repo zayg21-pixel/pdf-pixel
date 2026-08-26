@@ -373,9 +373,7 @@ internal sealed class Program
     private static void RecordPageTransform(PdfCommandRecorder recorder, IPdfPage page, float scale)
     {
         recorder.Process(SaveStateCommand.Instance);
-        recorder.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(scale, scale)));
-        recorder.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
-        recorder.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(1, -1)));
+        recorder.ApplyPageTransformations(page.CropBox, scale: scale, clipToBounds: false);
     }
 
     // Prints every command in order; when a command is a DrawRecordingCommand, its nested

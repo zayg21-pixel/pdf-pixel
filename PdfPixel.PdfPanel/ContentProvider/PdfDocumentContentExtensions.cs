@@ -31,7 +31,7 @@ internal static class PdfDocumentContentExtensions
 
         PdfCommandRecorder recorder = new();
 
-        ApplyPageTransformations(pdfPage, recorder);
+        recorder.ApplyPageTransformations(pdfPage.CropBox);
 
         foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
         {
@@ -75,7 +75,7 @@ internal static class PdfDocumentContentExtensions
 
         PdfCommandRecorder commandRecording = new();
 
-        ApplyPageTransformations(pdfPage, commandRecording);
+        commandRecording.ApplyPageTransformations(pdfPage.CropBox);
 
         pdfPage.Render(commandRecording, renderingParameters, observer);
 
@@ -121,17 +121,6 @@ internal static class PdfDocumentContentExtensions
         await commandRecording.ReplayAsync(processor).ConfigureAwait(false);
 
         canvas.Flush();
-    }
-
-    private static void ApplyPageTransformations(IPdfPage pdfPage, PdfCommandRecorder commandRecording)
-    {
-        commandRecording.Process(new ClipRectangleCommand(
-            new PdfRectangle(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
-            PdfClipOperation.Intersect));
-
-        commandRecording.Process(new ConcatMatrixCommand(
-            PdfMatrix.CreateTranslation(-pdfPage.CropBox.Left, pdfPage.CropBox.Height + pdfPage.CropBox.Top)));
-        commandRecording.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(1, -1)));
     }
 
     public static PdfPanelPageInfo GetPageInfo(IPdfDocument document, int pageNumber)
