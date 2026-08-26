@@ -14,12 +14,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
     public bool Antialias { get; set; } = true;
 
     /// <summary>
-    /// Actual device scale factor, if defined, all images will be downscaled
-    /// to fit exact device scale, otherwise decoded in full size.
-    /// </summary>
-    public float? ScaleFactor { get; set; }
-
-    /// <summary>
     /// Standard image tile size.
     /// </summary>
     public int ImageTileSize { get; set; } = 1024;
@@ -43,7 +37,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         }
 
         return Antialias == other.Antialias
-            && ScaleFactor == other.ScaleFactor
             && SnapToDevicePixels == other.SnapToDevicePixels;
     }
 
@@ -55,7 +48,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
     {
         return HashCode.Combine(
             Antialias,
-            ScaleFactor,
             ImageTileSize,
             SnapToDevicePixels);
     }
@@ -84,7 +76,6 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         return new()
         {
             Antialias = Antialias,
-            ScaleFactor = ScaleFactor,
             ImageTileSize = ImageTileSize,
             SnapToDevicePixels = SnapToDevicePixels
         };

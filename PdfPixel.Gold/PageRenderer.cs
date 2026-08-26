@@ -175,10 +175,7 @@ internal static class PageRenderer
         // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.
         IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
-        PdfCommandExecutionParameters executionParameters = new()
-        {
-            ScaleFactor = Scale,
-        };
+        PdfCommandExecutionParameters executionParameters = new();
 
         // Bundles the canvas, rendering options, and the objects above into the state every
         // drawing command reads from while the page is replayed.

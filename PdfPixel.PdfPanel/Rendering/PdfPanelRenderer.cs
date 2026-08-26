@@ -163,9 +163,9 @@ public sealed class PdfPanelRenderer : IDisposable
             PdfPoint contentPoint = canvasToContent.MapPoint(pointerPosition);
 
             if (contentPoint.X >= 0
-                && contentPoint.X <= page.Info.Width
+                && contentPoint.X <= page.Info.CropBox.Width
                 && contentPoint.Y >= 0
-                && contentPoint.Y <= page.Info.Height)
+                && contentPoint.Y <= page.Info.CropBox.Height)
             {
                 return new PointerPagePosition(page.PageNumber, contentPoint, request.PointerState);
             }

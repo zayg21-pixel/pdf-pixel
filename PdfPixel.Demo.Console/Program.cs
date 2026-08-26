@@ -74,10 +74,7 @@ namespace PdfPixel.Console.Demo
                 // drawing command reads from while the page is replayed.
                 using PdfCommandExecutionContext executionContext = new(
                     document,
-                    new PdfCommandExecutionParameters
-                    {
-                        ScaleFactor = scale,
-                    },
+                    new PdfCommandExecutionParameters(),
                     contentLocker,
                     optionalContentGroups,
                     executionObserver);

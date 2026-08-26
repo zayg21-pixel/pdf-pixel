@@ -20,7 +20,7 @@ public sealed partial class SkCanvasCommandProcessor
 
         // Taken after the command's own matrix is in, so it carries everything that shapes the
         // recorded picture and tells apart two uses of the pattern that do not.
-        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(_executionContext);
+        PdfMatrix deviceMatrix = _executionContext.Frames.TotalMatrix;
 
         if (PdfCommandProcessingUtilities.CanTileByRepeating(command, _executionContext))
         {

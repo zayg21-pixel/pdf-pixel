@@ -242,7 +242,7 @@ public sealed class PdfPanelTextSelector : IDisposable
         PdfPanelPageInfo pageInfo = _contentProvider.GetPageInfo(pageNumber);
 
         using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
+        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
 
         SKPaint highlightPaint = new()
         {

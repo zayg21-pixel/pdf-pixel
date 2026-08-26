@@ -39,10 +39,10 @@ public static class PdfPanelPageExtensions
 
         if (totalRotation % 180 != 0)
         {
-            return new PdfSize(pageInfo.Height, pageInfo.Width);
+            return new PdfSize(pageInfo.CropBox.Height, pageInfo.CropBox.Width);
         }
 
-        return new PdfSize(pageInfo.Width, pageInfo.Height);
+        return new PdfSize(pageInfo.CropBox.Width, pageInfo.CropBox.Height);
     }
 
     /// <summary>
@@ -143,9 +143,9 @@ public static class PdfPanelPageExtensions
         }
 
         return pagePoint.X >= 0
-            && pagePoint.X <= page.Info.Width
+            && pagePoint.X <= page.Info.CropBox.Width
             && pagePoint.Y >= 0
-            && pagePoint.Y <= page.Info.Height;
+            && pagePoint.Y <= page.Info.CropBox.Height;
     }
 
     /// <summary>
@@ -196,7 +196,7 @@ public static class PdfPanelPageExtensions
         int totalRotation = page.GetTotalRotation();
         if (totalRotation != 0)
         {
-            PdfSize unrotatedSize = new(page.Info.Width, page.Info.Height);
+            PdfSize unrotatedSize = new(page.Info.CropBox.Width, page.Info.CropBox.Height);
             matrix = matrix.PostConcat(GetInverseRotationMatrix(unrotatedSize.Width, unrotatedSize.Height, totalRotation));
         }
 
@@ -258,8 +258,8 @@ public static class PdfPanelPageExtensions
         }
 
         return new PdfPoint(
-            pdfPoint.X - page.Info.Left,
-            page.Info.Height + page.Info.Top - pdfPoint.Y);
+            pdfPoint.X - page.Info.CropBox.Left,
+            page.Info.CropBox.Height + page.Info.CropBox.Top - pdfPoint.Y);
     }
 
     /// <summary>
@@ -276,8 +276,8 @@ public static class PdfPanelPageExtensions
         }
 
         return PdfRectangle.FromLocationAndSize(
-            pdfRect.Left - page.Info.Left,
-            page.Info.Height + page.Info.Top - pdfRect.Bottom,
+            pdfRect.Left - page.Info.CropBox.Left,
+            page.Info.CropBox.Height + page.Info.CropBox.Top - pdfRect.Bottom,
             pdfRect.Width,
             pdfRect.Height);
     }

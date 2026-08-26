@@ -199,10 +199,8 @@ public class PdfPanelContext
     {
         PagesDrawingRequest request = GetBaseRequest<PagesDrawingRequest>();
 
-        PdfCommandExecutionParameters parameters = CommandExecutionParameters.Clone();
-        parameters.ScaleFactor = Scale;
-
-        request.CommandExecutionParameters = parameters;
+        request.ScaleFactor = Scale;
+        request.CommandExecutionParameters = CommandExecutionParameters.Clone();
         request.RenderingParameters = RenderingParameters;
 
         return request;

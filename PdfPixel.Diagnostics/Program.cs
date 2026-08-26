@@ -281,10 +281,7 @@ internal sealed class Program
             // drawing command reads from while the recordings are replayed.
             using PdfCommandExecutionContext executionContext = new(
                 document,
-                new PdfCommandExecutionParameters
-                {
-                    ScaleFactor = scale,
-                },
+                new PdfCommandExecutionParameters(),
                 contentLocker,
                 document.OptionalContentGroups,
                 executionObserver);

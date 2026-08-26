@@ -19,7 +19,7 @@ internal static class PdfImageCommandUtilities
     public static SnappedTilePlacement GetSnappedTilePlacement(
         PdfCommandExecutionContext executionContext, in PdfIntegerSize imageSize, in PdfIntegerRectangle tilePosition, bool interpolate)
     {
-        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(executionContext);
+        PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
         PdfMatrix imageCtm = GetImageCtm(deviceMatrix);
         bool shouldInterpolate = ShouldInterpolate(imageCtm, imageSize, interpolate);
 

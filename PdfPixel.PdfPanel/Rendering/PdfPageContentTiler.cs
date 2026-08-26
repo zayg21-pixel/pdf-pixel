@@ -66,7 +66,7 @@ public sealed class PdfPageContentTiler : IDisposable
             pageCache.Scale = request.Scale;
         }
 
-        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.Width, pageInfo.Info.Height);
+        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.CropBox.Width, pageInfo.Info.CropBox.Height);
 
         PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.RegionOfInterest, request.Scale);
         PdfIntegerRectangle pagePixels = ToPixels(pageBounds, request.Scale);
@@ -218,8 +218,12 @@ public sealed class PdfPageContentTiler : IDisposable
         int savedCount = tileCanvas.Save();
         tileCanvas.Clear(SKColors.Transparent);
 
+        // The tile grid spans the page in device pixels and the picture spans its own recorded scale,
+        // so the difference between the two is what the picture is rasterized through.
+        SKRect cullRect = lockedPicture.Content.CullRect;
+
         tileCanvas.Translate(-tilePixels.Left, -tilePixels.Top);
-        tileCanvas.Scale(scale, scale);
+        tileCanvas.Scale(pagePixels.Width / cullRect.Width, pagePixels.Height / cullRect.Height);
 
         tileCanvas.DrawPicture(lockedPicture.Content);
         tileCanvas.RestoreToCount(savedCount);

@@ -9,7 +9,14 @@ namespace PdfPixel.PdfPanel.Requests;
 public class PagesDrawingRequest : DrawingRequest
 {
     /// <summary>
-    /// PDF command execution parameters such as scale factor and quality settings.
+    /// Scale the page content is recorded at, so that every device-space decision taken while
+    /// recording - image decode resolution, pen widths, pixel snapping - is taken for the scale
+    /// the recording is displayed at.
+    /// </summary>
+    public float ScaleFactor { get; set; }
+
+    /// <summary>
+    /// PDF command execution quality settings.
     /// </summary>
     public PdfCommandExecutionParameters CommandExecutionParameters { get; set; } = new();
 
@@ -24,6 +31,7 @@ public class PagesDrawingRequest : DrawingRequest
         if (obj is PagesDrawingRequest other)
         {
             return base.Equals(obj)
+                && ScaleFactor == other.ScaleFactor
                 && CommandExecutionParameters == other.CommandExecutionParameters;
         }
 
@@ -42,6 +50,7 @@ public class PagesDrawingRequest : DrawingRequest
         hash.Add(RenderTarget);
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);
+        hash.Add(ScaleFactor);
         hash.Add(CommandExecutionParameters);
         return hash.ToHashCode();
     }

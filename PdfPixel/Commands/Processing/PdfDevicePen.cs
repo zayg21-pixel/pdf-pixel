@@ -43,7 +43,7 @@ internal readonly struct PdfDevicePen
     /// </summary>
     public static PdfDevicePen Create(PdfCommandExecutionContext executionContext, float lineWidth)
     {
-        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(executionContext);
+        PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
 
         // Device pixels per unit along each axis of the path's own space.
         float deviceScaleX = new Vector2(deviceMatrix.ScaleX, deviceMatrix.SkewY).Length();

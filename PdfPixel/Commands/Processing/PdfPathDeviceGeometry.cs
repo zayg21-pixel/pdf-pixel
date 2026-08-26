@@ -100,7 +100,7 @@ internal readonly struct PdfPathDeviceGeometry
     /// </summary>
     public static PdfPathDeviceGeometry CreateForClipping(in PdfRectangle rectangle, PdfCommandExecutionContext executionContext)
     {
-        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(executionContext);
+        PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
         PdfPathInfo rectangleInfo = new(rectangle, isRectilinear: true, isRectangle: true);
 
         return Create(sourcePath: null, rectangleInfo, GetDeviceFillThickness(rectangleInfo, deviceMatrix), isStrokeOutline: false, deviceMatrix, executionContext);
@@ -124,7 +124,7 @@ internal readonly struct PdfPathDeviceGeometry
 
     private static PdfPathDeviceGeometry CreateFill(PdfPath path, in PdfPathInfo pathInfo, PdfCommandExecutionContext executionContext)
     {
-        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(executionContext);
+        PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
 
         return Create(path, pathInfo, GetDeviceFillThickness(pathInfo, deviceMatrix), isStrokeOutline: false, deviceMatrix, executionContext);
     }
@@ -138,7 +138,7 @@ internal readonly struct PdfPathDeviceGeometry
 
     private static PdfPathDeviceGeometry CreateStroke(PdfPath path, PdfStrokeStyle strokeStyle, in PdfDevicePen pen, PdfCommandExecutionContext executionContext)
     {
-        PdfMatrix deviceMatrix = PdfCommandProcessingUtilities.GetScaledMatrix(executionContext);
+        PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
         PdfPath outline = PdfStrokeOutlineBuilder.BuildOutline(path, strokeStyle.WithLineWidth(pen.Width), pen.Matrix, deviceMatrix);
 
         return Create(outline, outline.GetPathInfo(), pen.DeviceThickness, isStrokeOutline: true, deviceMatrix, executionContext);

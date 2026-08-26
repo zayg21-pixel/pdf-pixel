@@ -37,7 +37,7 @@ public readonly struct VisiblePageInfo
 
         PdfRectangle canvasRect = PdfRectangle.FromLocationAndSize(0, 0, canvasSize.Width, canvasSize.Height);
         PdfRectangle visibleContent = GetContentToCanvasMatrix(scale).Invert().MapRect(canvasRect);
-        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Width, pageInfo.Height);
+        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.CropBox.Width, pageInfo.CropBox.Height);
 
         RegionOfInterest = PdfRectangle.Intersect(
             PdfPageContentTiler.SnapToTileGrid(visibleContent, scale, tileSize),
@@ -107,8 +107,8 @@ public readonly struct VisiblePageInfo
     public PdfRectangle FromPdfRect(in PdfRectangle pdfRect)
     {
         return PdfRectangle.FromLocationAndSize(
-            pdfRect.Left - Info.Left,
-            Info.Height + Info.Top - pdfRect.Bottom,
+            pdfRect.Left - Info.CropBox.Left,
+            Info.CropBox.Height + Info.CropBox.Top - pdfRect.Bottom,
             pdfRect.Width,
             pdfRect.Height);
     }

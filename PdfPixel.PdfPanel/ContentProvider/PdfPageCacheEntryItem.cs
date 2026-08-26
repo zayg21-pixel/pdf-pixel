@@ -46,6 +46,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// </summary>
     public PagesDrawingRequest? LastRequest { get; private set; }
 
+
     /// <summary>
     /// Flattened characters extracted during the last content picture generation, in reading order.
     /// </summary>
@@ -94,8 +95,23 @@ public sealed class PdfPageCacheEntryItem : IDisposable
 
         return !ContentPicture.HasContent
             || LastRequest == null
-            || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor)
+            || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.ScaleFactor != request.ScaleFactor)
             || ((Features & PdfCommandFeatures.Region) != 0 && LastRequest.GetPage(PageNumber).RegionOfInterest != request.GetPage(PageNumber).RegionOfInterest);
+    }
+
+    /// <summary>
+    /// Scale the content picture is recorded at: the request's scale when a scale-dependent command
+    /// was recorded, and 1 otherwise, so that scale-independent content is recorded once and reused
+    /// at every scale.
+    /// </summary>
+    public float GetPictureScale(PagesDrawingRequest request)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return ((Features & PdfCommandFeatures.Scale) != 0) ? request.ScaleFactor : 1f;
     }
 
     /// <summary>

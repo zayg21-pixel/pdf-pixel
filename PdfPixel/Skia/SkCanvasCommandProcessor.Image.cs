@@ -11,7 +11,7 @@ public sealed partial class SkCanvasCommandProcessor
 {
     private void ExecuteInitializeTileCache(InitializeTileCacheCommand command)
     {
-        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(PdfCommandProcessingUtilities.GetScaledMatrix(_executionContext));
+        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(_executionContext.Frames.TotalMatrix);
         PdfIntegerRectangle imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(command.ImageSize, _executionContext);
 
         command.TileCache.Initialize(ctm, imageRegion, _executionContext.ContentLocker, _executionContext.ExecutionObserver);

@@ -14,28 +14,6 @@ public static class PdfCommandProcessingUtilities
     private const float AxisAlignEpsilon = 0.01f;
 
     /// <summary>
-    /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfCommandExecutionParameters.ScaleFactor"/>.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfMatrix GetScaledMatrix(PdfCommandExecutionContext executionContext)
-    {
-        if (executionContext == null)
-        {
-            throw new ArgumentNullException(nameof(executionContext));
-        }
-
-        PdfMatrix totalMatrix = executionContext.Frames.TotalMatrix;
-
-        if (executionContext.Parameters.ScaleFactor.HasValue)
-        {
-            float scaleValue = executionContext.Parameters.ScaleFactor.Value;
-            return totalMatrix.PostConcat(PdfMatrix.CreateScale(scaleValue, scaleValue));
-        }
-
-        return totalMatrix;
-    }
-
-    /// <summary>
     /// Returns whether <paramref name="matrix"/> has no rotation or skew, within <see cref="AxisAlignEpsilon"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -131,7 +109,7 @@ public static class PdfCommandProcessingUtilities
             throw new ArgumentNullException(nameof(command));
         }
 
-        PdfMatrix deviceMatrix = GetScaledMatrix(executionContext);
+        PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
         PdfPoint deviceOrigin = deviceMatrix.MapPoint(PdfPoint.Empty);
         PdfPoint mappedX = deviceMatrix.MapPoint(new PdfPoint(command.XStep, 0));
         PdfPoint mappedY = deviceMatrix.MapPoint(new PdfPoint(0, command.YStep));

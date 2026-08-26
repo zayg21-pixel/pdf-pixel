@@ -1,4 +1,6 @@
-﻿namespace PdfPixel.PdfPanel;
+﻿using PdfPixel.Geometry;
+
+namespace PdfPixel.PdfPanel;
 
 /// <summary>
 /// Information about a page in a PDF document.
@@ -6,15 +8,12 @@
 public readonly struct PdfPanelPageInfo
 {
     /// <summary>
-    /// Initializes page info with the given label, dimensions, crop box origin, and PDF rotation.
+    /// Initializes page info with the given label, crop box, and PDF rotation.
     /// </summary>
-    public PdfPanelPageInfo(string label, float width, float height, float left, float top, int rotation)
+    public PdfPanelPageInfo(string label, in PdfRectangle cropBox, int rotation)
     {
         Label = label;
-        Width = width;
-        Height = height;
-        Left = left;
-        Top = top;
+        CropBox = cropBox;
         Rotation = rotation;
     }
 
@@ -24,24 +23,9 @@ public readonly struct PdfPanelPageInfo
     public string Label { get; }
 
     /// <summary>
-    /// Original page width without rotation.
+    /// Visible page area without rotation, in PDF coordinates (bottom-left origin, Y-up).
     /// </summary>
-    public float Width { get; }
-
-    /// <summary>
-    /// Original page height without rotation.
-    /// </summary>
-    public float Height { get; }
-
-    /// <summary>
-    /// X coordinate of the crop box origin in PDF coordinates (bottom-left origin, Y-up).
-    /// </summary>
-    public float Left { get; }
-
-    /// <summary>
-    /// Y coordinate of the crop box origin in PDF coordinates (bottom-left origin, Y-up).
-    /// </summary>
-    public float Top { get; }
+    public PdfRectangle CropBox { get; }
 
     /// <summary>
     /// Page rotation in degrees.

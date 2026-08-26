@@ -99,7 +99,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             if (contentRecording != null)
             {
                 using SKPictureRecorder recorder = new();
-                SKCanvas canvas = recorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
+                float pictureScale = CacheEntry.Content.GetPictureScale(_request);
+                SKCanvas canvas = recorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.CropBox.Width * pictureScale, CacheEntry.PageInfo.CropBox.Height * pictureScale));
                 using PdfCommandExecutionContext executionContext = new(
                     _document,
                     _request.CommandExecutionParameters,
@@ -109,7 +110,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
 
                 await PdfDocumentContentExtensions
-                    .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, _document.LoggerFactory)
+                    .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, pictureScale, _document.LoggerFactory)
                     .ConfigureAwait(false);
 
                 SKPicture? contentPicture = recorder.EndRecording();
@@ -160,7 +161,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             if (annotationContentRecording != null)
             {
                 using SKPictureRecorder annotationRecorder = new();
-                SKCanvas annotationCanvas = annotationRecorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
+                float annotationPictureScale = CacheEntry.AnnotationContent.GetPictureScale(_request);
+                SKCanvas annotationCanvas = annotationRecorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.CropBox.Width * annotationPictureScale, CacheEntry.PageInfo.CropBox.Height * annotationPictureScale));
                 using PdfCommandExecutionContext annotationContext = new(
                     _document,
                     _request.CommandExecutionParameters,
@@ -170,7 +172,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
 
                 await PdfDocumentContentExtensions
-                    .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, _document.LoggerFactory)
+                    .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, annotationPictureScale, _document.LoggerFactory)
                     .ConfigureAwait(false);
 
                 SKPicture? annotationPicture = annotationRecorder.EndRecording();

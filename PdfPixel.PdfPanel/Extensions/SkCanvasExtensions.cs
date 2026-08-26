@@ -29,7 +29,7 @@ internal static class SkCanvasExtensions
 
         canvas.Concat(deviceMatrix.ToSkMatrix());
 
-        PdfRectangle pageBounds = new(0, 0, page.Info.Width, page.Info.Height);
+        PdfRectangle pageBounds = new(0, 0, page.Info.CropBox.Width, page.Info.CropBox.Height);
         SKRect pageRect = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(pageBounds, deviceMatrix).ToSkRect();
 
         if ((flags & PageDrawFlags.Shadow) != 0)
@@ -52,7 +52,7 @@ internal static class SkCanvasExtensions
         if ((flags & PageDrawFlags.Content) != 0)
         {
             tiler.DrawTiles(canvas, in page, request.Scale, deviceMatrix);
-            DrawPagePicture(canvas, pictures?.Annotations);
+            DrawPagePicture(canvas, pictures?.Annotations, page.Info);
             DrawSelectionPicture(canvas, textSelector, page);
         }
 
@@ -70,7 +70,7 @@ internal static class SkCanvasExtensions
         canvas.DrawPicture(picture);
     }
 
-    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content)
+    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content, in PdfPanelPageInfo pageInfo)
     {
         if (content?.HasContent != true)
         {
@@ -78,8 +78,22 @@ internal static class SkCanvasExtensions
         }
 
         using LockedContent<SKPicture> contentPicture = content.GetContent();
+        SKPicture? picture = contentPicture.Content;
 
-        canvas.DrawPicture(contentPicture.Content);
+        if (picture == null)
+        {
+            return;
+        }
+
+        // The canvas is in page space, so a picture recorded at scale is brought back to it.
+        SKRect cullRect = picture.CullRect;
+
+        int savedCount = canvas.Save();
+        canvas.Scale(pageInfo.CropBox.Width / cullRect.Width, pageInfo.CropBox.Height / cullRect.Height);
+
+        canvas.DrawPicture(picture);
+
+        canvas.RestoreToCount(savedCount);
     }
 
     private static void DrawPlaceholder(SKCanvas canvas, SKRect pageRect, in AnimationState animation)

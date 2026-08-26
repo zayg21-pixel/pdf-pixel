@@ -92,6 +92,7 @@ internal static class PdfDocumentContentExtensions
         PdfCommandRecorder commandRecording,
         PdfCommandExecutionContext executionContext,
         SKCanvas canvas,
+        float pictureScale,
         ILoggerFactory loggerFactory)
     {
         if (commandRecording == null)
@@ -114,9 +115,10 @@ internal static class PdfDocumentContentExtensions
             throw new ArgumentNullException(nameof(loggerFactory));
         }
 
-        executionContext.Frames.Reset();
-
         SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+
+        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(pictureScale, pictureScale)));
+
         await commandRecording.ReplayAsync(processor).ConfigureAwait(false);
 
         canvas.Flush();
@@ -137,6 +139,6 @@ internal static class PdfDocumentContentExtensions
     {
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
         string label = document.Pages[pageNumber - 1].PageLabel.DecodePdfString();
-        return new PdfPanelPageInfo(label, pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.CropBox.Left, pdfPage.CropBox.Top, pdfPage.Rotation);
+        return new PdfPanelPageInfo(label, pdfPage.CropBox, pdfPage.Rotation);
     }
 }
