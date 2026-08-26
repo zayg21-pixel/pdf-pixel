@@ -1,6 +1,7 @@
 ﻿using PdfPixel.Commands;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
@@ -107,7 +108,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
-                    _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
+                    ToPictureRegion(_request.GetPage(CacheEntry.PageNumber).RegionOfInterest, pictureScale));
 
                 await PdfDocumentContentExtensions
                     .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, pictureScale, _document.LoggerFactory)
@@ -170,7 +171,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
-                    _request.GetPage(CacheEntry.PageNumber).RegionOfInterest);
+                    ToPictureRegion(_request.GetPage(CacheEntry.PageNumber).RegionOfInterest, annotationPictureScale));
 
                 await PdfDocumentContentExtensions
                     .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, annotationPictureScale, _document.LoggerFactory)
@@ -191,4 +192,11 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _request.GetPage(CacheEntry.PageNumber).RegionOfInterest));
         }
     }
+
+    /// <summary>
+    /// Maps <paramref name="regionOfInterest"/> from page content coordinates into the coordinates of
+    /// a picture recorded at <paramref name="pictureScale"/>.
+    /// </summary>
+    private static PdfRectangle ToPictureRegion(in PdfRectangle regionOfInterest, float pictureScale)
+        => PdfMatrix.CreateScale(pictureScale, pictureScale).MapRect(regionOfInterest);
 }
