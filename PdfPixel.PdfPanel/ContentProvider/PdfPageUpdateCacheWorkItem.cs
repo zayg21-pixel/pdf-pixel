@@ -162,7 +162,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             {
                 using SKPictureRecorder annotationRecorder = new();
                 float annotationPictureScale = CacheEntry.AnnotationContent.GetPictureScale(_request);
-                SKCanvas annotationCanvas = annotationRecorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.CropBox.Width * annotationPictureScale, CacheEntry.PageInfo.CropBox.Height * annotationPictureScale));
+                SKCanvas annotationCanvas = annotationRecorder.BeginRecording(
+                    SKRect.Create(CacheEntry.PageInfo.CropBox.Width * annotationPictureScale, CacheEntry.PageInfo.CropBox.Height * annotationPictureScale));
                 using PdfCommandExecutionContext annotationContext = new(
                     _document,
                     _request.CommandExecutionParameters,

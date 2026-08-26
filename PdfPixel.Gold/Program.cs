@@ -175,6 +175,9 @@ internal sealed class Program
                 failedCount++;
                 Write(ConsoleColor.Magenta, $"{entry.Name,-60} FAILED {exception.Message}");
             }
+
+            SKGraphics.PurgeResourceCache();
+            SKGraphics.PurgeFontCache();
         }
 
         runStopwatch.Stop();

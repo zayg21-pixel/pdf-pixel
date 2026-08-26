@@ -117,8 +117,7 @@ internal static class PdfDocumentContentExtensions
 
         SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
-        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(pictureScale, pictureScale)));
-
+        await processor.ProcessAsync(new ConcatMatrixCommand(PdfMatrix.CreateScale(pictureScale, pictureScale))).ConfigureAwait(false);
         await commandRecording.ReplayAsync(processor).ConfigureAwait(false);
 
         canvas.Flush();
