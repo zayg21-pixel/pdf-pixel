@@ -58,6 +58,9 @@ internal sealed class YcbCrFloatColorConverter : IJpgColorConverter
             throw new ArgumentException("YCbCr converter requires 3 component arrays.", nameof(upsampledBandBlocks));
         }
 
+        int vectorStride = _parameters.BlockVectorStride;
+        int vectorLimit = _parameters.BlockVectorLimit;
+
         Block8x8F[] yBlocks = upsampledBandBlocks[0];
         Block8x8F[] cbBlocks = upsampledBandBlocks[1];
         Block8x8F[] crBlocks = upsampledBandBlocks[2];
@@ -74,7 +77,7 @@ internal sealed class YcbCrFloatColorConverter : IJpgColorConverter
             ref Vector4 cbVecRef = ref Unsafe.As<Block8x8F, Vector4>(ref cbBlock);
             ref Vector4 crVecRef = ref Unsafe.As<Block8x8F, Vector4>(ref crBlock);
 
-            for (int vectorIndex = 0; vectorIndex < Block8x8F.VectorCount; vectorIndex++)
+            for (int vectorIndex = 0; vectorIndex < vectorLimit; vectorIndex += vectorStride)
             {
                 Vector4 yVec = Unsafe.Add(ref yVecRef, vectorIndex);
                 Vector4 cbVec = Unsafe.Add(ref cbVecRef, vectorIndex);

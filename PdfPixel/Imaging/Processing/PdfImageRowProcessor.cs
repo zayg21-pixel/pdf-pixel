@@ -262,10 +262,6 @@ internal sealed partial class PdfImageRowProcessor
                 break;
             }
             case RowPipeline.Transformed:
-            {
-                _rgbaBuffer = new byte[_width * 4];
-                break;
-            }
             case RowPipeline.DirectGray:
             case RowPipeline.DirectRgb:
                 break;

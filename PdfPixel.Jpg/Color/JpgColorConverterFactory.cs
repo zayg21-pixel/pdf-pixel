@@ -20,7 +20,7 @@ internal static class JpgColorConverterFactory
 
         if (header.ComponentCount == 1)
         {
-            return new ColorClampConverter();
+            return new ColorClampConverter(parameters);
         }
 
         if (header.ComponentCount == 3)
@@ -31,7 +31,7 @@ internal static class JpgColorConverterFactory
                 JpgYuvMode.ForceYuv => true,
                 _ => IsYuvNeeded(header)
             };
-            return applyYuv ? new YcbCrFloatColorConverter(header, parameters) : new ColorClampConverter();
+            return applyYuv ? new YcbCrFloatColorConverter(header, parameters) : new ColorClampConverter(parameters);
         }
 
         if (header.ComponentCount == 4)
@@ -45,14 +45,14 @@ internal static class JpgColorConverterFactory
 
             IJpgColorConverter converter = applyYcck
                 ? new YcckFloatColorConverter(header, parameters)
-                : new ColorClampConverter();
+                : new ColorClampConverter(parameters);
 
             return (options.InvertCmykColors)
-                ? new CmykInvertingConverter(converter)
+                ? new CmykInvertingConverter(parameters, converter)
                 : converter;
         }
 
-        return new ColorClampConverter();
+        return new ColorClampConverter(parameters);
     }
 
     private static bool IsYuvNeeded(JpgHeader header)
@@ -83,13 +83,31 @@ internal static class JpgColorConverterFactory
 
     private sealed class ColorClampConverter : IJpgColorConverter
     {
+        private readonly int _vectorStride;
+        private readonly int _vectorLimit;
+
+        public ColorClampConverter(JpgDecodingParameters parameters)
+        {
+            _vectorStride = parameters.BlockVectorStride;
+            _vectorLimit = parameters.BlockVectorLimit;
+        }
+
         public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
         {
+            bool wholeBlock = _vectorLimit == Block8x8F.VectorCount;
+
             foreach (Block8x8F[] band in upsampledBandBlocks)
             {
                 foreach (ref Block8x8F block in band.AsSpan())
                 {
-                    block.ClampToByte();
+                    if (wholeBlock)
+                    {
+                        block.ClampToByte();
+                    }
+                    else
+                    {
+                        block.ClampToByte(_vectorStride, _vectorLimit);
+                    }
                 }
             }
         }
@@ -100,8 +118,15 @@ internal static class JpgColorConverterFactory
         private static readonly Vector4 _v255 = new(255f);
 
         private readonly IJpgColorConverter _inner;
+        private readonly int _vectorStride;
+        private readonly int _vectorLimit;
 
-        public CmykInvertingConverter(IJpgColorConverter inner) => _inner = inner;
+        public CmykInvertingConverter(JpgDecodingParameters parameters, IJpgColorConverter inner)
+        {
+            _inner = inner;
+            _vectorStride = parameters.BlockVectorStride;
+            _vectorLimit = parameters.BlockVectorLimit;
+        }
 
         public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
         {
@@ -112,7 +137,7 @@ internal static class JpgColorConverterFactory
                 {
                     ref Block8x8F block = ref blocks[b];
                     ref Vector4 vecRef = ref Unsafe.As<Block8x8F, Vector4>(ref block);
-                    for (int v = 0; v < Block8x8F.VectorCount; v++)
+                    for (int v = 0; v < _vectorLimit; v += _vectorStride)
                     {
                         ref Vector4 lane = ref Unsafe.Add(ref vecRef, v);
                         lane = _v255 - lane;

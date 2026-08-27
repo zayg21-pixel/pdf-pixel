@@ -17,7 +17,7 @@ internal sealed partial class PdfImageRowProcessor
     private void WritePaletteRow(int rowIndex, in Span<byte> decodedRow, in ReadOnlySpan<byte> alphaRow)
     {
         ExpandPaletteToRgbaBuffer(decodedRow);
-        MergeAlphaPlane(_parameters.Width, alphaRow);
+        MergeAlphaPlane(_parameters.Width, alphaRow, _rgbaBuffer);
 
         if (!_rowConverter.TryConvertRow(rowIndex, _rgbaBuffer, _convertedRowBuffer))
         {
@@ -41,14 +41,16 @@ internal sealed partial class PdfImageRowProcessor
             return;
         }
 
-        TransformColorToRgbaBuffer(_convertedRowBuffer);
+        Span<byte> destRow = TakeOutputRow();
+
+        TransformColorToRgba(_convertedRowBuffer, destRow);
 
         if (hasResampledAlpha)
         {
-            MergeAlphaPlane(_width, _convertedAlphaBuffer);
+            MergeAlphaPlane(_width, _convertedAlphaBuffer, destRow);
         }
 
-        CopyToOutputRow(_rgbaBuffer);
+        ApplyMatte(destRow);
     }
 
     /// <summary>
@@ -146,15 +148,15 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void TransformColorToRgbaBuffer(in Span<byte> decodedRow)
+    private void TransformColorToRgba(in Span<byte> decodedRow, in Span<byte> destRow)
     {
-        if (_rgbaBuffer == null || _sampler == null)
+        if (_sampler == null)
         {
             throw new InvalidOperationException("Not initialized.");
         }
 
         int pixelCount = _width;
-        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref destRow[0]);
         ref byte sourceByte = ref decodedRow[0];
 
         Span<float> componentValues = stackalloc float[_components];
@@ -294,21 +296,21 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     /// <summary>
-    /// Takes the alpha plane into the RGBA buffer over <paramref name="pixelCount"/> pixels of
-    /// whichever grid the calling pipeline merges on. Samples the buffer already cleared — a colour
+    /// Takes the alpha plane into <paramref name="destRow"/> over <paramref name="pixelCount"/>
+    /// pixels of whichever grid the calling pipeline merges on. Samples already cleared — a colour
     /// key match, or a stencil's blank palette entry — stay clear; nothing else carries alpha of its
     /// own here, because an interleaved source excludes a plane.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void MergeAlphaPlane(int pixelCount, in ReadOnlySpan<byte> alphaRow)
+    private void MergeAlphaPlane(int pixelCount, in ReadOnlySpan<byte> alphaRow, in Span<byte> destRow)
     {
-        if ((_stages & RowStages.AlphaPlane) == 0 || _rgbaBuffer == null || alphaRow.IsEmpty)
+        if ((_stages & RowStages.AlphaPlane) == 0 || destRow.IsEmpty || alphaRow.IsEmpty)
         {
             return;
         }
 
         int mergedCount = Math.Min(pixelCount, alphaRow.Length);
-        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref destRow[0]);
         ref byte sourceAlpha = ref Unsafe.AsRef(in alphaRow[0]);
 
         for (int x = 0; x < mergedCount; x++)

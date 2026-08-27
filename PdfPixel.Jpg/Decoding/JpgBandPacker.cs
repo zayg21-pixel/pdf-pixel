@@ -7,6 +7,8 @@ namespace PdfPixel.Jpg.Decoding;
 
 internal sealed class JpgBandPacker
 {
+    private const int BlockRowStride = 8;
+
     private readonly JpgHeader _header;
     private readonly JpgDecodingParameters _parameters;
 
@@ -26,278 +28,148 @@ internal sealed class JpgBandPacker
         _parameters = parameters;
     }
 
-    public void Pack(Block8x8F[][] fullResBlocks, int bandRows, byte[] destination)
+    /// <summary>
+    /// Writes one row of the current band into <paramref name="destination"/>, interleaving the components.
+    /// </summary>
+    /// <param name="fullResBlocks">Per-component blocks of the current band.</param>
+    /// <param name="bandRow">Row within the band, in output samples.</param>
+    /// <param name="destination">Row to fill; the caller owns it.</param>
+    public void PackRow(Block8x8F[][] fullResBlocks, int bandRow, in Span<byte> destination)
     {
         if (fullResBlocks == null)
         {
             throw new ArgumentNullException(nameof(fullResBlocks));
         }
 
-        if (destination == null)
-        {
-            throw new ArgumentNullException(nameof(destination));
-        }
-
-        if (bandRows <= 0)
-        {
-            return;
-        }
-
         switch (_header.ComponentCount)
         {
             case 1:
                 {
-                    PackGray(fullResBlocks, bandRows, destination);
+                    PackGrayRow(fullResBlocks, bandRow, destination);
                     break;
                 }
             case 3:
                 {
-                    PackRgb(fullResBlocks, bandRows, destination);
+                    PackRgbRow(fullResBlocks, bandRow, destination);
                     break;
                 }
             case 4:
                 {
-                    PackCmyk(fullResBlocks, bandRows, destination);
+                    PackCmykRow(fullResBlocks, bandRow, destination);
                     break;
                 }
             default:
                 {
-                    PackInterleaved(fullResBlocks, bandRows, destination);
+                    PackInterleavedRow(fullResBlocks, bandRow, destination);
                     break;
                 }
         }
     }
 
-    /// <summary>
-    /// High-performance grayscale packer using linear block traversal (same strategy as RGB/CMYK variants).
-    /// </summary>
-    private void PackGray(Block8x8F[][] grayBlocks, int bandRows, byte[] destination)
+    private void PackGrayRow(Block8x8F[][] grayBlocks, int bandRow, in Span<byte> destination)
     {
         Block8x8F[] yBlocks = grayBlocks[0];
-        int hMax = _parameters.HMax;
-        int vMax = _parameters.VMax;
-        int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.OutputMcuWidth;
-        int blockSize = _parameters.BlockSize;
-        int outputStride = _parameters.OutputStride; // equals image width for grayscale
-        int imageWidth = _parameters.OutputWidth;
-        int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
+        RowGeometry geometry = new(_parameters, bandRow);
 
-        for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
         {
-            int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
-            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
-            int blockRow = blockInColumn / hMax;
-            int blockCol = blockInColumn - (blockRow * hMax);
-
-            int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * blockSize;
-            int remainingColumnPixels = imageWidth - xBase;
-            if (remainingColumnPixels <= 0)
+            if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
                 break;
             }
 
-            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
-            if (blockXBase >= effectiveColumnWidth)
+            for (int blockColumn = 0; blockColumn < geometry.BlocksPerRow; blockColumn++)
             {
-                continue;
-            }
+                int blockXBase = blockColumn * geometry.BlockSize;
+                if (blockXBase >= effectiveColumnWidth)
+                {
+                    break;
+                }
 
-            int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > blockSize)
-            {
-                copyPixels = blockSize;
-            }
+                int copyPixels = geometry.GetCopyPixels(effectiveColumnWidth, blockXBase);
+                ref float yRow = ref geometry.GetSampleRow(yBlocks, blockBase + blockColumn);
+                ref byte destRef = ref destination[mcuXBase + blockXBase];
 
-            int blockYBase = blockRow * blockSize;
-            if (blockYBase >= bandRows)
-            {
-                continue;
-            }
-
-            int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > blockSize)
-            {
-                maxRowsInBlock = blockSize;
-            }
-
-            ref float yBlockBase = ref Unsafe.As<Block8x8F, float>(ref yBlocks[blockLinearIndex]);
-            for (int localRow = 0; localRow < maxRowsInBlock; localRow++)
-            {
-                int rowFloatOffset = localRow * 8;
-                ref float yRow = ref Unsafe.Add(ref yBlockBase, rowFloatOffset);
-                int destRowOffset = (blockYBase + localRow) * outputStride;
-                int destPixelOffset = destRowOffset + xBase + blockXBase;
-                ref byte destRef = ref destination[destPixelOffset];
                 for (int px = 0; px < copyPixels; px++)
                 {
-                    var y = (byte)Unsafe.Add(ref yRow, px);
-                    destRef = y;
+                    destRef = (byte)Unsafe.Add(ref yRow, px);
                     destRef = ref Unsafe.Add(ref destRef, 1);
                 }
             }
         }
     }
 
-    /// <summary>
-    /// High-performance RGB packer using linear block traversal. Each block (8x8) is visited once and its
-    /// valid rows/columns are copied directly to the destination. ~20% faster than row-major variant in testing.
-    /// </summary>
-    private void PackRgb(Block8x8F[][] rgbBlocks, int bandRows, byte[] destination)
+    private void PackRgbRow(Block8x8F[][] rgbBlocks, int bandRow, in Span<byte> destination)
     {
         Block8x8F[] rBlocks = rgbBlocks[0];
         Block8x8F[] gBlocks = rgbBlocks[1];
         Block8x8F[] bBlocks = rgbBlocks[2];
+        RowGeometry geometry = new(_parameters, bandRow);
 
-        int hMax = _parameters.HMax;
-        int vMax = _parameters.VMax;
-        int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.OutputMcuWidth;
-        int blockSize = _parameters.BlockSize;
-        int outputStride = _parameters.OutputStride;
-        int imageWidth = _parameters.OutputWidth;
-        int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
-
-        for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
         {
-            int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
-            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
-            int blockRow = blockInColumn / hMax;
-            int blockCol = blockInColumn - (blockRow * hMax);
-
-            int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * blockSize;
-            int remainingColumnPixels = imageWidth - xBase;
-            if (remainingColumnPixels <= 0)
+            if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
                 break;
             }
 
-            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
-            if (blockXBase >= effectiveColumnWidth)
+            for (int blockColumn = 0; blockColumn < geometry.BlocksPerRow; blockColumn++)
             {
-                continue;
-            }
+                int blockXBase = blockColumn * geometry.BlockSize;
+                if (blockXBase >= effectiveColumnWidth)
+                {
+                    break;
+                }
 
-            int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > blockSize)
-            {
-                copyPixels = blockSize;
-            }
+                int copyPixels = geometry.GetCopyPixels(effectiveColumnWidth, blockXBase);
+                int blockIndex = blockBase + blockColumn;
+                ref float rRow = ref geometry.GetSampleRow(rBlocks, blockIndex);
+                ref float gRow = ref geometry.GetSampleRow(gBlocks, blockIndex);
+                ref float bRow = ref geometry.GetSampleRow(bBlocks, blockIndex);
+                ref byte destRef = ref destination[(mcuXBase + blockXBase) * 3];
 
-            int blockYBase = blockRow * blockSize;
-            if (blockYBase >= bandRows)
-            {
-                continue;
-            }
-
-            int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > blockSize)
-            {
-                maxRowsInBlock = blockSize;
-            }
-
-            ref float rBlockBase = ref Unsafe.As<Block8x8F, float>(ref rBlocks[blockLinearIndex]);
-            ref float gBlockBase = ref Unsafe.As<Block8x8F, float>(ref gBlocks[blockLinearIndex]);
-            ref float bBlockBase = ref Unsafe.As<Block8x8F, float>(ref bBlocks[blockLinearIndex]);
-
-            for (int localRow = 0; localRow < maxRowsInBlock; localRow++)
-            {
-                int rowFloatOffset = localRow * 8;
-                ref float rRow = ref Unsafe.Add(ref rBlockBase, rowFloatOffset);
-                ref float gRow = ref Unsafe.Add(ref gBlockBase, rowFloatOffset);
-                ref float bRow = ref Unsafe.Add(ref bBlockBase, rowFloatOffset);
-                int destRowOffset = (blockYBase + localRow) * outputStride;
-                int destPixelOffset = destRowOffset + ((xBase + blockXBase) * 3);
-                ref byte destRef = ref destination[destPixelOffset];
                 for (int px = 0; px < copyPixels; px++)
                 {
-                    var r = (byte)Unsafe.Add(ref rRow, px);
-                    var g = (byte)Unsafe.Add(ref gRow, px);
-                    var b = (byte)Unsafe.Add(ref bRow, px);
-                    destRef = r;
-                    Unsafe.Add(ref destRef, 1) = g;
-                    Unsafe.Add(ref destRef, 2) = b;
+                    destRef = (byte)Unsafe.Add(ref rRow, px);
+                    Unsafe.Add(ref destRef, 1) = (byte)Unsafe.Add(ref gRow, px);
+                    Unsafe.Add(ref destRef, 2) = (byte)Unsafe.Add(ref bRow, px);
                     destRef = ref Unsafe.Add(ref destRef, 3);
                 }
             }
         }
     }
 
-    /// <summary>
-    /// High-performance CMYK packer using the same linear block traversal strategy.
-    /// </summary>
-    private void PackCmyk(Block8x8F[][] cmykBlocks, int bandRows, byte[] destination)
+    private void PackCmykRow(Block8x8F[][] cmykBlocks, int bandRow, in Span<byte> destination)
     {
         Block8x8F[] cBlocks = cmykBlocks[0];
         Block8x8F[] mBlocks = cmykBlocks[1];
         Block8x8F[] yBlocks = cmykBlocks[2];
         Block8x8F[] kBlocks = cmykBlocks[3];
+        RowGeometry geometry = new(_parameters, bandRow);
 
-        int hMax = _parameters.HMax;
-        int vMax = _parameters.VMax;
-        int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.OutputMcuWidth;
-        int blockSize = _parameters.BlockSize;
-        int outputStride = _parameters.OutputStride;
-        int imageWidth = _parameters.OutputWidth;
-        int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
-
-        for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
         {
-            int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
-            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
-            int blockRow = blockInColumn / hMax;
-            int blockCol = blockInColumn - (blockRow * hMax);
-
-            int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * blockSize;
-            int remainingColumnPixels = imageWidth - xBase;
-            if (remainingColumnPixels <= 0)
+            if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
                 break;
             }
 
-            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
-            if (blockXBase >= effectiveColumnWidth)
+            for (int blockColumn = 0; blockColumn < geometry.BlocksPerRow; blockColumn++)
             {
-                continue;
-            }
+                int blockXBase = blockColumn * geometry.BlockSize;
+                if (blockXBase >= effectiveColumnWidth)
+                {
+                    break;
+                }
 
-            int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > blockSize)
-            {
-                copyPixels = blockSize;
-            }
+                int copyPixels = geometry.GetCopyPixels(effectiveColumnWidth, blockXBase);
+                int blockIndex = blockBase + blockColumn;
+                ref float cRow = ref geometry.GetSampleRow(cBlocks, blockIndex);
+                ref float mRow = ref geometry.GetSampleRow(mBlocks, blockIndex);
+                ref float yRow = ref geometry.GetSampleRow(yBlocks, blockIndex);
+                ref float kRow = ref geometry.GetSampleRow(kBlocks, blockIndex);
+                ref byte destRef = ref destination[(mcuXBase + blockXBase) * 4];
 
-            int blockYBase = blockRow * blockSize;
-            if (blockYBase >= bandRows)
-            {
-                continue;
-            }
-
-            int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > blockSize)
-            {
-                maxRowsInBlock = blockSize;
-            }
-
-            ref float cBlockBase = ref Unsafe.As<Block8x8F, float>(ref cBlocks[blockLinearIndex]);
-            ref float mBlockBase = ref Unsafe.As<Block8x8F, float>(ref mBlocks[blockLinearIndex]);
-            ref float yBlockBase = ref Unsafe.As<Block8x8F, float>(ref yBlocks[blockLinearIndex]);
-            ref float kBlockBase = ref Unsafe.As<Block8x8F, float>(ref kBlocks[blockLinearIndex]);
-
-            for (int localRow = 0; localRow < maxRowsInBlock; localRow++)
-            {
-                int rowFloatOffset = localRow * 8;
-                ref float cRow = ref Unsafe.Add(ref cBlockBase, rowFloatOffset);
-                ref float mRow = ref Unsafe.Add(ref mBlockBase, rowFloatOffset);
-                ref float yRow = ref Unsafe.Add(ref yBlockBase, rowFloatOffset);
-                ref float kRow = ref Unsafe.Add(ref kBlockBase, rowFloatOffset);
-                int destRowOffset = (blockYBase + localRow) * outputStride;
-                int destPixelOffset = destRowOffset + ((xBase + blockXBase) * 4);
-                ref byte destRef = ref destination[destPixelOffset];
                 for (int px = 0; px < copyPixels; px++)
                 {
                     destRef = (byte)Unsafe.Add(ref cRow, px);
@@ -314,66 +186,35 @@ internal sealed class JpgBandPacker
     /// Packer for any component count, writing one component plane at a time into the interleaved
     /// destination. Used for images whose component count has no dedicated fast path.
     /// </summary>
-    private void PackInterleaved(Block8x8F[][] fullResBlocks, int bandRows, byte[] destination)
+    private void PackInterleavedRow(Block8x8F[][] fullResBlocks, int bandRow, in Span<byte> destination)
     {
         int componentCount = _header.ComponentCount;
-        int hMax = _parameters.HMax;
-        int vMax = _parameters.VMax;
-        int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.OutputMcuWidth;
-        int blockSize = _parameters.BlockSize;
-        int outputStride = _parameters.OutputStride;
-        int imageWidth = _parameters.OutputWidth;
-        int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
+        RowGeometry geometry = new(_parameters, bandRow);
 
-        for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
         {
-            int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
-            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
-            int blockRow = blockInColumn / hMax;
-            int blockCol = blockInColumn - (blockRow * hMax);
-
-            int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * blockSize;
-            int remainingColumnPixels = imageWidth - xBase;
-            if (remainingColumnPixels <= 0)
+            if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
                 break;
             }
 
-            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
-            if (blockXBase >= effectiveColumnWidth)
+            for (int blockColumn = 0; blockColumn < geometry.BlocksPerRow; blockColumn++)
             {
-                continue;
-            }
-
-            int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > blockSize)
-            {
-                copyPixels = blockSize;
-            }
-
-            int blockYBase = blockRow * blockSize;
-            if (blockYBase >= bandRows)
-            {
-                continue;
-            }
-
-            int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > blockSize)
-            {
-                maxRowsInBlock = blockSize;
-            }
-
-            for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
-            {
-                ref float blockBase = ref Unsafe.As<Block8x8F, float>(ref fullResBlocks[componentIndex][blockLinearIndex]);
-                for (int localRow = 0; localRow < maxRowsInBlock; localRow++)
+                int blockXBase = blockColumn * geometry.BlockSize;
+                if (blockXBase >= effectiveColumnWidth)
                 {
-                    ref float sourceRow = ref Unsafe.Add(ref blockBase, localRow * 8);
-                    int destRowOffset = (blockYBase + localRow) * outputStride;
-                    int destPixelOffset = destRowOffset + ((xBase + blockXBase) * componentCount) + componentIndex;
-                    ref byte destRef = ref destination[destPixelOffset];
+                    break;
+                }
+
+                int copyPixels = geometry.GetCopyPixels(effectiveColumnWidth, blockXBase);
+                int blockIndex = blockBase + blockColumn;
+                int destPixelOffset = (mcuXBase + blockXBase) * componentCount;
+
+                for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+                {
+                    ref float sourceRow = ref geometry.GetSampleRow(fullResBlocks[componentIndex], blockIndex);
+                    ref byte destRef = ref destination[destPixelOffset + componentIndex];
+
                     for (int px = 0; px < copyPixels; px++)
                     {
                         destRef = (byte)Unsafe.Add(ref sourceRow, px);
@@ -381,6 +222,77 @@ internal sealed class JpgBandPacker
                     }
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Locates the blocks and samples one band row draws from, shared by the per-component-count packers.
+    /// </summary>
+    private readonly struct RowGeometry
+    {
+        private readonly int _outputMcuWidth;
+        private readonly int _outputWidth;
+        private readonly int _fullBlocksPerMcu;
+        private readonly int _blockRowBase;
+        private readonly int _sampleRowOffset;
+
+        public RowGeometry(JpgDecodingParameters parameters, int bandRow)
+        {
+            BlockSize = parameters.BlockSize;
+            BlocksPerRow = parameters.HMax;
+            _outputMcuWidth = parameters.OutputMcuWidth;
+            _outputWidth = parameters.OutputWidth;
+            _fullBlocksPerMcu = parameters.HMax * parameters.VMax;
+
+            int blockRow = bandRow / BlockSize;
+            _blockRowBase = blockRow * parameters.HMax;
+            _sampleRowOffset = (bandRow - (blockRow * BlockSize)) * BlockRowStride;
+        }
+
+        public int BlockSize { get; }
+
+        public int BlocksPerRow { get; }
+
+        /// <summary>
+        /// Positions this row inside one MCU column. Returns false once the column starts past the image.
+        /// </summary>
+        /// <param name="mcuColumnIndex">MCU column to start.</param>
+        /// <param name="mcuXBase">First output sample the column covers.</param>
+        /// <param name="effectiveColumnWidth">Samples of the column that fall inside the image.</param>
+        /// <param name="blockBase">Index of the column's first block on this block row.</param>
+        public bool TryStartMcuColumn(int mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase)
+        {
+            mcuXBase = mcuColumnIndex * _outputMcuWidth;
+            blockBase = (mcuColumnIndex * _fullBlocksPerMcu) + _blockRowBase;
+
+            int remainingColumnPixels = _outputWidth - mcuXBase;
+            effectiveColumnWidth = (remainingColumnPixels < _outputMcuWidth) ? remainingColumnPixels : _outputMcuWidth;
+
+            return remainingColumnPixels > 0;
+        }
+
+        /// <summary>
+        /// Samples one block contributes to this row, clipped to the image.
+        /// </summary>
+        /// <param name="effectiveColumnWidth">Samples of the MCU column that fall inside the image.</param>
+        /// <param name="blockXBase">First sample the block covers within its MCU column.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int GetCopyPixels(int effectiveColumnWidth, int blockXBase)
+        {
+            int copyPixels = effectiveColumnWidth - blockXBase;
+            return (copyPixels > BlockSize) ? BlockSize : copyPixels;
+        }
+
+        /// <summary>
+        /// Reference to the first sample this row reads from the given block.
+        /// </summary>
+        /// <param name="blocks">Blocks of one component.</param>
+        /// <param name="blockIndex">Block to read.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref float GetSampleRow(Block8x8F[] blocks, int blockIndex)
+        {
+            ref float blockBase = ref Unsafe.As<Block8x8F, float>(ref blocks[blockIndex]);
+            return ref Unsafe.Add(ref blockBase, _sampleRowOffset);
         }
     }
 }

@@ -254,6 +254,39 @@ internal struct Block8x8F
     }
 
     /// <summary>
+    /// Step between the <see cref="Vector4"/> lanes holding samples, for a row of the given sample count.
+    /// A row of more than four samples spans both halves, so every lane holds samples; a shorter row
+    /// only ever reaches the left half.
+    /// </summary>
+    /// <param name="sampleWidth">Samples covered by one row.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetVectorStride(int sampleWidth) => (sampleWidth > 4) ? 1 : 2;
+
+    /// <summary>
+    /// One past the last <see cref="Vector4"/> lane holding samples, for the given number of rows.
+    /// </summary>
+    /// <param name="sampleHeight">Rows covered by the samples.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetVectorLimit(int sampleHeight) => sampleHeight * 2;
+
+    /// <summary>
+    /// Clamps the scalar values of the lanes selected by <paramref name="vectorStride"/> and
+    /// <paramref name="vectorLimit"/> to the inclusive byte range [0, 255].
+    /// </summary>
+    /// <param name="vectorStride">Step between lanes holding samples.</param>
+    /// <param name="vectorLimit">One past the last lane holding samples.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ClampToByte(int vectorStride, int vectorLimit)
+    {
+        ref Vector4 vectorRef = ref Unsafe.As<Block8x8F, Vector4>(ref this);
+        for (int vectorIndex = 0; vectorIndex < vectorLimit; vectorIndex += vectorStride)
+        {
+            ref Vector4 lane = ref Unsafe.Add(ref vectorRef, vectorIndex);
+            lane = Vector4.Clamp(lane, Zero, MaxByte);
+        }
+    }
+
+    /// <summary>
     /// Clamps all scalar values in the block to the inclusive byte range [0, 255].
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

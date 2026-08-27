@@ -38,11 +38,10 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
     private readonly JpgBandPacker _bandPacker;
     private readonly Block8x8F[][] _componentBandBlocks;
     private readonly Block8x8F[][] _upsampledBandBlocks;
-    private readonly byte[] _bandBuffer;
+    private readonly Block8x8F[][] _workingBandBlocks;
 
-    private int _bandProduced;
-    private int _bandConsumed;
-    private int _bandHeight;
+    private int _bandRows;
+    private int _bandRowIndex;
     private int _currentMcuRow;
     private int _currentRow;
     private Block8x8F _scratchBlock;
@@ -122,12 +121,11 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             }
         }
 
+        _workingBandBlocks = (_decodingParameters.NeedsUpsampling) ? _upsampledBandBlocks : _componentBandBlocks;
+
         _upsampler = (_decodingParameters.NeedsUpsampling) ? new JpgUpsampler(_decodingParameters, _header) : null;
         _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters, options);
         _bandPacker = new JpgBandPacker(_header, _decodingParameters);
-
-        _bandHeight = _decodingParameters.OutputMcuHeight;
-        _bandBuffer = new byte[_bandHeight * _decodingParameters.OutputStride];
     }
 
     /// <inheritdoc/>
@@ -151,7 +149,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             throw new ArgumentException("Row buffer too small for decoded row.", nameof(rowBuffer));
         }
 
-        if (_bandConsumed >= _bandProduced)
+        if (_bandRowIndex >= _bandRows)
         {
             if (_currentMcuRow >= _decodingParameters.McuRows)
             {
@@ -159,14 +157,14 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             }
 
             ProduceNextBand();
-            if (_bandProduced == 0)
+            if (_bandRows == 0)
             {
                 return false;
             }
         }
 
-        _bandBuffer.AsSpan(_bandConsumed, _decodingParameters.OutputStride).CopyTo(rowBuffer);
-        _bandConsumed += _decodingParameters.OutputStride;
+        _bandPacker.PackRow(_workingBandBlocks, _bandRowIndex, rowBuffer);
+        _bandRowIndex++;
         _currentRow++;
         return true;
     }
@@ -178,8 +176,8 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         int bandRows = (remainingRows < _decodingParameters.OutputMcuHeight) ? remainingRows : _decodingParameters.OutputMcuHeight;
         if (bandRows <= 0)
         {
-            _bandProduced = 0;
-            _bandConsumed = 0;
+            _bandRows = 0;
+            _bandRowIndex = 0;
             return;
         }
 
@@ -238,18 +236,15 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             }
         }
 
-        Block8x8F[][] workingBlocks = (_decodingParameters.NeedsUpsampling) ? _upsampledBandBlocks : _componentBandBlocks;
         if (_decodingParameters.NeedsUpsampling && _upsampler != null)
         {
             _upsampler.UpsampleBand(_componentBandBlocks, _upsampledBandBlocks);
         }
 
-        _colorConverter.ConvertInPlace(workingBlocks);
-        _bandPacker.Pack(workingBlocks, bandRows, _bandBuffer);
+        _colorConverter.ConvertInPlace(_workingBandBlocks);
 
-        _bandHeight = bandRows;
-        _bandProduced = bandRows * _decodingParameters.OutputStride;
-        _bandConsumed = 0;
+        _bandRows = bandRows;
+        _bandRowIndex = 0;
         _currentMcuRow++;
     }
 

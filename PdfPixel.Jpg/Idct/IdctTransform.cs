@@ -140,14 +140,11 @@ internal static class IdctTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void ScaleCorner(ref Block8x8F block, ref Block8x8F dequantBlock, ref Block8x8F inputScaleBlock, int idctWidth, int idctHeight)
     {
-        int vectorsPerRow = VectorsPerRow(idctWidth);
-        for (int row = 0; row < idctHeight; row++)
+        int vectorStride = Block8x8F.GetVectorStride(idctWidth);
+        int vectorLimit = Block8x8F.GetVectorLimit(idctHeight);
+        for (int vectorIndex = 0; vectorIndex < vectorLimit; vectorIndex += vectorStride)
         {
-            for (int half = 0; half < vectorsPerRow; half++)
-            {
-                int vectorIndex = (row * 2) + half;
-                block.SetVector(vectorIndex, block.GetVector(vectorIndex) * dequantBlock.GetVector(vectorIndex) * inputScaleBlock.GetVector(vectorIndex));
-            }
+            block.SetVector(vectorIndex, block.GetVector(vectorIndex) * dequantBlock.GetVector(vectorIndex) * inputScaleBlock.GetVector(vectorIndex));
         }
     }
 
@@ -160,14 +157,11 @@ internal static class IdctTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void LevelShiftCorner(ref Block8x8F block, int idctWidth, int idctHeight)
     {
-        int vectorsPerRow = VectorsPerRow(idctWidth);
-        for (int row = 0; row < idctHeight; row++)
+        int vectorStride = Block8x8F.GetVectorStride(idctWidth);
+        int vectorLimit = Block8x8F.GetVectorLimit(idctHeight);
+        for (int vectorIndex = 0; vectorIndex < vectorLimit; vectorIndex += vectorStride)
         {
-            for (int half = 0; half < vectorsPerRow; half++)
-            {
-                int vectorIndex = (row * 2) + half;
-                block.SetVector(vectorIndex, block.GetVector(vectorIndex) + LevelShiftVector);
-            }
+            block.SetVector(vectorIndex, block.GetVector(vectorIndex) + LevelShiftVector);
         }
     }
 
@@ -181,7 +175,7 @@ internal static class IdctTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void IdctColumns(ref Block8x8F block, int pointCount, int columnCount)
     {
-        bool bothHalves = VectorsPerRow(columnCount) == 2;
+        bool bothHalves = Block8x8F.GetVectorStride(columnCount) == 1;
 
         switch (pointCount)
         {
@@ -341,14 +335,6 @@ internal static class IdctTransform
             }
         }
     }
-
-    /// <summary>
-    /// Number of Vector4 halves the given sample count of a row spans.
-    /// </summary>
-    /// <param name="sampleCount">Samples covered by the row.</param>
-    /// <returns>1 when the samples fit the left half, 2 otherwise.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int VectorsPerRow(int sampleCount) => (sampleCount > 4) ? 2 : 1;
 
     /// <summary>
     /// Index of the input scaling block belonging to a pair of transform sizes.

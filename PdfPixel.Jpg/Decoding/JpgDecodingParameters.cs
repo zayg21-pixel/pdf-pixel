@@ -88,6 +88,8 @@ public sealed class JpgDecodingParameters
         McuHeight = DctSize * vMax;
         McuColumns = (header.Width + McuWidth - 1) / McuWidth;
         McuRows = (header.Height + McuHeight - 1) / McuHeight;
+        BlockVectorStride = Block8x8F.GetVectorStride(BlockSize);
+        BlockVectorLimit = Block8x8F.GetVectorLimit(BlockSize);
         OutputMcuWidth = BlockSize * hMax;
         OutputMcuHeight = BlockSize * vMax;
         OutputWidth = (header.Width + descaleFactor - 1) / descaleFactor;
@@ -152,6 +154,16 @@ public sealed class JpgDecodingParameters
     /// Edge length in output samples of one reconstructed block (8 / <see cref="DescaleFactor"/>).
     /// </summary>
     public int BlockSize { get; }
+
+    /// <summary>
+    /// Step between the block lanes holding samples, once the block is reconstructed at <see cref="BlockSize"/>.
+    /// </summary>
+    public int BlockVectorStride { get; }
+
+    /// <summary>
+    /// One past the last block lane holding samples, once the block is reconstructed at <see cref="BlockSize"/>.
+    /// </summary>
+    public int BlockVectorLimit { get; }
 
     /// <summary>
     /// MCU width in stored pixels (8 × <see cref="HMax"/>).
