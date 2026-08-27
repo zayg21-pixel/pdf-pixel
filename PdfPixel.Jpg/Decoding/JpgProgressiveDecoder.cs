@@ -17,6 +17,7 @@ namespace PdfPixel.Jpg.Decoding;
 public sealed class JpgProgressiveDecoder : IJpgDecoder
 {
     private const int DctBlockSize = 64;
+    private const int DctBlockEdge = 8;
 
     private readonly JpgHeader _header;
     private readonly ReadOnlyMemory<byte> _entropyMemory;
@@ -51,8 +52,8 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
     /// </summary>
     /// <param name="header">Parsed JPEG header from <see cref="Readers.JpgReader.ParseHeader"/>.</param>
     /// <param name="entropyData">Full entropy-coded image data starting at the offset recorded in the header.</param>
-    /// <param name="conversionParams">Optional color conversion overrides; uses <see cref="JpegColorConversionParameters.Default"/> when null.</param>
-    public JpgProgressiveDecoder(JpgHeader header, in ReadOnlyMemory<byte> entropyData, JpegColorConversionParameters? conversionParams = null)
+    /// <param name="options">Optional decoding overrides; uses <see cref="JpgDecoderOptions.Default"/> when null.</param>
+    public JpgProgressiveDecoder(JpgHeader header, in ReadOnlyMemory<byte> entropyData, JpgDecoderOptions? options = null)
     {
         if (header == null)
         {
@@ -79,15 +80,18 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             throw new NotSupportedException("No progressive scans (SOS) found in header.");
         }
 
+        options ??= JpgDecoderOptions.Default;
+
         _header = header;
         _entropyMemory = entropyData;
-        _decodingParameters = new JpgDecodingParameters(header);
+        _decodingParameters = new JpgDecodingParameters(header, options.DescaleFactor);
 
         _coeffBuffers = InitializeCoefficientBuffers(_header, _decodingParameters);
         ProcessProgressiveScans(
             _header,
             _entropyMemory.Span,
             _coeffBuffers,
+            BuildSpectralLimits(_header, _decodingParameters),
             _decodingParameters.McuColumns,
             _decodingParameters.McuRows);
 
@@ -119,10 +123,10 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         }
 
         _upsampler = (_decodingParameters.NeedsUpsampling) ? new JpgUpsampler(_decodingParameters, _header) : null;
-        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters, conversionParams);
+        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters, options);
         _bandPacker = new JpgBandPacker(_header, _decodingParameters);
 
-        _bandHeight = _decodingParameters.McuHeight;
+        _bandHeight = _decodingParameters.OutputMcuHeight;
         _bandBuffer = new byte[_bandHeight * _decodingParameters.OutputStride];
     }
 
@@ -137,7 +141,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             return false;
         }
 
-        if (_currentRow >= _header.Height)
+        if (_currentRow >= _decodingParameters.OutputHeight)
         {
             return false;
         }
@@ -169,9 +173,9 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
 
     private void ProduceNextBand()
     {
-        int yBase = _currentMcuRow * _decodingParameters.McuHeight;
-        int remainingRows = _header.Height - yBase;
-        int bandRows = (remainingRows < _decodingParameters.McuHeight) ? remainingRows : _decodingParameters.McuHeight;
+        int yBase = _currentMcuRow * _decodingParameters.OutputMcuHeight;
+        int remainingRows = _decodingParameters.OutputHeight - yBase;
+        int bandRows = (remainingRows < _decodingParameters.OutputMcuHeight) ? remainingRows : _decodingParameters.OutputMcuHeight;
         if (bandRows <= 0)
         {
             _bandProduced = 0;
@@ -186,6 +190,8 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
                 int hFactor = _decodingParameters.ComponentBlocksH[componentIndex];
                 int vFactor = _decodingParameters.ComponentBlocksV[componentIndex];
                 int blocksPerMcu = _decodingParameters.BlocksPerMcu[componentIndex];
+                int idctWidth = _decodingParameters.ComponentIdctWidth[componentIndex];
+                int idctHeight = _decodingParameters.ComponentIdctHeight[componentIndex];
                 Block8x8F[] bandBlocks = _componentBandBlocks[componentIndex];
                 CoeffBuffers coeffBuffer = _coeffBuffers[componentIndex];
 
@@ -207,18 +213,23 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
 
                         int coeffBase = ((blockY * coeffBuffer.BlocksX) + blockX) * DctBlockSize;
                         var dcOnly = true;
-                        for (int coefficientIndex = 0; coefficientIndex < DctBlockSize; coefficientIndex++)
+                        for (int coefficientRow = 0; coefficientRow < idctHeight; coefficientRow++)
                         {
-                            int coefficient = coeffBuffer.Coeffs[coeffBase + coefficientIndex];
-                            _scratchBlock[coefficientIndex] = coefficient;
-                            if (coefficientIndex != 0 && coefficient != 0)
+                            int coefficientRowBase = coefficientRow * DctBlockEdge;
+                            for (int coefficientColumn = 0; coefficientColumn < idctWidth; coefficientColumn++)
                             {
-                                dcOnly = false;
+                                int coefficientIndex = coefficientRowBase + coefficientColumn;
+                                int coefficient = coeffBuffer.Coeffs[coeffBase + coefficientIndex];
+                                _scratchBlock[coefficientIndex] = coefficient;
+                                if (coefficientIndex != 0 && coefficient != 0)
+                                {
+                                    dcOnly = false;
+                                }
                             }
                         }
 
                         ref Block8x8F dequantBlock = ref _dequantizationBlocks[componentIndex];
-                        IdctTransform.TransformScaledNatural(ref _scratchBlock, ref dequantBlock, dcOnly);
+                        IdctTransform.TransformScaledNatural(ref _scratchBlock, ref dequantBlock, dcOnly, idctWidth, idctHeight);
                         int localBlockIndex = (vBlock * hFactor) + hBlock;
                         int globalBlockIndex = (mcuColumnIndex * blocksPerMcu) + localBlockIndex;
                         bandBlocks[globalBlockIndex] = _scratchBlock;
@@ -262,6 +273,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         JpgHeader header,
         in ReadOnlySpan<byte> content,
         CoeffBuffers[] coeffBuffers,
+        int[] spectralLimits,
         int mcuColumns,
         int mcuRows)
     {
@@ -280,7 +292,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         var previousDc = new int[header.ComponentCount];
         int eobRun = 0;
 
-        ProcessCurrentScan(header, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
+        ProcessCurrentScan(header, coeffBuffers, huffTables, spectralLimits, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
 
         while (true)
         {
@@ -329,7 +341,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
                 case 0xDA: // SOS
                 {
                     currentScan = JpgReader.ParseSos(payload);
-                    ProcessCurrentScan(header, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
+                    ProcessCurrentScan(header, coeffBuffers, huffTables, spectralLimits, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
                     break;
                 }
                 default:
@@ -345,6 +357,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         JpgHeader header,
         CoeffBuffers[] coeffBuffers,
         List<JpgHuffmanTable> huffTables,
+        int[] spectralLimits,
         int restartInterval,
         ref JpgBitReader bitReader,
         JpgScanSpec currentScan,
@@ -366,6 +379,13 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         int scanComponentCount = currentScan.Components.Count;
         int[] scanToComponent = JpgComponentMapper.MapScanToSofIndices(header, currentScan)
             ?? throw new InvalidOperationException("Failed to map scan components to SOF indices.");
+
+        if (!IsScanNeeded(currentScan, scanToComponent, spectralLimits))
+        {
+            // Nothing this scan refines survives the reduced transform. Leaving its entropy data unread
+            // costs nothing: the caller scans forward for the next marker either way.
+            return;
+        }
 
         var dcDecoders = new JpgHuffmanDecoder[scanComponentCount];
         var acDecoders = new JpgHuffmanDecoder[scanComponentCount];
@@ -551,6 +571,53 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Highest spectral position each component still contributes to its reconstructed samples.
+    /// </summary>
+    /// <param name="header">Parsed JPEG header.</param>
+    /// <param name="parameters">Decoding geometry holding the per-component transform sizes.</param>
+    /// <returns>One spectral position per component.</returns>
+    private static int[] BuildSpectralLimits(JpgHeader header, JpgDecodingParameters parameters)
+    {
+        byte[] zigZagToNatural = JpgZigZag.Table;
+        var spectralLimits = new int[header.ComponentCount];
+
+        for (int componentIndex = 0; componentIndex < header.ComponentCount; componentIndex++)
+        {
+            int idctWidth = parameters.ComponentIdctWidth[componentIndex];
+            int idctHeight = parameters.ComponentIdctHeight[componentIndex];
+            for (int spectralIndex = 0; spectralIndex < DctBlockSize; spectralIndex++)
+            {
+                int naturalIndex = zigZagToNatural[spectralIndex];
+                if (naturalIndex % DctBlockEdge < idctWidth && naturalIndex / DctBlockEdge < idctHeight)
+                {
+                    spectralLimits[componentIndex] = spectralIndex;
+                }
+            }
+        }
+
+        return spectralLimits;
+    }
+
+    /// <summary>
+    /// True when the scan carries coefficients at least one of its components still needs.
+    /// </summary>
+    /// <param name="scan">Scan about to be decoded.</param>
+    /// <param name="scanToComponent">SOF component index per scan component.</param>
+    /// <param name="spectralLimits">Highest spectral position needed per component.</param>
+    private static bool IsScanNeeded(JpgScanSpec scan, int[] scanToComponent, int[] spectralLimits)
+    {
+        for (int scanComponentIndex = 0; scanComponentIndex < scanToComponent.Length; scanComponentIndex++)
+        {
+            if (scan.SpectralStart <= spectralLimits[scanToComponent[scanComponentIndex]])
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static JpgHuffmanDecoder GetDcDecoder(List<JpgHuffmanTable> huffTables, int tableId)

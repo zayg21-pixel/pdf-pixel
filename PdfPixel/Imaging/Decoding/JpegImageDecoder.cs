@@ -16,6 +16,8 @@ namespace PdfPixel.Imaging.Decoding;
 
 internal sealed class JpegImageDecoder : PdfImageDecoder
 {
+    private const int MaxDescaleFactor = 8;
+
     private IJpgDecoder? _jpgRowDecoder;
 
     public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
@@ -60,13 +62,16 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         // SOF's, because it is the stride the row decoder writes and the row buffer must hold it.
         int decodedHeight = Math.Min(header.Height, Image.Height);
 
+        PdfIntegerSize sampleSize = new(header.Width, decodedHeight);
+        int descaleFactor = ComputeDescaleFactor(sampleSize, ctm, resolvedConverter, MaxDescaleFactor);
+
         PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
             ctm,
-            new PdfIntegerSize(header.Width, decodedHeight),
+            new PdfIntegerSize(Descale(sampleSize.Width, descaleFactor), Descale(sampleSize.Height, descaleFactor)),
             Image.BitsPerComponent,
             resolvedConverter);
 
-        _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
+        _jpgRowDecoder = CreateJpgDecoder(encodedData, header, descaleFactor);
 
         return parameters;
     }
@@ -86,7 +91,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         return true;
     }
 
-    private IJpgDecoder CreateJpgDecoder(in ReadOnlyMemory<byte> encodedData, JpgHeader header)
+    private IJpgDecoder CreateJpgDecoder(in ReadOnlyMemory<byte> encodedData, JpgHeader header, int descaleFactor)
     {
         ReadOnlyMemory<byte> compressed = encodedData.Slice(header.ContentOffset);
         int? colorTransform = Image.DecodeParms?.ColorTransform;
@@ -98,16 +103,17 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             _ => JpgYuvMode.Default
         };
 
-        JpegColorConversionParameters colorParameters = new()
+        JpgDecoderOptions decoderOptions = new()
         {
             YuvMode = yuvMode,
-            InvertCmykColors = false
+            InvertCmykColors = false,
+            DescaleFactor = descaleFactor
         };
 
         return header.FrameType switch
         {
-            JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(header, compressed, colorParameters),
-            JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed, colorParameters),
+            JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(header, compressed, decoderOptions),
+            JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed, decoderOptions),
             _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (SourceReference={Image.SourceReference}).")
         };
     }

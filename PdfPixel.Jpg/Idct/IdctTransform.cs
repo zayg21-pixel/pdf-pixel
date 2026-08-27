@@ -9,6 +9,8 @@ namespace PdfPixel.Jpg.Idct;
 /// <summary>
 /// Performs inverse discrete cosine transform (IDCT) operations over 8x8 image blocks using an AAN scaled algorithm.
 /// The implementation works on a packed <see cref="Block8x8F"/> where each logical row is split into two <see cref="Vector4"/> halves.
+/// A block can also be reconstructed at 4, 2 or 1 samples per dimension from the matching low-frequency coefficients;
+/// the two dimensions are transformed by separate passes, so their sizes are independent.
 /// </summary>
 internal static class IdctTransform
 {
@@ -20,25 +22,43 @@ internal static class IdctTransform
     private static readonly Vector4 C_1_847759065 = new(1.847759065f); // sqrt(2) * cos(pi/8)
     private static readonly Vector4 C_N1_082392200 = new(-1.082392200f); // -sqrt(2) * cos(3pi/8)
     private static readonly Vector4 C_N2_613125930 = new(-2.613125930f); // -sqrt(2) * (cos(pi/8) + cos(3pi/8))
+    private static readonly Vector4 C_1_306562965 = new(1.306562965f); // sqrt(2) * cos(pi/8), four-point odd part
+    private static readonly Vector4 C_0_541196100 = new(0.541196100f); // sqrt(2) * cos(3pi/8), four-point odd part
 
     private const float LevelShift = 128f;
+
+    // Share of the 1/8 normalization each of the two passes contributes.
+    private const float PassScale = 0.35355339f; // 1 / sqrt(8)
 
     private static readonly Vector4 LevelShiftVector = new(LevelShift);
 
     private static readonly Block8x8F AanInputScaleBlock = BuildAanInputScaleBlock();
 
+    // Input scaling for the reduced transforms, one block per (height, width) pair of transform sizes,
+    // indexed by ScaleBlockIndex. Only a dimension the 8-point AAN kernel transforms carries AAN factors.
+    private static readonly Block8x8F[] ReducedInputScaleBlocks = BuildReducedInputScaleBlocks();
+
     /// <summary>
-    /// Applies de-quantization (if not DC-only) and full IDCT (AAN scaled) to a block in natural order.
+    /// Applies de-quantization (if not DC-only) and IDCT to a block in natural order, reconstructing
+    /// <paramref name="idctWidth"/> × <paramref name="idctHeight"/> samples into the block's upper-left corner.
     /// </summary>
     /// <param name="inputNatural">The source block (in-place transformed).</param>
     /// <param name="dequantBlock">Precomputed dequantization block.</param>
     /// <param name="dcOnly">True to process only the DC coefficient (fast path).</param>
+    /// <param name="idctWidth">Reconstructed sample count per row (1, 2, 4 or 8).</param>
+    /// <param name="idctHeight">Reconstructed sample count per column (1, 2, 4 or 8).</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void TransformScaledNatural(ref Block8x8F inputNatural, ref Block8x8F dequantBlock, bool dcOnly)
+    public static void TransformScaledNatural(ref Block8x8F inputNatural, ref Block8x8F dequantBlock, bool dcOnly, int idctWidth, int idctHeight)
     {
         if (dcOnly)
         {
             FillBlockFromDc(ref inputNatural, inputNatural[0] * dequantBlock[0]);
+            return;
+        }
+
+        if (idctWidth != DctSize || idctHeight != DctSize)
+        {
+            ApplyReducedTransform(ref inputNatural, ref dequantBlock, idctWidth, idctHeight);
             return;
         }
 
@@ -85,6 +105,122 @@ internal static class IdctTransform
         transposedBlock.Transpose();
         Idct8x4InPlace(ref transposedBlock.Row0Left);
         Idct8x4InPlace(ref transposedBlock.Row0Right);
+    }
+
+    /// <summary>
+    /// Scales the coefficients the requested sizes read, runs the two 1-D passes over them, and level
+    /// shifts the reconstructed samples. Everything outside the reconstructed corner is left untouched.
+    /// </summary>
+    /// <param name="block">Block to transform (in-place).</param>
+    /// <param name="dequantBlock">Precomputed dequantization block.</param>
+    /// <param name="idctWidth">Reconstructed sample count per row.</param>
+    /// <param name="idctHeight">Reconstructed sample count per column.</param>
+    private static void ApplyReducedTransform(ref Block8x8F block, ref Block8x8F dequantBlock, int idctWidth, int idctHeight)
+    {
+        ref Block8x8F inputScaleBlock = ref ReducedInputScaleBlocks[ScaleBlockIndex(idctWidth, idctHeight)];
+        ScaleCorner(ref block, ref dequantBlock, ref inputScaleBlock, idctWidth, idctHeight);
+
+        int cornerSize = (idctWidth > idctHeight) ? idctWidth : idctHeight;
+        TransposeCorner(ref block, cornerSize);
+        IdctColumns(ref block, idctWidth, idctHeight);
+        TransposeCorner(ref block, cornerSize);
+        IdctColumns(ref block, idctHeight, idctWidth);
+
+        LevelShiftCorner(ref block, idctWidth, idctHeight);
+    }
+
+    /// <summary>
+    /// Multiplies the coefficients inside the reconstructed corner by the de-quantization and input scaling factors.
+    /// </summary>
+    /// <param name="block">Block holding the coefficients.</param>
+    /// <param name="dequantBlock">Precomputed dequantization block.</param>
+    /// <param name="inputScaleBlock">Input scaling for the requested transform sizes.</param>
+    /// <param name="idctWidth">Reconstructed sample count per row.</param>
+    /// <param name="idctHeight">Reconstructed sample count per column.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ScaleCorner(ref Block8x8F block, ref Block8x8F dequantBlock, ref Block8x8F inputScaleBlock, int idctWidth, int idctHeight)
+    {
+        int vectorsPerRow = VectorsPerRow(idctWidth);
+        for (int row = 0; row < idctHeight; row++)
+        {
+            for (int half = 0; half < vectorsPerRow; half++)
+            {
+                int vectorIndex = (row * 2) + half;
+                block.SetVector(vectorIndex, block.GetVector(vectorIndex) * dequantBlock.GetVector(vectorIndex) * inputScaleBlock.GetVector(vectorIndex));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adds the level shift to the samples inside the reconstructed corner.
+    /// </summary>
+    /// <param name="block">Block holding the samples.</param>
+    /// <param name="idctWidth">Reconstructed sample count per row.</param>
+    /// <param name="idctHeight">Reconstructed sample count per column.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void LevelShiftCorner(ref Block8x8F block, int idctWidth, int idctHeight)
+    {
+        int vectorsPerRow = VectorsPerRow(idctWidth);
+        for (int row = 0; row < idctHeight; row++)
+        {
+            for (int half = 0; half < vectorsPerRow; half++)
+            {
+                int vectorIndex = (row * 2) + half;
+                block.SetVector(vectorIndex, block.GetVector(vectorIndex) + LevelShiftVector);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Runs a 1-D IDCT of <paramref name="pointCount"/> points down each of the first
+    /// <paramref name="columnCount"/> columns of the block.
+    /// </summary>
+    /// <param name="block">Block to transform (in-place).</param>
+    /// <param name="pointCount">Number of points the 1-D transform covers.</param>
+    /// <param name="columnCount">Number of columns to transform.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void IdctColumns(ref Block8x8F block, int pointCount, int columnCount)
+    {
+        bool bothHalves = VectorsPerRow(columnCount) == 2;
+
+        switch (pointCount)
+        {
+            case DctSize:
+            {
+                Idct8x4InPlace(ref block.Row0Left);
+                if (bothHalves)
+                {
+                    Idct8x4InPlace(ref block.Row0Right);
+                }
+
+                break;
+            }
+            case 4:
+            {
+                Idct4x4InPlace(ref block.Row0Left);
+                if (bothHalves)
+                {
+                    Idct4x4InPlace(ref block.Row0Right);
+                }
+
+                break;
+            }
+            case 2:
+            {
+                Idct2x4InPlace(ref block.Row0Left);
+                if (bothHalves)
+                {
+                    Idct2x4InPlace(ref block.Row0Right);
+                }
+
+                break;
+            }
+            default:
+            {
+                // A one-point transform is the identity.
+                break;
+            }
+        }
     }
 
     /// <summary>
@@ -143,6 +279,104 @@ internal static class IdctTransform
     }
 
     /// <summary>
+    /// In-place 1-D IDCT over the first 4 coefficients of a panel, producing 4 samples.
+    /// </summary>
+    /// <param name="vecRef">Reference to the first Vector4 of the panel.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void Idct4x4InPlace(ref Vector4 vecRef)
+    {
+        Vector4 even0 = Unsafe.Add(ref vecRef, 0 * 2);
+        Vector4 odd0 = Unsafe.Add(ref vecRef, 1 * 2);
+        Vector4 even1 = Unsafe.Add(ref vecRef, 2 * 2);
+        Vector4 odd1 = Unsafe.Add(ref vecRef, 3 * 2);
+
+        Vector4 evenSum = even0 + even1;
+        Vector4 evenDiff = even0 - even1;
+        Vector4 oddSum = (odd0 * C_1_306562965) + (odd1 * C_0_541196100);
+        Vector4 oddDiff = (odd0 * C_0_541196100) - (odd1 * C_1_306562965);
+
+        Unsafe.Add(ref vecRef, 0 * 2) = evenSum + oddSum;
+        Unsafe.Add(ref vecRef, 1 * 2) = evenDiff + oddDiff;
+        Unsafe.Add(ref vecRef, 2 * 2) = evenDiff - oddDiff;
+        Unsafe.Add(ref vecRef, 3 * 2) = evenSum - oddSum;
+    }
+
+    /// <summary>
+    /// In-place 1-D IDCT over the first 2 coefficients of a panel, producing 2 samples.
+    /// </summary>
+    /// <param name="vecRef">Reference to the first Vector4 of the panel.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void Idct2x4InPlace(ref Vector4 vecRef)
+    {
+        Vector4 even = Unsafe.Add(ref vecRef, 0 * 2);
+        Vector4 odd = Unsafe.Add(ref vecRef, 1 * 2);
+
+        Unsafe.Add(ref vecRef, 0 * 2) = even + odd;
+        Unsafe.Add(ref vecRef, 1 * 2) = even - odd;
+    }
+
+    /// <summary>
+    /// Transposes the upper-left square of the given edge length in place.
+    /// </summary>
+    /// <param name="block">Block to transpose.</param>
+    /// <param name="size">Edge length of the square to transpose.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransposeCorner(ref Block8x8F block, int size)
+    {
+        if (size == DctSize)
+        {
+            block.Transpose();
+            return;
+        }
+
+        for (int row = 1; row < size; row++)
+        {
+            for (int column = 0; column < row; column++)
+            {
+                int lower = (row * DctSize) + column;
+                int upper = (column * DctSize) + row;
+                float swapped = block[lower];
+                block[lower] = block[upper];
+                block[upper] = swapped;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Number of Vector4 halves the given sample count of a row spans.
+    /// </summary>
+    /// <param name="sampleCount">Samples covered by the row.</param>
+    /// <returns>1 when the samples fit the left half, 2 otherwise.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int VectorsPerRow(int sampleCount) => (sampleCount > 4) ? 2 : 1;
+
+    /// <summary>
+    /// Index of the input scaling block belonging to a pair of transform sizes.
+    /// </summary>
+    /// <param name="idctWidth">Reconstructed sample count per row.</param>
+    /// <param name="idctHeight">Reconstructed sample count per column.</param>
+    /// <returns>Index into <see cref="ReducedInputScaleBlocks"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int ScaleBlockIndex(int idctWidth, int idctHeight) => (SizeIndex(idctHeight) * 4) + SizeIndex(idctWidth);
+
+    /// <summary>
+    /// Base-two logarithm of a transform size.
+    /// </summary>
+    /// <param name="size">Transform size (1, 2, 4 or 8).</param>
+    /// <returns>Index in range [0, 3].</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int SizeIndex(int size)
+    {
+        return size switch
+        {
+            1 => 0,
+            2 => 1,
+            4 => 2,
+            _ => 3
+        };
+    }
+
+    /// <summary>
     /// Builds the AAN input scaling block (pre-multipliers applied before the two-pass IDCT).
     /// </summary>
     /// <returns>Initialized scaling block.</returns>
@@ -151,11 +385,7 @@ internal static class IdctTransform
     {
         Block8x8F scaleBlock = default;
         Span<float> scaleFactors = stackalloc float[DctSize];
-        scaleFactors[0] = 1f;
-        for (int k = 1; k < DctSize; k++)
-        {
-            scaleFactors[k] = MathF.Cos(k * MathF.PI / 16f) * MathF.Sqrt(2f);
-        }
+        BuildAanScaleFactors(scaleFactors);
 
         int linearIndex = 0;
         for (int rowIndex = 0; rowIndex < DctSize; rowIndex++)
@@ -169,5 +399,70 @@ internal static class IdctTransform
         }
 
         return scaleBlock;
+    }
+
+    /// <summary>
+    /// Builds the input scaling blocks for the reduced transforms, one per pair of transform sizes.
+    /// </summary>
+    /// <returns>Scaling blocks indexed by <see cref="ScaleBlockIndex"/>.</returns>
+    private static Block8x8F[] BuildReducedInputScaleBlocks()
+    {
+        Span<float> aanScaleFactors = stackalloc float[DctSize];
+        BuildAanScaleFactors(aanScaleFactors);
+        Span<float> rowFactors = stackalloc float[DctSize];
+        Span<float> columnFactors = stackalloc float[DctSize];
+
+        var scaleBlocks = new Block8x8F[16];
+        for (int heightIndex = 0; heightIndex < 4; heightIndex++)
+        {
+            BuildPassFactors(1 << heightIndex, aanScaleFactors, rowFactors);
+            for (int widthIndex = 0; widthIndex < 4; widthIndex++)
+            {
+                BuildPassFactors(1 << widthIndex, aanScaleFactors, columnFactors);
+
+                Block8x8F scaleBlock = default;
+                int linearIndex = 0;
+                for (int rowIndex = 0; rowIndex < DctSize; rowIndex++)
+                {
+                    for (int columnIndex = 0; columnIndex < DctSize; columnIndex++)
+                    {
+                        scaleBlock[linearIndex] = rowFactors[rowIndex] * columnFactors[columnIndex];
+                        linearIndex++;
+                    }
+                }
+
+                scaleBlocks[(heightIndex * 4) + widthIndex] = scaleBlock;
+            }
+        }
+
+        return scaleBlocks;
+    }
+
+    /// <summary>
+    /// Fills the AAN pre-multipliers of one dimension.
+    /// </summary>
+    /// <param name="scaleFactors">Destination, one entry per coefficient.</param>
+    private static void BuildAanScaleFactors(in Span<float> scaleFactors)
+    {
+        scaleFactors[0] = 1f;
+        for (int k = 1; k < DctSize; k++)
+        {
+            scaleFactors[k] = MathF.Cos(k * MathF.PI / 16f) * MathF.Sqrt(2f);
+        }
+    }
+
+    /// <summary>
+    /// Fills the input factors one pass contributes for the given transform size. The AAN kernel needs its
+    /// pre-multipliers; the four-, two- and one-point kernels take only their share of the normalization.
+    /// </summary>
+    /// <param name="transformSize">Transform size covering the dimension.</param>
+    /// <param name="aanScaleFactors">AAN pre-multipliers.</param>
+    /// <param name="passFactors">Destination, one entry per coefficient.</param>
+    private static void BuildPassFactors(int transformSize, in ReadOnlySpan<float> aanScaleFactors, in Span<float> passFactors)
+    {
+        for (int k = 0; k < DctSize; k++)
+        {
+            passFactors[k] = (transformSize == DctSize) ? aanScaleFactors[k] * PassScale : PassScale;
+        }
     }
 }

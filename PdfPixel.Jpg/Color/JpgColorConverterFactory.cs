@@ -9,14 +9,14 @@ namespace PdfPixel.Jpg.Color;
 
 internal static class JpgColorConverterFactory
 {
-    public static IJpgColorConverter Create(JpgHeader header, JpgDecodingParameters parameters, JpegColorConversionParameters? conversionParams = null)
+    public static IJpgColorConverter Create(JpgHeader header, JpgDecodingParameters parameters, JpgDecoderOptions? options = null)
     {
         if (header == null)
         {
             throw new ArgumentNullException(nameof(header));
         }
 
-        conversionParams ??= JpegColorConversionParameters.Default;
+        options ??= JpgDecoderOptions.Default;
 
         if (header.ComponentCount == 1)
         {
@@ -25,7 +25,7 @@ internal static class JpgColorConverterFactory
 
         if (header.ComponentCount == 3)
         {
-            bool applyYuv = conversionParams.YuvMode switch
+            bool applyYuv = options.YuvMode switch
             {
                 JpgYuvMode.NoYuv => false,
                 JpgYuvMode.ForceYuv => true,
@@ -36,7 +36,7 @@ internal static class JpgColorConverterFactory
 
         if (header.ComponentCount == 4)
         {
-            bool applyYcck = conversionParams.YuvMode switch
+            bool applyYcck = options.YuvMode switch
             {
                 JpgYuvMode.NoYuv => false,
                 JpgYuvMode.ForceYuv => !header.HasAdobeApp14 || header.AdobeColorTransform != 0,
@@ -47,7 +47,7 @@ internal static class JpgColorConverterFactory
                 ? new YcckFloatColorConverter(header, parameters)
                 : new ColorClampConverter();
 
-            return (conversionParams.InvertCmykColors)
+            return (options.InvertCmykColors)
                 ? new CmykInvertingConverter(converter)
                 : converter;
         }

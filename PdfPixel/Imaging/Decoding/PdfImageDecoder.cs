@@ -173,6 +173,55 @@ public abstract class PdfImageDecoder
             matte: matte);
     }
 
+
+    /// <summary>
+    /// Largest power-of-two reduction whose reconstruction still carries at least as many samples as the
+    /// placed image needs. Samples the target size cannot show are never reconstructed in the first place.
+    /// </summary>
+    /// <param name="sampleSize">Size of the stored sample grid.</param>
+    /// <param name="ctm">Current transformation matrix, used to compute the placed size.</param>
+    /// <param name="colorSpaceConverter">Converter resolved for the decoded samples.</param>
+    /// <param name="maxDescaleFactor">Largest reduction the format can reconstruct.</param>
+    protected static int ComputeDescaleFactor(
+        in PdfIntegerSize sampleSize,
+        in PdfMatrix ctm,
+        PdfColorSpaceConverter colorSpaceConverter,
+        int maxDescaleFactor)
+    {
+        // Indexed samples are palette indices; never reconstruct them at a reduced size.
+        if (colorSpaceConverter is PdfIndexedColorSpaceConverter)
+        {
+            return 1;
+        }
+
+        PdfIntegerSize? targetSize = PdfImageCommandUtilities.GetScaledSize(ctm, sampleSize);
+        if (!targetSize.HasValue)
+        {
+            return 1;
+        }
+
+        int descaleFactor = 1;
+        for (int candidate = 2; candidate <= maxDescaleFactor; candidate *= 2)
+        {
+            if (Descale(sampleSize.Width, candidate) < targetSize.Value.Width
+                || Descale(sampleSize.Height, candidate) < targetSize.Value.Height)
+            {
+                break;
+            }
+
+            descaleFactor = candidate;
+        }
+
+        return descaleFactor;
+    }
+
+    /// <summary>
+    /// Sample count left of <paramref name="sampleCount"/> after reducing by <paramref name="descaleFactor"/>.
+    /// </summary>
+    /// <param name="sampleCount">Stored sample count.</param>
+    /// <param name="descaleFactor">Power-of-two reduction.</param>
+    protected static int Descale(int sampleCount, int descaleFactor) => Math.Max(1, (sampleCount + descaleFactor - 1) / descaleFactor);
+
     /// <summary>
     /// Returns the alpha type contributed by the image's soft mask, or Opaque when it has none.
     /// </summary>

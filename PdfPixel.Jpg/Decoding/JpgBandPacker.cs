@@ -77,9 +77,10 @@ internal sealed class JpgBandPacker
         int hMax = _parameters.HMax;
         int vMax = _parameters.VMax;
         int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.McuWidth;
+        int mcuWidth = _parameters.OutputMcuWidth;
+        int blockSize = _parameters.BlockSize;
         int outputStride = _parameters.OutputStride; // equals image width for grayscale
-        int imageWidth = _header.Width;
+        int imageWidth = _parameters.OutputWidth;
         int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
 
         for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
@@ -90,7 +91,7 @@ internal sealed class JpgBandPacker
             int blockCol = blockInColumn - (blockRow * hMax);
 
             int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * 8;
+            int blockXBase = blockCol * blockSize;
             int remainingColumnPixels = imageWidth - xBase;
             if (remainingColumnPixels <= 0)
             {
@@ -104,21 +105,21 @@ internal sealed class JpgBandPacker
             }
 
             int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > 8)
+            if (copyPixels > blockSize)
             {
-                copyPixels = 8;
+                copyPixels = blockSize;
             }
 
-            int blockYBase = blockRow * 8;
+            int blockYBase = blockRow * blockSize;
             if (blockYBase >= bandRows)
             {
                 continue;
             }
 
             int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > 8)
+            if (maxRowsInBlock > blockSize)
             {
-                maxRowsInBlock = 8;
+                maxRowsInBlock = blockSize;
             }
 
             ref float yBlockBase = ref Unsafe.As<Block8x8F, float>(ref yBlocks[blockLinearIndex]);
@@ -152,9 +153,10 @@ internal sealed class JpgBandPacker
         int hMax = _parameters.HMax;
         int vMax = _parameters.VMax;
         int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.McuWidth;
+        int mcuWidth = _parameters.OutputMcuWidth;
+        int blockSize = _parameters.BlockSize;
         int outputStride = _parameters.OutputStride;
-        int imageWidth = _header.Width;
+        int imageWidth = _parameters.OutputWidth;
         int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
 
         for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
@@ -165,7 +167,7 @@ internal sealed class JpgBandPacker
             int blockCol = blockInColumn - (blockRow * hMax);
 
             int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * 8;
+            int blockXBase = blockCol * blockSize;
             int remainingColumnPixels = imageWidth - xBase;
             if (remainingColumnPixels <= 0)
             {
@@ -179,21 +181,21 @@ internal sealed class JpgBandPacker
             }
 
             int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > 8)
+            if (copyPixels > blockSize)
             {
-                copyPixels = 8;
+                copyPixels = blockSize;
             }
 
-            int blockYBase = blockRow * 8;
+            int blockYBase = blockRow * blockSize;
             if (blockYBase >= bandRows)
             {
                 continue;
             }
 
             int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > 8)
+            if (maxRowsInBlock > blockSize)
             {
-                maxRowsInBlock = 8;
+                maxRowsInBlock = blockSize;
             }
 
             ref float rBlockBase = ref Unsafe.As<Block8x8F, float>(ref rBlocks[blockLinearIndex]);
@@ -236,9 +238,10 @@ internal sealed class JpgBandPacker
         int hMax = _parameters.HMax;
         int vMax = _parameters.VMax;
         int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.McuWidth;
+        int mcuWidth = _parameters.OutputMcuWidth;
+        int blockSize = _parameters.BlockSize;
         int outputStride = _parameters.OutputStride;
-        int imageWidth = _header.Width;
+        int imageWidth = _parameters.OutputWidth;
         int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
 
         for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
@@ -249,7 +252,7 @@ internal sealed class JpgBandPacker
             int blockCol = blockInColumn - (blockRow * hMax);
 
             int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * 8;
+            int blockXBase = blockCol * blockSize;
             int remainingColumnPixels = imageWidth - xBase;
             if (remainingColumnPixels <= 0)
             {
@@ -263,21 +266,21 @@ internal sealed class JpgBandPacker
             }
 
             int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > 8)
+            if (copyPixels > blockSize)
             {
-                copyPixels = 8;
+                copyPixels = blockSize;
             }
 
-            int blockYBase = blockRow * 8;
+            int blockYBase = blockRow * blockSize;
             if (blockYBase >= bandRows)
             {
                 continue;
             }
 
             int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > 8)
+            if (maxRowsInBlock > blockSize)
             {
-                maxRowsInBlock = 8;
+                maxRowsInBlock = blockSize;
             }
 
             ref float cBlockBase = ref Unsafe.As<Block8x8F, float>(ref cBlocks[blockLinearIndex]);
@@ -317,9 +320,10 @@ internal sealed class JpgBandPacker
         int hMax = _parameters.HMax;
         int vMax = _parameters.VMax;
         int fullBlocksPerMcu = hMax * vMax;
-        int mcuWidth = _parameters.McuWidth;
+        int mcuWidth = _parameters.OutputMcuWidth;
+        int blockSize = _parameters.BlockSize;
         int outputStride = _parameters.OutputStride;
-        int imageWidth = _header.Width;
+        int imageWidth = _parameters.OutputWidth;
         int blocksPerBand = _parameters.McuColumns * fullBlocksPerMcu;
 
         for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
@@ -330,7 +334,7 @@ internal sealed class JpgBandPacker
             int blockCol = blockInColumn - (blockRow * hMax);
 
             int xBase = mcuColumnIndex * mcuWidth;
-            int blockXBase = blockCol * 8;
+            int blockXBase = blockCol * blockSize;
             int remainingColumnPixels = imageWidth - xBase;
             if (remainingColumnPixels <= 0)
             {
@@ -344,21 +348,21 @@ internal sealed class JpgBandPacker
             }
 
             int copyPixels = effectiveColumnWidth - blockXBase;
-            if (copyPixels > 8)
+            if (copyPixels > blockSize)
             {
-                copyPixels = 8;
+                copyPixels = blockSize;
             }
 
-            int blockYBase = blockRow * 8;
+            int blockYBase = blockRow * blockSize;
             if (blockYBase >= bandRows)
             {
                 continue;
             }
 
             int maxRowsInBlock = bandRows - blockYBase;
-            if (maxRowsInBlock > 8)
+            if (maxRowsInBlock > blockSize)
             {
-                maxRowsInBlock = 8;
+                maxRowsInBlock = blockSize;
             }
 
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)

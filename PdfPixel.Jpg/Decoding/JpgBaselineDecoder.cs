@@ -40,8 +40,8 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
     /// </summary>
     /// <param name="header">Parsed JPEG header from <see cref="Readers.JpgReader.ParseHeader"/>.</param>
     /// <param name="entropyData">Entropy-coded image data beginning at the offset recorded in the header.</param>
-    /// <param name="conversionParams">Optional color conversion overrides; uses <see cref="JpegColorConversionParameters.Default"/> when null.</param>
-    public JpgBaselineDecoder(JpgHeader header, in ReadOnlyMemory<byte> entropyData, JpegColorConversionParameters? conversionParams = null)
+    /// <param name="options">Optional decoding overrides; uses <see cref="JpgDecoderOptions.Default"/> when null.</param>
+    public JpgBaselineDecoder(JpgHeader header, in ReadOnlyMemory<byte> entropyData, JpgDecoderOptions? options = null)
     {
         if (header == null)
         {
@@ -68,9 +68,11 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             throw new NotSupportedException("No SOS scan found in header.");
         }
 
+        options ??= JpgDecoderOptions.Default;
+
         _header = header;
         _entropyMemory = entropyData;
-        _decodingParameters = new JpgDecodingParameters(header);
+        _decodingParameters = new JpgDecodingParameters(header, options.DescaleFactor);
 
         _scan = _header.Scans[0];
         _decoderManager = JpgHuffmanDecoderManager.CreateFromHeader(_header);
@@ -84,7 +86,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
 
         _restartManager = new JpgRestartManager(_header.RestartInterval);
         _upsampler = (_decodingParameters.NeedsUpsampling) ? new JpgUpsampler(_decodingParameters, _header) : null;
-        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters, conversionParams);
+        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters, options);
         _bandPacker = new JpgBandPacker(_header, _decodingParameters);
 
         int componentCount = _header.ComponentCount;
@@ -112,7 +114,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             _dequantizationBlocks[planIndex] = _quantizationManager.CreateNaturalBlock(qid);
         }
 
-        _bandHeight = _decodingParameters.McuHeight;
+        _bandHeight = _decodingParameters.OutputMcuHeight;
         _bandBuffer = new byte[_bandHeight * _decodingParameters.OutputStride];
 
         ReadOnlySpan<byte> startSpan = _entropyMemory.Span;
@@ -131,7 +133,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             return false;
         }
 
-        if (_currentRow >= _header.Height)
+        if (_currentRow >= _decodingParameters.OutputHeight)
         {
             return false;
         }
@@ -163,9 +165,9 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
 
     private void ProduceNextBand()
     {
-        int yBase = _currentMcuRow * _decodingParameters.McuHeight;
-        int remainingRows = _header.Height - yBase;
-        int bandRows = (remainingRows < _decodingParameters.McuHeight) ? remainingRows : _decodingParameters.McuHeight;
+        int yBase = _currentMcuRow * _decodingParameters.OutputMcuHeight;
+        int remainingRows = _decodingParameters.OutputHeight - yBase;
+        int bandRows = (remainingRows < _decodingParameters.OutputMcuHeight) ? remainingRows : _decodingParameters.OutputMcuHeight;
         if (bandRows <= 0)
         {
             _bandProduced = 0;
@@ -207,7 +209,12 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
                             ref blockNatural,
                             out bool dcOnly);
                         ref var dequantBlock = ref _dequantizationBlocks[componentIndex];
-                        IdctTransform.TransformScaledNatural(ref blockNatural, ref dequantBlock, dcOnly);
+                        IdctTransform.TransformScaledNatural(
+                            ref blockNatural,
+                            ref dequantBlock,
+                            dcOnly,
+                            _decodingParameters.ComponentIdctWidth[componentIndex],
+                            _decodingParameters.ComponentIdctHeight[componentIndex]);
                         int localBlockIndex = (vBlock * hFactor) + hBlock;
                         int globalBlockIndex = (mcuColumnIndex * blocksPerMcu) + localBlockIndex;
                         bandBlocks[globalBlockIndex] = blockNatural;

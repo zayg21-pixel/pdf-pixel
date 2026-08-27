@@ -146,37 +146,13 @@ internal class JpxImageDecoder : PdfImageDecoder
     {
         IReadOnlyList<JpxRectangle>? jpxRegionsOfInterest = ToJpxRegions(regionsOfInterest);
 
-        // Indexed samples are palette indices; never reconstruct them at a reduced DWT level.
-        if (resolvedConverter is PdfIndexedColorSpaceConverter)
+        if (header.CodingStyle == null)
         {
             return new JpxDecodingParameters(1, jpxRegionsOfInterest, includeOpacityComponent);
         }
 
         PdfIntegerSize sourceSize = new((int)header.Width, (int)header.Height);
-        PdfIntegerSize? targetSize = PdfImageCommandUtilities.GetScaledSize(ctm, sourceSize);
-
-        if (!targetSize.HasValue || header.CodingStyle == null)
-        {
-            return new JpxDecodingParameters(1, jpxRegionsOfInterest, includeOpacityComponent);
-        }
-
-        int maxLevels = header.CodingStyle.DecompositionLevels;
-        int descaleFactor = 1;
-
-        for (int candidate = 2; candidate <= (1 << maxLevels); candidate *= 2)
-        {
-            int reducedWidth = Math.Max(1, (sourceSize.Width + candidate - 1) / candidate);
-            int reducedHeight = Math.Max(1, (sourceSize.Height + candidate - 1) / candidate);
-
-            if (reducedWidth >= targetSize.Value.Width && reducedHeight >= targetSize.Value.Height)
-            {
-                descaleFactor = candidate;
-            }
-            else
-            {
-                break;
-            }
-        }
+        int descaleFactor = ComputeDescaleFactor(sourceSize, ctm, resolvedConverter, 1 << header.CodingStyle.DecompositionLevels);
 
         return new JpxDecodingParameters(descaleFactor, jpxRegionsOfInterest, includeOpacityComponent);
     }
