@@ -71,7 +71,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         return rowDecodingParameters;
     }
 
-    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
         if (_rowDecoder == null)
         {

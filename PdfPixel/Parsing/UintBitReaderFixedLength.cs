@@ -24,11 +24,32 @@ internal ref struct UintBitReaderFixedLength
     /// <param name="bitCount">The bit width of each value (must be a power of 2, 1-32).</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if bitCount is not a power of 2 between 1 and 32.</exception>
     public UintBitReaderFixedLength(in ReadOnlySpan<byte> data, int bitCount)
+        : this(data, bitCount, startBit: 0)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UintBitReaderFixedLength"/> struct.
+    /// </summary>
+    /// <param name="data">The data to read from.</param>
+    /// <param name="bitCount">The bit width of each value (must be a power of 2, 1-32).</param>
+    /// <param name="startBit">Bit offset of the first value to read.</param>
+    public UintBitReaderFixedLength(in ReadOnlySpan<byte> data, int bitCount, int startBit)
     {
         _data = data;
         _bitCount = bitCount;
         _inverseBitCount = 64 - bitCount;
         _buffer = 0;
+        _bufferedByteIndex = startBit >> 3;
+
+        int misalignedBits = startBit & 7;
+
+        if (misalignedBits != 0)
+        {
+            FillBuffer();
+            _buffer <<= misalignedBits;
+            _bufferedBits -= misalignedBits;
+        }
     }
 
     /// <summary>

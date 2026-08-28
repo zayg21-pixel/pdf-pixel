@@ -48,7 +48,7 @@ internal class RawImageDecoder : PdfImageDecoder
         return parameters;
     }
 
-    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
         if (_contentLocker == null || _dataStream == null)
         {
@@ -64,12 +64,13 @@ internal class RawImageDecoder : PdfImageDecoder
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ReadFull(Stream stream, byte[] buffer)
+    private static void ReadFull(Stream stream, in Span<byte> buffer)
     {
+        byte[] tempArray = buffer.ToArray(); // TODO: [HIGH] row image decoder is the one who was holding us from using Span, need to use different approach here
         int bytesRead = 0;
         while (bytesRead < buffer.Length)
         {
-            int read = stream.Read(buffer, bytesRead, buffer.Length - bytesRead);
+            int read = stream.Read(tempArray, bytesRead, buffer.Length - bytesRead);
             if (read == 0)
             {
                 throw new EndOfStreamException("Premature end of raw stream at image row");
@@ -77,6 +78,8 @@ internal class RawImageDecoder : PdfImageDecoder
 
             bytesRead += read;
         }
+
+        tempArray.CopyTo(buffer);
     }
 
     public override void Cleanup()

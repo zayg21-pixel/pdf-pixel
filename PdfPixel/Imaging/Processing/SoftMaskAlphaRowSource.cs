@@ -49,7 +49,9 @@ internal sealed class SoftMaskAlphaRowSource
         PdfImageRowDecodingParameters maskParameters = _decoder.Initialize(null, contentLocker, targetExtent, observer);
 
         PdfImageRowProcessor processor = new(maskParameters, _loggerFactory.CreateLogger<PdfImageRowProcessor>());
-        processor.InitializeBuffer();
+
+        PdfImageRowTarget maskTarget = processor.CreateTarget(0, maskParameters.Width, maskParameters.Height, maskParameters.DownscaledSize);
+        PdfImageRowTarget?[] targets = [maskTarget];
 
         var rowBuffer = new byte[maskParameters.RowBytes];
 
@@ -60,11 +62,10 @@ internal sealed class SoftMaskAlphaRowSource
                 break;
             }
 
-            processor.WriteRow(rowIndex, rowBuffer, default);
-            observer?.Notify();
+            processor.DecodeRow(rowIndex, rowBuffer, default, targets, observer);
         }
 
-        _decodedMask = processor.GetDecoded();
+        _decodedMask = maskTarget.Image;
         _targetRow = new byte[_targetWidth];
         _maskSampleStride = (_decodedMask.ColorFormat == PdfImageColorFormat.Gray) ? 1 : 4;
         _horizontalScale = (float)_decodedMask.Width / _targetWidth;

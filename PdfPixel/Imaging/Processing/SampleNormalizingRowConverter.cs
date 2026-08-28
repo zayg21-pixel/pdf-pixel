@@ -24,15 +24,15 @@ internal sealed class SampleNormalizingRowConverter : IRowConverter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow)
+    public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow)
     {
         if (_sourceBitsPerComponent == 8)
         {
-            sourceRow.Slice(0, _totalSamples).CopyTo(destRow);
+            sourceRow.Slice(sourceStartBit >> 3, _totalSamples).CopyTo(destRow);
             return true;
         }
 
-        UintBitReaderFixedLength reader = new(sourceRow, _sourceBitsPerComponent);
+        UintBitReaderFixedLength reader = new(sourceRow, _sourceBitsPerComponent, sourceStartBit);
         UintBitWriter writer = new(destRow);
 
         for (int i = 0; i < _totalSamples; i++)

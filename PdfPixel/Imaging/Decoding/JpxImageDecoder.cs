@@ -87,7 +87,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         return parameters;
     }
 
-    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
         if (_rowConverter == null)
         {

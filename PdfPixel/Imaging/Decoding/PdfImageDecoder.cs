@@ -138,7 +138,7 @@ public abstract class PdfImageDecoder
     /// <param name="destination">Row buffer, at least <see cref="PdfImageRowDecodingParameters.RowBytes"/> long.</param>
     /// <param name="observer">Observer notified on progress; may be null.</param>
     /// <returns>True when a row was produced; false when the decoder is exhausted.</returns>
-    public abstract bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer);
+    public abstract bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer);
 
     /// <summary>
     /// Builds the row decoding parameters for a decode pass, taking the entries that describe the

@@ -9,5 +9,5 @@ namespace PdfPixel.Imaging.Processing;
 /// </summary>
 internal interface IRowConverter
 {
-    bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow);
+    bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow);
 }

@@ -62,7 +62,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         return parameters;
     }
 
-    public override bool TryReadNextRow(byte[] destination, IPdfExecutionObserver? observer)
+    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
         if (_cachedBitmap == null || _currentImageRow >= _rowCount)
         {
@@ -102,7 +102,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void InvertRow(byte[] buffer)
+    private static void InvertRow(in Span<byte> buffer)
     {
         for (int i = 0; i < buffer.Length; i++)
         {

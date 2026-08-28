@@ -125,14 +125,14 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         _nextDestinationRowToWrite = 0;
     }
 
-    public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow)
+    public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow)
     {
         if (_nextDestinationRowToWrite >= _destinationHeight)
         {
             return false;
         }
 
-        ReadSourceRowSamples(sourceRow);
+        ReadSourceRowSamples(sourceRow, sourceStartBit);
         AccumulateSourceRow();
         _accumulatedSourceRowCount++;
 
@@ -149,10 +149,10 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ReadSourceRowSamples(in ReadOnlySpan<byte> sourceRow)
+    private void ReadSourceRowSamples(in ReadOnlySpan<byte> sourceRow, int sourceStartBit)
     {
         int totalSourceSamples = _sourceWidth * _components;
-        UintBitReaderFixedLength reader = new(sourceRow, _sourceBitsPerComponent);
+        UintBitReaderFixedLength reader = new(sourceRow, _sourceBitsPerComponent, sourceStartBit);
         for (int sampleIndex = 0; sampleIndex < totalSourceSamples; sampleIndex++)
         {
             _sourceSamples[sampleIndex] = reader.Read();
