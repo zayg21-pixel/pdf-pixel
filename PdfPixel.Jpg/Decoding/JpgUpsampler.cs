@@ -68,7 +68,7 @@ internal sealed class JpgUpsampler
     /// Upsample all components for the current band into the supplied destination full-resolution block arrays.
     /// </summary>
     /// <param name="sourceBandBlocks">Native sampling blocks per component (size: TotalBlocksPerBand[component]).</param>
-    /// <param name="destFullResBlocks">Destination arrays (per component) sized to (McuColumns * HMax * VMax) blocks.</param>
+    /// <param name="destFullResBlocks">Destination arrays (per component) sized to (ReconstructedMcuColumns * HMax * VMax) blocks.</param>
     public void UpsampleBand(Block8x8F[][] sourceBandBlocks, Block8x8F[][] destFullResBlocks)
     {
         if (sourceBandBlocks == null)
@@ -107,7 +107,7 @@ internal sealed class JpgUpsampler
     private void FastCopy(Block8x8F[] sourceBlocks, Block8x8F[] destBlocks, in ScalingInfo info)
     {
         int blocksPerMcu = info.BlocksPerMcu;
-        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.ReconstructedMcuColumns; mcuColumnIndex++)
         {
             int srcBase = mcuColumnIndex * blocksPerMcu;
             int dstBase = mcuColumnIndex * blocksPerMcu;
@@ -120,7 +120,7 @@ internal sealed class JpgUpsampler
 
     private void GenericUpsampleComponent(Block8x8F[] sourceBlocks, Block8x8F[] destBlocks, in ScalingInfo info)
     {
-        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.ReconstructedMcuColumns; mcuColumnIndex++)
         {
             int fullBase = mcuColumnIndex * _fullBlocksPerMcu;
             for (int fullBlockRow = 0; fullBlockRow < _parameters.VMax; fullBlockRow++)

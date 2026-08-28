@@ -1,4 +1,6 @@
 using PdfPixel.Jpg.Color;
+using PdfPixel.Jpg.Model;
+using System.Collections.Generic;
 
 namespace PdfPixel.Jpg.Decoding;
 
@@ -29,4 +31,12 @@ public sealed class JpgDecoderOptions
     /// decoder reconstructs fewer samples per data unit instead of reconstructing and discarding them.
     /// </summary>
     public int DescaleFactor { get; set; } = 1;
+
+    /// <summary>
+    /// Regions, in stored samples, that must be reconstructed. Entropy-coded data is a single serial
+    /// stream and is always read in full, but data units outside these regions are neither inverse
+    /// transformed nor color converted, and the rows covering them are produced blank. Null
+    /// reconstructs the whole image.
+    /// </summary>
+    public IReadOnlyList<JpgRectangle>? RegionsOfInterest { get; set; }
 }

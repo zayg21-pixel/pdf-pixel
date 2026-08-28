@@ -44,6 +44,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
     private int _bandRowIndex;
     private int _currentMcuRow;
     private int _currentRow;
+    private bool _bandReconstructed;
     private Block8x8F _scratchBlock;
 
     /// <summary>
@@ -83,7 +84,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
 
         _header = header;
         _entropyMemory = entropyData;
-        _decodingParameters = new JpgDecodingParameters(header, options.DescaleFactor);
+        _decodingParameters = new JpgDecodingParameters(header, options.DescaleFactor, options.RegionsOfInterest);
 
         _coeffBuffers = InitializeCoefficientBuffers(_header, _decodingParameters);
         ProcessProgressiveScans(
@@ -117,7 +118,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             _componentBandBlocks[componentIndex] = new Block8x8F[totalBlocksForBand];
             if (_decodingParameters.NeedsUpsampling)
             {
-                _upsampledBandBlocks[componentIndex] = new Block8x8F[_decodingParameters.McuColumns * _decodingParameters.UpsampledBlocksPerMcu];
+                _upsampledBandBlocks[componentIndex] = new Block8x8F[_decodingParameters.ReconstructedMcuColumns * _decodingParameters.UpsampledBlocksPerMcu];
             }
         }
 
@@ -163,7 +164,16 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             }
         }
 
-        _bandPacker.PackRow(_workingBandBlocks, _bandRowIndex, rowBuffer);
+        if (!_decodingParameters.IsFullWidthReconstructed || !_bandReconstructed)
+        {
+            rowBuffer.Slice(0, _decodingParameters.OutputStride).Clear();
+        }
+
+        if (_bandReconstructed)
+        {
+            _bandPacker.PackRow(_workingBandBlocks, _bandRowIndex, rowBuffer);
+        }
+
         _bandRowIndex++;
         _currentRow++;
         return true;
@@ -181,8 +191,19 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             return;
         }
 
-        for (int mcuColumnIndex = 0; mcuColumnIndex < _decodingParameters.McuColumns; mcuColumnIndex++)
+        if (!_decodingParameters.IsMcuRowReconstructed(_currentMcuRow))
         {
+            _bandRows = bandRows;
+            _bandRowIndex = 0;
+            _bandReconstructed = false;
+            _currentMcuRow++;
+            return;
+        }
+
+        for (int bandColumnIndex = 0; bandColumnIndex < _decodingParameters.ReconstructedMcuColumns; bandColumnIndex++)
+        {
+            int mcuColumnIndex = _decodingParameters.ReconstructedMcuColumnStart + bandColumnIndex;
+
             for (int componentIndex = 0; componentIndex < _header.ComponentCount; componentIndex++)
             {
                 int hFactor = _decodingParameters.ComponentBlocksH[componentIndex];
@@ -229,8 +250,8 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
                         ref Block8x8F dequantBlock = ref _dequantizationBlocks[componentIndex];
                         IdctTransform.TransformScaledNatural(ref _scratchBlock, ref dequantBlock, dcOnly, idctWidth, idctHeight);
                         int localBlockIndex = (vBlock * hFactor) + hBlock;
-                        int globalBlockIndex = (mcuColumnIndex * blocksPerMcu) + localBlockIndex;
-                        bandBlocks[globalBlockIndex] = _scratchBlock;
+                        int bandBlockIndex = (bandColumnIndex * blocksPerMcu) + localBlockIndex;
+                        bandBlocks[bandBlockIndex] = _scratchBlock;
                     }
                 }
             }
@@ -245,6 +266,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
 
         _bandRows = bandRows;
         _bandRowIndex = 0;
+        _bandReconstructed = true;
         _currentMcuRow++;
     }
 

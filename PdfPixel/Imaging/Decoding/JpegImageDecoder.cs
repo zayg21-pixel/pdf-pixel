@@ -71,7 +71,9 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             Image.BitsPerComponent,
             resolvedConverter);
 
-        _jpgRowDecoder = CreateJpgDecoder(encodedData, header, descaleFactor);
+        List<PdfIntegerRectangle>? mappedRegions = MapRegionsToSampleGrid(regionsOfInterest, sampleSize, descaleFactor);
+
+        _jpgRowDecoder = CreateJpgDecoder(encodedData, header, descaleFactor, ToJpgRegions(mappedRegions));
 
         return parameters;
     }
@@ -91,7 +93,28 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         return true;
     }
 
-    private IJpgDecoder CreateJpgDecoder(in ReadOnlyMemory<byte> encodedData, JpgHeader header, int descaleFactor)
+    private static List<JpgRectangle>? ToJpgRegions(List<PdfIntegerRectangle>? regionsOfInterest)
+    {
+        if (regionsOfInterest == null)
+        {
+            return null;
+        }
+
+        List<JpgRectangle> jpgRegionsOfInterest = new(regionsOfInterest.Count);
+        for (int index = 0; index < regionsOfInterest.Count; index++)
+        {
+            PdfIntegerRectangle region = regionsOfInterest[index];
+            jpgRegionsOfInterest.Add(new JpgRectangle(region.Left, region.Top, region.Width, region.Height));
+        }
+
+        return jpgRegionsOfInterest;
+    }
+
+    private IJpgDecoder CreateJpgDecoder(
+        in ReadOnlyMemory<byte> encodedData,
+        JpgHeader header,
+        int descaleFactor,
+        IReadOnlyList<JpgRectangle>? regionsOfInterest)
     {
         ReadOnlyMemory<byte> compressed = encodedData.Slice(header.ContentOffset);
         int? colorTransform = Image.DecodeParms?.ColorTransform;
@@ -107,7 +130,8 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         {
             YuvMode = yuvMode,
             InvertCmykColors = false,
-            DescaleFactor = descaleFactor
+            DescaleFactor = descaleFactor,
+            RegionsOfInterest = regionsOfInterest
         };
 
         return header.FrameType switch

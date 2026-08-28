@@ -32,6 +32,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
     private int _bandRowIndex;
     private int _currentMcuRow;
     private int _currentRow;
+    private bool _bandReconstructed;
     private JpgBitReaderState _savedState;
 
     /// <summary>
@@ -71,7 +72,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
 
         _header = header;
         _entropyMemory = entropyData;
-        _decodingParameters = new JpgDecodingParameters(header, options.DescaleFactor);
+        _decodingParameters = new JpgDecodingParameters(header, options.DescaleFactor, options.RegionsOfInterest);
 
         _scan = _header.Scans[0];
         _decoderManager = JpgHuffmanDecoderManager.CreateFromHeader(_header);
@@ -98,7 +99,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             _componentBandBlocks[componentIndex] = new Block8x8F[totalBlocksForBand];
             if (_decodingParameters.NeedsUpsampling)
             {
-                _upsampledBandBlocks[componentIndex] = new Block8x8F[_decodingParameters.McuColumns * _decodingParameters.UpsampledBlocksPerMcu];
+                _upsampledBandBlocks[componentIndex] = new Block8x8F[_decodingParameters.ReconstructedMcuColumns * _decodingParameters.UpsampledBlocksPerMcu];
             }
         }
 
@@ -155,7 +156,16 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             }
         }
 
-        _bandPacker.PackRow(_workingBandBlocks, _bandRowIndex, rowBuffer);
+        if (!_decodingParameters.IsFullWidthReconstructed || !_bandReconstructed)
+        {
+            rowBuffer.Slice(0, _decodingParameters.OutputStride).Clear();
+        }
+
+        if (_bandReconstructed)
+        {
+            _bandPacker.PackRow(_workingBandBlocks, _bandRowIndex, rowBuffer);
+        }
+
         _bandRowIndex++;
         _currentRow++;
         return true;
@@ -173,6 +183,12 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             return;
         }
 
+        // Entropy-coded data is one serial stream, so every data unit is read whether or not it is
+        // wanted; only the reconstruction that follows it is confined to the regions of interest.
+        bool reconstructBand = _decodingParameters.IsMcuRowReconstructed(_currentMcuRow);
+        int firstReconstructedColumn = _decodingParameters.ReconstructedMcuColumnStart;
+        int reconstructedColumnLimit = firstReconstructedColumn + _decodingParameters.ReconstructedMcuColumns;
+
         var blockNatural = default(Block8x8F);
         ReadOnlySpan<byte> sourceSpan = _entropyMemory.Span;
         JpgBitReader bitReader = new(sourceSpan, _savedState);
@@ -183,6 +199,11 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             {
                 _restartManager.ProcessRestart(ref bitReader, _previousDc);
             }
+
+            int bandColumnIndex = mcuColumnIndex - firstReconstructedColumn;
+            bool reconstructColumn = reconstructBand
+                && mcuColumnIndex >= firstReconstructedColumn
+                && mcuColumnIndex < reconstructedColumnLimit;
 
             for (int scanComponentIndex = 0; scanComponentIndex < _scan.Components.Count; scanComponentIndex++)
             {
@@ -206,6 +227,12 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
                             ref _previousDc[componentIndex],
                             ref blockNatural,
                             out bool dcOnly);
+
+                        if (!reconstructColumn)
+                        {
+                            continue;
+                        }
+
                         ref var dequantBlock = ref _dequantizationBlocks[componentIndex];
                         IdctTransform.TransformScaledNatural(
                             ref blockNatural,
@@ -214,8 +241,8 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
                             _decodingParameters.ComponentIdctWidth[componentIndex],
                             _decodingParameters.ComponentIdctHeight[componentIndex]);
                         int localBlockIndex = (vBlock * hFactor) + hBlock;
-                        int globalBlockIndex = (mcuColumnIndex * blocksPerMcu) + localBlockIndex;
-                        bandBlocks[globalBlockIndex] = blockNatural;
+                        int bandBlockIndex = (bandColumnIndex * blocksPerMcu) + localBlockIndex;
+                        bandBlocks[bandBlockIndex] = blockNatural;
                     }
                 }
             }
@@ -223,16 +250,20 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
             _restartManager.DecrementRestartCounter();
         }
 
-        if (_decodingParameters.NeedsUpsampling && _upsampler != null)
+        if (reconstructBand)
         {
-            _upsampler.UpsampleBand(_componentBandBlocks, _upsampledBandBlocks);
-        }
+            if (_decodingParameters.NeedsUpsampling && _upsampler != null)
+            {
+                _upsampler.UpsampleBand(_componentBandBlocks, _upsampledBandBlocks);
+            }
 
-        _colorConverter.ConvertInPlace(_workingBandBlocks);
+            _colorConverter.ConvertInPlace(_workingBandBlocks);
+        }
 
         _savedState = bitReader.CaptureState();
         _bandRows = bandRows;
         _bandRowIndex = 0;
+        _bandReconstructed = reconstructBand;
         _currentMcuRow++;
     }
 }

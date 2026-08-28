@@ -175,6 +175,43 @@ public abstract class PdfImageDecoder
 
 
     /// <summary>
+    /// Maps the regions onto the sample grid this decoder reconstructs from, so a format-specific
+    /// region only has to be given the decoder's own rectangle type. The tile grid is laid out over
+    /// the size the image dictionary declares while the stream carries its own, and a tile boundary
+    /// lands on the descaled grid, so every region is widened by one descaled sample on each side.
+    /// </summary>
+    /// <param name="regionsOfInterest">Regions in the coordinates of the image dictionary's sample grid.</param>
+    /// <param name="sampleSize">Size of the stored sample grid this decoder reconstructs from.</param>
+    /// <param name="descaleFactor">Power-of-two reduction the samples are reconstructed at.</param>
+    protected List<PdfIntegerRectangle>? MapRegionsToSampleGrid(
+        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
+        in PdfIntegerSize sampleSize,
+        int descaleFactor)
+    {
+        if (regionsOfInterest == null)
+        {
+            return null;
+        }
+
+        float scaleX = (float)sampleSize.Width / Image.Width;
+        float scaleY = (float)sampleSize.Height / Image.Height;
+
+        List<PdfIntegerRectangle> mappedRegions = new(regionsOfInterest.Count);
+        for (int index = 0; index < regionsOfInterest.Count; index++)
+        {
+            PdfIntegerRectangle region = regionsOfInterest[index];
+            int left = (int)Math.Floor(region.Left * scaleX) - descaleFactor;
+            int top = (int)Math.Floor(region.Top * scaleY) - descaleFactor;
+            int right = (int)Math.Ceiling(region.Right * scaleX) + descaleFactor;
+            int bottom = (int)Math.Ceiling(region.Bottom * scaleY) + descaleFactor;
+
+            mappedRegions.Add(new PdfIntegerRectangle(left, top, right, bottom));
+        }
+
+        return mappedRegions;
+    }
+
+    /// <summary>
     /// Largest power-of-two reduction whose reconstruction still carries at least as many samples as the
     /// placed image needs. Samples the target size cannot show are never reconstructed in the first place.
     /// </summary>

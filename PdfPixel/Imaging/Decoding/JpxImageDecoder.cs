@@ -137,27 +137,25 @@ internal class JpxImageDecoder : PdfImageDecoder
         };
     }
 
-    private static JpxDecodingParameters ComputeDecodingParameters(
+    private JpxDecodingParameters ComputeDecodingParameters(
         JpxHeader header,
         in PdfMatrix ctm,
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
         PdfColorSpaceConverter resolvedConverter,
         bool includeOpacityComponent)
     {
-        IReadOnlyList<JpxRectangle>? jpxRegionsOfInterest = ToJpxRegions(regionsOfInterest);
-
-        if (header.CodingStyle == null)
-        {
-            return new JpxDecodingParameters(1, jpxRegionsOfInterest, includeOpacityComponent);
-        }
-
         PdfIntegerSize sourceSize = new((int)header.Width, (int)header.Height);
-        int descaleFactor = ComputeDescaleFactor(sourceSize, ctm, resolvedConverter, 1 << header.CodingStyle.DecompositionLevels);
 
-        return new JpxDecodingParameters(descaleFactor, jpxRegionsOfInterest, includeOpacityComponent);
+        int descaleFactor = (header.CodingStyle != null)
+            ? ComputeDescaleFactor(sourceSize, ctm, resolvedConverter, 1 << header.CodingStyle.DecompositionLevels)
+            : 1;
+
+        List<PdfIntegerRectangle>? mappedRegions = MapRegionsToSampleGrid(regionsOfInterest, sourceSize, descaleFactor);
+
+        return new JpxDecodingParameters(descaleFactor, ToJpxRegions(mappedRegions), includeOpacityComponent);
     }
 
-    private static List<JpxRectangle>? ToJpxRegions(IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest)
+    private static List<JpxRectangle>? ToJpxRegions(List<PdfIntegerRectangle>? regionsOfInterest)
     {
         if (regionsOfInterest == null)
         {

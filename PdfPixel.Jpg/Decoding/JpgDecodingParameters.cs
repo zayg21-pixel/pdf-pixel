@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using PdfPixel.Jpg.Model;
 
@@ -31,17 +32,27 @@ namespace PdfPixel.Jpg.Decoding;
 /// of the reduction (or all of it, for chroma at the matching factor) is paid by dropping the
 /// upsampling rather than by shrinking the inverse transform.
 /// </para>
+/// <para>
+/// Regions of interest narrow the reconstruction — not the entropy decoding, which a serial bitstream
+/// forces to run over every data unit. <see cref="ReconstructedMcuColumnStart"/> and
+/// <see cref="ReconstructedMcuColumns"/> give the MCU columns a band holds, so the band arrays span
+/// the regions rather than the image, and <see cref="IsMcuRowReconstructed"/> reports the MCU rows
+/// that reach a band at all.
+/// </para>
 /// </summary>
 public sealed class JpgDecodingParameters
 {
     private const int DctSize = 8;
+
+    private readonly bool[]? _reconstructedMcuRows;
 
     /// <summary>
     /// Derives all decoding geometry from <paramref name="header"/>.
     /// </summary>
     /// <param name="header">Parsed JPEG header.</param>
     /// <param name="descaleFactor">Power-of-two reduction (1, 2, 4 or 8) applied to the reconstructed size.</param>
-    public JpgDecodingParameters(JpgHeader header, int descaleFactor = 1)
+    /// <param name="regionsOfInterest">Regions, in stored samples, that must be reconstructed. Null reconstructs the whole image.</param>
+    public JpgDecodingParameters(JpgHeader header, int descaleFactor = 1, IReadOnlyList<JpgRectangle>? regionsOfInterest = null)
     {
         if (header == null)
         {
@@ -97,6 +108,19 @@ public sealed class JpgDecodingParameters
         UpsampledBlocksPerMcu = hMax * vMax;
         OutputStride = checked(OutputWidth * header.ComponentCount);
 
+        if (regionsOfInterest == null || regionsOfInterest.Count == 0)
+        {
+            ReconstructedMcuColumnStart = 0;
+            ReconstructedMcuColumns = McuColumns;
+        }
+        else
+        {
+            ComputeReconstructedColumns(regionsOfInterest, McuWidth, McuColumns, out int reconstructedColumnStart, out int reconstructedColumns);
+            ReconstructedMcuColumnStart = reconstructedColumnStart;
+            ReconstructedMcuColumns = reconstructedColumns;
+            _reconstructedMcuRows = ComputeReconstructedRows(regionsOfInterest, McuHeight, McuRows);
+        }
+
         ComponentBlocksH = new int[header.ComponentCount];
         ComponentBlocksV = new int[header.ComponentCount];
         BlocksPerMcu = new int[header.ComponentCount];
@@ -115,7 +139,7 @@ public sealed class JpgDecodingParameters
             ComponentBlocksV[ci] = v;
             int blocks = h * v;
             BlocksPerMcu[ci] = blocks;
-            TotalBlocksPerBand[ci] = McuColumns * blocks;
+            TotalBlocksPerBand[ci] = ReconstructedMcuColumns * blocks;
             if (h != hMax || v != vMax)
             {
                 upsamplingNeeded = true;
@@ -206,6 +230,21 @@ public sealed class JpgDecodingParameters
     public int McuRows { get; }
 
     /// <summary>
+    /// First MCU column a reconstructed band holds.
+    /// </summary>
+    public int ReconstructedMcuColumnStart { get; }
+
+    /// <summary>
+    /// Number of MCU columns a reconstructed band holds, starting at <see cref="ReconstructedMcuColumnStart"/>.
+    /// </summary>
+    public int ReconstructedMcuColumns { get; }
+
+    /// <summary>
+    /// True when a band spans the full image width, so a packed row leaves no samples unwritten.
+    /// </summary>
+    public bool IsFullWidthReconstructed => ReconstructedMcuColumns == McuColumns;
+
+    /// <summary>
     /// Byte stride of one decoded output row (<see cref="OutputWidth"/> × ComponentCount).
     /// </summary>
     public int OutputStride { get; }
@@ -231,7 +270,7 @@ public sealed class JpgDecodingParameters
     public int[] BlocksPerMcu { get; }
 
     /// <summary>
-    /// Per-component total 8×8 blocks in one MCU-height band (<c>McuColumns × BlocksPerMcu[i]</c>).
+    /// Per-component total 8×8 blocks in one MCU-height band (<c>ReconstructedMcuColumns × BlocksPerMcu[i]</c>).
     /// </summary>
     public int[] TotalBlocksPerBand { get; }
 
@@ -261,6 +300,12 @@ public sealed class JpgDecodingParameters
     public bool NeedsUpsampling { get; }
 
     /// <summary>
+    /// Reports whether <paramref name="mcuRow"/> covers a region of interest and is reconstructed.
+    /// </summary>
+    /// <param name="mcuRow">Zero-based MCU row index.</param>
+    public bool IsMcuRowReconstructed(int mcuRow) => _reconstructedMcuRows == null || _reconstructedMcuRows[mcuRow];
+
+    /// <summary>
     /// Returns the largest transform size (a power of two, at most 8) that divides <paramref name="footprint"/>,
     /// leaving the remainder to be covered by replication.
     /// </summary>
@@ -274,4 +319,64 @@ public sealed class JpgDecodingParameters
 
         return size;
     }
+
+    /// <summary>
+    /// Spans the regions with a single MCU column range. MCU columns follow one another in the
+    /// entropy stream, so a band covers everything between the outermost regions rather than
+    /// only the columns a region lands on.
+    /// </summary>
+    private static void ComputeReconstructedColumns(
+        IReadOnlyList<JpgRectangle> regionsOfInterest,
+        int mcuWidth,
+        int mcuColumns,
+        out int reconstructedColumnStart,
+        out int reconstructedColumns)
+    {
+        int firstColumn = mcuColumns - 1;
+        int lastColumn = 0;
+
+        for (int index = 0; index < regionsOfInterest.Count; index++)
+        {
+            JpgRectangle region = regionsOfInterest[index];
+            int regionFirstColumn = ClampIndex(region.X / mcuWidth, mcuColumns);
+            int regionLastColumn = ClampIndex((region.Right - 1) / mcuWidth, mcuColumns);
+
+            if (regionFirstColumn < firstColumn)
+            {
+                firstColumn = regionFirstColumn;
+            }
+
+            if (regionLastColumn > lastColumn)
+            {
+                lastColumn = regionLastColumn;
+            }
+        }
+
+        reconstructedColumnStart = firstColumn;
+        reconstructedColumns = lastColumn - firstColumn + 1;
+    }
+
+    /// <summary>
+    /// Marks every MCU row the regions reach.
+    /// </summary>
+    private static bool[] ComputeReconstructedRows(IReadOnlyList<JpgRectangle> regionsOfInterest, int mcuHeight, int mcuRows)
+    {
+        var reconstructedMcuRows = new bool[mcuRows];
+
+        for (int index = 0; index < regionsOfInterest.Count; index++)
+        {
+            JpgRectangle region = regionsOfInterest[index];
+            int firstRow = ClampIndex(region.Y / mcuHeight, mcuRows);
+            int lastRow = ClampIndex((region.Bottom - 1) / mcuHeight, mcuRows);
+
+            for (int mcuRow = firstRow; mcuRow <= lastRow; mcuRow++)
+            {
+                reconstructedMcuRows[mcuRow] = true;
+            }
+        }
+
+        return reconstructedMcuRows;
+    }
+
+    private static int ClampIndex(int index, int count) => Math.Max(0, Math.Min(index, count - 1));
 }

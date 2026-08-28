@@ -71,7 +71,7 @@ internal sealed class JpgBandPacker
         Block8x8F[] yBlocks = grayBlocks[0];
         RowGeometry geometry = new(_parameters, bandRow);
 
-        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.ReconstructedMcuColumns; mcuColumnIndex++)
         {
             if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
@@ -106,7 +106,7 @@ internal sealed class JpgBandPacker
         Block8x8F[] bBlocks = rgbBlocks[2];
         RowGeometry geometry = new(_parameters, bandRow);
 
-        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.ReconstructedMcuColumns; mcuColumnIndex++)
         {
             if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
@@ -147,7 +147,7 @@ internal sealed class JpgBandPacker
         Block8x8F[] kBlocks = cmykBlocks[3];
         RowGeometry geometry = new(_parameters, bandRow);
 
-        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.ReconstructedMcuColumns; mcuColumnIndex++)
         {
             if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
@@ -191,7 +191,7 @@ internal sealed class JpgBandPacker
         int componentCount = _header.ComponentCount;
         RowGeometry geometry = new(_parameters, bandRow);
 
-        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.McuColumns; mcuColumnIndex++)
+        for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.ReconstructedMcuColumns; mcuColumnIndex++)
         {
             if (!geometry.TryStartMcuColumn(mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase))
             {
@@ -233,6 +233,7 @@ internal sealed class JpgBandPacker
         private readonly int _outputMcuWidth;
         private readonly int _outputWidth;
         private readonly int _fullBlocksPerMcu;
+        private readonly int _mcuColumnStart;
         private readonly int _blockRowBase;
         private readonly int _sampleRowOffset;
 
@@ -243,6 +244,7 @@ internal sealed class JpgBandPacker
             _outputMcuWidth = parameters.OutputMcuWidth;
             _outputWidth = parameters.OutputWidth;
             _fullBlocksPerMcu = parameters.HMax * parameters.VMax;
+            _mcuColumnStart = parameters.ReconstructedMcuColumnStart;
 
             int blockRow = bandRow / BlockSize;
             _blockRowBase = blockRow * parameters.HMax;
@@ -256,13 +258,13 @@ internal sealed class JpgBandPacker
         /// <summary>
         /// Positions this row inside one MCU column. Returns false once the column starts past the image.
         /// </summary>
-        /// <param name="mcuColumnIndex">MCU column to start.</param>
+        /// <param name="mcuColumnIndex">MCU column to start, counted from the first column the band holds.</param>
         /// <param name="mcuXBase">First output sample the column covers.</param>
         /// <param name="effectiveColumnWidth">Samples of the column that fall inside the image.</param>
         /// <param name="blockBase">Index of the column's first block on this block row.</param>
         public bool TryStartMcuColumn(int mcuColumnIndex, out int mcuXBase, out int effectiveColumnWidth, out int blockBase)
         {
-            mcuXBase = mcuColumnIndex * _outputMcuWidth;
+            mcuXBase = (_mcuColumnStart + mcuColumnIndex) * _outputMcuWidth;
             blockBase = (mcuColumnIndex * _fullBlocksPerMcu) + _blockRowBase;
 
             int remainingColumnPixels = _outputWidth - mcuXBase;
