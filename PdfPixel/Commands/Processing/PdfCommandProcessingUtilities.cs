@@ -109,6 +109,11 @@ public static class PdfCommandProcessingUtilities
             throw new ArgumentNullException(nameof(command));
         }
 
+        if (executionContext == null)
+        {
+            throw new ArgumentNullException(nameof(executionContext));
+        }
+
         PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
         PdfPoint deviceOrigin = deviceMatrix.MapPoint(PdfPoint.Empty);
         PdfPoint mappedX = deviceMatrix.MapPoint(new PdfPoint(command.XStep, 0));
