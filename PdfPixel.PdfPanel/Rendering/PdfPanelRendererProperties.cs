@@ -34,7 +34,7 @@ public sealed class PdfPanelRendererProperties
     /// <summary>
     /// Edge length of a single content tile in device pixels.
     /// </summary>
-    public int TileSize { get; set; } = 1024;
+    public int TileSize { get; set; } = 512;
 
     /// <summary>
     /// Time a request waits before page content decoding starts.
