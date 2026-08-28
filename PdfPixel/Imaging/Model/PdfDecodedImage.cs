@@ -25,7 +25,7 @@ public sealed class PdfDecodedImage
         Height = height;
         ColorFormat = colorFormat;
         AlphaType = alphaType;
-        _rowBytes = width * ((colorFormat == PdfImageColorFormat.Gray) ? 1 : 4);
+        _rowBytes = width * ((colorFormat == PdfImageColorFormat.Rgba) ? 4 : 1);
 
         int bufferLength = _rowBytes * height;
 #if NET5_0_OR_GREATER

@@ -67,7 +67,7 @@ internal sealed class SoftMaskAlphaRowSource
 
         _decodedMask = maskTarget.Image;
         _targetRow = new byte[_targetWidth];
-        _maskSampleStride = (_decodedMask.ColorFormat == PdfImageColorFormat.Gray) ? 1 : 4;
+        _maskSampleStride = (_decodedMask.ColorFormat == PdfImageColorFormat.Rgba) ? 4 : 1;
         _horizontalScale = (float)_decodedMask.Width / _targetWidth;
         _verticalScale = (float)_decodedMask.Height / _targetHeight;
         _decoder.Cleanup();

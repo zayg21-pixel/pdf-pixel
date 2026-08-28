@@ -13,5 +13,10 @@ public enum PdfImageColorFormat
     /// <summary>
     /// Four bytes per pixel, in R, G, B, A order.
     /// </summary>
-    Rgba
+    Rgba,
+
+    /// <summary>
+    /// One byte per pixel, a single alpha channel.
+    /// </summary>
+    Alpha
 }

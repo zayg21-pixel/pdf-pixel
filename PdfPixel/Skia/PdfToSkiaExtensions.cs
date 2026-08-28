@@ -176,6 +176,7 @@ public static class PdfToSkiaExtensions
         return colorFormat switch
         {
             PdfImageColorFormat.Gray => SKColorType.Gray8,
+            PdfImageColorFormat.Alpha => SKColorType.Alpha8,
             _ => SKColorType.Rgba8888
         };
     }

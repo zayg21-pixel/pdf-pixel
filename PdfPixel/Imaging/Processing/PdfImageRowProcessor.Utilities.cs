@@ -41,12 +41,19 @@ internal sealed partial class PdfImageRowProcessor
         RgbaPacked clear = painted;
         clear.A = 0;
 
-        PdfRange[]? decode = parameters.Decode;
-        bool paintsOnZero = decode == null || decode.Length < 1 || decode[0].Min < decode[0].Max;
-
-        return paintsOnZero
+        return (StencilPaintsOnZero(parameters))
             ? new[] { painted, clear }
             : new[] { clear, painted };
+    }
+
+    /// <summary>
+    /// Whether a stencil mask paints where the sample is zero. A Decode of [1 0] swaps which sample value paints.
+    /// </summary>
+    private static bool StencilPaintsOnZero(PdfImageRowDecodingParameters parameters)
+    {
+        PdfRange[]? decode = parameters.Decode;
+
+        return decode == null || decode.Length < 1 || decode[0].Min < decode[0].Max;
     }
 
     /// <summary>

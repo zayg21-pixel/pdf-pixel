@@ -150,7 +150,7 @@ internal static class SkiaCommandUtilities
         return new()
         {
             BlendMode = (context.IsStencilMaskComposite) ? SKBlendMode.DstIn : context.FillPaint.BlendMode.ToSkiaBlendMode(),
-            Color = ApplyAlpha(SKColors.White, context.FillPaint.Color.Alpha)
+            Color = context.FillPaint.Color.ToSkiaColor()
         };
     }
 

@@ -44,7 +44,8 @@ internal sealed partial class PdfImageRowProcessor
         ColorKeyMask = 1 << 1,
         AlphaInterleaved = 1 << 2,
         AlphaPlane = 1 << 3,
-        Matte = 1 << 4
+        Matte = 1 << 4,
+        Invert = 1 << 5
     }
 
     private const RowStages AlphaStages = RowStages.AlphaInterleaved | RowStages.AlphaPlane;
@@ -112,8 +113,20 @@ internal sealed partial class PdfImageRowProcessor
 
         if (parameters.HasImageMask)
         {
-            _pipeline = RowPipeline.Palette;
-            _indexedPalette = BuildStencilMaskPalette(parameters);
+            if (bitsPerComponent == 1 && _components == 1 && (_stages & AlphaStages) == 0)
+            {
+                _pipeline = RowPipeline.DirectGray;
+
+                if (StencilPaintsOnZero(parameters))
+                {
+                    _stages |= RowStages.Invert;
+                }
+            }
+            else
+            {
+                _pipeline = RowPipeline.Palette;
+                _indexedPalette = BuildStencilMaskPalette(parameters);
+            }
         }
         else if (requiresColorConversion)
         {
@@ -163,8 +176,14 @@ internal sealed partial class PdfImageRowProcessor
         // second converter to bring the alpha plane to the output grid in lockstep with the color.
         _needsAlphaConverter = (_stages & RowStages.AlphaPlane) != 0 && _pipeline != RowPipeline.Palette;
 
+        // A stencil carries no color of its own: the fill color arrives with the paint it is drawn with.
+        if (parameters.HasImageMask && _pipeline != RowPipeline.Palette)
+        {
+            _colorFormat = PdfImageColorFormat.Alpha;
+            _alphaType = PdfImageAlphaType.Unpremultiplied;
+        }
         // A single gray channel with no alpha stage to run is the only case that stays out of RGBA.
-        if (_pipeline == RowPipeline.DirectGray && (_stages & AlphaStages) == 0)
+        else if (_pipeline == RowPipeline.DirectGray && (_stages & AlphaStages) == 0)
         {
             _colorFormat = PdfImageColorFormat.Gray;
             _alphaType = PdfImageAlphaType.Opaque;

@@ -99,6 +99,11 @@ internal sealed partial class PdfImageRowProcessor
                 return;
             }
 
+            if ((_stages & RowStages.Invert) != 0)
+            {
+                InvertSamples(outputRow, target.OutputWidth);
+            }
+
             ApplyMatte(outputRow, target.OutputWidth);
             target.AdvanceRow();
             return;
@@ -300,6 +305,25 @@ internal sealed partial class PdfImageRowProcessor
             uint gray = Unsafe.Add(ref source, x);
             uint alpha = Unsafe.Add(ref sourceAlpha, x);
             Unsafe.Add(ref destPixel, x) = gray | (gray << 8) | (gray << 16) | (alpha << 24);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void InvertSamples(in Span<byte> row, int sampleCount)
+    {
+        ref byte sample = ref row[0];
+        int blockCount = sampleCount >> 3;
+
+        for (int blockIndex = 0; blockIndex < blockCount; blockIndex++)
+        {
+            ref byte block = ref Unsafe.Add(ref sample, blockIndex << 3);
+            Unsafe.WriteUnaligned(ref block, ~Unsafe.ReadUnaligned<ulong>(ref block));
+        }
+
+        for (int index = blockCount << 3; index < sampleCount; index++)
+        {
+            ref byte remaining = ref Unsafe.Add(ref sample, index);
+            remaining = (byte)~remaining;
         }
     }
 
