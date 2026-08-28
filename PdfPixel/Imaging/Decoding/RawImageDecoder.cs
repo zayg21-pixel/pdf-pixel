@@ -14,6 +14,7 @@ namespace PdfPixel.Imaging.Decoding;
 internal class RawImageDecoder : PdfImageDecoder
 {
     private object? _contentLocker;
+    private byte[]? _buffer;
     private Stream? _dataStream;
 
     public RawImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
@@ -40,6 +41,8 @@ internal class RawImageDecoder : PdfImageDecoder
             Image.BitsPerComponent,
             ResolvedColorSpaceConverter);
 
+        _buffer = new byte[parameters.RowBytes];
+
         lock (contentLocker)
         {
             _dataStream = Image.GetImageDataStream();
@@ -50,27 +53,28 @@ internal class RawImageDecoder : PdfImageDecoder
 
     public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
-        if (_contentLocker == null || _dataStream == null)
+        if (_contentLocker == null || _dataStream == null || _buffer == null)
         {
             return false;
         }
 
         lock (_contentLocker)
         {
-            ReadFull(_dataStream, destination);
+            ReadFull(_dataStream, _buffer);
         }
+
+        _buffer.CopyTo(destination);
 
         return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ReadFull(Stream stream, in Span<byte> buffer)
+    private void ReadFull(Stream stream, in byte[] buffer)
     {
-        byte[] tempArray = buffer.ToArray(); // TODO: [HIGH] row image decoder is the one who was holding us from using Span, need to use different approach here
         int bytesRead = 0;
         while (bytesRead < buffer.Length)
         {
-            int read = stream.Read(tempArray, bytesRead, buffer.Length - bytesRead);
+            int read = stream.Read(buffer, bytesRead, buffer.Length - bytesRead);
             if (read == 0)
             {
                 throw new EndOfStreamException("Premature end of raw stream at image row");
@@ -78,8 +82,6 @@ internal class RawImageDecoder : PdfImageDecoder
 
             bytesRead += read;
         }
-
-        tempArray.CopyTo(buffer);
     }
 
     public override void Cleanup()
