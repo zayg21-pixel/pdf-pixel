@@ -22,12 +22,10 @@ public abstract class BasePdfDecryptor
 
     /// <summary>
     /// Decrypt raw bytes belonging to an indirect string object identified by its reference.
-    /// Implementations must return a new memory block (never mutate the input span in place).
-    /// If encryption is not applicable the input bytes should be returned unchanged.
     /// </summary>
     /// <param name="data">Encrypted (or plain) bytes.</param>
     /// <param name="reference">Owning object reference.</param>
-    public abstract ReadOnlyMemory<byte> DecryptString(ReadOnlyMemory<byte> data, PdfReference reference);
+    public abstract byte[] DecryptString(ReadOnlyMemory<byte> data, PdfReference reference);
 
     /// <summary>
     /// Decrypts the contents of the specified stream using the provided PDF reference.
@@ -47,9 +45,9 @@ public abstract class BasePdfDecryptor
 
         using MemoryStream memoryStream = new();
         stream.CopyTo(memoryStream);
-        ReadOnlyMemory<byte> decryptedBytes = DecryptString(memoryStream.ToArray(), reference);
-        return new MemoryStream(decryptedBytes.ToArray());
-    } // TODO: [MEDIUM] need to optimize to avoid double memory copy
+        byte[] decryptedBytes = DecryptString(memoryStream.ToArray(), reference);
+        return new MemoryStream(decryptedBytes);
+    }
 
     /// <summary>
     /// The current password supplied by the caller; <see langword="null"/> until <see cref="UpdatePassword"/> is called.

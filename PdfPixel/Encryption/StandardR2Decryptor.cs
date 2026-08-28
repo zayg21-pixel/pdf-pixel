@@ -58,11 +58,11 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
     {
     }
 
-    public override ReadOnlyMemory<byte> DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
+    public override byte[] DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
     {
         if (data.IsEmpty)
         {
-            return data;
+            return Array.Empty<byte>();
         }
 
         EnsureFileKey();
@@ -185,7 +185,7 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
             throw new InvalidOperationException("File key must be computed before computing the user entry.");
         }
 
-        return Rc4(_fileKey, PasswordPadding).ToArray();
+        return Rc4(_fileKey, PasswordPadding);
     }
 
     private byte[] DeriveObjectKey(in PdfReference reference)
@@ -205,22 +205,20 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
         buffer[_fileKeyLengthBytes + 3] = (byte)(gen & 0xFF);
         buffer[_fileKeyLengthBytes + 4] = (byte)((gen >> 8) & 0xFF);
 
-        using (ManagedMd5 md5 = ManagedMd5.Create())
+        using ManagedMd5 md5 = ManagedMd5.Create();
+        byte[] digest = md5.ComputeHash(buffer.ToArray());
+        int keyLen = _fileKeyLengthBytes + 5;
+        if (keyLen > 16)
         {
-            byte[] digest = md5.ComputeHash(buffer.ToArray());
-            int keyLen = _fileKeyLengthBytes + 5;
-            if (keyLen > 16)
-            {
-                keyLen = 16;
-            }
-
-            var objectKey = new byte[keyLen];
-            Buffer.BlockCopy(digest, 0, objectKey, 0, keyLen);
-            return objectKey;
+            keyLen = 16;
         }
+
+        var objectKey = new byte[keyLen];
+        Buffer.BlockCopy(digest, 0, objectKey, 0, keyLen);
+        return objectKey;
     }
 
-    private static ReadOnlyMemory<byte> Rc4(byte[] key, in ReadOnlySpan<byte> data)
+    private static byte[] Rc4(byte[] key, in ReadOnlySpan<byte> data)
     {
         var output = new byte[data.Length];
         data.CopyTo(output);

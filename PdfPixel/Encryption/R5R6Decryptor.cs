@@ -31,18 +31,18 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         }
     }
 
-    public override ReadOnlyMemory<byte> DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
+    public override byte[] DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
     {
         if (data.IsEmpty)
         {
-            return data;
+            return Array.Empty<byte>();
         }
 
         EnsureFileKey();
 
         if (data.Length < 16)
         {
-            return data;
+            return data.ToArray();
         }
 
         ReadOnlySpan<byte> span = data.Span;

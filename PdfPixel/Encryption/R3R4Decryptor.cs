@@ -60,7 +60,7 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
     {
     }
 
-    public override ReadOnlyMemory<byte> DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
+    public override byte[] DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
     {
         // Treat as string path
         return DecryptInternal(data, reference, useStreamPath: false);
@@ -74,11 +74,11 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
         return new MemoryStream(decryptedBytes.ToArray());
     }
 
-    private ReadOnlyMemory<byte> DecryptInternal(in ReadOnlyMemory<byte> data, in PdfReference reference, bool useStreamPath)
+    private byte[] DecryptInternal(in ReadOnlyMemory<byte> data, in PdfReference reference, bool useStreamPath)
     {
         if (data.IsEmpty)
         {
-            return data;
+            return Array.Empty<byte>();
         }
 
         EnsureFileKey();
@@ -288,7 +288,7 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
         return objectKey;
     }
 
-    private static ReadOnlyMemory<byte> Rc4(byte[] key, in ReadOnlySpan<byte> data)
+    private static byte[] Rc4(byte[] key, in ReadOnlySpan<byte> data)
     {
         byte[] output = data.ToArray();
         Rc4InPlace(key, output);
@@ -330,7 +330,7 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
         }
     }
 
-    private ReadOnlyMemory<byte> AesV2(byte[] objectKey, in ReadOnlySpan<byte> data)
+    private byte[] AesV2(byte[] objectKey, in ReadOnlySpan<byte> data)
     {
         if (data.Length < 16)
         {
