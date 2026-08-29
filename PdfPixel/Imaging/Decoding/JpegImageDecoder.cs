@@ -125,7 +125,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             1 => JpgYuvMode.ForceYuv,
             _ => JpgYuvMode.Default
         };
-
+        // TODO: [HIGH] only options shall be parsed, rest shall be done internally by JPEG
         JpgDecoderOptions decoderOptions = new()
         {
             YuvMode = yuvMode,

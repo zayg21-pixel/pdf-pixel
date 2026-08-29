@@ -32,7 +32,7 @@ public sealed class PdfPageContentTiler : IDisposable
     }
 
     /// <summary>
-    /// Ensures tiles are rasterized for the visible region of the given page.
+    /// Ensures tiles are rasterized for the visible region of the given page, dropping tiles outside it.
     /// </summary>
     /// <param name="contentLocker">Locked content picture to rasterize.</param>
     /// <param name="pageInfo">Visible page layout snapshot.</param>
@@ -70,8 +70,10 @@ public sealed class PdfPageContentTiler : IDisposable
 
         PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.RegionOfInterest, request.Scale);
         PdfIntegerRectangle pagePixels = ToPixels(pageBounds, request.Scale);
+        PdfIntegerRectangle visibleTileRange = ToTileRange(visiblePixels);
 
-        RasterizeTiles(pageCache, contentLocker, request.Scale, visiblePixels, pagePixels, forceClearVisible);
+        EvictTilesOutside(pageCache, visibleTileRange);
+        RasterizeTiles(pageCache, contentLocker, request.Scale, visibleTileRange, pagePixels, forceClearVisible);
     }
 
     /// <summary>
@@ -154,16 +156,13 @@ public sealed class PdfPageContentTiler : IDisposable
         PageTileCache pageCache,
         ContentLocker<SKPicture> contentLocker,
         float scale,
-        in PdfIntegerRectangle visiblePixels,
+        in PdfIntegerRectangle visibleTileRange,
         in PdfIntegerRectangle pagePixels,
         bool forceClearVisible)
     {
-        int endColumn = (visiblePixels.Right + _tileSize - 1) / _tileSize;
-        int endRow = (visiblePixels.Bottom + _tileSize - 1) / _tileSize;
-
-        for (int row = visiblePixels.Top / _tileSize; row < endRow; row++)
+        for (int row = visibleTileRange.Top; row < visibleTileRange.Bottom; row++)
         {
-            for (int column = visiblePixels.Left / _tileSize; column < endColumn; column++)
+            for (int column = visibleTileRange.Left; column < visibleTileRange.Right; column++)
             {
                 PdfIntegerPoint index = new(column, row);
 
@@ -241,6 +240,37 @@ public sealed class PdfPageContentTiler : IDisposable
             coveredPixels.Height / scale);
 
         return new CachedTile(tileSurface.Snapshot(surfacePixels.ToSkRectI()), destination);
+    }
+
+    private static void EvictTilesOutside(PageTileCache pageCache, in PdfIntegerRectangle visibleTileRange)
+    {
+        List<PdfIntegerPoint> evictedIndexes = [];
+
+        foreach (PdfIntegerPoint index in pageCache.Tiles.Keys)
+        {
+            if (index.X < visibleTileRange.Left
+                || index.X >= visibleTileRange.Right
+                || index.Y < visibleTileRange.Top
+                || index.Y >= visibleTileRange.Bottom)
+            {
+                evictedIndexes.Add(index);
+            }
+        }
+
+        foreach (PdfIntegerPoint index in evictedIndexes)
+        {
+            pageCache.Tiles[index].Dispose();
+            pageCache.Tiles.Remove(index);
+        }
+    }
+
+    private PdfIntegerRectangle ToTileRange(in PdfIntegerRectangle pixels)
+    {
+        return new(
+            pixels.Left / _tileSize,
+            pixels.Top / _tileSize,
+            (pixels.Right + _tileSize - 1) / _tileSize,
+            (pixels.Bottom + _tileSize - 1) / _tileSize);
     }
 
     private static PdfIntegerRectangle ToPixels(in PdfRectangle rectangle, float scale)
