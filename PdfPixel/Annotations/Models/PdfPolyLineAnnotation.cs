@@ -68,7 +68,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     {
         get
         {
-            if (AppearanceDictionary != null)
+            if (Appearance != null)
             {
                 return base.Rectangle;
             }

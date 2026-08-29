@@ -50,7 +50,7 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
     {
         get
         {
-            if (AppearanceDictionary != null || Quadrilaterals.Length == 0)
+            if (Appearance != null || Quadrilaterals.Length == 0)
             {
                 return base.Rectangle;
             }

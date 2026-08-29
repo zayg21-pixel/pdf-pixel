@@ -48,7 +48,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfObject? appearanceObject = PdfAnnotationAppearanceRenderer.GetAppearanceObject(this, visualStateKind);
+        PdfObject? appearanceObject = Appearance?.GetStream(visualStateKind);
         PdfDictionary? resources = appearanceObject?.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
 
         if (resources == null || !resources.HasKey(PdfTokens.ExtGStateKey))

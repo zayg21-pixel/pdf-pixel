@@ -60,8 +60,8 @@ public abstract class PdfAnnotationBase
         CreationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey));
 
         Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
-        AppearanceDictionary = annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey);
         AppearanceState = annotationObject.Dictionary.GetString(PdfTokens.AppearanceStateKey);
+        Appearance = PdfAnnotationAppearance.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey), AppearanceState);
 
         PdfDictionary? borderStyleDict = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
         PdfArray? borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
@@ -75,7 +75,6 @@ public abstract class PdfAnnotationBase
         Popup = annotationObject.Dictionary.GetReference(PdfTokens.PopupKey);
         InReplyTo = annotationObject.Dictionary.GetReference(PdfTokens.InReplyToKey);
         ReplyType = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
-        SupportedVisualStates = DetectSupportedVisualStates();
     }
 
     /// <summary>
@@ -141,7 +140,9 @@ public abstract class PdfAnnotationBase
     {
         get
         {
-            return (SupportedVisualStates & (PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down)) != 0
+            PdfAnnotationVisualStateKind supportedStates = Appearance?.SupportedStates ?? PdfAnnotationVisualStateKind.None;
+
+            return (supportedStates & (PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down)) != 0
                 || HasPopupContent;
         }
     }
@@ -207,9 +208,10 @@ public abstract class PdfAnnotationBase
     public PdfAnnotationFlags Flags { get; }
 
     /// <summary>
-    /// Gets the appearance dictionary that specifies how the annotation is presented visually on the page.
+    /// Gets the parsed appearance that specifies how the annotation is presented visually on the page,
+    /// or null when the annotation carries no appearance stream for any visual state.
     /// </summary>
-    public PdfDictionary? AppearanceDictionary { get; } // TODO: [HIGH] need to split into states to avoid re-reading appearance objects
+    public PdfAnnotationAppearance? Appearance { get; }
 
     /// <summary>
     /// Gets the appearance state that, along with the appearance dictionary, controls
@@ -286,16 +288,6 @@ public abstract class PdfAnnotationBase
     public PdfAnnotationReplyType ReplyType { get; }
 
     /// <summary>
-    /// Gets the visual states supported by this annotation's appearance dictionary.
-    /// </summary>
-    /// <remarks>
-    /// This property indicates which visual states (Normal, Rollover, Down) have appearance streams
-    /// defined in the annotation's appearance dictionary. It is used to optimize rendering by
-    /// avoiding lookups for states that don't exist.
-    /// </remarks>
-    public PdfAnnotationVisualStateKind SupportedVisualStates { get; }
-
-    /// <summary>
     /// Gets the hover rectangle for interaction purposes (hit testing, popups, etc.).
     /// </summary>
     /// <remarks>
@@ -347,36 +339,6 @@ public abstract class PdfAnnotationBase
     }
 
     /// <summary>
-    /// Detects which visual states are supported by examining the appearance dictionary.
-    /// </summary>
-    private PdfAnnotationVisualStateKind DetectSupportedVisualStates()
-    {
-        if (AppearanceDictionary == null)
-        {
-            return PdfAnnotationVisualStateKind.None;
-        }
-
-        var supported = PdfAnnotationVisualStateKind.None;
-
-        if (AppearanceDictionary.HasKey(PdfTokens.NKey))
-        {
-            supported |= PdfAnnotationVisualStateKind.Normal;
-        }
-
-        if (AppearanceDictionary.HasKey(PdfTokens.RolloverKey))
-        {
-            supported |= PdfAnnotationVisualStateKind.Rollover;
-        }
-
-        if (AppearanceDictionary.HasKey(PdfTokens.DownKey))
-        {
-            supported |= PdfAnnotationVisualStateKind.Down;
-        }
-
-        return supported;
-    }
-
-    /// <summary>
     /// Renders this annotation via the command processor.
     /// </summary>
     /// <param name="processor">The command processor to emit commands to.</param>
@@ -408,7 +370,7 @@ public abstract class PdfAnnotationBase
 
         processor.Process(SaveStateCommand.Instance);
 
-        if (AppearanceDictionary != null)
+        if (Appearance != null)
         {
             processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
 

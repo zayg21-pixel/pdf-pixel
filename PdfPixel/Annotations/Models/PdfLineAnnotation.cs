@@ -64,7 +64,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     {
         get
         {
-            if (AppearanceDictionary != null || !_hasLineCoordinates)
+            if (Appearance != null || !_hasLineCoordinates)
             {
                 return base.Rectangle;
             }

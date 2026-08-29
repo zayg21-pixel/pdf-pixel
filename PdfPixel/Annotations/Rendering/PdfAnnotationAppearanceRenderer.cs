@@ -36,7 +36,7 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfObject? appearanceObject = GetAppearanceObject(annotation, visualStateKind);
+        PdfObject? appearanceObject = annotation.Appearance?.GetStream(visualStateKind);
 
         if (appearanceObject == null)
         {
@@ -78,65 +78,6 @@ internal static class PdfAnnotationAppearanceRenderer
         }
 
         return success;
-    }
-
-    /// <summary>
-    /// Returns the appearance stream object an annotation renders for the given visual state, after falling
-    /// back to the states it does support, or null when it defines no appearance for any of them.
-    /// </summary>
-    /// <param name="annotation">The annotation to resolve the appearance of.</param>
-    /// <param name="visualStateKind">The requested visual state.</param>
-    public static PdfObject? GetAppearanceObject(PdfAnnotationBase annotation, PdfAnnotationVisualStateKind visualStateKind)
-    {
-        if (annotation.AppearanceDictionary == null)
-        {
-            return null;
-        }
-
-        PdfAnnotationVisualStateKind effectiveState = ResolveVisualState(annotation, visualStateKind);
-        return GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
-    }
-
-    /// <summary>
-    /// Resolves the best available visual state based on what's supported.
-    /// </summary>
-    private static PdfAnnotationVisualStateKind ResolveVisualState(
-        PdfAnnotationBase annotation,
-        PdfAnnotationVisualStateKind requestedState)
-    {
-        if ((annotation.SupportedVisualStates & requestedState) != 0)
-        {
-            return requestedState;
-        }
-
-        if ((annotation.SupportedVisualStates & PdfAnnotationVisualStateKind.Rollover) != 0
-            && requestedState == PdfAnnotationVisualStateKind.Down)
-        {
-            return PdfAnnotationVisualStateKind.Rollover;
-        }
-
-        if ((annotation.SupportedVisualStates & PdfAnnotationVisualStateKind.Normal) != 0)
-        {
-            return PdfAnnotationVisualStateKind.Normal;
-        }
-
-        return PdfAnnotationVisualStateKind.None;
-    }
-
-    /// <summary>
-    /// Gets the appearance object for the specified visual state.
-    /// </summary>
-    private static PdfObject? GetAppearanceObjectForState(
-        PdfDictionary appearanceDictionary,
-        PdfAnnotationVisualStateKind state)
-    {
-        return state switch
-        {
-            PdfAnnotationVisualStateKind.Normal => appearanceDictionary.GetObject(PdfTokens.NKey),
-            PdfAnnotationVisualStateKind.Rollover => appearanceDictionary.GetObject(PdfTokens.RolloverKey),
-            PdfAnnotationVisualStateKind.Down => appearanceDictionary.GetObject(PdfTokens.DownKey),
-            _ => null
-        };
     }
 
     /// <summary>
