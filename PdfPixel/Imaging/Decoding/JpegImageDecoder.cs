@@ -116,7 +116,6 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         int descaleFactor,
         IReadOnlyList<JpgRectangle>? regionsOfInterest)
     {
-        ReadOnlyMemory<byte> compressed = encodedData.Slice(header.ContentOffset);
         int? colorTransform = Image.DecodeParms?.ColorTransform;
 
         JpgYuvMode yuvMode = colorTransform switch
@@ -125,7 +124,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             1 => JpgYuvMode.ForceYuv,
             _ => JpgYuvMode.Default
         };
-        // TODO: [HIGH] only options shall be parsed, rest shall be done internally by JPEG
+
         JpgDecoderOptions decoderOptions = new()
         {
             YuvMode = yuvMode,
@@ -134,12 +133,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             RegionsOfInterest = regionsOfInterest
         };
 
-        return header.FrameType switch
-        {
-            JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(header, compressed, decoderOptions),
-            JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed, decoderOptions),
-            _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (SourceReference={Image.SourceReference}).")
-        };
+        return JpgDecoderFactory.Create(header, encodedData, decoderOptions);
     }
 
     public override void Cleanup() => _jpgRowDecoder = null;
