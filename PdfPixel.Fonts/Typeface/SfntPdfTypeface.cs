@@ -263,8 +263,7 @@ public sealed class SfntPdfTypeface : IPdfTypeface
         SfntPost? post = font.Post;
 
         float unitsPerEm = head.UnitsPerEm;
-        float ascent = os2?.STypoAscender ?? hhea?.Ascender ?? 0f;
-        float descent = os2?.STypoDescender ?? hhea?.Descender ?? 0f;
+        (float ascent, float descent) = ResolveVerticalExtents(os2, hhea, head);
         float italicAngle = post?.ItalicAngle ?? 0f;
         ushort fsSelection = os2?.FsSelection ?? 0;
 
@@ -289,6 +288,39 @@ public sealed class SfntPdfTypeface : IPdfTypeface
             IsItalic = italicAngle != 0f || (fsSelection & 0x0001) != 0, // OS/2 fsSelection bit 0: ITALIC
             Panose = os2?.Panose
         };
+    }
+
+    private static (float Ascent, float Descent) ResolveVerticalExtents(SfntOs2? os2, SfntHhea? hhea, SfntHead head)
+    {
+        float ascent = 0f;
+        float descent = 0f;
+
+        if (os2 != null)
+        {
+            ascent = os2.STypoAscender;
+            descent = os2.STypoDescender;
+        }
+
+        if (ascent == 0f && descent == 0f && hhea != null)
+        {
+            ascent = hhea.Ascender;
+            descent = hhea.Descender;
+        }
+
+        if (ascent == 0f && descent == 0f)
+        {
+            ascent = head.YMax;
+            descent = head.YMin;
+        }
+
+        // "OS/2" sTypoDescender and "hhea" descender are negative below the baseline; a positive one
+        // over a "head" yMin that is negative is a sign error.
+        if (descent > 0f && head.YMin < 0f)
+        {
+            descent = -descent;
+        }
+
+        return (ascent, descent);
     }
 
     private static PdfFontString ResolveFontName(SfntName? name)

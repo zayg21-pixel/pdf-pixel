@@ -213,17 +213,25 @@ public class PdfTextRenderer : IPdfTextRenderer
         if (state.RenderingParameters.ExtractText)
         {
             ReadOnlySpan<ShapedGlyph> glyphsSpan = shapingResult.Span;
-            var characters = new PdfCharacter[glyphsSpan.Length];
+            var characters = new PdfCharacter[CountCharacters(glyphsSpan)];
+            int characterIndex = 0;
 
             for (int i = 0; i < glyphsSpan.Length; i++)
             {
                 ShapedGlyph glyph = glyphsSpan[i];
+                if (!IsCharacterStart(glyph))
+                {
+                    continue;
+                }
+
                 PdfFontMetrics metrics = glyph.CharacterInfo.Typeface.Metrics;
 
                 // PdfFontMetrics uses the standard font convention: ascent up positive, descent down negative.
-                characters[i] = new PdfCharacter(
+                characters[characterIndex] = new PdfCharacter(
                     glyph.CharacterInfo.Unicode,
                     new PdfRectangle(glyph.X, glyph.Y - metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y - metrics.Descent));
+
+                characterIndex++;
             }
 
             PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
@@ -314,5 +322,22 @@ public class PdfTextRenderer : IPdfTextRenderer
             state.TextClipPath ??= new PdfPathBuilder();
             state.TextClipPath.AddPath(textPath);
         }
+    }
+
+    private static bool IsCharacterStart(in ShapedGlyph glyph) => glyph.GroupId == null || glyph.GroupId.Value == 0;
+
+    private static int CountCharacters(in ReadOnlySpan<ShapedGlyph> glyphs)
+    {
+        int count = 0;
+
+        for (int i = 0; i < glyphs.Length; i++)
+        {
+            if (IsCharacterStart(glyphs[i]))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 }

@@ -110,7 +110,6 @@ public sealed class PdfPanelTextSelector : IDisposable
 
     private void UpdateSelectionState(in PointerPagePosition position, List<PdfCharacter> characters)
     {
-        // TODO: [HIGH] there are some documents where text selection breaks entirely, I suppose, they are with rotation, need to get a list and find issue
         PointerPagePosition? previousPosition = _previousPosition;
         _previousPosition = position;
 

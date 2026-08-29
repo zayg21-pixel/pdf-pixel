@@ -7,7 +7,6 @@ using PdfPixel.Text;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Skia;
@@ -41,18 +40,15 @@ public sealed partial class SkCanvasCommandProcessor
     {
         PdfMatrix matrix = _executionContext.Frames.TotalMatrix.PreConcat(command.Matrix);
 
-        List<PdfCharacter> mapped = new(command.Characters.Length);
+        var mapped = new PdfCharacter[command.Characters.Length];
 
         for (int i = 0; i < command.Characters.Length; i++)
         {
             PdfRectangle pageRect = matrix.MapRect(command.Characters[i].BoundingBox);
-            if (pageRect.Width != 0)
-            {
-                mapped.Add(new PdfCharacter(command.Characters[i].Text, pageRect));
-            }
+            mapped[i] = new PdfCharacter(command.Characters[i].Text, pageRect);
         }
 
-        if (mapped.Count > 0)
+        if (mapped.Length > 0)
         {
             _executionContext.MarkedContent.AppendCharacters(mapped);
         }

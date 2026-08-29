@@ -21,7 +21,7 @@ internal static class TextRenderUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static PdfPath GetTextPath(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        PdfMatrix matrix = GetFullTextMatrix(state, inverse: false);
+        PdfMatrix matrix = GetFullTextMatrix(state);
         PdfPathBuilder textPathBuilder = new(matrix);
         ReadOnlySpan<ShapedGlyph> glyphs = shapingResult.Span;
 
@@ -42,7 +42,7 @@ internal static class TextRenderUtilities
             }
 
             PdfPath glyphPath = new(glyphPathData, PdfPathFillType.Winding);
-            PdfMatrix glyphMatrix = PdfMatrix.CreateScaleTranslation(shapedGlyph.Scale, 1f, shapedGlyph.X, shapedGlyph.Y);
+            PdfMatrix glyphMatrix = PdfMatrix.CreateScaleTranslation(shapedGlyph.Scale, -1f, shapedGlyph.X, shapedGlyph.Y);
             textPathBuilder.AddPath(glyphPath.Transform(glyphMatrix));
         }
 
@@ -92,8 +92,8 @@ internal static class TextRenderUtilities
             hasBounds = true;
             left = Math.Min(left, Math.Min(scaledLeft, scaledRight));
             right = Math.Max(right, Math.Max(scaledLeft, scaledRight));
-            top = Math.Min(top, shapedGlyph.Y + metrics.BoundingBoxBottom);
-            bottom = Math.Max(bottom, shapedGlyph.Y + metrics.BoundingBoxTop);
+            top = Math.Min(top, shapedGlyph.Y - metrics.BoundingBoxTop);
+            bottom = Math.Max(bottom, shapedGlyph.Y - metrics.BoundingBoxBottom);
         }
 
         if (!hasBounds)
@@ -101,7 +101,7 @@ internal static class TextRenderUtilities
             return null;
         }
 
-        PdfMatrix matrix = GetFullTextMatrix(state, inverse: false);
+        PdfMatrix matrix = GetFullTextMatrix(state);
         return matrix.MapRect(new PdfRectangle(left, top, right, bottom));
     }
 
