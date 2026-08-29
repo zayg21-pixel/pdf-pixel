@@ -1,4 +1,5 @@
 using PdfPixel.Color;
+using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Text;
 using System;
 using System.Threading;
@@ -30,6 +31,11 @@ public sealed class PdfPanelRendererProperties
     /// Configuration the renderer's <see cref="PdfPanelTextSelector"/> is created with.
     /// </summary>
     public PdfPanelTextSelectorParameters TextSelectorParameters { get; set; } = new();
+
+    /// <summary>
+    /// Configuration the renderer's <see cref="PdfPanelInputProcessor"/> is created with.
+    /// </summary>
+    public PdfPanelInputParameters InputParameters { get; set; } = new();
 
     /// <summary>
     /// Edge length of a single content tile in device pixels.

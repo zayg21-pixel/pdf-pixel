@@ -1,4 +1,4 @@
-using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Input;
 using System;
 
 namespace PdfPixel.PdfPanel.Requests;
@@ -9,14 +9,9 @@ namespace PdfPixel.PdfPanel.Requests;
 public class UserInterfaceDrawingRequest : DrawingRequest
 {
     /// <summary>
-    /// Current pointer position in viewport coordinates, or <see langword="null"/> if pointer is not over the panel.
+    /// Current pointer position, or <see langword="null"/> if the pointer is not over the panel.
     /// </summary>
-    public PdfPoint? PointerPosition { get; set; }
-
-    /// <summary>
-    /// Current pointer button state.
-    /// </summary>
-    public PdfPanelButtonState PointerState { get; set; }
+    public PdfPanelPointerPosition? PointerPosition { get; set; }
 
     /// <inheritdoc />
     public override bool Equals(object? obj)
@@ -24,8 +19,7 @@ public class UserInterfaceDrawingRequest : DrawingRequest
         if (obj is UserInterfaceDrawingRequest other)
         {
             return base.Equals(obj)
-                && PointerPosition == other.PointerPosition
-                && PointerState == other.PointerState;
+                && PointerPosition == other.PointerPosition;
         }
 
         return false;
@@ -38,7 +32,6 @@ public class UserInterfaceDrawingRequest : DrawingRequest
 
         hash.Add(base.GetHashCode());
         hash.Add(PointerPosition);
-        hash.Add(PointerState);
         return hash.ToHashCode();
     }
 }

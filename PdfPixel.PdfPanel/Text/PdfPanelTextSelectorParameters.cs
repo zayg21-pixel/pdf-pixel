@@ -8,11 +8,6 @@ namespace PdfPixel.PdfPanel.Text;
 public sealed class PdfPanelTextSelectorParameters
 {
     /// <summary>
-    /// Distance the pointer travels before a press becomes a drag selection, in unscaled page space.
-    /// </summary>
-    public float MinimumDragDistance { get; set; } = 4f;
-
-    /// <summary>
     /// Distance from a character within which the pointer counts as being over it, in unscaled page space.
     /// </summary>
     public float CharacterHitRadius { get; set; } = 10f;

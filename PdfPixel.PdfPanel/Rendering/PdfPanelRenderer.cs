@@ -2,6 +2,7 @@
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.Skia;
@@ -41,7 +42,8 @@ public sealed class PdfPanelRenderer : IDisposable
         Properties = properties ?? throw new ArgumentNullException(nameof(properties));
         _tiler = new PdfPageContentTiler(surfaceFactory, properties.TileSize);
         _clock = new PdfAnimationClock(properties.AnimationFps);
-        TextSelector = new PdfPanelTextSelector(contentProvider, properties.TextSelectorParameters);
+        InputProcessor = new PdfPanelInputProcessor(properties.InputParameters);
+        TextSelector = new PdfPanelTextSelector(contentProvider, properties.TextSelectorParameters, InputProcessor);
 
         if (properties.ContentUpdateDelay > TimeSpan.Zero)
         {
@@ -51,6 +53,11 @@ public sealed class PdfPanelRenderer : IDisposable
         _contentProvider.OnPageUpdated = OnPageUpdated;
         _surfaceFactory.Initialize();
     }
+
+    /// <summary>
+    /// Turns pointer and key input into the events the panel's interaction handlers subscribe to.
+    /// </summary>
+    public PdfPanelInputProcessor InputProcessor { get; }
 
     /// <summary>
     /// Text selection state and highlight renderer for the panel.
@@ -128,14 +135,11 @@ public sealed class PdfPanelRenderer : IDisposable
             return;
         }
 
-        PointerPagePosition? pointerPagePosition = GetPointerPagePosition(request);
-        TextSelector.Update((request.ActiveAnnotation == null) ? pointerPagePosition : null);
-        // TODO: [HIGH] currently annotations always wins, this shall, but it should be "first wins" logic,
-        // for instance, if text is selected, navigation over same area shall not work
+        PdfPanelPagePoint? pointerPagePoint = request.PointerPosition?.PagePoint;
 
-        if (pointerPagePosition != null && _lastRequest.RenderTarget != null)
+        if (pointerPagePoint != null && _lastRequest.RenderTarget != null)
         {
-            VisiblePageInfo page = _lastRequest.GetPage(pointerPagePosition.Value.PageNumber);
+            VisiblePageInfo page = _lastRequest.GetPage(pointerPagePoint.Value.PageNumber);
 
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
@@ -146,32 +150,6 @@ public sealed class PdfPanelRenderer : IDisposable
                 _lastRequest.RenderTarget.Render(GetSurface(_lastRequest), _lastRequest);
             }
         }
-    }
-
-    private static PointerPagePosition? GetPointerPagePosition(UserInterfaceDrawingRequest request)
-    {
-        if (request.PointerPosition == null)
-        {
-            return null;
-        }
-
-        PdfPoint pointerPosition = request.PointerPosition.Value;
-
-        foreach (VisiblePageInfo page in request.VisiblePages)
-        {
-            PdfMatrix canvasToContent = page.GetContentToCanvasMatrix(request.Scale).Invert();
-            PdfPoint contentPoint = canvasToContent.MapPoint(pointerPosition);
-
-            if (contentPoint.X >= 0
-                && contentPoint.X <= page.Info.CropBox.Width
-                && contentPoint.Y >= 0
-                && contentPoint.Y <= page.Info.CropBox.Height)
-            {
-                return new PointerPagePosition(page.PageNumber, contentPoint, request.PointerState);
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -202,10 +180,13 @@ public sealed class PdfPanelRenderer : IDisposable
         _contentUpdatePending = false;
         _contentUpdateTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
+        InputProcessor.Leave();
+
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.Clear(SKColors.Transparent);
         _lastRequest.RenderTarget.Render(surface, _lastRequest);
         _lastRequest = null;
+        _lastUserInterfaceRequest = null;
     }
 
     private void RenderAll(PagesDrawingRequest request)

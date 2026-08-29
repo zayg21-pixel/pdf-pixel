@@ -7,6 +7,7 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
@@ -265,30 +266,18 @@ public partial class PdfPanelInterop
 
             resources.Context.Update();
 
-            // Annotation handling: detect clicks and build popup state
-            var activeAnnotation = resources.Context.ActiveAnnotation;
-            var activeAnnotationState = resources.Context.ActiveAnnotationState;
-
             string openUri = string.Empty;
-            bool wasPressed = resources.LastAnnotationPopup != null
-                && resources.LastAnnotationState == PdfPanelPointerState.Pressed;
-            bool isPressed = activeAnnotation != null
-                && activeAnnotationState == PdfPanelPointerState.Pressed;
 
-            if (wasPressed && !isPressed)
+            if (resources.Context.ClickedAnnotation != null)
             {
-                HandleAnnotationClick(resources, resources.LastAnnotationPopup, out openUri);
+                HandleAnnotationClick(resources, resources.Context.ClickedAnnotation, out openUri);
                 resources.Context.Update();
-                activeAnnotation = resources.Context.ActiveAnnotation;
-                activeAnnotationState = resources.Context.ActiveAnnotationState;
             }
 
-            resources.LastAnnotationPopup = activeAnnotation;
-            resources.LastAnnotationState = activeAnnotationState;
+            PdfAnnotationPopup activeAnnotation = resources.Context.ActiveAnnotation;
 
             bool isInteractiveAnnotation = activeAnnotation != null && activeAnnotation.IsInteractive;
-            bool isPointerOverText = resources.Renderer.TextSelector.IsPointerOverText;
-            state.SetProperty("cursorStyle", isInteractiveAnnotation ? "pointer" : (isPointerOverText ? "text" : "default"));
+            state.SetProperty("cursorStyle", GetCursorStyle(resources.Context.Cursor));
             state.SetProperty("openUri", openUri);
 
             if (activeAnnotation != null)
@@ -316,6 +305,16 @@ public partial class PdfPanelInterop
         {
             Logger.LogError(ex, "Error in container '{Id}'", id);
         }
+    }
+
+    private static string GetCursorStyle(PdfPanelCursor cursor)
+    {
+        return cursor switch
+        {
+            PdfPanelCursor.Hand => "pointer",
+            PdfPanelCursor.IBeam => "text",
+            _ => "default"
+        };
     }
 
     /// <summary>

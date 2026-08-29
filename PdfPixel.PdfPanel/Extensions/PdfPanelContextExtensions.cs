@@ -2,6 +2,7 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Input;
 using System;
 using System.Linq;
 
@@ -254,23 +255,16 @@ public static class PdfPanelContextExtensions
             return null;
         }
 
-        foreach (PdfPanelPage page in context.Pages)
+        PdfPanelPagePoint? pagePoint = context.ResolvePointerPosition(viewportPoint).PagePoint;
+
+        if (pagePoint == null)
         {
-            if (!page.IsPageVisible(context.ViewportRectangle, context.Scale))
-            {
-                continue;
-            }
-
-            PdfMatrix matrix = page.ViewportToPageMatrix(context);
-            PdfPoint testPagePoint = matrix.MapPoint(viewportPoint);
-
-            if (page.IsPointInPageBounds(testPagePoint))
-            {
-                return page;
-            }
+            return null;
         }
 
-        return null;
+        context.Pages.TryGetPage(pagePoint.Value.PageNumber, out PdfPanelPage? page);
+
+        return page;
     }
 
     /// <summary>

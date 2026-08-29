@@ -1,6 +1,7 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
@@ -31,8 +32,6 @@ public partial class WpfPdfPanel : FrameworkElement
     private ISkSurfaceFactory _surfaceFactory;
     private bool _updatingScale;
     private bool _updatingPages;
-    private PdfAnnotationPopup _lastAnnotationPopup;
-    private PdfPanelPointerState _lastAnnotationState;
 
     public WpfPdfPanel()
     {
@@ -103,6 +102,8 @@ public partial class WpfPdfPanel : FrameworkElement
         ((HwndSource)source)?.RemoveHook(Hook);
 
         InputManager.Current.PreNotifyInput -= OnPreNotifyInput;
+
+        _context?.Dispose();
 
         _renderer?.Dispose();
         _renderer = null;
@@ -197,6 +198,8 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
+        _context?.Dispose();
+
         _renderer?.Dispose();
 
         PdfPanelRendererProperties rendererProperties = new()
@@ -229,19 +232,13 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context.Update();
 
-        UpdateAnnotationState();
-
-        if (AnnotationPopup == null)
+        if (_context.ClickedAnnotation != null)
         {
-            if (_renderer.TextSelector.IsPointerOverText)
-            {
-                Cursor = Cursors.IBeam;
-            }
-            else
-            {
-                Cursor = Cursors.Arrow;
-            }
+            HandleAnnotationClick(_context.ClickedAnnotation);
         }
+
+        UpdateAnnotationPopup(_context.ActiveAnnotation);
+        UpdateCursor();
 
         _context.SetAutoScaleMode(AutoScaleMode);
         _context.Update();
@@ -302,22 +299,14 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.PointerState = state;
     }
 
-    private void UpdateAnnotationState()
+    private void UpdateCursor()
     {
-        PdfAnnotationPopup currentPopup = _context.ActiveAnnotation;
-
-        bool wasPressed = _lastAnnotationPopup != null && _lastAnnotationState == PdfPanelPointerState.Pressed;
-        bool isPressed = currentPopup != null && _context.ActiveAnnotationState == PdfPanelPointerState.Pressed;
-
-        if (wasPressed && !isPressed)
+        Cursor = _context.Cursor switch
         {
-            HandleAnnotationClick(_lastAnnotationPopup);
-        }
-
-        UpdateAnnotationPopup(currentPopup);
-
-        _lastAnnotationPopup = currentPopup;
-        _lastAnnotationState = _context.ActiveAnnotationState;
+            PdfPanelCursor.Hand => Cursors.Hand,
+            PdfPanelCursor.IBeam => Cursors.IBeam,
+            _ => Cursors.Arrow
+        };
     }
 
     private void UpdateAnnotationPopup(PdfAnnotationPopup currentPopup)
@@ -328,7 +317,6 @@ public partial class WpfPdfPanel : FrameworkElement
         }
 
         AnnotationPopup = currentPopup;
-        UpdateCursorForAnnotation(currentPopup);
 
         if (AnnotationToolTip != null)
         {
@@ -339,22 +327,6 @@ public partial class WpfPdfPanel : FrameworkElement
 
             AnnotationToolTip.IsOpen = AnnotationPopup != null && AnnotationPopup.Messages.Length > 0;
         }
-    }
-
-    private void UpdateCursorForAnnotation(PdfAnnotationPopup popup)
-    {
-        if (popup == null)
-        {
-            Cursor = Cursors.Arrow;
-            return;
-        }
-
-        Cursor = popup.PageAnnotation?.Content.CursorType switch
-        {
-            PdfAnnotationCursorType.Hand => Cursors.Hand,
-            PdfAnnotationCursorType.IBeam => Cursors.IBeam,
-            _ => Cursors.Arrow
-        };
     }
 
     private void HandleAnnotationClick(PdfAnnotationPopup popup)

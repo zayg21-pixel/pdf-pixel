@@ -43,14 +43,4 @@ internal class PdfPanelResources
     /// Gets or sets the parsed configuration for the panel.
     /// </summary>
     public PdfPanelConfiguration Configuration { get; set; }
-
-    /// <summary>
-    /// Gets or sets the last active annotation popup, used for click detection.
-    /// </summary>
-    public PdfAnnotationPopup LastAnnotationPopup { get; set; }
-
-    /// <summary>
-    /// Gets or sets the last annotation interaction state, used for click detection.
-    /// </summary>
-    public PdfPanelPointerState LastAnnotationState { get; set; }
 }

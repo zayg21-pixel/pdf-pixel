@@ -1,5 +1,6 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Layout;
 using System;
@@ -14,11 +15,14 @@ namespace PdfPixel.PdfPanel;
 /// <summary>
 /// Manages the viewport, layout, and rendering state for a PDF panel viewer.
 /// </summary>
-public class PdfPanelContext
+public sealed class PdfPanelContext : IDisposable
 {
     private readonly PdfPanelRenderer _renderer;
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
+    private readonly PdfPanelAnnotationInteraction _annotationInteraction;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
+    private PdfPanelPointerPosition? _resolvedPointerPosition;
+    private PdfPanelButtonState _lastPointerState;
 
     /// <summary>
     /// Initializes the context with the given page collection, renderer, and render target factory.
@@ -28,6 +32,8 @@ public class PdfPanelContext
         Pages = pages ?? throw new ArgumentNullException(nameof(pages));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
+
+        _annotationInteraction = new PdfPanelAnnotationInteraction(pages, renderer.InputProcessor);
     }
 
     /// <summary>
@@ -113,12 +119,22 @@ public class PdfPanelContext
     /// <summary>
     /// The currently active annotation under the pointer, or null if no annotation is active.
     /// </summary>
-    public PdfAnnotationPopup? ActiveAnnotation { get; private set; }
+    public PdfAnnotationPopup? ActiveAnnotation => _annotationInteraction.ActiveAnnotation;
 
     /// <summary>
     /// The interaction state of the active annotation.
     /// </summary>
-    public PdfPanelPointerState ActiveAnnotationState { get; private set; }
+    public PdfPanelPointerState ActiveAnnotationState => _annotationInteraction.ActiveAnnotationState;
+
+    /// <summary>
+    /// Annotation clicked during the last <see cref="Update"/>, or null if none was clicked.
+    /// </summary>
+    public PdfAnnotationPopup? ClickedAnnotation => _annotationInteraction.ClickedAnnotation;
+
+    /// <summary>
+    /// Cursor shape the last pointer input resolved to.
+    /// </summary>
+    public PdfPanelCursor Cursor => _renderer.InputProcessor.Cursor;
 
     /// <summary>
     /// Collection of PDF pages to display.
@@ -159,7 +175,7 @@ public class PdfPanelContext
         VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - ViewportHeight));
         HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - ViewportWidth));
 
-        UpdateActiveAnnotation();
+        DispatchPointerInput();
     }
 
     /// <summary>
@@ -180,6 +196,32 @@ public class PdfPanelContext
     /// Resets visual state, cleans up rendering surface.
     /// </summary>
     public void Reset() => _renderer.Reset();
+
+    /// <summary>
+    /// Maps a viewport position to the visible page it falls on.
+    /// </summary>
+    public PdfPanelPointerPosition ResolvePointerPosition(in PdfPoint viewportPosition)
+    {
+        for (int i = 0; i < Pages.Count; i++)
+        {
+            PdfPanelPage page = Pages[i];
+
+            if (!page.IsPageVisible(ViewportRectangle, Scale))
+            {
+                continue;
+            }
+
+            PdfMatrix matrix = page.ViewportToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
+            PdfPoint pagePosition = matrix.MapPoint(viewportPosition);
+
+            if (page.IsPointInPageBounds(pagePosition))
+            {
+                return new PdfPanelPointerPosition(viewportPosition, new PdfPanelPagePoint(i + 1, pagePosition));
+            }
+        }
+
+        return new PdfPanelPointerPosition(viewportPosition, null);
+    }
 
     private T GetBaseRequest<T>() where T : DrawingRequest, new()
     {
@@ -210,8 +252,7 @@ public class PdfPanelContext
     {
         UserInterfaceDrawingRequest request = GetBaseRequest<UserInterfaceDrawingRequest>();
 
-        request.PointerPosition = PointerPosition;
-        request.PointerState = PointerState;
+        request.PointerPosition = _resolvedPointerPosition;
 
         return request;
     }
@@ -243,43 +284,43 @@ public class PdfPanelContext
     private static float Clamp(float value, float min, float max)
         => Math.Max(min, Math.Min(max, value));
 
-    private void UpdateActiveAnnotation()
+    private void DispatchPointerInput()
     {
-        PdfAnnotationPopup? newActiveAnnotation = null;
-        var newState = PdfPanelPointerState.None;
+        PdfPanelInputProcessor processor = _renderer.InputProcessor;
 
-        if (PointerPosition.HasValue)
+        _annotationInteraction.ClearClicked();
+
+        if (PointerPosition == null)
         {
-            for (int i = 0; i < Pages.Count; i++)
+            if (_resolvedPointerPosition != null)
             {
-                PdfPanelPage page = Pages[i];
-
-                if (!page.IsPageVisible(ViewportRectangle, Scale))
-                {
-                    continue;
-                }
-
-                PdfMatrix matrix = page.ViewportToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
-                PdfPoint pagePoint = matrix.MapPoint(PointerPosition.Value);
-
-                if (!page.IsPointInPageBounds(pagePoint))
-                {
-                    continue;
-                }
-
-                newActiveAnnotation = Pages.GetAnnotationPopupAt(i + 1, pagePoint);
-
-                if (newActiveAnnotation != null)
-                {
-                    newState = (PointerState == PdfPanelButtonState.Pressed)
-                        ? PdfPanelPointerState.Pressed
-                        : PdfPanelPointerState.Hovered;
-                    break;
-                }
+                processor.Leave();
             }
+
+            _resolvedPointerPosition = null;
+            _lastPointerState = PdfPanelButtonState.Default;
+            return;
         }
 
-        ActiveAnnotation = newActiveAnnotation;
-        ActiveAnnotationState = newState;
+        PdfPanelPointerPosition position = ResolvePointerPosition(PointerPosition.Value);
+        _resolvedPointerPosition = position;
+
+        if (PointerState == PdfPanelButtonState.Pressed && _lastPointerState == PdfPanelButtonState.Default)
+        {
+            processor.Press(position);
+        }
+        else if (PointerState == PdfPanelButtonState.Default && _lastPointerState == PdfPanelButtonState.Pressed)
+        {
+            processor.Release(position);
+        }
+        else
+        {
+            processor.Move(position);
+        }
+
+        _lastPointerState = PointerState;
     }
+
+    /// <inheritdoc />
+    public void Dispose() => _annotationInteraction.Dispose();
 }
