@@ -115,7 +115,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     .ConfigureAwait(false);
 
                 SKPicture? contentPicture = recorder.EndRecording();
-                List<PdfCharacter> characters = PdfTextBlockFlattener.Flatten(executionContext.RootTextBlock);
+                PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
+                List<PdfCharacter> characters = PdfTextBlockFlattener.Flatten(executionContext.RootTextBlock, pictureToPage);
 
                 CacheEntry.Content.UpdateContent(contentPicture, _request, characters);
                 contentUpdated = true;

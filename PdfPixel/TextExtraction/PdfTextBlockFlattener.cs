@@ -12,7 +12,9 @@ public static class PdfTextBlockFlattener
     /// <summary>
     /// Flattens the given text block tree into a list of characters.
     /// </summary>
-    public static List<PdfCharacter> Flatten(PdfTextBlock rootTextBlock)
+    /// <param name="rootTextBlock">Root of the text block tree to flatten.</param>
+    /// <param name="matrix">Matrix every character bounding box is mapped through.</param>
+    public static List<PdfCharacter> Flatten(PdfTextBlock rootTextBlock, in PdfMatrix matrix)
     {
         if (rootTextBlock == null)
         {
@@ -20,11 +22,11 @@ public static class PdfTextBlockFlattener
         }
 
         List<PdfCharacter> result = [];
-        FlattenRecursive(rootTextBlock, result);
+        FlattenRecursive(rootTextBlock, matrix, result);
         return result;
     }
 
-    private static void FlattenRecursive(PdfTextBlock block, List<PdfCharacter> result)
+    private static void FlattenRecursive(PdfTextBlock block, in PdfMatrix matrix, List<PdfCharacter> result)
     {
         if (block.Markup?.IsArtifact == true)
         {
@@ -34,7 +36,7 @@ public static class PdfTextBlockFlattener
         if (block.Markup?.ActualText != null)
         {
             PdfRectangle? unionBounds = null;
-            CollectBounds(block, ref unionBounds);
+            CollectBounds(block, matrix, ref unionBounds);
             if (unionBounds != null)
             {
                 result.Add(new PdfCharacter(block.Markup.ActualText.Value.ToString(), unionBounds.Value));
@@ -45,27 +47,29 @@ public static class PdfTextBlockFlattener
 
         foreach (PdfCharacter character in block.Characters)
         {
-            result.Add(character);
+            result.Add(new PdfCharacter(character.Text, matrix.MapRect(character.BoundingBox)));
         }
 
         foreach (PdfTextBlock child in block.Children)
         {
-            FlattenRecursive(child, result);
+            FlattenRecursive(child, matrix, result);
         }
     }
 
-    private static void CollectBounds(PdfTextBlock block, ref PdfRectangle? bounds)
+    private static void CollectBounds(PdfTextBlock block, in PdfMatrix matrix, ref PdfRectangle? bounds)
     {
         foreach (PdfCharacter character in block.Characters)
         {
+            PdfRectangle characterBounds = matrix.MapRect(character.BoundingBox);
+
             bounds = (bounds == null)
-                ? character.BoundingBox
-                : PdfRectangle.Union(bounds.Value, character.BoundingBox);
+                ? characterBounds
+                : PdfRectangle.Union(bounds.Value, characterBounds);
         }
 
         foreach (PdfTextBlock child in block.Children)
         {
-            CollectBounds(child, ref bounds);
+            CollectBounds(child, matrix, ref bounds);
         }
     }
 }
