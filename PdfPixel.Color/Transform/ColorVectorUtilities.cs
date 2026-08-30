@@ -97,6 +97,21 @@ public static class ColorVectorUtilities
     }
 
     /// <summary>
+    /// Converts a normalized <see cref="Vector4"/> (0-1 range) to a packed RGB byte structure.
+    /// </summary>
+    /// <param name="source">Source color vector (0-1 range).</param>
+    /// <param name="destination">Destination packed RGB value (by reference).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Load01ToRgb(Vector4 source, ref RgbPacked destination)
+    {
+        Vector4 scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
+
+        destination.R = (byte)scaled.X;
+        destination.G = (byte)scaled.Y;
+        destination.B = (byte)scaled.Z;
+    }
+
+    /// <summary>
     /// Converts a packed RGBA value to a normalized <see cref="Vector4"/> (0-1 range), alpha included.
     /// </summary>
     /// <param name="source">Source packed RGBA value.</param>

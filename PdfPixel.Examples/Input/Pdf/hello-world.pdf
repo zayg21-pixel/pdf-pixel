@@ -1,0 +1,82 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1289 >>
+stream
+% Page background.
+0.976 0.969 0.945 rg
+0 0 595 842 re f
+
+% Title and subtitle.
+BT 0.102 0.118 0.200 rg /F1 36 Tf 60 742 Td (Hello, World!) Tj ET
+BT 0.353 0.361 0.400 rg /F2 14 Tf 60 716 Td (A minimal PDF rendered by PdfPixel) Tj ET
+
+% Rule under the heading.
+0.804 0.220 0.196 RG 3 w
+60 700 m 535 700 l S
+
+% Red square, blue circle, green triangle.
+0.851 0.251 0.196 rg
+60 470 150 150 re f
+
+0.149 0.451 0.749 rg
+235.00 545.00 m
+235.00 583.66 266.34 615.00 305.00 615.00 c
+343.66 615.00 375.00 583.66 375.00 545.00 c
+375.00 506.34 343.66 475.00 305.00 475.00 c
+266.34 475.00 235.00 506.34 235.00 545.00 c
+h
+f
+
+0.180 0.596 0.353 rg
+472.5 470 m 535 620 l 410 620 l h f
+
+% Body text.
+BT 0.200 0.200 0.235 rg /F2 12 Tf 60 420 Td 16 TL
+(This page exists so the examples have something to render.) Tj T*
+(Scale, region and rotation examples all draw from this one file.) Tj T*
+ET
+
+% Swatch strip.
+BT 0.353 0.361 0.400 rg /F2 11 Tf 60 325 Td (Swatches) Tj ET
+0.851 0.251 0.196 rg 60 250 60 60 re f
+0.906 0.588 0.180 rg 140 250 60 60 re f
+0.180 0.596 0.353 rg 220 250 60 60 re f
+0.149 0.451 0.749 rg 300 250 60 60 re f
+0.400 0.318 0.639 rg 380 250 60 60 re f
+0.180 0.196 0.243 rg 460 250 60 60 re f
+
+% Footer.
+BT 0.502 0.502 0.529 rg /F2 10 Tf 60 60 Td (PdfPixel examples ∑ hello-world.pdf) Tj ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000001598 00000 n 
+0000001700 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+1797
+%%EOF
