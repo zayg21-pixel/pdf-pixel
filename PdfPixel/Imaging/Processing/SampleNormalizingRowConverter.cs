@@ -14,6 +14,8 @@ internal sealed class SampleNormalizingRowConverter : IRowConverter
     private readonly int _sourceBitsPerComponent;
     private readonly float _scale;
 
+    private int _convertedRowIndex = -1;
+
     public SampleNormalizingRowConverter(int components, int sourceBitsPerComponent, int width)
     {
         _totalSamples = width * components;
@@ -26,6 +28,13 @@ internal sealed class SampleNormalizingRowConverter : IRowConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow)
     {
+        if (_convertedRowIndex == rowIndex)
+        {
+            return false;
+        }
+
+        _convertedRowIndex = rowIndex;
+
         if (_sourceBitsPerComponent == 8)
         {
             sourceRow.Slice(sourceStartBit >> 3, _totalSamples).CopyTo(destRow);

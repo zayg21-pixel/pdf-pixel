@@ -17,7 +17,7 @@ public sealed class PdfImageTileCacheEntry
     private readonly ILoggerFactory _loggerFactory;
     private readonly SoftMaskAlphaRowSource? _alphaRowSource;
 
-    private PdfIntegerSize? _scaledSize;
+    private PdfIntegerSize? _outputSize;
     private bool _decoderActive;
 
     private PdfImageTilingContext? _tilingContext;
@@ -60,15 +60,15 @@ public sealed class PdfImageTileCacheEntry
     {
         FinishDecoding();
 
-        PdfIntegerSize? scaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, TileInfo.ImageSize);
-        if (!Equals(scaledSize, _scaledSize))
+        PdfIntegerSize outputSize = ComputeOutputSize(ctm);
+        if (!Equals(outputSize, _outputSize))
         {
             foreach (CachedTile cachedTile in _tiles)
             {
                 cachedTile.Clear();
             }
 
-            _scaledSize = scaledSize;
+            _outputSize = outputSize;
         }
 
         HashSet<int> regionTileIndexes = ComputeRegionTileIndexes(imageRegion);
@@ -79,9 +79,9 @@ public sealed class PdfImageTileCacheEntry
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
             _imageParameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), contentLocker, ctm, observer);
-            _tilingContext = new PdfImageTilingContext(TileInfo, _imageParameters, tileIndexesToDecode, _loggerFactory);
+            _tilingContext = new PdfImageTilingContext(TileInfo, _imageParameters, outputSize, tileIndexesToDecode, _loggerFactory);
             _rowBuffer = new byte[_imageParameters.RowBytes];
-            _alphaRowSource?.Initialize(new PdfIntegerSize(_imageParameters.Width, _imageParameters.Height), contentLocker, observer);
+            _alphaRowSource?.Initialize(outputSize, contentLocker, observer);
             _decoderActive = true;
         }
     }
@@ -131,8 +131,7 @@ public sealed class PdfImageTileCacheEntry
                 return null;
             }
 
-            ReadOnlySpan<byte> alphaRow = (_alphaRowSource != null) ? _alphaRowSource.GetRow(_currentImageRow) : default;
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _rowBuffer, alphaRow, observer);
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _rowBuffer, _alphaRowSource, observer);
             _currentImageRow++;
             observer?.Notify();
 
@@ -143,6 +142,26 @@ public sealed class PdfImageTileCacheEntry
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The grid the tiles are produced on: the samples the image and its soft mask carry between them,
+    /// reduced to the extent the image is placed at when the device shows fewer than they hold.
+    /// </summary>
+    private PdfIntegerSize ComputeOutputSize(in PdfMatrix ctm)
+    {
+        PdfIntegerSize sampleSize = TileInfo.ImageSize;
+
+        if (_alphaRowSource != null)
+        {
+            PdfIntegerSize maskSize = _alphaRowSource.SampleSize;
+
+            sampleSize = new PdfIntegerSize(
+                Math.Max(sampleSize.Width, maskSize.Width),
+                Math.Max(sampleSize.Height, maskSize.Height));
+        }
+
+        return PdfImageCommandUtilities.GetScaledSize(ctm, sampleSize) ?? sampleSize;
     }
 
     private List<PdfIntegerRectangle>? ComputeRegionsOfInterest(HashSet<int>? tileIndexesToDecode)

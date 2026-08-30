@@ -315,7 +315,7 @@ public sealed class PdfPanelContext : IDisposable
         }
         else
         {
-            // TODO: [HIGH] need to smarter logic on transitions, for instance, if previous state was "Press" and new state is still "Press" this will fire "Move"
+            // TODO: [HIGH] need to smarter logic on transitions, for instance, if previous state was "Press" and new state is still "Press" this will fire "Move" (shall entirely live in processor, we only fire new state)
             processor.Move(position);
         }
 

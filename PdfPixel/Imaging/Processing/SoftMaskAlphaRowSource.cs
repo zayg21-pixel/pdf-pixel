@@ -8,22 +8,17 @@ using System;
 namespace PdfPixel.Imaging.Processing;
 
 /// <summary>
-/// Produces the alpha plane rows of an image's soft mask, resampled to the sample grid of the
-/// image the mask applies to.
+/// Produces the alpha plane rows of an image's soft mask, resampled to the output grid the image
+/// the mask applies to is produced on.
 /// </summary>
-internal sealed class SoftMaskAlphaRowSource
+internal sealed class SoftMaskAlphaRowSource : IAlphaRowSource
 {
     private readonly PdfImageDecoder _decoder;
     private readonly ILoggerFactory _loggerFactory;
 
     private PdfDecodedImage? _decodedMask;
-    private byte[]? _targetRow;
-    private int _targetWidth;
-    private int _targetHeight;
-    private int _maskSampleStride;
-    private float _horizontalScale;
-    private float _verticalScale;
-    private int _bufferedSourceRow = -1;
+    private byte[]? _unpackedRow;
+    private int _unpackedRowIndex = -1;
 
     public SoftMaskAlphaRowSource(PdfImageDecoder decoder, ILoggerFactory loggerFactory)
     {
@@ -32,25 +27,33 @@ internal sealed class SoftMaskAlphaRowSource
     }
 
     /// <summary>
+    /// Sample grid the mask itself carries, which is what the image it applies to is produced on
+    /// when the mask is the finer of the two.
+    /// </summary>
+    public PdfIntegerSize SampleSize => new(_decoder.Image.Width, _decoder.Image.Height);
+
+    /// <summary>
     /// Decodes the mask and prepares it to serve rows of <paramref name="targetSize"/> pixels.
     /// </summary>
-    /// <param name="targetSize">Sample grid the rows are produced for.</param>
+    /// <param name="targetSize">Output grid the rows are produced for.</param>
     /// <param name="contentLocker">Lock object used to serialize access to the compressed mask data.</param>
     /// <param name="observer">Observer notified as decoding progresses.</param>
     public void Initialize(in PdfIntegerSize targetSize, object contentLocker, IPdfExecutionObserver? observer)
     {
-        _targetWidth = targetSize.Width;
-        _targetHeight = targetSize.Height;
-        _bufferedSourceRow = -1;
+        _unpackedRowIndex = -1;
 
         // A transformation covering the target extent asks the decoder for the largest reduction
         // that still fills it; a mask no larger than the target reports no reduction at all.
         PdfMatrix targetExtent = PdfMatrix.CreateScale(targetSize.Width, targetSize.Height);
         PdfImageRowDecodingParameters maskParameters = _decoder.Initialize(null, contentLocker, targetExtent, observer);
 
-        PdfImageRowProcessor processor = new(maskParameters, _loggerFactory.CreateLogger<PdfImageRowProcessor>());
+        PdfImageRowProcessor processor = new(maskParameters, targetSize, _loggerFactory.CreateLogger<PdfImageRowProcessor>());
 
-        PdfImageRowTarget maskTarget = processor.CreateTarget(0, maskParameters.Width, maskParameters.Height, maskParameters.DownscaledSize);
+        // The target is created on the grid the rows are asked for, so the resampler that brings the
+        // mask onto it is the one the row pipeline picks, in whichever direction the two grids differ.
+        PdfImageRowTarget maskTarget = processor.CreateTarget(
+            new PdfIntegerRectangle(0, 0, maskParameters.Width, maskParameters.Height),
+            new PdfIntegerRectangle(0, 0, targetSize.Width, targetSize.Height));
         PdfImageRowTarget?[] targets = [maskTarget];
 
         var rowBuffer = new byte[maskParameters.RowBytes];
@@ -62,81 +65,54 @@ internal sealed class SoftMaskAlphaRowSource
                 break;
             }
 
-            processor.DecodeRow(rowIndex, rowBuffer, default, targets, observer);
+            processor.DecodeRow(rowIndex, rowBuffer, alphaSource: null, targets, observer);
         }
 
         _decodedMask = maskTarget.Image;
-        _targetRow = new byte[_targetWidth];
-        _maskSampleStride = (_decodedMask.ColorFormat == PdfImageColorFormat.Rgba) ? 4 : 1;
-        _horizontalScale = (float)_decodedMask.Width / _targetWidth;
-        _verticalScale = (float)_decodedMask.Height / _targetHeight;
+
+        // A mask that had to reach a colour space arrives as packed pixels, and only then is a row
+        // of its own needed to lay the one channel that carries the coverage out on its own.
+        _unpackedRow = (_decodedMask.ColorFormat == PdfImageColorFormat.Rgba) ? new byte[targetSize.Width] : null;
         _decoder.Cleanup();
     }
 
-    /// <summary>
-    /// Returns the alpha values for <paramref name="rowIndex"/> of the target grid, one byte per pixel.
-    /// </summary>
-    public ReadOnlySpan<byte> GetRow(int rowIndex)
+    /// <inheritdoc />
+    public ReadOnlySpan<byte> GetRow(int outputRowIndex)
     {
-        if (_decodedMask == null || _targetRow == null)
+        if (_decodedMask == null || outputRowIndex >= _decodedMask.Height)
         {
             return default;
         }
 
-        int sourceRow = (_decodedMask.Height == _targetHeight)
-            ? rowIndex
-            : Math.Min(_decodedMask.Height - 1, (int)(rowIndex * _verticalScale));
+        ReadOnlySpan<byte> maskRow = _decodedMask.GetRow(outputRowIndex);
 
-        if (sourceRow != _bufferedSourceRow)
+        if (_unpackedRow == null)
         {
-            FillTargetRow(sourceRow);
-            _bufferedSourceRow = sourceRow;
+            return maskRow;
         }
 
-        return _targetRow;
+        if (outputRowIndex != _unpackedRowIndex)
+        {
+            UnpackRow(maskRow, _unpackedRow);
+            _unpackedRowIndex = outputRowIndex;
+        }
+
+        return _unpackedRow;
     }
 
     public void Cleanup()
     {
         _decodedMask = null;
-        _targetRow = null;
-        _bufferedSourceRow = -1;
+        _unpackedRow = null;
+        _unpackedRowIndex = -1;
         _decoder.Cleanup();
     }
 
-    private void FillTargetRow(int sourceRow)
+    private static void UnpackRow(in ReadOnlySpan<byte> maskRow, in Span<byte> destination)
     {
-        if (_decodedMask == null || _targetRow == null)
+        for (int x = 0; x < destination.Length; x++)
         {
-            return;
-        }
-
-        ReadOnlySpan<byte> source = _decodedMask.GetRow(sourceRow);
-        Span<byte> destination = _targetRow;
-        bool matchesTargetWidth = _decodedMask.Width == _targetWidth;
-
-        if (matchesTargetWidth && _maskSampleStride == 1)
-        {
-            source.Slice(0, _targetWidth).CopyTo(destination);
-            return;
-        }
-
-        if (!matchesTargetWidth)
-        {
-            int maximumSourceColumn = _decodedMask.Width - 1;
-
-            for (int x = 0; x < _targetWidth; x++)
-            {
-                int sourceColumn = Math.Min(maximumSourceColumn, (int)(x * _horizontalScale));
-                destination[x] = source[sourceColumn * _maskSampleStride];
-            }
-
-            return;
-        }
-
-        for (int x = 0; x < _targetWidth; x++)
-        {
-            destination[x] = source[x * _maskSampleStride];
+            destination[x] = maskRow[x * 4];
         }
     }
 }

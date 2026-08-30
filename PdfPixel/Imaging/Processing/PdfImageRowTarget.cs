@@ -5,7 +5,8 @@ namespace PdfPixel.Imaging.Processing;
 
 /// <summary>
 /// One destination a <see cref="PdfImageRowProcessor"/> fills, holding the region it reads from each
-/// source row, the resamplers that bring it to the output grid, and the image being written.
+/// source row, where that region lands on the output grid, the resampler that brings it there, and
+/// the image being written.
 /// </summary>
 internal sealed class PdfImageRowTarget
 {
@@ -14,16 +15,16 @@ internal sealed class PdfImageRowTarget
     public PdfImageRowTarget(
         int sourceStart,
         int sourceWidth,
-        int outputWidth,
+        int outputStart,
+        int outputRowStart,
         IRowConverter? colorConverter,
-        IRowConverter? alphaConverter,
         PdfDecodedImage image)
     {
         SourceStart = sourceStart;
         SourceWidth = sourceWidth;
-        OutputWidth = outputWidth;
+        OutputStart = outputStart;
+        OutputRowStart = outputRowStart;
         ColorConverter = colorConverter;
-        AlphaConverter = alphaConverter;
         Image = image;
     }
 
@@ -38,19 +39,24 @@ internal sealed class PdfImageRowTarget
     public int SourceWidth { get; }
 
     /// <summary>
+    /// Index of the first output pixel this target covers on the output grid of the whole image.
+    /// </summary>
+    public int OutputStart { get; }
+
+    /// <summary>
+    /// Index of the first output row this target covers on the output grid of the whole image.
+    /// </summary>
+    public int OutputRowStart { get; }
+
+    /// <summary>
     /// Number of pixels in each row of <see cref="Image"/>.
     /// </summary>
-    public int OutputWidth { get; }
+    public int OutputWidth => Image.Width;
 
     /// <summary>
     /// Resampler for the color samples, or null when the pipeline writes the output row itself.
     /// </summary>
     public IRowConverter? ColorConverter { get; }
-
-    /// <summary>
-    /// Resampler for the alpha plane, or null when there is no separate plane.
-    /// </summary>
-    public IRowConverter? AlphaConverter { get; }
 
     /// <summary>
     /// Image being filled.
@@ -66,6 +72,11 @@ internal sealed class PdfImageRowTarget
     /// The row the next completed conversion is written to.
     /// </summary>
     public Span<byte> CurrentRow => Image.GetRow(_outputRowIndex);
+
+    /// <summary>
+    /// Index of <see cref="CurrentRow"/> on the output grid of the whole image.
+    /// </summary>
+    public int CurrentOutputRow => OutputRowStart + _outputRowIndex;
 
     /// <summary>
     /// Moves to the next output row.

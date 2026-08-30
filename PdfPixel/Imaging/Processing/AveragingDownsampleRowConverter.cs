@@ -29,6 +29,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
     private int _nextDestinationRowToWrite;
     private int _accumulatedSourceRowCount;
+    private int _accumulatedRowIndex = -1;
 
     private readonly uint _sourceMaximumValue;
     private readonly float _sourceToDestinationScale;
@@ -127,10 +128,12 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow)
     {
-        if (_nextDestinationRowToWrite >= _destinationHeight)
+        if (_nextDestinationRowToWrite >= _destinationHeight || _accumulatedRowIndex == rowIndex)
         {
             return false;
         }
+
+        _accumulatedRowIndex = rowIndex;
 
         ReadSourceRowSamples(sourceRow, sourceStartBit);
         AccumulateSourceRow();
