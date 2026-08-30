@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using PdfPixel.Jbig2.Decoding;
-using static PdfPixel.Jbig2.Decoding.Jbig2HuffmanTable;
 
 namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Parses user-defined Huffman tables from JBIG2 Table segments (type 53).
-/// User-defined tables allow PDFs to supply custom coding tables referenced
+/// User-defined tables supply custom coding tables referenced
 /// by symbol dictionary and text region segments.
 /// Defined in ITU-T T.88 Section 7.4.13 / Annex B.2.
 /// </summary>

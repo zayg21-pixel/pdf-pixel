@@ -7,7 +7,7 @@ namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Parses JBIG2 segment headers from a byte stream (ITU-T T.88 Section 7.2).
-/// Handles both file-header and embedded (PDF) format.
+/// Handles both the file format and the embedded format.
 /// </summary>
 internal sealed class Jbig2SegmentParser
 {
@@ -17,7 +17,7 @@ internal sealed class Jbig2SegmentParser
     private static ReadOnlySpan<byte> FileHeaderSignature => [0x97, 0x4A, 0x42, 0x32, 0x0D, 0x0A, 0x1A, 0x0A];
 
     /// <summary>
-    /// Parses all segment headers from the given data. In PDF context, there is no file header.
+    /// Parses all segment headers from the given data. The embedded format carries no file header.
     /// </summary>
     /// <param name="data">Full JBIG2 data (globals + page data concatenated).</param>
     /// <returns>List of parsed segment headers.</returns>
@@ -26,17 +26,22 @@ internal sealed class Jbig2SegmentParser
         List<Jbig2SegmentHeader> segments = [];
         int offset = 0;
 
-        // Check for file header (not present in PDF embedded JBIG2)
+        // Check for file header (not present in the embedded format)
         if (data.Length >= 8 && data.Slice(0, 8).SequenceEqual(FileHeaderSignature))
         {
-            // Skip file header: 8 bytes signature + 1 byte flags + optional 4 bytes page count
+            // Skip file header: 8 bytes signature + 1 byte flags + optional 4 bytes page count.
+            // Flags bit 0 is the organization, bit 1 clear means the page count follows (T.88 D.4.2).
             byte flags = data[8];
             offset = 9;
-            bool knownPageCount = (flags & 0x01) == 0;
+            bool knownPageCount = (flags & 0x02) == 0;
             if (knownPageCount)
             {
                 offset += 4;
             }
+
+            // TODO: [MEDIUM] Support random-access organization (flags bit 0 clear), which stores
+            // every segment header first and all segment data after them. The loop below assumes
+            // the sequential organization, where each header is followed by its own data.
         }
 
         while (offset < data.Length)

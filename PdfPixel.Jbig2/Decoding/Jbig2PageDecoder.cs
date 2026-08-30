@@ -10,27 +10,22 @@ namespace PdfPixel.Jbig2.Decoding;
 /// <summary>
 /// Top-level JBIG2 page decoder. Processes segment headers and dispatches to appropriate
 /// segment decoders to build the final page bitmap.
-/// Supports globals (from /JBIG2Globals in /DecodeParms) merged with page-specific segments.
+/// Supports globals merged with page-specific segments.
 /// </summary>
 public sealed class Jbig2PageDecoder
 {
     private readonly Jbig2SegmentParser _segmentParser;
-    private readonly Jbig2SegmentCache _cache;
 
     /// <summary>
     /// Initializes the page decoder.
     /// </summary>
-    public Jbig2PageDecoder()
-    {
-        _segmentParser = new Jbig2SegmentParser();
-        _cache = new Jbig2SegmentCache();
-    }
+    public Jbig2PageDecoder() => _segmentParser = new Jbig2SegmentParser();
 
     /// <summary>
     /// Decodes a JBIG2 globals stream into a reusable <see cref="Jbig2SegmentCache"/>
     /// and passed to <see cref="Decode"/> so globals are processed only once per document.
     /// </summary>
-    /// <param name="globalsData">Raw globals stream data (from /JBIG2Globals).</param>
+    /// <param name="globalsData">Raw globals stream data.</param>
     /// <returns>A populated cache containing all decoded globals segments.</returns>
     public Jbig2SegmentCache DecodeGlobalCache(in ReadOnlySpan<byte> globalsData)
     {
@@ -41,32 +36,72 @@ public sealed class Jbig2PageDecoder
     }
 
     /// <summary>
+    /// Returns the page numbers the data declares, in ascending order. Segments associated with
+    /// page 0 hold globals and are not listed.
+    /// </summary>
+    /// <param name="data">JBIG2 data, with or without a file header.</param>
+    /// <returns>The page numbers present.</returns>
+    public IReadOnlyList<int> GetPageNumbers(in ReadOnlySpan<byte> data)
+    {
+        List<Jbig2SegmentHeader> segments = _segmentParser.ParseSegments(data);
+        List<int> pageNumbers = [];
+
+        foreach (Jbig2SegmentHeader segment in segments)
+        {
+            if (segment.Type == Jbig2SegmentType.PageInformation && !pageNumbers.Contains(segment.PageAssociation))
+            {
+                pageNumbers.Add(segment.PageAssociation);
+            }
+        }
+
+        pageNumbers.Sort();
+
+        return pageNumbers;
+    }
+
+    /// <summary>
     /// Decodes a JBIG2 page from the given data.
     /// </summary>
     /// <param name="pageData">Page-specific encoded data.</param>
-    /// <param name="expectedWidth">Expected page width (from PDF /Width).</param>
-    /// <param name="expectedHeight">Expected page height (from PDF /Height).</param>
+    /// <param name="expectedWidth">Expected page width, used when the page information segment declares none.</param>
+    /// <param name="expectedHeight">Expected page height, used when the page information segment declares none.</param>
     /// <param name="globalCache">
-    /// Optional pre-decoded globals cache (from /JBIG2Globals). When provided, its
+    /// Optional pre-decoded globals cache. When provided, its
     /// symbol and pattern dictionaries are merged into the page cache before decoding.
     /// Obtain via <see cref="DecodeGlobalCache"/>.
     /// </param>
     /// <param name="observer">Observer to notify on long-running decode operations.</param>
+    /// <param name="pageNumber">Page to decode, or null for the first page the data declares.</param>
     /// <returns>The decoded page bitmap, or null on failure.</returns>
     public Jbig2Bitmap Decode(
         in ReadOnlySpan<byte> pageData,
         int expectedWidth,
         int expectedHeight,
         Jbig2SegmentCache? globalCache = null,
-        IJBig2ExectionObserver? observer = default)
+        IJBig2ExectionObserver? observer = default,
+        int? pageNumber = null)
     {
+        Jbig2SegmentCache cache = new();
+
         if (globalCache != null)
         {
-            _cache.MergeFrom(globalCache);
+            cache.MergeFrom(globalCache);
         }
 
         // Parse page segments
-        List<Jbig2SegmentHeader> pageSegments = _segmentParser.ParseSegments(pageData);
+        List<Jbig2SegmentHeader> allSegments = _segmentParser.ParseSegments(pageData);
+
+        // Each segment names the page it belongs to, and page 0 the globals every page shares.
+        int targetPage = pageNumber ?? GetFirstPageNumber(allSegments);
+        List<Jbig2SegmentHeader> pageSegments = [];
+
+        foreach (Jbig2SegmentHeader segment in allSegments)
+        {
+            if (segment.PageAssociation == targetPage || segment.PageAssociation == 0)
+            {
+                pageSegments.Add(segment);
+            }
+        }
 
         // Find page information segment to determine dimensions
         Jbig2PageInfo? pageInfo = null;
@@ -117,7 +152,7 @@ public sealed class Jbig2PageDecoder
         Jbig2Bitmap pageBitmap = new(width, height, defaultPixel);
 
         // Process all page segments
-        ProcessSegments(pageSegments, pageData, pageBitmap, _cache, observer);
+        ProcessSegments(pageSegments, pageData, pageBitmap, cache, observer);
 
         return pageBitmap;
     }
@@ -409,5 +444,22 @@ public sealed class Jbig2PageDecoder
         info.RequiresBuffer = (flags & 0x20) == 0;
 
         return info;
+    }
+
+    /// <summary>
+    /// Returns the page the first page information segment belongs to, or 1 when there is none.
+    /// </summary>
+    /// <param name="segments">Already-parsed segment headers.</param>
+    private static int GetFirstPageNumber(List<Jbig2SegmentHeader> segments)
+    {
+        foreach (Jbig2SegmentHeader segment in segments)
+        {
+            if (segment.Type == Jbig2SegmentType.PageInformation)
+            {
+                return segment.PageAssociation;
+            }
+        }
+
+        return 1;
     }
 }
