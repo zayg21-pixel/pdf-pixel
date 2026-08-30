@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
@@ -13,6 +14,8 @@ namespace PdfPixel.Imaging.Decoding;
 
 internal class RawImageDecoder : PdfImageDecoder
 {
+    private readonly PdfColorSpaceConverter _colorSpaceConverter;
+
     private object? _contentLocker;
     private byte[]? _buffer;
     private Stream? _dataStream;
@@ -20,6 +23,12 @@ internal class RawImageDecoder : PdfImageDecoder
     public RawImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
+        PdfColorSpaceType defaultColorSpace = (image.BitsPerComponent == 1)
+            ? PdfColorSpaceType.DeviceGray
+            : PdfColorSpaceType.DeviceRGB;
+
+        _colorSpaceConverter = context.ColorSpaceConverter
+            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultColorSpace);
     }
 
     public override PdfImageRowDecodingParameters Initialize(
@@ -28,18 +37,13 @@ internal class RawImageDecoder : PdfImageDecoder
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        if (!ValidateImageParameters())
-        {
-            throw new InvalidOperationException($"Raw image parameters are invalid (SourceReference={Image.SourceReference}).");
-        }
-
         _contentLocker = contentLocker;
 
         PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
             ctm,
             new PdfIntegerSize(Image.Width, Image.Height),
             Image.BitsPerComponent,
-            ResolvedColorSpaceConverter);
+            _colorSpaceConverter);
 
         _buffer = new byte[parameters.RowBytes];
 

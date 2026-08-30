@@ -13,20 +13,17 @@ namespace PdfPixel.Imaging.Decoding;
 
 internal sealed class CcittImageDecoder : PdfImageDecoder
 {
+    private readonly PdfColorSpaceConverter _colorSpaceConverter;
+
     private CcittRowDecoder? _rowDecoder;
     private int _currentImageRow;
-
-    private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
     public CcittImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
         _colorSpaceConverter = context.ColorSpaceConverter
-            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
-            ?? PdfDeviceGrayColorSpaceConverter.Instance;
+            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
-
-    protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter; // TODO: remove as protected, resolve in constructor depending in decoder
 
     public override PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
@@ -34,11 +31,6 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        if (!ValidateImageParameters())
-        {
-            throw new InvalidOperationException($"CCITT image parameters are invalid (SourceReference={Image.SourceReference}).");
-        }
-
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
         {

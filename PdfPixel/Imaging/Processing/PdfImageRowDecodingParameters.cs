@@ -47,6 +47,31 @@ public sealed class PdfImageRowDecodingParameters
         bool isAlphaInterleaved = false,
         float[]? matte = null)
     {
+        if (width <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), "Sample width must be positive.");
+        }
+
+        if (height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(height), "Sample height must be positive.");
+        }
+
+        if (bitsPerComponent < 1 || bitsPerComponent > 16)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitsPerComponent), "Sample bit depth must be between 1 and 16.");
+        }
+
+        if (hasImageMask && bitsPerComponent != 1)
+        {
+            throw new ArgumentException("A stencil mask requires a sample bit depth of 1.", nameof(bitsPerComponent));
+        }
+
+        if (colorSpaceConverter is PdfIndexedColorSpaceConverter && bitsPerComponent == 16)
+        {
+            throw new ArgumentException("An indexed color space does not support a sample bit depth of 16.", nameof(colorSpaceConverter));
+        }
+
         if ((alphaType == PdfImageAlphaType.Premultiplied) != (matte != null))
         {
             throw new ArgumentException("A premultiplied alpha type requires matte components, and no other type accepts them.", nameof(matte));

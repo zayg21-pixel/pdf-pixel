@@ -18,11 +18,15 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 {
     private const int MaxDescaleFactor = 8;
 
+    private readonly PdfColorSpaceConverter _colorSpaceConverter;
+
     private IJpgDecoder? _jpgRowDecoder;
 
     public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
+        _colorSpaceConverter = context.ColorSpaceConverter
+            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
     }
 
     public override PdfImageRowDecodingParameters Initialize(
@@ -31,11 +35,6 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        if (!ValidateImageParameters())
-        {
-            throw new InvalidOperationException($"JPEG image parameters are invalid (SourceReference={Image.SourceReference}).");
-        }
-
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
         {
@@ -49,7 +48,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"JPEG header is invalid (SourceReference={Image.SourceReference}).");
         }
 
-        PdfColorSpaceConverter resolvedConverter = ResolvedColorSpaceConverter;
+        PdfColorSpaceConverter resolvedConverter = _colorSpaceConverter;
         if ((Context.ColorSpaceConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
         {
             resolvedConverter = new PdfIccColorSpaceConverter(header.ComponentCount, resolvedConverter, profileBytes);

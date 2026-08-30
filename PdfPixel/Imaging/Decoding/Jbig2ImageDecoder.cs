@@ -16,22 +16,19 @@ namespace PdfPixel.Imaging.Decoding;
 
 internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 {
+    private readonly PdfColorSpaceConverter _colorSpaceConverter;
+
     private Jbig2Bitmap? _cachedBitmap;
 
     private int _currentImageRow;
     private int _rowCount;
 
-    private readonly PdfColorSpaceConverter _colorSpaceConverter;
-
     public Jbig2ImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
         _colorSpaceConverter = context.ColorSpaceConverter
-            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
-            ?? PdfDeviceGrayColorSpaceConverter.Instance;
+            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
-
-    protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter;
 
     public override PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
@@ -39,11 +36,6 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        if (!ValidateImageParameters())
-        {
-            throw new InvalidOperationException($"JBIG2 image parameters are invalid (SourceReference={Image.SourceReference}).");
-        }
-
         EnsureBitmapDecoded(contentLocker, observer);
         if (_cachedBitmap == null)
         {

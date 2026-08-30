@@ -16,8 +16,6 @@ namespace PdfPixel.Imaging.Decoding;
 /// </summary>
 public abstract class PdfImageDecoder
 {
-    private readonly PdfColorSpaceConverter _resolvedColorSpaceConverter;
-
     /// <summary>
     /// Initializes the base decoder with the source image, decoding context, and logger factory.
     /// </summary>
@@ -36,15 +34,6 @@ public abstract class PdfImageDecoder
         }
 
         Context = context;
-
-        PdfColorSpaceConverter? converter = context.ColorSpaceConverter;
-        if (converter == null)
-        {
-            int defaultComponents = (image.BitsPerComponent == 1) ? 1 : 3;
-            converter = context.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents);
-        }
-
-        _resolvedColorSpaceConverter = converter ?? PdfDeviceRgbColorSpaceConverter.Instance;
     }
 
     /// <summary>
@@ -57,12 +46,6 @@ public abstract class PdfImageDecoder
     /// resolved for <see cref="Image"/>.
     /// </summary>
     public ImageDecodingContext Context { get; }
-
-    /// <summary>
-    /// Resolved color space converter for this image, eagerly computed during construction.
-    /// Subclasses override to provide type-appropriate defaults (e.g. DeviceGray for 1-bit formats).
-    /// </summary>
-    protected virtual PdfColorSpaceConverter ResolvedColorSpaceConverter => _resolvedColorSpaceConverter;
 
     /// <summary>
     /// Logger instance for this decoder.
@@ -155,7 +138,7 @@ public abstract class PdfImageDecoder
         PdfColorSpaceConverter colorSpaceConverter)
     {
         PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize);
-        float[]? matte = ResolveSoftMaskMatte();
+        float[]? matte = ResolveSoftMaskMatte(colorSpaceConverter);
 
         return new PdfImageRowDecodingParameters(
             Context,
@@ -279,54 +262,22 @@ public abstract class PdfImageDecoder
     /// Returns the soft mask's /Matte components when they match this image's component count,
     /// or null when the mask declares none.
     /// </summary>
-    protected float[]? ResolveSoftMaskMatte()
+    /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
+    protected float[]? ResolveSoftMaskMatte(PdfColorSpaceConverter colorSpaceConverter)
     {
+        if (colorSpaceConverter == null)
+        {
+            throw new ArgumentNullException(nameof(colorSpaceConverter));
+        }
+
         float[]? matteArray = Image.SoftMask?.MatteArray;
 
-        if (matteArray == null || matteArray.Length != ResolvedColorSpaceConverter.Components)
+        if (matteArray == null || matteArray.Length != colorSpaceConverter.Components)
         {
             return null;
         }
 
         return matteArray;
-    }
-
-    /// <summary>
-    /// Validate image parameters and return key values needed for processing.
-    /// Logs detailed errors and returns false when validation fails.
-    /// </summary>
-    protected bool ValidateImageParameters()
-    {
-        int width = Image.Width;
-        int height = Image.Height;
-        int bitsPerComponent = Image.BitsPerComponent;
-        PdfColorSpaceConverter converter = ResolvedColorSpaceConverter;
-
-        if (width <= 0 || height <= 0 || bitsPerComponent <= 0)
-        {
-            Logger.LogError("Invalid image state: Width={Width}, Height={Height}, BitsPerComponent={BitsPerComponent}.", width, height, bitsPerComponent);
-            return false;
-        }
-
-        if (Image.HasImageMask && bitsPerComponent != 1)
-        {
-            Logger.LogError("/ImageMask requires BitsPerComponent=1 (actual={BitsPerComponent}).", bitsPerComponent);
-            return false;
-        }
-
-        if (converter is PdfIndexedColorSpaceConverter && bitsPerComponent == 16)
-        {
-            Logger.LogError("Indexed color space does not support 16 bits per component.");
-            return false;
-        }
-
-        if (bitsPerComponent < 1 || bitsPerComponent > 16)
-        {
-            Logger.LogError("Unsupported BitsPerComponent value {BitsPerComponent}.", bitsPerComponent);
-            return false;
-        }
-
-        return true;
     }
 
     /// <summary>

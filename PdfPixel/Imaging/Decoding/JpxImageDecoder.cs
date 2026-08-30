@@ -62,7 +62,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);
 
         bool hasInterleavedAlpha = _rowConverter.HasAlphaChannel;
-        float[]? matte = hasInterleavedAlpha ? null : ResolveSoftMaskMatte();
+        float[]? matte = hasInterleavedAlpha ? null : ResolveSoftMaskMatte(_resolvedConverter);
         PdfImageAlphaType alphaType = hasInterleavedAlpha
             ? PdfImageAlphaType.Unpremultiplied
             : ResolveSoftMaskAlphaType(matte);
