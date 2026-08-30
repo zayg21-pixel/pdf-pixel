@@ -21,8 +21,6 @@ public sealed class PdfPanelContext : IDisposable
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
     private readonly PdfPanelAnnotationInteraction _annotationInteraction;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
-    private PdfPanelPointerPosition? _resolvedPointerPosition;
-    private PdfPanelButtonState _lastPointerState;
 
     /// <summary>
     /// Initializes the context with the given page collection, renderer, and render target factory.
@@ -252,7 +250,7 @@ public sealed class PdfPanelContext : IDisposable
     {
         UserInterfaceDrawingRequest request = GetBaseRequest<UserInterfaceDrawingRequest>();
 
-        request.PointerPosition = _resolvedPointerPosition;
+        request.PointerPosition = _renderer.InputProcessor.PointerPosition;
 
         return request;
     }
@@ -292,34 +290,11 @@ public sealed class PdfPanelContext : IDisposable
 
         if (PointerPosition == null)
         {
-            if (_resolvedPointerPosition != null)
-            {
-                processor.Leave();
-            }
-
-            _resolvedPointerPosition = null;
-            _lastPointerState = PdfPanelButtonState.Default;
+            processor.Leave();
             return;
         }
 
-        PdfPanelPointerPosition position = ResolvePointerPosition(PointerPosition.Value);
-        _resolvedPointerPosition = position;
-
-        if (PointerState == PdfPanelButtonState.Pressed && _lastPointerState == PdfPanelButtonState.Default)
-        {
-            processor.Press(position);
-        }
-        else if (PointerState == PdfPanelButtonState.Default && _lastPointerState == PdfPanelButtonState.Pressed)
-        {
-            processor.Release(position);
-        }
-        else
-        {
-            // TODO: [HIGH] need to smarter logic on transitions, for instance, if previous state was "Press" and new state is still "Press" this will fire "Move" (shall entirely live in processor, we only fire new state)
-            processor.Move(position);
-        }
-
-        _lastPointerState = PointerState;
+        processor.Update(ResolvePointerPosition(PointerPosition.Value), PointerState);
     }
 
     /// <inheritdoc />

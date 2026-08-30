@@ -74,9 +74,91 @@ public sealed class PdfPanelInputProcessor
     public bool IsDragging { get; private set; }
 
     /// <summary>
-    /// Reports a pointer button press at the given position.
+    /// Pointer button state of the last report.
     /// </summary>
-    public void Press(in PdfPanelPointerPosition position)
+    public PdfPanelButtonState ButtonState { get; private set; }
+
+    /// <summary>
+    /// Position of the last report, or <see langword="null"/> when the pointer is outside the panel.
+    /// </summary>
+    public PdfPanelPointerPosition? PointerPosition => _lastPosition;
+
+    /// <summary>
+    /// Reports the pointer position and button state, raising the events
+    /// for the transition from the previous report.
+    /// </summary>
+    public void Update(in PdfPanelPointerPosition position, PdfPanelButtonState buttonState)
+    {
+        PdfPanelButtonState previousState = ButtonState;
+        ButtonState = buttonState;
+
+        if (buttonState == PdfPanelButtonState.Pressed && previousState == PdfPanelButtonState.Default)
+        {
+            Press(position);
+            return;
+        }
+
+        if (buttonState == PdfPanelButtonState.Default && previousState == PdfPanelButtonState.Pressed)
+        {
+            Release(position);
+            return;
+        }
+
+        if (_lastPosition == null || _lastPosition.Value != position)
+        {
+            Move(position);
+        }
+    }
+
+    /// <summary>
+    /// Ends a press or drag in progress without raising <see cref="PointerReleased"/> or <see cref="PointerClicked"/>.
+    /// </summary>
+    public void Cancel()
+    {
+        PdfPanelPointerPosition? pressPosition = _pressPosition;
+        bool wasDragging = IsDragging;
+
+        _pressPosition = null;
+        IsDragging = false;
+        ButtonState = PdfPanelButtonState.Default;
+
+        if (!wasDragging || pressPosition == null || _lastPosition == null)
+        {
+            return;
+        }
+
+        PdfPanelDragEventArgs dragArgs = new(pressPosition.Value, _lastPosition.Value);
+        DragEnded?.Invoke(this, dragArgs);
+    }
+
+    /// <summary>
+    /// Reports the pointer leaving the panel, cancelling a press or drag in progress.
+    /// </summary>
+    public void Leave()
+    {
+        if (_lastPosition == null)
+        {
+            return;
+        }
+
+        Cancel();
+
+        _lastPosition = null;
+        Cursor = PdfPanelCursor.Arrow;
+
+        PointerExited?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Reports a key press with the modifiers held at the time.
+    /// </summary>
+    public void PressKey(PdfPanelKey key, PdfPanelKeyModifiers modifiers)
+    {
+        PdfPanelKeyEventArgs args = new(key, modifiers);
+        KeyPressed?.Invoke(this, args);
+    }
+
+    private void Press(in PdfPanelPointerPosition position)
     {
         _pressPosition = position;
         _lastPosition = position;
@@ -86,10 +168,7 @@ public sealed class PdfPanelInputProcessor
         PointerPressed?.Invoke(this, args);
     }
 
-    /// <summary>
-    /// Reports a pointer move to the given position.
-    /// </summary>
-    public void Move(in PdfPanelPointerPosition position)
+    private void Move(in PdfPanelPointerPosition position)
     {
         _lastPosition = position;
 
@@ -121,10 +200,7 @@ public sealed class PdfPanelInputProcessor
         Cursor = args.Cursor;
     }
 
-    /// <summary>
-    /// Reports a pointer button release at the given position.
-    /// </summary>
-    public void Release(in PdfPanelPointerPosition position)
+    private void Release(in PdfPanelPointerPosition position)
     {
         PdfPanelPointerPosition? pressPosition = _pressPosition;
         bool wasDragging = IsDragging;
@@ -150,48 +226,6 @@ public sealed class PdfPanelInputProcessor
 
         PdfPanelPointerEventArgs clickArgs = new(pressPosition.Value);
         PointerClicked?.Invoke(this, clickArgs);
-    }
-
-    /// <summary>
-    /// Ends a press or drag in progress without raising <see cref="PointerReleased"/> or <see cref="PointerClicked"/>.
-    /// </summary>
-    public void Cancel()
-    {
-        PdfPanelPointerPosition? pressPosition = _pressPosition;
-        bool wasDragging = IsDragging;
-
-        _pressPosition = null;
-        IsDragging = false;
-
-        if (!wasDragging || pressPosition == null || _lastPosition == null)
-        {
-            return;
-        }
-
-        PdfPanelDragEventArgs dragArgs = new(pressPosition.Value, _lastPosition.Value);
-        DragEnded?.Invoke(this, dragArgs);
-    }
-
-    /// <summary>
-    /// Reports the pointer leaving the panel, cancelling a press or drag in progress.
-    /// </summary>
-    public void Leave()
-    {
-        Cancel();
-
-        _lastPosition = null;
-        Cursor = PdfPanelCursor.Arrow;
-
-        PointerExited?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>
-    /// Reports a key press with the modifiers held at the time.
-    /// </summary>
-    public void PressKey(PdfPanelKey key, PdfPanelKeyModifiers modifiers)
-    {
-        PdfPanelKeyEventArgs args = new(key, modifiers);
-        KeyPressed?.Invoke(this, args);
     }
 
     private bool HasTravelledDragDistance(in PdfPanelPointerPosition pressPosition, in PdfPanelPointerPosition position)

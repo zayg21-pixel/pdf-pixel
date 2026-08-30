@@ -22,6 +22,7 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
 
         _processor.PointerMoved += OnPointerMoved;
         _processor.PointerPressed += OnPointerPressed;
+        _processor.PointerReleased += OnPointerReleased;
         _processor.PointerClicked += OnPointerClicked;
         _processor.PointerExited += OnPointerExited;
         _processor.DragStarted += OnDragStarted;
@@ -47,11 +48,11 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
     /// </summary>
     internal void ClearClicked() => ClickedAnnotation = null;
 
-    private void OnPointerMoved(object? sender, PdfPanelPointerEventArgs args)
-        => UpdateActiveAnnotation(args, PdfPanelPointerState.Hovered);
+    private void OnPointerMoved(object? sender, PdfPanelPointerEventArgs args) => UpdateActiveAnnotation(args);
 
-    private void OnPointerPressed(object? sender, PdfPanelPointerEventArgs args)
-        => UpdateActiveAnnotation(args, PdfPanelPointerState.Pressed);
+    private void OnPointerPressed(object? sender, PdfPanelPointerEventArgs args) => UpdateActiveAnnotation(args);
+
+    private void OnPointerReleased(object? sender, PdfPanelPointerEventArgs args) => UpdateActiveAnnotation(args);
 
     private void OnPointerClicked(object? sender, PdfPanelPointerEventArgs args)
     {
@@ -75,7 +76,7 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
 
     private void OnPointerExited(object? sender, EventArgs args) => Clear();
 
-    private void UpdateActiveAnnotation(PdfPanelPointerEventArgs args, PdfPanelPointerState state)
+    private void UpdateActiveAnnotation(PdfPanelPointerEventArgs args)
     {
         if (args.IsHandled)
         {
@@ -86,7 +87,7 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
         PdfAnnotationPopup? annotation = HitTest(args);
 
         ActiveAnnotation = annotation;
-        ActiveAnnotationState = (annotation == null) ? PdfPanelPointerState.None : state;
+        ActiveAnnotationState = GetPointerState(annotation);
 
         if (annotation == null)
         {
@@ -95,6 +96,18 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
 
         args.IsHandled = true;
         args.Cursor = GetCursor(annotation);
+    }
+
+    private PdfPanelPointerState GetPointerState(PdfAnnotationPopup? annotation)
+    {
+        if (annotation == null)
+        {
+            return PdfPanelPointerState.None;
+        }
+
+        return (_processor.ButtonState == PdfPanelButtonState.Pressed)
+            ? PdfPanelPointerState.Pressed
+            : PdfPanelPointerState.Hovered;
     }
 
     private PdfAnnotationPopup? HitTest(PdfPanelPointerEventArgs args)
@@ -137,6 +150,7 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
     {
         _processor.PointerMoved -= OnPointerMoved;
         _processor.PointerPressed -= OnPointerPressed;
+        _processor.PointerReleased -= OnPointerReleased;
         _processor.PointerClicked -= OnPointerClicked;
         _processor.PointerExited -= OnPointerExited;
         _processor.DragStarted -= OnDragStarted;
