@@ -23,7 +23,6 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
     public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
-        // TODO: [HIGH] document.jpg. Exceptions on some scales
     }
 
     public override PdfImageRowDecodingParameters Initialize(

@@ -26,7 +26,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             ?? PdfDeviceGrayColorSpaceConverter.Instance;
     }
 
-    protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter; // TODO: remove, already in PdfImageRowDecodingParameters
+    protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter; // TODO: remove as protected, resolve in constructor depending in decoder
 
     public override PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
