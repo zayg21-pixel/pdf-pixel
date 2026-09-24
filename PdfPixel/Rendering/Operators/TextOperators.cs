@@ -14,7 +14,7 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class TextOperators : IOperatorProcessor
 {
-    private readonly List<ShapedGlyph> buffer = [];
+    private readonly ShapedGlyphBuffer _glyphBuffer = new();
 
     private static readonly HashSet<string> SupportedOperators = [
         // Text object operators
@@ -359,8 +359,8 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        ShapedGlyphBuilder.BuildFromString(operands[0], graphicsState, buffer);
-        ProcessSequence(graphicsState, buffer);
+        ShapedGlyphBuilder.BuildFromString(operands[0], graphicsState, _glyphBuffer);
+        ProcessSequence(graphicsState, _glyphBuffer);
     }
 
     private void ProcessShowTextNextLine(PdfGraphicsState graphicsState)
@@ -377,8 +377,8 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        ShapedGlyphBuilder.BuildFromArray(operands[0], graphicsState, buffer);
-        ProcessSequence(graphicsState, buffer);
+        ShapedGlyphBuilder.BuildFromArray(operands[0], graphicsState, _glyphBuffer);
+        ProcessSequence(graphicsState, _glyphBuffer);
     }
 
     private void ProcessNextLine(PdfGraphicsState graphicsState)
@@ -422,11 +422,11 @@ internal class TextOperators : IOperatorProcessor
 
         graphicsState.WordSpacing = wordSpacing.Value;
         graphicsState.CharacterSpacing = characterSpacing.Value;
-        ShapedGlyphBuilder.BuildFromString(operands[2], graphicsState, buffer);
-        ProcessSequence(graphicsState, buffer);
+        ShapedGlyphBuilder.BuildFromString(operands[2], graphicsState, _glyphBuffer);
+        ProcessSequence(graphicsState, _glyphBuffer);
     }
 
-    private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
+    private void ProcessSequence(PdfGraphicsState graphicsState, ShapedGlyphBuffer glyphs)
     {
         if (graphicsState.CurrentFont == null)
         {
@@ -434,7 +434,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs.ToArray(), graphicsState, graphicsState.CurrentFont);
+        PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs.Glyphs, graphicsState, graphicsState.CurrentFont);
         PdfMatrix advanceMatrix = PdfMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = PdfMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }

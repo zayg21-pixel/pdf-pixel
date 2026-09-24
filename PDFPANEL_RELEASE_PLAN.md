@@ -59,9 +59,9 @@ Biggest item. Depends on the overlay API for match highlighting.
 
 ## Suggested order
 
-1. Bugs and TODOs above (small, unblock everything else)
-2. Overlay API
-3. Text interaction stabilization
-4. Text search
+1. Missing functionality first, starting with text search (text reading and search engine, no UI dependencies)
+2. Overlay API, then search highlighting and navigation
+3. Refactor where needed: text selection moves onto the same text layer as search
+4. Bugs and TODOs above
 5. Pre-render, caching, memory
 6. Demo cleanup, final WASM cleanup, delete this file

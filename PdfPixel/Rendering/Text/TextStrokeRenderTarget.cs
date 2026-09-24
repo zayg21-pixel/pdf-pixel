@@ -18,7 +18,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
 
-    public TextStrokeRenderTarget(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public TextStrokeRenderTarget(in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         _path = TextRenderUtilities.GetTextPath(shapingResult, state);
         _state = state;

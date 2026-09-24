@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.TextExtraction;
@@ -39,7 +40,7 @@ public class PdfTextBlock
     /// <summary>
     /// Characters directly contained in this block.
     /// </summary>
-    public List<PdfCharacter> Characters { get; } = [];
+    public PdfCharacter[] Characters { get; internal set; } = Array.Empty<PdfCharacter>();
 
     /// <summary>
     /// Child blocks opened by nested marked content scopes.

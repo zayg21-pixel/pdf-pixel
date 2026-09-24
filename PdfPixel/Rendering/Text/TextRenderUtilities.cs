@@ -13,17 +13,16 @@ namespace PdfPixel.Rendering.Text;
 internal static class TextRenderUtilities
 {
     /// <summary>
-    /// Builds the combined glyph outline for <paramref name="shapingResult"/>, transformed into the same
+    /// Builds the combined glyph outline for <paramref name="glyphs"/>, transformed into the same
     /// space as other drawing content. Each glyph's outline comes from its own
     /// <see cref="PdfCharacterInfo.Typeface"/> in raw, unscaled form, so it is transformed by its
     /// horizontal <see cref="ShapedGlyph.Scale"/> and position before being combined with the rest.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfPath GetTextPath(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public static PdfPath GetTextPath(in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state)
     {
         PdfMatrix matrix = GetFullTextMatrix(state);
         PdfPathBuilder textPathBuilder = new(matrix);
-        ReadOnlySpan<ShapedGlyph> glyphs = shapingResult.Span;
 
         for (int i = 0; i < glyphs.Length; i++)
         {
@@ -165,26 +164,26 @@ internal static class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextWidth(in ReadOnlyMemory<ShapedGlyph> shapingResult)
+    public static float GetTextWidth(in ReadOnlySpan<ShapedGlyph> shapingResult)
     {
         if (shapingResult.IsEmpty)
         {
             return 0;
         }
 
-        ShapedGlyph last = shapingResult.Span[shapingResult.Length - 1];
+        ShapedGlyph last = shapingResult[shapingResult.Length - 1];
         return last.X - last.CharacterInfo.Offset.X + last.Advance;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextHeight(in ReadOnlyMemory<ShapedGlyph> shapingResult)
+    public static float GetTextHeight(in ReadOnlySpan<ShapedGlyph> shapingResult)
     {
         if (shapingResult.IsEmpty)
         {
             return 0;
         }
 
-        ShapedGlyph last = shapingResult.Span[shapingResult.Length - 1];
+        ShapedGlyph last = shapingResult[shapingResult.Length - 1];
         return last.Y - last.CharacterInfo.Offset.Y + last.Advance;
     }
 

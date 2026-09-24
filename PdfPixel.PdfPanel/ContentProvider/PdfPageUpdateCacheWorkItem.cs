@@ -9,7 +9,6 @@ using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -22,6 +21,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 {
     private readonly object _documentLocker = new();
     private readonly IPdfDocument _document;
+    private readonly PdfTextBlockFlattener _textBlockFlattener;
     private readonly PagesDrawingRequest _request;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
     private readonly IPdfCancellableExecutionObserver? _parseObserver;
@@ -37,6 +37,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         PdfPageCacheEntry cacheEntry,
         IPdfDocument document,
         object documentLocker,
+        PdfTextBlockFlattener textBlockFlattener,
         PagesDrawingRequest request,
         Action<PageUpdatedArgs>? onPageUpdated)
     {
@@ -48,6 +49,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         CacheEntry = cacheEntry;
         _documentLocker = documentLocker;
         _document = document;
+        _textBlockFlattener = textBlockFlattener;
         _request = request;
         _onPageUpdated = onPageUpdated;
         _parseObserver = cacheEntry.ParseObserver;
@@ -116,7 +118,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
                 SKPicture? contentPicture = recorder.EndRecording();
                 PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
-                List<PdfCharacter> characters = PdfTextBlockFlattener.Flatten(executionContext.RootTextBlock, pictureToPage);
+                PdfCharacter[] characters = _textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), pictureToPage);
 
                 CacheEntry.Content.UpdateContent(contentPicture, _request, characters);
                 contentUpdated = true;

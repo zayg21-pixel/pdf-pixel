@@ -90,10 +90,10 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; }
 
     /// <summary>
-    /// Root of the text block tree built during command execution.
+    /// Returns the root of the text block tree built during command execution.
     /// Characters are grouped into blocks corresponding to marked content scopes.
     /// </summary>
-    public PdfTextBlock RootTextBlock => MarkedContent.RootTextBlock;
+    public PdfTextBlock GetRootTextBlock() => MarkedContent.GetRootTextBlock();
 
     /// <inheritdoc />
     public void Dispose() => Cache.Dispose();

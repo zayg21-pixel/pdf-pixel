@@ -22,7 +22,7 @@ public sealed class PdfPanelTextSelector : IDisposable
     private int? _anchorPageNumber;
     private int? _anchorCharIndex;
     private int? _currentCharIndex;
-    private List<PdfCharacter>? _selectedCharacters;
+    private PdfCharacter[]? _selectedCharacters;
     private bool _isPointerOverText;
 
     /// <summary>
@@ -164,7 +164,7 @@ public sealed class PdfPanelTextSelector : IDisposable
             return;
         }
 
-        List<PdfCharacter>? characters = GetCharacters(pagePoint.Value.PageNumber);
+        PdfCharacter[]? characters = GetCharacters(pagePoint.Value.PageNumber);
 
         if (characters == null)
         {
@@ -181,8 +181,8 @@ public sealed class PdfPanelTextSelector : IDisposable
         _currentCharIndex = charIndex;
 
         int start = Math.Max(Math.Min(_anchorCharIndex.Value, charIndex.Value), 0);
-        int end = Math.Min(Math.Max(_anchorCharIndex.Value, charIndex.Value), characters.Count - 1);
-        _selectedCharacters = characters.GetRange(start, end - start + 1);
+        int end = Math.Min(Math.Max(_anchorCharIndex.Value, charIndex.Value), characters.Length - 1);
+        _selectedCharacters = characters.AsSpan(start, end - start + 1).ToArray();
 
         UpdateSelectionPicture(_anchorPageNumber.Value);
     }
@@ -223,11 +223,11 @@ public sealed class PdfPanelTextSelector : IDisposable
         _selectionPictures.Clear();
     }
 
-    private List<PdfCharacter>? GetCharacters(int pageNumber)
+    private PdfCharacter[]? GetCharacters(int pageNumber)
     {
         PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(pageNumber);
 
-        if (pictures.ContentCharacters == null || pictures.ContentCharacters.Count == 0)
+        if (pictures.ContentCharacters == null || pictures.ContentCharacters.Length == 0)
         {
             return null;
         }
@@ -244,7 +244,7 @@ public sealed class PdfPanelTextSelector : IDisposable
             return null;
         }
 
-        List<PdfCharacter>? characters = GetCharacters(pagePoint.Value.PageNumber);
+        PdfCharacter[]? characters = GetCharacters(pagePoint.Value.PageNumber);
 
         if (characters == null)
         {
@@ -303,12 +303,12 @@ public sealed class PdfPanelTextSelector : IDisposable
         return recorder.EndRecording();
     }
 
-    private static int? HitTestCharacterNearest(List<PdfCharacter> characters, in PdfPoint point, float? maxDistance = null)
+    private static int? HitTestCharacterNearest(PdfCharacter[] characters, in PdfPoint point, float? maxDistance = null)
     {
         int closestIndex = 0;
         float closestDistance = float.MaxValue;
 
-        for (int i = 0; i < characters.Count; i++)
+        for (int i = 0; i < characters.Length; i++)
         {
             PdfRectangle characterBox = characters[i].BoundingBox;
             float dx = point.X - characterBox.MidX;

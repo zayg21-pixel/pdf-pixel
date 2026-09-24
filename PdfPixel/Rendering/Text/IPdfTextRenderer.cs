@@ -22,5 +22,5 @@ public interface IPdfTextRenderer
     /// <param name="state">The current graphics state.</param>
     /// <param name="font">The font to use for rendering.</param>
     /// <returns>The total advancement after drawing the text array.</returns>
-    PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
+    PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
 }

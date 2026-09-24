@@ -1,8 +1,10 @@
 using PdfPixel.Commands.Model;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands.Context;
 
@@ -16,6 +18,8 @@ public sealed class PdfMarkedContentState
 {
     private readonly IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> _optionalContentGroups;
     private readonly Stack<PdfMarkedContent> _stack = [];
+    private readonly List<PdfCharacter> _characterBuffer = [];
+    private readonly PdfTextBlock _rootTextBlock;
     private bool _isContentVisible = true;
     private PdfTextBlock _currentTextBlock;
 
@@ -25,8 +29,8 @@ public sealed class PdfMarkedContentState
     public PdfMarkedContentState(IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
     {
         _optionalContentGroups = optionalContentGroups;
-        RootTextBlock = new PdfTextBlock();
-        _currentTextBlock = RootTextBlock;
+        _rootTextBlock = new PdfTextBlock();
+        _currentTextBlock = _rootTextBlock;
     }
 
     /// <summary>
@@ -36,10 +40,15 @@ public sealed class PdfMarkedContentState
     public bool IsContentVisible => _isContentVisible;
 
     /// <summary>
-    /// Root of the text block tree. Child blocks are created on push, characters are
-    /// appended to the current block via <see cref="AppendCharacters"/>.
+    /// Returns the root of the text block tree with every character appended so far.
+    /// Child blocks are created on push, characters are appended to the current block via <see cref="AppendCharacters"/>.
     /// </summary>
-    public PdfTextBlock RootTextBlock { get; }
+    public PdfTextBlock GetRootTextBlock()
+    {
+        FlushCharacters();
+
+        return _rootTextBlock;
+    }
 
     /// <summary>
     /// Pushes a marked content scope and recalculates visibility.
@@ -57,6 +66,8 @@ public sealed class PdfMarkedContentState
 
         if (markedContent.TextMarkup != null)
         {
+            FlushCharacters();
+
             PdfTextBlock childBlock = new(markedContent.TextMarkup, _currentTextBlock);
             _currentTextBlock.Children.Add(childBlock);
             _currentTextBlock = childBlock;
@@ -76,23 +87,36 @@ public sealed class PdfMarkedContentState
 
             if (popped.TextMarkup != null && _currentTextBlock.Parent != null)
             {
+                FlushCharacters();
+
                 _currentTextBlock = _currentTextBlock.Parent;
             }
         }
     }
 
     /// <summary>
-    /// Appends characters to the current text block.
+    /// Appends characters to the current text block, mapping each bounding box through <paramref name="matrix"/>.
     /// Skipped when content is hidden by optional content visibility.
     /// </summary>
-    public void AppendCharacters(IReadOnlyList<PdfCharacter> characters)
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+    public void AppendCharacters(in PdfMatrix matrix, PdfCharacter[] characters)
     {
+        if (characters == null)
+        {
+            throw new ArgumentNullException(nameof(characters));
+        }
+
         if (!_isContentVisible)
         {
             return;
         }
 
-        _currentTextBlock.Characters.AddRange(characters);
+        foreach (PdfCharacter character in characters)
+        {
+            _characterBuffer.Add(new PdfCharacter(character.Text, matrix.MapRect(character.BoundingBox)));
+        }
     }
 
     /// <summary>
@@ -107,6 +131,23 @@ public sealed class PdfMarkedContentState
         }
 
         return _isContentVisible;
+    }
+
+    private void FlushCharacters()
+    {
+        if (_characterBuffer.Count == 0)
+        {
+            return;
+        }
+
+        PdfCharacter[] existingCharacters = _currentTextBlock.Characters;
+        var combinedCharacters = new PdfCharacter[existingCharacters.Length + _characterBuffer.Count];
+
+        Array.Copy(existingCharacters, combinedCharacters, existingCharacters.Length);
+        _characterBuffer.CopyTo(combinedCharacters, existingCharacters.Length);
+
+        _currentTextBlock.Characters = combinedCharacters;
+        _characterBuffer.Clear();
     }
 
     private void RecalculateVisibility()

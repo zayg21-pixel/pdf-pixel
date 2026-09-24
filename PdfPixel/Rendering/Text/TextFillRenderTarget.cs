@@ -27,7 +27,7 @@ internal class TextFillRenderTarget : IRenderTarget
         if (state.FillPaint.IsPattern)
         {
             _pattern = state.FillPaint.Pattern;
-            _clipPath = TextRenderUtilities.GetTextPath(shapingResult, state);
+            _clipPath = TextRenderUtilities.GetTextPath(shapingResult.Span, state);
             Bounds = _clipPath.GetBounds();
         }
         else

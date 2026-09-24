@@ -4,7 +4,6 @@ using PdfPixel.PdfPanel.Requests;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -50,7 +49,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Flattened characters extracted during the last content picture generation, in reading order.
     /// </summary>
-    public List<PdfCharacter>? Characters { get; private set; }
+    public PdfCharacter[]? Characters { get; private set; }
 
     /// <summary>
     /// Replace page content with a new command recording. Disposes the previous recording if present.
@@ -69,7 +68,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, List<PdfCharacter>? characters = null)
+    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, PdfCharacter[]? characters = null)
     {
         if (request == null)
         {

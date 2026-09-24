@@ -30,6 +30,8 @@ internal ref partial struct PdfParser
     ];
 
     private readonly List<byte> _localBuffer = [];
+    private readonly List<IPdfValue> _values = [];
+    private readonly Stack<CollectionFrame> _frames = [];
     private readonly BufferedStream? _stream;
     private readonly bool _streamMode;
     private readonly IPdfDocumentInternal _document;
@@ -90,8 +92,10 @@ internal ref partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public IPdfValue? ReadNextValue(Stack<IPdfValue>? operandStack = null)
     {
-        List<IPdfValue> values = [];
-        Stack<CollectionFrame> frames = [];
+        List<IPdfValue> values = _values;
+        Stack<CollectionFrame> frames = _frames;
+        values.Clear();
+        frames.Clear();
 
         while (!IsAtEnd)
         {

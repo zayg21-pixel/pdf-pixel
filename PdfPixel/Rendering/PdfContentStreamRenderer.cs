@@ -8,6 +8,7 @@ using PdfPixel.Streams;
 using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Rendering;
 
@@ -72,6 +73,9 @@ internal class PdfContentStreamRenderer
     /// Renders a content stream using the given command processor with stack-based approach.
     /// Includes XObject recursion tracking to prevent infinite loops.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void RenderContext(IPdfCommandProcessor processor, ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
     {
         Stack<PdfGraphicsState> graphicsStack = [];

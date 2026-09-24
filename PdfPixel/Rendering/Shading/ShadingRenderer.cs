@@ -50,11 +50,6 @@ public class ShadingRenderer : IShadingRenderer
             throw new ArgumentNullException(nameof(state));
         }
 
-        if (!state.RenderingParameters.RenderShadings)
-        {
-            return;
-        }
-
         PdfShadingContent content = shading.GetContent(state);
 
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, content.GetBounds() ?? state.GetUserSpaceClipBounds());

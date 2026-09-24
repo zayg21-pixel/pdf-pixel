@@ -4,7 +4,6 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Geometry;
 using PdfPixel.Text;
-using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using PdfPixel.Commands.Model;
@@ -40,18 +39,7 @@ public sealed partial class SkCanvasCommandProcessor
     {
         PdfMatrix matrix = _executionContext.Frames.TotalMatrix.PreConcat(command.Matrix);
 
-        var mapped = new PdfCharacter[command.Characters.Length];
-
-        for (int i = 0; i < command.Characters.Length; i++)
-        {
-            PdfRectangle pageRect = matrix.MapRect(command.Characters[i].BoundingBox);
-            mapped[i] = new PdfCharacter(command.Characters[i].Text, pageRect);
-        }
-
-        if (mapped.Length > 0)
-        {
-            _executionContext.MarkedContent.AppendCharacters(mapped);
-        }
+        _executionContext.MarkedContent.AppendCharacters(matrix, command.Characters);
     }
 
     private void DrawShapedTextSpans(SKPaint paint, bool antialias, in ReadOnlySpan<ShapedGlyph> glyphs)

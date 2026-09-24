@@ -2,6 +2,7 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     private readonly IPdfExecutionObserverFactory _observerFactory;
     private readonly PdfPageCacheEntry[] _cache;
     private readonly HashSet<int> _visiblePageNumbers = [];
+    private readonly PdfTextBlockFlattener _textBlockFlattener = new();
 
     /// <summary>
     /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work
@@ -97,7 +99,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
             _visiblePageNumbers.Add(page.PageNumber);
             cacheEntry.InitializeForRendering(_observerFactory);
-            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request, OnPageUpdated));
+            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textBlockFlattener, request, OnPageUpdated));
         }
     }
 

@@ -1,6 +1,5 @@
 using PdfPixel.TextExtraction;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -22,5 +21,5 @@ public class PdfContentPictures
     /// <summary>
     /// Flattened characters extracted from the main content, in reading order.
     /// </summary>
-    public List<PdfCharacter>? ContentCharacters { get; set; }
+    public PdfCharacter[]? ContentCharacters { get; set; }
 }

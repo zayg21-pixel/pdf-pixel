@@ -300,6 +300,9 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     /// <param name="bytes">Raw bytes to extract character codes from.</param>
     /// <returns>Array of extracted PdfCharacterCode items.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public override PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes)
     {
         if (bytes.IsEmpty)

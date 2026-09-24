@@ -5,6 +5,7 @@ using PdfPixel.Fonts.Typeface;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -203,6 +204,9 @@ public class PdfCidFont : PdfFontBase
     /// </summary>
     /// <param name="bytes">Raw bytes to extract character codes from.</param>
     /// <returns>Array of extracted PdfCharacterCode items, each representing a 2-byte CID.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public override PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes)
     {
         if (bytes.IsEmpty)

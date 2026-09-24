@@ -61,6 +61,11 @@ internal class InlineImageOperators : IOperatorProcessor
         IPdfValue value = _operandStack.Pop();
         _operandStack.Clear();
 
+        if (!graphicsState.RenderingParameters.RenderImages)
+        {
+            return;
+        }
+
         PdfObject? inlineObject = value.AsInlineImage();
         if (inlineObject == null)
         {

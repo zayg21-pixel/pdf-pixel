@@ -4,8 +4,9 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -14,7 +15,7 @@ namespace PdfPixel.Fonts.Model;
 /// </summary>
 public abstract class PdfFontBase
 {
-    private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = [];
+    private readonly Dictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = [];
 
     /// <summary>
     /// Constructor for all PDF fonts. Parses the subtype, base font name, /ToUnicode CMap, font
@@ -213,6 +214,7 @@ public abstract class PdfFontBase
     /// </summary>
     /// <param name="characterCode">The character code to extract info for.</param>
     /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public PdfCharacterInfo ExtractCharacterInfo(PdfCharacterCode characterCode)
     {
         if (characterCode == null)
@@ -220,7 +222,13 @@ public abstract class PdfFontBase
             throw new ArgumentNullException(nameof(characterCode));
         }
 
-        return _characterInfoCache.GetOrAdd(characterCode, ExtractCharacterInfoCore);
+        if (!_characterInfoCache.TryGetValue(characterCode, out PdfCharacterInfo characterInfo))
+        {
+            characterInfo = ExtractCharacterInfoCore(characterCode);
+            _characterInfoCache[characterCode] = characterInfo;
+        }
+
+        return characterInfo;
     }
 
     /// <summary>

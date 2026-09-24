@@ -112,10 +112,10 @@ public class PdfStampAnnotation : PdfAnnotationBase
         PdfPaintShadowEffect shadowEffect = new(shadowOffset, shadowOffset, shadowSigma, shadowSigma, PdfColors.Black.WithAlpha(ShadowAlpha / 255f));
         PdfPaint textPaint = new PdfPaint(PdfPaintStyle.Fill).WithColor(color).WithShadowEffect(shadowEffect);
 
-        List<ShapedGlyph> glyphs = [];
+        ShapedGlyphBuffer glyphs = new();
         ShapedGlyphBuilder.BuildFromText(labelText, typeface, glyphs);
 
-        processor.Process(new DrawShapedTextCommand(textMatrix, glyphs.ToArray(), textPaint));
+        processor.Process(new DrawShapedTextCommand(textMatrix, glyphs.Glyphs.ToArray(), textPaint));
     }
 
     private static string GetLabelText(PdfStampName stampName, PdfString? rawName)

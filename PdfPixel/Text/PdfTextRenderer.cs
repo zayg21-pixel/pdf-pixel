@@ -35,7 +35,10 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     /// <inheritdoc/>
-    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
         if (processor == null)
         {
@@ -76,7 +79,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ProcessGlyphs(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    private void ProcessGlyphs(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
         if (font is PdfType3Font type3Font)
         {
@@ -89,10 +92,8 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ProcessType3(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
+    private void ProcessType3(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphsSpan, PdfGraphicsState state, PdfType3Font type3Font)
     {
-        ReadOnlySpan<ShapedGlyph> glyphsSpan = glyphs.Span;
-
         if (state.RenderingParameters.RenderText
             && state.TextRenderingMode != PdfTextRenderingMode.Invisible
             && state.TextRenderingMode != PdfTextRenderingMode.Clip)
@@ -159,7 +160,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawShapedText(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawShapedText(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         if (state.RenderingParameters.RenderText)
         {
@@ -212,13 +213,12 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (state.RenderingParameters.ExtractText)
         {
-            ReadOnlySpan<ShapedGlyph> glyphsSpan = shapingResult.Span;
-            var characters = new PdfCharacter[CountCharacters(glyphsSpan)];
+            var characters = new PdfCharacter[CountCharacters(shapingResult)];
             int characterIndex = 0;
 
-            for (int i = 0; i < glyphsSpan.Length; i++)
+            for (int i = 0; i < shapingResult.Length; i++)
             {
-                ShapedGlyph glyph = glyphsSpan[i];
+                ShapedGlyph glyph = shapingResult[i];
                 if (!IsCharacterStart(glyph))
                 {
                     continue;
@@ -240,9 +240,9 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawTextFill(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawTextFill(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        TextFillRenderTarget textFillTarget = new(shapingResult, state);
+        TextFillRenderTarget textFillTarget = new(shapingResult.ToArray(), state);
 
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textFillTarget.Bounds);
         softMaskScope.BeginDrawContent();
@@ -251,7 +251,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawTextStroke(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawTextStroke(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
 
@@ -262,7 +262,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawTextFillAndStroke(IPdfCommandProcessor processor, in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawTextFillAndStroke(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
 
@@ -279,14 +279,14 @@ public class PdfTextRenderer : IPdfTextRenderer
             processor.Process(SaveStateCommand.Instance);
             processor.Process(new ClipPathCommand(textPath, PdfClipOperation.Difference, state.StrokePaint));
 
-            TextFillRenderTarget clippedFillTarget = new(shapingResult, state);
+            TextFillRenderTarget clippedFillTarget = new(shapingResult.ToArray(), state);
             clippedFillTarget.Render(processor);
 
             processor.Process(RestoreStateCommand.Instance);
         }
         else
         {
-            TextFillRenderTarget textFillTarget = new(shapingResult, state);
+            TextFillRenderTarget textFillTarget = new(shapingResult.ToArray(), state);
             textFillTarget.Render(processor);
         }
 
@@ -314,7 +314,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AppendTextClip(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private static void AppendTextClip(in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, state);
         if (!textPath.IsEmpty)
@@ -326,6 +326,7 @@ public class PdfTextRenderer : IPdfTextRenderer
 
     private static bool IsCharacterStart(in ShapedGlyph glyph) => glyph.GroupId == null || glyph.GroupId.Value == 0;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int CountCharacters(in ReadOnlySpan<ShapedGlyph> glyphs)
     {
         int count = 0;

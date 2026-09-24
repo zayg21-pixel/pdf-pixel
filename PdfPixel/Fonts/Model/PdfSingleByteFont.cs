@@ -2,6 +2,7 @@ using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Resources;
 using PdfPixel.Models;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -103,6 +104,9 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// </summary>
     /// <param name="bytes">Raw bytes to extract character codes from.</param>
     /// <returns>Array of extracted PdfCharacterCode items.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public override PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes)
     {
         if (bytes.IsEmpty)

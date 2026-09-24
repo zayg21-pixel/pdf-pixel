@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Linq;
 using PdfPixel.Commands.Model;
 using PdfPixel.Commands.Context;
+using PdfPixel.TextExtraction;
 
 namespace PdfPixel.Diagnostics;
 
@@ -75,6 +76,11 @@ internal sealed class Program
             DefaultValueFactory = _ => ProfileMode.None
         };
 
+        Option<bool> textOnlyOption = new("--text-only")
+        {
+            Description = "Extracts text from every page in range without rendering, timing the whole range as one run."
+        };
+
         RootCommand rootCommand = new("Records and replays a PDF page, reporting decode and rasterization timings.")
         {
             pdfArgument,
@@ -86,7 +92,8 @@ internal sealed class Program
             savePngOption,
             dumpCommandsOption,
             passwordOption,
-            profileOption
+            profileOption,
+            textOnlyOption
         };
 
         rootCommand.SetAction(parseResult =>
@@ -101,7 +108,8 @@ internal sealed class Program
                 parseResult.GetValue(savePngOption),
                 parseResult.GetValue(dumpCommandsOption),
                 parseResult.GetValue(passwordOption),
-                parseResult.GetValue(profileOption));
+                parseResult.GetValue(profileOption),
+                parseResult.GetValue(textOnlyOption));
 
             return 0;
         });
@@ -119,7 +127,8 @@ internal sealed class Program
         bool savePng,
         bool dumpCommands,
         string? password,
-        ProfileMode profile)
+        ProfileMode profile,
+        bool textOnly)
     {
         if (pdfFile == null)
         {
@@ -152,24 +161,58 @@ internal sealed class Program
             return;
         }
 
+        // Per-page timings of every iteration, indexed [page - firstPage][iteration], for the per-page summary.
+        double[][] decodeMilliseconds = new double[lastPage - firstPage + 1][];
+        double[][] rasterMilliseconds = new double[lastPage - firstPage + 1][];
+
+        for (int pageIndex = 0; pageIndex < decodeMilliseconds.Length; pageIndex++)
+        {
+            decodeMilliseconds[pageIndex] = new double[iterationCount];
+            rasterMilliseconds[pageIndex] = new double[iterationCount];
+        }
+
         void ProcessPages()
         {
-            for (int pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+            for (int iteration = 0; iteration < iterationCount; iteration++)
             {
-                MeasurePage(
+                MeasureIteration(
                     reader,
                     loggerFactory,
                     logger,
                     pdfPath,
                     outputDirectory,
-                    pageNumber,
-                    scale,
+                    firstPage,
+                    lastPage,
+                    iteration,
                     iterationCount,
+                    scale,
                     rasterize,
                     savePng,
                     dumpCommands,
                     password,
-                    profile);
+                    profile,
+                    textOnly,
+                    decodeMilliseconds,
+                    rasterMilliseconds);
+            }
+
+            for (int pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+            {
+                double[] pageDecodeMilliseconds = decodeMilliseconds[pageNumber - firstPage];
+                double[] pageRasterMilliseconds = rasterMilliseconds[pageNumber - firstPage];
+                double[] pageTotalMilliseconds = pageDecodeMilliseconds.Zip(pageRasterMilliseconds, (decode, raster) => decode + raster).ToArray();
+
+                logger.LogInformation(
+                    "Page {PageNumber} x{IterationCount} at scale {Scale}: total avg {TotalAverage:F1} ms (min {TotalMin:F1} ms) = decode avg {DecodeAverage:F1} ms (min {DecodeMin:F1} ms) + raster avg {RasterAverage:F1} ms (min {RasterMin:F1} ms)",
+                    pageNumber,
+                    iterationCount,
+                    scale,
+                    pageTotalMilliseconds.Average(),
+                    pageTotalMilliseconds.Min(),
+                    pageDecodeMilliseconds.Average(),
+                    pageDecodeMilliseconds.Min(),
+                    pageRasterMilliseconds.Average(),
+                    pageRasterMilliseconds.Min());
             }
         }
 
@@ -190,43 +233,65 @@ internal sealed class Program
         return document.Pages.Count;
     }
 
-    private static void MeasurePage(
+    private static void MeasureIteration(
         PdfDocumentReader reader,
         ILoggerFactory loggerFactory,
         ILogger logger,
         string pdfPath,
         string outputDirectory,
-        int pageNumber,
-        float scale,
+        int firstPage,
+        int lastPage,
+        int iteration,
         int iterationCount,
+        float scale,
         bool rasterize,
         bool savePng,
         bool dumpCommands,
         string? password,
-        ProfileMode profile)
+        ProfileMode profile,
+        bool textOnly,
+        double[][] decodeMilliseconds,
+        double[][] rasterMilliseconds)
     {
-        double[] totalMilliseconds = new double[iterationCount];
-        double[] decodeMilliseconds = new double[iterationCount];
-        double[] rasterMilliseconds = new double[iterationCount];
+        // Re-open and re-parse the document every iteration so no per-document decode cache
+        // (e.g. PdfDocumentObjectCache.Images) can mask real decode cost on later iterations.
+        // Pages within one iteration share the document, the same way a viewer reads it.
+        Stopwatch iterationStopwatch = Stopwatch.StartNew();
+        using FileStream fileStream = File.OpenRead(pdfPath);
+        using IPdfDocument document = reader.Read(fileStream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
 
-        for (int iteration = 0; iteration < iterationCount; iteration++)
+        // Guards the page's lazily-parsed content stream against concurrent access; use a private
+        // object per concurrent render of the same page.
+        object contentLocker = new();
+
+        // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.
+        IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
+
+        // Text-only suppresses everything that draws and keeps text extraction alone.
+        PdfRenderingParameters renderingParameters = new();
+
+        if (textOnly)
         {
-            // Re-open and re-parse the document every iteration so no per-document decode cache
-            // (e.g. PdfDocumentObjectCache.Images) can mask real decode cost on later iterations.
-            using FileStream fileStream = File.OpenRead(pdfPath);
-            using IPdfDocument document = reader.Read(fileStream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
+            renderingParameters.RenderPaths = false;
+            renderingParameters.RenderImages = false;
+            renderingParameters.RenderShadings = false;
+            renderingParameters.RenderText = false;
+        }
 
+        double iterationDecodeMilliseconds = 0;
+        double iterationRasterMilliseconds = 0;
+        long iterationCharacterCount = 0;
+
+        // Every page's flattened characters stay alive until the whole range is read, the way a search keeps them.
+        List<PdfCharacter[]> pageCharacters = [];
+        PdfTextBlockFlattener textBlockFlattener = new();
+
+        for (int pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+        {
             IPdfPage page = document.Pages[pageNumber - 1];
 
             Stopwatch decodeStopwatch = Stopwatch.StartNew();
             Stopwatch rasterStopwatch = new();
-
-            // Guards the page's lazily-parsed content stream against concurrent access; use a private
-            // object per concurrent render of the same page.
-            object contentLocker = new();
-
-            // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.
-            IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
             // Pass 1: record the page's drawing commands without executing them. No canvas exists
             // yet at this point; PdfCommandRecorder just collects the commands for later replay.
@@ -234,11 +299,6 @@ internal sealed class Program
             // and replayed independently.
             PdfCommandRecorder contentRecorder = new();
             RecordPageTransform(contentRecorder, page, scale);
-            PdfRenderingParameters renderingParameters = new()
-            {
-                RenderImages = Environment.GetEnvironmentVariable("MEMPROBE_NO_IMAGES") == null,
-                RenderText = Environment.GetEnvironmentVariable("MEMPROBE_NO_TEXT") == null,
-            };
             page.Render(contentRecorder, renderingParameters, executionObserver);
             contentRecorder.Process(RestoreStateCommand.Instance);
 
@@ -246,15 +306,19 @@ internal sealed class Program
             RecordPageTransform(annotationRecorder, page, scale);
 
             // Annotations (comments, stamps, links, etc.) are recorded separately from page content.
-            foreach (PdfPageAnnotation annotation in page.Annotations)
+            // Text-only reads page content alone, so annotation text never mixes into the page's characters.
+            if (!textOnly)
             {
-                // Skip annotations excluded from on-screen and print rendering.
-                if ((annotation.Content.Flags & (PdfAnnotationFlags.Hidden | PdfAnnotationFlags.NoView)) != 0)
+                foreach (PdfPageAnnotation annotation in page.Annotations)
                 {
-                    continue;
-                }
+                    // Skip annotations excluded from on-screen and print rendering.
+                    if ((annotation.Content.Flags & (PdfAnnotationFlags.Hidden | PdfAnnotationFlags.NoView)) != 0)
+                    {
+                        continue;
+                    }
 
-                annotation.Render(annotationRecorder, PdfAnnotationVisualStateKind.Normal, new PdfRenderingParameters(), executionObserver);
+                    annotation.Render(annotationRecorder, PdfAnnotationVisualStateKind.Normal, renderingParameters, executionObserver);
+                }
             }
 
             annotationRecorder.Process(RestoreStateCommand.Instance);
@@ -291,11 +355,14 @@ internal sealed class Program
 
             using SKPicture picture = pictureRecorder.EndRecording();
 
+            // Replay collected the page's characters; flatten them into reading order.
+            PdfCharacter[] characters = textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), PdfMatrix.Identity);
+
             decodeStopwatch.Stop();
 
             // Pass 3: rasterize the recorded picture. Everything the page needs has already been
-            // decoded, so this measures Skia's CPU rasterization on its own.
-            if (rasterize)
+            // decoded, so this measures Skia's CPU rasterization on its own. Text-only draws nothing.
+            if (rasterize && !textOnly)
             {
                 rasterStopwatch.Start();
 
@@ -313,51 +380,43 @@ internal sealed class Program
                 }
             }
 
-            if (profile == ProfileMode.Heap && iteration == iterationCount - 1)
-            {
-                Profiler.CollectHeapDump(outputDirectory);
-            }
-
-            decodeMilliseconds[iteration] = decodeStopwatch.Elapsed.TotalMilliseconds;
-            rasterMilliseconds[iteration] = rasterStopwatch.Elapsed.TotalMilliseconds;
-            totalMilliseconds[iteration] = decodeMilliseconds[iteration] + rasterMilliseconds[iteration];
+            decodeMilliseconds[pageNumber - firstPage][iteration] = decodeStopwatch.Elapsed.TotalMilliseconds;
+            rasterMilliseconds[pageNumber - firstPage][iteration] = rasterStopwatch.Elapsed.TotalMilliseconds;
+            iterationDecodeMilliseconds += decodeStopwatch.Elapsed.TotalMilliseconds;
+            iterationRasterMilliseconds += rasterStopwatch.Elapsed.TotalMilliseconds;
+            iterationCharacterCount += characters.Length;
+            pageCharacters.Add(characters);
 
             Console.WriteLine(
-                $"Iteration {iteration,-3}"
-                    + $" total {totalMilliseconds[iteration],9:F1} ms"
-                    + $" decode {decodeMilliseconds[iteration],9:F1} ms"
-                    + $" raster {rasterMilliseconds[iteration],9:F1} ms");
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-
-            if (Environment.GetEnvironmentVariable("MEMPROBE_PURGE") != null)
-            {
-                SKGraphics.PurgeAllCaches();
-            }
-
-            using Process currentProcess = Process.GetCurrentProcess();
-            Console.WriteLine(
-                $"MEMPROBE iteration {iteration,-3}"
-                    + $" private {currentProcess.PrivateMemorySize64 / 1048576.0,8:F1} MB"
-                    + $" gcCommitted {GC.GetGCMemoryInfo().TotalCommittedBytes / 1048576.0,8:F1} MB"
-                    + $" live {GC.GetTotalMemory(forceFullCollection: false) / 1048576.0,8:F1} MB"
-                    + $" font {SKGraphics.GetFontCacheUsed() / 1048576.0,6:F1} MB"
-                    + $" resource {SKGraphics.GetResourceCacheTotalBytesUsed() / 1048576.0,6:F1} MB");
+                $"Iteration {iteration,-3} page {pageNumber,-5}"
+                    + $" total {decodeStopwatch.Elapsed.TotalMilliseconds + rasterStopwatch.Elapsed.TotalMilliseconds,9:F1} ms"
+                    + $" decode {decodeStopwatch.Elapsed.TotalMilliseconds,9:F1} ms"
+                    + $" raster {rasterStopwatch.Elapsed.TotalMilliseconds,9:F1} ms"
+                    + $" characters {characters.Length,7}");
         }
 
-        logger.LogInformation(
-            "Page {PageNumber} x{IterationCount} at scale {Scale}: total avg {TotalAverage:F1} ms (min {TotalMin:F1} ms) = decode avg {DecodeAverage:F1} ms (min {DecodeMin:F1} ms) + raster avg {RasterAverage:F1} ms (min {RasterMin:F1} ms)",
-            pageNumber,
-            iterationCount,
-            scale,
-            totalMilliseconds.Average(),
-            totalMilliseconds.Min(),
-            decodeMilliseconds.Average(),
-            decodeMilliseconds.Min(),
-            rasterMilliseconds.Average(),
-            rasterMilliseconds.Min());
+        // Wall time from opening the document to the last page's characters being stored.
+        iterationStopwatch.Stop();
+
+        if (profile == ProfileMode.Heap && iteration == iterationCount - 1)
+        {
+            Profiler.CollectHeapDump(outputDirectory);
+        }
+
+        // Measured with the document still open and every page's characters still held.
+        long liveBytes = GC.GetTotalMemory(forceFullCollection: true);
+        using Process currentProcess = Process.GetCurrentProcess();
+
+        Console.WriteLine(
+            $"Iteration {iteration,-3} pages {lastPage - firstPage + 1,-5}"
+                + $" wall {iterationStopwatch.Elapsed.TotalMilliseconds,9:F1} ms"
+                + $" decode {iterationDecodeMilliseconds,9:F1} ms"
+                + $" raster {iterationRasterMilliseconds,9:F1} ms"
+                + $" characters {iterationCharacterCount,7}"
+                + $" live {liveBytes / 1048576.0,8:F1} MB"
+                + $" private {currentProcess.PrivateMemorySize64 / 1048576.0,8:F1} MB");
+
+        GC.KeepAlive(pageCharacters);
     }
 
     private static void SavePageSnapshot(ILogger logger, SKSurface surface, string outputDirectory, int pageNumber)

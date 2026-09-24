@@ -116,6 +116,11 @@ internal class MiscellaneousOperators : IOperatorProcessor
         {
             case PdfXObjectSubtype.Image:
             {
+                if (!graphicsState.RenderingParameters.RenderImages)
+                {
+                    break;
+                }
+
                 PdfImage pdfImage = PdfImage.GetImage(pageObject.XObject);
                 _renderer.DrawImage(_processor, pdfImage, graphicsState);
                 break;
@@ -159,6 +164,11 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
         PdfString? shadingName = operands[0].AsName();
         if (shadingName == null)
+        {
+            return;
+        }
+
+        if (!graphicsState.RenderingParameters.RenderShadings)
         {
             return;
         }

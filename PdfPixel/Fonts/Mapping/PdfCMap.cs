@@ -3,6 +3,7 @@ using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.Mapping;
 
@@ -105,6 +106,7 @@ public class PdfCMap
     /// Returns the longest matching codespace length for the provided input prefix.
     /// Returns 0 if no length matches any declared range.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetMaxMatchingLength(in ReadOnlySpan<byte> input)
     {
         if (_codeSpaceRanges.Count == 0 || input.Length == 0)
@@ -137,6 +139,7 @@ public class PdfCMap
     // wrongly accept a byte sequence like E0 E0 E0 against the 3-byte UTF-8 range E080800-EFBFBF:
     // numerically 0xE0E0E0 sits inside [0xE08080, 0xEFBFBF], even though its second byte, E0, is
     // not a valid UTF-8 continuation byte (which the range restricts to 80-BF at that position).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool MatchesEveryBytePosition(in ReadOnlySpan<byte> candidate, in CodeSpaceRange range)
     {
         for (int position = 0; position < range.Length; position++)

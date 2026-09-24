@@ -2,12 +2,12 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using System;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Text;
 
 /// <summary>
-/// Converts PDF text operands (string or TJ array) into a list of shaped glyphs.
+/// Converts PDF text operands (string or TJ array) into a buffer of shaped glyphs.
 /// </summary>
 public static class ShapedGlyphBuilder
 {
@@ -17,8 +17,8 @@ public static class ShapedGlyphBuilder
     /// </summary>
     /// <param name="text">The Unicode text to shape.</param>
     /// <param name="typeface">The typeface resolving glyph ids and advances.</param>
-    /// <param name="buffer">The list to clear and fill with the shaped glyphs.</param>
-    public static void BuildFromText(string text, IPdfTypeface typeface, List<ShapedGlyph> buffer)
+    /// <param name="buffer">The buffer to clear and fill with the shaped glyphs.</param>
+    public static void BuildFromText(string text, IPdfTypeface typeface, ShapedGlyphBuffer buffer)
     {
         if (typeface == null)
         {
@@ -68,10 +68,13 @@ public static class ShapedGlyphBuilder
     /// <summary>
     /// Shapes a PDF TJ array operand into <paramref name="buffer"/>, which is cleared first.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void BuildFromArray(
         IPdfValue arrayOperand,
         PdfGraphicsState state,
-        List<ShapedGlyph> buffer)
+        ShapedGlyphBuffer buffer)
     {
         if (arrayOperand == null || arrayOperand.Type != PdfValueType.Array || state == null || buffer == null)
         {
@@ -134,10 +137,13 @@ public static class ShapedGlyphBuilder
     /// <summary>
     /// Shapes a PDF string operand into <paramref name="buffer"/>, which is cleared first.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void BuildFromString(
         IPdfValue stringOperand,
         PdfGraphicsState state,
-        List<ShapedGlyph> buffer)
+        ShapedGlyphBuffer buffer)
     {
         if (stringOperand == null || stringOperand.Type != PdfValueType.String || state == null || buffer == null)
         {
@@ -160,9 +166,14 @@ public static class ShapedGlyphBuilder
     }
 
     /// <summary>
-    /// Shapes a PdfText and appends the resulting glyphs to the output list.
+    /// Shapes a PdfText and appends the resulting glyphs to the output buffer.
     /// </summary>
-    private static void AddShapedGlyphsForText(in PdfText pdfText, PdfFontBase font, PdfGraphicsState state, List<ShapedGlyph> output, ref float x, ref float y)
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private static void AddShapedGlyphsForText(in PdfText pdfText, PdfFontBase font, PdfGraphicsState state, ShapedGlyphBuffer output, ref float x, ref float y)
     {
         Fonts.Mapping.PdfCharacterCode[] codes = font.ExtractCharacterCodes(pdfText.RawBytes);
         bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
