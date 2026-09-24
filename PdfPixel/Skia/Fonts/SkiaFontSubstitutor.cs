@@ -37,7 +37,7 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
                 postscriptName = postscriptName.Substring(0, postscriptName.Length - 2);
             }
 
-            _postscriptFamilies.Add(postscriptName, family);
+            _postscriptFamilies[postscriptName] = family;
         }
     }
 
