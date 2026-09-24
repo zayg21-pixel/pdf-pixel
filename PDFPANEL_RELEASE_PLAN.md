@@ -7,7 +7,6 @@ Legend: `[ ]` todo, `[~]` in progress, `[x]` done. `[HIGH]` marks TODOs already 
 ## Bugs
 
 - [ ] WPF: copy of selected text works poorly (see also "Stable text interaction")
-- [ ] JPX with mask on top: content is cropped incorrectly by ROI (verify it still reproduces first, find a corpus file)
 - [ ] Web: WASM sometimes breaks on mobile phones when zooming (reproduces at least in the demo)
 - [ ] Web: scroll is jagged. `PdfPixel.PdfPanel.Web/wwwroot/canvasInterop.js:150` `[HIGH]`
 - [ ] Web: `CpuSkiaRenderer` does not copy content from the existing surface on recreate. `PdfPixel.PdfPanel.Web/Rendering/CpuSkiaRenderer.cs:36` `[HIGH]`
@@ -18,6 +17,7 @@ Legend: `[ ]` todo, `[~]` in progress, `[x]` done. `[HIGH]` marks TODOs already 
 - [ ] Stable text interaction: selection and copy behave consistently across WPF and Web
 - [ ] Pre-render and caching of pages: read a couple of pages ahead when idle, tune eviction
 - [ ] Reduce memory consumption where possible
+- [ ] Split the content update delay into separate scroll and zoom delays. Scroll defaults to 0 (decode right away), zoom keeps the current 200 ms. `PdfPixel.PdfPanel/Rendering/PdfPanelRendererProperties.cs:48` (`ContentUpdateDelay`), `PdfPanelRenderer.cs:48`, `:104`
 - [ ] Web: parse type in interop or refactor the JS to remove the need. `PdfPixel.PdfPanel.Web/PdfPanelInterop.cs:285` `[HIGH]`
 - [ ] Remote file loading: implement or drop the TODO. `WpfPdfPanel.cs:359`, `PdfPanelInterop.cs:356`
 - [ ] Cleanup demo files (`PdfPixel.Demo.Wpf`, `PdfPixel.Demo.Web`)
