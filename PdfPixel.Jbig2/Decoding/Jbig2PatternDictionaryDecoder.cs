@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -15,6 +16,9 @@ internal static class Jbig2PatternDictionaryDecoder
     /// </summary>
     /// <param name="segmentData">Encoded pattern dictionary data.</param>
     /// <returns>Array of decoded pattern bitmaps, or empty array on failure.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public static Jbig2Bitmap[] Decode(in ReadOnlySpan<byte> segmentData)
     {
         if (segmentData.Length < 7)

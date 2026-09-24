@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using PdfPixel.Ccitt;
 using PdfPixel.Jbig2.Model;
 
@@ -22,6 +23,9 @@ internal static class Jbig2MmrDecoder
     /// <param name="bytesConsumed">Number of bytes consumed from <paramref name="data"/>.</param>
     /// <param name="observer">Observer to notify on each decoded row.</param>
     /// <returns>Decoded bitmap.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed, IJBig2ExectionObserver? observer = null)
     {
         Jbig2Bitmap bitmap = new(width, height);

@@ -115,6 +115,7 @@ public ref struct CcittBitReader
     /// Discards remaining bits in the current byte when <paramref name="byteAlign"/> is true,
     /// aligning the stream to the next byte boundary.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void AlignAfterEndOfLine(bool byteAlign)
     {
         if (byteAlign)
@@ -138,6 +139,9 @@ public ref struct CcittBitReader
     /// ITU-T T.4 allows an encoder to pad it with. Returns true and advances the stream when a
     /// marker is found, and leaves the position untouched when it is not.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public bool TryConsumeEol()
     {
         if (PeekBits(12) == 0x001)

@@ -19,6 +19,11 @@ public static class CcittG3OneDDecoder
     /// <param name="byteAlign">When true, the reader is byte-aligned after consuming the leading EOL.</param>
     /// <param name="runs">Output buffer populated with alternating white/black run lengths (first run is white).</param>
     /// <param name="runsCount">On return, the number of runs written.</param>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void DecodeOneDCollectRuns(
         ref CcittBitReader reader,
         int width,

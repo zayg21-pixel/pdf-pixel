@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -67,6 +68,9 @@ internal static class Jbig2SymbolDictionaryDecoder
             referredSymbols);
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static Jbig2Bitmap[] DecodeHuffmanSymbols(
         in ReadOnlySpan<byte> segmentData,
         in Jbig2SymbolDictionarySegmentInfo info,
@@ -236,6 +240,9 @@ internal static class Jbig2SymbolDictionaryDecoder
     /// <summary>
     /// Reads an uncompressed bitmap from the Huffman stream, byte-aligning after each row.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static Jbig2Bitmap ReadUncompressedBitmap(Jbig2HuffmanDecoder reader, int width, int height)
     {
         Jbig2Bitmap bitmap = new(width, height);

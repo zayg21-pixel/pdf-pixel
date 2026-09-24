@@ -19,7 +19,11 @@ public static class CcittRaster
     /// <param name="rowIndex">Row index being written.</param>
     /// <param name="width">Row width in pixels.</param>
     /// <param name="blackIs1">Bit polarity (1=black when true).</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void RasterizeRuns(in Span<byte> buffer, in ReadOnlySpan<int> runs, int rowIndex, int width, bool blackIs1)
     {
         int rowBytes = (width + 7) / 8;
@@ -48,7 +52,11 @@ public static class CcittRaster
     /// <summary>
     /// Build reference change list from run lengths for subsequent 2D line processing.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static int BuildReferenceChangeList(in ReadOnlySpan<int> runs, int width, in Span<int> buffer)
     {
         int position = 0;
@@ -87,7 +95,11 @@ public static class CcittRaster
         return position;
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void WriteBlackRun(in Span<byte> buffer, int rowBase, int startX, int length, int blackBit)
     {
         if (length <= 0)

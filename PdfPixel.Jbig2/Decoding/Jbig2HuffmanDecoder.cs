@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jbig2.Decoding;
 
@@ -38,6 +39,7 @@ internal sealed class Jbig2HuffmanDecoder
     /// Reads a single bit from the stream (MSB-first).
     /// </summary>
     /// <returns>0 or 1.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int ReadBit()
     {
         ReadOnlySpan<byte> span = _data.Span;
@@ -63,6 +65,11 @@ internal sealed class Jbig2HuffmanDecoder
     /// </summary>
     /// <param name="count">Number of bits to read.</param>
     /// <returns>Unsigned integer value.</returns>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public int ReadBits(int count)
     {
         int result = 0;
@@ -79,6 +86,9 @@ internal sealed class Jbig2HuffmanDecoder
     /// </summary>
     /// <param name="table">The Huffman table to decode with.</param>
     /// <returns>Decoded integer value, or int.MinValue for OOB.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public int DecodeValue(Jbig2HuffmanTable table)
     {
         int code = 0;

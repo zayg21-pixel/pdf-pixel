@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace PdfPixel.Ccitt;
 
 /// <summary>
@@ -13,6 +15,11 @@ internal static class CcittRunDecoder
     /// Decode a single run: zero or more make-up codes then one terminating code. Returns result.
     /// Returns Length = -1 on error. EOL returns IsEndOfLine=true, Length=0, HasTerminating=false.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static RunDecodeResult DecodeRun(ref CcittBitReader reader, bool isBlack)
     {
         CcittFaxCode[] lookupTable = isBlack ? CcittCodeTables.BlackLookup : CcittCodeTables.WhiteLookup;
@@ -50,6 +57,7 @@ internal static class CcittRunDecoder
     /// <summary>
     /// Decode a single code from the bit stream using a flat lookup table for performance.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static CcittFaxCode? DecodeSingleCode(ref CcittBitReader reader, CcittFaxCode[] lookupTable)
     {
         int bits = reader.PeekBits(MaxCodeBits);

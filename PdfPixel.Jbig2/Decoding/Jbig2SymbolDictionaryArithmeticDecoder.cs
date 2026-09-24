@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -22,6 +23,9 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
     /// Exported symbols (referred + new, filtered by the IAEX export flags), or all new symbols
     /// when the export procedure fails to produce any output.
     /// </returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static Jbig2Bitmap[] Decode(
         in ReadOnlySpan<byte> codedData,
         Jbig2SymbolArithmeticContext context,
@@ -183,6 +187,9 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
     /// <summary>
     /// Decodes a direct-coded symbol bitmap using generic region decoding (ITU-T T.88 Section 6.5.8.1).
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static Jbig2Bitmap DecodeSymbolBitmap(
         ref Jbig2ArithmeticReader decoder,
         in Span<byte> contexts,

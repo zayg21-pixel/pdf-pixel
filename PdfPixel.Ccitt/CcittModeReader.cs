@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace PdfPixel.Ccitt;
 
 /// <summary>
@@ -48,6 +50,7 @@ internal static class CcittModeReader
     /// <param name="reader">Reference to the bit reader positioned at the current bit stream location.</param>
     /// <param name="mode">When successful, receives the decoded <see cref="ModeCode"/> value.</param>
     /// <returns>True if a valid mode code was found and consumed; otherwise, false.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryPeekAndConsumeMode(ref CcittBitReader reader, out ModeCode mode)
     {
         int bits = reader.PeekBits(MaxBits);

@@ -84,6 +84,9 @@ internal static class Jbig2GenericRegionDecoder
     /// <summary>
     /// Core arithmetic generic region decode using the supplied AT pixel values and coded data.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static Jbig2Bitmap DecodeArithmeticWithAt(
         int templateId,
         bool typicalPrediction,

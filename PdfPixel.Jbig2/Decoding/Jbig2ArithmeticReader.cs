@@ -296,7 +296,11 @@ internal ref struct Jbig2ArithmeticReader
     /// Handles the BYTEIN case where the previous byte was 0xFF (bit-stuffing or marker).
     /// Separated to keep the common ByteIn path short and inlinable.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.NoInlining)]
+#else
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ByteInAfterFF()
     {
         int nextPos = _bp + 1;

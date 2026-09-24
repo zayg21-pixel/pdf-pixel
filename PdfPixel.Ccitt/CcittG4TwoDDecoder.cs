@@ -17,7 +17,11 @@ public static class CcittG4TwoDDecoder
     /// <param name="referenceChanges">Change positions from the previous reference row (color-transition x-coordinates).</param>
     /// <param name="runs">Output buffer populated with alternating white/black run lengths (first run is white).</param>
     /// <param name="runsCount">On return, the number of runs written.</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void DecodeTwoDLine(ref CcittBitReader reader, int width, in ReadOnlySpan<int> referenceChanges, in Span<int> runs, ref int runsCount)
     {
         runsCount = 0;
@@ -145,7 +149,11 @@ public static class CcittG4TwoDDecoder
     /// Finds the first reference change after a0 (or at 0 if a0 is 0) where the color after the change
     /// is not equal to a0Color. Returns the last change if no such change is found.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static int GetB1(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color)
     {
         ref readonly int start = ref referenceChanges[0];
@@ -166,7 +174,11 @@ public static class CcittG4TwoDDecoder
         return referenceChanges[referenceChanges.Length - 1];
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void GetB1B2(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color, out int b1, out int b2)
     {
         ref readonly int start = ref referenceChanges[0];

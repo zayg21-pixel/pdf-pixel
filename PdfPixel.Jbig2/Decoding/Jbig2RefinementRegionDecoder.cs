@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -111,6 +112,9 @@ internal static class Jbig2RefinementRegionDecoder
     /// Core refinement region decode loop, shared by standalone and inline paths.
     /// Implements ITU-T T.88 Section 6.3.5 with optional TPGRON (Section 6.3.5.6).
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DecodeRegion(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,

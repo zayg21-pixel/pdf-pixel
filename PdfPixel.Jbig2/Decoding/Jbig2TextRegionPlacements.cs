@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -63,6 +64,9 @@ internal sealed class Jbig2TextRegionPlacements
         MaterialiseAndCompose(target, x, y, op);
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private void DirectCompose(Jbig2Bitmap target, int x, int y, Jbig2CombinationOperator op)
     {
         foreach (Placement placement in _placements)
@@ -79,6 +83,9 @@ internal sealed class Jbig2TextRegionPlacements
         }
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private void MaterialiseAndCompose(Jbig2Bitmap target, int x, int y, Jbig2CombinationOperator op)
     {
         Jbig2Bitmap region = new(_width, _height, _defaultPixel);
@@ -160,6 +167,9 @@ internal sealed class Jbig2TextRegionPlacements
     /// is what Regime 2 needs. Y-sorted sweep — O(n log n) sort plus a near-linear scan for
     /// typical text layouts where each glyph's Y-range overlaps only its own line's neighbours.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private bool HasBboxOverlap()
     {
         int count = _placements.Count;

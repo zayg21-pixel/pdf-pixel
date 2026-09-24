@@ -110,7 +110,11 @@ public sealed class CcittRowDecoder
     /// </summary>
     /// <param name="destinationRow">Output buffer; must be at least <see cref="RowStride"/> bytes long.</param>
     /// <returns>True if a row was decoded; false when all rows are exhausted.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public bool DecodeNextRow(in Span<byte> destinationRow)
     {
         if (_completed)

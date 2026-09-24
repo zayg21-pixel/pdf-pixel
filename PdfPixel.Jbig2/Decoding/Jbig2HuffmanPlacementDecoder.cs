@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -25,6 +26,9 @@ internal static class Jbig2HuffmanPlacementDecoder
     /// <param name="numberOfSymbolInstances">Total instances to place.</param>
     /// <param name="placements">Sink that records each placed symbol with its region-local coordinates.</param>
     /// <param name="refinement">Refinement tables, or null when refinement is disabled.</param>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void Decode(
         Jbig2HuffmanDecoder huffDecoder,
         Jbig2HuffmanTable symbolIdTable,

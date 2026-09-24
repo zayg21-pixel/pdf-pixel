@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -18,6 +19,9 @@ internal static class Jbig2HalftoneRegionDecoder
     /// <param name="regionInfo">Region dimensions and position.</param>
     /// <param name="patterns">Available pattern bitmaps from the referred pattern dictionary.</param>
     /// <returns>Decoded region bitmap.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public static Jbig2Bitmap Decode(
         in ReadOnlySpan<byte> segmentData,
         Jbig2RegionHeader regionInfo,
@@ -185,6 +189,9 @@ internal static class Jbig2HalftoneRegionDecoder
     /// <summary>
     /// Decodes all bit planes using arithmetic coding with a single sequential decoder.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DecodeArithmeticPlanes(
         in ReadOnlySpan<byte> data,
         int gridWidth,
@@ -227,6 +234,11 @@ internal static class Jbig2HalftoneRegionDecoder
     /// Decodes one row of a bit plane, skipping pixels marked in the skip bitmap.
     /// Skipped pixels are left as 0 and no arithmetic decoding is performed for them.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DecodeRowWithSkip(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,

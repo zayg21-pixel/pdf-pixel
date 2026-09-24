@@ -19,7 +19,11 @@ internal static class Jbig2RowDecoder
     /// context label from <paramref name="templatePixels"/>, decodes one bit via the arithmetic
     /// coder, and writes it to the bitmap. Used for both default-AT and custom-AT layouts.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void DecodeRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
@@ -37,7 +41,11 @@ internal static class Jbig2RowDecoder
     /// <summary>
     /// Decodes a single pixel using per-pixel GetPixel context gathering (slow path).
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void DecodeValue(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
@@ -62,7 +70,11 @@ internal static class Jbig2RowDecoder
     /// using mask extraction. For each row group, loads 2 bytes from the source row and
     /// extracts all group bits with a single shift+mask.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void DecodeRowSlow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
@@ -170,7 +182,11 @@ internal static class Jbig2RowDecoder
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void DecodeRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
@@ -195,7 +211,11 @@ internal static class Jbig2RowDecoder
     /// big-endian ulong store). When the template has no dy=0 group at all, the buffer still
     /// runs as a pure write-back register — context simply has no row-0 contribution.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DecodeRowFast(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
@@ -493,7 +513,11 @@ internal static class Jbig2RowDecoder
     /// <paramref name="refDx"/>/<paramref name="refDy"/> offsets applied.
     /// When <paramref name="usePrediction"/> is set, checks TPGRON implicit value before decoding.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void DecodeRefinementRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,

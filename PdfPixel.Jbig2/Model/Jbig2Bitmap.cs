@@ -90,6 +90,7 @@ public sealed class Jbig2Bitmap
     /// <param name="x">Column index.</param>
     /// <param name="y">Row index.</param>
     /// <returns>0 or 1.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetPixel(int x, int y)
     {
         if ((uint)x >= (uint)Width || (uint)y >= (uint)Height)
@@ -108,6 +109,7 @@ public sealed class Jbig2Bitmap
     /// <param name="x">Column index.</param>
     /// <param name="y">Row index.</param>
     /// <param name="value">Pixel value (0 or 1).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixel(int x, int y, int value)
     {
         if ((uint)x >= (uint)Width || (uint)y >= (uint)Height)
@@ -145,6 +147,9 @@ public sealed class Jbig2Bitmap
     /// text-region direct-compose fast path to enforce per-region clipping while writing straight
     /// to the page bitmap.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void Composite(
         Jbig2Bitmap source,
         int x,

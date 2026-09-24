@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
@@ -22,6 +23,9 @@ internal static class Jbig2ArithmeticDecoder
     /// <param name="placements">Sink that records each placed symbol with its region-local coordinates.</param>
     /// <param name="symbols">Available symbol bitmaps referenced by symbol IDs.</param>
     /// <param name="numberOfSymbolInstances">Total number of symbol instances to place.</param>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     internal static void Decode(
         ref Jbig2ArithmeticReader reader,
         Jbig2ArithmeticContext context,
