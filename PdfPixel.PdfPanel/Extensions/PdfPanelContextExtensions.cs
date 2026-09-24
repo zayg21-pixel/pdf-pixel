@@ -3,6 +3,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Text;
 using System;
 using System.Linq;
 
@@ -318,6 +319,30 @@ public static class PdfPanelContextExtensions
         {
             context.ScrollToPage(targetPage.PageNumber);
         }
+    }
+
+    /// <summary>
+    /// Scrolls the viewport so the specified search match is centered in it.
+    /// </summary>
+    /// <param name="context">The panel context to scroll.</param>
+    /// <param name="match">The search match to navigate to.</param>
+    public static void ScrollToSearchMatch(this PdfPanelContext context, in PdfPanelSearchMatch match)
+    {
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        if (!context.Pages.TryGetPage(match.Range.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
+        {
+            return;
+        }
+
+        PdfMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
+        PdfPoint canvasCenter = pageToCanvas.MapPoint(new PdfPoint(match.Bounds.MidX, match.Bounds.MidY));
+
+        context.HorizontalOffset = canvasCenter.X - (context.ViewportWidth / 2);
+        context.VerticalOffset = canvasCenter.Y - (context.ViewportHeight / 2);
     }
 
     private static float? ComputeFitZoom(PdfPanelPage page, PdfDestination destination, float viewportWidth, float viewportHeight)

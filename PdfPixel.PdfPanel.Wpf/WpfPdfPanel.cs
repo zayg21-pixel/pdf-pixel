@@ -3,11 +3,13 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
 using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,6 +40,7 @@ public partial class WpfPdfPanel : FrameworkElement
         UseLayoutRounding = true;
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
         children = new VisualCollection(this);
+        SetValue(SearchResultsPropertyKey, new ObservableCollection<PdfPanelSearchMatch>());
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
@@ -105,7 +108,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context?.Dispose();
 
-        _renderer?.Dispose();
+        DisposeRenderer();
         _renderer = null;
         _context = null;
 
@@ -200,7 +203,8 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context?.Dispose();
 
-        _renderer?.Dispose();
+        DisposeRenderer();
+        ClearSearchResults();
 
         PdfPanelRendererProperties rendererProperties = new()
         {
@@ -210,7 +214,19 @@ public partial class WpfPdfPanel : FrameworkElement
         };
 
         _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, rendererProperties);
+        _renderer.TextSearchEngine.MatchesChanged += OnSearchMatchesChanged;
         _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory);
+    }
+
+    private void DisposeRenderer()
+    {
+        if (_renderer == null)
+        {
+            return;
+        }
+
+        _renderer.TextSearchEngine.MatchesChanged -= OnSearchMatchesChanged;
+        _renderer.Dispose();
     }
 
     private void SyncViewerCanvasState()
@@ -227,6 +243,9 @@ public partial class WpfPdfPanel : FrameworkElement
             (float)PagesPadding.Top,
             (float)PagesPadding.Right,
             (float)PagesPadding.Bottom);
+
+        _context.SearchQuery = SearchQuery;
+        _context.ExtractText = !string.IsNullOrEmpty(SearchQuery);
 
         UpdatePointerState();
 

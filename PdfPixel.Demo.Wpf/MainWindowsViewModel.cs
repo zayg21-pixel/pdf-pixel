@@ -5,6 +5,7 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf;
 using SkiaSharp;
 using System.Collections.ObjectModel;
@@ -46,6 +47,8 @@ public class MainWindowsViewModel : ObservableObject
     private IPdfDocument _document;
     private PdfFileLocation _selectedPdfFile;
     private bool _hasFiles;
+    private string _searchQuery;
+    private PdfPanelSearchMatch? _currentSearchResult;
 
     public MainWindowsViewModel()
     {
@@ -124,6 +127,18 @@ public class MainWindowsViewModel : ObservableObject
     {
         get => _pages;
         set => SetProperty(ref _pages, value);
+    }
+
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set => SetProperty(ref _searchQuery, value);
+    }
+
+    public PdfPanelSearchMatch? CurrentSearchResult
+    {
+        get => _currentSearchResult;
+        set => SetProperty(ref _currentSearchResult, value);
     }
 
     private void OnAfterDraw(SKCanvas canvas, DrawingRequest request)

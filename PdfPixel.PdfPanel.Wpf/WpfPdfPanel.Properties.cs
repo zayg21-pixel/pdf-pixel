@@ -1,5 +1,8 @@
 ﻿using PdfPixel.Color;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Text;
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -42,6 +45,17 @@ public partial class WpfPdfPanel
 
     public static readonly DependencyProperty PanelInterfaceProperty = DependencyProperty.Register(nameof(PanelInterface), typeof(WpfPdfPanelInterface), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, PanelInterfaceProperty_Changed));
+
+    public static readonly DependencyProperty SearchQueryProperty = DependencyProperty.Register(nameof(SearchQuery), typeof(string), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, SearchQueryProperty_Changed));
+
+    public static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(SearchResults), typeof(ObservableCollection<PdfPanelSearchMatch>), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+    public static readonly DependencyProperty SearchResultsProperty = SearchResultsPropertyKey.DependencyProperty;
+
+    public static readonly DependencyProperty CurrentSearchResultProperty = DependencyProperty.Register(nameof(CurrentSearchResult), typeof(PdfPanelSearchMatch?), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentSearchResultProperty_Changed));
 
     public static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(PageLabel), typeof(string), typeof(WpfPdfPanel),
@@ -178,6 +192,32 @@ public partial class WpfPdfPanel
     public ToolTip AnnotationToolTip { get; set; }
 
     /// <summary>
+    /// Gets or sets the text to search for in the document, or <see langword="null"/> when no search is active.
+    /// </summary>
+    public string SearchQuery
+    {
+        get => (string)GetValue(SearchQueryProperty);
+        set => SetValue(SearchQueryProperty, value);
+    }
+
+    /// <summary>
+    /// Gets the results of <see cref="SearchQuery"/> found so far, ordered by page.
+    /// </summary>
+    public ObservableCollection<PdfPanelSearchMatch> SearchResults
+    {
+        get => (ObservableCollection<PdfPanelSearchMatch>)GetValue(SearchResultsProperty);
+    }
+
+    /// <summary>
+    /// Gets or sets the search result the panel navigates to.
+    /// </summary>
+    public PdfPanelSearchMatch? CurrentSearchResult
+    {
+        get => (PdfPanelSearchMatch?)GetValue(CurrentSearchResultProperty);
+        set => SetValue(CurrentSearchResultProperty, value);
+    }
+
+    /// <summary>
     /// Gets or sets the panel interface for controlling panel operations via MVVM.
     /// </summary>
     public WpfPdfPanelInterface PanelInterface
@@ -260,6 +300,24 @@ public partial class WpfPdfPanel
         if (!source._updatingPages)
         {
             source.ScrollToPage(source.CurrentPage);
+        }
+    }
+
+    private static void SearchQueryProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var source = (WpfPdfPanel)d;
+
+        source.InvalidateVisual();
+    }
+
+    private static void CurrentSearchResultProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var source = (WpfPdfPanel)d;
+
+        if (e.NewValue is PdfPanelSearchMatch searchMatch && source._context != null)
+        {
+            source._context.ScrollToSearchMatch(searchMatch);
+            source.InvalidateVisual();
         }
     }
 

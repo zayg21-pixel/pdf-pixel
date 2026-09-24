@@ -75,6 +75,11 @@ public sealed class PdfTextExtractionCommandProcessor : IPdfCommandProcessor
                 _executionContext.MarkedContent.AppendCharacters(matrix, textCharactersCommand.Characters);
                 break;
             }
+            case PdfCommandKind.DrawRecording:
+            {
+                ProcessRecording((DrawRecordingCommand)command);
+                break;
+            }
         }
     }
 
@@ -84,5 +89,32 @@ public sealed class PdfTextExtractionCommandProcessor : IPdfCommandProcessor
         Process(command);
 
         return default;
+    }
+
+    private void ProcessRecording(DrawRecordingCommand command)
+    {
+        PdfCommandExecutionFrames frames = _executionContext.Frames;
+
+        frames.OnSaveState();
+        frames.OnConcatMatrix(command.Matrix);
+
+        int savesCountAfterOwnSave = frames.SavesCount;
+
+        foreach (IPdfCommand recordedCommand in command.Recorder.Commands)
+        {
+            Process(recordedCommand);
+        }
+
+        while (frames.SavesCount > savesCountAfterOwnSave)
+        {
+            frames.OnRestoreState();
+        }
+
+        while (frames.SavesCount < savesCountAfterOwnSave)
+        {
+            frames.OnSaveState();
+        }
+
+        frames.OnRestoreState();
     }
 }

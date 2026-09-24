@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:PdfPixel.Demo.Wpf"
         xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel;assembly=PdfPixel.PdfPanel"
         xmlns:pdfPanelAnnotations="clr-namespace:PdfPixel.PdfPanel.Annotations;assembly=PdfPixel.PdfPanel"
+        xmlns:pdfPanelText="clr-namespace:PdfPixel.PdfPanel.Text;assembly=PdfPixel.PdfPanel"
         xmlns:wpfPdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
         mc:Ignorable="d"
         Icon="logo.ico"
@@ -138,6 +139,33 @@
                     </TextBlock>
                 </Button>
             </ToolBar>
+
+            <Grid Grid.Column="2" Margin="8 0" VerticalAlignment="Center">
+                <TextBox x:Name="SearchBox"
+                         Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Delay=300}"
+                         ToolTip="Search"
+                         VerticalContentAlignment="Center" />
+                <Popup x:Name="SearchPopup"
+                       PlacementTarget="{Binding ElementName=SearchBox}"
+                       Placement="Bottom"
+                       Width="{Binding ActualWidth, ElementName=SearchBox}"
+                       IsOpen="{Binding IsKeyboardFocusWithin, ElementName=SearchBox, Mode=OneWay}">
+                    <ListBox ItemsSource="{Binding SearchResults, ElementName=pdfPanel}"
+                             SelectedItem="{Binding CurrentSearchResult}"
+                             MaxHeight="300">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                <EventSetter Event="MouseEnter" Handler="SearchResultItem_MouseEnter" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanelText:PdfPanelSearchMatch}">
+                                <TextBlock Text="{Binding Range.PageNumber, StringFormat=Page {0}}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Popup>
+            </Grid>
         </Grid>
 
         <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
@@ -146,6 +174,8 @@
                                      Pages="{Binding Pages}"
                                      PageCornerRadius="4"
                                      AutoScaleMode="{Binding AutoScaleMode}"
+                                     SearchQuery="{Binding SearchQuery}"
+                                     CurrentSearchResult="{Binding CurrentSearchResult}"
                                      PanelInterface="{Binding PanelInterface}">
                 <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip>

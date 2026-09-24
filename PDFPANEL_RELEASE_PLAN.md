@@ -27,7 +27,7 @@ Legend: `[ ]` todo, `[~]` in progress, `[x]` done. `[HIGH]` marks TODOs already 
 
 ### Finalized API for rendering on top of pages
 
-Same path for WPF/MAUI and other native hosts, a separate one for WASM. Needed before search highlights can be drawn.
+Same path for WPF/MAUI and other native hosts, a separate one for WASM. Search and selection highlights do not depend on it; they are drawn by `PdfPanelTextLayer`.
 
 - [ ] Define the overlay contract (what the host draws, in which coordinate space, draw order relative to page content)
 - [ ] Native implementation (WPF first, shape it so MAUI can reuse it)
@@ -36,17 +36,18 @@ Same path for WPF/MAUI and other native hosts, a separate one for WASM. Needed b
 
 ### Text search
 
-Biggest item. Depends on the overlay API for match highlighting.
+Biggest item. Highlights are drawn by `PdfPanelTextLayer` itself, so search no longer waits for the overlay API.
 
-- [ ] Per-page text extraction with positions, reusing what text selection already produces
-- [ ] Search engine: background, cancellable, incremental across pages, progress reporting
-- [ ] Matching rules: case, diacritics, ligatures, whitespace and line-break handling, hyphenation
-- [ ] Match model: page, range, bounding rectangles per match
-- [ ] Highlight rendering of all matches and the current one (via overlay API)
-- [ ] Navigation: next/previous match, scroll to match, match count
-- [ ] Public API on `PdfPanelContext`
-- [ ] UI in WPF demo and Web demo
+- [x] Per-page text extraction without rendering: `PdfTextExtractionCommandProcessor` (no Skia, replays nested form recordings) run by `PdfPageExtractTextWorkItem`. Characters are kept per page in `PdfPageCacheEntryItem.Characters` (`null` = not extracted) and survive page-out. `PdfPanelContext.ExtractText` keeps exactly one text item queued, so rendering waits for at most one page. `PageTextExtracted` is raised by both text extraction and rendering
+- [~] Search engine: `PdfPanelTextSearchEngine` over `PdfPanelTextLayer` text, incremental (`MatchesChanged` on every page with matches). Not cancellable by decision. No progress reporting yet
+- [~] Matching rules: `MatchCase` and `WholeWord` done. Diacritics, ligatures, hyphenation and inferred spaces between words (characters are joined as extracted) not done
+- [x] Match model: `PdfPanelSearchMatch` = `PdfPanelTextRange` (page, start index, length) + bounds. Selection uses the same range type
+- [~] Highlight rendering: all matches of the visible pages drawn in `SearchMatchColor` under the selection. No separate highlight for the current match
+- [~] Navigation: `ScrollToSearchMatch` context extension, count via the results. No next/previous in the API (host side)
+- [x] Public API: `PdfPanelContext.SearchQuery`, `SearchOptions`, `ExtractText`; results on `PdfPanelRenderer.TextSearchEngine`; `PdfPanelRenderer` orchestrates extraction → search → page redraw
+- [~] UI: WPF done (`SearchQuery`, `SearchResults`, `CurrentSearchResult` on `WpfPdfPanel`; demo search box with results drop-down, navigates on hover). Web panel and Web demo not done
 - [ ] Tests
+- [ ] Text inside soft-mask forms is extracted like page text, in both rendering and text extraction
 
 ## Investigations
 
@@ -56,12 +57,16 @@ Biggest item. Depends on the overlay API for match highlighting.
   - 3i_2021 (CMYK ICC), page 1, scale 4: first iteration 649 → 582 ms, steady unchanged
   - Tagged code gets no Dynamic PGO. Accepted: documents are decoded once and cached, the cold run is what the user waits for. Loop helpers called from tagged methods need `AggressiveInlining`, a tagged caller does not inline loops on its own
   - PdfPixel.PostScript left untagged
+- [x] Text extraction performance, text-only (no paths, images, shadings), all pages, characters of every page held, Release:
+  - PDF32000_2008_unlocked, 756 pages, 1.92M characters: ~2.4–2.5 s cold, ~0.75–0.9 s warm, 66.5 MB live
+  - pdf.pdf.pdf, 1310 pages, 2.43M characters: ~3.1–3.3 s cold, ~1.15 s warm, 116 MB live
+  - Allocations 1332 → 664 MB: parser value buffers reused, flattener buffer, per-block character buffer, no `ShapedGlyph[]` copy when nothing keeps the glyphs (span through `DrawTextSequence`), `AggressiveOptimization` on the text hot path
 
 ## Suggested order
 
-1. Missing functionality first, starting with text search (text reading and search engine, no UI dependencies)
-2. Overlay API, then search highlighting and navigation
-3. Refactor where needed: text selection moves onto the same text layer as search
+1. Missing functionality first, starting with text search. Done for the core and WPF; Web and the open items above remain
+2. Overlay API
+3. Refactor where needed: text selection moves onto the same text layer as search. Done (`PdfPanelTextLayer`)
 4. Bugs and TODOs above
 5. Pre-render, caching, memory
 6. Demo cleanup, final WASM cleanup, delete this file
