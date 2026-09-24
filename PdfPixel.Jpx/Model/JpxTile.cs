@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Model;
 
@@ -137,93 +136,5 @@ public sealed class JpxTile
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Gets the raw signed-or-unsigned component value at the specified coordinates.
-    /// </summary>
-    public int GetComponentValue(int component, int x, int y)
-    {
-        if (component < 0 || component >= ComponentCount)
-        {
-            return 0;
-        }
-
-        if (x < 0 || x >= Width || y < 0 || y >= Height)
-        {
-            return 0;
-        }
-
-        return ComponentData[component][(y * Width) + x];
-    }
-
-    /// <summary>
-    /// Returns the component value at (x, y) as an unsigned integer normalized to
-    /// <paramref name="normalizedBitsPerComponent"/> bits.
-    /// Signed samples are biased to unsigned using <paramref name="componentInfo"/>'s
-    /// actual precision before any depth rescaling is applied.
-    /// </summary>
-#if NETSTANDARD2_0
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#else
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-#endif
-    public uint GetUnsignedComponentValue(int component, int x, int y, JpxComponent componentInfo, int normalizedBitsPerComponent)
-    {
-        if (component < 0 || component >= ComponentCount)
-        {
-            return 0;
-        }
-
-        if (componentInfo == null)
-        {
-            return 0;
-        }
-
-        if (x < 0 || x >= Width || y < 0 || y >= Height)
-        {
-            return 0;
-        }
-
-        int rawValue = ComponentData[component][(y * Width) + x];
-        int actualBits = componentInfo.PrecisionBits;
-
-        uint uValue = (componentInfo.IsSigned)
-            ? (uint)(rawValue + (1 << (actualBits - 1)))
-            : (uint)rawValue;
-
-        int shift = actualBits - normalizedBitsPerComponent;
-        if (shift > 0)
-        {
-            uValue >>= shift;
-        }
-        else if (shift < 0)
-        {
-            uValue <<= -shift;
-        }
-
-        return uValue;
-    }
-
-    /// <summary>
-    /// Sets the component value at the specified coordinates.
-    /// </summary>
-    /// <param name="component">Component index (0-based).</param>
-    /// <param name="x">X coordinate within tile.</param>
-    /// <param name="y">Y coordinate within tile.</param>
-    /// <param name="value">Value to set.</param>
-    public void SetComponentValue(int component, int x, int y, int value)
-    {
-        if (component < 0 || component >= ComponentCount)
-        {
-            return;
-        }
-
-        if (x < 0 || x >= Width || y < 0 || y >= Height)
-        {
-            return;
-        }
-
-        ComponentData[component][(y * Width) + x] = value;
     }
 }

@@ -46,9 +46,29 @@ public sealed class JpxTileToRowConverter
     private int _loadedTileRow = -1;
 
     /// <summary>
-    /// Indices of color (non-alpha) components in output order.
+    /// Indices of the output components in output order: color components, then alpha when present.
     /// </summary>
-    private readonly int[] _colorComponentIndices;
+    private readonly int[] _outputComponentIndices;
+
+    /// <summary>
+    /// Per output component, the bias added to a raw sample to make it unsigned.
+    /// </summary>
+    private readonly int[] _sampleBias;
+
+    /// <summary>
+    /// Per output component, the right shift from its precision down to <see cref="BitsPerComponent"/>.
+    /// </summary>
+    private readonly int[] _sampleRightShift;
+
+    /// <summary>
+    /// Per output component, the left shift from its precision up to <see cref="BitsPerComponent"/>.
+    /// </summary>
+    private readonly int[] _sampleLeftShift;
+
+    /// <summary>
+    /// Per output component, the sample array of the tile being written.
+    /// </summary>
+    private readonly int[][] _outputComponentData;
 
     /// <summary>
     /// Index of the alpha component in the tile's ComponentData, or -1 when no alpha is present.
@@ -92,17 +112,22 @@ public sealed class JpxTileToRowConverter
 
         ComponentCount = componentSelection.Count;
         ColorComponentCount = ComponentCount - ((_alphaComponentIndex >= 0) ? 1 : 0);
-        _colorComponentIndices = new int[ColorComponentCount];
+        _outputComponentIndices = new int[ComponentCount];
 
-        int colorIndex = 0;
+        int outputIndex = 0;
         for (int index = 0; index < componentSelection.Count; index++)
         {
             int component = componentSelection[index];
 
             if (component != _alphaComponentIndex)
             {
-                _colorComponentIndices[colorIndex++] = component;
+                _outputComponentIndices[outputIndex++] = component;
             }
+        }
+
+        if (_alphaComponentIndex >= 0)
+        {
+            _outputComponentIndices[outputIndex] = _alphaComponentIndex;
         }
 
         _reducedTileWidth = _decodingParameters.ReduceDimension((int)header.TileWidth);
@@ -125,6 +150,22 @@ public sealed class JpxTileToRowConverter
         }
 
         BitsPerComponent = Math.Min(16, Math.Max(1, headerBpc));
+
+        _sampleBias = new int[ComponentCount];
+        _sampleRightShift = new int[ComponentCount];
+        _sampleLeftShift = new int[ComponentCount];
+        _outputComponentData = new int[ComponentCount][];
+
+        for (int index = 0; index < ComponentCount; index++)
+        {
+            JpxComponent componentInfo = header.Components[_outputComponentIndices[index]];
+            int precisionBits = componentInfo.PrecisionBits;
+            int shift = precisionBits - BitsPerComponent;
+
+            _sampleBias[index] = (componentInfo.IsSigned) ? 1 << (precisionBits - 1) : 0;
+            _sampleRightShift[index] = Math.Max(shift, 0);
+            _sampleLeftShift[index] = Math.Max(-shift, 0);
+        }
     }
 
     /// <summary>
@@ -183,8 +224,6 @@ public sealed class JpxTileToRowConverter
             throw new ArgumentException($"Row buffer too small. Required: {requiredBytes}, provided: {rowBuffer.Length}");
         }
 
-        rowBuffer.Slice(0, requiredBytes).Clear();
-
         int tileRow = _currentRow / _reducedTileHeight;
         int rowWithinTile = _currentRow % _reducedTileHeight;
 
@@ -204,6 +243,13 @@ public sealed class JpxTileToRowConverter
     private void WriteRowBits(in Span<byte> rowBuffer, int tileRow, int rowWithinTile, ref int outputPixelIndex)
     {
         JpxBitWriter writer = new(rowBuffer);
+        int bitsPerComponent = BitsPerComponent;
+        int componentCount = _outputComponentIndices.Length;
+        int[] outputComponentIndices = _outputComponentIndices;
+        int[][] outputComponentData = _outputComponentData;
+        int[] sampleBias = _sampleBias;
+        int[] sampleRightShift = _sampleRightShift;
+        int[] sampleLeftShift = _sampleLeftShift;
 
         for (int tileCol = 0; tileCol < _tileProvider.TilesHorizontal; tileCol++)
         {
@@ -211,12 +257,6 @@ public sealed class JpxTileToRowConverter
 
             if (tileIndex >= _tileProvider.TotalTiles)
             {
-                int remainingPixels = Width - outputPixelIndex;
-                for (int i = 0; i < remainingPixels * ComponentCount; i++)
-                {
-                    writer.WriteBits(BitsPerComponent, 0);
-                }
-
                 break;
             }
 
@@ -235,40 +275,31 @@ public sealed class JpxTileToRowConverter
             }
 
             int tileStartXPixel = tileCol * _reducedTileWidth;
-            int pixelsFromTile = Math.Min(tile.Width, Width - tileStartXPixel);
+            int pixelsFromTile = Math.Max(0, Math.Min(Math.Min(tile.Width, Width - tileStartXPixel), Width - outputPixelIndex));
+            int rowOffset = rowWithinTile * tile.Width;
+
+            for (int index = 0; index < componentCount; index++)
+            {
+                outputComponentData[index] = tile.ComponentData[outputComponentIndices[index]];
+            }
 
             for (int pixelInTile = 0; pixelInTile < pixelsFromTile; pixelInTile++)
             {
-                if (outputPixelIndex >= Width)
+                int sampleIndex = rowOffset + pixelInTile;
+
+                for (int index = 0; index < componentCount; index++)
                 {
-                    break;
+                    var value = (uint)(outputComponentData[index][sampleIndex] + sampleBias[index]);
+                    writer.WriteBits(bitsPerComponent, (value >> sampleRightShift[index]) << sampleLeftShift[index]);
                 }
-
-                for (int i = 0; i < _colorComponentIndices.Length; i++)
-                {
-                    int component = _colorComponentIndices[i];
-                    uint uValue = 0;
-                    if (component < tile.ComponentCount && tile.ComponentData[component] != null)
-                    {
-                        uValue = tile.GetUnsignedComponentValue(component, pixelInTile, rowWithinTile, _header.Components[component], BitsPerComponent);
-                    }
-
-                    writer.WriteBits(BitsPerComponent, uValue);
-                }
-
-                if (_alphaComponentIndex >= 0)
-                {
-                    uint alphaValue = 0;
-                    if (_alphaComponentIndex < tile.ComponentCount && tile.ComponentData[_alphaComponentIndex] != null)
-                    {
-                        alphaValue = tile.GetUnsignedComponentValue(_alphaComponentIndex, pixelInTile, rowWithinTile, _header.Components[_alphaComponentIndex], BitsPerComponent);
-                    }
-
-                    writer.WriteBits(BitsPerComponent, alphaValue);
-                }
-
-                outputPixelIndex++;
             }
+
+            outputPixelIndex += pixelsFromTile;
+        }
+
+        for (int sample = outputPixelIndex * componentCount; sample < Width * componentCount; sample++)
+        {
+            writer.WriteBits(bitsPerComponent, 0);
         }
 
         writer.Flush();
