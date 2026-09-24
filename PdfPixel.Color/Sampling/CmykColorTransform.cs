@@ -75,7 +75,11 @@ public sealed class CmykColorTransform : IColorTransform
     /// </summary>
     /// <param name="color">CMYK color in range [0 - 1].</param>
     /// <returns>sRGB color.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public Vector4 Transform(Vector4 color)
     {
         float c = color.X;

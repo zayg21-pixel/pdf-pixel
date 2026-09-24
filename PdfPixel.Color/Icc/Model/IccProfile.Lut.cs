@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Color.Icc.Utilities;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Icc.Model;
 
@@ -48,6 +49,9 @@ public sealed partial class IccProfile
     /// <summary>
     /// Parse legacy lut8 A2B structure.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static IccLutPipeline ParseLut8(BigEndianReader reader, int tagOffset, int tagSize)
     {
         int inputChannels = reader.ReadByte(tagOffset + 8);
@@ -124,6 +128,9 @@ public sealed partial class IccProfile
     /// <summary>
     /// Parse legacy lut16 A2B structure.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static IccLutPipeline ParseLut16(BigEndianReader reader, int tagOffset, int tagSize)
     {
         int inputChannels = reader.ReadByte(tagOffset + 8);
@@ -199,6 +206,9 @@ public sealed partial class IccProfile
     /// <summary>
     /// Parse mAB (multi-process elements) A2B structure.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static IccLutPipeline? ParseMab(BigEndianReader reader, int tagStart, int tagSize)
     {
         if (reader == null)

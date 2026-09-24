@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace PdfPixel.Jpx.Decoding;
 
 /// <summary>
@@ -19,6 +21,7 @@ internal sealed class JpxDwtScratch
     /// Buffer of at least <paramref name="length"/> integers, holding the level a reversible
     /// transform is reconstructing.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int[] GetIntegers(int length)
     {
         if (_integers.Length < length)
@@ -33,6 +36,7 @@ internal sealed class JpxDwtScratch
     /// Buffer of at least <paramref name="length"/> samples, holding the level an irreversible
     /// transform is reconstructing.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float[] GetInterleavedSamples(int length)
     {
         if (_interleavedSamples.Length < length)
@@ -47,6 +51,7 @@ internal sealed class JpxDwtScratch
     /// Buffer of at least <paramref name="length"/> samples, holding the level an irreversible
     /// transform has already reconstructed.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float[] GetLowpassSamples(int length)
     {
         if (_lowpassSamples.Length < length)

@@ -14,7 +14,11 @@ public sealed partial class ClutTransform
     /// </summary>
     /// <param name="color">Input color vector.</param>
     /// <returns>Interpolated color vector.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private Vector4 Transform1D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;
@@ -45,7 +49,11 @@ public sealed partial class ClutTransform
     /// </summary>
     /// <param name="color">Input color vector.</param>
     /// <returns>Interpolated color vector.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private Vector4 Transform2D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;
@@ -87,7 +95,11 @@ public sealed partial class ClutTransform
     /// </summary>
     /// <param name="color">Input color vector.</param>
     /// <returns>Interpolated color vector.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private Vector4 Transform3D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;
@@ -146,7 +158,11 @@ public sealed partial class ClutTransform
     /// </summary>
     /// <param name="color">Input color vector.</param>
     /// <returns>Interpolated color vector.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private Vector4 Transform4D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;

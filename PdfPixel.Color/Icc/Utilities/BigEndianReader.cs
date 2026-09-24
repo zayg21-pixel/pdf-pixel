@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace PdfPixel.Color.Icc.Utilities;
@@ -16,6 +17,7 @@ internal sealed class BigEndianReader
     /// <summary>
     /// Returns true if the requested byte range is fully inside the underlying buffer.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool CanRead(int offset, int count)
     {
         if (offset < 0 || count < 0)
@@ -34,6 +36,7 @@ internal sealed class BigEndianReader
     /// <summary>
     /// Internal bounds check that throws on failure. Use <see cref="CanRead"/> for non-throwing probes.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Ensure(int offset, int count)
     {
         if (!CanRead(offset, count))
@@ -42,30 +45,35 @@ internal sealed class BigEndianReader
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte ReadByte(int offset)
     {
         Ensure(offset, 1);
         return _data[offset];
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ushort ReadUInt16(int offset)
     {
         Ensure(offset, 2);
         return (ushort)(_data[offset] << 8 | _data[offset + 1]);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public short ReadInt16(int offset)
     {
         Ensure(offset, 2);
         return unchecked((short)(_data[offset] << 8 | _data[offset + 1]));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public uint ReadUInt32(int offset)
     {
         Ensure(offset, 4);
         return (uint)(_data[offset] << 24 | _data[offset + 1] << 16 | _data[offset + 2] << 8 | _data[offset + 3]);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int ReadInt32(int offset)
     {
         Ensure(offset, 4);

@@ -13,7 +13,11 @@ internal sealed partial class PdfImageRowProcessor
     /// Expands the row through the palette over the source grid, because palette indexes cannot be
     /// averaged, then resamples the finished color to the output grid the alpha plane arrives on.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void DecodePaletteRow(int rowIndex, in ReadOnlySpan<byte> sourceRow, IAlphaRowSource? alphaSource, PdfImageRowTarget target)
     {
         if (target.ColorConverter == null)
@@ -52,7 +56,11 @@ internal sealed partial class PdfImageRowProcessor
     /// Resamples at the source bit depth, converts the result through the colour space, and merges
     /// the alpha plane over the output grid the resampler brought it to.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void DecodeTransformedRow(int rowIndex, in ReadOnlySpan<byte> sourceRow, IAlphaRowSource? alphaSource, PdfImageRowTarget target)
     {
         if (target.ColorConverter == null || _convertedRowBuffer == null)
@@ -79,7 +87,11 @@ internal sealed partial class PdfImageRowProcessor
     /// <summary>
     /// Resamples the single gray channel and lays it out according to the alpha stage in effect.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void DecodeDirectGrayRow(int rowIndex, in ReadOnlySpan<byte> sourceRow, IAlphaRowSource? alphaSource, PdfImageRowTarget target)
     {
         if (target.ColorConverter == null)
@@ -129,7 +141,11 @@ internal sealed partial class PdfImageRowProcessor
     /// <summary>
     /// Writes the resampled gray channel straight out, the one layout that carries no alpha at all.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void WriteGrayRows(int rowIndex, in ReadOnlySpan<byte> sourceRow, PdfImageRowTarget target)
     {
         if (target.ColorConverter == null)
@@ -159,7 +175,11 @@ internal sealed partial class PdfImageRowProcessor
     /// <summary>
     /// Resamples the three colour channels and lays them out according to the alpha stage in effect.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void DecodeDirectRgbRow(int rowIndex, in ReadOnlySpan<byte> sourceRow, IAlphaRowSource? alphaSource, PdfImageRowTarget target)
     {
         if (target.ColorConverter == null)
@@ -206,7 +226,11 @@ internal sealed partial class PdfImageRowProcessor
     /// <summary>
     /// Writes the resampled row straight out, the layout whose alpha rode along as a fourth channel.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void WriteInterleavedRgbaRows(int rowIndex, in ReadOnlySpan<byte> sourceRow, PdfImageRowTarget target)
     {
         if (target.ColorConverter == null)
@@ -228,7 +252,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ExpandPaletteToRgba(in ReadOnlySpan<byte> sourceRow, int sourceStartBit, int pixelCount, in Span<byte> destination)
     {
         if (_indexedPalette == null)
@@ -250,7 +278,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void TransformColorToRgba(in ReadOnlySpan<byte> normalizedRow, in Span<byte> destRow, int pixelCount)
     {
         if (_sampler == null)
@@ -315,7 +347,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ExpandInterleavedGrayToRgba(in ReadOnlySpan<byte> normalizedRow, in Span<byte> destRow, int pixelCount)
     {
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
@@ -330,7 +366,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ExpandGrayToRgba(in ReadOnlySpan<byte> normalizedRow, in ReadOnlySpan<byte> alphaRow, in Span<byte> destRow, int pixelCount)
     {
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
@@ -345,7 +385,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void InvertSamples(in Span<byte> row, int sampleCount)
     {
         ref byte sample = ref row[0];
@@ -364,7 +408,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ExpandGrayToOpaqueRgba(in ReadOnlySpan<byte> normalizedRow, in Span<byte> destRow, int pixelCount)
     {
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
@@ -377,7 +425,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ExpandRgbToRgba(in ReadOnlySpan<byte> normalizedRow, in ReadOnlySpan<byte> alphaRow, in Span<byte> destRow, int pixelCount)
     {
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
@@ -392,7 +444,11 @@ internal sealed partial class PdfImageRowProcessor
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ExpandRgbToOpaqueRgba(in ReadOnlySpan<byte> normalizedRow, in Span<byte> destRow, int pixelCount)
     {
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
@@ -433,7 +489,11 @@ internal sealed partial class PdfImageRowProcessor
     /// key match, or a stencil's blank palette entry — stay clear; nothing else carries alpha of its
     /// own here, because an interleaved source excludes a plane.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void MergeAlphaPlane(int pixelCount, in ReadOnlySpan<byte> alphaRow, in Span<byte> destRow)
     {
         if ((_stages & RowStages.AlphaPlane) == 0 || destRow.IsEmpty || alphaRow.IsEmpty)
@@ -471,7 +531,11 @@ internal sealed partial class PdfImageRowProcessor
     /// Recovers the unblended color of samples the soft mask's /Matte declares preblended,
     /// as c = m + (c' - m) / a. Samples with zero alpha take the backdrop.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void UndoMattePreblend(in Span<byte> destRow, int pixelCount)
     {
         Vector4 backdrop = _backdrop;

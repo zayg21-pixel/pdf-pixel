@@ -121,7 +121,11 @@ internal ref struct JpxMqDecoder
     /// </summary>
     /// <param name="context">Context index (0 to <see cref="ContextCount"/> - 1).</param>
     /// <returns>The decoded symbol (0 or 1).</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public int DecodeBit(int context)
     {
         ref byte ctxRef = ref _contexts[context];
@@ -206,7 +210,11 @@ internal ref struct JpxMqDecoder
     /// Reads one bit from a bypassed segment, honouring the bit-stuffing that follows a 0xFF
     /// byte by taking only seven bits from the byte after it.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public int DecodeRawBit()
     {
         if (_rawBitsLeft == 0)
@@ -255,7 +263,11 @@ internal ref struct JpxMqDecoder
     /// Shifts A and C left one bit at a time until A >= 0x8000, refilling
     /// the bit buffer via ByteIn when exhausted.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.NoInlining)]
+#else
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void Renormalize()
     {
         uint aRegister = _aRegister;
@@ -281,7 +293,11 @@ internal ref struct JpxMqDecoder
     /// Reads the next byte from the compressed data into the C register.
     /// Handles the 0xFF byte-stuffing convention.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ByteIn()
     {
         if (_markerFound)
@@ -315,7 +331,11 @@ internal ref struct JpxMqDecoder
     /// Handles the BYTEIN case where the previous byte was 0xFF (bit-stuffing).
     /// Separated to keep the common ByteIn path short and inlinable.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.NoInlining)]
+#else
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ByteInAfterFF()
     {
         if (_pos >= _data.Length)

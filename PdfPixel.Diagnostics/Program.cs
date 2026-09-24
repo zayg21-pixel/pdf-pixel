@@ -322,6 +322,12 @@ internal sealed class Program
             rasterMilliseconds[iteration] = rasterStopwatch.Elapsed.TotalMilliseconds;
             totalMilliseconds[iteration] = decodeMilliseconds[iteration] + rasterMilliseconds[iteration];
 
+            Console.WriteLine(
+                $"Iteration {iteration,-3}"
+                    + $" total {totalMilliseconds[iteration],9:F1} ms"
+                    + $" decode {decodeMilliseconds[iteration],9:F1} ms"
+                    + $" raster {rasterMilliseconds[iteration],9:F1} ms");
+
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();

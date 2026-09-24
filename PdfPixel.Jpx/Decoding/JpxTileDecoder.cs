@@ -2,6 +2,7 @@ using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -213,6 +214,11 @@ internal sealed class JpxTileDecoder
     /// <summary>
     /// Applies the DC level shift to a component and clamps samples to its nominal range.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ApplyDcLevelShift(in Span<int> data, JpxComponent componentInfo)
     {
         int tileBitDepth = componentInfo.PrecisionBits;

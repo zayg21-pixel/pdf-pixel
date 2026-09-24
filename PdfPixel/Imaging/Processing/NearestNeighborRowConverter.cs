@@ -60,6 +60,11 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         }
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow)
     {
         // A destination row whose source row has already gone by is taken by the row at hand, so an
@@ -92,7 +97,11 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         return Math.Min(sourceIndex, sourceCount - 1);
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ReadSourceRowSamples(in ReadOnlySpan<byte> sourceRow, int sourceStartBit)
     {
         UintBitReaderFixedLength reader = new(sourceRow, _sourceBitsPerComponent, sourceStartBit);
@@ -103,7 +112,11 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void WriteRow(in Span<byte> destRow)
     {
         int totalSamples = _destinationWidth * _components;

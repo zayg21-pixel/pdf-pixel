@@ -1,6 +1,7 @@
 using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -57,12 +58,14 @@ internal sealed class JpxSubbandData
     /// <summary>
     /// Width of the component reconstructed down to <paramref name="levels"/> decomposition levels.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetResolutionWidth(int levels)
         => JpxBandGeometry.GetResolutionCoordinate(_tileBounds.Right, levels) - JpxBandGeometry.GetResolutionCoordinate(_tileBounds.X, levels);
 
     /// <summary>
     /// Height of the component reconstructed down to <paramref name="levels"/> decomposition levels.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetResolutionHeight(int levels)
         => JpxBandGeometry.GetResolutionCoordinate(_tileBounds.Bottom, levels) - JpxBandGeometry.GetResolutionCoordinate(_tileBounds.Y, levels);
 

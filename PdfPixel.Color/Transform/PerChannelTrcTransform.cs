@@ -29,6 +29,9 @@ public sealed class PerChannelTrcTransform : IColorTransform
     /// Initializes a new instance of the <see cref="PerChannelTrcTransform"/> class from ICC transfer curves.
     /// </summary>
     /// <param name="trcs">Array of ICC transfer curves. Maximum 4 channels supported.</param>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public PerChannelTrcTransform(params IccTrc[] trcs)
     {
         if (trcs == null || trcs.Length == 0)
@@ -94,7 +97,11 @@ public sealed class PerChannelTrcTransform : IColorTransform
     /// </summary>
     /// <param name="color">The input color vector (normalized 0-1 range expected).</param>
     /// <returns>The transformed color vector.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public Vector4 Transform(Vector4 color)
     {
         if (IsIdentity)

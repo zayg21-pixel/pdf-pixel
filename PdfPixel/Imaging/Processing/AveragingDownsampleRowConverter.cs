@@ -126,6 +126,11 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         _nextDestinationRowToWrite = 0;
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow)
     {
         if (_nextDestinationRowToWrite >= _destinationHeight || _accumulatedRowIndex == rowIndex)
@@ -151,7 +156,11 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         return false;
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ReadSourceRowSamples(in ReadOnlySpan<byte> sourceRow, int sourceStartBit)
     {
         int totalSourceSamples = _sourceWidth * _components;
@@ -162,7 +171,11 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void AccumulateSourceRow()
     {
         int totalDestinationSamples = _destinationWidth * _components;
@@ -190,7 +203,11 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     // and identical for every sample in this row, so it is turned into a single reciprocal here
     // instead of dividing per sample. The horizontal divisor is already baked into each
     // accumulator's HorizontalReciprocal at construction time.
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void WriteAveragedRow(in Span<byte> destRow)
     {
         int totalSamples = _destinationWidth * _components;
@@ -206,7 +223,11 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         writer.Flush();
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ResetAccumulators()
     {
         for (int index = 0; index < _destinationRowAccumulators.Length; index++)

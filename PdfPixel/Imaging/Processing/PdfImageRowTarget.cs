@@ -1,5 +1,6 @@
 using PdfPixel.Imaging.Model;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -81,5 +82,6 @@ internal sealed class PdfImageRowTarget
     /// <summary>
     /// Moves to the next output row.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void AdvanceRow() => _outputRowIndex++;
 }

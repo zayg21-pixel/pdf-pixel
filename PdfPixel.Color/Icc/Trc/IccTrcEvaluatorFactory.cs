@@ -90,7 +90,11 @@ internal static class IccTrcEvaluatorFactory
 
         public GammaTrcEvaluator(IccTrcParameters parameters) => _pow = new FastPowSeriesDegree3(parameters.Gamma);
 
+#if NETSTANDARD2_0
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
         public float Evaluate(float x) => _pow.Evaluate(x);
     }
 
@@ -106,7 +110,11 @@ internal static class IccTrcEvaluatorFactory
             _scale = (_samples.Length > 1) ? _samples.Length - 1 : 1f;
         }
 
+#if NETSTANDARD2_0
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
         public float Evaluate(float x)
         {
             if (_samples.Length == 0)
@@ -157,7 +165,11 @@ internal static class IccTrcEvaluatorFactory
             _p = p;
         }
 
+#if NETSTANDARD2_0
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
         public float Evaluate(float x)
         {
             return (x < _p.Breakpoint)
@@ -177,7 +189,11 @@ internal static class IccTrcEvaluatorFactory
             _p = p;
         }
 
+#if NETSTANDARD2_0
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
         public float Evaluate(float x)
         {
             return (x < _p.Breakpoint)
@@ -197,7 +213,11 @@ internal static class IccTrcEvaluatorFactory
             _p = p;
         }
 
+#if NETSTANDARD2_0
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
         public float Evaluate(float x)
         {
             return (x < _p.Breakpoint)
@@ -217,7 +237,11 @@ internal static class IccTrcEvaluatorFactory
             _p = p;
         }
 
+#if NETSTANDARD2_0
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
         public float Evaluate(float x)
         {
             return (x < _p.Breakpoint)

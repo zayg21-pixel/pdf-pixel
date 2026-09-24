@@ -40,6 +40,9 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     }
 
     /// <inheritdoc/>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void Transform(JpxSubbandData subbands, in Span<int> destination, JpxDwtScratch scratch, int stopAtLevel = 0)
     {
         if (subbands == null)
@@ -220,6 +223,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// keeps its own sign, so the scaled magnitude only has to have that bit put back rather
     /// than be negated under a branch.
     /// </remarks>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DequantizeInto(in Span<float> target, in ReadOnlySpan<int> source, float scale)
     {
         int length = Math.Min(source.Length, target.Length);
@@ -260,6 +268,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// <param name="parity">
     /// 0 when the first row is a low-pass one, 1 when it is a high-pass one.
     /// </param>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void InverseLiftColumns(in Span<float> samples, int width, int height, int parity)
     {
         if (height == 1)
@@ -285,6 +298,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
         LiftRows(samples, width, height, 1 - parity, Alpha);
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ScaleRow(in Span<float> row, float coefficient)
     {
         int width = row.Length;
@@ -310,6 +328,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// <summary>
     /// Subtracts one lifting step's contribution from every row of one class.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void LiftRows(in Span<float> samples, int width, int height, int firstRow, float coefficient)
     {
         for (int n = firstRow; n < height; n += 2)
@@ -420,6 +443,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// <param name="parity">
     /// 0 when the line starts on a low-pass sample, 1 when it starts on a high-pass one.
     /// </param>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void InverseLiftRow(in Span<float> row, int lowLength, int parity)
     {
         // A line of one sample has nothing to lift, and one of none has no class to lift.
@@ -459,6 +487,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// Returns consecutive samples to every other position of <paramref name="target"/>,
     /// starting at its first. Walked by reference so neither span is bounds-checked per sample.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void Interleave(in ReadOnlySpan<float> source, in Span<float> target)
     {
         ref float sourceSample = ref MemoryMarshal.GetReference(source);
@@ -476,6 +509,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// Subtracts one lifting step from a class whose samples follow their neighbours, so each
     /// target reads the source pair ending at its own index.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void LiftFromLeft(in Span<float> target, in ReadOnlySpan<float> source, float coefficient)
     {
         int count = target.Length;
@@ -518,6 +556,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// Subtracts one lifting step from a class whose samples precede their neighbours, so each
     /// target reads the source pair starting at its own index.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void LiftFromRight(in Span<float> target, in ReadOnlySpan<float> source, float coefficient)
     {
         int count = target.Length;

@@ -25,7 +25,11 @@ internal sealed class SampleNormalizingRowConverter : IRowConverter
         _scale = (maxCode == 0) ? 0f : 255f / maxCode;
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, int sourceStartBit, Span<byte> destRow)
     {
         if (_convertedRowIndex == rowIndex)

@@ -101,6 +101,9 @@ public sealed partial class ClutTransform : IColorTransform
     /// <param name="clut">Flat array of CLUT values.</param>
     /// <param name="outChannels">Number of output channels per CLUT entry.</param>
     /// <returns>Array of Vector4 CLUT entries.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static Vector4[] ConvertFloatArrayToVector4Array(float[] clut, int outChannels)
     {
         if (clut == null)
@@ -126,7 +129,11 @@ public sealed partial class ClutTransform : IColorTransform
     /// </summary>
     /// <param name="color">Input color vector.</param>
     /// <returns>Transformed color vector.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public Vector4 Transform(Vector4 color)
     {
         return _actualDimensions switch

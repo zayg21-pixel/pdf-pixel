@@ -62,7 +62,11 @@ public static partial class IccProfileAnalyzer
         };
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static bool IsLinearSampledCurve(float[]? samples)
     {
         if (samples == null || samples.Length == 0)

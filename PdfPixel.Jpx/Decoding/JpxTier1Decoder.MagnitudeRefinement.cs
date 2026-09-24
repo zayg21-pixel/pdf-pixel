@@ -18,7 +18,11 @@ internal ref partial struct JpxTier1Decoder
     /// Whether this pass bypasses the arithmetic coder, reading each refinement bit directly
     /// instead of through the context model (ITU-T T.800 D.5).
     /// </param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ExecuteMagnitudeRefinement(
         ref uint stripeStatePtr,
         ref int stripeCoeffPtr,

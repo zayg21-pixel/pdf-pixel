@@ -4,6 +4,7 @@ using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -77,6 +78,7 @@ internal sealed class SoftMaskAlphaRowSource : IAlphaRowSource
     }
 
     /// <inheritdoc />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<byte> GetRow(int outputRowIndex)
     {
         if (_decodedMask == null || outputRowIndex >= _decodedMask.Height)
@@ -108,6 +110,11 @@ internal sealed class SoftMaskAlphaRowSource : IAlphaRowSource
         _decoder.Cleanup();
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void UnpackRow(in ReadOnlySpan<byte> maskRow, in Span<byte> destination)
     {
         for (int x = 0; x < destination.Length; x++)

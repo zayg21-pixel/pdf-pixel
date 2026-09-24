@@ -59,7 +59,11 @@ internal sealed class PdfImageTilingContext
     /// includes <paramref name="imageRowIndex"/>, and returns the tiles of any tile rows
     /// that complete as a result (or null if none completed yet).
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public PdfImageTile[]? WriteRowAndTryGetTiles(
         int imageRowIndex,
         in ReadOnlySpan<byte> fullWidthRow,
@@ -76,7 +80,11 @@ internal sealed class PdfImageTilingContext
     /// Several tile rows can legitimately start on the same image row when the decoded
     /// resolution is lower than the tile grid — they then sample (and share) that single row.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void OpenNewTileRows(int imageRowIndex, IPdfExecutionObserver? observer)
     {
         while (_nextTileRowToOpen < _tileInfo.TilesVertical && _rowSampleRanges[_nextTileRowToOpen].Start == imageRowIndex)
@@ -111,7 +119,11 @@ internal sealed class PdfImageTilingContext
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(methodImplOptions:  MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(methodImplOptions:  MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void WriteRowToOpenTileRows(
         int imageRowIndex,
         in ReadOnlySpan<byte> fullWidthRow,
@@ -125,7 +137,11 @@ internal sealed class PdfImageTilingContext
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private PdfImageTile[]? CloseFinishedTileRows(int imageRowIndex, IPdfExecutionObserver? observer)
     {
         List<PdfImageTile>? closedTiles = null;

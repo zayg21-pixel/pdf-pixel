@@ -279,7 +279,11 @@ internal sealed partial class PdfImageRowProcessor
     /// <param name="alphaSource">Alpha plane on the output grid, or null when there is none.</param>
     /// <param name="targets">Destinations to fill, in source order.</param>
     /// <param name="observer">Observer notified after each target, or null.</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public void DecodeRow(
         int rowIndex,
         in ReadOnlySpan<byte> sourceRow,

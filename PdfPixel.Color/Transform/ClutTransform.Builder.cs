@@ -1,6 +1,7 @@
 using PdfPixel.Color.Sampling;
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Icc.Transform;
 
@@ -97,6 +98,9 @@ public sealed partial class ClutTransform
     /// <summary>
     /// Recursively samples the grid points for CLUT construction.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void SampleGridRecursive(
         int[] gridPointsPerDimension,
         float[] input,

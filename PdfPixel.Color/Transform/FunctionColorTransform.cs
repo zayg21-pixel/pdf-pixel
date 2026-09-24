@@ -24,6 +24,10 @@ public sealed class FunctionColorTransform : IColorTransform
     /// </summary>
     /// <param name="color">The input color vector.</param>
     /// <returns>The transformed color vector.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public Vector4 Transform(Vector4 color) => _function(color);
 }

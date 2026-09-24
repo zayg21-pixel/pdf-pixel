@@ -1,5 +1,6 @@
 using PdfPixel.Jpx.Model;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -74,6 +75,11 @@ internal sealed class JpxInverseMct
     /// Inverse RCT (ITU-T T.800 Annex G.2).
     /// G = Y - floor((Cb + Cr) / 4), R = Cr + G, B = Cb + G.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ApplyInverseRct(int[] comp0, int[] comp1, int[] comp2, int pixelCount)
     {
         for (int i = 0; i < pixelCount; i++)
@@ -92,6 +98,11 @@ internal sealed class JpxInverseMct
     /// Inverse ICT (ITU-T T.800 Annex G.1) using 13-bit fixed-point integer arithmetic.
     /// R = Y + 1.402 * Cr, G = Y - 0.34413 * Cb - 0.71414 * Cr, B = Y + 1.772 * Cb.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ApplyInverseIct(int[] comp0, int[] comp1, int[] comp2, int pixelCount)
     {
         // 13-bit fixed-point coefficients

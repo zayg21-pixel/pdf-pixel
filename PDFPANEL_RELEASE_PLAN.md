@@ -48,11 +48,15 @@ Biggest item. Depends on the overlay API for match highlighting.
 - [ ] UI in WPF demo and Web demo
 - [ ] Tests
 
+## Investigations
+
+- [ ] Aggressive optimizations: list candidates, measure the gain of each against the current baseline, decide what is worth the complexity
+
 ## Suggested order
 
 1. Bugs and TODOs above (small, unblock everything else)
 2. Overlay API
 3. Text interaction stabilization
 4. Text search
-5. Pre-render, caching, memory
+5. Pre-render, caching, memory, then the aggressive optimizations investigation (measure after the caching changes so the baseline is current)
 6. Demo cleanup, final WASM cleanup, delete this file

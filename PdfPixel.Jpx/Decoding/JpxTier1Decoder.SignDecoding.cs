@@ -17,7 +17,11 @@ internal ref partial struct JpxTier1Decoder
     /// Both the significance and the sign of that neighbour are excluded.
     /// </param>
     /// <returns>0 for positive, 1 for negative.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private int DecodeSign(ref uint statePtr, bool ignoresStripeBelow)
     {
         int stateWidth = _stateWidth;

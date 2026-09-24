@@ -51,7 +51,11 @@ public static class ColorVectorUtilities
     /// </summary>
     /// <param name="data">Input span of float values (0-4 elements).</param>
     /// <returns>A <see cref="Vector4"/> with missing elements padded with 1.0.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static Vector4 ToVector4WithOnePadding(in ReadOnlySpan<float> data)
     {
         return data.Length switch
@@ -69,7 +73,11 @@ public static class ColorVectorUtilities
     /// </summary>
     /// <param name="source">Source color vector (0-1 range).</param>
     /// <param name="destination">Destination packed RGBA value (by reference).</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void Load01ToRgba(Vector4 source, ref RgbaPacked destination)
     {
         Vector4 scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
@@ -86,7 +94,11 @@ public static class ColorVectorUtilities
     /// </summary>
     /// <param name="source">Source color vector (0-1 range).</param>
     /// <param name="destination">Destination packed RGBA value (by reference).</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void Load01ToRgb(Vector4 source, ref RgbaPacked destination)
     {
         Vector4 scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
@@ -101,7 +113,11 @@ public static class ColorVectorUtilities
     /// </summary>
     /// <param name="source">Source color vector (0-1 range).</param>
     /// <param name="destination">Destination packed RGB value (by reference).</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void Load01ToRgb(Vector4 source, ref RgbPacked destination)
     {
         Vector4 scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
@@ -116,7 +132,11 @@ public static class ColorVectorUtilities
     /// </summary>
     /// <param name="source">Source packed RGBA value.</param>
     /// <returns>A <see cref="Vector4"/> holding the four channels scaled to the 0-1 range.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static Vector4 FromRgbaTo01(this RgbaPacked source)
         => new Vector4(source.R, source.G, source.B, source.A) * InverseMaxByte;
 
@@ -145,7 +165,11 @@ public static class ColorVectorUtilities
     /// <param name="a"></param>
     /// <param name="b"></param>
     /// <returns></returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static float CustomDot(Vector4 a, Vector4 b)
     {
         // .NET runtime prefers DPPS instruction for Dot, which is slower than VDPPS by a huge margin.

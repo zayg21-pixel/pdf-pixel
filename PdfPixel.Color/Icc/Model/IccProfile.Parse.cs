@@ -1,6 +1,7 @@
 using PdfPixel.Color.Icc.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Icc.Model;
 
@@ -197,6 +198,9 @@ public sealed partial class IccProfile
     /// Common TRC payload reader. Handles both 'curv' and 'para' types at the given position.
     /// Returns the decoded <see cref="IccTrc"/> and outputs the payload size for alignment.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static IccTrc ReadTrcPayload(BigEndianReader reader, int pos, out int payloadSize)
     {
         payloadSize = 12;

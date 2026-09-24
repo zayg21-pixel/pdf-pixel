@@ -313,6 +313,9 @@ internal ref partial struct JpxTier1Decoder
     /// <summary>
     /// Decodes the code-block's entropy-coded data into wavelet coefficients.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void Decode()
     {
         if (_width <= 0 || _height <= 0 || _totalPasses == 0)
@@ -517,7 +520,11 @@ internal ref partial struct JpxTier1Decoder
     /// Clears the <see cref="FlagCoded"/> bit from all state entries.
     /// Processes 2 entries at a time using 64-bit operations for improved throughput.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private readonly void ClearCodedFlags()
     {
         const ulong clearMask64 = 0xFFFF_FFFB_FFFF_FFFBUL;

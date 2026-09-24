@@ -21,6 +21,9 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     public JpxInverseDwt53(JpxQuantization quantization) => _quantization = quantization ?? throw new ArgumentNullException(nameof(quantization));
 
     /// <inheritdoc/>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void Transform(JpxSubbandData subbands, in Span<int> destination, JpxDwtScratch scratch, int stopAtLevel = 0)
     {
         if (subbands == null)
@@ -163,6 +166,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <summary>
     /// Dequantizes subband coefficients into consecutive positions of <paramref name="target"/>.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DequantizeInto(in Span<int> target, in ReadOnlySpan<int> source, int shiftBits)
     {
         int length = Math.Min(source.Length, target.Length);
@@ -182,6 +190,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// Returns consecutive samples to every other position of <paramref name="target"/>,
     /// starting at its first.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void Interleave(in ReadOnlySpan<int> source, in Span<int> target)
     {
         ref int sourceSample = ref MemoryMarshal.GetReference(source);
@@ -206,6 +219,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <param name="parity">
     /// 0 when the first row is a low-pass one, 1 when it is a high-pass one.
     /// </param>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void InverseLiftColumns(in Span<int> samples, int width, int height, int parity)
     {
         if (height == 1)
@@ -228,6 +246,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         PredictRows(samples, width, height, 1 - parity);
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void UpdateRows(in Span<int> samples, int width, int height, int firstRow)
     {
         for (int n = firstRow; n < height; n += 2)
@@ -250,6 +273,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         }
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void PredictRows(in Span<int> samples, int width, int height, int firstRow)
     {
         for (int n = firstRow; n < height; n += 2)
@@ -304,6 +332,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <param name="parity">
     /// 0 when the line starts on a low-pass sample, 1 when it starts on a high-pass one.
     /// </param>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void InverseLiftRow(in Span<int> row, int lowLength, int parity)
     {
         if (row.Length == 0)
@@ -345,6 +378,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <summary>
     /// Undoes the update step for a class whose samples follow their neighbours.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void UpdateFromLeft(in Span<int> target, in ReadOnlySpan<int> source)
     {
         int last = source.Length - 1;
@@ -373,6 +411,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <summary>
     /// Undoes the update step for a class whose samples precede their neighbours.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void UpdateFromRight(in Span<int> target, in ReadOnlySpan<int> source)
     {
         int last = source.Length - 1;
@@ -398,6 +441,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <summary>
     /// Undoes the predict step for a class whose samples follow their neighbours.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void PredictFromLeft(in Span<int> target, in ReadOnlySpan<int> source)
     {
         int last = source.Length - 1;
@@ -426,6 +474,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <summary>
     /// Undoes the predict step for a class whose samples precede their neighbours.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void PredictFromRight(in Span<int> target, in ReadOnlySpan<int> source)
     {
         int last = source.Length - 1;

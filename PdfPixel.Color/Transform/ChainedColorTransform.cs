@@ -49,7 +49,11 @@ public sealed class ChainedColorTransform : IColorTransform
     /// </summary>
     /// <param name="color">The input color as a <see cref="Vector4"/>.</param>
     /// <returns>The transformed color as a <see cref="Vector4"/> after all chained transforms are applied.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public Vector4 Transform(Vector4 color)
     {
         if (IsIdentity)

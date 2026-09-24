@@ -17,7 +17,11 @@ internal ref partial struct JpxTier1Decoder
     /// <param name="stripeTop">Absolute row index of the stripe top (needed for vertically-causal context).</param>
     /// <param name="stripeHeight">Number of rows in this stripe (1–4).</param>
     /// <param name="bitPosition">Current bit-plane position.</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ExecuteCleanup(
         ref uint stripeStatePtr,
         ref int stripeCoeffPtr,

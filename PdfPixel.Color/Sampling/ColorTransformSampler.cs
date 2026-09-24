@@ -35,7 +35,11 @@ public sealed class ColorTransformSampler
     /// Converts <paramref name="source"/> color components to a <see cref="Vector4"/> by running
     /// the optional pre-processor and then the full transform pipeline.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public Vector4 Sample(in ReadOnlySpan<float> source)
     {
         if (_sourceOverride != null)

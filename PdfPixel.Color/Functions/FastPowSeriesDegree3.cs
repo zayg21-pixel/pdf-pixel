@@ -44,7 +44,11 @@ public sealed class FastPowSeriesDegree3
     /// </summary>
     /// <param name="x">Input value. Should be a positive finite float for optimal accuracy.</param>
     /// <returns>Approximation of x^alpha.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public float Evaluate(float x)
     {
         // Extract bits of x

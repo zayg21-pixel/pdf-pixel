@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Model;
 
@@ -162,6 +163,11 @@ public sealed class JpxTile
     /// Signed samples are biased to unsigned using <paramref name="componentInfo"/>'s
     /// actual precision before any depth rescaling is applied.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public uint GetUnsignedComponentValue(int component, int x, int y, JpxComponent componentInfo, int normalizedBitsPerComponent)
     {
         if (component < 0 || component >= ComponentCount)

@@ -1,6 +1,7 @@
 using PdfPixel.Jpx.Model;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -197,6 +198,9 @@ public sealed class JpxTileToRowConverter
         return true;
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private void WriteRowBits(in Span<byte> rowBuffer, int tileRow, int rowWithinTile, ref int outputPixelIndex)
     {
         JpxBitWriter writer = new(rowBuffer);
