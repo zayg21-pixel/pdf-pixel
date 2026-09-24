@@ -29,7 +29,7 @@ public sealed class PdfPageClearCacheWorkItem : IWorkItem
     {
         lock (_documentLocker)
         {
-            _cacheEntry.Clear();
+            _cacheEntry.ClearContent();
         }
 
         return default;

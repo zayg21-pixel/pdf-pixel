@@ -230,7 +230,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         UpdatePointerState();
 
-        _context.Update();
+        _context.Synchronize();
 
         if (_context.ClickedAnnotation != null)
         {
@@ -241,7 +241,7 @@ public partial class WpfPdfPanel : FrameworkElement
         UpdateCursor();
 
         _context.SetAutoScaleMode(AutoScaleMode);
-        _context.Update();
+        _context.Synchronize();
 
         ExtentHeight = _context.ExtentHeight;
         ExtentWidth = _context.ExtentWidth;

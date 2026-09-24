@@ -22,7 +22,6 @@ namespace PdfPixel.PdfPanel.Rendering;
 public sealed class PdfPanelRenderer : IDisposable
 {
     private readonly ISkSurfaceFactory _surfaceFactory;
-    private readonly IPdfPageContentProvider _contentProvider;
     private readonly PdfPageContentTiler _tiler;
     private readonly PdfAnimationClock _clock;
     private readonly Timer? _contentUpdateTimer;
@@ -38,7 +37,7 @@ public sealed class PdfPanelRenderer : IDisposable
     public PdfPanelRenderer(ISkSurfaceFactory surfaceFactory, IPdfPageContentProvider contentProvider, PdfPanelRendererProperties properties)
     {
         _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        ContentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
         Properties = properties ?? throw new ArgumentNullException(nameof(properties));
         _tiler = new PdfPageContentTiler(surfaceFactory, properties.TileSize);
         _clock = new PdfAnimationClock(properties.AnimationFps);
@@ -50,9 +49,14 @@ public sealed class PdfPanelRenderer : IDisposable
             _contentUpdateTimer = new Timer(OnContentUpdateDue, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
-        _contentProvider.OnPageUpdated = OnPageUpdated;
+        ContentProvider.OnPageUpdated = OnPageUpdated;
         _surfaceFactory.Initialize();
     }
+
+    /// <summary>
+    /// Provider of the decoded page content and extracted text the renderer draws.
+    /// </summary>
+    public IPdfPageContentProvider ContentProvider { get; }
 
     /// <summary>
     /// Turns pointer and key input into the events the panel's interaction handlers subscribe to.
@@ -141,7 +145,7 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             VisiblePageInfo page = _lastRequest.GetPage(pointerPagePoint.Value.PageNumber);
 
-            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+            PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
 
             if (pictures.Content?.HasContent == true)
             {
@@ -204,9 +208,9 @@ public sealed class PdfPanelRenderer : IDisposable
 
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
-            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+            PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
 
-            if (!_contentProvider.NeedsContentUpdate(page.PageNumber, request))
+            if (!ContentProvider.NeedsContentUpdate(page.PageNumber, request))
             {
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
@@ -244,7 +248,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
         {
-            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+            PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
 
             if (pictures.Content?.HasContent == true)
             {
@@ -272,7 +276,7 @@ public sealed class PdfPanelRenderer : IDisposable
         bool anyLoading = Properties.ShowPageLoadingAnimation
             && _lastRequest != null
             && _lastRequest.VisiblePages.Any(
-                p => _contentProvider.GetExistingContentPictures(p.PageNumber).Content?.HasContent != true);
+                p => ContentProvider.GetExistingContentPictures(p.PageNumber).Content?.HasContent != true);
 
         if (anyLoading)
         {
@@ -298,7 +302,7 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             bool pageAppeared = !previousPages.Any(previousPage => previousPage.PageNumber == page.PageNumber);
 
-            if (pageAppeared || _contentProvider.NeedsAnnotationUpdate(page.PageNumber, request))
+            if (pageAppeared || ContentProvider.NeedsAnnotationUpdate(page.PageNumber, request))
             {
                 return true;
             }
@@ -316,7 +320,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         _contentUpdatePending = false;
         _contentUpdateTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _contentProvider.UpdateContent(_lastRequest);
+        ContentProvider.UpdateContent(_lastRequest);
     }
 
     private void OnContentUpdateDue(object? state)
@@ -394,7 +398,7 @@ public sealed class PdfPanelRenderer : IDisposable
         _contentUpdateTimer?.Dispose();
         TextSelector.Dispose();
         _tiler.Dispose();
-        _contentProvider.OnPageUpdated = null;
+        ContentProvider.OnPageUpdated = null;
     }
 }
 

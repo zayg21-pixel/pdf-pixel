@@ -6,6 +6,7 @@ using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -21,6 +22,9 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     private readonly PdfPageCacheEntry[] _cache;
     private readonly HashSet<int> _visiblePageNumbers = [];
     private readonly PdfTextBlockFlattener _textBlockFlattener = new();
+    private volatile bool _extractText;
+    private volatile int _textExtractionStartPageNumber = 1;
+    private int _textExtractionPending;
 
     /// <summary>
     /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work
@@ -39,6 +43,9 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
         _processingQueue = processingQueue;
     }
+
+    /// <inheritdoc />
+    public event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
 
     /// <inheritdoc />
     public object DocumentLocker { get; } = new();
@@ -60,6 +67,9 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
         return cacheEntry.GetContentPictures();
 
     }
+
+    /// <inheritdoc />
+    public PdfCharacter[]? GetCharacters(int pageNumber) => _cache[pageNumber - 1].Content.Characters;
 
     /// <inheritdoc />
     public bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
@@ -99,16 +109,78 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
             _visiblePageNumbers.Add(page.PageNumber);
             cacheEntry.InitializeForRendering(_observerFactory);
-            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textBlockFlattener, request, OnPageUpdated));
+            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textBlockFlattener, request, OnPageUpdated, OnPageTextExtracted));
         }
+
+        if (request.VisiblePages.Length > 0)
+        {
+            _textExtractionStartPageNumber = request.VisiblePages[0].PageNumber;
+        }
+    }
+
+    /// <inheritdoc />
+    public void UpdateTextExtraction(bool extractText)
+    {
+        _extractText = extractText;
+        EnqueueNextTextExtraction();
     }
 
     /// <inheritdoc />
     public PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
 
+    private void EnqueueNextTextExtraction()
+    {
+        if (!_extractText || Interlocked.CompareExchange(ref _textExtractionPending, 1, 0) != 0)
+        {
+            return;
+        }
+
+        PdfPageCacheEntry? nextEntry = FindNextEntryWithoutCharacters();
+
+        if (nextEntry == null)
+        {
+            Volatile.Write(ref _textExtractionPending, 0);
+            return;
+        }
+
+        IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextEntry.PageNumber);
+        _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(nextEntry, _document, DocumentLocker, _textBlockFlattener, observer, OnTextExtractionCompleted));
+    }
+
+    private void OnPageTextExtracted(int pageNumber) => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber));
+
+    private void OnTextExtractionCompleted(int pageNumber)
+    {
+        if (_cache[pageNumber - 1].Content.Characters != null)
+        {
+            OnPageTextExtracted(pageNumber);
+        }
+
+        Volatile.Write(ref _textExtractionPending, 0);
+        EnqueueNextTextExtraction();
+    }
+
+    private PdfPageCacheEntry? FindNextEntryWithoutCharacters()
+    {
+        int startIndex = _textExtractionStartPageNumber - 1;
+
+        for (int offset = 0; offset < _cache.Length; offset++)
+        {
+            PdfPageCacheEntry cacheEntry = _cache[(startIndex + offset) % _cache.Length];
+
+            if (cacheEntry.Content.Characters == null)
+            {
+                return cacheEntry;
+            }
+        }
+
+        return null;
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
+        _extractText = false;
         _processingQueue.Dispose();
 
         foreach (PdfPageCacheEntry cacheEntry in _cache)

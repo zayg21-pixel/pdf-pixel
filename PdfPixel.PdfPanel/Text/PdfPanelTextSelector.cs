@@ -225,14 +225,14 @@ public sealed class PdfPanelTextSelector : IDisposable
 
     private PdfCharacter[]? GetCharacters(int pageNumber)
     {
-        PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(pageNumber);
+        PdfCharacter[]? characters = _contentProvider.GetCharacters(pageNumber);
 
-        if (pictures.ContentCharacters == null || pictures.ContentCharacters.Length == 0)
+        if (characters == null || characters.Length == 0)
         {
             return null;
         }
 
-        return pictures.ContentCharacters;
+        return characters;
     }
 
     private int? HitTestCharacter(in PdfPanelPointerPosition position, float? maxDistance)

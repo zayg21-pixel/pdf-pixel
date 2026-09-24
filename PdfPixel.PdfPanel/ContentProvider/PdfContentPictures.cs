@@ -1,4 +1,3 @@
-using PdfPixel.TextExtraction;
 using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -17,9 +16,4 @@ public class PdfContentPictures
     /// Locked reference to the annotation layer picture, or <see langword="null"/> if not yet decoded.
     /// </summary>
     public ContentLocker<SKPicture>? Annotations { get; set; }
-
-    /// <summary>
-    /// Flattened characters extracted from the main content, in reading order.
-    /// </summary>
-    public PdfCharacter[]? ContentCharacters { get; set; }
 }

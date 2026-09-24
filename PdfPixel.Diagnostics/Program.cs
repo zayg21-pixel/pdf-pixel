@@ -349,7 +349,10 @@ internal sealed class Program
                 document.OptionalContentGroups,
                 executionObserver);
 
-            SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+            // Text-only replays through the processor that collects characters and draws nothing.
+            IPdfCommandProcessor processor = textOnly
+                ? new PdfTextExtractionCommandProcessor(executionContext)
+                : new SkCanvasCommandProcessor(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
             contentRecorder.Replay(processor);
             annotationRecorder.Replay(processor);
 

@@ -132,14 +132,14 @@ public sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// Clears cached content. Must be called from the worker thread.
+    /// Clears cached content, keeping extracted characters. Must be called from the worker thread.
     /// </summary>
-    public void Clear()
+    public void ClearContent()
     {
         ThrowIfDisposed();
 
-        Content.Clear();
-        AnnotationContent.Clear();
+        Content.ClearContent();
+        AnnotationContent.ClearContent();
     }
 
     /// <summary>
@@ -152,8 +152,7 @@ public sealed class PdfPageCacheEntry : IDisposable
         return new PdfContentPictures
         {
             Content = Content.ContentPicture,
-            Annotations = AnnotationContent.ContentPicture,
-            ContentCharacters = Content.Characters
+            Annotations = AnnotationContent.ContentPicture
         };
     }
 
@@ -174,7 +173,7 @@ public sealed class PdfPageCacheEntry : IDisposable
         }
 
         Cancel();
-        Clear();
+        ClearContent();
         _disposed = true;
     }
 }

@@ -9,6 +9,7 @@ using System.Linq;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Text;
 
 namespace PdfPixel.PdfPanel;
 
@@ -125,7 +126,7 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelPointerState ActiveAnnotationState => _annotationInteraction.ActiveAnnotationState;
 
     /// <summary>
-    /// Annotation clicked during the last <see cref="Update"/>, or null if none was clicked.
+    /// Annotation clicked during the last <see cref="Synchronize"/>, or null if none was clicked.
     /// </summary>
     public PdfAnnotationPopup? ClickedAnnotation => _annotationInteraction.ClickedAnnotation;
 
@@ -149,15 +150,30 @@ public sealed class PdfPanelContext : IDisposable
     }
 
     /// <summary>
+    /// Whether the text of every page is extracted.
+    /// </summary>
+    public bool ExtractText { get; set; }
+
+    /// <summary>
+    /// Text to search for in the document, or <see langword="null"/> when no search is active.
+    /// </summary>
+    public string? SearchQuery { get; set; }
+
+    /// <summary>
+    /// Options that control how <see cref="SearchQuery"/> is matched.
+    /// </summary>
+    public PdfPanelSearchOptions SearchOptions { get; } = new();
+
+    /// <summary>
     /// Gets the viewport rectangle in scaled coordinate space.
     /// </summary>
     public PdfRectangle ViewportRectangle => PdfRectangle.FromLocationAndSize(HorizontalOffset, VerticalOffset, ViewportWidth, ViewportHeight);
 
     /// <summary>
-    /// Updates the layout by recalculating dimensions, page positions, and clamping scroll offsets.
-    /// Should be called after changing viewport size, scale, or any layout properties.
+    /// Synchronizes the panel state with the current property values: recalculates dimensions and page positions,
+    /// clamps scroll offsets and dispatches pointer input. Should be called after changing any property.
     /// </summary>
-    public void Update()
+    public void Synchronize()
     {
         Scale = Clamp(Scale, MinScale, MaxScale);
 
@@ -174,6 +190,8 @@ public sealed class PdfPanelContext : IDisposable
         HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - ViewportWidth));
 
         DispatchPointerInput();
+
+        _renderer.ContentProvider.UpdateTextExtraction(ExtractText);
     }
 
     /// <summary>

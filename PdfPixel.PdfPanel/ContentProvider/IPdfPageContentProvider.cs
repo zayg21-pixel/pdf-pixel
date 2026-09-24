@@ -1,5 +1,6 @@
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.TextExtraction;
 using System;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -10,6 +11,11 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 public interface IPdfPageContentProvider : IDisposable
 {
+    /// <summary>
+    /// Raised on the work queue thread when a page's characters have been extracted, by text extraction or by rendering.
+    /// </summary>
+    event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
+
     /// <summary>
     /// Synchronisation object used to serialise access to the underlying PDF document.
     /// </summary>
@@ -37,6 +43,12 @@ public interface IPdfPageContentProvider : IDisposable
     PdfContentPictures GetExistingContentPictures(int pageNumber);
 
     /// <summary>
+    /// Returns the extracted characters of the specified 1-based page number in reading order,
+    /// or <see langword="null"/> if they have not been extracted yet.
+    /// </summary>
+    PdfCharacter[]? GetCharacters(int pageNumber);
+
+    /// <summary>
     /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the content
     /// picture of the specified 1-based page number for <paramref name="request"/>.
     /// </summary>
@@ -53,6 +65,11 @@ public interface IPdfPageContentProvider : IDisposable
     /// Pages no longer visible are cancelled and their cache cleared.
     /// </summary>
     void UpdateContent(PagesDrawingRequest request);
+
+    /// <summary>
+    /// Starts or stops extracting the characters of every page that has none yet, one page at a time.
+    /// </summary>
+    void UpdateTextExtraction(bool extractText);
 
     /// <summary>
     /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.

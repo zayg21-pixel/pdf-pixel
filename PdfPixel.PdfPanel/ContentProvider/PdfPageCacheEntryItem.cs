@@ -47,7 +47,8 @@ public sealed class PdfPageCacheEntryItem : IDisposable
 
 
     /// <summary>
-    /// Flattened characters extracted during the last content picture generation, in reading order.
+    /// Flattened characters of the page in reading order, or <see langword="null"/> if they have not been extracted yet.
+    /// Kept when the content is cleared.
     /// </summary>
     public PdfCharacter[]? Characters { get; private set; }
 
@@ -68,7 +69,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, PdfCharacter[]? characters = null)
+    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request)
     {
         if (request == null)
         {
@@ -78,7 +79,15 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ThrowIfDisposed();
         ContentPicture.SetContent(picture);
         LastRequest = request;
-        Characters = characters;
+    }
+
+    /// <summary>
+    /// Replace the extracted characters of the page.
+    /// </summary>
+    public void UpdateCharacters(PdfCharacter[] characters)
+    {
+        ThrowIfDisposed();
+        Characters = characters ?? throw new ArgumentNullException(nameof(characters));
     }
 
     /// <summary>
@@ -131,16 +140,15 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     }
 
     /// <summary>
-    /// Clears cache entry.
+    /// Clears the command recording and the content picture. Extracted characters are kept.
     /// </summary>
-    public void Clear()
+    public void ClearContent()
     {
         ThrowIfDisposed();
 
         ContentCommandRecording.SetContent(default);
         ContentPicture.SetContent(default);
         LastRequest = null;
-        Characters = null;
     }
 
     private void ThrowIfDisposed()
@@ -159,7 +167,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
             return;
         }
 
-        Clear();
+        ClearContent();
         _disposed = true;
     }
 }

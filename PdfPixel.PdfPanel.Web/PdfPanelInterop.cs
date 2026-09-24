@@ -264,14 +264,14 @@ public partial class PdfPanelInterop
             bool pointerPressed = state.GetPropertyAsBoolean("pointerPressed");
             resources.Context.PointerState = pointerPressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
-            resources.Context.Update();
+            resources.Context.Synchronize();
 
             string openUri = string.Empty;
 
             if (resources.Context.ClickedAnnotation != null)
             {
                 HandleAnnotationClick(resources, resources.Context.ClickedAnnotation, out openUri);
-                resources.Context.Update();
+                resources.Context.Synchronize();
             }
 
             PdfAnnotationPopup activeAnnotation = resources.Context.ActiveAnnotation;

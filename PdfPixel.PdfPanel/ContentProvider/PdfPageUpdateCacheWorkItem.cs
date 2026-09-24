@@ -24,6 +24,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     private readonly PdfTextBlockFlattener _textBlockFlattener;
     private readonly PagesDrawingRequest _request;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
+    private readonly Action<int> _onPageTextExtracted;
     private readonly IPdfCancellableExecutionObserver? _parseObserver;
     private readonly IPdfCancellableExecutionObserver? _contentObserver;
 
@@ -39,7 +40,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         object documentLocker,
         PdfTextBlockFlattener textBlockFlattener,
         PagesDrawingRequest request,
-        Action<PageUpdatedArgs>? onPageUpdated)
+        Action<PageUpdatedArgs>? onPageUpdated,
+        Action<int> onPageTextExtracted)
     {
         if (cacheEntry == null)
         {
@@ -52,6 +54,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         _textBlockFlattener = textBlockFlattener;
         _request = request;
         _onPageUpdated = onPageUpdated;
+        _onPageTextExtracted = onPageTextExtracted ?? throw new ArgumentNullException(nameof(onPageTextExtracted));
         _parseObserver = cacheEntry.ParseObserver;
         _contentObserver = cacheEntry.ContentObserver;
     }
@@ -117,10 +120,16 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     .ConfigureAwait(false);
 
                 SKPicture? contentPicture = recorder.EndRecording();
-                PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
-                PdfCharacter[] characters = _textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), pictureToPage);
+                CacheEntry.Content.UpdateContent(contentPicture, _request);
 
-                CacheEntry.Content.UpdateContent(contentPicture, _request, characters);
+                if (CacheEntry.Content.Characters == null)
+                {
+                    PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
+                    PdfCharacter[] characters = _textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), pictureToPage);
+                    CacheEntry.Content.UpdateCharacters(characters);
+                    _onPageTextExtracted(CacheEntry.PageNumber);
+                }
+
                 contentUpdated = true;
                 contentIsPartial = (CacheEntry.Content.Features & PdfCommandFeatures.Region) != 0;
             }
