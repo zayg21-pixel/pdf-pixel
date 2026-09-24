@@ -57,9 +57,24 @@ internal class PdfPage : IPdfPageInternal
         _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
 
         PageNumber = pageNumber;
-        PdfRectangle media = pageResources.MediaBoxRect ?? DefaultMediaBox;
-        PdfRectangle crop = pageResources.CropBoxRect ?? media;
-        crop = PdfRectangle.Intersect(crop, media);
+        PdfRectangle media = DefaultMediaBox;
+        PdfRectangle? declaredMedia = pageResources.MediaBoxRect;
+        if (declaredMedia != null && declaredMedia.Value.Width > 0 && declaredMedia.Value.Height > 0)
+        {
+            media = declaredMedia.Value;
+        }
+
+        PdfRectangle crop = media;
+        PdfRectangle? declaredCrop = pageResources.CropBoxRect;
+        if (declaredCrop != null)
+        {
+            PdfRectangle visibleCrop = PdfRectangle.Intersect(declaredCrop.Value, media);
+            if (visibleCrop.Width > 0 && visibleCrop.Height > 0)
+            {
+                crop = visibleCrop;
+            }
+        }
+
         MediaBox = media;
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
