@@ -93,6 +93,7 @@ internal static class PdfTokens
     public static readonly PdfString FontFile3Key = (PdfString)"FontFile3"u8;
     public static readonly PdfString FontNameKey = (PdfString)"FontName"u8;
     public static readonly PdfString FlagsKey = (PdfString)"Flags"u8;
+    public static readonly PdfString FieldFlagsKey = (PdfString)"Ff"u8;
     public static readonly PdfString FontBBoxKey = (PdfString)"FontBBox"u8;
     public static readonly PdfString ItalicAngleKey = (PdfString)"ItalicAngle"u8;
     public static readonly PdfString AscentKey = (PdfString)"Ascent"u8;

@@ -34,7 +34,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
         PartialName = dictionary.GetString(PdfTokens.TitleKey);
         AlternateName = dictionary.GetString(PdfTokens.NameKey);
         MappingName = dictionary.GetString(PdfTokens.NameKey);
-        Flags = (PdfFormFieldFlags)dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
+        Flags = (PdfFormFieldFlags)dictionary.GetIntegerOrDefault(PdfTokens.FieldFlagsKey);
         Value = dictionary.GetValue(PdfTokens.ValueKey);
         DefaultValue = dictionary.GetValue(PdfTokens.DefaultValueKey);
         Parent = dictionary.GetReference(PdfTokens.ParentKey) ?? default;

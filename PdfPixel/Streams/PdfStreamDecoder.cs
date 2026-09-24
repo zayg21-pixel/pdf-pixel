@@ -284,7 +284,8 @@ public sealed class PdfStreamDecoder
         {
             if (compressed.Length - compressed.Position < 2)
             {
-                throw new InvalidDataException("FlateDecode: insufficient data for zlib header.");
+                compressed.Dispose();
+                return Stream.Null;
             }
 
             compressed.ReadByte();
@@ -296,10 +297,11 @@ public sealed class PdfStreamDecoder
             int readCount = compressed.Read(headerBytes, 0, 2);
             if (readCount < 2)
             {
-                throw new InvalidDataException("FlateDecode: insufficient data for zlib header (non-seekable).");
+                compressed.Dispose();
+                return Stream.Null;
             }
         }
 
-        return new DeflateStream(compressed, CompressionMode.Decompress, leaveOpen: false);
+        return new FlateDecodeStream(compressed);
     }
 }

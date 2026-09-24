@@ -59,7 +59,7 @@ public abstract class PdfAnnotationBase
         Subject = annotationObject.Dictionary.GetString(PdfTokens.SubjectKey);
         CreationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey));
 
-        Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
+        Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FKey);
         AppearanceState = annotationObject.Dictionary.GetString(PdfTokens.AppearanceStateKey);
         Appearance = PdfAnnotationAppearance.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey), AppearanceState);
 
