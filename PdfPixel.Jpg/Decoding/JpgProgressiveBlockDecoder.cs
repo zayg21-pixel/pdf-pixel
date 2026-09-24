@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 using PdfPixel.Jpg.Huffman;
 using PdfPixel.Jpg.Readers;
@@ -16,6 +17,11 @@ internal static class JpgProgressiveBlockDecoder
     /// Decode DC coefficient (first pass or refinement) for a progressive JPEG block.
     /// DC coefficient (zig index 0) maps to natural index 0.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void DecodeDcCoefficient(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder dcDecoder,
@@ -73,6 +79,11 @@ internal static class JpgProgressiveBlockDecoder
     /// Decode AC coefficients for a progressive JPEG first pass scan.
     /// Spectral indices (zig-zag order) are remapped to natural indices on write.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void DecodeAcCoefficientsFirstPass(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder acDecoder,
@@ -161,6 +172,11 @@ internal static class JpgProgressiveBlockDecoder
     /// Decode AC coefficients for a progressive JPEG refinement pass (successive approximation > 0).
     /// Operates on coefficients stored in natural order (reads/writes remap spectral indices each access).
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void DecodeAcCoefficientsRefinement(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder acDecoder,

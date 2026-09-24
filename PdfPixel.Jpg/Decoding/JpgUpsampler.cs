@@ -69,6 +69,9 @@ internal sealed class JpgUpsampler
     /// </summary>
     /// <param name="sourceBandBlocks">Native sampling blocks per component (size: TotalBlocksPerBand[component]).</param>
     /// <param name="destFullResBlocks">Destination arrays (per component) sized to (ReconstructedMcuColumns * HMax * VMax) blocks.</param>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void UpsampleBand(Block8x8F[][] sourceBandBlocks, Block8x8F[][] destFullResBlocks)
     {
         if (sourceBandBlocks == null)
@@ -103,7 +106,11 @@ internal sealed class JpgUpsampler
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void FastCopy(Block8x8F[] sourceBlocks, Block8x8F[] destBlocks, in ScalingInfo info)
     {
         int blocksPerMcu = info.BlocksPerMcu;
@@ -118,6 +125,11 @@ internal sealed class JpgUpsampler
         }
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void GenericUpsampleComponent(Block8x8F[] sourceBlocks, Block8x8F[] destBlocks, in ScalingInfo info)
     {
         for (int mcuColumnIndex = 0; mcuColumnIndex < _parameters.ReconstructedMcuColumns; mcuColumnIndex++)
@@ -134,7 +146,11 @@ internal sealed class JpgUpsampler
         }
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void UpsampleBlock(
         Block8x8F[] sourceBlocks,
         int mcuColumnIndex,

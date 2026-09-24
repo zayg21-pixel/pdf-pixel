@@ -23,6 +23,11 @@ internal static class JpgBlockDecoder
     /// <param name="previousDcValue">Reference to previous DC for differential prediction (updated).</param>
     /// <param name="coefficientsNatural">Destination array (length &gt;= 64) receiving coefficients in natural order.</param>
     /// <param name="dcOnly">Outputs true if block contains only a DC coefficient (all AC are zero).</param>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void DecodeBaselineBlock(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder dcDecoder,
@@ -50,6 +55,11 @@ internal static class JpgBlockDecoder
     /// <summary>
     /// Decode differential DC coefficient (baseline) and store at natural index 0.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DecodeDcCoefficient(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder dcDecoder,
@@ -80,6 +90,11 @@ internal static class JpgBlockDecoder
     /// Stores each decoded non-zero at its natural index (mapping from current spectral/zig-zag position).
     /// Sets dcOnly true only if no non-zero AC value is encountered.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void DecodeAcCoefficients(
         ref JpgBitReader bitReader,
         JpgHuffmanDecoder acDecoder,

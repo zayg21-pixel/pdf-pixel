@@ -67,6 +67,9 @@ internal static class MeshEvaluator
     /// <param name="tessellation">Number of subdivisions per triangle edge (higher = smoother).</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>PdfVertices instance containing all triangle vertices, colors, and indices.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public static PdfVertices CreateVerticesForTriangles(
         List<MeshData> triangles,
         MeshColorResolver colorResolver,
@@ -155,6 +158,9 @@ internal static class MeshEvaluator
     /// <param name="tessellation">Number of subdivisions per axis (higher = smoother).</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>PdfVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public static PdfVertices CreateVerticesForPatches(List<MeshData> patches, MeshColorResolver colorResolver, int tessellation, IPdfExecutionObserver? observer)
     {
         if (patches == null || patches.Count == 0)
@@ -388,6 +394,9 @@ internal static class MeshEvaluator
     /// <summary>
     /// Copies the triangles' own vertices and colors into a single batch, without subdivision.
     /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static PdfVertices CreateFlatVerticesForTriangles(List<MeshData> triangles)
     {
         var allPoints = new PdfPoint[triangles.Count * 3];

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -107,6 +108,9 @@ public sealed class StitchingPdfFunction : PdfFunction
     }
 
     /// <inheritdoc />
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public override ReadOnlySpan<float> Evaluate(float value)
     {
         float x = Domain[0].Clamp(value);
@@ -152,6 +156,9 @@ public sealed class StitchingPdfFunction : PdfFunction
     }
 
     /// <inheritdoc />
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public override ReadOnlySpan<float> Evaluate(ReadOnlySpan<float> values)
     {
         float x = (values.Length > 0) ? values[0] : 0f;

@@ -78,6 +78,9 @@ internal class MeshDecoder
     /// Decodes all mesh patches from the shading stream, returning normalized control points and corner colors.
     /// </summary>
     /// <returns>List of decoded <see cref="MeshData"/> instances.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public List<MeshData> Decode()
     {
         PdfObjectStream? stream = _shading.Stream;
@@ -110,7 +113,11 @@ internal class MeshDecoder
         return patches;
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private MeshData DecodeMesh(ref UintBitReader bitReader, byte flag, MeshData? previousPatch)
     {
         var controlPoints = new PdfPoint[_controlPointCount];

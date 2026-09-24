@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Text;
@@ -182,6 +183,9 @@ public sealed class SampledPdfFunction : PdfFunction
     public int Dimensions { get; }
 
     /// <inheritdoc />
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public override ReadOnlySpan<float> Evaluate(float value)
     {
         _singleInput[0] = value;
@@ -189,6 +193,9 @@ public sealed class SampledPdfFunction : PdfFunction
     }
 
     /// <inheritdoc />
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public override ReadOnlySpan<float> Evaluate(ReadOnlySpan<float> values)
     {
         if (values.Length == 0)

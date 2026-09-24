@@ -15,7 +15,11 @@ internal static class PdfFunctions
     /// reference or an array of functions. Outputs are concatenated in order.
     /// Uses GetFunction to resolve each function object.
     /// </summary>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static ReadOnlySpan<float> EvaluateColorFunctions(List<PdfFunction> functions, float input)
     {
         if (functions == null || functions.Count == 0)
@@ -55,7 +59,11 @@ internal static class PdfFunctions
     /// <returns>A read-only span of floats containing the combined results of evaluating each function in <paramref
     /// name="functions"/> with the specified <paramref name="input"/>. Returns an empty span if <paramref
     /// name="functions"/> is null.</returns>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static ReadOnlySpan<float> EvaluateColorFunctions(List<PdfFunction> functions, in ReadOnlySpan<float> input)
     {
         if (functions == null || functions.Count == 0)

@@ -34,6 +34,9 @@ internal sealed class JpgBandPacker
     /// <param name="fullResBlocks">Per-component blocks of the current band.</param>
     /// <param name="bandRow">Row within the band, in output samples.</param>
     /// <param name="destination">Row to fill; the caller owns it.</param>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void PackRow(Block8x8F[][] fullResBlocks, int bandRow, in Span<byte> destination)
     {
         if (fullResBlocks == null)
@@ -66,6 +69,11 @@ internal sealed class JpgBandPacker
         }
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void PackGrayRow(Block8x8F[][] grayBlocks, int bandRow, in Span<byte> destination)
     {
         Block8x8F[] yBlocks = grayBlocks[0];
@@ -99,6 +107,11 @@ internal sealed class JpgBandPacker
         }
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void PackRgbRow(Block8x8F[][] rgbBlocks, int bandRow, in Span<byte> destination)
     {
         Block8x8F[] rBlocks = rgbBlocks[0];
@@ -139,6 +152,11 @@ internal sealed class JpgBandPacker
         }
     }
 
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void PackCmykRow(Block8x8F[][] cmykBlocks, int bandRow, in Span<byte> destination)
     {
         Block8x8F[] cBlocks = cmykBlocks[0];
@@ -186,6 +204,11 @@ internal sealed class JpgBandPacker
     /// Packer for any component count, writing one component plane at a time into the interleaved
     /// destination. Used for images whose component count has no dedicated fast path.
     /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private void PackInterleavedRow(Block8x8F[][] fullResBlocks, int bandRow, in Span<byte> destination)
     {
         int componentCount = _header.ComponentCount;

@@ -86,6 +86,9 @@ internal class GouraudMeshDecoder
     /// Decodes all triangles from the shading stream, returning each as a MeshData (3 points, 3 colors).
     /// </summary>
     /// <returns>List of decoded MeshData instances.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public List<MeshData> Decode()
     {
         PdfObjectStream? stream = _shading.Stream;
@@ -109,7 +112,11 @@ internal class GouraudMeshDecoder
     }
 
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private List<MeshData> ReadType4(ref UintBitReader bitReader)
     {
         List<MeshData> patches = [];
@@ -178,7 +185,11 @@ internal class GouraudMeshDecoder
         return patches;
     }
 
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private List<MeshData> ReadType5(ref UintBitReader bitReader)
     {
         List<(PdfPoint point, MeshVertexColor color)> vertexList = [];

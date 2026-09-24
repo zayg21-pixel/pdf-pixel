@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jpg.Color;
 using PdfPixel.Jpg.Idct;
 using PdfPixel.Jpg.Model;
@@ -171,6 +172,9 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
         return true;
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ProduceNextBand()
     {
         int yBase = _currentMcuRow * _decodingParameters.OutputMcuHeight;

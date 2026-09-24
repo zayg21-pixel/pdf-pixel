@@ -6,6 +6,7 @@ using PdfPixel.Models;
 using PdfPixel.Shading.Model;
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Shading.Decoding;
 
@@ -31,6 +32,9 @@ internal sealed class MeshColorResolver
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="functionSamples">Number of samples taken from the shading's function(s).</param>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public MeshColorResolver(PdfShading shading, ColorTransformSampler sampler, int functionSamples)
     {
         _sampler = sampler;

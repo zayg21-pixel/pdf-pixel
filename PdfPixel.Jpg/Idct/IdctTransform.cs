@@ -47,7 +47,11 @@ internal static class IdctTransform
     /// <param name="dcOnly">True to process only the DC coefficient (fast path).</param>
     /// <param name="idctWidth">Reconstructed sample count per row (1, 2, 4 or 8).</param>
     /// <param name="idctHeight">Reconstructed sample count per column (1, 2, 4 or 8).</param>
+#if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     public static void TransformScaledNatural(ref Block8x8F inputNatural, ref Block8x8F dequantBlock, bool dcOnly, int idctWidth, int idctHeight)
     {
         if (dcOnly)
@@ -115,6 +119,11 @@ internal static class IdctTransform
     /// <param name="dequantBlock">Precomputed dequantization block.</param>
     /// <param name="idctWidth">Reconstructed sample count per row.</param>
     /// <param name="idctHeight">Reconstructed sample count per column.</param>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ApplyReducedTransform(ref Block8x8F block, ref Block8x8F dequantBlock, int idctWidth, int idctHeight)
     {
         ref Block8x8F inputScaleBlock = ref ReducedInputScaleBlocks[ScaleBlockIndex(idctWidth, idctHeight)];

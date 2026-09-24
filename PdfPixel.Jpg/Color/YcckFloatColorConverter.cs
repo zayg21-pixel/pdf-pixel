@@ -46,6 +46,9 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
         _parameters = parameters;
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
     {
         if (upsampledBandBlocks == null)

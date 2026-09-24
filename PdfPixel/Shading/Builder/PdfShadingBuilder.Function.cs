@@ -27,6 +27,9 @@ internal partial class PdfShadingBuilder
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <param name="observer">Execution observer for progress and cancellation.</param>
     /// <returns>A <see cref="FunctionShadingResult"/> containing the image and matrix, or <see langword="null"/> on failure.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public FunctionShadingResult? BuildFunctionBased(
         PdfShading shading,
         ColorTransformSampler sampler,

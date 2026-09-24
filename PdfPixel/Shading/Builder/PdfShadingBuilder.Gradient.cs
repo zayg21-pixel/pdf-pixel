@@ -7,6 +7,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Shading.Model;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Shading;
 
@@ -64,6 +65,9 @@ internal partial class PdfShadingBuilder
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <returns>The computed color and position stops.</returns>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public PdfShadingColorStops BuildShadingColorsAndStops(
         PdfShading shading,
         ColorTransformSampler sampler,

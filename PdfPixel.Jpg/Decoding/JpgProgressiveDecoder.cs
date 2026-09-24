@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using PdfPixel.Jpg.Color;
 using PdfPixel.Jpg.Huffman;
@@ -178,6 +179,9 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         return true;
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private void ProduceNextBand()
     {
         int yBase = _currentMcuRow * _decodingParameters.OutputMcuHeight;
@@ -285,6 +289,9 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         return buffers;
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ProcessProgressiveScans(
         JpgHeader header,
         in ReadOnlySpan<byte> content,
@@ -368,6 +375,9 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         }
     }
 
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     private static void ProcessCurrentScan(
         JpgHeader header,
         CoeffBuffers[] coeffBuffers,

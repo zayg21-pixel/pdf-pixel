@@ -50,7 +50,12 @@ Biggest item. Depends on the overlay API for match highlighting.
 
 ## Investigations
 
-- [ ] Aggressive optimizations: list candidates, measure the gain of each against the current baseline, decide what is worth the complexity
+- [x] Aggressive optimizations: `AggressiveOptimization` on the per-pixel and per-sample loops of Imaging.Processing, PdfPixel.Color, JPX, JBIG2, CCITT, JPEG, shadings and functions (`#if !NETSTANDARD2_0`, the flag does not exist there). Measured in Release with `PdfPixel.Diagnostics`, first iteration vs. steady state:
+  - bug1749563 (JPX), page 1, scale 4: first iteration 1222 → ~815 ms, steady ~550 → ~575–610 ms
+  - Wheeling.VA.Daily.Intelligencer (JBIG2), page 1: first-iteration decode 6811 → 6006 ms, steady unchanged
+  - 3i_2021 (CMYK ICC), page 1, scale 4: first iteration 649 → 582 ms, steady unchanged
+  - Tagged code gets no Dynamic PGO. Accepted: documents are decoded once and cached, the cold run is what the user waits for. Loop helpers called from tagged methods need `AggressiveInlining`, a tagged caller does not inline loops on its own
+  - PdfPixel.PostScript left untagged
 
 ## Suggested order
 
@@ -58,5 +63,5 @@ Biggest item. Depends on the overlay API for match highlighting.
 2. Overlay API
 3. Text interaction stabilization
 4. Text search
-5. Pre-render, caching, memory, then the aggressive optimizations investigation (measure after the caching changes so the baseline is current)
+5. Pre-render, caching, memory
 6. Demo cleanup, final WASM cleanup, delete this file

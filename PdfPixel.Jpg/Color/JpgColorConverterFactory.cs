@@ -92,6 +92,9 @@ internal static class JpgColorConverterFactory
             _vectorLimit = parameters.BlockVectorLimit;
         }
 
+#if !NETSTANDARD2_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
         {
             bool wholeBlock = _vectorLimit == Block8x8F.VectorCount;
@@ -128,6 +131,9 @@ internal static class JpgColorConverterFactory
             _vectorLimit = parameters.BlockVectorLimit;
         }
 
+#if !NETSTANDARD2_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
         {
             for (int c = 0; c < 4; c++)

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -80,6 +81,7 @@ public abstract class PdfFunction
     /// </summary>
     /// <param name="values">Input values to clamp.</param>
     /// <param name="range">One entry per component; no-op when <see langword="null"/>.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected static void Clamp(in Span<float> values, PdfRange[]? range)
     {
         if (range == null)
@@ -101,6 +103,7 @@ public abstract class PdfFunction
     /// <param name="range">One entry per component; returns <paramref name="value"/> unchanged when <see langword="null"/> or too short.</param>
     /// <param name="index">Index of the entry to use.</param>
     /// <returns>Clamped value.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected static float Clamp(float value, PdfRange[]? range, int index)
     {
         if (range == null || range.Length <= index)
