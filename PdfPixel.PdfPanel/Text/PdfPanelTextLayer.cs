@@ -1,37 +1,40 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Requests;
 using PdfPixel.Skia;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace PdfPixel.PdfPanel.Text;
 
 /// <summary>
-/// Tracks text selection state and produces highlight graphics for the selected range.
+/// Text layer of the panel: tracks text selection and produces the highlight graphics drawn over page content.
 /// </summary>
-public sealed class PdfPanelTextSelector : IDisposable
+public sealed class PdfPanelTextLayer : IDisposable
 {
     private readonly IPdfPageContentProvider _contentProvider;
-    private readonly PdfPanelTextSelectorParameters _parameters;
+    private readonly PdfPanelTextLayerParameters _parameters;
     private readonly PdfPanelInputProcessor _processor;
-    private readonly Dictionary<int, SKPicture> _selectionPictures = [];
+    private readonly Dictionary<int, SKPicture> _textLayerPictures = [];
+    private readonly StringBuilder _textBuilder = new();
     private int? _anchorPageNumber;
     private int? _anchorCharIndex;
     private int? _currentCharIndex;
-    private PdfCharacter[]? _selectedCharacters;
+    private PdfPanelTextRange? _selection;
     private bool _isPointerOverText;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfPanelTextSelector"/> with the given content provider and parameters,
+    /// Initializes a new <see cref="PdfPanelTextLayer"/> with the given content provider and parameters,
     /// and subscribes it to the given processor.
     /// </summary>
-    public PdfPanelTextSelector(
+    public PdfPanelTextLayer(
         IPdfPageContentProvider contentProvider,
-        PdfPanelTextSelectorParameters parameters,
+        PdfPanelTextLayerParameters parameters,
         PdfPanelInputProcessor processor)
     {
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
@@ -54,33 +57,135 @@ public sealed class PdfPanelTextSelector : IDisposable
     /// <summary>
     /// The text content of the current selection, or empty if nothing is selected.
     /// </summary>
-    public string SelectedText
+    public string SelectedText => (_selection == null) ? string.Empty : GetText(_selection.Value);
+
+    /// <summary>
+    /// Returns the text of the characters in <paramref name="range"/>, or empty if the page's characters have not been extracted yet.
+    /// </summary>
+    public string GetText(in PdfPanelTextRange range)
     {
-        get
+        PdfCharacter[]? characters = GetCharacters(range.PageNumber);
+
+        if (characters == null)
         {
-            if (_selectedCharacters == null)
+            return string.Empty;
+        }
+
+        _textBuilder.Clear();
+
+        foreach (PdfCharacter character in characters.AsSpan(range.StartIndex, range.Length))
+        {
+            if (character.Text != null)
             {
-                return string.Empty;
+                _textBuilder.Append(character.Text);
+            }
+        }
+
+        return _textBuilder.ToString();
+    }
+
+    /// <summary>
+    /// Returns the text of every character of the given page, or <see langword="null"/> if its characters have not been
+    /// extracted yet. <paramref name="characterIndexes"/> is filled with the index of the character each text position belongs to.
+    /// </summary>
+    internal string? GetPageText(int pageNumber, List<int> characterIndexes)
+    {
+        PdfCharacter[]? characters = GetCharacters(pageNumber);
+
+        if (characters == null)
+        {
+            return null;
+        }
+
+        _textBuilder.Clear();
+        characterIndexes.Clear();
+
+        for (int characterIndex = 0; characterIndex < characters.Length; characterIndex++)
+        {
+            string? characterText = characters[characterIndex].Text;
+
+            if (characterText == null)
+            {
+                continue;
             }
 
-            StringBuilder builder = new();
-            foreach (PdfCharacter character in _selectedCharacters)
-            {
-                if (character.Text != null)
-                {
-                    builder.Append(character.Text);
-                }
-            }
+            _textBuilder.Append(characterText);
 
-            return builder.ToString();
+            for (int textIndex = 0; textIndex < characterText.Length; textIndex++)
+            {
+                characterIndexes.Add(characterIndex);
+            }
+        }
+
+        return _textBuilder.ToString();
+    }
+
+    /// <summary>
+    /// Returns the area the characters in <paramref name="range"/> cover, in unscaled page space,
+    /// or <see langword="null"/> if the page's characters have not been extracted yet.
+    /// </summary>
+    internal PdfRectangle? GetBounds(in PdfPanelTextRange range)
+    {
+        PdfCharacter[]? characters = GetCharacters(range.PageNumber);
+
+        if (characters == null)
+        {
+            return null;
+        }
+
+        PdfRectangle bounds = characters[range.StartIndex].BoundingBox;
+
+        for (int characterIndex = range.StartIndex + 1; characterIndex < range.StartIndex + range.Length; characterIndex++)
+        {
+            bounds = PdfRectangle.Union(bounds, characters[characterIndex].BoundingBox);
+        }
+
+        return bounds;
+    }
+
+    /// <summary>
+    /// Returns the text layer picture for the given visible page, creating it on first call from <paramref name="searchMatches"/>
+    /// and the selection, or <see langword="null"/> if that page has nothing to highlight.
+    /// </summary>
+    internal SKPicture? GetTextLayerPicture(int pageNumber, IReadOnlyList<PdfPanelSearchMatch>? searchMatches)
+    {
+        if (_textLayerPictures.TryGetValue(pageNumber, out SKPicture? picture))
+        {
+            return picture;
+        }
+
+        SKPicture? newPicture = GenerateTextLayerPicture(pageNumber, searchMatches);
+
+        if (newPicture != null)
+        {
+            _textLayerPictures[pageNumber] = newPicture;
+        }
+
+        return newPicture;
+    }
+
+    /// <summary>
+    /// Releases the text layer pictures of every page that is not in <paramref name="visiblePages"/>.
+    /// </summary>
+    internal void EvictExcept(IReadOnlyList<VisiblePageInfo> visiblePages)
+    {
+        foreach (int pageNumber in _textLayerPictures.Keys.Where(key => !visiblePages.Any(page => page.PageNumber == key)).ToList())
+        {
+            Invalidate(pageNumber);
         }
     }
 
     /// <summary>
-    /// Returns the selection highlight picture for the given page, or <see langword="null"/> if that page has no selection.
+    /// Releases the text layer picture of the given page so it is created again on its next draw.
     /// </summary>
-    internal SKPicture? GetSelectionPicture(int pageNumber)
-        => (_selectionPictures.TryGetValue(pageNumber, out SKPicture? picture)) ? picture : null;
+    internal void Invalidate(int pageNumber)
+    {
+        if (_textLayerPictures.TryGetValue(pageNumber, out SKPicture? picture))
+        {
+            picture.Dispose();
+            _textLayerPictures.Remove(pageNumber);
+        }
+    }
 
     private void OnPointerMoved(object? sender, PdfPanelPointerEventArgs args)
     {
@@ -140,9 +245,8 @@ public sealed class PdfPanelTextSelector : IDisposable
     {
         ExtendSelection(args.Position);
 
-        if (_selectedCharacters == null)
+        if (_selection == null)
         {
-            ClearSelectionPictures();
             _anchorPageNumber = null;
         }
 
@@ -182,45 +286,22 @@ public sealed class PdfPanelTextSelector : IDisposable
 
         int start = Math.Max(Math.Min(_anchorCharIndex.Value, charIndex.Value), 0);
         int end = Math.Min(Math.Max(_anchorCharIndex.Value, charIndex.Value), characters.Length - 1);
-        _selectedCharacters = characters.AsSpan(start, end - start + 1).ToArray();
+        _selection = new PdfPanelTextRange(_anchorPageNumber.Value, start, end - start + 1);
 
-        UpdateSelectionPicture(_anchorPageNumber.Value);
-    }
-
-    private void UpdateSelectionPicture(int pageNumber)
-    {
-        SKPicture? newPicture = GenerateSelectionPicture(pageNumber);
-
-        if (newPicture == null)
-        {
-            return;
-        }
-
-        if (_selectionPictures.TryGetValue(pageNumber, out SKPicture? oldPicture))
-        {
-            oldPicture.Dispose();
-        }
-
-        _selectionPictures[pageNumber] = newPicture;
+        Invalidate(_anchorPageNumber.Value);
     }
 
     private void ClearSelection()
     {
-        ClearSelectionPictures();
+        if (_selection != null)
+        {
+            Invalidate(_selection.Value.PageNumber);
+        }
+
         _anchorPageNumber = null;
         _anchorCharIndex = null;
         _currentCharIndex = null;
-        _selectedCharacters = null;
-    }
-
-    private void ClearSelectionPictures()
-    {
-        foreach (SKPicture picture in _selectionPictures.Values)
-        {
-            picture.Dispose();
-        }
-
-        _selectionPictures.Clear();
+        _selection = null;
     }
 
     private PdfCharacter[]? GetCharacters(int pageNumber)
@@ -254,9 +335,18 @@ public sealed class PdfPanelTextSelector : IDisposable
         return HitTestCharacterNearest(characters, pagePoint.Value.Position, maxDistance);
     }
 
-    private SKPicture? GenerateSelectionPicture(int pageNumber)
+    private SKPicture? GenerateTextLayerPicture(int pageNumber, IReadOnlyList<PdfPanelSearchMatch>? searchMatches)
     {
-        if (_anchorPageNumber != pageNumber || _selectedCharacters == null)
+        PdfPanelTextRange? pageSelection = (_selection?.PageNumber == pageNumber) ? _selection : null;
+
+        if (pageSelection == null && (searchMatches == null || searchMatches.Count == 0))
+        {
+            return null;
+        }
+
+        PdfCharacter[]? characters = GetCharacters(pageNumber);
+
+        if (characters == null)
         {
             return null;
         }
@@ -266,15 +356,39 @@ public sealed class PdfPanelTextSelector : IDisposable
         using SKPictureRecorder recorder = new();
         SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
 
-        SKPaint highlightPaint = new()
+        if (searchMatches != null)
         {
-            Style = SKPaintStyle.Fill,
-            Color = _parameters.HighlightColor.ToSkiaColor()
-        };
+            using SKPaint searchMatchPaint = new()
+            {
+                Style = SKPaintStyle.Fill,
+                Color = _parameters.SearchMatchColor.ToSkiaColor()
+            };
 
+            foreach (PdfPanelSearchMatch searchMatch in searchMatches)
+            {
+                DrawHighlightStrips(canvas, characters, searchMatch.Range, searchMatchPaint);
+            }
+        }
+
+        if (pageSelection != null)
+        {
+            using SKPaint selectionPaint = new()
+            {
+                Style = SKPaintStyle.Fill,
+                Color = _parameters.SelectionColor.ToSkiaColor()
+            };
+
+            DrawHighlightStrips(canvas, characters, pageSelection.Value, selectionPaint);
+        }
+
+        return recorder.EndRecording();
+    }
+
+    private void DrawHighlightStrips(SKCanvas canvas, PdfCharacter[] characters, in PdfPanelTextRange range, SKPaint paint)
+    {
         PdfRectangle? currentStrip = null;
 
-        foreach (PdfCharacter character in _selectedCharacters)
+        foreach (PdfCharacter character in characters.AsSpan(range.StartIndex, range.Length))
         {
             PdfRectangle box = character.BoundingBox;
 
@@ -288,19 +402,15 @@ public sealed class PdfPanelTextSelector : IDisposable
             }
             else
             {
-                canvas.DrawRect(currentStrip.Value.ToSkRect(), highlightPaint);
+                canvas.DrawRect(currentStrip.Value.ToSkRect(), paint);
                 currentStrip = box;
             }
         }
 
         if (currentStrip != null)
         {
-            canvas.DrawRect(currentStrip.Value.ToSkRect(), highlightPaint);
+            canvas.DrawRect(currentStrip.Value.ToSkRect(), paint);
         }
-
-        highlightPaint.Dispose();
-
-        return recorder.EndRecording();
     }
 
     private static int? HitTestCharacterNearest(PdfCharacter[] characters, in PdfPoint point, float? maxDistance = null)
@@ -340,6 +450,11 @@ public sealed class PdfPanelTextSelector : IDisposable
         _processor.DragMoved -= OnDragMoved;
         _processor.DragEnded -= OnDragEnded;
 
-        ClearSelectionPictures();
+        foreach (SKPicture picture in _textLayerPictures.Values)
+        {
+            picture.Dispose();
+        }
+
+        _textLayerPictures.Clear();
     }
 }

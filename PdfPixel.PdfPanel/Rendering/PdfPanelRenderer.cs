@@ -42,7 +42,8 @@ public sealed class PdfPanelRenderer : IDisposable
         _tiler = new PdfPageContentTiler(surfaceFactory, properties.TileSize);
         _clock = new PdfAnimationClock(properties.AnimationFps);
         InputProcessor = new PdfPanelInputProcessor(properties.InputParameters);
-        TextSelector = new PdfPanelTextSelector(contentProvider, properties.TextSelectorParameters, InputProcessor);
+        TextLayer = new PdfPanelTextLayer(contentProvider, properties.TextLayerParameters, InputProcessor);
+        TextSearchEngine = new PdfPanelTextSearchEngine(TextLayer, contentProvider);
 
         if (properties.ContentUpdateDelay > TimeSpan.Zero)
         {
@@ -50,6 +51,7 @@ public sealed class PdfPanelRenderer : IDisposable
         }
 
         ContentProvider.OnPageUpdated = OnPageUpdated;
+        ContentProvider.PageTextExtracted += OnPageTextExtracted;
         _surfaceFactory.Initialize();
     }
 
@@ -64,9 +66,14 @@ public sealed class PdfPanelRenderer : IDisposable
     public PdfPanelInputProcessor InputProcessor { get; }
 
     /// <summary>
-    /// Text selection state and highlight renderer for the panel.
+    /// Text layer of the panel: text selection and the highlights drawn over page content.
     /// </summary>
-    public PdfPanelTextSelector TextSelector { get; }
+    public PdfPanelTextLayer TextLayer { get; }
+
+    /// <summary>
+    /// Search of the panel's text, holding the matches of the current search query.
+    /// </summary>
+    public PdfPanelTextSearchEngine TextSearchEngine { get; }
 
     /// <summary>
     /// Configuration values the renderer was created with.
@@ -150,10 +157,37 @@ public sealed class PdfPanelRenderer : IDisposable
             if (pictures.Content?.HasContent == true)
             {
                 SKSurface surface = GetSurface(_lastRequest);
-                surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextSelector, Properties.PageCornerRadius, PageDrawFlags.Background | PageDrawFlags.Content, default);
+                surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextLayer, TextSearchEngine, Properties.PageCornerRadius, PageDrawFlags.Background | PageDrawFlags.Content, default);
                 _lastRequest.RenderTarget.Render(GetSurface(_lastRequest), _lastRequest);
             }
         }
+    }
+
+    /// <summary>
+    /// Searches the panel's text for <paramref name="query"/> when the query or the options changed,
+    /// and redraws the visible pages with the new matches.
+    /// </summary>
+    public void UpdateSearch(string? query, PdfPanelSearchOptions options)
+    {
+        if (_disposed || !TextSearchEngine.Update(query, options))
+        {
+            return;
+        }
+
+        if (_lastRequest == null || _lastRequest.RenderTarget == null)
+        {
+            return;
+        }
+
+        SKSurface surface = GetSurface(_lastRequest);
+
+        foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
+        {
+            TextLayer.Invalidate(page.PageNumber);
+            DrawPageContent(surface, page);
+        }
+
+        _lastRequest.RenderTarget.Render(surface, _lastRequest);
     }
 
     /// <summary>
@@ -205,6 +239,7 @@ public sealed class PdfPanelRenderer : IDisposable
         AnimationState animation = GetAnimationState();
 
         _tiler.EvictExcept(request.VisiblePages);
+        TextLayer.EvictExcept(request.VisiblePages);
 
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
@@ -215,7 +250,7 @@ public sealed class PdfPanelRenderer : IDisposable
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
 
-            surface.Canvas.DrawPage(page, request, pictures, _tiler, TextSelector, Properties.PageCornerRadius, PageDrawFlags.AllContent, animation);
+            surface.Canvas.DrawPage(page, request, pictures, _tiler, TextLayer, TextSearchEngine, Properties.PageCornerRadius, PageDrawFlags.AllContent, animation);
         }
 
         request.RenderTarget.Render(surface, request);
@@ -255,7 +290,7 @@ public sealed class PdfPanelRenderer : IDisposable
                 continue;
             }
 
-            surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextSelector, Properties.PageCornerRadius, PageDrawFlags.Background | PageDrawFlags.Placeholder, animation);
+            surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextLayer, TextSearchEngine, Properties.PageCornerRadius, PageDrawFlags.Background | PageDrawFlags.Placeholder, animation);
             anyRedrawn = true;
         }
 
@@ -374,8 +409,50 @@ public sealed class PdfPanelRenderer : IDisposable
         _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 
         SKSurface surface = GetSurface(_lastRequest);
-        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, TextSelector, Properties.PageCornerRadius, PageDrawFlags.Background | PageDrawFlags.Content, default);
+        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, TextLayer, TextSearchEngine, Properties.PageCornerRadius, PageDrawFlags.Background | PageDrawFlags.Content, default);
         _lastRequest.RenderTarget.Render(surface, _lastRequest);
+    }
+
+    private void OnPageTextExtracted(object? sender, PageTextExtractedEventArgs args)
+    {
+        if (Properties.SynchronizationContext != null)
+        {
+            Properties.SynchronizationContext.Post(_ => OnPageTextExtractedSync(args.PageNumber), null);
+        }
+        else
+        {
+            OnPageTextExtractedSync(args.PageNumber);
+        }
+    }
+
+    private void OnPageTextExtractedSync(int pageNumber)
+    {
+        if (_disposed || !TextSearchEngine.SearchPage(pageNumber))
+        {
+            return;
+        }
+
+        TextLayer.Invalidate(pageNumber);
+
+        if (_lastRequest == null || _lastRequest.RenderTarget == null || !_lastRequest.VisiblePages.Any(p => p.PageNumber == pageNumber))
+        {
+            return;
+        }
+
+        SKSurface surface = GetSurface(_lastRequest);
+        DrawPageContent(surface, _lastRequest.GetPage(pageNumber));
+        _lastRequest.RenderTarget.Render(surface, _lastRequest);
+    }
+
+    private void DrawPageContent(SKSurface surface, in VisiblePageInfo page)
+    {
+        if (_lastRequest == null)
+        {
+            return;
+        }
+
+        PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
+        surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextLayer, TextSearchEngine, Properties.PageCornerRadius, PageDrawFlags.Background | PageDrawFlags.Content, default);
     }
 
     private SKSurface GetSurface(PagesDrawingRequest request)
@@ -396,9 +473,10 @@ public sealed class PdfPanelRenderer : IDisposable
         _clock.Dispose();
 
         _contentUpdateTimer?.Dispose();
-        TextSelector.Dispose();
+        TextLayer.Dispose();
         _tiler.Dispose();
         ContentProvider.OnPageUpdated = null;
+        ContentProvider.PageTextExtracted -= OnPageTextExtracted;
     }
 }
 

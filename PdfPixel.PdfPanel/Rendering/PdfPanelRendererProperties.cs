@@ -28,9 +28,9 @@ public sealed class PdfPanelRendererProperties
     public float PageCornerRadius { get; set; }
 
     /// <summary>
-    /// Configuration the renderer's <see cref="PdfPanelTextSelector"/> is created with.
+    /// Configuration the renderer's <see cref="PdfPanelTextLayer"/> is created with.
     /// </summary>
-    public PdfPanelTextSelectorParameters TextSelectorParameters { get; set; } = new();
+    public PdfPanelTextLayerParameters TextLayerParameters { get; set; } = new();
 
     /// <summary>
     /// Configuration the renderer's <see cref="PdfPanelInputProcessor"/> is created with.

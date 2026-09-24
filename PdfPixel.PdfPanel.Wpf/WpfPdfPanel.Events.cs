@@ -95,7 +95,7 @@ public partial class WpfPdfPanel
 
         if (keyArgs.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
         {
-            string text = _renderer?.TextSelector.SelectedText ?? string.Empty;
+            string text = _renderer?.TextLayer.SelectedText ?? string.Empty;
             if (text.Length > 0)
             {
                 Clipboard.SetText(text);

@@ -130,7 +130,7 @@ public partial class PdfPanelInterop
             return string.Empty;
         }
 
-        return resources.Renderer.TextSelector.SelectedText;
+        return resources.Renderer.TextLayer.SelectedText;
     }
 
     [JSExport]

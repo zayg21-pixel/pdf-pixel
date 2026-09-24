@@ -19,7 +19,8 @@ internal static class SkCanvasExtensions
         PagesDrawingRequest request,
         PdfContentPictures pictures,
         PdfPageContentTiler tiler,
-        PdfPanelTextSelector textSelector,
+        PdfPanelTextLayer textLayer,
+        PdfPanelTextSearchEngine textSearchEngine,
         float cornerRadius,
         PageDrawFlags flags,
         in AnimationState animation)
@@ -53,15 +54,15 @@ internal static class SkCanvasExtensions
         {
             tiler.DrawTiles(canvas, in page, request.Scale, deviceMatrix);
             DrawPagePicture(canvas, pictures?.Annotations, page.Info);
-            DrawSelectionPicture(canvas, textSelector, page);
+            DrawTextLayerPicture(canvas, textLayer, textSearchEngine, page);
         }
 
         canvas.RestoreToCount(savedCount);
     }
 
-    private static void DrawSelectionPicture(SKCanvas canvas, PdfPanelTextSelector textSelector, in VisiblePageInfo page)
+    private static void DrawTextLayerPicture(SKCanvas canvas, PdfPanelTextLayer textLayer, PdfPanelTextSearchEngine textSearchEngine, in VisiblePageInfo page)
     {
-        SKPicture? picture = textSelector.GetSelectionPicture(page.PageNumber);
+        SKPicture? picture = textLayer.GetTextLayerPicture(page.PageNumber, textSearchEngine.GetPageMatches(page.PageNumber));
         if (picture == null)
         {
             return;

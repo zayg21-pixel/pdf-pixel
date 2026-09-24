@@ -192,6 +192,7 @@ public sealed class PdfPanelContext : IDisposable
         DispatchPointerInput();
 
         _renderer.ContentProvider.UpdateTextExtraction(ExtractText);
+        _renderer.UpdateSearch(SearchQuery, SearchOptions);
     }
 
     /// <summary>
