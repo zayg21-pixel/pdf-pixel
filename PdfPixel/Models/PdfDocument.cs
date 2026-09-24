@@ -71,7 +71,7 @@ internal class PdfDocument : IPdfDocumentInternal
 
     BasePdfDecryptor? IPdfDocumentInternal.Decryptor { get; set; }
 
-    string? IPdfDocumentInternal.Password { get; set; }
+    PdfPasswordRequestedCallback? IPdfDocumentInternal.OnPasswordRequested { get; set; }
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;
 

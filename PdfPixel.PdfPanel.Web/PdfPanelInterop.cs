@@ -173,7 +173,7 @@ public partial class PdfPanelInterop
             resources.Pages?.Dispose();
             resources.Document?.Dispose();
 
-            resources.Document = DocumentReader.Read(new MemoryStream(document), string.Empty);
+            resources.Document = DocumentReader.Read(new MemoryStream(document));
 
             PdfPageContentProvider contentProvider = new(
                 resources.Document,

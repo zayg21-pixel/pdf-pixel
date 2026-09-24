@@ -35,7 +35,7 @@ internal static class PageRenderer
         // The reader parses lazily from the stream it is given, so the whole document is read into
         // memory first and never touches the disk again while it renders.
         using MemoryStream documentStream = new(File.ReadAllBytes(pdfPath));
-        using IPdfDocument document = reader.Read(documentStream, password);
+        using IPdfDocument document = reader.Read(documentStream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
 
         // Checked before anything is rendered, so that a bad page number costs nothing and leaves
         // no half-written output behind.

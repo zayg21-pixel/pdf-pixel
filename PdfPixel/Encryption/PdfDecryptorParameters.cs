@@ -1,4 +1,6 @@
 ﻿using PdfPixel.Models;
+using PdfPixel.Text;
+using System.Collections.Generic;
 
 namespace PdfPixel.Encryption;
 
@@ -70,45 +72,41 @@ public class PdfDecryptorParameters
     public byte[]? Perms { get; set; }
 
     /// <summary>
-    /// Stream crypt filter name (/StmF) when V=4 or 5.
+    /// Crypt filters declared in the /CF dictionary, keyed by name.
     /// </summary>
-    public PdfString? StreamCryptFilterName { get; set; }
+    public Dictionary<PdfString, PdfCryptFilter> CryptFilters { get; } = [];
 
     /// <summary>
-    /// String crypt filter name (/StrF) when V=4 or 5.
+    /// Crypt filter applied to streams (/StmF).
     /// </summary>
-    public PdfString? StringCryptFilterName { get; set; }
+    public PdfCryptFilter StreamCryptFilter { get; set; } = PdfCryptFilter.Identity;
 
     /// <summary>
-    /// Embedded file crypt filter name (/EFF) when present.
+    /// Crypt filter applied to strings (/StrF).
     /// </summary>
-    public PdfString? EmbeddedFileCryptFilterName { get; set; }
+    public PdfCryptFilter StringCryptFilter { get; set; } = PdfCryptFilter.Identity;
 
     /// <summary>
-    /// Crypt filter dictionary (/CF) parsed lazily by decryptor. Raw map retained from SourceDictionary when needed.
+    /// Crypt filter applied to embedded file streams (/EFF).
     /// </summary>
-    public PdfDictionary? CryptFilterDictionary { get; set; }
+    public PdfCryptFilter EmbeddedFileCryptFilter { get; set; } = PdfCryptFilter.Identity;
 
     /// <summary>
-    /// Selected stream crypt filter method (CF entry's /CFM name, e.g., AESV2, None).
-    /// Resolved by looking up the CF entry referenced by /StmF.
+    /// Returns the crypt filter declared under <paramref name="name"/>, or <see cref="PdfCryptFilter.Identity"/>
+    /// when the name is absent, is Identity, or is not declared.
     /// </summary>
-    public PdfString? StreamCryptFilterMethod { get; set; }
+    public PdfCryptFilter GetCryptFilter(PdfString? name)
+    {
+        if (name == null || name.Value == PdfTokens.IdentityKey)
+        {
+            return PdfCryptFilter.Identity;
+        }
 
-    /// <summary>
-    /// Selected string crypt filter method (CF entry's /CFM name referenced by /StrF).
-    /// </summary>
-    public PdfString? StringCryptFilterMethod { get; set; }
+        if (CryptFilters.TryGetValue(name.Value, out PdfCryptFilter? cryptFilter))
+        {
+            return cryptFilter;
+        }
 
-    /// <summary>
-    /// Key length override from CF entry for streams (units as stored in CF dictionary).
-    /// Null when undefined in CF.
-    /// </summary>
-    public int? StreamCryptFilterLength { get; set; }
-
-    /// <summary>
-    /// Key length override from CF entry for strings (units as stored in CF dictionary).
-    /// Null when undefined in CF.
-    /// </summary>
-    public int? StringCryptFilterLength { get; set; }
+        return PdfCryptFilter.Identity;
+    }
 }

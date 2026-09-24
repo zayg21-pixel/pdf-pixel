@@ -97,33 +97,48 @@ internal sealed class PdfTrailerParser
 
         if (parameters.V >= 4)
         {
-            parameters.StreamCryptFilterName = encryptDict.GetName(PdfTokens.StmFKey);
-            parameters.StringCryptFilterName = encryptDict.GetName(PdfTokens.StrFKey);
-            parameters.EmbeddedFileCryptFilterName = encryptDict.GetName(PdfTokens.EffKey);
-            parameters.CryptFilterDictionary = encryptDict.GetDictionary(PdfTokens.CFKey);
-
-            if (parameters.CryptFilterDictionary != null)
+            PdfDictionary? cryptFilterDictionary = encryptDict.GetDictionary(PdfTokens.CFKey);
+            if (cryptFilterDictionary != null)
             {
-                PdfDictionary? streamCfEntry = (parameters.StreamCryptFilterName == null)
-                    ? null
-                    : parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName.Value);
-
-                if (streamCfEntry != null)
+                foreach (PdfString name in cryptFilterDictionary.RawValues.Keys)
                 {
-                    parameters.StreamCryptFilterMethod = streamCfEntry.GetName(PdfTokens.CfmKey);
-                    parameters.StreamCryptFilterLength = streamCfEntry.GetInteger(PdfTokens.LengthKey);
-                }
+                    PdfDictionary? entry = cryptFilterDictionary.GetDictionary(name);
+                    if (entry == null)
+                    {
+                        continue;
+                    }
 
-                PdfDictionary? stringCfEntry = (parameters.StringCryptFilterName == null)
-                    ? null
-                    : parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName.Value);
+                    PdfCryptFilter cryptFilter = new(
+                        entry.GetNameOrDefault(PdfTokens.CfmKey).AsEnum<PdfCryptFilterMethod>(),
+                        entry.GetInteger(PdfTokens.LengthKey),
+                        entry.GetNameOrDefault(PdfTokens.AuthEventKey).AsEnum<PdfAuthEvent>());
 
-                if (stringCfEntry != null)
-                {
-                    parameters.StringCryptFilterMethod = stringCfEntry.GetName(PdfTokens.CfmKey);
-                    parameters.StringCryptFilterLength = stringCfEntry.GetInteger(PdfTokens.LengthKey);
+                    parameters.CryptFilters[name] = cryptFilter;
                 }
             }
+
+            // StmF and StrF always authenticate on document open (ISO 32000-2, Table 25, AuthEvent).
+            PdfCryptFilter streamCryptFilter = parameters.GetCryptFilter(encryptDict.GetName(PdfTokens.StmFKey));
+            PdfCryptFilter stringCryptFilter = parameters.GetCryptFilter(encryptDict.GetName(PdfTokens.StrFKey));
+            parameters.StreamCryptFilter = new PdfCryptFilter(streamCryptFilter.Method, streamCryptFilter.Length, PdfAuthEvent.DocumentOpen);
+            parameters.StringCryptFilter = new PdfCryptFilter(stringCryptFilter.Method, stringCryptFilter.Length, PdfAuthEvent.DocumentOpen);
+
+            PdfString? embeddedFileFilterName = encryptDict.GetName(PdfTokens.EffKey);
+            if (embeddedFileFilterName == null)
+            {
+                parameters.EmbeddedFileCryptFilter = parameters.StreamCryptFilter;
+            }
+            else
+            {
+                parameters.EmbeddedFileCryptFilter = parameters.GetCryptFilter(embeddedFileFilterName);
+            }
+        }
+        else
+        {
+            PdfCryptFilter handlerCryptFilter = new(PdfCryptFilterMethod.V2, null, PdfAuthEvent.DocumentOpen);
+            parameters.StreamCryptFilter = handlerCryptFilter;
+            parameters.StringCryptFilter = handlerCryptFilter;
+            parameters.EmbeddedFileCryptFilter = handlerCryptFilter;
         }
 
         PdfArray? idArray = trailer.GetArray(PdfTokens.IdKey);
@@ -133,7 +148,6 @@ internal sealed class PdfTrailerParser
             parameters.FileIdSecond = idArray.GetValue(1).AsString()?.Value.ToArray();
         }
 
-        _document.Decryptor = PdfDecryptorFactory.Create(parameters);
-        _document.Decryptor.UpdatePassword(_document.Password ?? string.Empty);
+        _document.Decryptor = PdfDecryptorFactory.Create(parameters, _document.OnPasswordRequested);
     }
 }

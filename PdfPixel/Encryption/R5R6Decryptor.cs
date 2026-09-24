@@ -18,11 +18,10 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
     private const int UEntryLength = 48;
 
     private byte[]? _fileKey;
-    private string _lastPassword = string.Empty;
     private readonly ManagedAes256Cbc _aes = new();
 
-    public R5R6Decryptor(PdfDecryptorParameters parameters)
-        : base(parameters)
+    public R5R6Decryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
+        : base(parameters, onPasswordRequested)
     {
         if (parameters.R != 6)
         {
@@ -31,15 +30,8 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         }
     }
 
-    public override byte[] DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
+    protected override byte[] Decrypt(ReadOnlyMemory<byte> data, PdfReference reference, PdfCryptFilter cryptFilter)
     {
-        if (data.IsEmpty)
-        {
-            return Array.Empty<byte>();
-        }
-
-        EnsureFileKey();
-
         if (data.Length < 16)
         {
             return data.ToArray();
@@ -57,25 +49,8 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         return _aes.Decrypt(_fileKey, iv, ciphertext, stripPkcs7Padding: true);
     }
 
-    public override void UpdatePassword(string password)
+    protected override bool TryAuthenticate(string password)
     {
-        base.UpdatePassword(password);
-        if (password != _lastPassword)
-        {
-            _fileKey = null;
-            _lastPassword = password;
-        }
-
-        EnsureFileKey();
-    }
-
-    private void EnsureFileKey()
-    {
-        if (_fileKey != null)
-        {
-            return;
-        }
-
         byte[] userEntry = Parameters.UserEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /U (user entry).");
         byte[] ownerEntry = Parameters.OwnerEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /O (owner entry).");
         byte[] userEncryptedKey = Parameters.UserEncryptedKey ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /UE (user encrypted key) entry.");
@@ -90,7 +65,7 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         // Some writers pad /U with trailing bytes beyond the required 48; only the first 48 are significant.
         byte[] uString = userEntry.AsSpan(0, UEntryLength).ToArray();
 
-        byte[] passwordBytes = GetPasswordBytes();
+        byte[] passwordBytes = GetPasswordBytes(password);
         var zeroIv = new byte[16];
 
         byte[] userValidationSalt = userEntry.AsSpan(32, 8).ToArray();
@@ -100,7 +75,7 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
             byte[] userKeySalt = userEntry.AsSpan(40, 8).ToArray();
             byte[] intermediateKey = Hash2B(passwordBytes, userKeySalt, userKey: null);
             _fileKey = _aes.Decrypt(intermediateKey, zeroIv, userEncryptedKey, stripPkcs7Padding: false);
-            return;
+            return true;
         }
 
         byte[] ownerValidationSalt = ownerEntry.AsSpan(32, 8).ToArray();
@@ -110,10 +85,10 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
             byte[] ownerKeySalt = ownerEntry.AsSpan(40, 8).ToArray();
             byte[] intermediateKey = Hash2B(passwordBytes, ownerKeySalt, uString);
             _fileKey = _aes.Decrypt(intermediateKey, zeroIv, ownerEncryptedKey, stripPkcs7Padding: false);
-            return;
+            return true;
         }
 
-        throw new PdfIncorrectPasswordException();
+        return false;
     }
 
     /// <summary>
@@ -189,9 +164,8 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         return result;
     }
 
-    private byte[] GetPasswordBytes()
+    private static byte[] GetPasswordBytes(string password)
     {
-        string password = Password ?? string.Empty;
         byte[] bytes = Encoding.UTF8.GetBytes(password);
         if (bytes.Length <= MaxPasswordBytes)
         {

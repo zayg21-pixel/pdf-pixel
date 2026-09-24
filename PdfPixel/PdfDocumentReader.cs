@@ -31,20 +31,20 @@ public class PdfDocumentReader
     }
 
     /// <summary>
-    /// Reads a PDF document from the specified stream, optionally using a password for decryption.
+    /// Reads a PDF document from the specified stream, requesting a password when an encrypted document needs one.
     /// </summary>
     /// <remarks>The returned document parses lazily from <paramref name="stream"/>; it is not copied.
     /// The stream must stay open, readable and seekable for as long as the document is in use.</remarks>
     /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable.</param>
-    /// <param name="password">An optional password used to decrypt the PDF, if it is encrypted. If the PDF is not encrypted, this
-    /// parameter can be <see langword="null"/>.</param>
+    /// <param name="onPasswordRequested">Called when the empty user password does not decrypt the document, at open or on
+    /// first access to encrypted embedded files. When <see langword="null"/>, only the empty user password is tried.</param>
     /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF content. If the stream is empty, an empty <see
     /// cref="PdfDocument"/> is returned.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="stream"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">Thrown if <paramref name="stream"/> is not readable or does not support seeking.</exception>
     /// <exception cref="PdfInvalidDocumentException">Thrown if the PDF structure cannot be parsed.</exception>
-    /// <exception cref="PdfIncorrectPasswordException">Thrown if the document is encrypted and the supplied password is incorrect.</exception>
-    public IPdfDocument Read(Stream stream, string? password = null)
+    /// <exception cref="PdfIncorrectPasswordException">Thrown if the document requires a password at open and none of the supplied passwords is correct.</exception>
+    public IPdfDocument Read(Stream stream, PdfPasswordRequestedCallback? onPasswordRequested = null)
     {
         if (stream == null)
         {
@@ -69,7 +69,7 @@ public class PdfDocumentReader
         }
 
         IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontSubstitutor, stream);
-        document.Password = password;
+        document.OnPasswordRequested = onPasswordRequested;
         document.HeaderOffset = PdfByteScanner.LocateHeader(document.Stream);
 
         if (document.HeaderOffset != 0)
@@ -98,6 +98,8 @@ public class PdfDocumentReader
         {
             throw new PdfInvalidDocumentException("Failed to parse PDF document: catalog root not found.");
         }
+
+        document.Decryptor?.AuthenticateOnOpen();
 
         PdfPageExtractor pageExtractor = new(document);
         PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
@@ -132,4 +134,15 @@ public class PdfDocumentReader
 
         return document;
     }
+
+    /// <summary>
+    /// Reads a PDF document from the specified stream, using a password for decryption.
+    /// </summary>
+    /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable.</param>
+    /// <param name="password">The password used to decrypt the PDF, if it is encrypted.</param>
+    /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF content.</returns>
+    /// <exception cref="PdfIncorrectPasswordException">Thrown if the document is encrypted and the supplied password is incorrect.</exception>
+    [Obsolete("Use Read(Stream, PdfPasswordRequestedCallback?) and supply the password from the callback instead.")]
+    public IPdfDocument Read(Stream stream, string? password)
+        => Read(stream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
 }

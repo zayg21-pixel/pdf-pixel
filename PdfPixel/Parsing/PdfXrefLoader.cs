@@ -88,6 +88,10 @@ internal sealed class PdfXrefLoader
                     }
                 }
             }
+            catch (PdfIncorrectPasswordException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Exception while parsing classic xref.");
@@ -126,6 +130,10 @@ internal sealed class PdfXrefLoader
                     streamTrailer = ParseXrefStream(ref parser);
                 }
             }
+        }
+        catch (PdfIncorrectPasswordException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -475,12 +483,12 @@ internal sealed class PdfXrefLoader
             return;
         }
 
+        _trailerParser.TrySetDecryptor(dict);
+
         if (_document.RootObject == null)
         {
             _document.RootObject = dict.GetObject(PdfTokens.RootKey);
         }
-
-        _trailerParser.TrySetDecryptor(dict);
     }
 
     #endregion

@@ -1,7 +1,5 @@
 using System;
-using System.IO;
 using PdfPixel.Models;
-using PdfPixel.Text;
 
 namespace PdfPixel.Encryption;
 
@@ -51,44 +49,30 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
 
     private byte[]? _fileKey;
     private int _fileKeyLengthBytes;
-    private string _lastPassword = string.Empty;
-    private bool _userValidated;
     private readonly ManagedAes128Cbc _aes = new();
 
-    public R3R4Decryptor(PdfDecryptorParameters parameters)
-        : base(parameters)
+    public R3R4Decryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
+        : base(parameters, onPasswordRequested)
     {
     }
 
-    public override byte[] DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
+    protected override bool TryAuthenticate(string password)
     {
-        // Treat as string path
-        return DecryptInternal(data, reference, useStreamPath: false);
-    }
-
-    public override Stream DecryptStream(Stream stream, in PdfReference reference)
-    {
-        using MemoryStream memoryStream = new();
-        stream.CopyTo(memoryStream);
-        ReadOnlyMemory<byte> decryptedBytes = DecryptInternal(memoryStream.ToArray(), reference, useStreamPath: true);
-        return new MemoryStream(decryptedBytes.ToArray());
-    }
-
-    private byte[] DecryptInternal(in ReadOnlyMemory<byte> data, in PdfReference reference, bool useStreamPath)
-    {
-        if (data.IsEmpty)
+        byte[] candidateKey = ComputeFileKey(password);
+        if (!IsUserEntryMatch(candidateKey))
         {
-            return Array.Empty<byte>();
+            return false;
         }
 
-        EnsureFileKey();
+        _fileKey = candidateKey;
+        return true;
+    }
 
-        // Choose CF method and length override
-        PdfString? method = useStreamPath ? Parameters.StreamCryptFilterMethod : Parameters.StringCryptFilterMethod;
-        int? overrideLenBytes = useStreamPath ? Parameters.StreamCryptFilterLength : Parameters.StringCryptFilterLength;
-        bool useAes = method == PdfTokens.AESV2;
+    protected override byte[] Decrypt(ReadOnlyMemory<byte> data, PdfReference reference, PdfCryptFilter cryptFilter)
+    {
+        bool useAes = cryptFilter.Method == PdfCryptFilterMethod.AESV2;
 
-        byte[] objectKey = DeriveObjectKey(reference, useAes, overrideLenBytes);
+        byte[] objectKey = DeriveObjectKey(reference, useAes, cryptFilter.Length);
 
         if (useAes)
         {
@@ -99,13 +83,8 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
         return Rc4(objectKey, data.Span);
     }
 
-    private void EnsureFileKey()
+    private byte[] ComputeFileKey(string password)
     {
-        if (_fileKey != null)
-        {
-            return;
-        }
-
         if (Parameters.FileIdFirst == null)
         {
             throw new PdfInvalidDocumentException("Encrypted document is missing the required /ID first entry.");
@@ -136,7 +115,7 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
 
         using (ManagedMd5 md5 = ManagedMd5.Create())
         {
-            byte[] pwdBytes = GetPasswordBytes();
+            byte[] pwdBytes = GetPasswordBytes(password);
             md5.TransformBlock(pwdBytes, 0, pwdBytes.Length, null, 0);
 
             md5.TransformBlock(Parameters.OwnerEntry, 0, Parameters.OwnerEntry.Length, null, 0);
@@ -162,32 +141,12 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
 
             var candidateKey = new byte[_fileKeyLengthBytes];
             Buffer.BlockCopy(digest, 0, candidateKey, 0, _fileKeyLengthBytes);
-            _fileKey = candidateKey;
-        }
-
-        try
-        {
-            ValidateUserPassword();
-        }
-        catch
-        {
-            _fileKey = null;
-            throw;
+            return candidateKey;
         }
     }
 
-    private void ValidateUserPassword()
+    private bool IsUserEntryMatch(byte[] fileKey)
     {
-        if (_userValidated)
-        {
-            return;
-        }
-
-        if (_fileKey == null)
-        {
-            throw new InvalidOperationException("File key must be computed before validating the password.");
-        }
-
         if (Parameters.UserEntry == null)
         {
             throw new PdfInvalidDocumentException("Encrypted document is missing the required /U (user entry).");
@@ -198,25 +157,20 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
             throw new PdfInvalidDocumentException("Encrypted document /U entry is too short to validate.");
         }
 
-        byte[] expectedFirst16 = ComputeUserEntryR3R4();
+        byte[] expectedFirst16 = ComputeUserEntryR3R4(fileKey);
         for (int i = 0; i < 16; i++)
         {
             if (expectedFirst16[i] != Parameters.UserEntry[i])
             {
-                throw new PdfIncorrectPasswordException();
+                return false;
             }
         }
 
-        _userValidated = true;
+        return true;
     }
 
-    private byte[] ComputeUserEntryR3R4()
+    private byte[] ComputeUserEntryR3R4(byte[] fileKey)
     {
-        if (_fileKey == null)
-        {
-            throw new InvalidOperationException("File key must be computed before computing the user entry.");
-        }
-
         if (Parameters.FileIdFirst == null)
         {
             throw new PdfInvalidDocumentException("Encrypted document is missing the required /ID first entry.");
@@ -234,12 +188,12 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
         var block = new byte[16];
         Buffer.BlockCopy(digest, 0, block, 0, 16);
 
-        var tempKey = new byte[_fileKey.Length];
+        var tempKey = new byte[fileKey.Length];
         for (int i = 0; i < 20; i++)
         {
-            for (int k = 0; k < _fileKey.Length; k++)
+            for (int k = 0; k < fileKey.Length; k++)
             {
-                tempKey[k] = (byte)(_fileKey[k] ^ i);
+                tempKey[k] = (byte)(fileKey[k] ^ i);
             }
 
             block = Rc4Raw(tempKey, block);
@@ -352,10 +306,9 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
         return padded;
     }
 
-    private byte[] GetPasswordBytes()
+    private static byte[] GetPasswordBytes(string password)
     {
-        string pwd = Password ?? string.Empty;
-        byte[] bytes = System.Text.Encoding.ASCII.GetBytes(pwd);
+        byte[] bytes = System.Text.Encoding.ASCII.GetBytes(password);
         if (bytes.Length > PasswordPadLength)
         {
             var trimmed = new byte[PasswordPadLength];
@@ -367,18 +320,5 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
         Buffer.BlockCopy(bytes, 0, padded, 0, bytes.Length);
         Buffer.BlockCopy(PasswordPadding, 0, padded, bytes.Length, PasswordPadLength - bytes.Length);
         return padded;
-    }
-
-    public override void UpdatePassword(string password)
-    {
-        base.UpdatePassword(password);
-        if (password != _lastPassword)
-        {
-            _fileKey = null;
-            _userValidated = false;
-            _lastPassword = password;
-        }
-
-        EnsureFileKey();
     }
 }

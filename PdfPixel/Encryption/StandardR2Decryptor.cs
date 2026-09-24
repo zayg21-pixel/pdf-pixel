@@ -50,46 +50,32 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
 
     private byte[]? _fileKey;
     private int _fileKeyLengthBytes;
-    private string _lastPassword = string.Empty;
-    private bool _userValidated;
 
-    public StandardR2Decryptor(PdfDecryptorParameters parameters)
-        : base(parameters)
+    public StandardR2Decryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
+        : base(parameters, onPasswordRequested)
     {
     }
 
-    public override byte[] DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
+    protected override bool TryAuthenticate(string password)
     {
-        if (data.IsEmpty)
+        byte[] candidateKey = ComputeFileKey(password);
+        if (!IsUserEntryMatch(candidateKey))
         {
-            return Array.Empty<byte>();
+            return false;
         }
 
-        EnsureFileKey();
+        _fileKey = candidateKey;
+        return true;
+    }
+
+    protected override byte[] Decrypt(ReadOnlyMemory<byte> data, PdfReference reference, PdfCryptFilter cryptFilter)
+    {
         byte[] objectKey = DeriveObjectKey(reference);
         return Rc4(objectKey, data.Span);
     }
 
-    public override void UpdatePassword(string password)
+    private byte[] ComputeFileKey(string password)
     {
-        base.UpdatePassword(password);
-        if (password != _lastPassword)
-        {
-            _fileKey = null;
-            _userValidated = false;
-            _lastPassword = password;
-        }
-
-        EnsureFileKey();
-    }
-
-    private void EnsureFileKey()
-    {
-        if (_fileKey != null)
-        {
-            return;
-        }
-
         if (Parameters.FileIdFirst == null)
         {
             throw new PdfInvalidDocumentException("Encrypted document is missing the required /ID first entry.");
@@ -116,7 +102,7 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
         using (ManagedMd5 md5 = ManagedMd5.Create())
         {
             // Step order per Algorithm 3.2: padded password, owner entry, permissions (LE 4), file ID (first element)
-            byte[] pwdBytes = GetPasswordBytes();
+            byte[] pwdBytes = GetPasswordBytes(password);
             md5.TransformBlock(pwdBytes, 0, pwdBytes.Length, null, 0);
 
             md5.TransformBlock(Parameters.OwnerEntry, 0, Parameters.OwnerEntry.Length, null, 0);
@@ -129,32 +115,12 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
             byte[] digest = md5.Hash;
             var candidateKey = new byte[_fileKeyLengthBytes];
             Buffer.BlockCopy(digest, 0, candidateKey, 0, _fileKeyLengthBytes);
-            _fileKey = candidateKey;
-        }
-
-        try
-        {
-            ValidateUserPassword();
-        }
-        catch
-        {
-            _fileKey = null;
-            throw;
+            return candidateKey;
         }
     }
 
-    private void ValidateUserPassword()
+    private bool IsUserEntryMatch(byte[] fileKey)
     {
-        if (_userValidated)
-        {
-            return;
-        }
-
-        if (_fileKey == null)
-        {
-            throw new InvalidOperationException("File key must be computed before validating the password.");
-        }
-
         if (Parameters.UserEntry == null)
         {
             throw new PdfInvalidDocumentException("Encrypted document is missing the required /U (user entry).");
@@ -165,27 +131,17 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
             throw new PdfInvalidDocumentException("Encrypted document /U entry is too short to validate.");
         }
 
-        byte[] expectedU = ComputeUserEntryR2();
+        byte[] expectedU = Rc4(fileKey, PasswordPadding);
         int compareLength = Math.Min(expectedU.Length, Parameters.UserEntry.Length);
         for (int i = 0; i < compareLength; i++)
         {
             if (expectedU[i] != Parameters.UserEntry[i])
             {
-                throw new PdfIncorrectPasswordException();
+                return false;
             }
         }
 
-        _userValidated = true;
-    }
-
-    private byte[] ComputeUserEntryR2()
-    {
-        if (_fileKey == null)
-        {
-            throw new InvalidOperationException("File key must be computed before computing the user entry.");
-        }
-
-        return Rc4(_fileKey, PasswordPadding);
+        return true;
     }
 
     private byte[] DeriveObjectKey(in PdfReference reference)
@@ -249,10 +205,9 @@ internal sealed class StandardR2Decryptor : BasePdfDecryptor
         return output;
     }
 
-    private byte[] GetPasswordBytes()
+    private static byte[] GetPasswordBytes(string password)
     {
-        string pwd = Password ?? string.Empty;
-        byte[] bytes = System.Text.Encoding.ASCII.GetBytes(pwd);
+        byte[] bytes = System.Text.Encoding.ASCII.GetBytes(password);
         if (bytes.Length > PasswordPadLength)
         {
             var trimmed = new byte[PasswordPadLength];

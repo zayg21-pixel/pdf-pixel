@@ -55,8 +55,9 @@ internal static class PdfTokens
     public static readonly PdfString EffKey = (PdfString)"EFF"u8;         // encryption embedded file crypt filter name
     public static readonly PdfString CFKey = (PdfString)"CF"u8;           // encryption crypt filter dictionary
     public static readonly PdfString CfmKey = (PdfString)"CFM"u8;         // crypt filter method (e.g., /AESV2)
-    public static readonly PdfString AESV2 = (PdfString)"AESV2"u8;        // crypt filter method value
-    public static readonly PdfString AESV3 = (PdfString)"AESV3"u8;        // crypt filter method value (R>=5, AES-256)
+    public static readonly PdfString AuthEventKey = (PdfString)"AuthEvent"u8; // crypt filter authentication event
+    public static readonly PdfString EmbeddedFileKey = (PdfString)"EmbeddedFile"u8; // embedded file stream type
+    public static readonly PdfString MetadataKey = (PdfString)"Metadata"u8; // metadata stream type
 
     // Image/XObject specific
     public static readonly PdfString DecodeKey = (PdfString)"Decode"u8;

@@ -17,6 +17,7 @@ public sealed class PdfObjectStream
     private readonly PdfObjectStreamReference? _streamReference;
     private readonly BufferedStream? _documentStream;
     private readonly BasePdfDecryptor? _decryptor;
+    private readonly PdfCryptFilter _cryptFilter = PdfCryptFilter.Identity;
     private readonly PdfReference _objectReference;
 
     private PdfObjectStream(
@@ -38,6 +39,7 @@ public sealed class PdfObjectStream
         PdfObjectStreamReference streamReference,
         BufferedStream documentStream,
         BasePdfDecryptor? decryptor,
+        PdfCryptFilter cryptFilter,
         in PdfReference objectReference)
     {
         _streamDecoder = streamDecoder;
@@ -46,6 +48,7 @@ public sealed class PdfObjectStream
         _streamReference = streamReference;
         _documentStream = documentStream;
         _decryptor = decryptor;
+        _cryptFilter = cryptFilter;
         _objectReference = objectReference;
     }
 
@@ -68,6 +71,12 @@ public sealed class PdfObjectStream
         List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(pdfObject.Dictionary);
         List<PdfDecodeParameters?> decodeParameters = PdfStreamDecoder.GetDecodeParameters(pdfObject.Dictionary);
 
+        PdfCryptFilter cryptFilter = PdfCryptFilter.Identity;
+        if (document.Decryptor != null)
+        {
+            cryptFilter = document.Decryptor.GetStreamCryptFilter(pdfObject.Dictionary, filters);
+        }
+
         if (!pdfObject.EmbaddedStream.IsEmpty)
         {
             return new PdfObjectStream(
@@ -86,6 +95,7 @@ public sealed class PdfObjectStream
                 pdfObject.StreamInfo.Value,
                 document.Stream,
                 document.Decryptor,
+                cryptFilter,
                 pdfObject.Reference);
         }
 
@@ -128,7 +138,7 @@ public sealed class PdfObjectStream
 
         if (streamReference.IsEncrypted && _decryptor != null && _objectReference.IsValid)
         {
-            return _decryptor.DecryptStream(subrange, _objectReference);
+            return _decryptor.DecryptStream(subrange, _objectReference, _cryptFilter);
         }
 
         return subrange;

@@ -186,7 +186,7 @@ internal sealed class Program
     private static int GetPageCount(PdfDocumentReader reader, string pdfPath, string? password)
     {
         using FileStream fileStream = File.OpenRead(pdfPath);
-        using IPdfDocument document = reader.Read(fileStream, password);
+        using IPdfDocument document = reader.Read(fileStream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
         return document.Pages.Count;
     }
 
@@ -214,7 +214,7 @@ internal sealed class Program
             // Re-open and re-parse the document every iteration so no per-document decode cache
             // (e.g. PdfDocumentObjectCache.Images) can mask real decode cost on later iterations.
             using FileStream fileStream = File.OpenRead(pdfPath);
-            using IPdfDocument document = reader.Read(fileStream, password);
+            using IPdfDocument document = reader.Read(fileStream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
 
             IPdfPage page = document.Pages[pageNumber - 1];
 
