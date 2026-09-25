@@ -29,6 +29,8 @@ public static class CcittG4TwoDDecoder
 
         int a0 = 0;
         int currentRunLength = 0;
+        int searchStart = 0;
+        int searchA0 = 0;
 
         while (a0 < width)
         {
@@ -53,7 +55,7 @@ public static class CcittG4TwoDDecoder
                 case ModeType.Pass:
                 {
                     bool colorBefore = runsCount % 2 == 1;
-                    GetB1B2(referenceChanges, a0, colorBefore, out int b1, out int b2);
+                    GetB1B2(referenceChanges, a0, colorBefore, ref searchStart, ref searchA0, out int b1, out int b2);
                     if (b1 < a0 || b2 <= b1 || b2 > width)
                     {
                         throw new InvalidOperationException("CCITT G4 decode error: invalid pass pair a0=" + a0 + " b1=" + b1 + " b2=" + b2 + ".");
@@ -72,7 +74,7 @@ public static class CcittG4TwoDDecoder
                         throw new InvalidOperationException("CCITT G4 decode error: vertical delta out of range (" + mode.VerticalDelta + ").");
                     }
 
-                    int b1 = GetB1(referenceChanges, a0, colorBefore);
+                    int b1 = GetB1(referenceChanges, a0, colorBefore, ref searchStart, ref searchA0);
                     int a1 = b1 + mode.VerticalDelta;
                     if (a1 < a0 || a1 > width)
                     {
@@ -154,12 +156,14 @@ public static class CcittG4TwoDDecoder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static int GetB1(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color)
+    internal static int GetB1(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color, ref int searchStart, ref int searchA0)
     {
         ref readonly int start = ref referenceChanges[0];
         int length = referenceChanges.Length;
+        AdvanceSearchStart(referenceChanges, a0, ref searchStart, ref searchA0);
+        start = ref Unsafe.Add(ref Unsafe.AsRef(in start), searchStart);
 
-        for (int i = 0; i < length; i++)
+        for (int i = searchStart; i < length; i++)
         {
             int changePosition = start;
 
@@ -179,12 +183,14 @@ public static class CcittG4TwoDDecoder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static void GetB1B2(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color, out int b1, out int b2)
+    internal static void GetB1B2(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color, ref int searchStart, ref int searchA0, out int b1, out int b2)
     {
         ref readonly int start = ref referenceChanges[0];
         int length = referenceChanges.Length;
+        AdvanceSearchStart(referenceChanges, a0, ref searchStart, ref searchA0);
+        start = ref Unsafe.Add(ref Unsafe.AsRef(in start), searchStart);
 
-        for (int i = 0; i < length; i++)
+        for (int i = searchStart; i < length; i++)
         {
             int changePosition = start;
             if ((changePosition > a0 || (a0 == 0 && changePosition == 0)) && (i % 2) == 0 != a0Color)
@@ -199,5 +205,39 @@ public static class CcittG4TwoDDecoder
 
         b1 = referenceChanges[referenceChanges.Length - 1];
         b2 = b1;
+    }
+
+    /// <summary>
+    /// Advances <paramref name="searchStart"/> past every reference change that cannot be b1 for this a0: a change at or
+    /// before a0, other than a change at 0 while a0 is 0. Such a change cannot be b1 for any larger a0 either, and the
+    /// decoder never moves a0 left along a line, so each change is passed over once per line instead of once per search.
+    /// Should a0 lie left of <paramref name="searchA0"/>, the a0 of the previous search, the search starts again from
+    /// the first change.
+    /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private static void AdvanceSearchStart(in ReadOnlySpan<int> referenceChanges, int a0, ref int searchStart, ref int searchA0)
+    {
+        if (a0 < searchA0)
+        {
+            searchStart = 0;
+        }
+
+        searchA0 = a0;
+        int length = referenceChanges.Length;
+
+        while (searchStart < length)
+        {
+            int changePosition = referenceChanges[searchStart];
+            if (changePosition > a0 || (a0 == 0 && changePosition == 0))
+            {
+                return;
+            }
+
+            searchStart++;
+        }
     }
 }
