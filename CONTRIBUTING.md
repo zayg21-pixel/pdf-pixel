@@ -23,7 +23,7 @@ Security issues are the exception: follow [SECURITY.md](SECURITY.md) and do not 
 You need the .NET 8, 9 and 10 SDKs. From the repository root:
 
 ```bash
-dotnet build PdfPixel.slnx --configuration Release
+dotnet build PdfPixel.slnx --configuration Release -warnaserror
 dotnet test PdfPixel.Tests/PdfPixel.Tests.csproj --configuration Release
 dotnet test PdfPixel.Jpg.Test/PdfPixel.Jpg.Test.csproj --configuration Release
 ```
@@ -32,7 +32,7 @@ CI runs the same steps on every pull request.
 
 ## Code style
 
-The style is enforced by Roslynator analyzers and `.editorconfig`, both part of the build. Keep the build free of warnings.
+The style is enforced by Roslynator analyzers and `.editorconfig`, both part of the build. CI treats warnings as errors, so a pull request must build without any.
 
 ## Rendering regressions
 

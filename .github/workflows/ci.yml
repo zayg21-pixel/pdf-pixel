@@ -26,7 +26,7 @@ jobs:
         run: dotnet restore PdfPixel.slnx
 
       - name: Build
-        run: dotnet build PdfPixel.slnx --configuration Release --no-restore
+        run: dotnet build PdfPixel.slnx --configuration Release --no-restore -warnaserror
 
       - name: Test PdfPixel.Tests
         run: dotnet test PdfPixel.Tests/PdfPixel.Tests.csproj --configuration Release --no-build
