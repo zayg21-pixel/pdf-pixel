@@ -279,6 +279,10 @@
             font-size: 11px;
             color: rgba(0, 0, 0, 0.45);
         }
+
+        .annotation-popup-replies {
+            margin-left: 12px;
+        }
     </style>
 </head>
 <body>
@@ -351,7 +355,7 @@
             .withApplicationArgumentsFromQuery()
             .create();
 
-        await canvasInterop.initialize(setModuleImports, getAssemblyExports, dotnet.instance.Module);
+        await canvasInterop.initialize(setModuleImports, getAssemblyExports);
 
         const container = document.getElementById('canvasContainer');
         const containerId = container.id;
@@ -381,21 +385,7 @@
                 return;
             }
 
-            let html = '';
-            for (const msg of popup.messages) {
-                if (msg.title) {
-                    html += `<div class="annotation-popup-title">${escapeHtml(msg.title)}</div>`;
-                }
-                if (msg.content) {
-                    html += `<div class="annotation-popup-content">${escapeHtml(msg.content)}</div>`;
-                }
-                if (msg.date) {
-                    const dateStr = new Date(msg.date).toLocaleString();
-                    html += `<div class="annotation-popup-date">${dateStr}</div>`;
-                }
-            }
-
-            annotationPopupEl.innerHTML = html;
+            annotationPopupEl.innerHTML = renderAnnotationMessages(popup.messages);
 
             // Position below and to the right of the cursor
             const containerRect = container.getBoundingClientRect();
@@ -417,6 +407,26 @@
             annotationPopupEl.style.left = Math.max(0, left) + 'px';
             annotationPopupEl.style.top = Math.max(0, top) + 'px';
             annotationPopupEl.classList.add('visible');
+        }
+
+        function renderAnnotationMessages(messages) {
+            let html = '';
+            for (const message of messages) {
+                if (message.title) {
+                    html += `<div class="annotation-popup-title">${escapeHtml(message.title)}</div>`;
+                }
+                if (message.contents) {
+                    html += `<div class="annotation-popup-content">${escapeHtml(message.contents)}</div>`;
+                }
+                if (message.creationDate) {
+                    const dateText = new Date(message.creationDate).toLocaleString();
+                    html += `<div class="annotation-popup-date">${dateText}</div>`;
+                }
+                if (message.replies.length > 0) {
+                    html += `<div class="annotation-popup-replies">${renderAnnotationMessages(message.replies)}</div>`;
+                }
+            }
+            return html;
         }
 
         function escapeHtml(text) {

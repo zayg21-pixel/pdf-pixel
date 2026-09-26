@@ -11,9 +11,7 @@ namespace PdfPixel.PdfPanel.Web.Rendering;
 /// <summary>
 /// Implements <see cref="IPdfPanelRenderTargetFactory"/>, <see cref="ISkSurfaceFactory"/>,
 /// and <see cref="IPdfPanelRenderTarget"/> for a single WebGL-backed canvas.
-/// The drawing surface is an offscreen GPU texture; at present time it is blitted to FBO 0.
-/// Canvas transfer is handled by JS during panel registration.
-/// All methods are called from the render thread — no locking required.
+/// The drawing surface is the canvas framebuffer (FBO 0).
 /// </summary>
 [SupportedOSPlatform("browser")]
 internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfaceFactory, IPdfPanelRenderTarget
@@ -58,7 +56,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
         }
 
         MakeContextCurrent(_glContext.WebGlContext);
-        return _glContext.CreateSurface(width, height, preserveContent: true);
+        return _glContext.CreateSurface(width, height);
     }
 
     /// <inheritdoc />

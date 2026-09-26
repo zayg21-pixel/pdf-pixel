@@ -8,7 +8,6 @@ namespace PdfPixel.PdfPanel.Web.Emscripten;
 /// <summary>
 /// An <see cref="ILoggerProvider"/> that writes to the browser console via
 /// Emscripten's <c>emscripten_console_log/warn/error</c> functions.
-/// Safe to call from any thread, including WASM worker threads.
 /// </summary>
 [SupportedOSPlatform("browser")]
 public sealed class EmscriptenConsoleLoggerProvider : ILoggerProvider
@@ -32,8 +31,6 @@ public sealed class EmscriptenConsoleLoggerProvider : ILoggerProvider
     public void Dispose() { }
 
     // P/Invoke into dotnet_console_log in emscripten.c.
-    // emscripten_console_* functions do not require synchronisation with the
-    // browser main thread and are safe to call from any pthread.
     [DllImport("emscripten", EntryPoint = "dotnet_console_log")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern void NativeConsoleLog(string message, int logLevel);

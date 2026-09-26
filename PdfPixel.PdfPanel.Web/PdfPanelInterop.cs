@@ -194,8 +194,8 @@ public partial class PdfPanelInterop
 
         try
         {
-            int width = state.GetPropertyAsInt32("viewportWidth");
-            int height = state.GetPropertyAsInt32("viewportHeight");
+            int width = state.GetPropertyAsInt32("panelWidth");
+            int height = state.GetPropertyAsInt32("panelHeight");
 
             float verticalOffset = (float)(double)state.GetPropertyAsDouble("verticalOffset");
             float horizontalOffset = (float)(double)state.GetPropertyAsDouble("horizontalOffset");
@@ -238,22 +238,15 @@ public partial class PdfPanelInterop
                 resources.Context.Synchronize();
             }
 
-            PdfAnnotationPopup activeAnnotation = resources.Context.ActiveAnnotation;
-
-            bool isInteractiveAnnotation = activeAnnotation != null && activeAnnotation.IsInteractive;
             state.SetProperty("cursorStyle", GetCursorStyle(resources.Context.Cursor));
             state.SetProperty("openUri", openUri);
 
-            if (activeAnnotation != null)
-            {
-                // TODO: [HIGH] need to also parse type here or refactor JS to eliminate this entierly.
-                CreateAnnotationPopupState(state, string.Empty, isInteractiveAnnotation);
+            PdfAnnotationPopup activeAnnotation = resources.Context.ActiveAnnotation;
 
-                AddAnnotationPopupMessages(state, activeAnnotation.Messages);
-            }
-            else
+            if (activeAnnotation != resources.AnnotationPopup)
             {
-                ClearAnnotationPopupState(state);
+                resources.AnnotationPopup = activeAnnotation;
+                SetAnnotationPopup(state, activeAnnotation);
             }
 
             state.SetProperty("scrollWidth", resources.Context.ExtentWidth);
@@ -436,35 +429,55 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Sends each message and its replies to the JS popup state, depth first.
+    /// Sets the JS popup object built from <paramref name="popup"/>, or null when no annotation is active,
+    /// and marks the popup as changed on the redraw state.
     /// </summary>
-    private static void AddAnnotationPopupMessages(JSObject state, PdfAnnotationMessage[] messages)
+    private static void SetAnnotationPopup(JSObject state, PdfAnnotationPopup popup)
     {
-        foreach (PdfAnnotationMessage message in messages)
-        {
-            AddAnnotationPopupMessage(
-                state,
-                message.Title ?? string.Empty,
-                message.Contents ?? string.Empty,
-                message.CreationDate?.ToString("o") ?? string.Empty);
+        state.SetProperty("annotationPopupChanged", true);
 
-            AddAnnotationPopupMessages(state, message.Replies);
+        if (popup == null)
+        {
+            state.SetProperty("annotationPopup", (JSObject)null);
+            return;
         }
+
+        using JSObject popupObject = CreateAnnotationPopup(popup.IsInteractive);
+
+        foreach (PdfAnnotationMessage message in popup.Messages)
+        {
+            using JSObject messageObject = CreateMessageObject(message);
+            AddAnnotationMessage(popupObject, messageObject);
+        }
+
+        state.SetProperty("annotationPopup", popupObject);
     }
 
-    [JSImport("createAnnotationPopupState", "canvasInterop.js")]
-    private static partial void CreateAnnotationPopupState(
-        JSObject state,
-        string type,
-        [JSMarshalAs<JSType.Boolean>] bool isInteractive);
+    /// <summary>
+    /// Builds the JS object of <paramref name="message"/> with its replies nested.
+    /// </summary>
+    private static JSObject CreateMessageObject(PdfAnnotationMessage message)
+    {
+        JSObject messageObject = CreateAnnotationMessage(message.Title, message.Contents, message.CreationDate?.ToString("o"));
 
-    [JSImport("addAnnotationPopupMessage", "canvasInterop.js")]
-    private static partial void AddAnnotationPopupMessage(
-        JSObject state,
-        string title,
-        string content,
-        string date);
+        foreach (PdfAnnotationMessage reply in message.Replies)
+        {
+            using JSObject replyObject = CreateMessageObject(reply);
+            AddAnnotationReply(messageObject, replyObject);
+        }
 
-    [JSImport("clearAnnotationPopupState", "canvasInterop.js")]
-    private static partial void ClearAnnotationPopupState(JSObject state);
+        return messageObject;
+    }
+
+    [JSImport("createAnnotationPopup", "canvasInterop.js")]
+    private static partial JSObject CreateAnnotationPopup([JSMarshalAs<JSType.Boolean>] bool isInteractive);
+
+    [JSImport("createAnnotationMessage", "canvasInterop.js")]
+    private static partial JSObject CreateAnnotationMessage(string title, string contents, string creationDate);
+
+    [JSImport("addAnnotationMessage", "canvasInterop.js")]
+    private static partial void AddAnnotationMessage(JSObject popup, JSObject message);
+
+    [JSImport("addAnnotationReply", "canvasInterop.js")]
+    private static partial void AddAnnotationReply(JSObject message, JSObject reply);
 }

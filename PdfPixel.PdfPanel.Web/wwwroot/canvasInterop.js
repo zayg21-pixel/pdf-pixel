@@ -1,6 +1,5 @@
 const views = new Map();
 let interop = null;
-let emscriptenModule = null;
 
 function isPlainObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -58,8 +57,8 @@ class PdfPanelView {
             scale: 1.0,
             scrollWidth: 0,
             scrollHeight: 0,
-            viewportWidth: 0,
-            viewportHeight: 0,
+            panelWidth: 0,
+            panelHeight: 0,
             containerWidth: 0,
             containerHeight: 0,
             devicePixelScale: 1,
@@ -72,9 +71,6 @@ class PdfPanelView {
             annotationPopup: null,
             cursorStyle: 'default'
         };
-
-        this.renderFrameRequestId = null;
-        this._rendering = false;
 
         // Tracks the scroll position we set programmatically so onScroll can
         // ignore those events and only react to genuine user-initiated scrolls.
@@ -125,8 +121,8 @@ class PdfPanelView {
         const redrawState = {
             containerWidth: containerWidth,
             containerHeight: containerHeight,
-            viewportWidth: physicalWidth,
-            viewportHeight: physicalHeight,
+            panelWidth: physicalWidth,
+            panelHeight: physicalHeight,
             devicePixelScale: devicePixelScale,
             verticalOffset: this.state.verticalOffset,
             horizontalOffset: this.state.horizontalOffset,
@@ -146,8 +142,8 @@ class PdfPanelView {
         this.state.containerWidth = redrawState.containerWidth;
         this.state.containerHeight = redrawState.containerHeight;
         this.state.devicePixelScale = redrawState.devicePixelScale;
-        this.state.viewportWidth = redrawState.viewportWidth;
-        this.state.viewportHeight = redrawState.viewportHeight;
+        this.state.panelWidth = redrawState.panelWidth;
+        this.state.panelHeight = redrawState.panelHeight;
         this.state.scrollWidth = redrawState.scrollWidth;
         this.state.scrollHeight = redrawState.scrollHeight;
         this.state.verticalOffset = redrawState.verticalOffset;
@@ -156,7 +152,10 @@ class PdfPanelView {
         this.state.pageCount = redrawState.pageCount;
 
         // Annotation handling: cursor, popup, and URI open
-        this.state.annotationPopup = redrawState.annotationPopup || null;
+        if (redrawState.annotationPopupChanged) {
+            this.state.annotationPopup = redrawState.annotationPopup || null;
+        }
+
         this.state.cursorStyle = redrawState.cursorStyle || 'default';
         this.scrollHost.style.cursor = this.state.cursorStyle;
 
@@ -199,8 +198,8 @@ class PdfPanelView {
             const nextScale = Math.max(zoom.minScale, Math.min(zoom.maxScale, nextScaleRequest));
 
             // Compute center coordinates for zoom from mouse if available; otherwise center
-            let centerX = this.state.viewportWidth / 2;
-            let centerY = this.state.viewportHeight / 2;
+            let centerX = this.state.panelWidth / 2;
+            let centerY = this.state.panelHeight / 2;
 
             if (this.state.mouseX !== null && this.state.mouseY !== null) {
                 centerX = this.state.mouseX * this.state.devicePixelScale;
@@ -250,13 +249,13 @@ class PdfPanelView {
     onMouseMove(e) {
         // Track mouse position relative to the scroll host for zoom-centering.
         const rect = this.scrollHost.getBoundingClientRect();
-        const insideViewport =
+        const insideScrollHost =
             e.clientX >= rect.left &&
             e.clientX <= rect.right &&
             e.clientY >= rect.top &&
             e.clientY <= rect.bottom;
 
-        if (insideViewport) {
+        if (insideScrollHost) {
             this.state.mouseX = e.clientX - rect.left;
             this.state.mouseY = e.clientY - rect.top;
         } else {
@@ -347,8 +346,8 @@ class PdfPanelView {
     }
 
     onResizeRequested() {
-        const hasHorizontalScrollbar = this.state.scrollWidth > this.state.viewportWidth;
-        const hasVerticalScrollbar = this.state.scrollHeight > this.state.viewportHeight;
+        const hasHorizontalScrollbar = this.state.scrollWidth > this.state.panelWidth;
+        const hasVerticalScrollbar = this.state.scrollHeight > this.state.panelHeight;
 
         this.scrollHost.style.overflowX = hasHorizontalScrollbar ? 'scroll' : 'hidden';
         this.scrollHost.style.overflowY = hasVerticalScrollbar ? 'scroll' : 'hidden';
@@ -409,16 +408,14 @@ class PdfPanelView {
  * Initialize PDF panel interop and bind JS module imports.
  * @param {(name: string, module: any) => void} setModuleImports Binds a logical module name to an ESM object for [JSImport].
  * @param {(assemblyName: string) => Promise<any>} getAssemblyExports Retrieves .NET assembly exports.
- * @param {object} wasmModule The Emscripten Module object (captured via dotnet.withModuleConfig).
  * @returns {Promise<void>} Resolves when interop is ready.
  */
-export async function initialize(setModuleImports, getAssemblyExports, wasmModule) {
+export async function initialize(setModuleImports, getAssemblyExports) {
     const exports = await getAssemblyExports(`PdfPixel.PdfPanel.Web`);
     const panelInterop = exports.PdfPixel.PdfPanel.Web.PdfPanelInterop;
 
     setModuleImports('canvasInterop.js', this);
 
-    emscriptenModule = wasmModule;
     interop = panelInterop;
     interop.Initialize();
 
@@ -462,7 +459,7 @@ export function registerPanel(id, containerElement, configuration) {
  */
 export function unregisterPanel(id) {
     if (!views.has(id)) {
-        console.warn(`Canvas with id '${id}' is not registered`);
+        console.warn(`View with id '${id}' is not registered`);
         return false;
     }
     const view = views.get(id);
@@ -470,7 +467,7 @@ export function unregisterPanel(id) {
         view.dispose();
     }
     views.delete(id);
-    console.log(`Canvas '${id}' unregistered successfully`);
+    console.log(`View '${id}' unregistered successfully`);
     interop.UnregisterPanel(id);
     return true;
 }
@@ -487,7 +484,7 @@ export function setDocument(id, documentData) {
 /**
  * Request a redraw for the specified view.
  * @param {string} id View id.
- * @returns {boolean} True if the view was found and a render was enqueued.
+ * @returns {boolean} True if the view was found and rendered.
  */
 export function requestRedraw(id) {
     const view = views.get(id);
@@ -551,8 +548,8 @@ export function setScale(id, scale) {
         Math.min(view.configuration.settings.zoom.maxScale, scale)
     );
     const oldScale = view.state.scale;
-    const centerX = view.state.viewportWidth / 2;
-    const centerY = view.state.viewportHeight / 2;
+    const centerX = view.state.panelWidth / 2;
+    const centerY = view.state.panelHeight / 2;
     view.state.verticalOffset = (view.state.verticalOffset + centerY) * (clampedScale / oldScale) - centerY;
     view.state.horizontalOffset = (view.state.horizontalOffset + centerX) * (clampedScale / oldScale) - centerX;
     view.state.scale = clampedScale;
@@ -561,43 +558,51 @@ export function setScale(id, scale) {
 }
 
 /**
- * Creates an annotation popup object on the state.
- * Called from C# via JSImport to build the popup as a JS object.
- * @param {object} state The redraw state object.
- * @param {string} type Annotation type name (e.g. "link", "annotation").
+ * Creates an annotation popup object without messages.
+ * Called from C# via JSImport.
  * @param {boolean} isInteractive Whether the annotation is interactive.
+ * @returns {{ isInteractive: boolean, messages: object[] }} The popup object.
  */
-export function createAnnotationPopupState(state, type, isInteractive) {
-    state.annotationPopup = {
-        type: type,
+export function createAnnotationPopup(isInteractive) {
+    return {
         isInteractive: isInteractive,
         messages: []
     };
 }
 
 /**
- * Adds a message to the annotation popup on the state.
- * Called from C# via JSImport for each message in the annotation thread.
- * @param {object} state The redraw state object.
- * @param {string} title Message author/title.
- * @param {string} content Message text content.
- * @param {string} date ISO 8601 creation date, or empty string.
+ * Creates an annotation message object without replies.
+ * Called from C# via JSImport.
+ * @param {string | null} title Message author/title.
+ * @param {string | null} contents Message text content.
+ * @param {string | null} creationDate ISO 8601 creation date.
+ * @returns {{ title: string | null, contents: string | null, creationDate: string | null, replies: object[] }} The message object.
  */
-export function addAnnotationPopupMessage(state, title, content, date) {
-    if (state.annotationPopup) {
-        state.annotationPopup.messages.push({
-            title: title,
-            content: content,
-            date: date
-        });
-    }
+export function createAnnotationMessage(title, contents, creationDate) {
+    return {
+        title: title,
+        contents: contents,
+        creationDate: creationDate,
+        replies: []
+    };
 }
 
 /**
- * Clears the annotation popup from the state.
- * Called from C# via JSImport when no annotation is active.
- * @param {object} state The redraw state object.
+ * Appends a message to a popup's messages.
+ * Called from C# via JSImport.
+ * @param {object} popup The popup object.
+ * @param {object} message The message object.
  */
-export function clearAnnotationPopupState(state) {
-    state.annotationPopup = null;
+export function addAnnotationMessage(popup, message) {
+    popup.messages.push(message);
+}
+
+/**
+ * Appends a reply to a message's replies.
+ * Called from C# via JSImport.
+ * @param {object} message The message object.
+ * @param {object} reply The reply message object.
+ */
+export function addAnnotationReply(message, reply) {
+    message.replies.push(reply);
 }

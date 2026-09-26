@@ -32,13 +32,10 @@ public sealed class CanvasGlContext : IDisposable
     public GRContext GrContext { get; }
 
     /// <summary>
-    /// Returns an offscreen GPU texture-backed <see cref="SKSurface"/> for the specified
-    /// dimensions. A new surface is only created when the dimensions change.
-    /// Optionally preserves content from the previous surface on resize.
-    /// Also manages a companion FBO 0 present surface for display via <see cref="Present"/>.
-    /// Must be called on the dedicated render thread that owns the OffscreenCanvas.
+    /// Returns the <see cref="SKSurface"/> of the canvas framebuffer (FBO 0) for the specified dimensions.
+    /// The canvas is resized and a new surface is created only when the dimensions change.
     /// </summary>
-    public SKSurface CreateSurface(int width, int height, bool preserveContent)
+    public SKSurface CreateSurface(int width, int height)
     {
         if (_presentSurface != null && _surfaceWidth == width && _surfaceHeight == height)
         {
@@ -46,24 +43,6 @@ public sealed class CanvasGlContext : IDisposable
         }
 
         EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
-
-        SKImageInfo info = new(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        SKSurface newSurface = SKSurface.Create(GrContext, budgeted: true, info, sampleCount: 1, GRSurfaceOrigin.BottomLeft);
-
-        if (newSurface == null)
-        {
-            throw new InvalidOperationException("Failed to create offscreen Skia surface for WebGL context.");
-        }
-
-        if (preserveContent && _presentSurface != null)
-        {
-            _presentSurface.Flush();
-            newSurface.Canvas.DrawSurface(_presentSurface, 0, 0);
-            newSurface.Flush();
-        }
-
-        _presentSurface?.Dispose();
-        _presentSurface = newSurface;
 
         RecreatePresentSurface(width, height);
 
@@ -74,8 +53,7 @@ public sealed class CanvasGlContext : IDisposable
     }
 
     /// <summary>
-    /// Blits the offscreen surface to FBO 0 for display.
-    /// Must be called on the dedicated render thread that owns the OffscreenCanvas.
+    /// Flushes the canvas framebuffer surface for display.
     /// </summary>
     public void Present()
     {

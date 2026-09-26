@@ -12,7 +12,8 @@ None known. Core text search, text extraction and the shared `PdfPanelTextLayer`
 
 ## Stage 1: Small cleanups
 
-- [ ] Cleanup WASM panel JS (`PdfPixel.PdfPanel.Web/wwwroot/canvasInterop.js` and related): leftovers from multi-threading support. Includes the `[HIGH]` annotation popup TODO (`PdfPanelInterop.cs`, `CreateAnnotationPopupState`): the JS popup `type` is always empty and never read (removed in `41195e99`); drop it so the popup matches `PdfAnnotationPopup` (`isInteractive`, `messages`). Keep the reply hierarchy: today `AddAnnotationPopupMessages` flattens `Replies` depth-first into one list, while WPF shows them nested. Build the tree with JSImport factories (`createAnnotationMessage(title, content, date)` returning a `JSObject`, `addAnnotationReply(parent, reply)`, `setAnnotationPopup(state, isInteractive, messages)`) so JS gets `{ isInteractive, messages: [{ title, content, date, replies }] }`, and rebuild it only when the active popup changes, not on every redraw. Also rename the JS state keys `viewportWidth`/`viewportHeight` to the panel naming
+- [x] Cleanup WASM panel JS and glue: multi-threading leftovers removed (`emscriptenModule` and the `initialize` module argument, unused render fields, worker/OffscreenCanvas/pthread comments, the dead offscreen surface in `CanvasGlContext.CreateSurface`); JS state keys `panelWidth`/`panelHeight`
+- [x] Annotation popup model (`[HIGH]` TODO): the JS popup mirrors `PdfAnnotationPopup` / `PdfAnnotationMessage`: `{ isInteractive, messages: [{ title, contents, creationDate, replies }] }`, replies nested, absent values are `null`. Built with JSImport factories (`createAnnotationPopup`, `createAnnotationMessage`, `addAnnotationMessage`, `addAnnotationReply`) and sent only when the active popup changes (`annotationPopupChanged` on the redraw state). Demo renders replies nested
 
 ## Stage 2: Easy wins and fixes
 

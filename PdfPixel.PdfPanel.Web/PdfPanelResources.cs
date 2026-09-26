@@ -50,4 +50,9 @@ internal class PdfPanelResources
     /// Gets or sets the minimum time between two yields of page decoding.
     /// </summary>
     public TimeSpan YieldInterval { get; set; }
+
+    /// <summary>
+    /// Gets or sets the annotation popup last sent to JS, or null when none is shown.
+    /// </summary>
+    public PdfAnnotationPopup AnnotationPopup { get; set; }
 }
