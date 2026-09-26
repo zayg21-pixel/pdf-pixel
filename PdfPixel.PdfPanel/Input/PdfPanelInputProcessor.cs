@@ -1,3 +1,4 @@
+using PdfPixel.PdfPanel.Settings;
 using System;
 
 namespace PdfPixel.PdfPanel.Input;
@@ -7,15 +8,15 @@ namespace PdfPixel.PdfPanel.Input;
 /// </summary>
 public sealed class PdfPanelInputProcessor
 {
-    private readonly PdfPanelInputParameters _parameters;
+    private readonly PdfPanelSettings _settings;
     private PdfPanelPointerPosition? _pressPosition;
     private PdfPanelPointerPosition? _lastPosition;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfPanelInputProcessor"/> with the given parameters.
+    /// Initializes a new <see cref="PdfPanelInputProcessor"/> with the given settings.
     /// </summary>
-    public PdfPanelInputProcessor(PdfPanelInputParameters parameters)
-        => _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
+    public PdfPanelInputProcessor(PdfPanelSettings settings)
+        => _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
     /// <summary>
     /// Occurs when the pointer button is pressed.
@@ -34,12 +35,12 @@ public sealed class PdfPanelInputProcessor
 
     /// <summary>
     /// Occurs when the pointer is released without having travelled
-    /// <see cref="PdfPanelInputParameters.MinimumDragDistance"/> from the press position.
+    /// <see cref="PdfPanelInteractionSettings.MinimumDragDistance"/> from the press position.
     /// </summary>
     public event EventHandler<PdfPanelPointerEventArgs>? PointerClicked;
 
     /// <summary>
-    /// Occurs when the pointer travels <see cref="PdfPanelInputParameters.MinimumDragDistance"/> while pressed.
+    /// Occurs when the pointer travels <see cref="PdfPanelInteractionSettings.MinimumDragDistance"/> while pressed.
     /// </summary>
     public event EventHandler<PdfPanelDragEventArgs>? DragStarted;
 
@@ -234,6 +235,6 @@ public sealed class PdfPanelInputProcessor
         float deltaY = position.ViewportPosition.Y - pressPosition.ViewportPosition.Y;
 
         return (deltaX * deltaX) + (deltaY * deltaY)
-            >= _parameters.MinimumDragDistance * _parameters.MinimumDragDistance;
+            >= _settings.Interaction.MinimumDragDistance * _settings.Interaction.MinimumDragDistance;
     }
 }

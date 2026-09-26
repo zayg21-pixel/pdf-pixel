@@ -1,6 +1,8 @@
 ﻿using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Settings;
+using System;
 
 namespace PdfPixel.PdfPanel.Web;
 
@@ -40,7 +42,12 @@ internal class PdfPanelResources
     public PdfPanelPageCollection Pages { get; set; }
 
     /// <summary>
-    /// Gets or sets the parsed configuration for the panel.
+    /// Gets or sets the settings parsed from the panel configuration.
     /// </summary>
-    public PdfPanelConfiguration Configuration { get; set; }
+    public PdfPanelSettings Settings { get; set; }
+
+    /// <summary>
+    /// Gets or sets the minimum time between two yields of page decoding.
+    /// </summary>
+    public TimeSpan YieldInterval { get; set; }
 }

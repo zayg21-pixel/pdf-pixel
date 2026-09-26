@@ -1,5 +1,6 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Settings;
 using System;
 using System.Collections.Generic;
 
@@ -14,8 +15,8 @@ public sealed class PdfPanelTextSearchEngine
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly SortedDictionary<int, List<PdfPanelSearchMatch>> _pageMatches = [];
     private readonly List<PdfPanelSearchMatch> _matches = [];
-    private readonly PdfPanelSearchOptions _options = new();
     private readonly List<int> _characterIndexes = [];
+    private PdfPanelSearchSettings _searchSettings = new();
     private string? _query;
 
     /// <summary>
@@ -38,27 +39,24 @@ public sealed class PdfPanelTextSearchEngine
     public IReadOnlyList<PdfPanelSearchMatch> Matches => _matches;
 
     /// <summary>
-    /// Searches every page with extracted characters for <paramref name="query"/> when the query or the options
+    /// Searches every page with extracted characters for <paramref name="query"/> when the query or <paramref name="searchSettings"/>
     /// differ from the last search. A <see langword="null"/> or empty query clears the matches.
     /// </summary>
     /// <returns><see langword="true"/> if the matches were searched again.</returns>
-    public bool Update(string? query, PdfPanelSearchOptions options)
+    public bool Update(string? query, PdfPanelSearchSettings searchSettings)
     {
-        if (options == null)
+        if (searchSettings == null)
         {
-            throw new ArgumentNullException(nameof(options));
+            throw new ArgumentNullException(nameof(searchSettings));
         }
 
-        if (query == _query
-            && options.MatchCase == _options.MatchCase
-            && options.WholeWord == _options.WholeWord)
+        if (query == _query && searchSettings.Equals(_searchSettings))
         {
             return false;
         }
 
         _query = query;
-        _options.MatchCase = options.MatchCase;
-        _options.WholeWord = options.WholeWord;
+        _searchSettings = searchSettings.Clone();
         _pageMatches.Clear();
 
         for (int pageNumber = 1; pageNumber <= _contentProvider.GetPagesCount(); pageNumber++)
@@ -109,7 +107,7 @@ public sealed class PdfPanelTextSearchEngine
             return false;
         }
 
-        StringComparison comparison = (_options.MatchCase) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        StringComparison comparison = (_searchSettings.MatchCase) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         List<PdfPanelSearchMatch>? pageMatches = null;
         int position = pageText.IndexOf(query, comparison);
 
@@ -117,7 +115,7 @@ public sealed class PdfPanelTextSearchEngine
         {
             int end = position + query.Length;
 
-            if (!_options.WholeWord || IsWordBoundary(pageText, position, end))
+            if (!_searchSettings.WholeWord || IsWordBoundary(pageText, position, end))
             {
                 int startIndex = _characterIndexes[position];
                 int lastIndex = _characterIndexes[end - 1];

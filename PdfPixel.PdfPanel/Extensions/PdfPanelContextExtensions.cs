@@ -3,6 +3,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using System;
 using System.Linq;
@@ -14,8 +15,6 @@ namespace PdfPixel.PdfPanel.Extensions;
 /// </summary>
 public static class PdfPanelContextExtensions
 {
-    private const float ScaleTolerance = 0.001f;
-
     /// <summary>
     /// Determines the currently centered page in the viewport.
     /// </summary>
@@ -73,20 +72,20 @@ public static class PdfPanelContextExtensions
         PdfPanelPage? page = context.Pages.FirstOrDefault(p => p.PageNumber == pageNumber);
         if (page != null)
         {
-            context.VerticalOffset = page.Offset.Y - (context.MinimumPageGap * context.Scale);
-            context.HorizontalOffset = page.Offset.X - (context.MinimumPageGap * context.Scale);
+            float pageGap = context.Settings.Layout.PageGap;
+            context.VerticalOffset = page.Offset.Y - (pageGap * context.Scale);
+            context.HorizontalOffset = page.Offset.X - (pageGap * context.Scale);
         }
     }
 
     /// <summary>
-    /// Increases the current scale by the specified factor while preserving the viewport offset around the provided center.
+    /// Increases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the viewport offset around the provided center.
     /// </summary>
     /// <param name="context">The panel context whose scale will be modified.</param>
-    /// <param name="factor">The proportional factor to increase the scale by (e.g. 0.1 for +10%).</param>
     /// <param name="centerX">X coordinate in viewport space to preserve while zooming.</param>
     /// <param name="centerY">Y coordinate in viewport space to preserve while zooming.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static void ZoomIn(this PdfPanelContext context, float factor, float centerX, float centerY)
+    public static void ZoomIn(this PdfPanelContext context, float centerX, float centerY)
     {
         if (context == null)
         {
@@ -94,18 +93,17 @@ public static class PdfPanelContextExtensions
         }
 
         float scale = context.Scale;
-        UpdateScalePreserveOffset(context, scale + (scale * factor), centerX, centerY);
+        UpdateScalePreserveOffset(context, scale + (scale * context.Settings.Zoom.ZoomStep), centerX, centerY);
     }
 
     /// <summary>
-    /// Decreases the current scale by the specified factor while preserving the viewport offset around the provided center.
+    /// Decreases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the viewport offset around the provided center.
     /// </summary>
     /// <param name="context">The panel context whose scale will be modified.</param>
-    /// <param name="factor">The proportional factor to decrease the scale by (e.g. 0.1 for -10%).</param>
     /// <param name="centerX">X coordinate in viewport space to preserve while zooming.</param>
     /// <param name="centerY">Y coordinate in viewport space to preserve while zooming.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static void ZoomOut(this PdfPanelContext context, float factor, float centerX, float centerY)
+    public static void ZoomOut(this PdfPanelContext context, float centerX, float centerY)
     {
         if (context == null)
         {
@@ -113,7 +111,7 @@ public static class PdfPanelContextExtensions
         }
 
         float scale = context.Scale;
-        UpdateScalePreserveOffset(context, scale - (scale * factor), centerX, centerY);
+        UpdateScalePreserveOffset(context, scale - (scale * context.Settings.Zoom.ZoomStep), centerX, centerY);
 
     }
 
@@ -143,99 +141,6 @@ public static class PdfPanelContextExtensions
 
         context.Scale = newScale;
     }
-
-    /// <summary>
-    /// Sets the automatic scaling mode for the panel and applies scaling to pages depending on the selected mode.
-    /// </summary>
-    /// <param name="context">The panel context whose auto scale mode will be applied.</param>
-    /// <param name="mode">The auto scale mode to apply.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static void SetAutoScaleMode(this PdfPanelContext context, PdfPanelAutoScaleMode mode)
-    {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        switch (mode)
-        {
-            case PdfPanelAutoScaleMode.NoAutoScale:
-            {
-                break;
-            }
-            case PdfPanelAutoScaleMode.ScaleToWidth:
-            {
-                ApplyScaleToPages(context, context.Pages);
-                break;
-            }
-            case PdfPanelAutoScaleMode.ScaleToHeight:
-            {
-                ApplyScaleToPagesHeight(context, context.Pages);
-                break;
-            }
-        }
-    }
-
-    private static void ApplyScaleToPages(PdfPanelContext context, PdfPanelPageCollection pages)
-    {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        if (pages == null || pages.Count == 0)
-        {
-            return;
-        }
-
-        float maxPageWidth = 0;
-
-        foreach (PdfPanelPage page in pages)
-        {
-            maxPageWidth = Math.Max(maxPageWidth, page.GetRotatedSize().Width);
-        }
-
-        float padding = context.PagesPadding.Left + context.PagesPadding.Right;
-        float scale = MathF.Max(context.MinScale, MathF.Min(context.MaxScale, (context.ViewportWidth - padding) / maxPageWidth));
-
-        if (Math.Abs(scale - context.Scale) / context.Scale <= ScaleTolerance)
-        {
-            return;
-        }
-
-        UpdateScalePreserveOffset(context, scale, 0, 0);
-    }
-
-    private static void ApplyScaleToPagesHeight(PdfPanelContext context, PdfPanelPageCollection pages)
-    {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        if (pages == null || pages.Count == 0)
-        {
-            return;
-        }
-
-        float maxPageHeight = 0;
-
-        foreach (PdfPanelPage page in pages)
-        {
-            maxPageHeight = Math.Max(maxPageHeight, page.GetRotatedSize().Height);
-        }
-
-        float padding = context.MinimumPageGap;
-        float scale = MathF.Max(context.MinScale, MathF.Min(context.MaxScale, (context.ViewportHeight - padding) / maxPageHeight));
-
-        if (Math.Abs(scale - context.Scale) / context.Scale <= ScaleTolerance)
-        {
-            return;
-        }
-
-        UpdateScalePreserveOffset(context, scale, 0, 0);
-    }
-
 
     /// <summary>
     /// Finds the page at the specified viewport point.

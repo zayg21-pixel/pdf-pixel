@@ -1,4 +1,4 @@
-using PdfPixel.Models;
+using PdfPixel.PdfPanel.Settings;
 using System;
 
 namespace PdfPixel.PdfPanel.Requests;
@@ -9,21 +9,14 @@ namespace PdfPixel.PdfPanel.Requests;
 public class PagesDrawingRequest : DrawingRequest
 {
     /// <summary>
-    /// Scale the page content is recorded at, so that every device-space decision taken while
-    /// recording - image decode resolution, pen widths, pixel snapping - is taken for the scale
-    /// the recording is displayed at.
+    /// Rendering quality the page content is decoded with.
     /// </summary>
-    public float ScaleFactor { get; set; }
+    public PdfPanelRenderingSettings Rendering { get; set; } = new();
 
     /// <summary>
-    /// PDF command execution quality settings.
+    /// Appearance the pages are drawn with.
     /// </summary>
-    public PdfCommandExecutionParameters CommandExecutionParameters { get; set; } = new();
-
-    /// <summary>
-    /// Parameters for PDF page rendering.
-    /// </summary>
-    public PdfRenderingParameters RenderingParameters { get; set; } = new();
+    public PdfPanelAppearanceSettings Appearance { get; set; } = new();
 
     /// <inheritdoc />
     public override bool Equals(object? obj)
@@ -31,8 +24,8 @@ public class PagesDrawingRequest : DrawingRequest
         if (obj is PagesDrawingRequest other)
         {
             return base.Equals(obj)
-                && ScaleFactor == other.ScaleFactor
-                && CommandExecutionParameters == other.CommandExecutionParameters;
+                && Rendering.Equals(other.Rendering)
+                && Appearance.Equals(other.Appearance);
         }
 
         return false;
@@ -50,8 +43,8 @@ public class PagesDrawingRequest : DrawingRequest
         hash.Add(RenderTarget);
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);
-        hash.Add(ScaleFactor);
-        hash.Add(CommandExecutionParameters);
+        hash.Add(Rendering);
+        hash.Add(Appearance);
         return hash.ToHashCode();
     }
 }

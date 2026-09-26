@@ -32,6 +32,11 @@ public sealed class PdfPageContentTiler : IDisposable
     }
 
     /// <summary>
+    /// Edge length of a single tile in device pixels.
+    /// </summary>
+    public int TileSize => _tileSize;
+
+    /// <summary>
     /// Ensures tiles are rasterized for the visible region of the given page, dropping tiles outside it.
     /// </summary>
     /// <param name="contentLocker">Locked content picture to rasterize.</param>

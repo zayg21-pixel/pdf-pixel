@@ -37,6 +37,7 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         }
 
         return Antialias == other.Antialias
+            && ImageTileSize == other.ImageTileSize
             && SnapToDevicePixels == other.SnapToDevicePixels;
     }
 

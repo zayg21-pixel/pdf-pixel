@@ -9,6 +9,7 @@ using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
 using PdfPixel.PdfPanel.WorkQueue;
@@ -92,24 +93,8 @@ public partial class PdfPanelInterop
                 };
             }
 
-            // Parse configuration immediately into a strongly-typed struct
-            var parsed = new PdfPanelConfiguration
-            {
-                MinZoom = (float)(double)configuration.GetPropertyAsDouble("minZoom"),
-                MaxZoom = (float)(double)configuration.GetPropertyAsDouble("maxZoom"),
-                MinimumPageGap = (float)(double)configuration.GetPropertyAsDouble("minimumPageGap"),
-                PagesPadding = PdfRectangle.FromLocationAndSize(
-                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("left"),
-                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("top"),
-                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("right"),
-                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("bottom")
-                )
-            };
-
-            var background = configuration.GetPropertyAsString("backgroundColor");
-            parsed.BackgroundColor = string.IsNullOrEmpty(background) ? PdfColors.LightGray : PdfColor.ParseHexColor(background);
-
-            resources.Configuration = parsed;
+            resources.YieldInterval = TimeSpan.FromMilliseconds(configuration.GetPropertyAsDouble("yieldInterval"));
+            resources.Settings = ParseSettings(configuration);
 
             ResourcesMap[containerId] = resources;
         }
@@ -178,29 +163,15 @@ public partial class PdfPanelInterop
             PdfPageContentProvider contentProvider = new(
                 resources.Document,
                 new ImmidiateWorkQueue(LoggerFactory.CreateLogger<ImmidiateWorkQueue>()),
-                new PdfYieldingObserverFactory());
+                new PdfYieldingObserverFactory(resources.YieldInterval));
 
             resources.Pages = PdfPanelPageCollection.FromContentProvider(contentProvider);
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 
             resources.Renderer?.Dispose();
-
-            var panelConfiguration = resources.Configuration;
-
-            PdfPanelRendererProperties rendererProperties = new()
-            {
-                SynchronizationContext = SynchronizationContext.Current,
-                BackgroundColor = panelConfiguration.BackgroundColor,
-                ShowPageLoadingAnimation = false
-            };
-
-            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, rendererProperties);
-
-            resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory);
-
-            resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
-            resources.Context.PagesPadding = panelConfiguration.PagesPadding;
+            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.Settings, SynchronizationContext.Current);
+            resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory, resources.Settings);
         }
         catch (Exception ex)
         {
@@ -209,14 +180,14 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    public static void RequestRedraw(string id, JSObject state)
+    public static void RequestRedraw(string containerId, JSObject state)
     {
         if (!_isInitialized)
         {
             return;
         }
 
-        if (!ResourcesMap.TryGetValue(id, out var resources) || resources.Context == null)
+        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
         {
             return;
         }
@@ -229,13 +200,6 @@ public partial class PdfPanelInterop
             float verticalOffset = (float)(double)state.GetPropertyAsDouble("verticalOffset");
             float horizontalOffset = (float)(double)state.GetPropertyAsDouble("horizontalOffset");
             float scale = (float)(double)state.GetPropertyAsDouble("scale");
-
-            // Sync configuration on each redraw in case it changed
-            var panelConfiguration = resources.Configuration;
-
-            resources.Renderer.Properties.BackgroundColor = panelConfiguration.BackgroundColor;
-            resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
-            resources.Context.PagesPadding = panelConfiguration.PagesPadding;
 
             resources.Context.VerticalOffset = verticalOffset;
             resources.Context.HorizontalOffset = horizontalOffset;
@@ -303,9 +267,115 @@ public partial class PdfPanelInterop
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error in container '{Id}'", id);
+            Logger.LogError(ex, "Error in container '{Id}'", containerId);
         }
     }
+
+    /// <summary>
+    /// Builds <see cref="PdfPanelSettings"/> from the <c>settings</c> object of the JS configuration.
+    /// Groups and properties absent from it keep their defaults.
+    /// </summary>
+    private static PdfPanelSettings ParseSettings(JSObject configuration)
+    {
+        PdfPanelSettings settings = new();
+        using JSObject settingsObject =configuration.GetPropertyAsJSObject("settings");
+
+        if (settingsObject == null)
+        {
+            return settings;
+        }
+
+        using (JSObject appearance =settingsObject.GetPropertyAsJSObject("appearance"))
+        {
+            if (appearance != null)
+            {
+                settings.Appearance.BackgroundColor = ReadColor(appearance, "backgroundColor", settings.Appearance.BackgroundColor);
+                settings.Appearance.PageCornerRadius = ReadFloat(appearance, "pageCornerRadius", settings.Appearance.PageCornerRadius);
+                settings.Appearance.ShowPageLoadingAnimation = ReadBoolean(appearance, "showPageLoadingAnimation", settings.Appearance.ShowPageLoadingAnimation);
+                settings.Appearance.SelectionColor = ReadColor(appearance, "selectionColor", settings.Appearance.SelectionColor);
+                settings.Appearance.SearchMatchColor = ReadColor(appearance, "searchMatchColor", settings.Appearance.SearchMatchColor);
+                settings.Appearance.LineMergeThreshold = ReadFloat(appearance, "lineMergeThreshold", settings.Appearance.LineMergeThreshold);
+            }
+        }
+
+        using (JSObject zoom =settingsObject.GetPropertyAsJSObject("zoom"))
+        {
+            if (zoom != null)
+            {
+                settings.Zoom.MinScale = ReadFloat(zoom, "minScale", settings.Zoom.MinScale);
+                settings.Zoom.MaxScale = ReadFloat(zoom, "maxScale", settings.Zoom.MaxScale);
+                settings.Zoom.ZoomStep = ReadFloat(zoom, "zoomStep", settings.Zoom.ZoomStep);
+            }
+        }
+
+        using (JSObject layout =settingsObject.GetPropertyAsJSObject("layout"))
+        {
+            if (layout != null)
+            {
+                settings.Layout.PageGap = ReadFloat(layout, "pageGap", settings.Layout.PageGap);
+
+                using JSObject padding =layout.GetPropertyAsJSObject("padding");
+
+                if (padding != null)
+                {
+                    PdfRectangle currentPadding = settings.Layout.Padding;
+                    settings.Layout.Padding = new PdfRectangle(
+                        ReadFloat(padding, "left", currentPadding.Left),
+                        ReadFloat(padding, "top", currentPadding.Top),
+                        ReadFloat(padding, "right", currentPadding.Right),
+                        ReadFloat(padding, "bottom", currentPadding.Bottom));
+                }
+            }
+        }
+
+        using (JSObject interaction =settingsObject.GetPropertyAsJSObject("interaction"))
+        {
+            if (interaction != null)
+            {
+                settings.Interaction.MinimumDragDistance = ReadFloat(interaction, "minimumDragDistance", settings.Interaction.MinimumDragDistance);
+                settings.Interaction.CharacterHitRadius = ReadFloat(interaction, "characterHitRadius", settings.Interaction.CharacterHitRadius);
+            }
+        }
+
+        using (JSObject search =settingsObject.GetPropertyAsJSObject("search"))
+        {
+            if (search != null)
+            {
+                settings.Search.MatchCase = ReadBoolean(search, "matchCase", settings.Search.MatchCase);
+                settings.Search.WholeWord = ReadBoolean(search, "wholeWord", settings.Search.WholeWord);
+            }
+        }
+
+        using (JSObject rendering =settingsObject.GetPropertyAsJSObject("rendering"))
+        {
+            if (rendering != null)
+            {
+                settings.Rendering.Antialias = ReadBoolean(rendering, "antialias", settings.Rendering.Antialias);
+                settings.Rendering.SnapToDevicePixels = ReadBoolean(rendering, "snapToDevicePixels", settings.Rendering.SnapToDevicePixels);
+                settings.Rendering.TileSize = ReadInt32(rendering, "tileSize", settings.Rendering.TileSize);
+                settings.Rendering.AnimationFps = ReadInt32(rendering, "animationFps", settings.Rendering.AnimationFps);
+                settings.Rendering.ScrollContentUpdateDelay = ReadMilliseconds(rendering, "scrollContentUpdateDelay", settings.Rendering.ScrollContentUpdateDelay);
+                settings.Rendering.ZoomContentUpdateDelay = ReadMilliseconds(rendering, "zoomContentUpdateDelay", settings.Rendering.ZoomContentUpdateDelay);
+            }
+        }
+
+        return settings;
+    }
+
+    private static float ReadFloat(JSObject source, string name, float defaultValue)
+        => source.HasProperty(name) ? (float)source.GetPropertyAsDouble(name) : defaultValue;
+
+    private static int ReadInt32(JSObject source, string name, int defaultValue)
+        => source.HasProperty(name) ? source.GetPropertyAsInt32(name) : defaultValue;
+
+    private static bool ReadBoolean(JSObject source, string name, bool defaultValue)
+        => source.HasProperty(name) ? source.GetPropertyAsBoolean(name) : defaultValue;
+
+    private static PdfColor ReadColor(JSObject source, string name, PdfColor defaultValue)
+        => source.HasProperty(name) ? PdfColor.ParseHexColor(source.GetPropertyAsString(name)) : defaultValue;
+
+    private static TimeSpan ReadMilliseconds(JSObject source, string name, TimeSpan defaultValue)
+        => source.HasProperty(name) ? TimeSpan.FromMilliseconds(source.GetPropertyAsDouble(name)) : defaultValue;
 
     private static string GetCursorStyle(PdfPanelCursor cursor)
     {

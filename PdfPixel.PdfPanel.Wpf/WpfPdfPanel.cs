@@ -3,6 +3,7 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
@@ -27,6 +28,7 @@ namespace PdfPixel.PdfPanel.Wpf;
 public partial class WpfPdfPanel : FrameworkElement
 {
     private readonly VisualCollection children;
+    private readonly PdfPanelSettings _settings = new();
 
     private PdfPanelContext _context;
     private PdfPanelRenderer _renderer;
@@ -41,6 +43,12 @@ public partial class WpfPdfPanel : FrameworkElement
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
         children = new VisualCollection(this);
         SetValue(SearchResultsPropertyKey, new ObservableCollection<PdfPanelSearchMatch>());
+        Appearance = _settings.Appearance;
+        Zoom = _settings.Zoom;
+        Layout = _settings.Layout;
+        Interaction = _settings.Interaction;
+        Search = _settings.Search;
+        Rendering = _settings.Rendering;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
@@ -150,7 +158,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     protected override void OnRender(DrawingContext drawingContext)
     {
-        var brush = new SolidColorBrush(ToMediaColor(BackgroundColor));
+        var brush = new SolidColorBrush(ToMediaColor(_settings.Appearance.BackgroundColor));
         brush.Freeze();
 
         var size = new Size(ActualWidth, ActualHeight);
@@ -206,16 +214,9 @@ public partial class WpfPdfPanel : FrameworkElement
         DisposeRenderer();
         ClearSearchResults();
 
-        PdfPanelRendererProperties rendererProperties = new()
-        {
-            SynchronizationContext = SynchronizationContext.Current,
-            BackgroundColor = BackgroundColor,
-            PageCornerRadius = PageCornerRadius
-        };
-
-        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, rendererProperties);
+        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _settings, SynchronizationContext.Current);
         _renderer.TextSearchEngine.MatchesChanged += OnSearchMatchesChanged;
-        _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory);
+        _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory, _settings);
     }
 
     private void DisposeRenderer()
@@ -233,17 +234,9 @@ public partial class WpfPdfPanel : FrameworkElement
     {
         EnsureViewerCanvas();
 
-        _context.MinScale = (float)MinScale;
-        _context.MaxScale = (float)MaxScale;
         _context.ViewportWidth = (float)CanvasSize.Width;
         _context.ViewportHeight = (float)CanvasSize.Height;
-        _context.MinimumPageGap = (float)PageGap;
-        _context.PagesPadding = new PdfRectangle(
-            (float)PagesPadding.Left,
-            (float)PagesPadding.Top,
-            (float)PagesPadding.Right,
-            (float)PagesPadding.Bottom);
-
+        _context.AutoScaleMode = AutoScaleMode;
         _context.SearchQuery = SearchQuery;
         _context.ExtractText = !string.IsNullOrEmpty(SearchQuery);
 
@@ -254,13 +247,11 @@ public partial class WpfPdfPanel : FrameworkElement
         if (_context.ClickedAnnotation != null)
         {
             HandleAnnotationClick(_context.ClickedAnnotation);
+            _context.Synchronize();
         }
 
         UpdateAnnotationPopup(_context.ActiveAnnotation);
         UpdateCursor();
-
-        _context.SetAutoScaleMode(AutoScaleMode);
-        _context.Synchronize();
 
         ExtentHeight = _context.ExtentHeight;
         ExtentWidth = _context.ExtentWidth;
@@ -268,8 +259,6 @@ public partial class WpfPdfPanel : FrameworkElement
         HorizontalOffset = _context.HorizontalOffset;
         ViewportWidth = _context.ViewportWidth;
         ViewportHeight = _context.ViewportHeight;
-        ExtentHeight = _context.ExtentHeight;
-        ExtentWidth = _context.ExtentWidth;
 
         _updatingScale = true;
         Scale = _context.Scale;

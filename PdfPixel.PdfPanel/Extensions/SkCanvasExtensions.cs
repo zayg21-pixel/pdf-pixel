@@ -4,6 +4,7 @@ using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.Skia;
 using SkiaSharp;
@@ -21,10 +22,10 @@ internal static class SkCanvasExtensions
         PdfPageContentTiler tiler,
         PdfPanelTextLayer textLayer,
         PdfPanelTextSearchEngine textSearchEngine,
-        float cornerRadius,
         PageDrawFlags flags,
         in AnimationState animation)
     {
+        float cornerRadius = request.Appearance.PageCornerRadius;
         int savedCount = canvas.Save();
         PdfMatrix deviceMatrix = page.GetContentToCanvasMatrix(request.Scale);
 
@@ -54,15 +55,15 @@ internal static class SkCanvasExtensions
         {
             tiler.DrawTiles(canvas, in page, request.Scale, deviceMatrix);
             DrawPagePicture(canvas, pictures?.Annotations, page.Info);
-            DrawTextLayerPicture(canvas, textLayer, textSearchEngine, page);
+            DrawTextLayerPicture(canvas, textLayer, textSearchEngine, page, request.Appearance);
         }
 
         canvas.RestoreToCount(savedCount);
     }
 
-    private static void DrawTextLayerPicture(SKCanvas canvas, PdfPanelTextLayer textLayer, PdfPanelTextSearchEngine textSearchEngine, in VisiblePageInfo page)
+    private static void DrawTextLayerPicture(SKCanvas canvas, PdfPanelTextLayer textLayer, PdfPanelTextSearchEngine textSearchEngine, in VisiblePageInfo page, PdfPanelAppearanceSettings appearance)
     {
-        SKPicture? picture = textLayer.GetTextLayerPicture(page.PageNumber, textSearchEngine.GetPageMatches(page.PageNumber));
+        SKPicture? picture = textLayer.GetTextLayerPicture(page.PageNumber, textSearchEngine.GetPageMatches(page.PageNumber), appearance);
         if (picture == null)
         {
             return;

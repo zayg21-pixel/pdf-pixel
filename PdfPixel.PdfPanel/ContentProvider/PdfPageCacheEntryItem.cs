@@ -103,7 +103,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
 
         return !ContentPicture.HasContent
             || LastRequest == null
-            || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.ScaleFactor != request.ScaleFactor)
+            || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.Scale != request.Scale)
             || ((Features & PdfCommandFeatures.Region) != 0 && LastRequest.GetPage(PageNumber).RegionOfInterest != request.GetPage(PageNumber).RegionOfInterest);
     }
 
@@ -119,7 +119,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
             throw new ArgumentNullException(nameof(request));
         }
 
-        return ((Features & PdfCommandFeatures.Scale) != 0) ? request.ScaleFactor : 1f;
+        return ((Features & PdfCommandFeatures.Scale) != 0) ? request.Scale : 1f;
     }
 
     /// <summary>

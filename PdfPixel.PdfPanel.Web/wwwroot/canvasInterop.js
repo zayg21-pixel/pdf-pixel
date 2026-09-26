@@ -2,6 +2,22 @@ const views = new Map();
 let interop = null;
 let emscriptenModule = null;
 
+function isPlainObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeConfiguration(defaults, overrides) {
+    const merged = { ...defaults };
+
+    for (const [key, value] of Object.entries(overrides || {})) {
+        merged[key] = isPlainObject(value) && isPlainObject(defaults[key])
+            ? mergeConfiguration(defaults[key], value)
+            : value;
+    }
+
+    return merged;
+}
+
 class PdfPanelView {
     constructor(id, containerElement, configuration) {
         this.id = id;
@@ -15,16 +31,26 @@ class PdfPanelView {
         }
 
         const defaults = {
-            zoomFactor: 0.1,
-            minZoom: 0.1,
-            maxZoom: 5.0,
-            backgroundColor: '#D3D3D3',
-            pagesPadding: { left: 10, top: 10, right: 10, bottom: 10 },
-            minimumPageGap: 10,
+            useWebGL: true,
             scrollStep: 20,
-            useWebGL: true
+            yieldInterval: 16,
+            settings: {
+                appearance: {
+                    backgroundColor: '#D3D3D3',
+                    showPageLoadingAnimation: false
+                },
+                zoom: {
+                    minScale: 0.1,
+                    maxScale: 10.0,
+                    zoomStep: 0.1
+                },
+                layout: {},
+                interaction: {},
+                search: {},
+                rendering: {}
+            }
         };
-        this.configuration = Object.assign({}, defaults, configuration || {});
+        this.configuration = mergeConfiguration(defaults, configuration);
 
         this.state = {
             verticalOffset: 0,
@@ -168,9 +194,9 @@ class PdfPanelView {
 
         if (e.ctrlKey) {
             const oldScale = this.state.scale;
-            const zoomDelta = this.configuration.zoomFactor;
-            const nextScaleRequest = e.deltaY > 0 ? oldScale * (1 - zoomDelta) : oldScale * (1 + zoomDelta);
-            const nextScale = Math.max(this.configuration.minZoom, Math.min(this.configuration.maxZoom, nextScaleRequest));
+            const zoom = this.configuration.settings.zoom;
+            const nextScaleRequest = e.deltaY > 0 ? oldScale * (1 - zoom.zoomStep) : oldScale * (1 + zoom.zoomStep);
+            const nextScale = Math.max(zoom.minScale, Math.min(zoom.maxScale, nextScaleRequest));
 
             // Compute center coordinates for zoom from mouse if available; otherwise center
             let centerX = this.state.viewportWidth / 2;
@@ -282,8 +308,8 @@ class PdfPanelView {
         const currentDistance = this._getTouchDistance(e.touches);
         const scaleFactor = currentDistance / this._touchStartDistance;
         const newScale = Math.max(
-            this.configuration.minZoom,
-            Math.min(this.configuration.maxZoom, this._touchStartScale * scaleFactor)
+            this.configuration.settings.zoom.minScale,
+            Math.min(this.configuration.settings.zoom.maxScale, this._touchStartScale * scaleFactor)
         );
 
         const oldScale = this.state.scale;
@@ -367,7 +393,7 @@ class PdfPanelView {
     }
 
     start() {
-        this.container.style.backgroundColor = this.configuration.backgroundColor;
+        this.container.style.backgroundColor = this.configuration.settings.appearance.backgroundColor;
         this.attachEvents();
         this.initInterop();
         this.requestRender();
@@ -403,6 +429,7 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
  * Register a PDF panel view bound to a container element.
  * @param {string} id Unique view id.
  * @param {HTMLElement} containerElement The `.pdf-panel-*` container element.
+ * @param {object} [configuration] `useWebGL`, `scrollStep`, `yieldInterval` (ms) and `settings`, which mirrors `PdfPanelSettings` in camelCase.
  * @returns {Promise<boolean>} True if registration succeeded.
  */
 export function registerPanel(id, containerElement, configuration) {
@@ -520,8 +547,8 @@ export function setScale(id, scale) {
         return false;
     }
     const clampedScale = Math.max(
-        view.configuration.minZoom,
-        Math.min(view.configuration.maxZoom, scale)
+        view.configuration.settings.zoom.minScale,
+        Math.min(view.configuration.settings.zoom.maxScale, scale)
     );
     const oldScale = view.state.scale;
     const centerX = view.state.viewportWidth / 2;

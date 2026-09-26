@@ -2,14 +2,12 @@ using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Requests;
-using PdfPixel.PdfPanel.Layout;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Settings;
 
 namespace PdfPixel.PdfPanel;
 
@@ -18,19 +16,21 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public sealed class PdfPanelContext : IDisposable
 {
+    private const float ScaleTolerance = 0.001f;
+
     private readonly PdfPanelRenderer _renderer;
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
     private readonly PdfPanelAnnotationInteraction _annotationInteraction;
-    private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
 
     /// <summary>
-    /// Initializes the context with the given page collection, renderer, and render target factory.
+    /// Initializes the context with the given page collection, renderer, render target factory and settings.
     /// </summary>
-    public PdfPanelContext(PdfPanelPageCollection pages, PdfPanelRenderer renderer, IPdfPanelRenderTargetFactory renderTargetFactory)
+    public PdfPanelContext(PdfPanelPageCollection pages, PdfPanelRenderer renderer, IPdfPanelRenderTargetFactory renderTargetFactory, PdfPanelSettings settings)
     {
         Pages = pages ?? throw new ArgumentNullException(nameof(pages));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
+        Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
         _annotationInteraction = new PdfPanelAnnotationInteraction(pages, renderer.InputProcessor);
     }
@@ -46,14 +46,9 @@ public sealed class PdfPanelContext : IDisposable
     public float ViewportHeight { get; set; }
 
     /// <summary>
-    /// Parameters for PDF page rendering.
+    /// Settings of the panel, applied by <see cref="Synchronize"/>.
     /// </summary>
-    public PdfRenderingParameters RenderingParameters { get; } = new() { CacheDecodedTiles = true };
-
-    /// <summary>
-    /// Parameters used for PDF command execution.
-    /// </summary>
-    public PdfCommandExecutionParameters CommandExecutionParameters { get; } = new();
+    public PdfPanelSettings Settings { get; }
 
     /// <summary>
     /// Total width of all pages including padding, in device pixels after applying <see cref="Scale"/>.
@@ -84,26 +79,9 @@ public sealed class PdfPanelContext : IDisposable
     public float Scale { get; set; } = 1.0f;
 
     /// <summary>
-    /// Minimum allowed zoom scale factor.
+    /// Automatic scaling mode applied to <see cref="Scale"/> by <see cref="Synchronize"/>.
     /// </summary>
-    public float MinScale { get; set; } = 0.1f;
-
-    /// <summary>
-    /// Maximum allowed zoom scale factor.
-    /// </summary>
-    public float MaxScale { get; set; } = 10.0f;
-
-    /// <summary>
-    /// Padding from the edges of the viewing area to the pages, in device pixels.
-    /// Unlike <see cref="MinimumPageGap"/>, this value is not scaled with <see cref="Scale"/>.
-    /// </summary>
-    public PdfRectangle PagesPadding { get; set; } = PdfRectangle.FromLocationAndSize(10, 10, 10, 10);
-
-    /// <summary>
-    /// Gets or sets the spacing between pages in the layout, in unscaled page space.
-    /// The effective on-screen gap is affected by <see cref="Scale"/>.
-    /// </summary>
-    public float MinimumPageGap { get; set; } = 10;
+    public PdfPanelAutoScaleMode AutoScaleMode { get; set; }
 
     /// <summary>
     /// Current pointer position in viewport coordinates, or null if pointer is not over the panel.
@@ -141,15 +119,6 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelPageCollection Pages { get; }
 
     /// <summary>
-    /// Layout that positions the pages within the viewport.
-    /// </summary>
-    public IPdfPanelLayout Layout
-    {
-        get => _layout;
-        set => _layout = value ?? throw new ArgumentNullException(nameof(value));
-    }
-
-    /// <summary>
     /// Whether the text of every page is extracted.
     /// </summary>
     public bool ExtractText { get; set; }
@@ -158,11 +127,6 @@ public sealed class PdfPanelContext : IDisposable
     /// Text to search for in the document, or <see langword="null"/> when no search is active.
     /// </summary>
     public string? SearchQuery { get; set; }
-
-    /// <summary>
-    /// Options that control how <see cref="SearchQuery"/> is matched.
-    /// </summary>
-    public PdfPanelSearchOptions SearchOptions { get; } = new();
 
     /// <summary>
     /// Gets the viewport rectangle in scaled coordinate space.
@@ -175,24 +139,25 @@ public sealed class PdfPanelContext : IDisposable
     /// </summary>
     public void Synchronize()
     {
-        Scale = Clamp(Scale, MinScale, MaxScale);
+        Scale = Clamp(Scale, Settings.Zoom.MinScale, Settings.Zoom.MaxScale);
 
-        PdfSize extentSize = Layout.CalculateDimensions(
-            Pages, Scale, PagesPadding, MinimumPageGap, ViewportWidth, ViewportHeight);
+        ApplyAutoScale();
+
+        PdfSize extentSize = Settings.Layout.CalculateDimensions(Pages, Scale, ViewportWidth, ViewportHeight);
 
         ExtentWidth = extentSize.Width;
         ExtentHeight = extentSize.Height;
 
-        Layout.CalculatePageOffsets(
-            Pages, Scale, PagesPadding, MinimumPageGap, ExtentWidth, ExtentHeight);
+        Settings.Layout.CalculatePageOffsets(Pages, Scale, ExtentWidth, ExtentHeight);
 
         VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - ViewportHeight));
         HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - ViewportWidth));
 
         DispatchPointerInput();
 
+        _renderer.Synchronize();
         _renderer.ContentProvider.UpdateTextExtraction(ExtractText);
-        _renderer.UpdateSearch(SearchQuery, SearchOptions);
+        _renderer.UpdateSearch(SearchQuery);
     }
 
     /// <summary>
@@ -258,9 +223,8 @@ public sealed class PdfPanelContext : IDisposable
     {
         PagesDrawingRequest request = GetBaseRequest<PagesDrawingRequest>();
 
-        request.ScaleFactor = Scale;
-        request.CommandExecutionParameters = CommandExecutionParameters.Clone();
-        request.RenderingParameters = RenderingParameters;
+        request.Rendering = Settings.Rendering.Clone();
+        request.Appearance = Settings.Appearance.Clone();
 
         return request;
     }
@@ -293,13 +257,49 @@ public sealed class PdfPanelContext : IDisposable
                     page.UserRotation,
                     canvasSize,
                     Scale,
-                    _renderer.Properties.TileSize);
+                    Settings.Rendering.TileSize);
             }
         }
     }
 
-    private static float Clamp(float value, float min, float max)
-        => Math.Max(min, Math.Min(max, value));
+    private void ApplyAutoScale()
+    {
+        if (AutoScaleMode == PdfPanelAutoScaleMode.NoAutoScale || Pages.Count == 0)
+        {
+            return;
+        }
+
+        float maxPageWidth = 0;
+        float maxPageHeight = 0;
+
+        foreach (PdfPanelPage page in Pages)
+        {
+            PdfSize rotatedSize = page.GetRotatedSize();
+            maxPageWidth = Math.Max(maxPageWidth, rotatedSize.Width);
+            maxPageHeight = Math.Max(maxPageHeight, rotatedSize.Height);
+        }
+
+        float fitScale;
+
+        if (AutoScaleMode == PdfPanelAutoScaleMode.ScaleToWidth)
+        {
+            float padding = Settings.Layout.Padding.Left + Settings.Layout.Padding.Right;
+            fitScale = (ViewportWidth - padding) / maxPageWidth;
+        }
+        else
+        {
+            fitScale = (ViewportHeight - Settings.Layout.PageGap) / maxPageHeight;
+        }
+
+        float scale = Clamp(fitScale, Settings.Zoom.MinScale, Settings.Zoom.MaxScale);
+
+        if (Math.Abs(scale - Scale) / Scale <= ScaleTolerance)
+        {
+            return;
+        }
+
+        this.UpdateScalePreserveOffset(scale, 0, 0);
+    }
 
     private void DispatchPointerInput()
     {
@@ -315,6 +315,9 @@ public sealed class PdfPanelContext : IDisposable
 
         processor.Update(ResolvePointerPosition(PointerPosition.Value), PointerState);
     }
+
+    private static float Clamp(float value, float min, float max)
+        => Math.Max(min, Math.Min(max, value));
 
     /// <inheritdoc />
     public void Dispose() => _annotationInteraction.Dispose();

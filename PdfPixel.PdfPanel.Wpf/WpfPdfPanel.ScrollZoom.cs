@@ -122,12 +122,12 @@ public partial class WpfPdfPanel : IScrollInfo
 
     public void ZoomIn()
     {
-        Scale = Scale + (Scale * ScaleFactor);
+        Scale = Scale + (Scale * _settings.Zoom.ZoomStep);
     }
 
     public void ZoomOut()
     {
-        Scale = Scale - (Scale * ScaleFactor);
+        Scale = Scale - (Scale * _settings.Zoom.ZoomStep);
     }
 
     private void OnScaleChanged()

@@ -19,10 +19,13 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 public class PdfPageUpdateCacheWorkItem : IWorkItem
 {
+    private static readonly PdfRenderingParameters RenderingParameters = new() { CacheDecodedTiles = true };
+
     private readonly object _documentLocker = new();
     private readonly IPdfDocument _document;
     private readonly PdfTextBlockFlattener _textBlockFlattener;
     private readonly PagesDrawingRequest _request;
+    private readonly PdfCommandExecutionParameters _executionParameters;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
     private readonly Action<int> _onPageTextExtracted;
     private readonly IPdfCancellableExecutionObserver? _parseObserver;
@@ -52,7 +55,12 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         _documentLocker = documentLocker;
         _document = document;
         _textBlockFlattener = textBlockFlattener;
-        _request = request;
+        _request = request ?? throw new ArgumentNullException(nameof(request));
+        _executionParameters = new PdfCommandExecutionParameters
+        {
+            Antialias = request.Rendering.Antialias,
+            SnapToDevicePixels = request.Rendering.SnapToDevicePixels
+        };
         _onPageUpdated = onPageUpdated;
         _onPageTextExtracted = onPageTextExtracted ?? throw new ArgumentNullException(nameof(onPageTextExtracted));
         _parseObserver = cacheEntry.ParseObserver;
@@ -88,7 +96,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             if (!CacheEntry.Content.ContentCommandRecording.HasContent)
             {
-                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, _request.RenderingParameters, _parseObserver);
+                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, RenderingParameters, _parseObserver);
                 CacheEntry.Content.UpdateContentCommandRecording(recording);
             }
         }
@@ -109,7 +117,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 SKCanvas canvas = recorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.CropBox.Width * pictureScale, CacheEntry.PageInfo.CropBox.Height * pictureScale));
                 using PdfCommandExecutionContext executionContext = new(
                     _document,
-                    _request.CommandExecutionParameters,
+                    _executionParameters,
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
@@ -152,7 +160,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     CacheEntry.PageNumber,
                     _request.ActiveAnnotation?.PageAnnotation,
                     _request.ActiveAnnotationState,
-                    _request.RenderingParameters,
+                    RenderingParameters,
                     _contentObserver);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 annotationRecordingUpdated = true;
@@ -179,7 +187,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     SKRect.Create(CacheEntry.PageInfo.CropBox.Width * annotationPictureScale, CacheEntry.PageInfo.CropBox.Height * annotationPictureScale));
                 using PdfCommandExecutionContext annotationContext = new(
                     _document,
-                    _request.CommandExecutionParameters,
+                    _executionParameters,
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,

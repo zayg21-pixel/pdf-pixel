@@ -10,11 +10,15 @@ namespace PdfPixel.PdfPanel.Layout;
 public class PdfPanelVerticalLayout : IPdfPanelLayout
 {
     /// <inheritdoc />
+    public PdfRectangle Padding { get; set; } = new(10, 10, 10, 10);
+
+    /// <inheritdoc />
+    public float PageGap { get; set; } = 10;
+
+    /// <inheritdoc />
     public PdfSize CalculateDimensions(
         PdfPanelPageCollection pages,
         float scale,
-        in PdfRectangle pagesPadding,
-        float pageGap,
         float viewportWidth,
         float viewportHeight)
     {
@@ -25,11 +29,11 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
 
         int pageCount = pages.Count;
 
-        float paddingLeft = pagesPadding.Left;
-        float paddingRight = pagesPadding.Right;
-        float paddingTop = pagesPadding.Top;
-        float paddingBottom = pagesPadding.Bottom;
-        float scaledPageGap = pageGap * scale;
+        float paddingLeft = Padding.Left;
+        float paddingRight = Padding.Right;
+        float paddingTop = Padding.Top;
+        float paddingBottom = Padding.Bottom;
+        float scaledPageGap = PageGap * scale;
 
         float maxPageWidthScaled = 0f;
         float totalHeightScaled = 0f;
@@ -59,8 +63,6 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
     public void CalculatePageOffsets(
         PdfPanelPageCollection pages,
         float scale,
-        in PdfRectangle pagesPadding,
-        float pageGap,
         float extentWidth,
         float extentHeight)
     {
@@ -70,8 +72,8 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         }
 
         int pageCount = pages.Count;
-        float paddingTop = pagesPadding.Top;
-        float scaledPageGap = pageGap * scale;
+        float paddingTop = Padding.Top;
+        float scaledPageGap = PageGap * scale;
         float verticalOffset = paddingTop;
 
         for (int i = 0; i < pageCount; i++)

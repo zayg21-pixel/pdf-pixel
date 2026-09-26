@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:PdfPixel.Demo.Wpf"
         xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel;assembly=PdfPixel.PdfPanel"
         xmlns:pdfPanelAnnotations="clr-namespace:PdfPixel.PdfPanel.Annotations;assembly=PdfPixel.PdfPanel"
+        xmlns:pdfPanelSettings="clr-namespace:PdfPixel.PdfPanel.Settings;assembly=PdfPixel.PdfPanel"
         xmlns:pdfPanelText="clr-namespace:PdfPixel.PdfPanel.Text;assembly=PdfPixel.PdfPanel"
         xmlns:wpfPdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
         mc:Ignorable="d"
@@ -172,11 +173,13 @@
             <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
                                      CurrentPage="{Binding PageNumber}"
                                      Pages="{Binding Pages}"
-                                     PageCornerRadius="4"
                                      AutoScaleMode="{Binding AutoScaleMode}"
                                      SearchQuery="{Binding SearchQuery}"
                                      CurrentSearchResult="{Binding CurrentSearchResult}"
                                      PanelInterface="{Binding PanelInterface}">
+                <wpfPdfPanel:WpfPdfPanel.Appearance>
+                    <pdfPanelSettings:PdfPanelAppearanceSettings PageCornerRadius="4" />
+                </wpfPdfPanel:WpfPdfPanel.Appearance>
                 <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip>
                         <ToolTip.Resources>
