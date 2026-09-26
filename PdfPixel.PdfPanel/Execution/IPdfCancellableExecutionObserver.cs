@@ -1,11 +1,11 @@
 using PdfPixel.Models;
 using System;
 
-namespace PdfPixel.PdfPanel.ContentProvider;
+namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
 /// An <see cref="IPdfExecutionObserver"/> that can be cancelled and disposed.
-/// Implementations are created by <see cref="PdfPageContentProvider"/> and held by <see cref="PdfPageCacheEntry"/>.
+/// Implementations are created by <see cref="IPdfExecutionObserverFactory"/>.
 /// </summary>
 public interface IPdfCancellableExecutionObserver : IPdfExecutionObserver, IDisposable
 {

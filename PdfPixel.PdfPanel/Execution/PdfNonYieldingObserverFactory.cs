@@ -1,4 +1,4 @@
-namespace PdfPixel.PdfPanel.ContentProvider;
+namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
 /// <see cref="IPdfExecutionObserverFactory"/> that creates

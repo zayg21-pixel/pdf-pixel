@@ -13,6 +13,7 @@ public sealed class PdfPanelSettings
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
     private PdfPanelInteractionSettings _interaction = new();
     private PdfPanelSearchSettings _search = new();
+    private PdfPanelTextSettings _text = new();
     private PdfPanelRenderingSettings _rendering = new();
 
     /// <summary>
@@ -58,6 +59,15 @@ public sealed class PdfPanelSettings
     {
         get => _search;
         set => _search = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    /// <summary>
+    /// Text extraction and text highlight options.
+    /// </summary>
+    public PdfPanelTextSettings Text
+    {
+        get => _text;
+        set => _text = value ?? throw new ArgumentNullException(nameof(value));
     }
 
     /// <summary>

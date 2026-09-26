@@ -3,6 +3,7 @@ using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
@@ -24,6 +25,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
     private readonly object _documentLocker = new();
     private readonly IPdfDocument _document;
     private readonly PdfTextBlockFlattener _textBlockFlattener;
+    private readonly PdfTextChunker _textChunker;
     private readonly PagesDrawingRequest _request;
     private readonly PdfCommandExecutionParameters _executionParameters;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
@@ -42,6 +44,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         IPdfDocument document,
         object documentLocker,
         PdfTextBlockFlattener textBlockFlattener,
+        PdfTextChunker textChunker,
         PagesDrawingRequest request,
         Action<PageUpdatedArgs>? onPageUpdated,
         Action<int> onPageTextExtracted)
@@ -55,6 +58,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         _documentLocker = documentLocker;
         _document = document;
         _textBlockFlattener = textBlockFlattener;
+        _textChunker = textChunker;
         _request = request ?? throw new ArgumentNullException(nameof(request));
         _executionParameters = new PdfCommandExecutionParameters
         {
@@ -130,11 +134,11 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                 SKPicture? contentPicture = recorder.EndRecording();
                 CacheEntry.Content.UpdateContent(contentPicture, _request);
 
-                if (CacheEntry.Content.Characters == null)
+                if (CacheEntry.Content.Words == null)
                 {
                     PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
                     PdfCharacter[] characters = _textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), pictureToPage);
-                    CacheEntry.Content.UpdateCharacters(characters);
+                    CacheEntry.Content.UpdateWords(_textChunker.ChunkCharacters(characters));
                     _onPageTextExtracted(CacheEntry.PageNumber);
                 }
 

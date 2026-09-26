@@ -1,6 +1,8 @@
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.TextExtraction;
 using System;
@@ -22,6 +24,7 @@ public sealed class PdfPageContentProvider : IDisposable
     private readonly PdfPageCacheEntry[] _cache;
     private readonly HashSet<int> _visiblePageNumbers = [];
     private readonly PdfTextBlockFlattener _textBlockFlattener = new();
+    private readonly PdfTextChunker _textChunker = new();
     private volatile bool _extractText;
     private volatile int _textExtractionStartPageNumber = 1;
     private int _textExtractionPending;
@@ -82,10 +85,10 @@ public sealed class PdfPageContentProvider : IDisposable
     }
 
     /// <summary>
-    /// Returns the extracted characters of the specified 1-based page number in reading order,
+    /// Returns the extracted words of the specified 1-based page number in reading order,
     /// or <see langword="null"/> if they have not been extracted yet.
     /// </summary>
-    internal PdfCharacter[]? GetCharacters(int pageNumber) => _cache[pageNumber - 1].Content.Characters;
+    internal PdfWord[]? GetWords(int pageNumber) => _cache[pageNumber - 1].Content.Words;
 
     /// <summary>
     /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the content
@@ -134,7 +137,7 @@ public sealed class PdfPageContentProvider : IDisposable
 
             _visiblePageNumbers.Add(page.PageNumber);
             cacheEntry.InitializeForRendering(_observerFactory);
-            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textBlockFlattener, request, OnPageUpdated, OnPageTextExtracted));
+            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textBlockFlattener, _textChunker, request, OnPageUpdated, OnPageTextExtracted));
         }
 
         if (request.VisiblePages.Length > 0)
@@ -164,7 +167,7 @@ public sealed class PdfPageContentProvider : IDisposable
             return;
         }
 
-        PdfPageCacheEntry? nextEntry = FindNextEntryWithoutCharacters();
+        PdfPageCacheEntry? nextEntry = FindNextEntryWithoutWords();
 
         if (nextEntry == null)
         {
@@ -173,14 +176,14 @@ public sealed class PdfPageContentProvider : IDisposable
         }
 
         IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextEntry.PageNumber);
-        _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(nextEntry, _document, DocumentLocker, _textBlockFlattener, observer, OnTextExtractionCompleted));
+        _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(nextEntry, _document, DocumentLocker, _textBlockFlattener, _textChunker, observer, OnTextExtractionCompleted));
     }
 
     private void OnPageTextExtracted(int pageNumber) => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber));
 
     private void OnTextExtractionCompleted(int pageNumber)
     {
-        if (_cache[pageNumber - 1].Content.Characters != null)
+        if (_cache[pageNumber - 1].Content.Words != null)
         {
             OnPageTextExtracted(pageNumber);
         }
@@ -189,7 +192,7 @@ public sealed class PdfPageContentProvider : IDisposable
         EnqueueNextTextExtraction();
     }
 
-    private PdfPageCacheEntry? FindNextEntryWithoutCharacters()
+    private PdfPageCacheEntry? FindNextEntryWithoutWords()
     {
         int startIndex = _textExtractionStartPageNumber - 1;
 
@@ -197,7 +200,7 @@ public sealed class PdfPageContentProvider : IDisposable
         {
             PdfPageCacheEntry cacheEntry = _cache[(startIndex + offset) % _cache.Length];
 
-            if (cacheEntry.Content.Characters == null)
+            if (cacheEntry.Content.Words == null)
             {
                 return cacheEntry;
             }

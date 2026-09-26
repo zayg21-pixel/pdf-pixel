@@ -46,6 +46,7 @@ class PdfPanelView {
                 layout: {},
                 interaction: {},
                 search: {},
+                text: {},
                 rendering: {}
             }
         };

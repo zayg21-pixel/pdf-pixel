@@ -47,10 +47,10 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
 
 
     /// <summary>
-    /// Flattened characters of the page in reading order, or <see langword="null"/> if they have not been extracted yet.
+    /// Words of the page in reading order, or <see langword="null"/> if they have not been extracted yet.
     /// Kept when the content is cleared.
     /// </summary>
-    public PdfCharacter[]? Characters { get; private set; }
+    public PdfWord[]? Words { get; private set; }
 
     /// <summary>
     /// Replace page content with a new command recording. Disposes the previous recording if present.
@@ -82,12 +82,12 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
     }
 
     /// <summary>
-    /// Replace the extracted characters of the page.
+    /// Replace the extracted words of the page.
     /// </summary>
-    public void UpdateCharacters(PdfCharacter[] characters)
+    public void UpdateWords(PdfWord[] words)
     {
         ThrowIfDisposed();
-        Characters = characters ?? throw new ArgumentNullException(nameof(characters));
+        Words = words ?? throw new ArgumentNullException(nameof(words));
     }
 
     /// <summary>

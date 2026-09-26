@@ -35,10 +35,9 @@ public sealed class PdfPanelAppearanceSettings : IEquatable<PdfPanelAppearanceSe
     public PdfColor SearchMatchColor { get; set; } = new(255f / 255f, 200f / 255f, 0f / 255f, 100f / 255f);
 
     /// <summary>
-    /// Vertical distance between two characters, as a fraction of character height, within which
-    /// they highlight as one strip.
+    /// Color the current search match is highlighted with.
     /// </summary>
-    public float LineMergeThreshold { get; set; } = 0.5f;
+    public PdfColor CurrentSearchMatchColor { get; set; } = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
 
     /// <summary>
     /// Returns a copy of these settings.
@@ -58,12 +57,12 @@ public sealed class PdfPanelAppearanceSettings : IEquatable<PdfPanelAppearanceSe
             && ShowPageLoadingAnimation == other.ShowPageLoadingAnimation
             && SelectionColor.Equals(other.SelectionColor)
             && SearchMatchColor.Equals(other.SearchMatchColor)
-            && LineMergeThreshold == other.LineMergeThreshold;
+            && CurrentSearchMatchColor.Equals(other.CurrentSearchMatchColor);
     }
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => Equals(obj as PdfPanelAppearanceSettings);
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(BackgroundColor, PageCornerRadius, ShowPageLoadingAnimation, SelectionColor, SearchMatchColor, LineMergeThreshold);
+    public override int GetHashCode() => HashCode.Combine(BackgroundColor, PageCornerRadius, ShowPageLoadingAnimation, SelectionColor, SearchMatchColor, CurrentSearchMatchColor);
 }

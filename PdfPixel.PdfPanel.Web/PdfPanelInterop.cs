@@ -6,6 +6,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
@@ -287,7 +288,7 @@ public partial class PdfPanelInterop
                 settings.Appearance.ShowPageLoadingAnimation = ReadBoolean(appearance, "showPageLoadingAnimation", settings.Appearance.ShowPageLoadingAnimation);
                 settings.Appearance.SelectionColor = ReadColor(appearance, "selectionColor", settings.Appearance.SelectionColor);
                 settings.Appearance.SearchMatchColor = ReadColor(appearance, "searchMatchColor", settings.Appearance.SearchMatchColor);
-                settings.Appearance.LineMergeThreshold = ReadFloat(appearance, "lineMergeThreshold", settings.Appearance.LineMergeThreshold);
+                settings.Appearance.CurrentSearchMatchColor = ReadColor(appearance, "currentSearchMatchColor", settings.Appearance.CurrentSearchMatchColor);
             }
         }
 
@@ -336,6 +337,16 @@ public partial class PdfPanelInterop
             {
                 settings.Search.MatchCase = ReadBoolean(search, "matchCase", settings.Search.MatchCase);
                 settings.Search.WholeWord = ReadBoolean(search, "wholeWord", settings.Search.WholeWord);
+                settings.Search.MatchDiacritics = ReadBoolean(search, "matchDiacritics", settings.Search.MatchDiacritics);
+            }
+        }
+
+        using (JSObject text = settingsObject.GetPropertyAsJSObject("text"))
+        {
+            if (text != null)
+            {
+                settings.Text.ExtractText = ReadBoolean(text, "extractText", settings.Text.ExtractText);
+                settings.Text.LineMergeThreshold = ReadFloat(text, "lineMergeThreshold", settings.Text.LineMergeThreshold);
             }
         }
 

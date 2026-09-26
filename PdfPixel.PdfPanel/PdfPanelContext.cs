@@ -8,6 +8,7 @@ using System.Linq;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Settings;
+using PdfPixel.PdfPanel.Text;
 
 namespace PdfPixel.PdfPanel;
 
@@ -119,14 +120,14 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelPageCollection Pages { get; }
 
     /// <summary>
-    /// Whether the text of every page is extracted.
-    /// </summary>
-    public bool ExtractText { get; set; }
-
-    /// <summary>
     /// Text to search for in the document, or <see langword="null"/> when no search is active.
     /// </summary>
     public string? SearchQuery { get; set; }
+
+    /// <summary>
+    /// Search match highlighted as current, or <see langword="null"/> when there is none.
+    /// </summary>
+    public PdfPanelSearchMatch? CurrentSearchMatch { get; set; }
 
     /// <summary>
     /// Gets the panel rectangle in scaled coordinate space.
@@ -156,8 +157,8 @@ public sealed class PdfPanelContext : IDisposable
         DispatchPointerInput();
 
         _renderer.Synchronize();
-        _renderer.ContentProvider.UpdateTextExtraction(ExtractText);
-        _renderer.UpdateSearch(SearchQuery);
+        _renderer.ContentProvider.UpdateTextExtraction(Settings.Text.ExtractText || !string.IsNullOrEmpty(SearchQuery));
+        _renderer.UpdateSearch(SearchQuery, CurrentSearchMatch);
     }
 
     /// <summary>
@@ -225,6 +226,7 @@ public sealed class PdfPanelContext : IDisposable
 
         request.Rendering = Settings.Rendering.Clone();
         request.Appearance = Settings.Appearance.Clone();
+        request.Text = Settings.Text.Clone();
 
         return request;
     }

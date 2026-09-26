@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace PdfPixel.PdfPanel.ContentProvider;
+namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
 /// <see cref="PdfCancellationSourceExecutionObserver"/> that never yields the thread.

@@ -18,6 +18,11 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     /// </summary>
     public PdfPanelAppearanceSettings Appearance { get; set; } = new();
 
+    /// <summary>
+    /// Text options the text highlights are drawn with.
+    /// </summary>
+    public PdfPanelTextSettings Text { get; set; } = new();
+
     /// <inheritdoc />
     public override bool Equals(object? obj)
     {
@@ -25,7 +30,8 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         {
             return base.Equals(obj)
                 && Rendering.Equals(other.Rendering)
-                && Appearance.Equals(other.Appearance);
+                && Appearance.Equals(other.Appearance)
+                && Text.Equals(other.Text);
         }
 
         return false;
@@ -45,6 +51,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         hash.Add(ActiveAnnotationState);
         hash.Add(Rendering);
         hash.Add(Appearance);
+        hash.Add(Text);
         return hash.ToHashCode();
     }
 }

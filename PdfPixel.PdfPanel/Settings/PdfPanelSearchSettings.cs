@@ -18,6 +18,11 @@ public sealed class PdfPanelSearchSettings : IEquatable<PdfPanelSearchSettings>
     public bool WholeWord { get; set; }
 
     /// <summary>
+    /// Whether diacritics must match, so that "e" does not match "é".
+    /// </summary>
+    public bool MatchDiacritics { get; set; }
+
+    /// <summary>
     /// Returns a copy of these settings.
     /// </summary>
     public PdfPanelSearchSettings Clone() => (PdfPanelSearchSettings)MemberwiseClone();
@@ -31,12 +36,13 @@ public sealed class PdfPanelSearchSettings : IEquatable<PdfPanelSearchSettings>
         }
 
         return MatchCase == other.MatchCase
-            && WholeWord == other.WholeWord;
+            && WholeWord == other.WholeWord
+            && MatchDiacritics == other.MatchDiacritics;
     }
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => Equals(obj as PdfPanelSearchSettings);
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(MatchCase, WholeWord);
+    public override int GetHashCode() => HashCode.Combine(MatchCase, WholeWord, MatchDiacritics);
 }

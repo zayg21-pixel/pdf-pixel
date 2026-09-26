@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PdfPixel.PdfPanel.ContentProvider;
+namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
 /// <see cref="IPdfCancellableExecutionObserver"/> backed by a <see cref="System.Threading.CancellationTokenSource"/>.

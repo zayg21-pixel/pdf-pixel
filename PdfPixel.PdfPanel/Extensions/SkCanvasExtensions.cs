@@ -55,15 +55,21 @@ internal static class SkCanvasExtensions
         {
             tiler.DrawTiles(canvas, in page, request.Scale, deviceMatrix);
             DrawPagePicture(canvas, pictures?.Annotations, page.Info);
-            DrawTextLayerPicture(canvas, textLayer, textSearchEngine, page, request.Appearance);
+            DrawTextLayerPicture(canvas, textLayer, textSearchEngine, page, request.Appearance, request.Text);
         }
 
         canvas.RestoreToCount(savedCount);
     }
 
-    private static void DrawTextLayerPicture(SKCanvas canvas, PdfPanelTextLayer textLayer, PdfPanelTextSearchEngine textSearchEngine, in VisiblePageInfo page, PdfPanelAppearanceSettings appearance)
+    private static void DrawTextLayerPicture(
+        SKCanvas canvas,
+        PdfPanelTextLayer textLayer,
+        PdfPanelTextSearchEngine textSearchEngine,
+        in VisiblePageInfo page,
+        PdfPanelAppearanceSettings appearance,
+        PdfPanelTextSettings text)
     {
-        SKPicture? picture = textLayer.GetTextLayerPicture(page.PageNumber, textSearchEngine.GetPageMatches(page.PageNumber), appearance);
+        SKPicture? picture = textLayer.GetTextLayerPicture(page.PageNumber, textSearchEngine.GetPageMatches(page.PageNumber), textSearchEngine.CurrentMatch, appearance, text);
         if (picture == null)
         {
             return;

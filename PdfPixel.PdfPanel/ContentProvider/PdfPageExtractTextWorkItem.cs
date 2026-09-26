@@ -2,6 +2,7 @@ using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.TextExtraction;
 using System;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Work item that extracts a page's characters without rendering it and stores them in <see cref="CacheEntry"/>.
+/// Work item that extracts a page's words without rendering it and stores them in <see cref="CacheEntry"/>.
 /// </summary>
 internal sealed class PdfPageExtractTextWorkItem : IWorkItem
 {
@@ -26,6 +27,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     private readonly IPdfDocument _document;
     private readonly object _documentLocker;
     private readonly PdfTextBlockFlattener _textBlockFlattener;
+    private readonly PdfTextChunker _textChunker;
     private readonly IPdfCancellableExecutionObserver _observer;
     private readonly Action<int> _onCompleted;
 
@@ -38,6 +40,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         IPdfDocument document,
         object documentLocker,
         PdfTextBlockFlattener textBlockFlattener,
+        PdfTextChunker textChunker,
         IPdfCancellableExecutionObserver observer,
         Action<int> onCompleted)
     {
@@ -45,6 +48,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _documentLocker = documentLocker ?? throw new ArgumentNullException(nameof(documentLocker));
         _textBlockFlattener = textBlockFlattener ?? throw new ArgumentNullException(nameof(textBlockFlattener));
+        _textChunker = textChunker ?? throw new ArgumentNullException(nameof(textChunker));
         _observer = observer ?? throw new ArgumentNullException(nameof(observer));
         _onCompleted = onCompleted ?? throw new ArgumentNullException(nameof(onCompleted));
     }
@@ -64,9 +68,9 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         {
             await _observer.YieldAsync().ConfigureAwait(false);
 
-            if (CacheEntry.Content.Characters == null)
+            if (CacheEntry.Content.Words == null)
             {
-                ExtractCharacters();
+                ExtractWords();
             }
         }
         finally
@@ -76,7 +80,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         }
     }
 
-    private void ExtractCharacters()
+    private void ExtractWords()
     {
         lock (_documentLocker)
         {
@@ -94,7 +98,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
             page.Render(processor, TextExtractionParameters, _observer);
 
             PdfCharacter[] characters = _textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), PdfMatrix.Identity);
-            CacheEntry.Content.UpdateCharacters(characters);
+            CacheEntry.Content.UpdateWords(_textChunker.ChunkCharacters(characters));
         }
     }
 }

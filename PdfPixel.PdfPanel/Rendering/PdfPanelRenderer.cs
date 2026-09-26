@@ -203,13 +203,36 @@ public sealed class PdfPanelRenderer : IDisposable
 
     /// <summary>
     /// Searches the panel's text for <paramref name="query"/> when the query or <see cref="PdfPanelSettings.Search"/> changed,
-    /// and redraws the visible pages with the new matches.
+    /// and redraws the visible pages with the new matches. A change of <paramref name="currentMatch"/> redraws the visible pages
+    /// of the previous and the new current match.
     /// </summary>
-    public void UpdateSearch(string? query)
+    public void UpdateSearch(string? query, PdfPanelSearchMatch? currentMatch)
     {
-        if (_disposed || !TextSearchEngine.Update(query, Settings.Search))
+        if (_disposed)
         {
             return;
+        }
+
+        PdfPanelSearchMatch? previousMatch = TextSearchEngine.CurrentMatch;
+        bool currentMatchChanged = TextSearchEngine.UpdateCurrentMatch(currentMatch);
+        bool matchesChanged = TextSearchEngine.Update(query, Settings.Search);
+
+        if (!currentMatchChanged && !matchesChanged)
+        {
+            return;
+        }
+
+        int? previousMatchPageNumber = previousMatch?.Range.PageNumber;
+        int? currentMatchPageNumber = currentMatch?.Range.PageNumber;
+
+        if (previousMatchPageNumber != null)
+        {
+            TextLayer.Invalidate(previousMatchPageNumber.Value);
+        }
+
+        if (currentMatchPageNumber != null)
+        {
+            TextLayer.Invalidate(currentMatchPageNumber.Value);
         }
 
         if (_lastRequest == null || _lastRequest.RenderTarget == null)
@@ -218,14 +241,24 @@ public sealed class PdfPanelRenderer : IDisposable
         }
 
         SKSurface surface = GetSurface(_lastRequest);
+        var pageDrawn = false;
 
         foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
         {
+            if (!matchesChanged && page.PageNumber != previousMatchPageNumber && page.PageNumber != currentMatchPageNumber)
+            {
+                continue;
+            }
+
             TextLayer.Invalidate(page.PageNumber);
             DrawPageContent(surface, page);
+            pageDrawn = true;
         }
 
-        Present(surface, _lastRequest);
+        if (pageDrawn)
+        {
+            Present(surface, _lastRequest);
+        }
     }
 
     /// <summary>
@@ -465,7 +498,14 @@ public sealed class PdfPanelRenderer : IDisposable
 
     private void OnPageTextExtractedSync(int pageNumber)
     {
-        if (_disposed || !TextSearchEngine.SearchPage(pageNumber))
+        if (_disposed)
+        {
+            return;
+        }
+
+        TextLayer.OnPageTextExtracted(pageNumber);
+
+        if (!TextSearchEngine.SearchPage(pageNumber))
         {
             return;
         }

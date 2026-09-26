@@ -35,6 +35,9 @@ public partial class WpfPdfPanel
     public static readonly DependencyProperty SearchProperty = DependencyProperty.Register(nameof(Search), typeof(PdfPanelSearchSettings), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
 
+    public static readonly DependencyProperty TextProperty = DependencyProperty.Register(nameof(Text), typeof(PdfPanelTextSettings), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
+
     public static readonly DependencyProperty RenderingProperty = DependencyProperty.Register(nameof(Rendering), typeof(PdfPanelRenderingSettings), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
 
@@ -60,6 +63,11 @@ public partial class WpfPdfPanel
 
     public static readonly DependencyProperty CurrentSearchResultProperty = DependencyProperty.Register(nameof(CurrentSearchResult), typeof(PdfPanelSearchMatch?), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentSearchResultProperty_Changed));
+
+    public static readonly DependencyPropertyKey TextLayerPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(TextLayer), typeof(PdfPanelTextLayer), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+    public static readonly DependencyProperty TextLayerProperty = TextLayerPropertyKey.DependencyProperty;
 
     public static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(PageLabel), typeof(string), typeof(WpfPdfPanel),
@@ -153,6 +161,15 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
+    /// Gets or sets the text extraction and text highlight options.
+    /// </summary>
+    public PdfPanelTextSettings Text
+    {
+        get => (PdfPanelTextSettings)GetValue(TextProperty);
+        set => SetValue(TextProperty, value);
+    }
+
+    /// <summary>
     /// Gets or sets the rendering quality and timing.
     /// </summary>
     public PdfPanelRenderingSettings Rendering
@@ -208,6 +225,14 @@ public partial class WpfPdfPanel
     public ObservableCollection<PdfPanelSearchMatch> SearchResults
     {
         get => (ObservableCollection<PdfPanelSearchMatch>)GetValue(SearchResultsProperty);
+    }
+
+    /// <summary>
+    /// Gets the text layer of the current document, or <see langword="null"/> when no document is shown.
+    /// </summary>
+    public PdfPanelTextLayer TextLayer
+    {
+        get => (PdfPanelTextLayer)GetValue(TextLayerProperty);
     }
 
     /// <summary>
@@ -294,6 +319,10 @@ public partial class WpfPdfPanel
         {
             settings.Search = (PdfPanelSearchSettings)e.NewValue;
         }
+        else if (e.Property == TextProperty)
+        {
+            settings.Text = (PdfPanelTextSettings)e.NewValue;
+        }
         else if (e.Property == RenderingProperty)
         {
             settings.Rendering = (PdfPanelRenderingSettings)e.NewValue;
@@ -351,8 +380,9 @@ public partial class WpfPdfPanel
         if (e.NewValue is PdfPanelSearchMatch searchMatch && source._context != null)
         {
             source._context.ScrollToSearchMatch(searchMatch);
-            source.InvalidateVisual();
         }
+
+        source.InvalidateVisual();
     }
 
     private static void PanelInterfaceProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)

@@ -48,6 +48,7 @@ public partial class WpfPdfPanel : FrameworkElement
         Layout = _settings.Layout;
         Interaction = _settings.Interaction;
         Search = _settings.Search;
+        Text = _settings.Text;
         Rendering = _settings.Rendering;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -205,6 +206,7 @@ public partial class WpfPdfPanel : FrameworkElement
         _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _settings, SynchronizationContext.Current);
         _renderer.TextSearchEngine.MatchesChanged += OnSearchMatchesChanged;
         _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory, _settings);
+        SetValue(TextLayerPropertyKey, _renderer.TextLayer);
     }
 
     private void DisposeRenderer()
@@ -214,6 +216,7 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
+        SetValue(TextLayerPropertyKey, null);
         _renderer.TextSearchEngine.MatchesChanged -= OnSearchMatchesChanged;
         _renderer.Dispose();
     }
@@ -226,7 +229,7 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.PanelHeight = (float)PanelSize.Height;
         _context.AutoScaleMode = AutoScaleMode;
         _context.SearchQuery = SearchQuery;
-        _context.ExtractText = !string.IsNullOrEmpty(SearchQuery);
+        _context.CurrentSearchMatch = CurrentSearchResult;
 
         UpdatePointerState();
 

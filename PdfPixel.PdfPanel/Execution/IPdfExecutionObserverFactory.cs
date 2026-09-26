@@ -1,10 +1,8 @@
-namespace PdfPixel.PdfPanel.ContentProvider;
+namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
-/// Creates <see cref="IPdfCancellableExecutionObserver"/> instances for a page.
-/// Injected into <see cref="PdfPageContentProvider"/> so that platform-specific
-/// cancellation mechanisms (CancellationToken vs SharedArrayBuffer) can be substituted
-/// without changing the provider logic.
+/// Creates the <see cref="IPdfCancellableExecutionObserver"/> instances that
+/// <see cref="ContentProvider.PdfPageContentProvider"/> runs page work with.
 /// </summary>
 public interface IPdfExecutionObserverFactory
 {

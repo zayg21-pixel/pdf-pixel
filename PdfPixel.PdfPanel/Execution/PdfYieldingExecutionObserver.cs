@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace PdfPixel.PdfPanel.ContentProvider;
+namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
 /// <see cref="PdfCancellationSourceExecutionObserver"/> that yields the thread once the yield interval has passed since the last yield.

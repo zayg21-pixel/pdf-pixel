@@ -1,11 +1,11 @@
 using System;
 
-namespace PdfPixel.PdfPanel.ContentProvider;
+namespace PdfPixel.PdfPanel.Text;
 
 /// <summary>
-/// Data for <see cref="PdfPageContentProvider.PageTextExtracted"/>.
+/// Data for <see cref="PdfPanelTextLayer.PageTextExtracted"/>.
 /// </summary>
-internal sealed class PageTextExtractedEventArgs : EventArgs
+public sealed class PageTextExtractedEventArgs : EventArgs
 {
     /// <summary>
     /// Initializes the arguments for the given 1-based page number.

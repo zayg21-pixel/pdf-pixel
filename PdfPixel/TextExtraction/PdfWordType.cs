@@ -13,5 +13,10 @@ public enum PdfWordType
     /// <summary>
     /// A punctuation mark treated as a separate word token.
     /// </summary>
-    Punctuation
+    Punctuation,
+
+    /// <summary>
+    /// Whitespace between words, or a line break at the end of a line.
+    /// </summary>
+    Space
 }

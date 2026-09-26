@@ -51,6 +51,11 @@ public sealed class PdfPanelTextLayer : IDisposable
     }
 
     /// <summary>
+    /// Raised when the words of a page have been extracted.
+    /// </summary>
+    public event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
+
+    /// <summary>
     /// Whether the pointer is currently over a text character.
     /// </summary>
     public bool IsPointerOverText => _isPointerOverText;
@@ -65,16 +70,16 @@ public sealed class PdfPanelTextLayer : IDisposable
     /// </summary>
     public string GetText(in PdfPanelTextRange range)
     {
-        PdfCharacter[]? characters = GetCharacters(range.PageNumber);
+        PdfWord[]? words = GetWords(range.PageNumber);
 
-        if (characters == null)
+        if (words == null)
         {
             return string.Empty;
         }
 
         _textBuilder.Clear();
 
-        foreach (PdfCharacter character in characters.AsSpan(range.StartIndex, range.Length))
+        foreach (PdfCharacter character in EnumerateCharacters(words, range))
         {
             if (character.Text != null)
             {
@@ -86,39 +91,18 @@ public sealed class PdfPanelTextLayer : IDisposable
     }
 
     /// <summary>
-    /// Returns the text of every character of the given page, or <see langword="null"/> if its characters have not been
-    /// extracted yet. <paramref name="characterIndexes"/> is filled with the index of the character each text position belongs to.
+    /// Returns the words of the given page in reading order, or <see langword="null"/> if they have not been extracted yet.
     /// </summary>
-    internal string? GetPageText(int pageNumber, List<int> characterIndexes)
+    public PdfWord[]? GetWords(int pageNumber)
     {
-        PdfCharacter[]? characters = GetCharacters(pageNumber);
+        PdfWord[]? words = _contentProvider.GetWords(pageNumber);
 
-        if (characters == null)
+        if (words == null || words.Length == 0)
         {
             return null;
         }
 
-        _textBuilder.Clear();
-        characterIndexes.Clear();
-
-        for (int characterIndex = 0; characterIndex < characters.Length; characterIndex++)
-        {
-            string? characterText = characters[characterIndex].Text;
-
-            if (characterText == null)
-            {
-                continue;
-            }
-
-            _textBuilder.Append(characterText);
-
-            for (int textIndex = 0; textIndex < characterText.Length; textIndex++)
-            {
-                characterIndexes.Add(characterIndex);
-            }
-        }
-
-        return _textBuilder.ToString();
+        return words;
     }
 
     /// <summary>
@@ -127,35 +111,42 @@ public sealed class PdfPanelTextLayer : IDisposable
     /// </summary>
     internal PdfRectangle? GetBounds(in PdfPanelTextRange range)
     {
-        PdfCharacter[]? characters = GetCharacters(range.PageNumber);
+        PdfWord[]? words = GetWords(range.PageNumber);
 
-        if (characters == null)
+        if (words == null)
         {
             return null;
         }
 
-        PdfRectangle bounds = characters[range.StartIndex].BoundingBox;
+        PdfRectangle? bounds = null;
 
-        for (int characterIndex = range.StartIndex + 1; characterIndex < range.StartIndex + range.Length; characterIndex++)
+        foreach (PdfCharacter character in EnumerateCharacters(words, range))
         {
-            bounds = PdfRectangle.Union(bounds, characters[characterIndex].BoundingBox);
+            bounds = (bounds == null)
+                ? character.BoundingBox
+                : PdfRectangle.Union(bounds.Value, character.BoundingBox);
         }
 
         return bounds;
     }
 
     /// <summary>
-    /// Returns the text layer picture for the given visible page, creating it on first call from <paramref name="searchMatches"/>
-    /// and the selection with <paramref name="appearance"/>, or <see langword="null"/> if that page has nothing to highlight.
+    /// Returns the text layer picture for the given visible page, creating it on first call from <paramref name="searchMatches"/>,
+    /// <paramref name="currentMatch"/> and the selection with <paramref name="appearance"/> and <paramref name="text"/>, or <see langword="null"/> if that page has nothing to highlight.
     /// </summary>
-    internal SKPicture? GetTextLayerPicture(int pageNumber, IReadOnlyList<PdfPanelSearchMatch>? searchMatches, PdfPanelAppearanceSettings appearance)
+    internal SKPicture? GetTextLayerPicture(
+        int pageNumber,
+        IReadOnlyList<PdfPanelSearchMatch>? searchMatches,
+        PdfPanelSearchMatch? currentMatch,
+        PdfPanelAppearanceSettings appearance,
+        PdfPanelTextSettings text)
     {
         if (_textLayerPictures.TryGetValue(pageNumber, out SKPicture? picture))
         {
             return picture;
         }
 
-        SKPicture? newPicture = GenerateTextLayerPicture(pageNumber, searchMatches, appearance);
+        SKPicture? newPicture = GenerateTextLayerPicture(pageNumber, searchMatches, currentMatch, appearance, text);
 
         if (newPicture != null)
         {
@@ -164,6 +155,11 @@ public sealed class PdfPanelTextLayer : IDisposable
 
         return newPicture;
     }
+
+    /// <summary>
+    /// Raises <see cref="PageTextExtracted"/> for the given page.
+    /// </summary>
+    internal void OnPageTextExtracted(int pageNumber) => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber));
 
     /// <summary>
     /// Releases the text layer pictures of every page that is not in <paramref name="visiblePages"/>.
@@ -282,14 +278,14 @@ public sealed class PdfPanelTextLayer : IDisposable
             return;
         }
 
-        PdfCharacter[]? characters = GetCharacters(pagePoint.Value.PageNumber);
+        PdfWord[]? words = GetWords(pagePoint.Value.PageNumber);
 
-        if (characters == null)
+        if (words == null)
         {
             return;
         }
 
-        int? charIndex = HitTestCharacterNearest(characters, pagePoint.Value.Position);
+        int? charIndex = HitTestCharacterNearest(words, pagePoint.Value.Position);
 
         if (charIndex == null || charIndex == _currentCharIndex)
         {
@@ -298,8 +294,10 @@ public sealed class PdfPanelTextLayer : IDisposable
 
         _currentCharIndex = charIndex;
 
+        PdfWordPart[] lastParts = words[words.Length - 1].Parts;
+        PdfWordPart lastPart = lastParts[lastParts.Length - 1];
         int start = Math.Max(Math.Min(_anchorCharIndex.Value, charIndex.Value), 0);
-        int end = Math.Min(Math.Max(_anchorCharIndex.Value, charIndex.Value), characters.Length - 1);
+        int end = Math.Min(Math.Max(_anchorCharIndex.Value, charIndex.Value), lastPart.StartIndex + lastPart.Characters.Length - 1);
         _selection = new PdfPanelTextRange(_anchorPageNumber.Value, start, end - start + 1);
 
         Invalidate(_anchorPageNumber.Value);
@@ -318,18 +316,6 @@ public sealed class PdfPanelTextLayer : IDisposable
         _selection = null;
     }
 
-    private PdfCharacter[]? GetCharacters(int pageNumber)
-    {
-        PdfCharacter[]? characters = _contentProvider.GetCharacters(pageNumber);
-
-        if (characters == null || characters.Length == 0)
-        {
-            return null;
-        }
-
-        return characters;
-    }
-
     private int? HitTestCharacter(in PdfPanelPointerPosition position, float? maxDistance)
     {
         PdfPanelPagePoint? pagePoint = position.PagePoint;
@@ -339,17 +325,22 @@ public sealed class PdfPanelTextLayer : IDisposable
             return null;
         }
 
-        PdfCharacter[]? characters = GetCharacters(pagePoint.Value.PageNumber);
+        PdfWord[]? words = GetWords(pagePoint.Value.PageNumber);
 
-        if (characters == null)
+        if (words == null)
         {
             return null;
         }
 
-        return HitTestCharacterNearest(characters, pagePoint.Value.Position, maxDistance);
+        return HitTestCharacterNearest(words, pagePoint.Value.Position, maxDistance);
     }
 
-    private SKPicture? GenerateTextLayerPicture(int pageNumber, IReadOnlyList<PdfPanelSearchMatch>? searchMatches, PdfPanelAppearanceSettings appearance)
+    private SKPicture? GenerateTextLayerPicture(
+        int pageNumber,
+        IReadOnlyList<PdfPanelSearchMatch>? searchMatches,
+        PdfPanelSearchMatch? currentMatch,
+        PdfPanelAppearanceSettings appearance,
+        PdfPanelTextSettings text)
     {
         PdfPanelTextRange? pageSelection = (_selection?.PageNumber == pageNumber) ? _selection : null;
 
@@ -358,9 +349,9 @@ public sealed class PdfPanelTextLayer : IDisposable
             return null;
         }
 
-        PdfCharacter[]? characters = GetCharacters(pageNumber);
+        PdfWord[]? words = GetWords(pageNumber);
 
-        if (characters == null)
+        if (words == null)
         {
             return null;
         }
@@ -378,9 +369,16 @@ public sealed class PdfPanelTextLayer : IDisposable
                 Color = appearance.SearchMatchColor.ToSkiaColor()
             };
 
+            using SKPaint currentSearchMatchPaint = new()
+            {
+                Style = SKPaintStyle.Fill,
+                Color = appearance.CurrentSearchMatchColor.ToSkiaColor()
+            };
+
             foreach (PdfPanelSearchMatch searchMatch in searchMatches)
             {
-                DrawHighlightStrips(canvas, characters, searchMatch.Range, searchMatchPaint, appearance.LineMergeThreshold);
+                SKPaint paint = (searchMatch.Range == currentMatch?.Range) ? currentSearchMatchPaint : searchMatchPaint;
+                DrawHighlightStrips(canvas, words, searchMatch.Range, paint, text.LineMergeThreshold);
             }
         }
 
@@ -392,17 +390,17 @@ public sealed class PdfPanelTextLayer : IDisposable
                 Color = appearance.SelectionColor.ToSkiaColor()
             };
 
-            DrawHighlightStrips(canvas, characters, pageSelection.Value, selectionPaint, appearance.LineMergeThreshold);
+            DrawHighlightStrips(canvas, words, pageSelection.Value, selectionPaint, text.LineMergeThreshold);
         }
 
         return recorder.EndRecording();
     }
 
-    private static void DrawHighlightStrips(SKCanvas canvas, PdfCharacter[] characters, in PdfPanelTextRange range, SKPaint paint, float lineMergeThreshold)
+    private static void DrawHighlightStrips(SKCanvas canvas, PdfWord[] words, in PdfPanelTextRange range, SKPaint paint, float lineMergeThreshold)
     {
         PdfRectangle? currentStrip = null;
 
-        foreach (PdfCharacter character in characters.AsSpan(range.StartIndex, range.Length))
+        foreach (PdfCharacter character in EnumerateCharacters(words, range))
         {
             PdfRectangle box = character.BoundingBox;
 
@@ -427,22 +425,52 @@ public sealed class PdfPanelTextLayer : IDisposable
         }
     }
 
-    private static int? HitTestCharacterNearest(PdfCharacter[] characters, in PdfPoint point, float? maxDistance = null)
+    private static IEnumerable<PdfCharacter> EnumerateCharacters(PdfWord[] words, PdfPanelTextRange range)
+    {
+        int end = range.StartIndex + range.Length;
+
+        foreach (PdfWord word in words)
+        {
+            foreach (PdfWordPart part in word.Parts)
+            {
+                if (part.StartIndex >= end)
+                {
+                    yield break;
+                }
+
+                int first = Math.Max(range.StartIndex - part.StartIndex, 0);
+                int last = Math.Min(end - part.StartIndex, part.Characters.Length);
+
+                for (int characterIndex = first; characterIndex < last; characterIndex++)
+                {
+                    yield return part.Characters[characterIndex];
+                }
+            }
+        }
+    }
+
+    private static int? HitTestCharacterNearest(PdfWord[] words, in PdfPoint point, float? maxDistance = null)
     {
         int closestIndex = 0;
         float closestDistance = float.MaxValue;
 
-        for (int i = 0; i < characters.Length; i++)
+        foreach (PdfWord word in words)
         {
-            PdfRectangle characterBox = characters[i].BoundingBox;
-            float dx = point.X - characterBox.MidX;
-            float dy = point.Y - characterBox.MidY;
-            float distance = (dx * dx) + (dy * dy);
-
-            if (distance < closestDistance)
+            foreach (PdfWordPart part in word.Parts)
             {
-                closestDistance = distance;
-                closestIndex = i;
+                for (int characterIndex = 0; characterIndex < part.Characters.Length; characterIndex++)
+                {
+                    PdfRectangle characterBox = part.Characters[characterIndex].BoundingBox;
+                    float dx = point.X - characterBox.MidX;
+                    float dy = point.Y - characterBox.MidY;
+                    float distance = (dx * dx) + (dy * dy);
+
+                    if (distance < closestDistance)
+                    {
+                        closestDistance = distance;
+                        closestIndex = part.StartIndex + characterIndex;
+                    }
+                }
             }
         }
 

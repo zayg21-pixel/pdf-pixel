@@ -19,8 +19,9 @@ None known. Core text search, text extraction and the shared `PdfPanelTextLayer`
 
 - [x] `PdfYieldingExecutionObserver`: takes a yield interval and only yields once that much time has passed since the last yield. Web reads it from the `yieldInterval` configuration key (ms, default 16)
 - [x] Split the content update delay into `PdfPanelRenderingSettings.ScrollContentUpdateDelay` (0) and `ZoomContentUpdateDelay` (200 ms)
-- [ ] Web: `CpuSkiaRenderer` does not copy content from the existing surface on recreate. `PdfPixel.PdfPanel.Web/Rendering/CpuSkiaRenderer.cs:36` `[HIGH]`
-- [ ] Web: WebGL context is never destroyed. `PdfPixel.PdfPanel.Web/Rendering/CanvasGlContext.cs:102`
+- [x] Web: `CpuSkiaRenderer` resized the canvas on every frame. The canvas is now resized on present only when the frame size changes, like the WPF `WriteableBitmap`; the drawing surface already keeps its content through `CpuSkSurfaceFactory`
+- [x] Web: WebGL context is destroyed on dispose (`dotnet_webgl_destroy_context`). The per-renderer current-context cache is gone: each renderer makes its context current before GL work, so several panels on one page do not draw into each other's context
+- WebGL draws straight into the canvas framebuffer, so its content is not kept across a resize (unlike the `ISkSurfaceFactory` contract). Left as is by decision
 
 ## Stage 3: API unification
 
@@ -44,11 +45,11 @@ Also:
 Agreed design:
 - Three kinds of input:
   - **Host wiring**: constructor arguments only, never settable (`SynchronizationContext`, surface factory, render target factory, work queue, observer factory). `SynchronizationContext` leaves the renderer properties
-  - **State**: changes through interaction, lives on `PdfPanelContext` (`Scale`, offsets, viewport size, pointer, `AutoScaleMode`, `SearchQuery`)
+  - **State**: changes through interaction, lives on `PdfPanelContext` (`Scale`, offsets, viewport size, pointer, `AutoScaleMode`, `SearchQuery`, `CurrentSearchMatch`)
   - **Settings**: a single `PdfPanelSettings` instance
-- `PdfPanelSettings` has get-set groups by user concern: `Appearance`, `Zoom`, `Layout` (`IPdfPanelLayout` itself, owning `PageGap` and `Padding`), `Interaction`, `Search`, `Rendering`. Groups are mutable classes with get-set properties (no constructor parameters per setting)
+- `PdfPanelSettings` has get-set groups by user concern: `Appearance`, `Zoom`, `Layout` (`IPdfPanelLayout` itself, owning `PageGap` and `Padding`), `Interaction`, `Search`, `Text` (`ExtractText`, `LineMergeThreshold`), `Rendering`. Groups are mutable classes with get-set properties (no constructor parameters per setting)
 - One settings instance is passed to the constructors of both `PdfPanelContext` and `PdfPanelRenderer`. No change notification: `Synchronize` propagates every setting (rebuilding what is baked at creation, e.g. tiler `TileSize`, clock `AnimationFps`, when the value differs from the last applied one), and the following `Render` always uses the new values
-- Drawing never reads settings directly: `Render` copies the `Appearance` and `Rendering` groups into the request. Partial redraws (page decoded, text extracted, animation tick) draw from `_lastRequest`, so an unsynchronized change never shows up on a single page. The decode thread gets the same copy
+- Drawing never reads settings directly: `Render` copies the `Appearance`, `Text` and `Rendering` groups into the request. Partial redraws (page decoded, text extracted, animation tick) draw from `_lastRequest`, so an unsynchronized change never shows up on a single page. The decode thread gets the same copy
 - WPF: changing a group member (`Appearance.BackgroundColor = x`) does not trigger a redraw by itself; the host requests one. Replacing a group through its dependency property does
 - `PdfRenderingParameters` / `PdfCommandExecutionParameters` are not panel API. `PdfPageUpdateCacheWorkItem` builds them from the request's `Rendering` copy (`Antialias`, `SnapToDevicePixels`; `CacheDecodedTiles` always on). The core image tile sizes keep their library defaults; only the panel tile size is a setting
 - WPF: the panel owns the settings instance and it outlives context recreation on document switch. Individual groups are bindable dependency properties with a `null` default; the panel constructor assigns its own instances (a mutable default would be shared by every panel). Dependency properties otherwise only for state and `Pages`
@@ -67,6 +68,7 @@ Work:
 - [x] WPF: group dependency properties, drop mirrored settings dependency properties
 - [x] Web: build settings on registration. The JS configuration's `settings` object mirrors `PdfPanelSettings` in camelCase (`settings.zoom.minScale`, `settings.layout.padding.left`, ...); host-only keys (`useWebGL`, `scrollStep`, `yieldInterval`) sit next to it
 - [x] Update both demos to the new API
+- [x] Execution observers and their factories moved from `ContentProvider` to `PdfPixel.PdfPanel.Execution`; `PdfPageContentProvider` is the only public type left in `ContentProvider`
 
 ## Stage 4: New functionality
 
@@ -103,13 +105,18 @@ Work:
 
 Highlights are drawn by `PdfPanelTextLayer` itself, so search no longer waits for the overlay API.
 
-- [x] Per-page text extraction without rendering: `PdfTextExtractionCommandProcessor` (no Skia, replays nested form recordings) run by `PdfPageExtractTextWorkItem`. Characters are kept per page in `PdfPageCacheEntryItem.Characters` (`null` = not extracted) and survive page-out. `PdfPanelContext.ExtractText` keeps exactly one text item queued, so rendering waits for at most one page. `PageTextExtracted` is raised by both text extraction and rendering
-- [~] Search engine: `PdfPanelTextSearchEngine` over `PdfPanelTextLayer` text, incremental (`MatchesChanged` on every page with matches). Not cancellable by decision. No progress reporting yet
-- [~] Matching rules: `MatchCase` and `WholeWord` done. Diacritics, ligatures, hyphenation and inferred spaces between words (characters are joined as extracted) not done
+- [x] Per-page text extraction without rendering: `PdfTextExtractionCommandProcessor` (no Skia, replays nested form recordings) run by `PdfPageExtractTextWorkItem`. Extraction of every page runs while `PdfPanelSettings.Text.ExtractText` is set or a search query is active, with exactly one text item queued, so rendering waits for at most one page
+- [x] Words: the content provider owns one `PdfTextChunker`; both extraction paths (render-time and text-only) run flatten → `ChunkCharacters` and cache `PdfWord[]` per page in `PdfPageCacheEntryItem.Words` (`null` = not extracted, survives page-out)
+  - `PdfWord` = `Type` (`Normal`, `Punctuation`, `Space`) + `Parts`; `PdfWordPart` = the characters of the word on one line (`Characters`, `BoundingBox`, `LineIndex`, `StartIndex` in the page's character sequence)
+  - Whitespace is a `Space` word: real whitespace glyphs, or generated where the PDF has none (a space for a gap wider than 0.1 of character height, a line break where character centers are more than half a character height apart)
+  - Hyphenation: a line ending in letter + hyphen (`DashPunctuation` or soft hyphen) followed by a letter continues the word in a new part; the first part ends with the hyphen and a generated line break
+- [x] Text access: `PdfPanelTextLayer.GetWords(pageNumber)`, `GetText(range)` (real characters plus generated separators), `PageTextExtracted` event (UI thread, raised by both extraction paths); WPF exposes the text layer as the read-only `TextLayer` dependency property
+- [x] Search engine: `PdfPanelTextSearchEngine` over the page words, incremental (`MatchesChanged` on every page with matches). Not cancellable by decision
+- [x] Matching rules: `MatchCase`, `WholeWord`, `MatchDiacritics`. Query and page text compared in compatibility decomposition (FormKD, per character so match indexes stay on characters), nonspacing marks dropped unless `MatchDiacritics`, whitespace runs compared as one space. Hyphenated words match both joined ("example") and with the hyphen ("exam-ple")
 - [x] Match model: `PdfPanelSearchMatch` = `PdfPanelTextRange` (page, start index, length) + bounds. Selection uses the same range type
-- [~] Highlight rendering: all matches of the visible pages drawn in `SearchMatchColor` under the selection. No separate highlight for the current match
+- [x] Highlight rendering: all matches of the visible pages drawn in `SearchMatchColor` under the selection; `PdfPanelContext.CurrentSearchMatch` (state, applied by `Synchronize`) drawn in `CurrentSearchMatchColor`. Query and current match changes redraw the affected visible pages from cached tiles
 - [~] Navigation: `ScrollToSearchMatch` context extension, count via the results. No next/previous in the API (host side)
-- [x] Public API: `PdfPanelContext.SearchQuery`, `PdfPanelSettings.Search`, `ExtractText`; results on `PdfPanelRenderer.TextSearchEngine`; `PdfPanelRenderer` orchestrates extraction → search → page redraw
+- [x] Public API: `PdfPanelContext.SearchQuery` / `CurrentSearchMatch`, `PdfPanelSettings.Search`, `PdfPanelSettings.Text`; results on `PdfPanelRenderer.TextSearchEngine`; `PdfPanelRenderer` orchestrates extraction → search → page redraw
 - [~] UI: WPF done (`SearchQuery`, `SearchResults`, `CurrentSearchResult` on `WpfPdfPanel`; demo search box with results drop-down, navigates on hover). Web panel and Web demo not done. Web side should be built on the stage 3 API
 - [ ] Tests
 - [ ] Text inside soft-mask forms is extracted like page text, in both rendering and text extraction
@@ -123,7 +130,7 @@ Highlights are drawn by `PdfPanelTextLayer` itself, so search no longer waits fo
 
 Need investigation before a fix is known.
 
-- [ ] Web: scroll is jagged. `PdfPixel.PdfPanel.Web/wwwroot/canvasInterop.js:150` `[HIGH]`
+- [x] Web: scroll is jagged: not a bug, TODO removed
 - [ ] Web: WASM sometimes breaks on mobile phones when zooming (reproduces at least in the demo)
 
 ## Stage 6: Pre-render, caching, memory
