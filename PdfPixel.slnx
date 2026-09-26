@@ -25,7 +25,6 @@
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="PdfPixel.Diagnostics/PdfPixel.Diagnostics.csproj" />
-    <Project Path="PdfPixel.FontPlayground/PdfPixel.FontPlayground.csproj" />
     <Project Path="PdfPixel.Gold/PdfPixel.Gold.csproj" />
     <Project Path="PdfPixel.ResourceGenerator/PdfPixel.ResourceGenerator.csproj" />
   </Folder>
