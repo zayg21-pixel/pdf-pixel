@@ -7,7 +7,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// Work item that clears a page's cached content under the document lock.
 /// Enqueued for pages that scroll out of view.
 /// </summary>
-public sealed class PdfPageClearCacheWorkItem : IWorkItem
+internal sealed class PdfPageClearCacheWorkItem : IWorkItem
 {
     private readonly PdfPageCacheEntry _cacheEntry;
     private readonly object _documentLocker;

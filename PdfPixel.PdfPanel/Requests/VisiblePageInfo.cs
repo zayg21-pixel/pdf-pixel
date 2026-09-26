@@ -8,7 +8,7 @@ namespace PdfPixel.PdfPanel;
 /// <summary>
 /// Immutable snapshot of a page's rendering parameters captured at the start of each render pass.
 /// </summary>
-public readonly struct VisiblePageInfo
+internal readonly struct VisiblePageInfo
 {
     /// <summary>
     /// Initialises a new snapshot for a visible page.
@@ -18,7 +18,7 @@ public readonly struct VisiblePageInfo
         in PdfPoint offset,
         in PdfPanelPageInfo pageInfo,
         int userRotation,
-        in PdfSize canvasSize,
+        in PdfSize panelSize,
         float scale,
         int tileSize)
     {
@@ -35,8 +35,8 @@ public readonly struct VisiblePageInfo
 
         UserRotation = normalizedUserRotation;
 
-        PdfRectangle canvasRect = PdfRectangle.FromLocationAndSize(0, 0, canvasSize.Width, canvasSize.Height);
-        PdfRectangle visibleContent = GetContentToCanvasMatrix(scale).Invert().MapRect(canvasRect);
+        PdfRectangle panelRect = PdfRectangle.FromLocationAndSize(0, 0, panelSize.Width, panelSize.Height);
+        PdfRectangle visibleContent = GetContentToPanelMatrix(scale).Invert().MapRect(panelRect);
         PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.CropBox.Width, pageInfo.CropBox.Height);
 
         RegionOfInterest = PdfRectangle.Intersect(
@@ -79,12 +79,12 @@ public readonly struct VisiblePageInfo
     /// <summary>
     /// Matrix that maps this page's content coordinates (top-left origin, Y-down, unrotated,
     /// matching <see cref="Info"/> dimensions — the space recorded pictures and command
-    /// replay operate in) directly to canvas pixels. Combines page rotation with the
-    /// scroll-offset translation and render scale applied to the canvas before content is
-    /// drawn. Invert it to map canvas pixels back to content coordinates, e.g. to derive a
-    /// region of interest from the visible canvas area.
+    /// replay operate in) directly to panel pixels. Combines page rotation with the
+    /// scroll-offset translation and render scale applied to the panel before content is
+    /// drawn. Invert it to map panel pixels back to content coordinates, e.g. to derive a
+    /// region of interest from the visible panel area.
     /// </summary>
-    public PdfMatrix GetContentToCanvasMatrix(float scale)
+    public PdfMatrix GetContentToPanelMatrix(float scale)
     {
         int rotation = Info.GetTotalRotation(UserRotation);
         PdfSize rotatedSize = RotatedSize;

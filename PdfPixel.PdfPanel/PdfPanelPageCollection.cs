@@ -18,7 +18,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     private readonly object disposeLocker = new();
     private bool isDisposed;
 
-    internal PdfPanelPageCollection(IPdfPageContentProvider contentProvider, IList<PdfPanelPage> pages)
+    internal PdfPanelPageCollection(PdfPageContentProvider contentProvider, IList<PdfPanelPage> pages)
         : base(pages)
     {
         ContentProvider = contentProvider;
@@ -27,7 +27,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <summary>
     /// Pages content provider that handles rendering of page content and annotation layers.
     /// </summary>
-    public IPdfPageContentProvider ContentProvider { get; }
+    public PdfPageContentProvider ContentProvider { get; }
 
     /// <summary>
     /// Returns the page if it exists.
@@ -81,7 +81,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// </summary>
     /// <param name="contentProvider">Document content provider.</param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
-    public static PdfPanelPageCollection FromContentProvider(IPdfPageContentProvider contentProvider)
+    public static PdfPanelPageCollection FromContentProvider(PdfPageContentProvider contentProvider)
     {
         if (contentProvider == null)
         {

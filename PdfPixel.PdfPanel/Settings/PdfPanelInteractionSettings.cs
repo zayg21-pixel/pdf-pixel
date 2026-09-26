@@ -6,7 +6,7 @@ namespace PdfPixel.PdfPanel.Settings;
 public sealed class PdfPanelInteractionSettings
 {
     /// <summary>
-    /// Distance the pointer travels from the press position before a press becomes a drag, in viewport pixels.
+    /// Distance the pointer travels from the press position before a press becomes a drag, in panel pixels.
     /// </summary>
     public float MinimumDragDistance { get; set; } = 4f;
 

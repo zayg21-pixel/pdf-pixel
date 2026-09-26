@@ -12,7 +12,7 @@ namespace PdfPixel.PdfPanel.Text;
 public sealed class PdfPanelTextSearchEngine
 {
     private readonly PdfPanelTextLayer _textLayer;
-    private readonly IPdfPageContentProvider _contentProvider;
+    private readonly PdfPageContentProvider _contentProvider;
     private readonly SortedDictionary<int, List<PdfPanelSearchMatch>> _pageMatches = [];
     private readonly List<PdfPanelSearchMatch> _matches = [];
     private readonly List<int> _characterIndexes = [];
@@ -22,7 +22,7 @@ public sealed class PdfPanelTextSearchEngine
     /// <summary>
     /// Initializes the engine that searches the text of <paramref name="textLayer"/> across the pages of <paramref name="contentProvider"/>.
     /// </summary>
-    public PdfPanelTextSearchEngine(PdfPanelTextLayer textLayer, IPdfPageContentProvider contentProvider)
+    internal PdfPanelTextSearchEngine(PdfPanelTextLayer textLayer, PdfPageContentProvider contentProvider)
     {
         _textLayer = textLayer ?? throw new ArgumentNullException(nameof(textLayer));
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));

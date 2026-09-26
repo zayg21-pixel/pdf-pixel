@@ -9,7 +9,7 @@ namespace PdfPixel.PdfPanel.Requests;
 /// <summary>
 /// Base class for all rendering requests sent to <see cref="PdfPanelRenderer"/>.
 /// </summary>
-public abstract class DrawingRequest
+internal abstract class DrawingRequest
 {
     /// <summary>
     /// Current zoom scale factor.
@@ -17,14 +17,14 @@ public abstract class DrawingRequest
     public float Scale { get; set; }
 
     /// <summary>
-    /// Horizontal and vertical scroll offset in scaled canvas space.
+    /// Horizontal and vertical scroll offset in scaled panel space.
     /// </summary>
     public PdfPoint Offset { get; set; }
 
     /// <summary>
     /// Width and height of the drawing surface in device pixels.
     /// </summary>
-    public PdfSize CanvasSize { get; set; }
+    public PdfSize PanelSize { get; set; }
 
     /// <summary>
     /// Target that receives the rendered surface for display.
@@ -42,7 +42,7 @@ public abstract class DrawingRequest
     public PdfPanelPointerState ActiveAnnotationState { get; set; }
 
     /// <summary>
-    /// Pages visible in the current viewport, in render order.
+    /// Pages visible in the current panel, in render order.
     /// </summary>
     public VisiblePageInfo[] VisiblePages { get; set; } = [];
 
@@ -60,7 +60,7 @@ public abstract class DrawingRequest
                 && ActiveAnnotation == request.ActiveAnnotation
                 && ActiveAnnotationState == request.ActiveAnnotationState
                 && Offset == request.Offset
-                && CanvasSize == request.CanvasSize
+                && PanelSize == request.PanelSize
                 && RenderTarget == request.RenderTarget
                 && VisiblePages.SequenceEqual(request.VisiblePages);
         }
@@ -69,5 +69,5 @@ public abstract class DrawingRequest
     }
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Scale, Offset, CanvasSize, RenderTarget, ActiveAnnotation, ActiveAnnotationState, VisiblePages);
+    public override int GetHashCode() => HashCode.Combine(Scale, Offset, PanelSize, RenderTarget, ActiveAnnotation, ActiveAnnotationState, VisiblePages);
 }

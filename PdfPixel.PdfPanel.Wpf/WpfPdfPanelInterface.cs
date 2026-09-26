@@ -1,4 +1,3 @@
-using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 
@@ -73,11 +72,7 @@ public class WpfPdfPanelInterface
     }
 
     /// <summary>
-    /// Gets or sets the action to execute after the drawing operation is completed.
+    /// Gets or sets the action invoked after each present with the canvas in panel pixels and the presented <see cref="PdfPanelFrame"/>.
     /// </summary>
-    /// <remarks>The specified action receives the current <see cref="SKCanvas"/> and the associated <see
-    /// cref="DrawingRequest"/> as parameters, allowing for custom post-processing or additional drawing steps.
-    /// Assigning this property enables users to inject custom logic immediately following the main drawing
-    /// routine.</remarks>
-    public Action<SKCanvas, DrawingRequest> OnAfterDraw { get; set; }
+    public Action<SKCanvas, PdfPanelFrame> OnAfterDraw { get; set; }
 }

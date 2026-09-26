@@ -1,4 +1,4 @@
-﻿using PdfPixel.Geometry;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Rendering;
 using System;
 using System.Windows.Media;
@@ -23,26 +23,26 @@ public class WpfPdfPanelRenderTargetFactory : IPdfPanelRenderTargetFactory
             throw new ArgumentNullException(nameof(context));
         }
 
-        var canvasSize = new PdfSize((float)_panel.CanvasSize.Width, (float)_panel.CanvasSize.Height);
-        var canvasScale = new PdfPoint((float)_panel.CanvasScale.X, (float)_panel.CanvasScale.Y);
-        var canvasOffset = new PdfPoint((float)_panel.CanvasOffset.X, (float)_panel.CanvasOffset.Y);
+        var panelSize = new PdfSize((float)_panel.PanelSize.Width, (float)_panel.PanelSize.Height);
+        var hostScale = new PdfPoint((float)_panel.HostScale.X, (float)_panel.HostScale.Y);
+        var hostOffset = new PdfPoint((float)_panel.HostOffset.X, (float)_panel.HostOffset.Y);
 
         if (_previousTarget != null &&
-            _previousTarget.CanvasSize == canvasSize &&
-            _previousTarget.CanvasScale == canvasScale &&
-            _previousTarget.CanvasOffset == canvasOffset)
+            _previousTarget.PanelSize == panelSize &&
+            _previousTarget.HostScale == hostScale &&
+            _previousTarget.HostOffset == hostOffset)
         {
             return _previousTarget;
         }
 
-        _previousTarget = GetNewRenderTarget(canvasSize, canvasScale, canvasOffset);
+        _previousTarget = GetNewRenderTarget(panelSize, hostScale, hostOffset);
 
         return _previousTarget;
     }
 
-    private WpfPdfPanelRenderTarget GetNewRenderTarget(PdfSize canvasSize, PdfPoint canvasScale, PdfPoint canvasOffset)
+    private WpfPdfPanelRenderTarget GetNewRenderTarget(PdfSize panelSize, PdfPoint hostScale, PdfPoint hostOffset)
     {
-        var writeableBitmap = new WriteableBitmap((int)canvasSize.Width, (int)canvasSize.Height, 96.0 * canvasScale.X, 96.0 * canvasScale.Y, PixelFormats.Pbgra32, null);
-        return new WpfPdfPanelRenderTarget(writeableBitmap, _panel, canvasSize, canvasScale, canvasOffset);
+        var writeableBitmap = new WriteableBitmap((int)panelSize.Width, (int)panelSize.Height, 96.0 * hostScale.X, 96.0 * hostScale.Y, PixelFormats.Pbgra32, null);
+        return new WpfPdfPanelRenderTarget(writeableBitmap, _panel, panelSize, hostScale, hostOffset);
     }
 }

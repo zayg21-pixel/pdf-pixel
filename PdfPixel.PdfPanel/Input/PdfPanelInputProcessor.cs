@@ -231,8 +231,8 @@ public sealed class PdfPanelInputProcessor
 
     private bool HasTravelledDragDistance(in PdfPanelPointerPosition pressPosition, in PdfPanelPointerPosition position)
     {
-        float deltaX = position.ViewportPosition.X - pressPosition.ViewportPosition.X;
-        float deltaY = position.ViewportPosition.Y - pressPosition.ViewportPosition.Y;
+        float deltaX = position.PanelPosition.X - pressPosition.PanelPosition.X;
+        float deltaY = position.PanelPosition.Y - pressPosition.PanelPosition.Y;
 
         return (deltaX * deltaX) + (deltaY * deltaY)
             >= _settings.Interaction.MinimumDragDistance * _settings.Interaction.MinimumDragDistance;

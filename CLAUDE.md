@@ -112,5 +112,5 @@ Multi-line summary style. Use `/// <inheritdoc />` for interface/override implem
 
 - Rendering always on UI thread. Decoding always on background thread. No direct cross-thread references — communicate via plain data (`PageUpdatedArgs`, `UpdateContentRequest`).
 - `PdfPanelContext` is the single entry point for all viewport/layout updates. It builds `PagesDrawingRequest` and submits to `PdfPanelRenderer`.
-- `PdfPanelRenderer` renders immediately from cache, then triggers background decode via `IPdfPageContentProvider`. When a page is ready, `OnPageUpdated` fires on the UI thread and re-draws only that page.
+- `PdfPanelRenderer` renders immediately from cache, then triggers background decode via `PdfPageContentProvider`. When a page is ready, `OnPageUpdated` fires on the UI thread and re-draws only that page.
 - `SkCanvasExtensions.DrawPage` takes a required `PageDrawFlags` parameter. Full render passes `PageDrawFlags.All`. Partial content updates pass `PageDrawFlags.Background | PageDrawFlags.Content` — never redraw shadows on partial updates.

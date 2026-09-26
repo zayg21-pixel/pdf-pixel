@@ -8,7 +8,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// <summary>
 /// Lightweight container for cached page rendering artifacts.
 /// </summary>
-public sealed class PdfPageCacheEntry : IDisposable
+internal sealed class PdfPageCacheEntry : IDisposable
 {
     private PdfAnnotationPopup[]? _annotations;
     private bool _disposed;

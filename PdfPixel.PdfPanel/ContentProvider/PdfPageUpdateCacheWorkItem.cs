@@ -15,9 +15,9 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
 /// Work item that decodes a page's content and annotation pictures and stores them in <see cref="CacheEntry"/>.
-/// Invokes <see cref="IPdfPageContentProvider.OnPageUpdated"/> when finished.
+/// Invokes <see cref="PdfPageContentProvider.OnPageUpdated"/> when finished.
 /// </summary>
-public class PdfPageUpdateCacheWorkItem : IWorkItem
+internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
 {
     private static readonly PdfRenderingParameters RenderingParameters = new() { CacheDecodedTiles = true };
 
@@ -72,7 +72,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     /// The cache entry hands out a fresh content observer for every request, so holding one that is no
     /// longer the entry's current observer means a newer request for this page arrived while this item
     /// waited in the queue, and rendering the request it carries would paint the page at a scale the
-    /// viewport has already left.
+    /// panel has already left.
     /// </remarks>
     public bool IsSkippable => !ReferenceEquals(_contentObserver, CacheEntry.ContentObserver);
 

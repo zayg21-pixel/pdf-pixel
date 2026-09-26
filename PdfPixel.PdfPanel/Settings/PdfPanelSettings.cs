@@ -34,7 +34,7 @@ public sealed class PdfPanelSettings
     }
 
     /// <summary>
-    /// Layout that positions the pages within the viewport.
+    /// Layout that positions the pages within the panel.
     /// </summary>
     public IPdfPanelLayout Layout
     {

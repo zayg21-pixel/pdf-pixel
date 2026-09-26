@@ -389,7 +389,7 @@ class PdfPanelView {
     }
 
     initInterop() {
-        void interop.RegisterCanvas(this.id, this.configuration);
+        void interop.RegisterPanel(this.id, this.configuration);
     }
 
     start() {
@@ -471,7 +471,7 @@ export function unregisterPanel(id) {
     }
     views.delete(id);
     console.log(`Canvas '${id}' unregistered successfully`);
-    interop.UnregisterCanvas(id);
+    interop.UnregisterPanel(id);
     return true;
 }
 

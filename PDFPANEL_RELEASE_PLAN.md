@@ -12,9 +12,7 @@ None known. Core text search, text extraction and the shared `PdfPanelTextLayer`
 
 ## Stage 1: Small cleanups
 
-- [ ] Remote file loading: implement or drop the TODO. `WpfPdfPanel.cs:378`, `PdfPanelInterop.cs:356`
-- [ ] Web: parse type in interop or refactor the JS to remove the need. `PdfPixel.PdfPanel.Web/PdfPanelInterop.cs:285` `[HIGH]`
-- [ ] Cleanup WASM demo: JS files contain leftovers from multi-threading support
+- [ ] Cleanup WASM panel JS (`PdfPixel.PdfPanel.Web/wwwroot/canvasInterop.js` and related): leftovers from multi-threading support. Includes the `[HIGH]` annotation popup TODO (`PdfPanelInterop.cs`, `CreateAnnotationPopupState`): the JS popup `type` is always empty and never read (removed in `41195e99`); drop it so the popup matches `PdfAnnotationPopup` (`isInteractive`, `messages`). Keep the reply hierarchy: today `AddAnnotationPopupMessages` flattens `Replies` depth-first into one list, while WPF shows them nested. Build the tree with JSImport factories (`createAnnotationMessage(title, content, date)` returning a `JSObject`, `addAnnotationReply(parent, reply)`, `setAnnotationPopup(state, isInteractive, messages)`) so JS gets `{ isInteractive, messages: [{ title, content, date, replies }] }`, and rebuild it only when the active popup changes, not on every redraw. Also rename the JS state keys `viewportWidth`/`viewportHeight` to the panel naming
 
 ## Stage 2: Easy wins and fixes
 
@@ -79,9 +77,9 @@ Agreed design:
 - Interaction uses the host's own events (WPF `MouseMove`/`MouseDown`/`MouseUp`, DOM pointer events). The user updates their own state and requests a redraw (`RequestRefresh` for overlay only, `RequestRedraw` for everything)
 - A redraw ends in a present, and the present invokes the user callback with a frame object describing what was presented:
   - Native hosts (WPF, later MAUI): `OnAfterDraw(SKCanvas, frame)`; the canvas is in panel pixels
-  - WASM (future step, not in this release): C# builds the same `PdfPanelFrame` at present and passes it to a JS interop function. The public JS API adds the panel's HTML canvas element and the panel id and raises it to the user's subscribers, so JS code can subscribe to panel changes. Drawing (e.g. on an own canvas on top) and routing pointer events stay on the user's side
+  - WASM (this release, after the JS refactor): C# builds the same `PdfPanelFrame` at present and passes it to a JS interop function. The public JS API adds the panel's HTML canvas element and the panel id and raises it to the user's subscribers, so JS code can subscribe to panel changes. Drawing (e.g. on an own canvas on top) and routing pointer events stay on the user's side
 - Frame object `PdfPanelFrame`, pages `PdfPanelFramePage`, all conversions are `PdfMatrix`:
-  - `HostToPanel`: host coordinates (WPF DIPs, CSS pixels) to panel pixels, provided by the render target (DPI scale, snapped offset, devicePixelRatio)
+  - `HostToPanel`: host coordinates to panel pixels, provided by the render target (`IPdfPanelRenderTarget.HostToPanel`). WPF: DIPs relative to the panel, DPI scale plus snapped offset. Web: identity for now (JS already sends panel pixels)
   - `PanelSize`
   - `Pages` (`PdfPanelFramePage`): the public part of `VisiblePageInfo`
     - `PageNumber`, `Info` (`PdfPanelPageInfo`: `Label`, `CropBox` in PDF user space, `Rotation`), `UserRotation`, `RotatedSize`
@@ -93,10 +91,12 @@ Agreed design:
 - Naming: "Host" for host coordinates, "Panel" for panel pixel space. "Canvas" and "Viewport" as names of the panel space go away (`CanvasSize`/`CanvasScale`/`CanvasOffset`/`GetCanvasPosition`, `ViewportWidth`/`ViewportHeight`, `ViewportPosition`, `ViewportToPageMatrix`, `GetContentToCanvasMatrix`, `RegisterCanvas`). Real canvases keep the name (`SKCanvas`, the HTML canvas element, `CanvasSelector`)
 
 Work:
-- [ ] `PdfPanelFrame` / `PdfPanelFramePage` and `IPdfPanelRenderTarget.Render(SKSurface, PdfPanelFrame)`; `DrawingRequest`, `VisiblePageInfo` internal
-- [ ] Canvas/Viewport → Host/Panel renames
-- [ ] WPF: remove `CanvasMouseEventArgs` and `CanvasMouseDown`/`Up`/`Move`; `OnAfterDraw` receives the frame
-- [ ] Use it from the demos
+- [x] `PdfPanelFrame` / `PdfPanelFramePage` and `IPdfPanelRenderTarget.Render(SKSurface, PdfPanelFrame)` with `IPdfPanelRenderTarget.HostToPanel`
+- [x] Decode pipeline internal: `IPdfPageContentProvider` removed; `PdfPageContentProvider` keeps only its constructor and `Dispose` public; requests, `VisiblePageInfo`, cache entries, work items, content pictures and the tiler are internal; `PdfPanelRenderer.Submit`/`ContentProvider` and the text layer / search engine constructors are internal
+- [x] Canvas/Viewport → Host/Panel renames (WPF `IScrollInfo.ViewportWidth`/`ViewportHeight` stay: interface members)
+- [x] WPF: remove `CanvasMouseEventArgs` and `CanvasMouseDown`/`Up`/`Move`; `OnAfterDraw` receives the frame; `CanvasSize`/`CanvasScale`/`CanvasOffset`/`GetCanvasPosition` no longer public
+- [x] WPF demo uses the frame
+- [ ] WASM: C# builds `PdfPanelFrame` at present and calls a JS interop function; the public JS API adds the HTML canvas and panel id and raises it to subscribers. After the JS refactor (stage 1)
 
 ### Text search
 

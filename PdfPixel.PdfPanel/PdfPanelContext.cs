@@ -12,7 +12,7 @@ using PdfPixel.PdfPanel.Settings;
 namespace PdfPixel.PdfPanel;
 
 /// <summary>
-/// Manages the viewport, layout, and rendering state for a PDF panel viewer.
+/// Manages the panel, layout, and rendering state for a PDF panel viewer.
 /// </summary>
 public sealed class PdfPanelContext : IDisposable
 {
@@ -36,14 +36,14 @@ public sealed class PdfPanelContext : IDisposable
     }
 
     /// <summary>
-    /// Width of the viewing area in device pixels (unscaled canvas space).
+    /// Width of the panel in device pixels (unscaled panel space).
     /// </summary>
-    public float ViewportWidth { get; set; }
+    public float PanelWidth { get; set; }
 
     /// <summary>
-    /// Height of the viewing area in device pixels (unscaled canvas space).
+    /// Height of the panel in device pixels (unscaled panel space).
     /// </summary>
-    public float ViewportHeight { get; set; }
+    public float PanelHeight { get; set; }
 
     /// <summary>
     /// Settings of the panel, applied by <see cref="Synchronize"/>.
@@ -61,14 +61,14 @@ public sealed class PdfPanelContext : IDisposable
     public float ExtentHeight { get; private set; }
 
     /// <summary>
-    /// Vertical scroll offset in device pixels in the scaled canvas space.
-    /// A value of 0 means the top of the content is aligned with the top of the viewport.
+    /// Vertical scroll offset in device pixels in the scaled panel space.
+    /// A value of 0 means the top of the content is aligned with the top of the panel.
     /// </summary>
     public float VerticalOffset { get; set; }
 
     /// <summary>
-    /// Horizontal scroll offset in device pixels in the scaled canvas space.
-    /// A value of 0 means the left of the content is aligned with the left of the viewport.
+    /// Horizontal scroll offset in device pixels in the scaled panel space.
+    /// A value of 0 means the left of the content is aligned with the left of the panel.
     /// </summary>
     public float HorizontalOffset { get; set; }
 
@@ -84,7 +84,7 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelAutoScaleMode AutoScaleMode { get; set; }
 
     /// <summary>
-    /// Current pointer position in viewport coordinates, or null if pointer is not over the panel.
+    /// Current pointer position in panel coordinates, or null if pointer is not over the panel.
     /// </summary>
     public PdfPoint? PointerPosition { get; set; }
 
@@ -129,9 +129,9 @@ public sealed class PdfPanelContext : IDisposable
     public string? SearchQuery { get; set; }
 
     /// <summary>
-    /// Gets the viewport rectangle in scaled coordinate space.
+    /// Gets the panel rectangle in scaled coordinate space.
     /// </summary>
-    public PdfRectangle ViewportRectangle => PdfRectangle.FromLocationAndSize(HorizontalOffset, VerticalOffset, ViewportWidth, ViewportHeight);
+    public PdfRectangle PanelRectangle => PdfRectangle.FromLocationAndSize(HorizontalOffset, VerticalOffset, PanelWidth, PanelHeight);
 
     /// <summary>
     /// Synchronizes the panel state with the current property values: recalculates dimensions and page positions,
@@ -143,15 +143,15 @@ public sealed class PdfPanelContext : IDisposable
 
         ApplyAutoScale();
 
-        PdfSize extentSize = Settings.Layout.CalculateDimensions(Pages, Scale, ViewportWidth, ViewportHeight);
+        PdfSize extentSize = Settings.Layout.CalculateDimensions(Pages, Scale, PanelWidth, PanelHeight);
 
         ExtentWidth = extentSize.Width;
         ExtentHeight = extentSize.Height;
 
         Settings.Layout.CalculatePageOffsets(Pages, Scale, ExtentWidth, ExtentHeight);
 
-        VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - ViewportHeight));
-        HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - ViewportWidth));
+        VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - PanelHeight));
+        HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - PanelWidth));
 
         DispatchPointerInput();
 
@@ -180,29 +180,29 @@ public sealed class PdfPanelContext : IDisposable
     public void Reset() => _renderer.Reset();
 
     /// <summary>
-    /// Maps a viewport position to the visible page it falls on.
+    /// Maps a panel position to the visible page it falls on.
     /// </summary>
-    public PdfPanelPointerPosition ResolvePointerPosition(in PdfPoint viewportPosition)
+    public PdfPanelPointerPosition ResolvePointerPosition(in PdfPoint panelPosition)
     {
         for (int i = 0; i < Pages.Count; i++)
         {
             PdfPanelPage page = Pages[i];
 
-            if (!page.IsPageVisible(ViewportRectangle, Scale))
+            if (!page.IsPageVisible(PanelRectangle, Scale))
             {
                 continue;
             }
 
-            PdfMatrix matrix = page.ViewportToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
-            PdfPoint pagePosition = matrix.MapPoint(viewportPosition);
+            PdfMatrix matrix = page.PanelToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
+            PdfPoint pagePosition = matrix.MapPoint(panelPosition);
 
             if (page.IsPointInPageBounds(pagePosition))
             {
-                return new PdfPanelPointerPosition(viewportPosition, new PdfPanelPagePoint(i + 1, pagePosition));
+                return new PdfPanelPointerPosition(panelPosition, new PdfPanelPagePoint(i + 1, pagePosition));
             }
         }
 
-        return new PdfPanelPointerPosition(viewportPosition, null);
+        return new PdfPanelPointerPosition(panelPosition, null);
     }
 
     private T GetBaseRequest<T>() where T : DrawingRequest, new()
@@ -213,7 +213,7 @@ public sealed class PdfPanelContext : IDisposable
             ActiveAnnotation = ActiveAnnotation,
             ActiveAnnotationState = ActiveAnnotationState,
             Offset = new PdfPoint(HorizontalOffset, VerticalOffset),
-            CanvasSize = new PdfSize(ViewportWidth, ViewportHeight),
+            PanelSize = new PdfSize(PanelWidth, PanelHeight),
             RenderTarget = _renderTargetFactory.GetRenderTarget(this),
             VisiblePages = GetVisiblePages().ToArray()
         };
@@ -240,13 +240,13 @@ public sealed class PdfPanelContext : IDisposable
 
     private IEnumerable<VisiblePageInfo> GetVisiblePages()
     {
-        PdfSize canvasSize = new(ViewportWidth, ViewportHeight);
+        PdfSize panelSize = new(PanelWidth, PanelHeight);
 
         for (int i = 0; i < Pages.Count; i++)
         {
             PdfPanelPage page = Pages[i];
 
-            if (page.IsPageVisible(ViewportRectangle, Scale))
+            if (page.IsPageVisible(PanelRectangle, Scale))
             {
                 float offsetX = (page.Offset.X - HorizontalOffset) / Scale;
                 float offsetY = (page.Offset.Y - VerticalOffset) / Scale;
@@ -255,7 +255,7 @@ public sealed class PdfPanelContext : IDisposable
                     new PdfPoint(offsetX, offsetY),
                     page.Info,
                     page.UserRotation,
-                    canvasSize,
+                    panelSize,
                     Scale,
                     Settings.Rendering.TileSize);
             }
@@ -284,11 +284,11 @@ public sealed class PdfPanelContext : IDisposable
         if (AutoScaleMode == PdfPanelAutoScaleMode.ScaleToWidth)
         {
             float padding = Settings.Layout.Padding.Left + Settings.Layout.Padding.Right;
-            fitScale = (ViewportWidth - padding) / maxPageWidth;
+            fitScale = (PanelWidth - padding) / maxPageWidth;
         }
         else
         {
-            fitScale = (ViewportHeight - Settings.Layout.PageGap) / maxPageHeight;
+            fitScale = (PanelHeight - Settings.Layout.PageGap) / maxPageHeight;
         }
 
         float scale = Clamp(fitScale, Settings.Zoom.MinScale, Settings.Zoom.MaxScale);

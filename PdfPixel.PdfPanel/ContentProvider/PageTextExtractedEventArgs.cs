@@ -3,9 +3,9 @@ using System;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Data for <see cref="IPdfPageContentProvider.PageTextExtracted"/>.
+/// Data for <see cref="PdfPageContentProvider.PageTextExtracted"/>.
 /// </summary>
-public sealed class PageTextExtractedEventArgs : EventArgs
+internal sealed class PageTextExtractedEventArgs : EventArgs
 {
     /// <summary>
     /// Initializes the arguments for the given 1-based page number.

@@ -8,7 +8,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// The content can be updated, and when accessed, it is locked to prevent concurrent modifications.
 /// </summary>
 /// <typeparam name="T">Content type.</typeparam>
-public sealed class ContentLocker<T> : IDisposable
+internal sealed class ContentLocker<T> : IDisposable
 {
     private readonly ReaderWriterLockSlim _lock = new();
     private T? _content;

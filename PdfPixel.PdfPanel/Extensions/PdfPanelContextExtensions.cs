@@ -16,10 +16,10 @@ namespace PdfPixel.PdfPanel.Extensions;
 public static class PdfPanelContextExtensions
 {
     /// <summary>
-    /// Determines the currently centered page in the viewport.
+    /// Determines the currently centered page in the panel.
     /// </summary>
-    /// <param name="context">The panel context containing pages and viewport information.</param>
-    /// <returns>The page number of the page whose center is closest to the viewport center.</returns>
+    /// <param name="context">The panel context containing pages and panel information.</param>
+    /// <returns>The page number of the page whose center is closest to the panel center.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
     public static int GetCurrentPage(this PdfPanelContext context)
     {
@@ -29,8 +29,8 @@ public static class PdfPanelContextExtensions
         }
 
         int pageCount = context.Pages.Count;
-        float viewportCenterX = context.HorizontalOffset + (context.ViewportWidth / 2f);
-        float viewportCenterY = context.VerticalOffset + (context.ViewportHeight / 2f);
+        float panelCenterX = context.HorizontalOffset + (context.PanelWidth / 2f);
+        float panelCenterY = context.VerticalOffset + (context.PanelHeight / 2f);
         int closestPageNumber = 1;
         float closestDistance = float.MaxValue;
 
@@ -42,8 +42,8 @@ public static class PdfPanelContextExtensions
             float pageCenterX = page.Offset.X + (rotatedScaledSize.Width / 2f);
             float pageCenterY = page.Offset.Y + (rotatedScaledSize.Height / 2f);
 
-            float deltaX = pageCenterX - viewportCenterX;
-            float deltaY = pageCenterY - viewportCenterY;
+            float deltaX = pageCenterX - panelCenterX;
+            float deltaY = pageCenterY - panelCenterY;
             float distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
 
             if (distanceSquared < closestDistance)
@@ -57,9 +57,9 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Scrolls the viewport so the specified page is positioned considering the minimum page gap.
+    /// Scrolls the panel so the specified page is positioned considering the minimum page gap.
     /// </summary>
-    /// <param name="context">The panel context containing pages and viewport information.</param>
+    /// <param name="context">The panel context containing pages and panel information.</param>
     /// <param name="pageNumber">The page number to scroll to.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
     public static void ScrollToPage(this PdfPanelContext context, int pageNumber)
@@ -79,11 +79,11 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Increases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the viewport offset around the provided center.
+    /// Increases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the panel offset around the provided center.
     /// </summary>
     /// <param name="context">The panel context whose scale will be modified.</param>
-    /// <param name="centerX">X coordinate in viewport space to preserve while zooming.</param>
-    /// <param name="centerY">Y coordinate in viewport space to preserve while zooming.</param>
+    /// <param name="centerX">X coordinate in panel space to preserve while zooming.</param>
+    /// <param name="centerY">Y coordinate in panel space to preserve while zooming.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
     public static void ZoomIn(this PdfPanelContext context, float centerX, float centerY)
     {
@@ -97,11 +97,11 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Decreases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the viewport offset around the provided center.
+    /// Decreases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the panel offset around the provided center.
     /// </summary>
     /// <param name="context">The panel context whose scale will be modified.</param>
-    /// <param name="centerX">X coordinate in viewport space to preserve while zooming.</param>
-    /// <param name="centerY">Y coordinate in viewport space to preserve while zooming.</param>
+    /// <param name="centerX">X coordinate in panel space to preserve while zooming.</param>
+    /// <param name="centerY">Y coordinate in panel space to preserve while zooming.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
     public static void ZoomOut(this PdfPanelContext context, float centerX, float centerY)
     {
@@ -117,12 +117,12 @@ public static class PdfPanelContextExtensions
 
     /// <summary>
     /// Updates the scale of the context and adjusts the horizontal and vertical offsets so the specified
-    /// viewport center remains focused after the scale change.
+    /// panel center remains focused after the scale change.
     /// </summary>
     /// <param name="context">The panel context to update.</param>
     /// <param name="newScale">The new scale to apply.</param>
-    /// <param name="centerX">X coordinate in viewport space to preserve while scaling.</param>
-    /// <param name="centerY">Y coordinate in viewport space to preserve while scaling.</param>
+    /// <param name="centerX">X coordinate in panel space to preserve while scaling.</param>
+    /// <param name="centerY">Y coordinate in panel space to preserve while scaling.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
     public static void UpdateScalePreserveOffset(this PdfPanelContext context, float newScale, float centerX, float centerY)
     {
@@ -143,13 +143,13 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Finds the page at the specified viewport point.
+    /// Finds the page at the specified panel point.
     /// </summary>
     /// <param name="context">The panel context.</param>
-    /// <param name="viewportPoint">Point in viewport coordinate space.</param>
+    /// <param name="panelPoint">Point in panel coordinate space.</param>
     /// <returns>The page at the specified point, or <see langword="null"/> if no page is found.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static PdfPanelPage? GetPageAtViewportPoint(this PdfPanelContext context, in PdfPoint viewportPoint)
+    public static PdfPanelPage? GetPageAtPanelPoint(this PdfPanelContext context, in PdfPoint panelPoint)
     {
         if (context == null)
         {
@@ -161,7 +161,7 @@ public static class PdfPanelContextExtensions
             return null;
         }
 
-        PdfPanelPagePoint? pagePoint = context.ResolvePointerPosition(viewportPoint).PagePoint;
+        PdfPanelPagePoint? pagePoint = context.ResolvePointerPosition(panelPoint).PagePoint;
 
         if (pagePoint == null)
         {
@@ -174,7 +174,7 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Scrolls the viewport to the specified annotation destination, optionally updating the zoom level.
+    /// Scrolls the panel to the specified annotation destination, optionally updating the zoom level.
     /// </summary>
     /// <param name="context">The panel context to scroll.</param>
     /// <param name="destination">The annotation destination to navigate to.</param>
@@ -197,7 +197,7 @@ public static class PdfPanelContextExtensions
             return;
         }
 
-        float? fitZoom = ComputeFitZoom(targetPage, destination, context.ViewportWidth, context.ViewportHeight);
+        float? fitZoom = ComputeFitZoom(targetPage, destination, context.PanelWidth, context.PanelHeight);
 
         if (fitZoom > 0)
         {
@@ -214,11 +214,11 @@ public static class PdfPanelContextExtensions
             PdfPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
             PdfPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
 
-            PdfMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
-            PdfPoint canvasLocation = pageToCanvas.MapPoint(pageLocation);
+            PdfMatrix pageToExtent = targetPage.PanelToPageMatrix(context.Scale, 0, 0).Invert();
+            PdfPoint extentLocation = pageToExtent.MapPoint(pageLocation);
 
-            context.HorizontalOffset = canvasLocation.X;
-            context.VerticalOffset = canvasLocation.Y;
+            context.HorizontalOffset = extentLocation.X;
+            context.VerticalOffset = extentLocation.Y;
         }
         else
         {
@@ -227,7 +227,7 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Scrolls the viewport so the specified search match is centered in it.
+    /// Scrolls the panel so the specified search match is centered in it.
     /// </summary>
     /// <param name="context">The panel context to scroll.</param>
     /// <param name="match">The search match to navigate to.</param>
@@ -243,27 +243,27 @@ public static class PdfPanelContextExtensions
             return;
         }
 
-        PdfMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
-        PdfPoint canvasCenter = pageToCanvas.MapPoint(new PdfPoint(match.Bounds.MidX, match.Bounds.MidY));
+        PdfMatrix pageToExtent = targetPage.PanelToPageMatrix(context.Scale, 0, 0).Invert();
+        PdfPoint extentCenter = pageToExtent.MapPoint(new PdfPoint(match.Bounds.MidX, match.Bounds.MidY));
 
-        context.HorizontalOffset = canvasCenter.X - (context.ViewportWidth / 2);
-        context.VerticalOffset = canvasCenter.Y - (context.ViewportHeight / 2);
+        context.HorizontalOffset = extentCenter.X - (context.PanelWidth / 2);
+        context.VerticalOffset = extentCenter.Y - (context.PanelHeight / 2);
     }
 
-    private static float? ComputeFitZoom(PdfPanelPage page, PdfDestination destination, float viewportWidth, float viewportHeight)
+    private static float? ComputeFitZoom(PdfPanelPage page, PdfDestination destination, float panelWidth, float panelHeight)
     {
         PdfSize pageSize = page.GetRotatedSize();
 
         return destination.FitType switch
         {
             PdfDestinationFitType.Fit or PdfDestinationFitType.FitB =>
-                Math.Min(viewportWidth / pageSize.Width, viewportHeight / pageSize.Height),
+                Math.Min(panelWidth / pageSize.Width, panelHeight / pageSize.Height),
             PdfDestinationFitType.FitH or PdfDestinationFitType.FitBH =>
-                viewportWidth / pageSize.Width,
+                panelWidth / pageSize.Width,
             PdfDestinationFitType.FitV or PdfDestinationFitType.FitBV =>
-                viewportHeight / pageSize.Height,
+                panelHeight / pageSize.Height,
             PdfDestinationFitType.FitR when destination.TargetLocation is { Width: > 0, Height: > 0 } rect =>
-                Math.Min(viewportWidth / rect.Width, viewportHeight / rect.Height),
+                Math.Min(panelWidth / rect.Width, panelHeight / rect.Height),
             _ => null
         };
     }

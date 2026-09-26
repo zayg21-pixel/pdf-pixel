@@ -3,9 +3,9 @@ using PdfPixel.Geometry;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Arguments passed to <see cref="IPdfPageContentProvider.OnPageUpdated"/> when a page's decoded content is ready.
+/// Arguments passed to <see cref="PdfPageContentProvider.OnPageUpdated"/> when a page's decoded content is ready.
 /// </summary>
-public class PageUpdatedArgs
+internal sealed class PageUpdatedArgs
 {
     /// <summary>
     /// Initialises a new instance with the updated page number, pictures, content type, partial flag, and region of interest.

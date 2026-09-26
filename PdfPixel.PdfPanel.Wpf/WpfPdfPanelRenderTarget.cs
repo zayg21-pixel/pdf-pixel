@@ -1,6 +1,5 @@
-﻿using PdfPixel.Geometry;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
 using System;
@@ -12,31 +11,36 @@ namespace PdfPixel.PdfPanel.Wpf;
 
 partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 {
-    public WpfPdfPanelRenderTarget(WriteableBitmap writeableBitmap, WpfPdfPanel panel, PdfSize canvasSize, PdfPoint canvasScale, PdfPoint canvasOffset)
+    public WpfPdfPanelRenderTarget(WriteableBitmap writeableBitmap, WpfPdfPanel panel, PdfSize panelSize, PdfPoint hostScale, PdfPoint hostOffset)
     {
         WriteableBitmap = writeableBitmap ?? throw new ArgumentNullException(nameof(writeableBitmap));
         Panel = panel ?? throw new ArgumentNullException(nameof(panel));
-        CanvasSize = canvasSize;
-        CanvasScale = canvasScale;
-        CanvasOffset = canvasOffset;
+        PanelSize = panelSize;
+        HostScale = hostScale;
+        HostOffset = hostOffset;
+        HostToPanel = panel.GetHostToPanelMatrix(hostOffset, hostScale);
     }
 
     public WriteableBitmap WriteableBitmap { get; }
 
     public WpfPdfPanel Panel { get; }
 
-    public PdfSize CanvasSize { get; }
+    public PdfSize PanelSize { get; }
 
-    public PdfPoint CanvasScale { get; }
+    public PdfPoint HostScale { get; }
 
-    public PdfPoint CanvasOffset { get; }
+    public PdfPoint HostOffset { get; }
 
-    public void Render(SKSurface surface, DrawingRequest request)
+    /// <inheritdoc />
+    public PdfMatrix HostToPanel { get; }
+
+    /// <inheritdoc />
+    public void Render(SKSurface surface, PdfPanelFrame frame)
     {
-        DrawOnWritableBitmap(surface, request);
+        DrawOnWritableBitmap(surface, frame);
     }
 
-    private void DrawOnWritableBitmap(SKSurface surface, DrawingRequest request)
+    private void DrawOnWritableBitmap(SKSurface surface, PdfPanelFrame frame)
     {
         if (WriteableBitmap.PixelWidth != surface.Canvas.DeviceClipBounds.Width || WriteableBitmap.PixelHeight != surface.Canvas.DeviceClipBounds.Height)
         {
@@ -52,7 +56,7 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
         if (Panel.PanelInterface.OnAfterDraw != null)
         {
             using SKSurface drawSurface = SKSurface.Create(imageInfo, WriteableBitmap.BackBuffer, WriteableBitmap.BackBufferStride);
-            Panel.PanelInterface.OnAfterDraw(drawSurface.Canvas, request);
+            Panel.PanelInterface.OnAfterDraw(drawSurface.Canvas, frame);
         }
 
         WriteableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));
@@ -60,8 +64,8 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
         var drawingVisual = Panel.DrawingVisual;
         DrawingContext render = drawingVisual.RenderOpen();
 
-        var pixelOffsetX = Panel.SnapPosition(CanvasOffset.X, CanvasScale.X);
-        var pixelOffsetY = Panel.SnapPosition(CanvasOffset.Y, CanvasScale.Y);
+        var pixelOffsetX = Panel.SnapPosition(HostOffset.X, HostScale.X);
+        var pixelOffsetY = Panel.SnapPosition(HostOffset.Y, HostScale.Y);
 
         render.DrawImage(WriteableBitmap, new Rect(pixelOffsetX, pixelOffsetY, WriteableBitmap.Width, WriteableBitmap.Height));
 

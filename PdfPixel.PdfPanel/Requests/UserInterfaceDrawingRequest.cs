@@ -6,7 +6,7 @@ namespace PdfPixel.PdfPanel.Requests;
 /// <summary>
 /// Drawing request for user interface interactions such as text selection.
 /// </summary>
-public class UserInterfaceDrawingRequest : DrawingRequest
+internal sealed class UserInterfaceDrawingRequest : DrawingRequest
 {
     /// <summary>
     /// Current pointer position, or <see langword="null"/> if the pointer is not over the panel.

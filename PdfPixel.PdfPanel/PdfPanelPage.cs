@@ -11,9 +11,9 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelPage
 {
-    private readonly IPdfPageContentProvider _contentProvider;
+    private readonly PdfPageContentProvider _contentProvider;
 
-    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, IPdfPageContentProvider contentProvider)
+    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, PdfPageContentProvider contentProvider)
     {
         Info = info;
         PageNumber = pageNumber;
@@ -37,7 +37,7 @@ public class PdfPanelPage
 
     /// <summary>
     /// Gets the offset of the page.
-    /// Offset is expressed in the scaled canvas space (affected by the current zoom factor) and
+    /// Offset is expressed in the scaled panel space (affected by the current zoom factor) and
     /// represents the distance in device pixels from the top-left corner of the content area to
     /// the top-left corner of this page.
     /// </summary>

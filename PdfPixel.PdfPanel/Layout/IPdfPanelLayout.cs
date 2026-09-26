@@ -3,7 +3,7 @@ using PdfPixel.Geometry;
 namespace PdfPixel.PdfPanel.Layout;
 
 /// <summary>
-/// Defines a layout strategy for positioning PDF pages within a viewport.
+/// Defines a layout strategy for positioning PDF pages within a panel.
 /// </summary>
 public interface IPdfPanelLayout
 {
@@ -23,14 +23,14 @@ public interface IPdfPanelLayout
     /// </summary>
     /// <param name="pages">The collection of pages to layout.</param>
     /// <param name="scale">The current zoom scale factor.</param>
-    /// <param name="viewportWidth">The width of the viewport in device pixels.</param>
-    /// <param name="viewportHeight">The height of the viewport in device pixels.</param>
+    /// <param name="panelWidth">The width of the panel in device pixels.</param>
+    /// <param name="panelHeight">The height of the panel in device pixels.</param>
     /// <returns>The total extent size in scaled space (device pixels).</returns>
     PdfSize CalculateDimensions(
         PdfPanelPageCollection pages,
         float scale,
-        float viewportWidth,
-        float viewportHeight);
+        float panelWidth,
+        float panelHeight);
 
     /// <summary>
     /// Calculates and assigns the position (Offset) for each page within the layout.

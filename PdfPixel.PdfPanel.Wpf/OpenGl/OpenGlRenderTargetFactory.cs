@@ -1,6 +1,5 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
 using System;
@@ -44,9 +43,9 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
     // Presentation state (created/updated on UI thread via GetRenderTarget)
     private WriteableBitmap _writeableBitmap;
-    private PdfSize _lastCanvasSize;
-    private PdfPoint _lastCanvasScale;
-    private PdfPoint _lastCanvasOffset;
+    private PdfSize _lastPanelSize;
+    private PdfPoint _lastHostScale;
+    private PdfPoint _lastHostOffset;
 
     /// <summary>
     /// Initializes a new <see cref="OpenGlRenderTargetFactory"/> for the specified panel.
@@ -126,49 +125,53 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     }
 
     /// <inheritdoc />
+    public PdfMatrix HostToPanel { get; private set; } = PdfMatrix.Identity;
+
+    /// <inheritdoc />
     /// <remarks>
     /// Called from the UI thread. Creates or reuses a <see cref="WriteableBitmap"/> that
-    /// matches the current canvas dimensions.
+    /// matches the current panel dimensions.
     /// </remarks>
     public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context)
     {
-        var canvasSize = new PdfSize((float)_panel.CanvasSize.Width, (float)_panel.CanvasSize.Height);
-        var canvasScale = new PdfPoint((float)_panel.CanvasScale.X, (float)_panel.CanvasScale.Y);
-        var canvasOffset = new PdfPoint((float)_panel.CanvasOffset.X, (float)_panel.CanvasOffset.Y);
+        var panelSize = new PdfSize((float)_panel.PanelSize.Width, (float)_panel.PanelSize.Height);
+        var hostScale = new PdfPoint((float)_panel.HostScale.X, (float)_panel.HostScale.Y);
+        var hostOffset = new PdfPoint((float)_panel.HostOffset.X, (float)_panel.HostOffset.Y);
 
         if (_writeableBitmap == null ||
-            _lastCanvasSize != canvasSize ||
-            _lastCanvasScale != canvasScale ||
-            _lastCanvasOffset != canvasOffset)
+            _lastPanelSize != panelSize ||
+            _lastHostScale != hostScale ||
+            _lastHostOffset != hostOffset)
         {
             _writeableBitmap = new WriteableBitmap(
-                (int)canvasSize.Width,
-                (int)canvasSize.Height,
-                96.0 * canvasScale.X,
-                96.0 * canvasScale.Y,
+                (int)panelSize.Width,
+                (int)panelSize.Height,
+                96.0 * hostScale.X,
+                96.0 * hostScale.Y,
                 PixelFormats.Pbgra32,
                 null);
 
-            _lastCanvasSize = canvasSize;
-            _lastCanvasScale = canvasScale;
-            _lastCanvasOffset = canvasOffset;
+            _lastPanelSize = panelSize;
+            _lastHostScale = hostScale;
+            _lastHostOffset = hostOffset;
+            HostToPanel = _panel.GetHostToPanelMatrix(hostOffset, hostScale);
         }
 
         return this;
     }
 
     /// <inheritdoc />
-    public void Render(SKSurface surface, DrawingRequest request)
+    public void Render(SKSurface surface, PdfPanelFrame frame)
     {
         var imageInfo = new SKImageInfo(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
         _glContext.MakeCurrent();
         _grContext.Flush();
 
-        PresentToWriteableBitmap(imageInfo, surface, request);
+        PresentToWriteableBitmap(imageInfo, surface, frame);
     }
 
-    private void PresentToWriteableBitmap(SKImageInfo imageInfo, SKSurface surface, DrawingRequest request)
+    private void PresentToWriteableBitmap(SKImageInfo imageInfo, SKSurface surface, PdfPanelFrame frame)
     {
         if (_writeableBitmap == null)
         {
@@ -187,7 +190,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         if (_panel.PanelInterface?.OnAfterDraw != null)
         {
             using SKSurface drawSurface = SKSurface.Create(imageInfo, _writeableBitmap.BackBuffer, _writeableBitmap.BackBufferStride);
-            _panel.PanelInterface.OnAfterDraw(drawSurface.Canvas, request);
+            _panel.PanelInterface.OnAfterDraw(drawSurface.Canvas, frame);
         }
 
         _writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));
@@ -195,8 +198,8 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         var drawingVisual = _panel.DrawingVisual;
         DrawingContext render = drawingVisual.RenderOpen();
 
-        var pixelOffsetX = _panel.SnapPosition(_lastCanvasOffset.X, _lastCanvasScale.X);
-        var pixelOffsetY = _panel.SnapPosition(_lastCanvasOffset.Y, _lastCanvasScale.Y);
+        var pixelOffsetX = _panel.SnapPosition(_lastHostOffset.X, _lastHostScale.X);
+        var pixelOffsetY = _panel.SnapPosition(_lastHostOffset.Y, _lastHostScale.Y);
 
         render.DrawImage(_writeableBitmap, new Rect(pixelOffsetX, pixelOffsetY, _writeableBitmap.Width, _writeableBitmap.Height));
 

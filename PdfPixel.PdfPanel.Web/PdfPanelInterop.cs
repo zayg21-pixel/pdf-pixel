@@ -55,7 +55,7 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    public static void RegisterCanvas(string containerId, JSObject configuration)
+    public static void RegisterPanel(string containerId, JSObject configuration)
     {
         if (!_isInitialized)
         {
@@ -119,7 +119,7 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    public static void UnregisterCanvas(string containerId)
+    public static void UnregisterPanel(string containerId)
     {
         if (!_isInitialized)
         {
@@ -204,8 +204,8 @@ public partial class PdfPanelInterop
             resources.Context.VerticalOffset = verticalOffset;
             resources.Context.HorizontalOffset = horizontalOffset;
             resources.Context.Scale = scale;
-            resources.Context.ViewportWidth = width;
-            resources.Context.ViewportHeight = height;
+            resources.Context.PanelWidth = width;
+            resources.Context.PanelHeight = height;
 
             int forcePageSet = state.GetPropertyAsInt32("forcePageSet");
             if (forcePageSet > 0)

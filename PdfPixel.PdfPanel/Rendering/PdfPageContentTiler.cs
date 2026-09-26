@@ -14,7 +14,7 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// Rasterizes content <see cref="SKPicture"/> recordings into cached tile images
 /// for visible page regions.
 /// </summary>
-public sealed class PdfPageContentTiler : IDisposable
+internal sealed class PdfPageContentTiler : IDisposable
 {
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly int _tileSize;
@@ -87,7 +87,7 @@ public sealed class PdfPageContentTiler : IDisposable
     /// <param name="canvas">The canvas to draw on.</param>
     /// <param name="pageInfo">Visible page layout snapshot.</param>
     /// <param name="currentScale">Current rendering scale.</param>
-    /// <param name="deviceMatrix">Matrix mapping page content coordinates to canvas pixels.</param>
+    /// <param name="deviceMatrix">Matrix mapping page content coordinates to panel pixels.</param>
     public void DrawTiles(SKCanvas canvas, in VisiblePageInfo pageInfo, float currentScale, in PdfMatrix deviceMatrix)
     {
         if (canvas == null)

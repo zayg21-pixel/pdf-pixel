@@ -5,7 +5,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// <summary>
 /// Pairs of cached <see cref="SKPicture"/> recordings for a single page — main content and annotation layer.
 /// </summary>
-public class PdfContentPictures
+internal sealed class PdfContentPictures
 {
     /// <summary>
     /// Locked reference to the main page content picture, or <see langword="null"/> if not yet decoded.

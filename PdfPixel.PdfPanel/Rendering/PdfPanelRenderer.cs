@@ -17,8 +17,8 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// <summary>
 /// Drives the rendering loop for a PDF panel.
 /// On each <see cref="Submit(PagesDrawingRequest)"/> call it renders immediately from the current cache, then triggers background
-/// decoding via <see cref="IPdfPageContentProvider"/>. When decoding completes, individual pages are
-/// re-rendered on the UI thread without redrawing the whole viewport.
+/// decoding via <see cref="PdfPageContentProvider"/>. When decoding completes, individual pages are
+/// re-rendered on the UI thread without redrawing the whole panel.
 /// </summary>
 public sealed class PdfPanelRenderer : IDisposable
 {
@@ -39,7 +39,7 @@ public sealed class PdfPanelRenderer : IDisposable
     /// </summary>
     public PdfPanelRenderer(
         ISkSurfaceFactory surfaceFactory,
-        IPdfPageContentProvider contentProvider,
+        PdfPageContentProvider contentProvider,
         PdfPanelSettings settings,
         SynchronizationContext? synchronizationContext)
     {
@@ -62,7 +62,7 @@ public sealed class PdfPanelRenderer : IDisposable
     /// <summary>
     /// Provider of the decoded page content and extracted text the renderer draws.
     /// </summary>
-    public IPdfPageContentProvider ContentProvider { get; }
+    internal PdfPageContentProvider ContentProvider { get; }
 
     /// <summary>
     /// Turns pointer and key input into the events the panel's interaction handlers subscribe to.
@@ -87,7 +87,7 @@ public sealed class PdfPanelRenderer : IDisposable
     /// <summary>
     /// Renders the current cache state immediately, then starts background decoding for visible pages.
     /// </summary>
-    public void Submit(PagesDrawingRequest request)
+    internal void Submit(PagesDrawingRequest request)
     {
         if (_disposed)
         {
@@ -135,7 +135,7 @@ public sealed class PdfPanelRenderer : IDisposable
     /// Submits a user interface drawing request. Re-renders when the pointer is over a visible page
     /// and the request has changed.
     /// </summary>
-    public void Submit(UserInterfaceDrawingRequest request)
+    internal void Submit(UserInterfaceDrawingRequest request)
     {
         if (_disposed)
         {
@@ -171,7 +171,7 @@ public sealed class PdfPanelRenderer : IDisposable
             {
                 SKSurface surface = GetSurface(_lastRequest);
                 surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.Background | PageDrawFlags.Content, default);
-                _lastRequest.RenderTarget.Render(GetSurface(_lastRequest), _lastRequest);
+                Present(GetSurface(_lastRequest), _lastRequest);
             }
         }
     }
@@ -225,7 +225,7 @@ public sealed class PdfPanelRenderer : IDisposable
             DrawPageContent(surface, page);
         }
 
-        _lastRequest.RenderTarget.Render(surface, _lastRequest);
+        Present(surface, _lastRequest);
     }
 
     /// <summary>
@@ -238,7 +238,7 @@ public sealed class PdfPanelRenderer : IDisposable
             return;
         }
 
-        _lastRequest.RenderTarget.Render(GetSurface(_lastRequest), _lastRequest);
+        Present(GetSurface(_lastRequest), _lastRequest);
     }
 
     /// <summary>
@@ -260,7 +260,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.Clear(SKColors.Transparent);
-        _lastRequest.RenderTarget.Render(surface, _lastRequest);
+        Present(surface, _lastRequest);
         _lastRequest = null;
         _lastUserInterfaceRequest = null;
     }
@@ -291,7 +291,7 @@ public sealed class PdfPanelRenderer : IDisposable
             surface.Canvas.DrawPage(page, request, pictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.AllContent, animation);
         }
 
-        request.RenderTarget.Render(surface, request);
+        Present(surface, request);
     }
 
     private void OnAnimationTick(object? sender, AnimationTickEventArgs args)
@@ -334,7 +334,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         if (anyRedrawn)
         {
-            _lastRequest.RenderTarget.Render(surface, _lastRequest);
+            Present(surface, _lastRequest);
         }
         else
         {
@@ -448,7 +448,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.Background | PageDrawFlags.Content, default);
-        _lastRequest.RenderTarget.Render(surface, _lastRequest);
+        Present(surface, _lastRequest);
     }
 
     private void OnPageTextExtracted(object? sender, PageTextExtractedEventArgs args)
@@ -479,7 +479,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         SKSurface surface = GetSurface(_lastRequest);
         DrawPageContent(surface, _lastRequest.GetPage(pageNumber));
-        _lastRequest.RenderTarget.Render(surface, _lastRequest);
+        Present(surface, _lastRequest);
     }
 
     private void DrawPageContent(SKSurface surface, in VisiblePageInfo page)
@@ -494,7 +494,19 @@ public sealed class PdfPanelRenderer : IDisposable
     }
 
     private SKSurface GetSurface(PagesDrawingRequest request)
-        => _surfaceFactory.GetDrawingSurface((int)request.CanvasSize.Width, (int)request.CanvasSize.Height);
+        => _surfaceFactory.GetDrawingSurface((int)request.PanelSize.Width, (int)request.PanelSize.Height);
+
+    private static void Present(SKSurface surface, PagesDrawingRequest request)
+    {
+        IPdfPanelRenderTarget? renderTarget = request.RenderTarget;
+
+        if (renderTarget == null)
+        {
+            return;
+        }
+
+        renderTarget.Render(surface, new PdfPanelFrame(request, renderTarget.HostToPanel));
+    }
 
     /// <summary>
     /// Unregisters the page-updated callback and marks the renderer as disposed.

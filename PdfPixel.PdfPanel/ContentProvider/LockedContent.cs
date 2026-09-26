@@ -7,7 +7,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// Holds a read-locked reference to content protected by a <see cref="ReaderWriterLockSlim"/>.
 /// Dispose to release the read lock.
 /// </summary>
-public sealed class LockedContent<T> : IDisposable
+internal sealed class LockedContent<T> : IDisposable
 {
     private readonly ReaderWriterLockSlim _locker;
 

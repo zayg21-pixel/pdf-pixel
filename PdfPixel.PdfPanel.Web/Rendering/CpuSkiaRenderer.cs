@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using SkiaSharp;
 using System;
@@ -40,10 +40,13 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
     }
 
     /// <inheritdoc />
+    public PdfMatrix HostToPanel => PdfMatrix.Identity;
+
+    /// <inheritdoc />
     public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context) => this;
 
     /// <inheritdoc />
-    public void Render(SKSurface surface, DrawingRequest request)
+    public void Render(SKSurface surface, PdfPanelFrame frame)
     {
         if (surface == null)
         {

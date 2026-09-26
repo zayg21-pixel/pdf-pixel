@@ -12,7 +12,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// <summary>
 /// Work item that extracts a page's characters without rendering it and stores them in <see cref="CacheEntry"/>.
 /// </summary>
-public sealed class PdfPageExtractTextWorkItem : IWorkItem
+internal sealed class PdfPageExtractTextWorkItem : IWorkItem
 {
     private static readonly PdfRenderingParameters TextExtractionParameters = new()
     {

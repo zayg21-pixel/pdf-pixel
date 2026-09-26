@@ -112,13 +112,13 @@ public static class PdfPanelPageExtensions
     }
 
     /// <summary>
-    /// Determines whether the page is visible within the specified viewport rectangle.
+    /// Determines whether the page is visible within the specified panel rectangle.
     /// </summary>
     /// <param name="page">The page.</param>
-    /// <param name="viewportRectangle">The viewport rectangle in scaled coordinate space.</param>
+    /// <param name="panelRectangle">The panel rectangle in scaled coordinate space.</param>
     /// <param name="scale">Scale factor.</param>
-    /// <returns><see langword="true"/> if the page intersects with the viewport; otherwise, <see langword="false"/>.</returns>
-    public static bool IsPageVisible(this PdfPanelPage page, in PdfRectangle viewportRectangle, float scale)
+    /// <returns><see langword="true"/> if the page intersects with the panel; otherwise, <see langword="false"/>.</returns>
+    public static bool IsPageVisible(this PdfPanelPage page, in PdfRectangle panelRectangle, float scale)
     {
         if (page == null)
         {
@@ -126,7 +126,7 @@ public static class PdfPanelPageExtensions
         }
 
         PdfRectangle pageBounds = page.GetScaledPageBounds(scale);
-        return PdfRectangle.IntersectsWith(viewportRectangle, pageBounds);
+        return PdfRectangle.IntersectsWith(panelRectangle, pageBounds);
     }
 
     /// <summary>
@@ -149,32 +149,32 @@ public static class PdfPanelPageExtensions
     }
 
     /// <summary>
-    /// Gets the transformation matrix from viewport coordinates to page coordinates.
-    /// Transforms from viewport space (with scroll, scale, offset, and rotation) to unrotated page space.
+    /// Gets the transformation matrix from panel coordinates to page coordinates.
+    /// Transforms from panel space (with scroll, scale, offset, and rotation) to unrotated page space.
     /// </summary>
     /// <param name="page">The page.</param>
-    /// <param name="context">The panel context providing viewport and scroll information.</param>
-    /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
-    public static PdfMatrix ViewportToPageMatrix(this PdfPanelPage page, PdfPanelContext context)
+    /// <param name="context">The panel context providing panel and scroll information.</param>
+    /// <returns>Matrix that transforms panel coordinates to page coordinates.</returns>
+    public static PdfMatrix PanelToPageMatrix(this PdfPanelPage page, PdfPanelContext context)
     {
         if (context == null)
         {
             throw new ArgumentNullException(nameof(context));
         }
 
-        return page.ViewportToPageMatrix(context.Scale, context.HorizontalOffset, context.VerticalOffset);
+        return page.PanelToPageMatrix(context.Scale, context.HorizontalOffset, context.VerticalOffset);
     }
 
     /// <summary>
-    /// Gets the transformation matrix from viewport coordinates to page coordinates.
-    /// Transforms from viewport space (with scroll, scale, offset, and rotation) to unrotated page space.
+    /// Gets the transformation matrix from panel coordinates to page coordinates.
+    /// Transforms from panel space (with scroll, scale, offset, and rotation) to unrotated page space.
     /// </summary>
     /// <param name="page">The page.</param>
     /// <param name="scale">Scale factor.</param>
     /// <param name="horizontalOffset">Horizontal scroll offset.</param>
     /// <param name="verticalOffset">Vertical scroll offset.</param>
-    /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
-    public static PdfMatrix ViewportToPageMatrix(this PdfPanelPage page, float scale, float horizontalOffset, float verticalOffset)
+    /// <returns>Matrix that transforms panel coordinates to page coordinates.</returns>
+    public static PdfMatrix PanelToPageMatrix(this PdfPanelPage page, float scale, float horizontalOffset, float verticalOffset)
     {
         if (page == null)
         {
@@ -183,7 +183,7 @@ public static class PdfPanelPageExtensions
 
         PdfMatrix matrix = PdfMatrix.Identity;
 
-        // Step 1: Add scroll offset to reverse viewport translation
+        // Step 1: Add scroll offset to reverse panel translation
         matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(horizontalOffset, verticalOffset));
 
         // Step 2: Subtract page offset (in scaled space) to get to page origin

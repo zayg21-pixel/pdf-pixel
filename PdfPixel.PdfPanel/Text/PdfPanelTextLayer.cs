@@ -18,7 +18,7 @@ namespace PdfPixel.PdfPanel.Text;
 /// </summary>
 public sealed class PdfPanelTextLayer : IDisposable
 {
-    private readonly IPdfPageContentProvider _contentProvider;
+    private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelSettings _settings;
     private readonly PdfPanelInputProcessor _processor;
     private readonly Dictionary<int, SKPicture> _textLayerPictures = [];
@@ -33,8 +33,8 @@ public sealed class PdfPanelTextLayer : IDisposable
     /// Initializes a new <see cref="PdfPanelTextLayer"/> with the given content provider and settings,
     /// and subscribes it to the given processor.
     /// </summary>
-    public PdfPanelTextLayer(
-        IPdfPageContentProvider contentProvider,
+    internal PdfPanelTextLayer(
+        PdfPageContentProvider contentProvider,
         PdfPanelSettings settings,
         PdfPanelInputProcessor processor)
     {

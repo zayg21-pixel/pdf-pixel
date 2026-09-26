@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
 using System;
 using System.Windows;
@@ -142,14 +143,14 @@ public partial class WpfPdfPanel : IScrollInfo
 
         if (IsMouseOver)
         {
-            var mousePosition = Mouse.GetPosition(this);
-            centerX = (float)(mousePosition.X * CanvasScale.X);
-            centerY = (float)(mousePosition.Y * CanvasScale.Y);
+            PdfPoint mousePosition = GetPanelPosition(Mouse.GetPosition(this));
+            centerX = mousePosition.X;
+            centerY = mousePosition.Y;
         }
         else
         {
-            centerX = _context.ViewportWidth / 2;
-            centerY = _context.ViewportHeight / 2;
+            centerX = _context.PanelWidth / 2;
+            centerY = _context.PanelHeight / 2;
         }
 
         _context.UpdateScalePreserveOffset((float)Scale, centerX, centerY);
@@ -170,7 +171,7 @@ public partial class WpfPdfPanel : IScrollInfo
     {
         if (_context != null)
         {
-            SetVerticalOffset(VerticalOffset + _context.ViewportHeight);
+            SetVerticalOffset(VerticalOffset + _context.PanelHeight);
         }
     }
 
@@ -178,7 +179,7 @@ public partial class WpfPdfPanel : IScrollInfo
     {
         if (_context != null)
         {
-            SetVerticalOffset(VerticalOffset - _context.ViewportHeight);
+            SetVerticalOffset(VerticalOffset - _context.PanelHeight);
         }
     }
 
@@ -186,7 +187,7 @@ public partial class WpfPdfPanel : IScrollInfo
     {
         if (_context != null)
         {
-            SetHorizontalOffset(HorizontalOffset - _context.ViewportWidth);
+            SetHorizontalOffset(HorizontalOffset - _context.PanelWidth);
         }
     }
 
@@ -194,7 +195,7 @@ public partial class WpfPdfPanel : IScrollInfo
     {
         if (_context != null)
         {
-            SetHorizontalOffset(HorizontalOffset + _context.ViewportWidth);
+            SetHorizontalOffset(HorizontalOffset + _context.PanelWidth);
         }
     }
 

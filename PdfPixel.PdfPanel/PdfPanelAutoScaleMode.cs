@@ -1,7 +1,7 @@
 ﻿namespace PdfPixel.PdfPanel;
 
 /// <summary>
-/// Controls how the panel automatically adjusts the zoom scale to fit the viewport.
+/// Controls how the panel automatically adjusts the zoom scale to fit the panel.
 /// </summary>
 public enum PdfPanelAutoScaleMode
 {

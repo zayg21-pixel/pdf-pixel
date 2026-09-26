@@ -58,29 +58,19 @@ public partial class WpfPdfPanel : FrameworkElement
     internal DrawingVisual DrawingVisual { get; private set; }
 
     /// <summary>
-    /// Size of the drawing canvas.
+    /// Size of the panel surface in device pixels.
     /// </summary>
-    public Size CanvasSize { get; private set; }
+    internal Size PanelSize { get; private set; }
 
     /// <summary>
-    /// Scale of the drawing canvas.
+    /// Scale from host coordinates to device pixels.
     /// </summary>
-    public Point CanvasScale { get; private set; }
+    internal Point HostScale { get; private set; }
 
     /// <summary>
-    /// Absolute position of canvas relative to parent window.
+    /// Position of the panel relative to the root visual, in host coordinates.
     /// </summary>
-    public Point CanvasOffset { get; private set; }
-
-    /// <summary>
-    /// Returns the position on the canvas.
-    /// </summary>
-    /// <param name="position">Position point.</param>
-    /// <returns>Position on canvas.</returns>
-    public Point GetCanvasPosition(Point position)
-    {
-        return new Point(position.X * CanvasScale.X, position.Y * CanvasScale.Y);
-    }
+    internal Point HostOffset { get; private set; }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -127,11 +117,11 @@ public partial class WpfPdfPanel : FrameworkElement
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        (Size size, Point scale, Point offset) = this.MeasureCanvas(finalSize);
+        (Size panelSize, Point hostScale, Point hostOffset) = this.MeasurePanel(finalSize);
 
-        CanvasSize = size;
-        CanvasScale = scale;
-        CanvasOffset = offset;
+        PanelSize = panelSize;
+        HostScale = hostScale;
+        HostOffset = hostOffset;
 
         if (!CanRedraw())
         {
@@ -140,8 +130,6 @@ public partial class WpfPdfPanel : FrameworkElement
 
         Update();
         _context?.Render();
-
-        RaiseEvent(GetCanvasEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0), CanvasMouseMoveEvent));
 
         return base.ArrangeOverride(finalSize);
     }
@@ -180,7 +168,7 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        SyncViewerCanvasState();
+        SynchronizeContext();
 
         _updatingPages = true;
         var newPage = GetCurrentPage();
@@ -202,7 +190,7 @@ public partial class WpfPdfPanel : FrameworkElement
         return 0;
     }
 
-    private void EnsureViewerCanvas()
+    private void EnsureContext()
     {
         if (_context != null && _context.Pages == Pages)
         {
@@ -230,12 +218,12 @@ public partial class WpfPdfPanel : FrameworkElement
         _renderer.Dispose();
     }
 
-    private void SyncViewerCanvasState()
+    private void SynchronizeContext()
     {
-        EnsureViewerCanvas();
+        EnsureContext();
 
-        _context.ViewportWidth = (float)CanvasSize.Width;
-        _context.ViewportHeight = (float)CanvasSize.Height;
+        _context.PanelWidth = (float)PanelSize.Width;
+        _context.PanelHeight = (float)PanelSize.Height;
         _context.AutoScaleMode = AutoScaleMode;
         _context.SearchQuery = SearchQuery;
         _context.ExtractText = !string.IsNullOrEmpty(SearchQuery);
@@ -257,8 +245,8 @@ public partial class WpfPdfPanel : FrameworkElement
         ExtentWidth = _context.ExtentWidth;
         VerticalOffset = _context.VerticalOffset;
         HorizontalOffset = _context.HorizontalOffset;
-        ViewportWidth = _context.ViewportWidth;
-        ViewportHeight = _context.ViewportHeight;
+        ViewportWidth = _context.PanelWidth;
+        ViewportHeight = _context.PanelHeight;
 
         _updatingScale = true;
         Scale = _context.Scale;
@@ -270,7 +258,7 @@ public partial class WpfPdfPanel : FrameworkElement
     private bool CanRedraw()
     {
         return Pages != null &&
-            this.IsCanvasSizeValid(CanvasSize) &&
+            this.IsPanelSizeValid(PanelSize) &&
             IsLoaded && IsVisible;
     }
 
@@ -298,13 +286,20 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void UpdatePointerState()
     {
-        Point position = Mouse.GetPosition(this);
-        Point canvasPosition = GetCanvasPosition(position);
-        var viewportPoint = new PdfPoint((float)canvasPosition.X, (float)canvasPosition.Y);
+        PdfPoint panelPoint = GetPanelPosition(Mouse.GetPosition(this));
         var state = Mouse.LeftButton == MouseButtonState.Pressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
-        _context.PointerPosition = viewportPoint;
+        _context.PointerPosition = panelPoint;
         _context.PointerState = state;
+    }
+
+    private PdfPoint GetPanelPosition(Point hostPosition)
+    {
+        var hostScale = new PdfPoint((float)HostScale.X, (float)HostScale.Y);
+        var hostOffset = new PdfPoint((float)HostOffset.X, (float)HostOffset.Y);
+        PdfMatrix hostToPanel = this.GetHostToPanelMatrix(hostOffset, hostScale);
+
+        return hostToPanel.MapPoint(new PdfPoint((float)hostPosition.X, (float)hostPosition.Y));
     }
 
     private void UpdateCursor()

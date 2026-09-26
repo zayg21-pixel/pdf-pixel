@@ -4,7 +4,6 @@ using PdfPixel.Encryption;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.PdfPanel;
-using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf;
 using SkiaSharp;
@@ -141,7 +140,7 @@ public class MainWindowsViewModel : ObservableObject
         set => SetProperty(ref _currentSearchResult, value);
     }
 
-    private void OnAfterDraw(SKCanvas canvas, DrawingRequest request)
+    private void OnAfterDraw(SKCanvas canvas, PdfPanelFrame frame)
     {
         //using var paint = new SKPaint
         //{
@@ -183,7 +182,7 @@ public class MainWindowsViewModel : ObservableObject
             Style = SKPaintStyle.Fill,
         };
 
-        canvas.Translate(request.CanvasSize.Width - 58, request.CanvasSize.Height - 48);
+        canvas.Translate(frame.PanelSize.Width - 58, frame.PanelSize.Height - 48);
         canvas.Scale(0.5f, 0.5f);
 
         const float cellSize = 18;

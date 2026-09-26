@@ -27,7 +27,7 @@ internal static class SkCanvasExtensions
     {
         float cornerRadius = request.Appearance.PageCornerRadius;
         int savedCount = canvas.Save();
-        PdfMatrix deviceMatrix = page.GetContentToCanvasMatrix(request.Scale);
+        PdfMatrix deviceMatrix = page.GetContentToPanelMatrix(request.Scale);
 
         canvas.Concat(deviceMatrix.ToSkMatrix());
 

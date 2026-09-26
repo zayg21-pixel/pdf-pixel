@@ -6,7 +6,7 @@ namespace PdfPixel.PdfPanel.Requests;
 /// <summary>
 /// Rendering request that includes page layout and visual parameters.
 /// </summary>
-public class PagesDrawingRequest : DrawingRequest
+internal sealed class PagesDrawingRequest : DrawingRequest
 {
     /// <summary>
     /// Rendering quality the page content is decoded with.
@@ -39,7 +39,7 @@ public class PagesDrawingRequest : DrawingRequest
         hash.Add(base.GetHashCode());
         hash.Add(Scale);
         hash.Add(Offset);
-        hash.Add(CanvasSize);
+        hash.Add(PanelSize);
         hash.Add(RenderTarget);
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);

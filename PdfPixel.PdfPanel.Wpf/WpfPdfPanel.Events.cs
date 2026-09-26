@@ -1,62 +1,10 @@
-﻿using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.PdfPanel.Input;
-using PdfPixel.Geometry;
-using SkiaSharp;
 using System.Windows;
 using System.Windows.Input;
 
 namespace PdfPixel.PdfPanel.Wpf;
 
-public delegate void CanvasMouseEventHandler(object sender, CanvasMouseEventArgs e);
-
 public partial class WpfPdfPanel
 {
-    public static readonly RoutedEvent CanvasMouseMoveDownEvent = EventManager.RegisterRoutedEvent(
-        nameof(CanvasMouseDown),
-        RoutingStrategy.Bubble,
-        typeof(CanvasMouseEventHandler),
-        typeof(WpfPdfPanel));
-
-    public static readonly RoutedEvent CanvasMouseMoveUpEvent = EventManager.RegisterRoutedEvent(
-        nameof(CanvasMouseUp),
-        RoutingStrategy.Bubble,
-        typeof(CanvasMouseEventHandler),
-        typeof(WpfPdfPanel));
-
-    public static readonly RoutedEvent CanvasMouseMoveEvent = EventManager.RegisterRoutedEvent(
-        nameof(CanvasMouseMove),
-        RoutingStrategy.Bubble,
-        typeof(CanvasMouseEventHandler),
-        typeof(WpfPdfPanel));
-
-    /// <summary>
-    /// Occurs when the mouse is moved over the canvas.
-    /// </summary>
-    public event CanvasMouseEventHandler CanvasMouseDown
-    {
-        add { AddHandler(CanvasMouseMoveDownEvent, value); }
-        remove { RemoveHandler(CanvasMouseMoveDownEvent, value); }
-    }
-
-    /// <summary>
-    /// Occurs when the mouse button is up the canvas.
-    /// </summary>
-    public event CanvasMouseEventHandler CanvasMouseUp
-    {
-        add { AddHandler(CanvasMouseMoveUpEvent, value); }
-        remove { RemoveHandler(CanvasMouseMoveUpEvent, value); }
-    }
-
-    /// <summary>
-    /// Occurs when the mouse button is down the canvas.
-    /// </summary>
-
-    public event CanvasMouseEventHandler CanvasMouseMove
-    {
-        add { AddHandler(CanvasMouseMoveEvent, value); }
-        remove { RemoveHandler(CanvasMouseMoveEvent, value); }
-    }
-
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         base.OnMouseDown(e);
@@ -64,7 +12,6 @@ public partial class WpfPdfPanel
         if (Pages != null && _context != null)
         {
             InvalidateVisual();
-            RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveDownEvent));
         }
     }
 
@@ -75,7 +22,6 @@ public partial class WpfPdfPanel
         if (Pages != null && _context != null)
         {
             InvalidateVisual();
-            RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveUpEvent));
         }
     }
 
@@ -110,25 +56,7 @@ public partial class WpfPdfPanel
         if (Pages != null && _context != null)
         {
             InvalidateVisual();
-            RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveEvent));
         }
-    }
-
-    private CanvasMouseEventArgs GetCanvasEvent(MouseEventArgs args, RoutedEvent routedEvent)
-    {
-        Point position = args.GetPosition(this);
-        Point canvasPosition = GetCanvasPosition(position);
-
-        var viewportPoint = new PdfPoint((float)canvasPosition.X, (float)canvasPosition.Y);
-
-        PdfPanelPagePoint? pagePoint = _context?.ResolvePointerPosition(viewportPoint).PagePoint;
-
-        int? pageNumber = pagePoint?.PageNumber;
-        Point? positionOnPage = (pagePoint == null)
-            ? null
-            : new Point(pagePoint.Value.Position.X, pagePoint.Value.Position.Y);
-
-        return new CanvasMouseEventArgs(routedEvent, this, canvasPosition, pageNumber, positionOnPage, args);
     }
 }
 

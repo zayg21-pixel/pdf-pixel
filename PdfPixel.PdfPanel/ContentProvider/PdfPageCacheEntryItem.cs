@@ -11,7 +11,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// <summary>
 /// Represents page cache content item. Main content or annotation content.
 /// </summary>
-public sealed class PdfPageCacheEntryItem : IDisposable
+internal sealed class PdfPageCacheEntryItem : IDisposable
 {
     private bool _disposed;
 

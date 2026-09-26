@@ -11,10 +11,10 @@ using System.Threading;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Default <see cref="IPdfPageContentProvider"/> implementation.
+/// Provides decoded page content and annotation pictures for rendering.
 /// Decodes page content and annotations on a background worker thread and notifies the UI via <see cref="OnPageUpdated"/>.
 /// </summary>
-public sealed class PdfPageContentProvider : IPdfPageContentProvider
+public sealed class PdfPageContentProvider : IDisposable
 {
     private readonly IPdfDocument _document;
     private readonly IWorkQueue _processingQueue;
@@ -44,23 +44,36 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
         _processingQueue = processingQueue;
     }
 
-    /// <inheritdoc />
-    public event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
+    /// <summary>
+    /// Raised on the work queue thread when a page's characters have been extracted, by text extraction or by rendering.
+    /// </summary>
+    internal event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
 
-    /// <inheritdoc />
-    public object DocumentLocker { get; } = new();
+    /// <summary>
+    /// Synchronisation object used to serialise access to the underlying PDF document.
+    /// </summary>
+    internal object DocumentLocker { get; } = new();
 
-    /// <inheritdoc />
-    public Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
+    /// <summary>
+    /// Called on the UI thread whenever a page's content or annotations have been decoded and are ready to render.
+    /// </summary>
+    internal Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
 
-    /// <inheritdoc />
-    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _cache[pageNumber - 1].GetAnnotations(_document, DocumentLocker);
+    /// <summary>
+    /// Returns the annotation popups for the specified 1-based page number.
+    /// </summary>
+    internal PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _cache[pageNumber - 1].GetAnnotations(_document, DocumentLocker);
 
-    /// <inheritdoc />
-    public int GetPagesCount() => _cache.Length;
+    /// <summary>
+    /// Returns the total number of pages in the document.
+    /// </summary>
+    internal int GetPagesCount() => _cache.Length;
 
-    /// <inheritdoc />
-    public PdfContentPictures GetExistingContentPictures(int pageNumber)
+    /// <summary>
+    /// Returns the currently cached <see cref="PdfContentPictures"/> for the specified 1-based page number.
+    /// Returns empty pictures if the page has not been decoded yet.
+    /// </summary>
+    internal PdfContentPictures GetExistingContentPictures(int pageNumber)
     {
         PdfPageCacheEntry cacheEntry = _cache[pageNumber - 1];
 
@@ -68,14 +81,23 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
     }
 
-    /// <inheritdoc />
-    public PdfCharacter[]? GetCharacters(int pageNumber) => _cache[pageNumber - 1].Content.Characters;
+    /// <summary>
+    /// Returns the extracted characters of the specified 1-based page number in reading order,
+    /// or <see langword="null"/> if they have not been extracted yet.
+    /// </summary>
+    internal PdfCharacter[]? GetCharacters(int pageNumber) => _cache[pageNumber - 1].Content.Characters;
 
-    /// <inheritdoc />
-    public bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
+    /// <summary>
+    /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the content
+    /// picture of the specified 1-based page number for <paramref name="request"/>.
+    /// </summary>
+    internal bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
 
-    /// <inheritdoc />
-    public bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request)
+    /// <summary>
+    /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the annotation
+    /// recording of the specified 1-based page number for <paramref name="request"/>.
+    /// </summary>
+    internal bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request)
     {
         PdfPageCacheEntry cacheEntry = _cache[pageNumber - 1];
 
@@ -83,8 +105,11 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
             && cacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(request);
     }
 
-    /// <inheritdoc />
-    public void UpdateContent(PagesDrawingRequest request)
+    /// <summary>
+    /// Starts or updates background decoding for the pages described by <paramref name="request"/>.
+    /// Pages no longer visible are cancelled and their cache cleared.
+    /// </summary>
+    internal void UpdateContent(PagesDrawingRequest request)
     {
         if (request == null)
         {
@@ -118,15 +143,19 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
         }
     }
 
-    /// <inheritdoc />
-    public void UpdateTextExtraction(bool extractText)
+    /// <summary>
+    /// Starts or stops extracting the characters of every page that has none yet, one page at a time.
+    /// </summary>
+    internal void UpdateTextExtraction(bool extractText)
     {
         _extractText = extractText;
         EnqueueNextTextExtraction();
     }
 
-    /// <inheritdoc />
-    public PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
+    /// <summary>
+    /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.
+    /// </summary>
+    internal PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
 
     private void EnqueueNextTextExtraction()
     {

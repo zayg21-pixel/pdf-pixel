@@ -5,7 +5,7 @@ using System;
 namespace PdfPixel.PdfPanel.Layout;
 
 /// <summary>
-/// Arranges pages in a single vertical column, centred horizontally within the viewport.
+/// Arranges pages in a single vertical column, centred horizontally within the panel.
 /// </summary>
 public class PdfPanelVerticalLayout : IPdfPanelLayout
 {
@@ -19,8 +19,8 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
     public PdfSize CalculateDimensions(
         PdfPanelPageCollection pages,
         float scale,
-        float viewportWidth,
-        float viewportHeight)
+        float panelWidth,
+        float panelHeight)
     {
         if (pages == null)
         {
@@ -53,7 +53,7 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         }
 
         float contentWidth = maxPageWidthScaled + paddingLeft + paddingRight;
-        float extentWidth = Math.Max(viewportWidth, contentWidth);
+        float extentWidth = Math.Max(panelWidth, contentWidth);
         float extentHeight = totalHeightScaled + paddingTop + paddingBottom;
 
         return new PdfSize(extentWidth, extentHeight);
