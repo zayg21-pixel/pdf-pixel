@@ -172,7 +172,6 @@ class PdfPanelView {
         void this.scrollHost.offsetHeight;
 
         this.scrollHost.style.overflow = 'auto';
-        // TODO: [HIGH] this does not work properly, scroll is jugged
         this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
         this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
 

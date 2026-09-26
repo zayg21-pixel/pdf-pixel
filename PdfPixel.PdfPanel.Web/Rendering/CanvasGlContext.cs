@@ -75,9 +75,10 @@ public sealed class CanvasGlContext : IDisposable
         }
 
         _disposed = true;
+        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
         _presentSurface?.Dispose();
         GrContext.Dispose();
-        // TODO: destroy WebGlContext!!!
+        EmscriptenInterop.WebGlDestroyContext(WebGlContext);
     }
 
     private void RecreatePresentSurface(int width, int height)

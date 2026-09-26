@@ -8,6 +8,11 @@ int dotnet_webgl_make_context_current(int ctx) {
 	return (int)emscripten_webgl_make_context_current((EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)ctx);
 }
 
+// Destroys the given WebGL context.
+int dotnet_webgl_destroy_context(int ctx) {
+	return (int)emscripten_webgl_destroy_context((EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)ctx);
+}
+
 // Acquires the WEBGL_debug_renderer_info extension on the given context handle so that
 // Emscripten's glGetString shim can call getParameter(UNMASKED_RENDERER/VENDOR_WEBGL)
 // without triggering an INVALID_ENUM browser warning.

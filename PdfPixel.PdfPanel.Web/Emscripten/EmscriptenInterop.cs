@@ -15,6 +15,11 @@ internal static class EmscriptenInterop
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     internal static extern int WebGlMakeContextCurrent(int context);
 
+    // Destroys the given WebGL context.
+    [DllImport("emscripten", EntryPoint = "dotnet_webgl_destroy_context")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern int WebGlDestroyContext(int context);
+
     // Sets the canvas size.
     // Setting canvas dimensions clears the canvas, so call this just before recreating the render target.
     [DllImport("emscripten", EntryPoint = "dotnet_set_canvas_size")]

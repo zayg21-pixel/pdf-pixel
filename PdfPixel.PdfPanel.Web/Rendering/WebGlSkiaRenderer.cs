@@ -22,7 +22,6 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     private SKSurface _tilingSurface;
     private int _tilingWidth;
     private int _tilingHeight;
-    private int _currentWebGlContext;
 
     public WebGlSkiaRenderer(ILogger logger, string canvasSelector)
     {
@@ -55,7 +54,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             throw new InvalidOperationException("Initialize must be called before GetDrawingSurface");
         }
 
-        MakeContextCurrent(_glContext.WebGlContext);
+        EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
         return _glContext.CreateSurface(width, height);
     }
 
@@ -67,14 +66,13 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             return;
         }
 
-        MakeContextCurrent(_glContext.WebGlContext);
         _glContext.Present();
     }
 
     /// <inheritdoc />
     public SKSurface GetTilingSurface(int width, int height)
     {
-        MakeContextCurrent(_glContext.WebGlContext);
+        EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
 
         if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
         {
@@ -93,6 +91,11 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     /// <inheritdoc />
     public void Dispose()
     {
+        if (_glContext != null)
+        {
+            EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
+        }
+
         _tilingSurface?.Dispose();
         _glContext?.Dispose();
     }
@@ -122,8 +125,6 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             throw new InvalidOperationException($"WebGlMakeContextCurrent failed for {canvasSelector}: {result}");
         }
 
-        _currentWebGlContext = webglCtx;
-
         _logger.LogInformation("WebGL context {Context} made current for {CanvasSelector}", webglCtx, canvasSelector);
 
         using GRGlInterface glInterface = GRGlInterface.Create();
@@ -143,16 +144,5 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
         _logger.LogInformation("GRContext created for {CanvasSelector}", canvasSelector);
 
         return new CanvasGlContext(canvasSelector, webglCtx, grContext);
-    }
-
-    private void MakeContextCurrent(int webGlContext)
-    {
-        if (_currentWebGlContext == webGlContext)
-        {
-            return;
-        }
-
-        EmscriptenInterop.WebGlMakeContextCurrent(webGlContext);
-        _currentWebGlContext = webGlContext;
     }
 }

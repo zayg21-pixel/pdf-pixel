@@ -19,6 +19,8 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
     private readonly string _canvasSelector;
     private readonly ILogger _logger;
     private readonly CpuSkSurfaceFactory _surfaceFactory;
+    private int _canvasWidth;
+    private int _canvasHeight;
 
     public CpuSkiaRenderer(ILogger logger, string canvasSelector)
     {
@@ -31,13 +33,7 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
     public void Initialize() => _surfaceFactory.Initialize();
 
     /// <inheritdoc />
-    public SKSurface GetDrawingSurface(int width, int height)
-    {
-        // TODO: [HIGH] copy content from existing surface, add protected properties for surfaces
-        SKSurface surface = _surfaceFactory.GetDrawingSurface(width, height);
-        EmscriptenInterop.SetCanvasSize(_canvasSelector, width, height);
-        return surface;
-    }
+    public SKSurface GetDrawingSurface(int width, int height) => _surfaceFactory.GetDrawingSurface(width, height);
 
     /// <inheritdoc />
     public PdfMatrix HostToPanel => PdfMatrix.Identity;
@@ -74,6 +70,13 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
 
         try
         {
+            if (width != _canvasWidth || height != _canvasHeight)
+            {
+                EmscriptenInterop.SetCanvasSize(_canvasSelector, width, height);
+                _canvasWidth = width;
+                _canvasHeight = height;
+            }
+
             EmscriptenInterop.SetCanvasRgba(_canvasSelector, src, width, height);
         }
         catch (Exception ex)
