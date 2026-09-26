@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
+using PdfPixel.Tiff.Streams;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -111,7 +112,7 @@ public sealed class PdfStreamDecoder
                 }
                 case PdfFilterType.RunLengthDecode:
                 {
-                    current = new RunLengthDecodeStream(current, leaveOpen: false);
+                    current = new RunLengthDecodeStream(current, leaveOpen: false, endsAtNoOperation: true);
                     break;
                 }
                 case PdfFilterType.Crypt:

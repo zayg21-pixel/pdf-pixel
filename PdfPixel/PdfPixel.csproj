@@ -38,6 +38,7 @@
     <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
     <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
     <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
+    <ProjectReference Include="..\PdfPixel.Tiff\PdfPixel.Tiff.csproj" />
     <ProjectReference Include="..\PdfPixel.PostScript\PdfPixel.PostScript.csproj" />
     <ProjectReference Include="..\PdfPixel.Fonts\PdfPixel.Fonts.csproj" />
   </ItemGroup>

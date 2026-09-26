@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Streams;
+namespace PdfPixel.Tiff.Streams;
 
 /// <summary>
 /// Undoes the PNG predictor filters (types 0..4).

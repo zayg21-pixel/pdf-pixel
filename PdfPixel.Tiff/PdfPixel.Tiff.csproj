@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>TIFF image decoder for .NET, covering strips and tiles, chunky and planar layouts, and LZW, Deflate, PackBits, CCITT, JPEG and JPEG 2000 compression. A standalone managed decoder with no rendering dependencies, including standalone LZW, Deflate, run-length and predictor streams.</Description>
+    <PackageTags>tiff;tif;lzw;deflate;packbits;image;decoder</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>PdfPixel.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
+  </ItemGroup>
+
+</Project>

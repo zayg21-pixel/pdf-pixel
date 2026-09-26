@@ -2,7 +2,7 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Streams;
+namespace PdfPixel.Tiff.Streams;
 
 /// <summary>
 /// Stream that undoes the TIFF (2) and PNG (10..15) predictors one row at a time.

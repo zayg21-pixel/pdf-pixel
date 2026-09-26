@@ -1,15 +1,18 @@
 using System;
 using System.IO;
 
-namespace PdfPixel.Streams;
+namespace PdfPixel.Tiff.Streams;
 
 /// <summary>
-/// Forward-only stream that decodes PDF RunLengthDecode (ISO 32000-1, 7.4.5).
+/// Forward-only stream that decodes PackBits run-length data.
 /// </summary>
 public sealed class RunLengthDecodeStream : Stream
 {
+    private const int NoOperationLength = 128;
+
     private readonly Stream _baseStream;
     private readonly bool _leaveOpen;
+    private readonly bool _endsAtNoOperation;
     private bool _endOfStream;
     private int _repeatCount;
     private int _repeatByte;
@@ -19,10 +22,14 @@ public sealed class RunLengthDecodeStream : Stream
     /// <summary>
     /// Initializes the decoder wrapping the given run-length encoded stream.
     /// </summary>
-    public RunLengthDecodeStream(Stream baseStream, bool leaveOpen)
+    /// <param name="baseStream">Run-length encoded stream.</param>
+    /// <param name="leaveOpen">Leave the underlying stream open when disposing.</param>
+    /// <param name="endsAtNoOperation">When true, a length byte of 128 ends the data; otherwise it is skipped.</param>
+    public RunLengthDecodeStream(Stream baseStream, bool leaveOpen, bool endsAtNoOperation)
     {
         _baseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
         _leaveOpen = leaveOpen;
+        _endsAtNoOperation = endsAtNoOperation;
         _endOfStream = false;
         _repeatCount = 0;
         _repeatByte = -1;
@@ -101,10 +108,15 @@ public sealed class RunLengthDecodeStream : Stream
                 break;
             }
 
-            if (lengthByte == 128)
+            if (lengthByte == NoOperationLength)
             {
-                _endOfStream = true;
-                break;
+                if (_endsAtNoOperation)
+                {
+                    _endOfStream = true;
+                    break;
+                }
+
+                continue;
             }
 
             if (lengthByte < 128)

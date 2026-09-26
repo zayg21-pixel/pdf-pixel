@@ -2,12 +2,12 @@ using System;
 using System.IO;
 using System.IO.Compression;
 
-namespace PdfPixel.Streams;
+namespace PdfPixel.Tiff.Streams;
 
 /// <summary>
-/// Forward-only stream that decodes PDF FlateDecode (ISO 32000-1, 7.4.4).
+/// Forward-only stream that decodes Deflate data (RFC 1951).
 /// </summary>
-internal sealed class FlateDecodeStream : Stream
+public sealed class FlateDecodeStream : Stream
 {
     private readonly DeflateStream _deflateStream;
     private bool _endOfStream;

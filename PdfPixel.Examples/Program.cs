@@ -20,6 +20,7 @@ internal static class Program
         JpxExamples.Run();
         Jbig2Examples.Run();
         CcittExamples.Run();
+        TiffExamples.Run();
 
         Console.WriteLine();
         Console.WriteLine("Done.");

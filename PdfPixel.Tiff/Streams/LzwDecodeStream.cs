@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Streams;
+namespace PdfPixel.Tiff.Streams;
 
 /// <summary>
-/// Forward-only stream that decodes PDF LZWDecode (ISO 32000-1, 7.4.4).
+/// Forward-only stream that decodes MSB-first LZW with 9 to 12 bit codes (TIFF 6.0, Section 13).
 /// </summary>
 public sealed class LzwDecodeStream : Stream
 {
@@ -62,7 +62,7 @@ public sealed class LzwDecodeStream : Stream
     /// </summary>
     /// <param name="inner">Compressed LZW stream (must be readable).</param>
     /// <param name="leaveOpen">Leave underlying stream open when disposing.</param>
-    /// <param name="earlyChange">Value of the /EarlyChange decode parameter.</param>
+    /// <param name="earlyChange">When true, the code length increases one code early.</param>
     public LzwDecodeStream(Stream inner, bool leaveOpen = false, bool earlyChange = true)
     {
         if (inner == null)
