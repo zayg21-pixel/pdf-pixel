@@ -5,12 +5,13 @@ using System.Threading.Tasks;
 namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
-/// <see cref="PdfCancellationSourceExecutionObserver"/> that yields the thread once the yield interval has passed since the last yield.
+/// <see cref="PdfCancellationSourceExecutionObserver"/> that yields the thread on its first yield request, then once the yield interval
+/// has passed since the last yield.
 /// </summary>
 public sealed class PdfYieldingExecutionObserver : PdfCancellationSourceExecutionObserver
 {
     private readonly TimeSpan _yieldInterval;
-    private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+    private readonly Stopwatch _stopwatch = new();
 
     /// <summary>
     /// Initializes the observer with the minimum time between two yields.
@@ -22,7 +23,7 @@ public sealed class PdfYieldingExecutionObserver : PdfCancellationSourceExecutio
     /// <inheritdoc/>
     public override ValueTask YieldAsync()
     {
-        if (_stopwatch.Elapsed < _yieldInterval)
+        if (_stopwatch.IsRunning && _stopwatch.Elapsed < _yieldInterval)
         {
             return default;
         }

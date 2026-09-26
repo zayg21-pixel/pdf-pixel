@@ -25,6 +25,8 @@ public sealed class PdfPanelTextSearchEngine
     private PdfPanelSearchSettings _searchSettings = new();
     private string? _query;
     private string? _normalizedQuery;
+    private bool[] _searchedPages = [];
+    private int _searchedPageCount;
 
     /// <summary>
     /// Initializes the engine that searches the text of <paramref name="textLayer"/> across the pages of <paramref name="contentProvider"/>.
@@ -39,6 +41,16 @@ public sealed class PdfPanelTextSearchEngine
     /// Raised when <see cref="Matches"/> changes.
     /// </summary>
     public event EventHandler? MatchesChanged;
+
+    /// <summary>
+    /// Raised when <see cref="IsComplete"/> becomes <see langword="true"/>.
+    /// </summary>
+    public event EventHandler? Completed;
+
+    /// <summary>
+    /// Whether every page has been searched for the current search query, so that <see cref="Matches"/> is final.
+    /// </summary>
+    public bool IsComplete => _normalizedQuery?.Length > 0 && _searchedPageCount == _searchedPages.Length;
 
     /// <summary>
     /// Matches of the current search query on the pages whose characters have been extracted so far, ordered by page.
@@ -71,13 +83,20 @@ public sealed class PdfPanelTextSearchEngine
         _searchSettings = searchSettings.Clone();
         _normalizedQuery = (query == null) ? null : NormalizeQuery(query);
         _pageMatches.Clear();
+        _searchedPages = new bool[_contentProvider.GetPagesCount()];
+        _searchedPageCount = 0;
 
-        for (int pageNumber = 1; pageNumber <= _contentProvider.GetPagesCount(); pageNumber++)
+        for (int pageNumber = 1; pageNumber <= _searchedPages.Length; pageNumber++)
         {
             SearchPageCharacters(pageNumber);
         }
 
         RebuildMatches();
+
+        if (IsComplete)
+        {
+            Completed?.Invoke(this, EventArgs.Empty);
+        }
 
         return true;
     }
@@ -88,14 +107,25 @@ public sealed class PdfPanelTextSearchEngine
     /// <returns><see langword="true"/> if the page added matches.</returns>
     public bool SearchPage(int pageNumber)
     {
-        if (_pageMatches.ContainsKey(pageNumber) || !SearchPageCharacters(pageNumber))
+        if (_pageMatches.ContainsKey(pageNumber))
         {
             return false;
         }
 
-        RebuildMatches();
+        bool wasComplete = IsComplete;
+        bool matchesAdded = SearchPageCharacters(pageNumber);
 
-        return true;
+        if (matchesAdded)
+        {
+            RebuildMatches();
+        }
+
+        if (!wasComplete && IsComplete)
+        {
+            Completed?.Invoke(this, EventArgs.Empty);
+        }
+
+        return matchesAdded;
     }
 
     /// <summary>
@@ -129,9 +159,20 @@ public sealed class PdfPanelTextSearchEngine
             return false;
         }
 
-        PdfWord[]? words = _textLayer.GetWords(pageNumber);
+        PdfWord[]? words = _contentProvider.GetWords(pageNumber);
 
         if (words == null)
+        {
+            return false;
+        }
+
+        if (!_searchedPages[pageNumber - 1])
+        {
+            _searchedPages[pageNumber - 1] = true;
+            _searchedPageCount++;
+        }
+
+        if (words.Length == 0)
         {
             return false;
         }

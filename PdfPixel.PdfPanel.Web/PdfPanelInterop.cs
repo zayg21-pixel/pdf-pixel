@@ -11,6 +11,7 @@ using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Settings;
+using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
 using PdfPixel.PdfPanel.WorkQueue;
@@ -77,8 +78,8 @@ public partial class PdfPanelInterop
 
             if (webGl)
             {
-                var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), selector);
-                resources = new PdfPanelResources
+                var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
+                resources = new PdfPanelResources(containerId)
                 {
                     SkSurfaceFactory = renderer,
                     RenderTargetFactory = renderer
@@ -86,8 +87,8 @@ public partial class PdfPanelInterop
             }
             else
             {
-                var renderer = new CpuSkiaRenderer(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), selector);
-                resources = new PdfPanelResources
+                var renderer = new CpuSkiaRenderer(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
+                resources = new PdfPanelResources(containerId)
                 {
                     SkSurfaceFactory = renderer,
                     RenderTargetFactory = renderer
@@ -129,7 +130,7 @@ public partial class PdfPanelInterop
 
         if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
-            resources.Renderer?.Dispose();
+            DisposeRenderer(resources);
             resources.Pages?.Dispose();
             resources.Document?.Dispose();
             resources.SkSurfaceFactory.Dispose();
@@ -170,9 +171,13 @@ public partial class PdfPanelInterop
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 
-            resources.Renderer?.Dispose();
+            DisposeRenderer(resources);
             resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.Settings, SynchronizationContext.Current);
+            resources.Renderer.TextSearchEngine.MatchesChanged += resources.OnSearchMatchesChanged;
+            resources.Renderer.TextSearchEngine.Completed += resources.OnSearchCompleted;
             resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory, resources.Settings);
+            resources.SearchResultsChanged = true;
+            resources.CurrentSearchRange = null;
         }
         catch (Exception ex)
         {
@@ -214,6 +219,9 @@ public partial class PdfPanelInterop
                 resources.Context.ScrollToPage(forcePageSet);
             }
 
+            resources.Context.SearchQuery = state.GetPropertyAsString("searchQuery");
+            ApplyCurrentSearchResult(resources, state);
+
             bool pointerInside = state.GetPropertyAsBoolean("pointerInside");
             if (pointerInside)
             {
@@ -250,6 +258,15 @@ public partial class PdfPanelInterop
                 SetAnnotationPopup(state, activeAnnotation);
             }
 
+            PdfPanelTextSearchEngine searchEngine = resources.Renderer.TextSearchEngine;
+            state.SetProperty("searchComplete", searchEngine.IsComplete);
+
+            if (resources.SearchResultsChanged)
+            {
+                resources.SearchResultsChanged = false;
+                SetSearchResults(state, searchEngine.Matches);
+            }
+
             state.SetProperty("scrollWidth", resources.Context.ExtentWidth);
             state.SetProperty("scrollHeight", resources.Context.ExtentHeight);
             state.SetProperty("verticalOffset", resources.Context.VerticalOffset);
@@ -263,6 +280,89 @@ public partial class PdfPanelInterop
         {
             Logger.LogError(ex, "Error in container '{Id}'", containerId);
         }
+    }
+
+    /// <summary>
+    /// Unsubscribes the panel from the search engine of its renderer and disposes the renderer.
+    /// </summary>
+    private static void DisposeRenderer(PdfPanelResources resources)
+    {
+        if (resources.Renderer == null)
+        {
+            return;
+        }
+
+        resources.Renderer.TextSearchEngine.MatchesChanged -= resources.OnSearchMatchesChanged;
+        resources.Renderer.TextSearchEngine.Completed -= resources.OnSearchCompleted;
+        resources.Renderer.Dispose();
+    }
+
+    /// <summary>
+    /// Sets the current search match from the <c>currentSearchResult</c> range of the redraw state,
+    /// and scrolls to it when the range differs from the last one received.
+    /// </summary>
+    private static void ApplyCurrentSearchResult(PdfPanelResources resources, JSObject state)
+    {
+        PdfPanelTextRange? range = null;
+
+        using (JSObject result = state.GetPropertyAsJSObject("currentSearchResult"))
+        {
+            if (result != null)
+            {
+                range = new PdfPanelTextRange(
+                    result.GetPropertyAsInt32("pageNumber"),
+                    result.GetPropertyAsInt32("startIndex"),
+                    result.GetPropertyAsInt32("length"));
+            }
+        }
+
+        PdfPanelSearchMatch? currentMatch = null;
+
+        if (range != null)
+        {
+            foreach (PdfPanelSearchMatch match in resources.Renderer.TextSearchEngine.Matches)
+            {
+                if (match.Range == range.Value)
+                {
+                    currentMatch = match;
+                    break;
+                }
+            }
+        }
+
+        resources.Context.CurrentSearchMatch = currentMatch;
+
+        if (range == resources.CurrentSearchRange)
+        {
+            return;
+        }
+
+        resources.CurrentSearchRange = range;
+
+        if (currentMatch != null)
+        {
+            resources.Context.ScrollToSearchMatch(currentMatch.Value);
+        }
+    }
+
+    /// <summary>
+    /// Sets the JS array built from <paramref name="matches"/> and marks the search results as changed on the redraw state.
+    /// </summary>
+    private static void SetSearchResults(JSObject state, IReadOnlyList<PdfPanelSearchMatch> matches)
+    {
+        state.SetProperty("searchResultsChanged", true);
+
+        using JSObject results = CreateSearchResults();
+
+        foreach (PdfPanelSearchMatch match in matches)
+        {
+            PdfRectangle bounds = match.Bounds;
+            double[] boundsValues = [bounds.Left, bounds.Top, bounds.Right, bounds.Bottom];
+
+            AddSearchResult(results, match.Range.PageNumber, match.Range.StartIndex, match.Range.Length, boundsValues);
+        }
+
+        state.SetProperty("searchResults", results);
     }
 
     /// <summary>
@@ -479,6 +579,71 @@ public partial class PdfPanelInterop
 
         return messageObject;
     }
+
+    /// <summary>
+    /// Builds the JS object of <paramref name="frame"/> and passes it to the view of <paramref name="containerId"/>.
+    /// </summary>
+    private static void OnFramePresented(string containerId, PdfPanelFrame frame)
+    {
+        using JSObject frameObject = CreateFrame(frame.PanelSize.Width, frame.PanelSize.Height, ToDomMatrix(frame.HostToPanel));
+
+        foreach (PdfPanelFramePage page in frame.Pages)
+        {
+            PdfRectangle cropBox = page.Info.CropBox;
+            PdfSize rotatedSize = page.RotatedSize;
+            double[] cropBoxValues = [cropBox.Left, cropBox.Top, cropBox.Right, cropBox.Bottom];
+            double[] rotatedSizeValues = [rotatedSize.Width, rotatedSize.Height];
+
+            AddFramePage(
+                frameObject,
+                page.PageNumber,
+                page.Info.Label,
+                cropBoxValues,
+                page.Info.Rotation,
+                page.UserRotation,
+                rotatedSizeValues,
+                ToDomMatrix(page.GetPanelToPage(0)));
+        }
+
+        FramePresented(containerId, frameObject);
+    }
+
+    /// <summary>
+    /// Returns the <c>DOMMatrix</c> component order <c>[a, b, c, d, e, f]</c> of <paramref name="matrix"/>.
+    /// </summary>
+    private static double[] ToDomMatrix(in PdfMatrix matrix)
+        => [matrix.ScaleX, matrix.SkewY, matrix.SkewX, matrix.ScaleY, matrix.TransX, matrix.TransY];
+
+    [JSImport("createFrame", "canvasInterop.js")]
+    private static partial JSObject CreateFrame(double panelWidth, double panelHeight, [JSMarshalAs<JSType.Array<JSType.Number>>] double[] hostToPanel);
+
+    [JSImport("addFramePage", "canvasInterop.js")]
+    private static partial void AddFramePage(
+        JSObject frame,
+        int pageNumber,
+        string label,
+        [JSMarshalAs<JSType.Array<JSType.Number>>] double[] cropBox,
+        int rotation,
+        int userRotation,
+        [JSMarshalAs<JSType.Array<JSType.Number>>] double[] rotatedSize,
+        [JSMarshalAs<JSType.Array<JSType.Number>>] double[] panelToContent);
+
+    [JSImport("framePresented", "canvasInterop.js")]
+    private static partial void FramePresented(string containerId, JSObject frame);
+
+    [JSImport("createSearchResults", "canvasInterop.js")]
+    private static partial JSObject CreateSearchResults();
+
+    [JSImport("addSearchResult", "canvasInterop.js")]
+    private static partial void AddSearchResult(
+        JSObject results,
+        int pageNumber,
+        int startIndex,
+        int length,
+        [JSMarshalAs<JSType.Array<JSType.Number>>] double[] bounds);
+
+    [JSImport("scheduleRedraw", "canvasInterop.js")]
+    internal static partial void ScheduleRedraw(string containerId);
 
     [JSImport("createAnnotationPopup", "canvasInterop.js")]
     private static partial JSObject CreateAnnotationPopup([JSMarshalAs<JSType.Boolean>] bool isInteractive);

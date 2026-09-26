@@ -2,15 +2,28 @@
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Settings;
+using PdfPixel.PdfPanel.Text;
 using System;
+using System.Runtime.Versioning;
 
 namespace PdfPixel.PdfPanel.Web;
 
 /// <summary>
 /// Encapsulates all resources associated with a single PDF panel instance.
 /// </summary>
+[SupportedOSPlatform("browser")]
 internal class PdfPanelResources
 {
+    /// <summary>
+    /// Initializes the resources of the panel in the container with the given id.
+    /// </summary>
+    public PdfPanelResources(string containerId) => ContainerId = containerId;
+
+    /// <summary>
+    /// Gets the id of the container the panel is registered for.
+    /// </summary>
+    public string ContainerId { get; }
+
     /// <summary>
     /// Gets or sets the render target factory for the panel.
     /// </summary>
@@ -55,4 +68,28 @@ internal class PdfPanelResources
     /// Gets or sets the annotation popup last sent to JS, or null when none is shown.
     /// </summary>
     public PdfAnnotationPopup AnnotationPopup { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the search matches changed since they were last sent to JS.
+    /// </summary>
+    public bool SearchResultsChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the range of the current search result last received from JS, or null when there is none.
+    /// </summary>
+    public PdfPanelTextRange? CurrentSearchRange { get; set; }
+
+    /// <summary>
+    /// Marks the search matches as changed and schedules a redraw that sends them to JS.
+    /// </summary>
+    public void OnSearchMatchesChanged(object sender, EventArgs args)
+    {
+        SearchResultsChanged = true;
+        PdfPanelInterop.ScheduleRedraw(ContainerId);
+    }
+
+    /// <summary>
+    /// Schedules a redraw that sends the completed search state to JS.
+    /// </summary>
+    public void OnSearchCompleted(object sender, EventArgs args) => PdfPanelInterop.ScheduleRedraw(ContainerId);
 }

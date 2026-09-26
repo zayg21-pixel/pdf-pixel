@@ -19,13 +19,15 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
     private readonly string _canvasSelector;
     private readonly ILogger _logger;
     private readonly CpuSkSurfaceFactory _surfaceFactory;
+    private readonly Action<PdfPanelFrame> _onFramePresented;
     private int _canvasWidth;
     private int _canvasHeight;
 
-    public CpuSkiaRenderer(ILogger logger, string canvasSelector)
+    public CpuSkiaRenderer(ILogger logger, string canvasSelector, Action<PdfPanelFrame> onFramePresented)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _canvasSelector = canvasSelector ?? throw new ArgumentNullException(nameof(canvasSelector));
+        _onFramePresented = onFramePresented ?? throw new ArgumentNullException(nameof(onFramePresented));
         _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Rgba8888, SKAlphaType.Unpremul);
     }
 
@@ -82,7 +84,10 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to upload CPU surface to canvas {CanvasSelector}", _canvasSelector);
+            return;
         }
+
+        _onFramePresented(frame);
     }
 
     /// <inheritdoc />

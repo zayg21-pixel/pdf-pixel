@@ -50,6 +50,8 @@ public partial class WpfPdfPanel : FrameworkElement
         Search = _settings.Search;
         Text = _settings.Text;
         Rendering = _settings.Rendering;
+        Focusable = true;
+        CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, OnCopyExecuted, OnCopyCanExecute));
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
@@ -78,8 +80,6 @@ public partial class WpfPdfPanel : FrameworkElement
         var source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.AddHook(Hook);
 
-        InputManager.Current.PreNotifyInput += OnPreNotifyInput;
-
         DrawingVisual = new DrawingVisual();
         children.Add(DrawingVisual);
 
@@ -102,8 +102,6 @@ public partial class WpfPdfPanel : FrameworkElement
     {
         var source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.RemoveHook(Hook);
-
-        InputManager.Current.PreNotifyInput -= OnPreNotifyInput;
 
         _context?.Dispose();
 

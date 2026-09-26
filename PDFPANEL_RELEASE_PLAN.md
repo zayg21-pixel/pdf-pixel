@@ -17,7 +17,7 @@ None known. Core text search, text extraction and the shared `PdfPanelTextLayer`
 
 ## Stage 2: Easy wins and fixes
 
-- [x] `PdfYieldingExecutionObserver`: takes a yield interval and only yields once that much time has passed since the last yield. Web reads it from the `yieldInterval` configuration key (ms, default 16)
+- [x] `PdfYieldingExecutionObserver`: takes a yield interval, yields on its first yield request (so every page, including text-only extraction, starts with a yield) and then only once that much time has passed since the last yield. Web reads it from the `yieldInterval` configuration key (ms, default 16)
 - [x] Split the content update delay into `PdfPanelRenderingSettings.ScrollContentUpdateDelay` (0) and `ZoomContentUpdateDelay` (200 ms)
 - [x] Web: `CpuSkiaRenderer` resized the canvas on every frame. The canvas is now resized on present only when the frame size changes, like the WPF `WriteableBitmap`; the drawing surface already keeps its content through `CpuSkSurfaceFactory`
 - [x] Web: WebGL context is destroyed on dispose (`dotnet_webgl_destroy_context`). The per-renderer current-context cache is gone: each renderer makes its context current before GL work, so several panels on one page do not draw into each other's context
@@ -63,8 +63,7 @@ Work:
 - [x] `PdfPanelSettings` and groups; context and renderer take it in the constructor
 - [x] Core parameters built internally; remove `RenderingParameters` / `CommandExecutionParameters` from the context and the request
 - [x] Move `AutoScaleMode` into context state (applied by `Synchronize`) and the zoom step into `Zoom.ZoomStep`
-- [ ] Replace `WpfPdfPanelInterface` with calls on the context (zoom/redraw/refresh); the drawing hook moves to the overlay contract below
-- [ ] Expose the context to hosts
+- [ ] Check that every `WpfPdfPanelInterface` request (zoom/redraw/refresh) goes through `Synchronize`, for consistency
 - [x] WPF: group dependency properties, drop mirrored settings dependency properties
 - [x] Web: build settings on registration. The JS configuration's `settings` object mirrors `PdfPanelSettings` in camelCase (`settings.zoom.minScale`, `settings.layout.padding.left`, ...); host-only keys (`useWebGL`, `scrollStep`, `yieldInterval`) sit next to it
 - [x] Update both demos to the new API
@@ -99,7 +98,7 @@ Work:
 - [x] Canvas/Viewport → Host/Panel renames (WPF `IScrollInfo.ViewportWidth`/`ViewportHeight` stay: interface members)
 - [x] WPF: remove `CanvasMouseEventArgs` and `CanvasMouseDown`/`Up`/`Move`; `OnAfterDraw` receives the frame; `CanvasSize`/`CanvasScale`/`CanvasOffset`/`GetCanvasPosition` no longer public
 - [x] WPF demo uses the frame
-- [ ] WASM: C# builds `PdfPanelFrame` at present and calls a JS interop function; the public JS API adds the HTML canvas and panel id and raises it to subscribers. After the JS refactor (stage 1)
+- [x] WASM: both render targets call back after present; C# builds the frame with JSImport factories (`createFrame`, `addFramePage`) and calls `framePresented`. The host only provides the container: the view creates the panel canvas, the overlay canvas above it and the scroll host with its spacer inside the container (styles inline, removed on unregister), sizes the overlay to the frame and raises `{ id, canvas, frame }` to the `setOnFramePresented` subscriber. Frame pages mirror `PdfPanelFramePage`, including `getPanelToPage(rotation)`. Web demo draws the logo on it
 
 ### Text search
 
@@ -111,20 +110,19 @@ Highlights are drawn by `PdfPanelTextLayer` itself, so search no longer waits fo
   - Whitespace is a `Space` word: real whitespace glyphs, or generated where the PDF has none (a space for a gap wider than 0.1 of character height, a line break where character centers are more than half a character height apart)
   - Hyphenation: a line ending in letter + hyphen (`DashPunctuation` or soft hyphen) followed by a letter continues the word in a new part; the first part ends with the hyphen and a generated line break
 - [x] Text access: `PdfPanelTextLayer.GetWords(pageNumber)`, `GetText(range)` (real characters plus generated separators), `PageTextExtracted` event (UI thread, raised by both extraction paths); WPF exposes the text layer as the read-only `TextLayer` dependency property
-- [x] Search engine: `PdfPanelTextSearchEngine` over the page words, incremental (`MatchesChanged` on every page with matches). Not cancellable by decision
+- [x] Search engine: `PdfPanelTextSearchEngine` over the page words, incremental (`MatchesChanged` on every page with matches). `IsComplete` / `Completed` once every page has been searched for the query. Not cancellable by decision
 - [x] Matching rules: `MatchCase`, `WholeWord`, `MatchDiacritics`. Query and page text compared in compatibility decomposition (FormKD, per character so match indexes stay on characters), nonspacing marks dropped unless `MatchDiacritics`, whitespace runs compared as one space. Hyphenated words match both joined ("example") and with the hyphen ("exam-ple")
 - [x] Match model: `PdfPanelSearchMatch` = `PdfPanelTextRange` (page, start index, length) + bounds. Selection uses the same range type
 - [x] Highlight rendering: all matches of the visible pages drawn in `SearchMatchColor` under the selection; `PdfPanelContext.CurrentSearchMatch` (state, applied by `Synchronize`) drawn in `CurrentSearchMatchColor`. Query and current match changes redraw the affected visible pages from cached tiles
 - [~] Navigation: `ScrollToSearchMatch` context extension, count via the results. No next/previous in the API (host side)
 - [x] Public API: `PdfPanelContext.SearchQuery` / `CurrentSearchMatch`, `PdfPanelSettings.Search`, `PdfPanelSettings.Text`; results on `PdfPanelRenderer.TextSearchEngine`; `PdfPanelRenderer` orchestrates extraction → search → page redraw
-- [~] UI: WPF done (`SearchQuery`, `SearchResults`, `CurrentSearchResult` on `WpfPdfPanel`; demo search box with results drop-down, navigates on hover). Web panel and Web demo not done. Web side should be built on the stage 3 API
-- [ ] Tests
-- [ ] Text inside soft-mask forms is extracted like page text, in both rendering and text extraction
+- [x] UI: WPF (`SearchQuery`, `SearchResults`, `CurrentSearchResult` on `WpfPdfPanel`; demo search box with results drop-down, navigates on hover)
+- [x] Web through the redraw state: JS sends `searchQuery` and `currentSearchResult` (`setSearchQuery`, `setCurrentSearchResult`); C# returns `searchComplete` and, when changed, `searchResults` (`{ pageNumber, startIndex, length, bounds }`). Matches found between redraws request one render on the next animation frame (`scheduleRedraw`). Web demo has the same search box and drop-down as WPF
+- [ ] Text inside soft-mask forms is extracted like page text, in both rendering and text extraction. Fix belongs in PdfPixel (core)
 
 ### Stable text interaction
 
-- [ ] Selection and copy behave consistently across WPF and Web
-- [ ] WPF: copy of selected text works poorly
+- [x] WPF: copy of selected text sometimes did not copy. Cause: the panel was not focusable and copied through a global `PreNotifyInput` hook while the mouse was over it, so a focused text box's own Copy then overwrote the clipboard. Now the panel is focusable, takes focus on mouse down (marking it handled, so the hosting `ScrollViewer` does not take focus back) and handles `ApplicationCommands.Copy`
 
 ## Stage 5: Harder bugs
 

@@ -17,17 +17,92 @@ function mergeConfiguration(defaults, overrides) {
     return merged;
 }
 
+/**
+ * Creates a canvas placed at the top-left corner of the container that lets pointer events through.
+ * @param {string} className Class name of the canvas.
+ * @returns {HTMLCanvasElement}
+ */
+function createPanelCanvas(className) {
+    const canvas = document.createElement('canvas');
+    canvas.className = className;
+    canvas.style.display = 'block';
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '1';
+    return canvas;
+}
+
+/**
+ * Visible page of a presented frame. Mirrors `PdfPanelFramePage`.
+ */
+class PdfPanelFramePage {
+    constructor(pageNumber, label, cropBox, rotation, userRotation, rotatedSize, panelToContent) {
+        this.pageNumber = pageNumber;
+        this.info = {
+            label: label,
+            cropBox: { left: cropBox[0], top: cropBox[1], right: cropBox[2], bottom: cropBox[3] },
+            rotation: rotation
+        };
+        this.userRotation = userRotation;
+        this.rotatedSize = { width: rotatedSize[0], height: rotatedSize[1] };
+        this._panelToContent = new DOMMatrix(panelToContent);
+    }
+
+    /**
+     * Returns the matrix that maps panel pixels to page space rotated by `rotation` degrees,
+     * with the origin at the top-left corner of the rotated page.
+     * @param {number} rotation Rotation of the page space relative to the unrotated page content, a multiple of 90.
+     * @returns {DOMMatrix}
+     */
+    getPanelToPage(rotation) {
+        const normalizedRotation = ((rotation % 360) + 360) % 360;
+
+        if (normalizedRotation % 90 !== 0) {
+            throw new RangeError(`Rotation ${rotation} is not a multiple of 90`);
+        }
+
+        const width = this.info.cropBox.right - this.info.cropBox.left;
+        const height = this.info.cropBox.bottom - this.info.cropBox.top;
+        const rotatedWidth = (normalizedRotation % 180 === 0) ? width : height;
+        const rotatedHeight = (normalizedRotation % 180 === 0) ? height : width;
+        const rotationOffsetX = (normalizedRotation === 90 || normalizedRotation === 180) ? rotatedWidth : 0;
+        const rotationOffsetY = (normalizedRotation === 180 || normalizedRotation === 270) ? rotatedHeight : 0;
+
+        const contentToPage = new DOMMatrix()
+            .translate(rotationOffsetX, rotationOffsetY)
+            .rotate(normalizedRotation);
+
+        return contentToPage.multiply(this._panelToContent);
+    }
+}
+
 class PdfPanelView {
     constructor(id, containerElement, configuration) {
         this.id = id;
         this.container = containerElement;
-        this.canvas = containerElement.querySelector('.pdf-panel-canvas');
-        this.scrollHost = containerElement.querySelector('.pdf-panel-scroll-host');
-        this.spacer = this.scrollHost ? this.scrollHost.querySelector('.pdf-panel-scroll-spacer') : null;
-
-        if (!this.canvas || !this.scrollHost || !this.spacer) {
-            throw new Error(`Container structure is invalid for id '${id}'`);
+        if (window.getComputedStyle(containerElement).position === 'static') {
+            containerElement.style.position = 'relative';
         }
+
+        // The panel canvas and the overlay canvas are sized to the scroll host's client area and never move.
+        // The transparent scroll host above them provides native scrollbars and receives pointer and scroll events.
+        this.canvas = createPanelCanvas('pdf-panel-canvas');    
+        this.overlayCanvas = createPanelCanvas('pdf-panel-overlay-canvas');
+
+        this.scrollHost = document.createElement('div');
+        this.scrollHost.className = 'pdf-panel-scroll-host';
+        this.scrollHost.style.position = 'absolute';
+        this.scrollHost.style.inset = '0';
+        this.scrollHost.style.overflow = 'auto';
+        this.scrollHost.style.zIndex = '2';
+
+        this.spacer = document.createElement('div');
+        this.spacer.className = 'pdf-panel-scroll-spacer';
+        this.scrollHost.append(this.spacer);
+
+        containerElement.prepend(this.canvas, this.overlayCanvas, this.scrollHost);
 
         const defaults = {
             useWebGL: true,
@@ -70,14 +145,21 @@ class PdfPanelView {
             forcePageSet: 0,
             pointerPressed: false,
             annotationPopup: null,
-            cursorStyle: 'default'
+            cursorStyle: 'default',
+            searchQuery: null,
+            currentSearchResult: null,
+            searchResults: [],
+            searchComplete: false
         };
+
+        this._renderScheduled = false;
 
         // Tracks the scroll position we set programmatically so onScroll can
         // ignore those events and only react to genuine user-initiated scrolls.
         this._expectedScrollLeft = 0;
         this._expectedScrollTop = 0;
         this.onStateChanged = null;
+        this.onFramePresented = null;
 
         // Tracks the initial pinch distance and scale for two-finger zoom gestures.
         this._touchStartDistance = 0;
@@ -102,6 +184,21 @@ class PdfPanelView {
         catch (err) {
             console.error(`Error during render of view '${this.id}': ${err?.message || String(err)}`);
         }
+    }
+
+    /**
+     * Requests a render on the next animation frame. Several requests before that frame result in one render.
+     */
+    scheduleRender() {
+        if (this._renderScheduled) {
+            return;
+        }
+
+        this._renderScheduled = true;
+        requestAnimationFrame(() => {
+            this._renderScheduled = false;
+            this.requestRender();
+        });
     }
 
     performRender() {
@@ -134,7 +231,9 @@ class PdfPanelView {
             pointerInside: pointerInside,
             pointerX: pointerX,
             pointerY: pointerY,
-            pointerPressed: this.state.pointerPressed
+            pointerPressed: this.state.pointerPressed,
+            searchQuery: this.state.searchQuery,
+            currentSearchResult: this.state.currentSearchResult
         };
 
         interop.RequestRedraw(this.id, redrawState);
@@ -151,6 +250,11 @@ class PdfPanelView {
         this.state.horizontalOffset = redrawState.horizontalOffset;
         this.state.currentPage = redrawState.currentPage;
         this.state.pageCount = redrawState.pageCount;
+        this.state.searchComplete = redrawState.searchComplete;
+
+        if (redrawState.searchResultsChanged) {
+            this.state.searchResults = redrawState.searchResults || [];
+        }
 
         // Annotation handling: cursor, popup, and URI open
         if (redrawState.annotationPopupChanged) {
@@ -399,8 +503,31 @@ class PdfPanelView {
         console.log(`View '${this.id}' registered successfully`);
     }
 
+    /**
+     * Sizes the overlay canvas to the presented frame and passes it to the subscriber with the view id and the frame.
+     * @param {object} frame The frame object.
+     */
+    presentFrame(frame) {
+        const { width, height } = frame.panelSize;
+
+        if (this.overlayCanvas.width !== width || this.overlayCanvas.height !== height) {
+            this.overlayCanvas.width = width;
+            this.overlayCanvas.height = height;
+        }
+
+        this.overlayCanvas.style.width = this.canvas.style.width;
+        this.overlayCanvas.style.height = this.canvas.style.height;
+
+        if (typeof this.onFramePresented === 'function') {
+            this.onFramePresented({ id: this.id, canvas: this.overlayCanvas, frame: frame });
+        }
+    }
+
     dispose() {
         this.detachEvents();
+        this.canvas.remove();
+        this.overlayCanvas.remove();
+        this.scrollHost.remove();
     }
 }
 
@@ -425,7 +552,7 @@ export async function initialize(setModuleImports, getAssemblyExports) {
 /**
  * Register a PDF panel view bound to a container element.
  * @param {string} id Unique view id.
- * @param {HTMLElement} containerElement The `.pdf-panel-*` container element.
+ * @param {HTMLElement} containerElement The container element with the id `id`; the panel adds its canvases and scroll host to it.
  * @param {object} [configuration] `useWebGL`, `scrollStep`, `yieldInterval` (ms) and `settings`, which mirrors `PdfPanelSettings` in camelCase.
  * @returns {Promise<boolean>} True if registration succeeded.
  */
@@ -532,6 +659,63 @@ export function setOnStateChanged(id, callback) {
 }
 
 /**
+ * Set the text to search for in the specified view, or `null` to stop searching.
+ * The results arrive in the view state as `searchResults` (`{ pageNumber, startIndex, length, bounds }`, ordered by page),
+ * with `searchComplete` set once every page has been searched.
+ * @param {string} id View id.
+ * @param {string | null} query Text to search for.
+ * @returns {boolean} True if the view was found and the query was set.
+ */
+export function setSearchQuery(id, query) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.state.searchQuery = query || null;
+    view.requestRender();
+    return true;
+}
+
+/**
+ * Set the search result highlighted as current in the specified view and scroll to it, or `null` for none.
+ * @param {string} id View id.
+ * @param {{ pageNumber: number, startIndex: number, length: number } | null} result A result from `searchResults`.
+ * @returns {boolean} True if the view was found and the current result was set.
+ */
+export function setCurrentSearchResult(id, result) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.state.currentSearchResult = result
+        ? { pageNumber: result.pageNumber, startIndex: result.startIndex, length: result.length }
+        : null;
+    view.requestRender();
+    return true;
+}
+
+/**
+ * Subscribe to frame notifications for the specified view.
+ * The callback receives `{ id, canvas, frame }` after every presented frame: the view id, the overlay canvas the panel
+ * adds to the container above its own canvas, sized to the frame in panel pixels, and the frame, which mirrors
+ * `PdfPanelFrame` (`panelSize`, `hostToPanel` as a `DOMMatrix`, `pages`).
+ * @param {string} id View id.
+ * @param {(args: { id: string, canvas: HTMLCanvasElement, frame: object }) => void} callback Called after every present.
+ * @returns {boolean} True if the view was found and the callback was registered.
+ */
+export function setOnFramePresented(id, callback) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.onFramePresented = callback;
+    return true;
+}
+
+/**
  * Set the zoom scale for the specified view, keeping the viewport center fixed.
  * @param {string} id View id.
  * @param {number} scale The desired scale factor (e.g. 1.0 = 100%).
@@ -555,6 +739,91 @@ export function setScale(id, scale) {
     view.state.scale = clampedScale;
     view.requestRender();
     return true;
+}
+
+/**
+ * Creates a frame object without pages.
+ * Called from C# via JSImport.
+ * @param {number} panelWidth Panel width in device pixels.
+ * @param {number} panelHeight Panel height in device pixels.
+ * @param {number[]} hostToPanel Host to panel matrix as `[a, b, c, d, e, f]`.
+ * @returns {{ panelSize: { width: number, height: number }, hostToPanel: DOMMatrix, pages: PdfPanelFramePage[] }} The frame object.
+ */
+export function createFrame(panelWidth, panelHeight, hostToPanel) {
+    return {
+        panelSize: { width: panelWidth, height: panelHeight },
+        hostToPanel: new DOMMatrix(hostToPanel),
+        pages: []
+    };
+}
+
+/**
+ * Appends a visible page to a frame's pages.
+ * Called from C# via JSImport.
+ * @param {object} frame The frame object.
+ * @param {number} pageNumber 1-based page number.
+ * @param {string} label Page label.
+ * @param {number[]} cropBox Crop box in PDF user space as `[left, top, right, bottom]`.
+ * @param {number} rotation Page rotation from the document.
+ * @param {number} userRotation Rotation applied by the user.
+ * @param {number[]} rotatedSize Page size after rotation as `[width, height]`.
+ * @param {number[]} panelToContent Panel pixels to unrotated page content as `[a, b, c, d, e, f]`.
+ */
+export function addFramePage(frame, pageNumber, label, cropBox, rotation, userRotation, rotatedSize, panelToContent) {
+    frame.pages.push(new PdfPanelFramePage(pageNumber, label, cropBox, rotation, userRotation, rotatedSize, panelToContent));
+}
+
+/**
+ * Passes a presented frame to the subscriber of the view.
+ * Called from C# via JSImport.
+ * @param {string} id View id.
+ * @param {object} frame The frame object.
+ */
+export function framePresented(id, frame) {
+    const view = views.get(id);
+    if (!view) {
+        return;
+    }
+    view.presentFrame(frame);
+}
+
+/**
+ * Creates an empty search results array.
+ * Called from C# via JSImport.
+ * @returns {object[]} The results array.
+ */
+export function createSearchResults() {
+    return [];
+}
+
+/**
+ * Appends a search result to a results array.
+ * Called from C# via JSImport.
+ * @param {object[]} results The results array.
+ * @param {number} pageNumber 1-based page number.
+ * @param {number} startIndex Index of the first matched character on the page.
+ * @param {number} length Number of matched characters.
+ * @param {number[]} bounds Area the matched characters cover in unscaled page space as `[left, top, right, bottom]`.
+ */
+export function addSearchResult(results, pageNumber, startIndex, length, bounds) {
+    results.push({
+        pageNumber: pageNumber,
+        startIndex: startIndex,
+        length: length,
+        bounds: { left: bounds[0], top: bounds[1], right: bounds[2], bottom: bounds[3] }
+    });
+}
+
+/**
+ * Requests a render of the specified view on the next animation frame.
+ * Called from C# via JSImport.
+ * @param {string} id View id.
+ */
+export function scheduleRedraw(id) {
+    const view = views.get(id);
+    if (view) {
+        view.scheduleRender();
+    }
 }
 
 /**

@@ -18,15 +18,17 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
 {
     private readonly string _canvasSelector;
     private readonly ILogger _logger;
+    private readonly Action<PdfPanelFrame> _onFramePresented;
     private CanvasGlContext _glContext;
     private SKSurface _tilingSurface;
     private int _tilingWidth;
     private int _tilingHeight;
 
-    public WebGlSkiaRenderer(ILogger logger, string canvasSelector)
+    public WebGlSkiaRenderer(ILogger logger, string canvasSelector, Action<PdfPanelFrame> onFramePresented)
     {
         _logger = logger;
         _canvasSelector = canvasSelector;
+        _onFramePresented = onFramePresented ?? throw new ArgumentNullException(nameof(onFramePresented));
     }
 
     /// <inheritdoc />
@@ -67,6 +69,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
         }
 
         _glContext.Present();
+        _onFramePresented(frame);
     }
 
     /// <inheritdoc />

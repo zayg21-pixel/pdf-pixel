@@ -205,42 +205,76 @@
             user-select: none;
         }
 
+        /* ── Search box with results drop-down ────────────────────── */
+        .search-box {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #searchInput {
+            width: 180px;
+            height: 24px;
+            padding: 0 6px;
+            background: #ffffff;
+            border: 1px solid #c0c0c0;
+            border-radius: 3px;
+            color: #1a1a1a;
+            font-family: Roboto, Arial, sans-serif;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        #searchInput:focus {
+            border-color: #555555;
+        }
+
+        .search-status {
+            min-width: 40px;
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.55);
+            user-select: none;
+        }
+
+        .search-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 180px;
+            max-height: 300px;
+            margin: 2px 0 0 0;
+            padding: 0;
+            overflow-y: auto;
+            list-style: none;
+            background: #ffffff;
+            border: 1px solid #c0c0c0;
+            border-radius: 3px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+            z-index: 20;
+        }
+
+        .search-results.visible {
+            display: block;
+        }
+
+        .search-results li {
+            padding: 4px 8px;
+            font-size: 13px;
+            cursor: default;
+        }
+
+        .search-results li.selected {
+            background: #e3eefc;
+        }
+
         /* ── Canvas container ─────────────────────────────────────── */
         #canvasContainer {
             flex: 1 1 auto;
             position: relative;
             overflow: hidden;
-        }
-
-        /*
-         * The canvas is the visual rendering layer. It is sized to the scroll
-         * host's client area (excluding scrollbar tracks) and never moves in
-         * the DOM. pointer-events: none lets events fall through to the scroll
-         * host above it.
-         */
-        .pdf-panel-canvas {
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /*
-         * The scroll host is a transparent overlay that provides native
-         * scrollbars. Its scroll-spacer child is sized to the total content
-         * dimensions so the browser knows how far to scroll. Being above the
-         * canvas (z-index: 2) it captures all pointer and scroll events.
-         */
-        .pdf-panel-scroll-host {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            overflow: auto;
-            z-index: 2;
         }
 
         /* ── Annotation popup tooltip ─────────────────────────────── */
@@ -322,6 +356,14 @@
             <span class="material-symbols-outlined">zoom_in_map</span>
         </button>
 
+        <div class="header-sep"></div>
+
+        <div class="search-box">
+            <input id="searchInput" type="search" placeholder="Search" aria-label="Search">
+            <span id="searchStatus" class="search-status"></span>
+            <ul id="searchResults" class="search-results"></ul>
+        </div>
+
         <div class="hdr-spacer"></div>
 
         <a id="githubBtn" class="hdr-icon-btn" href="https://github.com/zayg21-pixel/pdf-pixel" target="_blank" rel="noopener" title="View on GitHub">
@@ -339,10 +381,6 @@
     </header>
 
     <div id="canvasContainer">
-        <canvas class="pdf-panel-canvas"></canvas>
-        <div class="pdf-panel-scroll-host">
-            <div class="pdf-panel-scroll-spacer"></div>
-        </div>
         <div id="annotationPopup" class="annotation-popup"></div>
     </div>
 
@@ -373,8 +411,46 @@
         const zoomInButton = document.getElementById('zoomIn');
         const resetZoomButton = document.getElementById('resetZoom');
         const annotationPopupEl = document.getElementById('annotationPopup');
+        const searchInput = document.getElementById('searchInput');
+        const searchStatus = document.getElementById('searchStatus');
+        const searchResultsList = document.getElementById('searchResults');
 
         let currentState = { currentPage: 0, pageCount: 0, scale: 1.0 };
+        let shownSearchResults = null;
+        let searchInputTimer = null;
+
+        function updateSearchResults(state) {
+            if (state.searchResults !== shownSearchResults) {
+                shownSearchResults = state.searchResults;
+                searchResultsList.replaceChildren();
+
+                for (const result of state.searchResults) {
+                    const item = document.createElement('li');
+                    item.textContent = `Page ${result.pageNumber}`;
+                    item.addEventListener('mouseenter', () => {
+                        searchResultsList.querySelector('li.selected')?.classList.remove('selected');
+                        item.classList.add('selected');
+                        canvasInterop.setCurrentSearchResult(containerId, result);
+                    });
+                    searchResultsList.append(item);
+                }
+            }
+
+            const hasQuery = searchInput.value.length > 0;
+            const count = state.searchResults.length;
+            searchStatus.textContent = hasQuery ? (state.searchComplete ? `${count}` : `${count}…`) : '';
+        }
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchInputTimer);
+            searchInputTimer = setTimeout(() => {
+                canvasInterop.setCurrentSearchResult(containerId, null);
+                canvasInterop.setSearchQuery(containerId, searchInput.value);
+            }, 300);
+        });
+
+        searchInput.addEventListener('focus', () => searchResultsList.classList.add('visible'));
+        searchInput.addEventListener('blur', () => searchResultsList.classList.remove('visible'));
 
         function updateAnnotationPopup(state) {
             const popup = state.annotationPopup;
@@ -449,7 +525,35 @@
             zoomLevelLabel.textContent = `${Math.round(state.scale * 100)}%`;
 
             updateAnnotationPopup(state);
+            updateSearchResults(state);
         });
+
+        canvasInterop.setOnFramePresented(containerId, ({ canvas, frame }) => {
+            const context = canvas.getContext('2d');
+            const { width, height } = frame.panelSize;
+
+            context.clearRect(0, 0, width, height);
+            drawLogo(context, width, height);
+        });
+
+        function drawLogo(context, panelWidth, panelHeight) {
+            const cellSize = 18;
+            const padding = 4;
+
+            context.save();
+            context.translate(panelWidth - 58, panelHeight - 48);
+            context.scale(0.5, 0.5);
+
+            for (let column = 0; column < 3; column++) {
+                for (let row = 0; row < 3; row++) {
+                    const isCenter = column === 1 && row === 1;
+                    context.fillStyle = isCenter ? 'rgba(70, 149, 235, 0.5)' : 'rgba(33, 35, 43, 0.5)';
+                    context.fillRect(column * (cellSize + padding), row * (cellSize + padding), cellSize, cellSize);
+                }
+            }
+
+            context.restore();
+        }
 
         prevPageButton.addEventListener('click', () => {
             if (currentState.currentPage > 1) {

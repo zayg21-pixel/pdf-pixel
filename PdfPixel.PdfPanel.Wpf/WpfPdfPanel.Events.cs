@@ -9,6 +9,11 @@ public partial class WpfPdfPanel
     {
         base.OnMouseDown(e);
 
+        if (Focus())
+        {
+            e.Handled = true;
+        }
+
         if (Pages != null && _context != null)
         {
             InvalidateVisual();
@@ -25,28 +30,22 @@ public partial class WpfPdfPanel
         }
     }
 
-    private void OnPreNotifyInput(object sender, NotifyInputEventArgs e)
+    private void OnCopyCanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        if (!IsMouseOver)
+        e.CanExecute = _renderer?.TextLayer.SelectedText.Length > 0;
+        e.Handled = true;
+    }
+
+    private void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e)
+    {
+        string text = _renderer?.TextLayer.SelectedText ?? string.Empty;
+
+        if (text.Length > 0)
         {
-            return;
+            Clipboard.SetText(text);
         }
 
-        KeyEventArgs keyArgs = e.StagingItem.Input as KeyEventArgs;
-
-        if (keyArgs == null || keyArgs.RoutedEvent != Keyboard.KeyDownEvent)
-        {
-            return;
-        }
-
-        if (keyArgs.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
-        {
-            string text = _renderer?.TextLayer.SelectedText ?? string.Empty;
-            if (text.Length > 0)
-            {
-                Clipboard.SetText(text);
-            }
-        }
+        e.Handled = true;
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
