@@ -5,4 +5,10 @@
     <PackageTags>ccitt;fax;group3;group4;image;decoder</PackageTags>
   </PropertyGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>PdfPixel.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>
