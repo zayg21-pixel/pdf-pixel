@@ -2,7 +2,8 @@
   "profiles": {
     "PdfPixel.Gold": {
       "commandName": "Project",
-      "commandLineArgs": "--inspect"
+      "commandLineArgs": ". --inspect",
+      "workingDirectory": "$(ProjectDir)"
     }
   }
 }

@@ -5,6 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Source/**;Snapshots/**;Inspect/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -270,3 +270,7 @@ InstallerStandalone/*.back*.aip
 /PdfReadTests/kitten-progressive.jpg
 
 **/BenchmarkDotNet.Artifacts
+# Gold corpus working directory: downloaded PDFs, golden snapshots and comparison output stay local
+/PdfPixel.Gold/Source/
+/PdfPixel.Gold/Snapshots/
+/PdfPixel.Gold/Inspect/

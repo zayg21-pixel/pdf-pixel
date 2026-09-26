@@ -1,26 +1,36 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Annotations.Models;
-using PdfPixel.Skia;
-using PdfPixel.Geometry;
-using PdfPixel.Models;
-using SkiaSharp;
-using System.Runtime.InteropServices;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
+using PdfPixel.Fonts.Management;
+using PdfPixel.Geometry;
+using PdfPixel.Models;
+using PdfPixel.Skia;
+using PdfPixel.Skia.Fonts;
+using SkiaSharp;
 
-namespace PdfPixel.Gold;
+namespace PdfPixel.Gold.Utilities;
 
 /// <summary>
-/// Renders PDF pages the same way the console demo does, and reads and writes the PNGs the
-/// generator and the comparer work with.
+/// Opens corpus PDFs and renders their pages the same way the console demo does.
 /// </summary>
-internal static class PageRenderer
+internal static class PdfUtilities
 {
-    private const int BytesPerPixel = 4;
-
     // Snapshots are only comparable when every run renders at the same size, so the page size is
     // used as-is.
     private const float Scale = 1f;
+
+    /// <summary>
+    /// Creates the reader every command renders with.
+    /// </summary>
+    public static PdfDocumentReader CreateReader()
+    {
+        // A font substitutor is used to substitute system fonts for fonts not embedded in the PDF, and
+        // PdfDocumentReader is the entry point for parsing PDF files.
+        SkiaFontSubstitutor fontSubstitutor = new(NullLoggerFactory.Instance);
+
+        return new(NullLoggerFactory.Instance, fontSubstitutor);
+    }
 
     /// <summary>
     /// Renders the requested pages of the document one at a time, or every page when no page number
@@ -32,6 +42,11 @@ internal static class PageRenderer
     /// </remarks>
     public static IEnumerable<(int PageNumber, SKBitmap Bitmap)> RenderPages(PdfDocumentReader reader, string pdfPath, IReadOnlyList<int> pageNumbers, string? password)
     {
+        if (!File.Exists(pdfPath))
+        {
+            throw new FileNotFoundException($"{pdfPath} is not downloaded; run setup first.", pdfPath);
+        }
+
         // The reader parses lazily from the stream it is given, so the whole document is read into
         // memory first and never touches the disk again while it renders.
         using MemoryStream documentStream = new(File.ReadAllBytes(pdfPath));
@@ -61,83 +76,12 @@ internal static class PageRenderer
     }
 
     /// <summary>
-    /// Writes a rendered page as a PNG, replacing any file already there.
+    /// Releases the resources and fonts Skia cached while the previous PDF rendered.
     /// </summary>
-    public static void SavePng(SKBitmap bitmap, string path)
+    public static void PurgeSkiaCaches()
     {
-        using SKImage image = SKImage.FromPixelCopy(bitmap.Info, bitmap.GetPixels(), bitmap.RowBytes);
-        using SKData pngData = image.Encode(SKEncodedImageFormat.Png, 100);
-        using FileStream output = File.Create(path);
-        pngData.SaveTo(output);
-    }
-
-    /// <summary>
-    /// Reads a PNG written by an earlier run.
-    /// </summary>
-    public static SKBitmap LoadPng(string path)
-    {
-        using SKImage image = SKImage.FromEncodedData(path);
-
-        if (image == null)
-        {
-            throw new InvalidDataException($"{path} could not be decoded.");
-        }
-
-        return ReadPixels(image);
-    }
-
-    /// <summary>
-    /// Number of pixels that differ between two pages of the same size.
-    /// </summary>
-    public static int CountDifferentPixels(SKBitmap golden, SKBitmap rendered)
-    {
-        ReadOnlySpan<byte> goldenPixels = golden.GetPixelSpan();
-        ReadOnlySpan<byte> renderedPixels = rendered.GetPixelSpan();
-
-        if (goldenPixels.SequenceEqual(renderedPixels))
-        {
-            return 0;
-        }
-
-        int differentPixels = 0;
-
-        for (int offset = 0; offset + BytesPerPixel <= goldenPixels.Length; offset += BytesPerPixel)
-        {
-            if (!goldenPixels.Slice(offset, BytesPerPixel).SequenceEqual(renderedPixels.Slice(offset, BytesPerPixel)))
-            {
-                differentPixels++;
-            }
-        }
-
-        return differentPixels;
-    }
-
-    /// <summary>
-    /// Builds a diff image the same size as <paramref name="golden"/>: white where it matches
-    /// <paramref name="rendered"/>, solid magenta where the two differ.
-    /// </summary>
-    public static SKBitmap CreateDiffImage(SKBitmap golden, SKBitmap rendered)
-    {
-        ReadOnlySpan<byte> goldenPixels = golden.GetPixelSpan();
-        ReadOnlySpan<byte> renderedPixels = rendered.GetPixelSpan();
-
-        var diffPixels = new byte[goldenPixels.Length];
-
-        for (int offset = 0; offset + BytesPerPixel <= goldenPixels.Length; offset += BytesPerPixel)
-        {
-            bool matches = goldenPixels.Slice(offset, BytesPerPixel).SequenceEqual(renderedPixels.Slice(offset, BytesPerPixel));
-
-            diffPixels[offset] = 255;
-            diffPixels[offset + 1] = matches ? (byte)255 : (byte)0;
-            diffPixels[offset + 2] = 255;
-            diffPixels[offset + 3] = 255;
-        }
-
-        SKImageInfo imageInfo = new(golden.Width, golden.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        SKBitmap diff = new(imageInfo);
-        Marshal.Copy(diffPixels, 0, diff.GetPixels(), diffPixels.Length);
-
-        return diff;
+        SKGraphics.PurgeResourceCache();
+        SKGraphics.PurgeFontCache();
     }
 
     private static SKBitmap RenderPage(IPdfDocument document, IPdfPage page, IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
@@ -216,23 +160,6 @@ internal static class PageRenderer
         processor.Process(RestoreStateCommand.Instance);
 
         canvas.Flush();
-
-        return bitmap;
-    }
-
-    // Straight (unpremultiplied) RGBA is the layout a PNG stores, so a page written to disk and read
-    // back gives the exact same bytes, which is what a pixel-perfect comparison needs.
-    private static SKBitmap ReadPixels(SKImage image)
-    {
-        SKImageInfo imageInfo = new(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        SKBitmap bitmap = new(imageInfo);
-
-        if (!image.ReadPixels(imageInfo, bitmap.GetPixels(), imageInfo.RowBytes, 0, 0))
-        {
-            bitmap.Dispose();
-
-            throw new InvalidOperationException("pixels could not be read back.");
-        }
 
         return bitmap;
     }
