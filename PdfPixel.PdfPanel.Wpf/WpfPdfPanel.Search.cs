@@ -12,7 +12,7 @@ public partial class WpfPdfPanel
 {
     private void OnSearchMatchesChanged(object sender, EventArgs e)
     {
-        IReadOnlyList<PdfPanelSearchMatch> matches = _renderer.TextSearchEngine.Matches;
+        IReadOnlyList<PdfPanelSearchMatch> matches = _context.Search.Matches;
         ObservableCollection<PdfPanelSearchMatch> results = SearchResults;
         int resultIndex = 0;
 
@@ -42,6 +42,30 @@ public partial class WpfPdfPanel
         {
             CurrentSearchResult = null;
         }
+    }
+
+    private void SelectNextSearchResult()
+    {
+        if (_context == null)
+        {
+            return;
+        }
+
+        _context.Search.CurrentMatch = CurrentSearchResult;
+        _context.Search.Next();
+        CurrentSearchResult = _context.Search.CurrentMatch;
+    }
+
+    private void SelectPreviousSearchResult()
+    {
+        if (_context == null)
+        {
+            return;
+        }
+
+        _context.Search.CurrentMatch = CurrentSearchResult;
+        _context.Search.Previous();
+        CurrentSearchResult = _context.Search.CurrentMatch;
     }
 
     private void ClearSearchResults()

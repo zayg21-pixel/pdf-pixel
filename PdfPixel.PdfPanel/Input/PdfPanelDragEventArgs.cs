@@ -1,7 +1,7 @@
 namespace PdfPixel.PdfPanel.Input;
 
 /// <summary>
-/// Provides pointer data for the drag events of <see cref="PdfPanelInputProcessor"/>.
+/// Provides pointer data for the drag events of <see cref="PdfPanelInput"/>.
 /// </summary>
 public sealed class PdfPanelDragEventArgs : PdfPanelPointerEventArgs
 {

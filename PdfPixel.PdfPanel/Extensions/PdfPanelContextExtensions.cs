@@ -3,7 +3,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Input;
-using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using System;
 using System.Linq;
@@ -72,47 +71,10 @@ public static class PdfPanelContextExtensions
         PdfPanelPage? page = context.Pages.FirstOrDefault(p => p.PageNumber == pageNumber);
         if (page != null)
         {
-            float pageGap = context.Settings.Layout.PageGap;
+            float pageGap = context.Layout.PageGap;
             context.VerticalOffset = page.Offset.Y - (pageGap * context.Scale);
             context.HorizontalOffset = page.Offset.X - (pageGap * context.Scale);
         }
-    }
-
-    /// <summary>
-    /// Increases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the panel offset around the provided center.
-    /// </summary>
-    /// <param name="context">The panel context whose scale will be modified.</param>
-    /// <param name="centerX">X coordinate in panel space to preserve while zooming.</param>
-    /// <param name="centerY">Y coordinate in panel space to preserve while zooming.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static void ZoomIn(this PdfPanelContext context, float centerX, float centerY)
-    {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        float scale = context.Scale;
-        UpdateScalePreserveOffset(context, scale + (scale * context.Settings.Zoom.ZoomStep), centerX, centerY);
-    }
-
-    /// <summary>
-    /// Decreases the current scale by <see cref="PdfPanelZoomSettings.ZoomStep"/> while preserving the panel offset around the provided center.
-    /// </summary>
-    /// <param name="context">The panel context whose scale will be modified.</param>
-    /// <param name="centerX">X coordinate in panel space to preserve while zooming.</param>
-    /// <param name="centerY">Y coordinate in panel space to preserve while zooming.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static void ZoomOut(this PdfPanelContext context, float centerX, float centerY)
-    {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        float scale = context.Scale;
-        UpdateScalePreserveOffset(context, scale - (scale * context.Settings.Zoom.ZoomStep), centerX, centerY);
-
     }
 
     /// <summary>

@@ -19,6 +19,16 @@ internal enum PdfPanelInterfaceAction
     ZoomOut,
 
     /// <summary>
+    /// Select the next search result.
+    /// </summary>
+    NextSearchResult,
+
+    /// <summary>
+    /// Select the previous search result.
+    /// </summary>
+    PreviousSearchResult,
+
+    /// <summary>
     /// Request panel redraw.
     /// </summary>
     RequestRedraw,
@@ -26,7 +36,7 @@ internal enum PdfPanelInterfaceAction
     /// <summary>
     /// Requests <see cref="WpfPdfPanelInterface.OnAfterDraw"/> without full page rendering.
     /// </summary>
-    RequestRefresh
+    RequestPresent
 }
 
 /// <summary>
@@ -56,6 +66,24 @@ public class WpfPdfPanelInterface
     }
 
     /// <summary>
+    /// Selects the search result after the current one, wrapping to the first,
+    /// or the first result on or after the current page when none is selected.
+    /// </summary>
+    public void NextSearchResult()
+    {
+        OnRequest?.Invoke(PdfPanelInterfaceAction.NextSearchResult);
+    }
+
+    /// <summary>
+    /// Selects the search result before the current one, wrapping to the last,
+    /// or the first result on or after the current page when none is selected.
+    /// </summary>
+    public void PreviousSearchResult()
+    {
+        OnRequest?.Invoke(PdfPanelInterfaceAction.PreviousSearchResult);
+    }
+
+    /// <summary>
     /// Requests a redraw of the PDF panel.
     /// </summary>
     public void RequestRedraw()
@@ -66,9 +94,9 @@ public class WpfPdfPanelInterface
     /// <summary>
     /// Requests <see cref="OnAfterDraw"/> without full page rendering.
     /// </summary>
-    public void RequestRefresh()
+    public void RequestPresent()
     {
-        OnRequest?.Invoke(PdfPanelInterfaceAction.RequestRefresh);
+        OnRequest?.Invoke(PdfPanelInterfaceAction.RequestPresent);
     }
 
     /// <summary>

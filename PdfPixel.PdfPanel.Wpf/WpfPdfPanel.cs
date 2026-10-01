@@ -2,8 +2,8 @@
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
@@ -28,10 +28,8 @@ namespace PdfPixel.PdfPanel.Wpf;
 public partial class WpfPdfPanel : FrameworkElement
 {
     private readonly VisualCollection children;
-    private readonly PdfPanelSettings _settings = new();
 
     private PdfPanelContext _context;
-    private PdfPanelRenderer _renderer;
     private IPdfPanelRenderTargetFactory _renderTargetFactory;
     private ISkSurfaceFactory _surfaceFactory;
     private bool _updatingScale;
@@ -43,13 +41,7 @@ public partial class WpfPdfPanel : FrameworkElement
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
         children = new VisualCollection(this);
         SetValue(SearchResultsPropertyKey, new ObservableCollection<PdfPanelSearchMatch>());
-        Appearance = _settings.Appearance;
-        Zoom = _settings.Zoom;
-        Layout = _settings.Layout;
-        Interaction = _settings.Interaction;
-        Search = _settings.Search;
-        Text = _settings.Text;
-        Rendering = _settings.Rendering;
+        Layout = new PdfPanelVerticalLayout();
         Focusable = true;
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, OnCopyExecuted, OnCopyCanExecute));
         Loaded += OnLoaded;
@@ -103,10 +95,7 @@ public partial class WpfPdfPanel : FrameworkElement
         var source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.RemoveHook(Hook);
 
-        _context?.Dispose();
-
-        DisposeRenderer();
-        _renderer = null;
+        DisposeContext();
         _context = null;
 
         _surfaceFactory?.Dispose();
@@ -145,7 +134,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     protected override void OnRender(DrawingContext drawingContext)
     {
-        var brush = new SolidColorBrush(ToMediaColor(_settings.Appearance.BackgroundColor));
+        var brush = new SolidColorBrush(BackgroundColor);
         brush.Freeze();
 
         var size = new Size(ActualWidth, ActualHeight);
@@ -196,28 +185,32 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        _context?.Dispose();
-
-        DisposeRenderer();
+        DisposeContext();
         ClearSearchResults();
 
-        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _settings, SynchronizationContext.Current);
-        _renderer.TextSearchEngine.MatchesChanged += OnSearchMatchesChanged;
-        _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory, _settings);
-        SetValue(TextLayerPropertyKey, _renderer.TextLayer);
+        _context = new PdfPanelContext(Pages, _surfaceFactory, _renderTargetFactory, SynchronizationContext.Current);
+        _context.AutoScaleMode = AutoScaleMode;
+        _context.Search.MatchesChanged += OnSearchMatchesChanged;
+        _context.Text.TextExtracted += OnTextExtracted;
+        SetValue(TextPropertyKey, _context.Text);
+        SetValue(IsTextExtractedPropertyKey, _context.Text.IsTextExtracted);
     }
 
-    private void DisposeRenderer()
+    private void DisposeContext()
     {
-        if (_renderer == null)
+        if (_context == null)
         {
             return;
         }
 
-        SetValue(TextLayerPropertyKey, null);
-        _renderer.TextSearchEngine.MatchesChanged -= OnSearchMatchesChanged;
-        _renderer.Dispose();
+        SetValue(TextPropertyKey, null);
+        SetValue(IsTextExtractedPropertyKey, false);
+        _context.Search.MatchesChanged -= OnSearchMatchesChanged;
+        _context.Text.TextExtracted -= OnTextExtracted;
+        _context.Dispose();
     }
+
+    private void OnTextExtracted(object sender, EventArgs e) => SetValue(IsTextExtractedPropertyKey, true);
 
     private void SynchronizeContext()
     {
@@ -225,21 +218,34 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context.PanelWidth = (float)PanelSize.Width;
         _context.PanelHeight = (float)PanelSize.Height;
-        _context.AutoScaleMode = AutoScaleMode;
-        _context.SearchQuery = SearchQuery;
-        _context.CurrentSearchMatch = CurrentSearchResult;
+        _context.Layout = Layout;
+        _context.MinScale = (float)MinScale;
+        _context.MaxScale = (float)MaxScale;
+        _context.ZoomStep = (float)ZoomStep;
+        _context.Renderer.BackgroundColor = ToPdfColor(BackgroundColor);
+        _context.Renderer.PageCornerRadius = (float)PageCornerRadius;
+        _context.Renderer.ShowPageLoadingAnimation = ShowPageLoadingAnimation;
+        _context.Text.ExtractText = ExtractText;
+        _context.Text.SelectionColor = ToPdfColor(SelectionColor);
+        _context.Search.Query = SearchQuery;
+        _context.Search.CurrentMatch = CurrentSearchResult;
+        _context.Search.MatchColor = ToPdfColor(SearchMatchColor);
+        _context.Search.CurrentMatchColor = ToPdfColor(SearchCurrentMatchColor);
+        _context.Search.MatchCase = SearchMatchCase;
+        _context.Search.WholeWord = SearchWholeWord;
+        _context.Search.MatchDiacritics = SearchMatchDiacritics;
 
         UpdatePointerState();
 
         _context.Synchronize();
 
-        if (_context.ClickedAnnotation != null)
+        if (_context.Annotations.ClickedAnnotation != null)
         {
-            HandleAnnotationClick(_context.ClickedAnnotation);
+            HandleAnnotationClick(_context.Annotations.ClickedAnnotation);
             _context.Synchronize();
         }
 
-        UpdateAnnotationPopup(_context.ActiveAnnotation);
+        UpdateAnnotationPopup(_context.Annotations.ActiveAnnotation);
         UpdateCursor();
 
         ExtentHeight = _context.ExtentHeight;
@@ -251,6 +257,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _updatingScale = true;
         Scale = _context.Scale;
+        AutoScaleMode = _context.AutoScaleMode;
         _updatingScale = false;
 
         ScrollOwner.InvalidateScrollInfo();
@@ -275,12 +282,20 @@ public partial class WpfPdfPanel : FrameworkElement
                 ZoomOut();
                 break;
 
+            case PdfPanelInterfaceAction.NextSearchResult:
+                SelectNextSearchResult();
+                break;
+
+            case PdfPanelInterfaceAction.PreviousSearchResult:
+                SelectPreviousSearchResult();
+                break;
+
             case PdfPanelInterfaceAction.RequestRedraw:
                 Update();
                 _context?.Render();
                 break;
-            case PdfPanelInterfaceAction.RequestRefresh:
-                _context?.Refresh();
+            case PdfPanelInterfaceAction.RequestPresent:
+                _context?.Present();
                 break;
         }
     }
@@ -290,8 +305,8 @@ public partial class WpfPdfPanel : FrameworkElement
         PdfPoint panelPoint = GetPanelPosition(Mouse.GetPosition(this));
         var state = Mouse.LeftButton == MouseButtonState.Pressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
-        _context.PointerPosition = panelPoint;
-        _context.PointerState = state;
+        _context.Input.PointerPosition = panelPoint;
+        _context.Input.PointerState = state;
     }
 
     private PdfPoint GetPanelPosition(Point hostPosition)
@@ -305,7 +320,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void UpdateCursor()
     {
-        Cursor = _context.Cursor switch
+        Cursor = _context.Input.Cursor switch
         {
             PdfPanelCursor.Hand => Cursors.Hand,
             PdfPanelCursor.IBeam => Cursors.IBeam,
@@ -411,8 +426,6 @@ public partial class WpfPdfPanel : FrameworkElement
 #endif
     }
 
-    private static System.Windows.Media.Color ToMediaColor(in PdfPixel.Color.PdfColor color)
-        => System.Windows.Media.Color.FromArgb(ToByte(color.Alpha), ToByte(color.Red), ToByte(color.Green), ToByte(color.Blue));
-
-    private static byte ToByte(float channel) => (byte)((Math.Max(0f, Math.Min(1f, channel)) * 255f) + 0.5f);
+    private static PdfPixel.Color.PdfColor ToPdfColor(System.Windows.Media.Color color)
+        => new(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
 }

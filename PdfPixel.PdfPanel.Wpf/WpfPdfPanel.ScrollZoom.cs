@@ -123,12 +123,28 @@ public partial class WpfPdfPanel : IScrollInfo
 
     public void ZoomIn()
     {
-        Scale = Scale + (Scale * _settings.Zoom.ZoomStep);
+        if (_context == null)
+        {
+            return;
+        }
+
+        PdfPoint center = GetZoomCenter();
+
+        _context.ZoomIn(center.X, center.Y);
+        InvalidateVisual();
     }
 
     public void ZoomOut()
     {
-        Scale = Scale - (Scale * _settings.Zoom.ZoomStep);
+        if (_context == null)
+        {
+            return;
+        }
+
+        PdfPoint center = GetZoomCenter();
+
+        _context.ZoomOut(center.X, center.Y);
+        InvalidateVisual();
     }
 
     private void OnScaleChanged()
@@ -138,23 +154,20 @@ public partial class WpfPdfPanel : IScrollInfo
             return;
         }
 
-        float centerX;
-        float centerY;
+        PdfPoint center = GetZoomCenter();
 
+        _context.Zoom((float)Scale, center.X, center.Y);
+        InvalidateVisual();
+    }
+
+    private PdfPoint GetZoomCenter()
+    {
         if (IsMouseOver)
         {
-            PdfPoint mousePosition = GetPanelPosition(Mouse.GetPosition(this));
-            centerX = mousePosition.X;
-            centerY = mousePosition.Y;
-        }
-        else
-        {
-            centerX = _context.PanelWidth / 2;
-            centerY = _context.PanelHeight / 2;
+            return GetPanelPosition(Mouse.GetPosition(this));
         }
 
-        _context.UpdateScalePreserveOffset((float)Scale, centerX, centerY);
-        InvalidateVisual();
+        return new PdfPoint(_context.PanelWidth / 2, _context.PanelHeight / 2);
     }
 
     public void MouseWheelLeft()

@@ -10,7 +10,6 @@ using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
@@ -96,7 +95,7 @@ public partial class PdfPanelInterop
             }
 
             resources.YieldInterval = TimeSpan.FromMilliseconds(configuration.GetPropertyAsDouble("yieldInterval"));
-            resources.Settings = ParseSettings(configuration);
+            ReadConfiguration(configuration, resources.Configuration);
 
             ResourcesMap[containerId] = resources;
         }
@@ -107,17 +106,49 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
+    /// Updates the panel values set in the <c>settings</c> object of <paramref name="configuration"/>,
+    /// and applies them to the context of the loaded document.
+    /// </summary>
+    [JSExport]
+    public static void UpdateConfiguration(string containerId, JSObject configuration)
+    {
+        if (!_isInitialized)
+        {
+            return;
+        }
+
+        if (!ResourcesMap.TryGetValue(containerId, out var resources))
+        {
+            return;
+        }
+
+        try
+        {
+            ReadConfiguration(configuration, resources.Configuration);
+
+            if (resources.Context != null)
+            {
+                resources.Configuration.Apply(resources.Context);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating configuration of container '{Id}'", containerId);
+        }
+    }
+
+    /// <summary>
     /// Returns the currently selected text for the given container, or an empty string if nothing is selected.
     /// </summary>
     [JSExport]
     public static string GetSelectedText(string containerId)
     {
-        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Renderer == null)
+        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
         {
             return string.Empty;
         }
 
-        return resources.Renderer.TextLayer.SelectedText;
+        return resources.Context.Text.SelectedText;
     }
 
     [JSExport]
@@ -130,7 +161,7 @@ public partial class PdfPanelInterop
 
         if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
-            DisposeRenderer(resources);
+            DisposeContext(resources);
             resources.Pages?.Dispose();
             resources.Document?.Dispose();
             resources.SkSurfaceFactory.Dispose();
@@ -171,11 +202,11 @@ public partial class PdfPanelInterop
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 
-            DisposeRenderer(resources);
-            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, resources.Pages.ContentProvider, resources.Settings, SynchronizationContext.Current);
-            resources.Renderer.TextSearchEngine.MatchesChanged += resources.OnSearchMatchesChanged;
-            resources.Renderer.TextSearchEngine.Completed += resources.OnSearchCompleted;
-            resources.Context = new PdfPanelContext(resources.Pages, resources.Renderer, resources.RenderTargetFactory, resources.Settings);
+            DisposeContext(resources);
+            resources.Context = new PdfPanelContext(resources.Pages, resources.SkSurfaceFactory, resources.RenderTargetFactory, SynchronizationContext.Current);
+            resources.Configuration.Apply(resources.Context);
+            resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;
+            resources.Context.Text.TextExtracted += resources.OnTextExtracted;
             resources.SearchResultsChanged = true;
             resources.CurrentSearchRange = null;
         }
@@ -213,13 +244,15 @@ public partial class PdfPanelInterop
             resources.Context.PanelWidth = width;
             resources.Context.PanelHeight = height;
 
+            ApplyZoomRequest(resources.Context, state);
+
             int forcePageSet = state.GetPropertyAsInt32("forcePageSet");
             if (forcePageSet > 0)
             {
                 resources.Context.ScrollToPage(forcePageSet);
             }
 
-            resources.Context.SearchQuery = state.GetPropertyAsString("searchQuery");
+            resources.Context.Search.Query = state.GetPropertyAsString("searchQuery");
             ApplyCurrentSearchResult(resources, state);
 
             bool pointerInside = state.GetPropertyAsBoolean("pointerInside");
@@ -227,30 +260,30 @@ public partial class PdfPanelInterop
             {
                 float pointerX = (float)(double)state.GetPropertyAsDouble("pointerX");
                 float pointerY = (float)(double)state.GetPropertyAsDouble("pointerY");
-                resources.Context.PointerPosition = new PdfPoint(pointerX, pointerY);
+                resources.Context.Input.PointerPosition = new PdfPoint(pointerX, pointerY);
             }
             else
             {
-                resources.Context.PointerPosition = null;
+                resources.Context.Input.PointerPosition = null;
             }
 
             bool pointerPressed = state.GetPropertyAsBoolean("pointerPressed");
-            resources.Context.PointerState = pointerPressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
+            resources.Context.Input.PointerState = pointerPressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
             resources.Context.Synchronize();
 
             string openUri = string.Empty;
 
-            if (resources.Context.ClickedAnnotation != null)
+            if (resources.Context.Annotations.ClickedAnnotation != null)
             {
-                HandleAnnotationClick(resources, resources.Context.ClickedAnnotation, out openUri);
+                HandleAnnotationClick(resources, resources.Context.Annotations.ClickedAnnotation, out openUri);
                 resources.Context.Synchronize();
             }
 
-            state.SetProperty("cursorStyle", GetCursorStyle(resources.Context.Cursor));
+            state.SetProperty("cursorStyle", GetCursorStyle(resources.Context.Input.Cursor));
             state.SetProperty("openUri", openUri);
 
-            PdfAnnotationPopup activeAnnotation = resources.Context.ActiveAnnotation;
+            PdfAnnotationPopup activeAnnotation = resources.Context.Annotations.ActiveAnnotation;
 
             if (activeAnnotation != resources.AnnotationPopup)
             {
@@ -258,19 +291,20 @@ public partial class PdfPanelInterop
                 SetAnnotationPopup(state, activeAnnotation);
             }
 
-            PdfPanelTextSearchEngine searchEngine = resources.Renderer.TextSearchEngine;
-            state.SetProperty("searchComplete", searchEngine.IsComplete);
+            PdfPanelSearch search = resources.Context.Search;
+            state.SetProperty("isTextExtracted", resources.Context.Text.IsTextExtracted);
 
             if (resources.SearchResultsChanged)
             {
                 resources.SearchResultsChanged = false;
-                SetSearchResults(state, searchEngine.Matches);
+                SetSearchResults(state, search.Matches);
             }
 
             state.SetProperty("scrollWidth", resources.Context.ExtentWidth);
             state.SetProperty("scrollHeight", resources.Context.ExtentHeight);
             state.SetProperty("verticalOffset", resources.Context.VerticalOffset);
             state.SetProperty("horizontalOffset", resources.Context.HorizontalOffset);
+            state.SetProperty("scale", resources.Context.Scale);
             state.SetProperty("currentPage", resources.Context.GetCurrentPage());
             state.SetProperty("pageCount", resources.Context.Pages.Count);
 
@@ -283,18 +317,48 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Unsubscribes the panel from the search engine of its renderer and disposes the renderer.
+    /// Zooms <paramref name="context"/> by the <c>zoomRequest</c> of the redraw state: to its <c>scale</c> when set,
+    /// otherwise one step in or out by the sign of its <c>step</c>, around its <c>centerX</c> and <c>centerY</c>.
     /// </summary>
-    private static void DisposeRenderer(PdfPanelResources resources)
+    private static void ApplyZoomRequest(PdfPanelContext context, JSObject state)
     {
-        if (resources.Renderer == null)
+        using JSObject zoomRequest = state.GetPropertyAsJSObject("zoomRequest");
+
+        if (zoomRequest == null)
         {
             return;
         }
 
-        resources.Renderer.TextSearchEngine.MatchesChanged -= resources.OnSearchMatchesChanged;
-        resources.Renderer.TextSearchEngine.Completed -= resources.OnSearchCompleted;
-        resources.Renderer.Dispose();
+        float centerX = (float)zoomRequest.GetPropertyAsDouble("centerX");
+        float centerY = (float)zoomRequest.GetPropertyAsDouble("centerY");
+
+        if (zoomRequest.HasProperty("scale"))
+        {
+            context.Zoom((float)zoomRequest.GetPropertyAsDouble("scale"), centerX, centerY);
+        }
+        else if (zoomRequest.GetPropertyAsInt32("step") > 0)
+        {
+            context.ZoomIn(centerX, centerY);
+        }
+        else
+        {
+            context.ZoomOut(centerX, centerY);
+        }
+    }
+
+    /// <summary>
+    /// Unsubscribes the panel from the search of its context and disposes the context.
+    /// </summary>
+    private static void DisposeContext(PdfPanelResources resources)
+    {
+        if (resources.Context == null)
+        {
+            return;
+        }
+
+        resources.Context.Search.MatchesChanged -= resources.OnSearchMatchesChanged;
+        resources.Context.Text.TextExtracted -= resources.OnTextExtracted;
+        resources.Context.Dispose();
     }
 
     /// <summary>
@@ -320,7 +384,7 @@ public partial class PdfPanelInterop
 
         if (range != null)
         {
-            foreach (PdfPanelSearchMatch match in resources.Renderer.TextSearchEngine.Matches)
+            foreach (PdfPanelSearchMatch match in resources.Context.Search.Matches)
             {
                 if (match.Range == range.Value)
                 {
@@ -330,7 +394,7 @@ public partial class PdfPanelInterop
             }
         }
 
-        resources.Context.CurrentSearchMatch = currentMatch;
+        resources.Context.Search.CurrentMatch = currentMatch;
 
         if (range == resources.CurrentSearchRange)
         {
@@ -366,78 +430,47 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Builds <see cref="PdfPanelSettings"/> from the <c>settings</c> object of the JS configuration.
-    /// Groups and properties absent from it keep their defaults.
+    /// Reads the <c>settings</c> object of the JS configuration into <paramref name="panelConfiguration"/>.
+    /// Groups and properties absent from it keep their current values.
     /// </summary>
-    private static PdfPanelSettings ParseSettings(JSObject configuration)
+    private static void ReadConfiguration(JSObject configuration, PdfPanelConfiguration panelConfiguration)
     {
-        PdfPanelSettings settings = new();
-        using JSObject settingsObject =configuration.GetPropertyAsJSObject("settings");
+        using JSObject settingsObject = configuration.GetPropertyAsJSObject("settings");
 
         if (settingsObject == null)
         {
-            return settings;
+            return;
         }
 
-        using (JSObject appearance =settingsObject.GetPropertyAsJSObject("appearance"))
+        panelConfiguration.MinScale = ReadFloat(settingsObject, "minScale", panelConfiguration.MinScale);
+        panelConfiguration.MaxScale = ReadFloat(settingsObject, "maxScale", panelConfiguration.MaxScale);
+        panelConfiguration.ZoomStep = ReadFloat(settingsObject, "zoomStep", panelConfiguration.ZoomStep);
+
+        using (JSObject renderer = settingsObject.GetPropertyAsJSObject("renderer"))
         {
-            if (appearance != null)
+            if (renderer != null)
             {
-                settings.Appearance.BackgroundColor = ReadColor(appearance, "backgroundColor", settings.Appearance.BackgroundColor);
-                settings.Appearance.PageCornerRadius = ReadFloat(appearance, "pageCornerRadius", settings.Appearance.PageCornerRadius);
-                settings.Appearance.ShowPageLoadingAnimation = ReadBoolean(appearance, "showPageLoadingAnimation", settings.Appearance.ShowPageLoadingAnimation);
-                settings.Appearance.SelectionColor = ReadColor(appearance, "selectionColor", settings.Appearance.SelectionColor);
-                settings.Appearance.SearchMatchColor = ReadColor(appearance, "searchMatchColor", settings.Appearance.SearchMatchColor);
-                settings.Appearance.CurrentSearchMatchColor = ReadColor(appearance, "currentSearchMatchColor", settings.Appearance.CurrentSearchMatchColor);
+                panelConfiguration.BackgroundColor = ReadColor(renderer, "backgroundColor", panelConfiguration.BackgroundColor);
+                panelConfiguration.PageCornerRadius = ReadFloat(renderer, "pageCornerRadius", panelConfiguration.PageCornerRadius);
+                panelConfiguration.ShowPageLoadingAnimation = ReadBoolean(renderer, "showPageLoadingAnimation", panelConfiguration.ShowPageLoadingAnimation);
             }
         }
 
-        using (JSObject zoom =settingsObject.GetPropertyAsJSObject("zoom"))
-        {
-            if (zoom != null)
-            {
-                settings.Zoom.MinScale = ReadFloat(zoom, "minScale", settings.Zoom.MinScale);
-                settings.Zoom.MaxScale = ReadFloat(zoom, "maxScale", settings.Zoom.MaxScale);
-                settings.Zoom.ZoomStep = ReadFloat(zoom, "zoomStep", settings.Zoom.ZoomStep);
-            }
-        }
-
-        using (JSObject layout =settingsObject.GetPropertyAsJSObject("layout"))
+        using (JSObject layout = settingsObject.GetPropertyAsJSObject("layout"))
         {
             if (layout != null)
             {
-                settings.Layout.PageGap = ReadFloat(layout, "pageGap", settings.Layout.PageGap);
+                panelConfiguration.PageGap = ReadFloat(layout, "pageGap", panelConfiguration.PageGap);
 
-                using JSObject padding =layout.GetPropertyAsJSObject("padding");
+                using JSObject padding = layout.GetPropertyAsJSObject("padding");
 
                 if (padding != null)
                 {
-                    PdfRectangle currentPadding = settings.Layout.Padding;
-                    settings.Layout.Padding = new PdfRectangle(
-                        ReadFloat(padding, "left", currentPadding.Left),
-                        ReadFloat(padding, "top", currentPadding.Top),
-                        ReadFloat(padding, "right", currentPadding.Right),
-                        ReadFloat(padding, "bottom", currentPadding.Bottom));
+                    panelConfiguration.PaddingLeft = ReadFloat(padding, "left", panelConfiguration.PaddingLeft);
+                    panelConfiguration.PaddingTop = ReadFloat(padding, "top", panelConfiguration.PaddingTop);
+                    panelConfiguration.PaddingRight = ReadFloat(padding, "right", panelConfiguration.PaddingRight);
+                    panelConfiguration.PaddingBottom = ReadFloat(padding, "bottom", panelConfiguration.PaddingBottom);
                 }
-            }
-        }
-
-        using (JSObject interaction =settingsObject.GetPropertyAsJSObject("interaction"))
-        {
-            if (interaction != null)
-            {
-                settings.Interaction.MinimumDragDistance = ReadFloat(interaction, "minimumDragDistance", settings.Interaction.MinimumDragDistance);
-                settings.Interaction.CharacterHitRadius = ReadFloat(interaction, "characterHitRadius", settings.Interaction.CharacterHitRadius);
-            }
-        }
-
-        using (JSObject search =settingsObject.GetPropertyAsJSObject("search"))
-        {
-            if (search != null)
-            {
-                settings.Search.MatchCase = ReadBoolean(search, "matchCase", settings.Search.MatchCase);
-                settings.Search.WholeWord = ReadBoolean(search, "wholeWord", settings.Search.WholeWord);
-                settings.Search.MatchDiacritics = ReadBoolean(search, "matchDiacritics", settings.Search.MatchDiacritics);
             }
         }
 
@@ -445,41 +478,32 @@ public partial class PdfPanelInterop
         {
             if (text != null)
             {
-                settings.Text.ExtractText = ReadBoolean(text, "extractText", settings.Text.ExtractText);
-                settings.Text.LineMergeThreshold = ReadFloat(text, "lineMergeThreshold", settings.Text.LineMergeThreshold);
+                panelConfiguration.ExtractText = ReadBoolean(text, "extractText", panelConfiguration.ExtractText);
+                panelConfiguration.SelectionColor = ReadColor(text, "selectionColor", panelConfiguration.SelectionColor);
             }
         }
 
-        using (JSObject rendering =settingsObject.GetPropertyAsJSObject("rendering"))
+        using (JSObject search = settingsObject.GetPropertyAsJSObject("search"))
         {
-            if (rendering != null)
+            if (search != null)
             {
-                settings.Rendering.Antialias = ReadBoolean(rendering, "antialias", settings.Rendering.Antialias);
-                settings.Rendering.SnapToDevicePixels = ReadBoolean(rendering, "snapToDevicePixels", settings.Rendering.SnapToDevicePixels);
-                settings.Rendering.TileSize = ReadInt32(rendering, "tileSize", settings.Rendering.TileSize);
-                settings.Rendering.AnimationFps = ReadInt32(rendering, "animationFps", settings.Rendering.AnimationFps);
-                settings.Rendering.ScrollContentUpdateDelay = ReadMilliseconds(rendering, "scrollContentUpdateDelay", settings.Rendering.ScrollContentUpdateDelay);
-                settings.Rendering.ZoomContentUpdateDelay = ReadMilliseconds(rendering, "zoomContentUpdateDelay", settings.Rendering.ZoomContentUpdateDelay);
+                panelConfiguration.MatchCase = ReadBoolean(search, "matchCase", panelConfiguration.MatchCase);
+                panelConfiguration.WholeWord = ReadBoolean(search, "wholeWord", panelConfiguration.WholeWord);
+                panelConfiguration.MatchDiacritics = ReadBoolean(search, "matchDiacritics", panelConfiguration.MatchDiacritics);
+                panelConfiguration.MatchColor = ReadColor(search, "matchColor", panelConfiguration.MatchColor);
+                panelConfiguration.CurrentMatchColor = ReadColor(search, "currentMatchColor", panelConfiguration.CurrentMatchColor);
             }
         }
-
-        return settings;
     }
 
-    private static float ReadFloat(JSObject source, string name, float defaultValue)
-        => source.HasProperty(name) ? (float)source.GetPropertyAsDouble(name) : defaultValue;
+    private static float? ReadFloat(JSObject source, string name, float? currentValue)
+        => source.HasProperty(name) ? (float)source.GetPropertyAsDouble(name) : currentValue;
 
-    private static int ReadInt32(JSObject source, string name, int defaultValue)
-        => source.HasProperty(name) ? source.GetPropertyAsInt32(name) : defaultValue;
+    private static bool? ReadBoolean(JSObject source, string name, bool? currentValue)
+        => source.HasProperty(name) ? source.GetPropertyAsBoolean(name) : currentValue;
 
-    private static bool ReadBoolean(JSObject source, string name, bool defaultValue)
-        => source.HasProperty(name) ? source.GetPropertyAsBoolean(name) : defaultValue;
-
-    private static PdfColor ReadColor(JSObject source, string name, PdfColor defaultValue)
-        => source.HasProperty(name) ? PdfColor.ParseHexColor(source.GetPropertyAsString(name)) : defaultValue;
-
-    private static TimeSpan ReadMilliseconds(JSObject source, string name, TimeSpan defaultValue)
-        => source.HasProperty(name) ? TimeSpan.FromMilliseconds(source.GetPropertyAsDouble(name)) : defaultValue;
+    private static PdfColor? ReadColor(JSObject source, string name, PdfColor? currentValue)
+        => source.HasProperty(name) ? PdfColor.ParseHexColor(source.GetPropertyAsString(name)) : currentValue;
 
     private static string GetCursorStyle(PdfPanelCursor cursor)
     {

@@ -205,16 +205,31 @@
             user-select: none;
         }
 
-        /* ── Search box with results drop-down ────────────────────── */
-        .search-box {
-            position: relative;
+        /* ── Search footer ───────────────────────────────────────── */
+        #footer {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 12px;
+            height: 36px;
+            background: #f0f0f0;
+            color: #1a1a1a;
+            border-top: 1px solid #c8c8c8;
+            z-index: 10;
+        }
+
+        .search-option {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
+            margin-left: 4px;
+            font-size: 13px;
+            user-select: none;
         }
 
         #searchInput {
-            width: 180px;
+            width: 240px;
             height: 24px;
             padding: 0 6px;
             background: #ffffff;
@@ -232,42 +247,10 @@
         }
 
         .search-status {
-            min-width: 40px;
+            margin-left: 4px;
             font-size: 12px;
             color: rgba(0, 0, 0, 0.55);
             user-select: none;
-        }
-
-        .search-results {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 180px;
-            max-height: 300px;
-            margin: 2px 0 0 0;
-            padding: 0;
-            overflow-y: auto;
-            list-style: none;
-            background: #ffffff;
-            border: 1px solid #c0c0c0;
-            border-radius: 3px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-            z-index: 20;
-        }
-
-        .search-results.visible {
-            display: block;
-        }
-
-        .search-results li {
-            padding: 4px 8px;
-            font-size: 13px;
-            cursor: default;
-        }
-
-        .search-results li.selected {
-            background: #e3eefc;
         }
 
         /* ── Canvas container ─────────────────────────────────────── */
@@ -356,14 +339,6 @@
             <span class="material-symbols-outlined">zoom_in_map</span>
         </button>
 
-        <div class="header-sep"></div>
-
-        <div class="search-box">
-            <input id="searchInput" type="search" placeholder="Search" aria-label="Search">
-            <span id="searchStatus" class="search-status"></span>
-            <ul id="searchResults" class="search-results"></ul>
-        </div>
-
         <div class="hdr-spacer"></div>
 
         <a id="githubBtn" class="hdr-icon-btn" href="https://github.com/zayg21-pixel/pdf-pixel" target="_blank" rel="noopener" title="View on GitHub">
@@ -384,6 +359,20 @@
         <div id="annotationPopup" class="annotation-popup"></div>
     </div>
 
+    <footer id="footer">
+        <input id="searchInput" type="search" placeholder="Search" aria-label="Search">
+        <button id="previousSearchResult" class="hdr-icon-btn" title="Previous result">
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>
+        </button>
+        <button id="nextSearchResult" class="hdr-icon-btn" title="Next result">
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+        </button>
+        <span id="searchStatus" class="search-status"></span>
+        <label class="search-option"><input type="checkbox" id="searchMatchCase"> Match case</label>
+        <label class="search-option"><input type="checkbox" id="searchWholeWord"> Whole word</label>
+        <label class="search-option"><input type="checkbox" id="searchMatchDiacritics"> Match diacritics</label>
+    </footer>
+
     <script type="module">
         import * as canvasInterop from './canvasInterop.js';
         import { dotnet } from './_framework/dotnet.js';
@@ -398,7 +387,14 @@
         const container = document.getElementById('canvasContainer');
         const containerId = container.id;
 
-        await canvasInterop.registerPanel(containerId, container);
+        await canvasInterop.registerPanel(containerId, container, {
+            settings: {
+                renderer: {
+                    backgroundColor: '#D3D3D3',
+                    showPageLoadingAnimation: false
+                }
+            }
+        });
 
         const loadPdfBtn = document.getElementById('loadPdfBtn');
         const pdfFileInput = document.getElementById('pdfFileInput');
@@ -413,44 +409,55 @@
         const annotationPopupEl = document.getElementById('annotationPopup');
         const searchInput = document.getElementById('searchInput');
         const searchStatus = document.getElementById('searchStatus');
-        const searchResultsList = document.getElementById('searchResults');
+        const previousSearchResultButton = document.getElementById('previousSearchResult');
+        const nextSearchResultButton = document.getElementById('nextSearchResult');
+        const searchMatchCaseInput = document.getElementById('searchMatchCase');
+        const searchWholeWordInput = document.getElementById('searchWholeWord');
+        const searchMatchDiacriticsInput = document.getElementById('searchMatchDiacritics');
 
         let currentState = { currentPage: 0, pageCount: 0, scale: 1.0 };
-        let shownSearchResults = null;
         let searchInputTimer = null;
 
-        function updateSearchResults(state) {
-            if (state.searchResults !== shownSearchResults) {
-                shownSearchResults = state.searchResults;
-                searchResultsList.replaceChildren();
+        function updateSearchStatus(state) {
+            const results = state.searchResults;
+            const current = state.currentSearchResult;
+            const currentIndex = current
+                ? results.findIndex(result => result.pageNumber === current.pageNumber
+                    && result.startIndex === current.startIndex
+                    && result.length === current.length)
+                : -1;
 
-                for (const result of state.searchResults) {
-                    const item = document.createElement('li');
-                    item.textContent = `Page ${result.pageNumber}`;
-                    item.addEventListener('mouseenter', () => {
-                        searchResultsList.querySelector('li.selected')?.classList.remove('selected');
-                        item.classList.add('selected');
-                        canvasInterop.setCurrentSearchResult(containerId, result);
-                    });
-                    searchResultsList.append(item);
-                }
+            if (searchInput.value.length === 0) {
+                searchStatus.textContent = '';
+            } else if (!state.isTextExtracted) {
+                searchStatus.textContent = 'Searching...';
+            } else if (results.length === 0) {
+                searchStatus.textContent = 'Not found';
+            } else if (currentIndex >= 0) {
+                searchStatus.textContent = `${currentIndex + 1} of ${results.length}`;
+            } else {
+                searchStatus.textContent = `${results.length} found`;
             }
-
-            const hasQuery = searchInput.value.length > 0;
-            const count = state.searchResults.length;
-            searchStatus.textContent = hasQuery ? (state.searchComplete ? `${count}` : `${count}…`) : '';
         }
 
         searchInput.addEventListener('input', () => {
             clearTimeout(searchInputTimer);
             searchInputTimer = setTimeout(() => {
+                canvasInterop.updateConfiguration(containerId, { settings: { text: { extractText: searchInput.value.length > 0 } } });
                 canvasInterop.setCurrentSearchResult(containerId, null);
                 canvasInterop.setSearchQuery(containerId, searchInput.value);
             }, 300);
         });
 
-        searchInput.addEventListener('focus', () => searchResultsList.classList.add('visible'));
-        searchInput.addEventListener('blur', () => searchResultsList.classList.remove('visible'));
+        previousSearchResultButton.addEventListener('click', () => canvasInterop.previousSearchResult(containerId));
+        nextSearchResultButton.addEventListener('click', () => canvasInterop.nextSearchResult(containerId));
+
+        searchMatchCaseInput.addEventListener('change', () =>
+            canvasInterop.updateConfiguration(containerId, { settings: { search: { matchCase: searchMatchCaseInput.checked } } }));
+        searchWholeWordInput.addEventListener('change', () =>
+            canvasInterop.updateConfiguration(containerId, { settings: { search: { wholeWord: searchWholeWordInput.checked } } }));
+        searchMatchDiacriticsInput.addEventListener('change', () =>
+            canvasInterop.updateConfiguration(containerId, { settings: { search: { matchDiacritics: searchMatchDiacriticsInput.checked } } }));
 
         function updateAnnotationPopup(state) {
             const popup = state.annotationPopup;
@@ -525,7 +532,7 @@
             zoomLevelLabel.textContent = `${Math.round(state.scale * 100)}%`;
 
             updateAnnotationPopup(state);
-            updateSearchResults(state);
+            updateSearchStatus(state);
         });
 
         canvasInterop.setOnFramePresented(containerId, ({ canvas, frame }) => {

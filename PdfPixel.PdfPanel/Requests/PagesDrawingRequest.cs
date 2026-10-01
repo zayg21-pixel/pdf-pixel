@@ -1,4 +1,4 @@
-using PdfPixel.PdfPanel.Settings;
+using PdfPixel.Color;
 using System;
 
 namespace PdfPixel.PdfPanel.Requests;
@@ -9,19 +9,29 @@ namespace PdfPixel.PdfPanel.Requests;
 internal sealed class PagesDrawingRequest : DrawingRequest
 {
     /// <summary>
-    /// Rendering quality the page content is decoded with.
+    /// If true - antialiasing is enabled for page content.
     /// </summary>
-    public PdfPanelRenderingSettings Rendering { get; set; } = new();
+    public bool Antialias { get; set; }
 
     /// <summary>
-    /// Appearance the pages are drawn with.
+    /// If true - rects and image tiles are snapped to whole device pixels.
     /// </summary>
-    public PdfPanelAppearanceSettings Appearance { get; set; } = new();
+    public bool SnapToDevicePixels { get; set; }
 
     /// <summary>
-    /// Text options the text highlights are drawn with.
+    /// Background color drawn behind the pages.
     /// </summary>
-    public PdfPanelTextSettings Text { get; set; } = new();
+    public PdfColor BackgroundColor { get; set; }
+
+    /// <summary>
+    /// Corner radius for page rendering in unscaled page space.
+    /// </summary>
+    public float PageCornerRadius { get; set; }
+
+    /// <summary>
+    /// Draws an animated placeholder over pages that have no decoded content yet.
+    /// </summary>
+    public bool ShowPageLoadingAnimation { get; set; }
 
     /// <inheritdoc />
     public override bool Equals(object? obj)
@@ -29,9 +39,11 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         if (obj is PagesDrawingRequest other)
         {
             return base.Equals(obj)
-                && Rendering.Equals(other.Rendering)
-                && Appearance.Equals(other.Appearance)
-                && Text.Equals(other.Text);
+                && Antialias == other.Antialias
+                && SnapToDevicePixels == other.SnapToDevicePixels
+                && BackgroundColor.Equals(other.BackgroundColor)
+                && PageCornerRadius == other.PageCornerRadius
+                && ShowPageLoadingAnimation == other.ShowPageLoadingAnimation;
         }
 
         return false;
@@ -49,9 +61,11 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         hash.Add(RenderTarget);
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);
-        hash.Add(Rendering);
-        hash.Add(Appearance);
-        hash.Add(Text);
+        hash.Add(Antialias);
+        hash.Add(SnapToDevicePixels);
+        hash.Add(BackgroundColor);
+        hash.Add(PageCornerRadius);
+        hash.Add(ShowPageLoadingAnimation);
         return hash.ToHashCode();
     }
 }

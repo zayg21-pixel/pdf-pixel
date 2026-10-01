@@ -1,4 +1,4 @@
-using PdfPixel.PdfPanel.Settings;
+using PdfPixel.Geometry;
 using System;
 
 namespace PdfPixel.PdfPanel.Input;
@@ -6,17 +6,17 @@ namespace PdfPixel.PdfPanel.Input;
 /// <summary>
 /// Turns pointer and key input into pointer, click and drag events.
 /// </summary>
-public sealed class PdfPanelInputProcessor
+public sealed class PdfPanelInput
 {
-    private readonly PdfPanelSettings _settings;
     private PdfPanelPointerPosition? _pressPosition;
     private PdfPanelPointerPosition? _lastPosition;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfPanelInputProcessor"/> with the given settings.
+    /// Initializes a new <see cref="PdfPanelInput"/>.
     /// </summary>
-    public PdfPanelInputProcessor(PdfPanelSettings settings)
-        => _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+    internal PdfPanelInput()
+    {
+    }
 
     /// <summary>
     /// Occurs when the pointer button is pressed.
@@ -35,12 +35,12 @@ public sealed class PdfPanelInputProcessor
 
     /// <summary>
     /// Occurs when the pointer is released without having travelled
-    /// <see cref="PdfPanelInteractionSettings.MinimumDragDistance"/> from the press position.
+    /// <see cref="MinimumDragDistance"/> from the press position.
     /// </summary>
     public event EventHandler<PdfPanelPointerEventArgs>? PointerClicked;
 
     /// <summary>
-    /// Occurs when the pointer travels <see cref="PdfPanelInteractionSettings.MinimumDragDistance"/> while pressed.
+    /// Occurs when the pointer travels <see cref="MinimumDragDistance"/> while pressed.
     /// </summary>
     public event EventHandler<PdfPanelDragEventArgs>? DragStarted;
 
@@ -65,6 +65,21 @@ public sealed class PdfPanelInputProcessor
     public event EventHandler<PdfPanelKeyEventArgs>? KeyPressed;
 
     /// <summary>
+    /// Current pointer position in panel coordinates, or null if pointer is not over the panel.
+    /// </summary>
+    public PdfPoint? PointerPosition { get; set; }
+
+    /// <summary>
+    /// Current pointer button state.
+    /// </summary>
+    public PdfPanelButtonState PointerState { get; set; }
+
+    /// <summary>
+    /// Distance the pointer travels from the press position before a press becomes a drag, in panel pixels.
+    /// </summary>
+    public float MinimumDragDistance { get; set; } = 4f;
+
+    /// <summary>
     /// Cursor shape the last pointer event resolved to.
     /// </summary>
     public PdfPanelCursor Cursor { get; private set; }
@@ -77,18 +92,51 @@ public sealed class PdfPanelInputProcessor
     /// <summary>
     /// Pointer button state of the last report.
     /// </summary>
-    public PdfPanelButtonState ButtonState { get; private set; }
+    internal PdfPanelButtonState ButtonState { get; private set; }
 
     /// <summary>
-    /// Position of the last report, or <see langword="null"/> when the pointer is outside the panel.
+    /// Reports a key press with the modifiers held at the time.
     /// </summary>
-    public PdfPanelPointerPosition? PointerPosition => _lastPosition;
+    public void PressKey(PdfPanelKey key, PdfPanelKeyModifiers modifiers)
+    {
+        PdfPanelKeyEventArgs args = new(key, modifiers);
+        KeyPressed?.Invoke(this, args);
+    }
 
     /// <summary>
-    /// Reports the pointer position and button state, raising the events
-    /// for the transition from the previous report.
+    /// Reports <paramref name="position"/> with <see cref="PointerState"/>, raising the events
+    /// for the transition from the previous report. A <see langword="null"/> position reports the pointer leaving the panel.
     /// </summary>
-    public void Update(in PdfPanelPointerPosition position, PdfPanelButtonState buttonState)
+    internal void Synchronize(PdfPanelPointerPosition? position)
+    {
+        if (position == null)
+        {
+            Leave();
+            return;
+        }
+
+        Update(position.Value, PointerState);
+    }
+
+    /// <summary>
+    /// Reports the pointer leaving the panel, cancelling a press or drag in progress.
+    /// </summary>
+    internal void Leave()
+    {
+        if (_lastPosition == null)
+        {
+            return;
+        }
+
+        Cancel();
+
+        _lastPosition = null;
+        Cursor = PdfPanelCursor.Arrow;
+
+        PointerExited?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void Update(in PdfPanelPointerPosition position, PdfPanelButtonState buttonState)
     {
         PdfPanelButtonState previousState = ButtonState;
         ButtonState = buttonState;
@@ -111,10 +159,7 @@ public sealed class PdfPanelInputProcessor
         }
     }
 
-    /// <summary>
-    /// Ends a press or drag in progress without raising <see cref="PointerReleased"/> or <see cref="PointerClicked"/>.
-    /// </summary>
-    public void Cancel()
+    private void Cancel()
     {
         PdfPanelPointerPosition? pressPosition = _pressPosition;
         bool wasDragging = IsDragging;
@@ -130,33 +175,6 @@ public sealed class PdfPanelInputProcessor
 
         PdfPanelDragEventArgs dragArgs = new(pressPosition.Value, _lastPosition.Value);
         DragEnded?.Invoke(this, dragArgs);
-    }
-
-    /// <summary>
-    /// Reports the pointer leaving the panel, cancelling a press or drag in progress.
-    /// </summary>
-    public void Leave()
-    {
-        if (_lastPosition == null)
-        {
-            return;
-        }
-
-        Cancel();
-
-        _lastPosition = null;
-        Cursor = PdfPanelCursor.Arrow;
-
-        PointerExited?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>
-    /// Reports a key press with the modifiers held at the time.
-    /// </summary>
-    public void PressKey(PdfPanelKey key, PdfPanelKeyModifiers modifiers)
-    {
-        PdfPanelKeyEventArgs args = new(key, modifiers);
-        KeyPressed?.Invoke(this, args);
     }
 
     private void Press(in PdfPanelPointerPosition position)
@@ -235,6 +253,6 @@ public sealed class PdfPanelInputProcessor
         float deltaY = position.PanelPosition.Y - pressPosition.PanelPosition.Y;
 
         return (deltaX * deltaX) + (deltaY * deltaY)
-            >= _settings.Interaction.MinimumDragDistance * _settings.Interaction.MinimumDragDistance;
+            >= MinimumDragDistance * MinimumDragDistance;
     }
 }

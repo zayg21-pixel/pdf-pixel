@@ -48,6 +48,9 @@ public class MainWindowsViewModel : ObservableObject
     private bool _hasFiles;
     private string _searchQuery;
     private PdfPanelSearchMatch? _currentSearchResult;
+    private bool _searchMatchCase;
+    private bool _searchWholeWord;
+    private bool _searchMatchDiacritics;
 
     public MainWindowsViewModel()
     {
@@ -63,6 +66,8 @@ public class MainWindowsViewModel : ObservableObject
         RotateAllPagesCommand = new RelayCommand(RotateAllPages);
         ZoomInCommand = new RelayCommand(() => PanelInterface.ZoomIn());
         ZoomOutCommand = new RelayCommand(() => PanelInterface.ZoomOut());
+        NextSearchResultCommand = new RelayCommand(() => PanelInterface.NextSearchResult());
+        PreviousSearchResultCommand = new RelayCommand(() => PanelInterface.PreviousSearchResult());
 
         LoadPdfFiles();
         ToggleAutoScaleCommand = new RelayCommand(ToggleAutoScale);
@@ -95,6 +100,10 @@ public class MainWindowsViewModel : ObservableObject
     public ICommand ZoomInCommand { get; }
 
     public ICommand ZoomOutCommand { get; }
+
+    public ICommand NextSearchResultCommand { get; }
+
+    public ICommand PreviousSearchResultCommand { get; }
 
     public ICommand ToggleAutoScaleCommand { get; }
 
@@ -131,13 +140,39 @@ public class MainWindowsViewModel : ObservableObject
     public string SearchQuery
     {
         get => _searchQuery;
-        set => SetProperty(ref _searchQuery, value);
+        set
+        {
+            if (SetProperty(ref _searchQuery, value))
+            {
+                OnPropertyChanged(nameof(ExtractText));
+            }
+        }
     }
+
+    public bool ExtractText => !string.IsNullOrEmpty(SearchQuery);
 
     public PdfPanelSearchMatch? CurrentSearchResult
     {
         get => _currentSearchResult;
         set => SetProperty(ref _currentSearchResult, value);
+    }
+
+    public bool SearchMatchCase
+    {
+        get => _searchMatchCase;
+        set => SetProperty(ref _searchMatchCase, value);
+    }
+
+    public bool SearchWholeWord
+    {
+        get => _searchWholeWord;
+        set => SetProperty(ref _searchWholeWord, value);
+    }
+
+    public bool SearchMatchDiacritics
+    {
+        get => _searchMatchDiacritics;
+        set => SetProperty(ref _searchMatchDiacritics, value);
     }
 
     private void OnAfterDraw(SKCanvas canvas, PdfPanelFrame frame)

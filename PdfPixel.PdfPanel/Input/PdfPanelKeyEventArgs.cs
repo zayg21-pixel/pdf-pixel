@@ -3,7 +3,7 @@ using System;
 namespace PdfPixel.PdfPanel.Input;
 
 /// <summary>
-/// Provides key data for <see cref="PdfPanelInputProcessor.KeyPressed"/>.
+/// Provides key data for <see cref="PdfPanelInput.KeyPressed"/>.
 /// </summary>
 public sealed class PdfPanelKeyEventArgs : EventArgs
 {

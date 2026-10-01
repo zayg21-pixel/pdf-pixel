@@ -32,13 +32,13 @@ public partial class WpfPdfPanel
 
     private void OnCopyCanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = _renderer?.TextLayer.SelectedText.Length > 0;
+        e.CanExecute = _context?.Text.SelectedText.Length > 0;
         e.Handled = true;
     }
 
     private void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e)
     {
-        string text = _renderer?.TextLayer.SelectedText ?? string.Empty;
+        string text = _context?.Text.SelectedText ?? string.Empty;
 
         if (text.Length > 0)
         {

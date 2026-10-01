@@ -62,8 +62,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         _request = request ?? throw new ArgumentNullException(nameof(request));
         _executionParameters = new PdfCommandExecutionParameters
         {
-            Antialias = request.Rendering.Antialias,
-            SnapToDevicePixels = request.Rendering.SnapToDevicePixels
+            Antialias = request.Antialias,
+            SnapToDevicePixels = request.SnapToDevicePixels
         };
         _onPageUpdated = onPageUpdated;
         _onPageTextExtracted = onPageTextExtracted ?? throw new ArgumentNullException(nameof(onPageTextExtracted));

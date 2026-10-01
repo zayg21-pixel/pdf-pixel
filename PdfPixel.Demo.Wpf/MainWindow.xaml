@@ -6,8 +6,6 @@
         xmlns:local="clr-namespace:PdfPixel.Demo.Wpf"
         xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel;assembly=PdfPixel.PdfPanel"
         xmlns:pdfPanelAnnotations="clr-namespace:PdfPixel.PdfPanel.Annotations;assembly=PdfPixel.PdfPanel"
-        xmlns:pdfPanelSettings="clr-namespace:PdfPixel.PdfPanel.Settings;assembly=PdfPixel.PdfPanel"
-        xmlns:pdfPanelText="clr-namespace:PdfPixel.PdfPanel.Text;assembly=PdfPixel.PdfPanel"
         xmlns:wpfPdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
         mc:Ignorable="d"
         Icon="logo.ico"
@@ -15,6 +13,7 @@
         Title="PDF Pixel" Width="800" Height="600">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <local:SearchStatusConverter x:Key="SearchStatusConverter" />
         <Style x:Key="PageTextBoxStyle" TargetType="{x:Type local:PageTextBox}">
             <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}" />
             <Setter Property="BorderThickness" Value="1" />
@@ -59,6 +58,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="100" />
         </Grid.RowDefinitions>
@@ -140,33 +140,6 @@
                     </TextBlock>
                 </Button>
             </ToolBar>
-
-            <Grid Grid.Column="2" Margin="8 0" VerticalAlignment="Center">
-                <TextBox x:Name="SearchBox"
-                         Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Delay=300}"
-                         ToolTip="Search"
-                         VerticalContentAlignment="Center" />
-                <Popup x:Name="SearchPopup"
-                       PlacementTarget="{Binding ElementName=SearchBox}"
-                       Placement="Bottom"
-                       Width="{Binding ActualWidth, ElementName=SearchBox}"
-                       IsOpen="{Binding IsKeyboardFocusWithin, ElementName=SearchBox, Mode=OneWay}">
-                    <ListBox ItemsSource="{Binding SearchResults, ElementName=pdfPanel}"
-                             SelectedItem="{Binding CurrentSearchResult}"
-                             MaxHeight="300">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                                <EventSetter Event="MouseEnter" Handler="SearchResultItem_MouseEnter" />
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate DataType="{x:Type pdfPanelText:PdfPanelSearchMatch}">
-                                <TextBlock Text="{Binding Range.PageNumber, StringFormat=Page {0}}" />
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Popup>
-            </Grid>
         </Grid>
 
         <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
@@ -176,10 +149,12 @@
                                      AutoScaleMode="{Binding AutoScaleMode}"
                                      SearchQuery="{Binding SearchQuery}"
                                      CurrentSearchResult="{Binding CurrentSearchResult}"
-                                     PanelInterface="{Binding PanelInterface}">
-                <wpfPdfPanel:WpfPdfPanel.Appearance>
-                    <pdfPanelSettings:PdfPanelAppearanceSettings PageCornerRadius="4" />
-                </wpfPdfPanel:WpfPdfPanel.Appearance>
+                                     ExtractText="{Binding ExtractText}"
+                                     SearchMatchCase="{Binding SearchMatchCase}"
+                                     SearchWholeWord="{Binding SearchWholeWord}"
+                                     SearchMatchDiacritics="{Binding SearchMatchDiacritics}"
+                                     PanelInterface="{Binding PanelInterface}"
+                                     PageCornerRadius="4">
                 <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip>
                         <ToolTip.Resources>
@@ -201,8 +176,49 @@
                 </wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
             </wpfPdfPanel:WpfPdfPanel>
         </ScrollViewer>
-        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"  />
-        <DataGrid x:Name="LogDataGrid" Grid.Row="3" ItemsSource="{Binding LogMessages}" AutoGenerateColumns="False" IsReadOnly="True" Margin="4">
+
+        <Grid Grid.Row="2" Margin="8 4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal">
+                <TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Delay=300}"
+                         ToolTip="Search"
+                         Width="240"
+                         VerticalContentAlignment="Center" />
+
+                <Button Command="{Binding PreviousSearchResultCommand}" ToolTip="Previous Result" Cursor="Hand" Margin="4 0 0 0">
+                    <TextBlock Text="&#xE70E;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="12" VerticalAlignment="Center" />
+                </Button>
+
+                <Button Command="{Binding NextSearchResultCommand}" ToolTip="Next Result" Cursor="Hand" Margin="4 0 0 0">
+                    <TextBlock Text="&#xE70D;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="12" VerticalAlignment="Center" />
+                </Button>
+
+                <TextBlock VerticalAlignment="Center" Margin="4 0 0 0">
+                    <TextBlock.Text>
+                        <MultiBinding Converter="{StaticResource SearchStatusConverter}">
+                            <Binding Path="SearchResults" ElementName="pdfPanel" />
+                            <Binding Path="CurrentSearchResult" />
+                            <Binding Path="SearchResults.Count" ElementName="pdfPanel" />
+                            <Binding Path="IsTextExtracted" ElementName="pdfPanel" />
+                            <Binding Path="SearchQuery" />
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <CheckBox Content="Match case" IsChecked="{Binding SearchMatchCase}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                <CheckBox Content="Whole word" IsChecked="{Binding SearchWholeWord}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                <CheckBox Content="Match diacritics" IsChecked="{Binding SearchMatchDiacritics}" VerticalAlignment="Center" Margin="4 0 0 0" />
+            </StackPanel>
+        </Grid>
+
+        <GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"  />
+        <DataGrid x:Name="LogDataGrid" Grid.Row="4" ItemsSource="{Binding LogMessages}" AutoGenerateColumns="False" IsReadOnly="True" Margin="4">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Time" Binding="{Binding DateTime, StringFormat=G}" Width="120" />
                 <DataGridTextColumn Header="Level" Binding="{Binding LogLevel}" Width="80" />

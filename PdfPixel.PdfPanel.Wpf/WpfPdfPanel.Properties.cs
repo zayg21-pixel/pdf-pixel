@@ -1,7 +1,6 @@
 ﻿using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
-using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using System.Collections.ObjectModel;
 using System.Windows;
@@ -20,32 +19,50 @@ public partial class WpfPdfPanel
     public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(nameof(Scale), typeof(double), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(1d, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, ScaleProperty_Changed));
 
-    public static readonly DependencyProperty AppearanceProperty = DependencyProperty.Register(nameof(Appearance), typeof(PdfPanelAppearanceSettings), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
-
-    public static readonly DependencyProperty ZoomProperty = DependencyProperty.Register(nameof(Zoom), typeof(PdfPanelZoomSettings), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
-
     public static readonly DependencyProperty LayoutProperty = DependencyProperty.Register(nameof(Layout), typeof(IPdfPanelLayout), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty InteractionProperty = DependencyProperty.Register(nameof(Interaction), typeof(PdfPanelInteractionSettings), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
+    public static readonly DependencyProperty MinScaleProperty = DependencyProperty.Register(nameof(MinScale), typeof(double), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty SearchProperty = DependencyProperty.Register(nameof(Search), typeof(PdfPanelSearchSettings), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
+    public static readonly DependencyProperty MaxScaleProperty = DependencyProperty.Register(nameof(MaxScale), typeof(double), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(10d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty TextProperty = DependencyProperty.Register(nameof(Text), typeof(PdfPanelTextSettings), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
+    public static readonly DependencyProperty ZoomStepProperty = DependencyProperty.Register(nameof(ZoomStep), typeof(double), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.None));
 
-    public static readonly DependencyProperty RenderingProperty = DependencyProperty.Register(nameof(Rendering), typeof(PdfPanelRenderingSettings), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, SettingsGroupProperty_Changed));
+    public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromRgb(211, 211, 211), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty PageCornerRadiusProperty = DependencyProperty.Register(nameof(PageCornerRadius), typeof(double), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty ShowPageLoadingAnimationProperty = DependencyProperty.Register(nameof(ShowPageLoadingAnimation), typeof(bool), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SelectionColorProperty = DependencyProperty.Register(nameof(SelectionColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(80, 50, 100, 220), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SearchMatchColorProperty = DependencyProperty.Register(nameof(SearchMatchColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(100, 255, 200, 0), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SearchCurrentMatchColorProperty = DependencyProperty.Register(nameof(SearchCurrentMatchColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(140, 255, 120, 0), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SearchMatchCaseProperty = DependencyProperty.Register(nameof(SearchMatchCase), typeof(bool), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SearchWholeWordProperty = DependencyProperty.Register(nameof(SearchWholeWord), typeof(bool), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SearchMatchDiacriticsProperty = DependencyProperty.Register(nameof(SearchMatchDiacritics), typeof(bool), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty CurrentPageProperty = DependencyProperty.Register(nameof(CurrentPage), typeof(int), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentPageProperty_Changed));
 
     public static readonly DependencyProperty AutoScaleModeProperty = DependencyProperty.Register(nameof(AutoScaleMode), typeof(PdfPanelAutoScaleMode), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(PdfPanelAutoScaleMode.NoAutoScale, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+        new FrameworkPropertyMetadata(PdfPanelAutoScaleMode.NoAutoScale, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, AutoScaleModeProperty_Changed));
 
     public static readonly DependencyProperty AnnotationPopupProperty = DependencyProperty.Register(nameof(AnnotationPopup), typeof(PdfAnnotationPopup), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -64,10 +81,18 @@ public partial class WpfPdfPanel
     public static readonly DependencyProperty CurrentSearchResultProperty = DependencyProperty.Register(nameof(CurrentSearchResult), typeof(PdfPanelSearchMatch?), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentSearchResultProperty_Changed));
 
-    public static readonly DependencyPropertyKey TextLayerPropertyKey = DependencyProperty.RegisterReadOnly(
-        nameof(TextLayer), typeof(PdfPanelTextLayer), typeof(WpfPdfPanel),
+    public static readonly DependencyProperty ExtractTextProperty = DependencyProperty.Register(nameof(ExtractText), typeof(bool), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyPropertyKey IsTextExtractedPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(IsTextExtracted), typeof(bool), typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.None));
+    public static readonly DependencyProperty IsTextExtractedProperty = IsTextExtractedPropertyKey.DependencyProperty;
+
+    public static readonly DependencyPropertyKey TextPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(Text), typeof(PdfPanelText), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
-    public static readonly DependencyProperty TextLayerProperty = TextLayerPropertyKey.DependencyProperty;
+    public static readonly DependencyProperty TextProperty = TextPropertyKey.DependencyProperty;
 
     public static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(PageLabel), typeof(string), typeof(WpfPdfPanel),
@@ -116,24 +141,6 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets or sets the colors and decorations of the panel.
-    /// </summary>
-    public PdfPanelAppearanceSettings Appearance
-    {
-        get => (PdfPanelAppearanceSettings)GetValue(AppearanceProperty);
-        set => SetValue(AppearanceProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the scale limits and zoom step.
-    /// </summary>
-    public PdfPanelZoomSettings Zoom
-    {
-        get => (PdfPanelZoomSettings)GetValue(ZoomProperty);
-        set => SetValue(ZoomProperty, value);
-    }
-
-    /// <summary>
     /// Gets or sets the layout that positions the pages within the viewport.
     /// </summary>
     public IPdfPanelLayout Layout
@@ -143,39 +150,111 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets or sets the pointer interaction thresholds.
+    /// Gets or sets the minimum allowed zoom scale factor.
     /// </summary>
-    public PdfPanelInteractionSettings Interaction
+    public double MinScale
     {
-        get => (PdfPanelInteractionSettings)GetValue(InteractionProperty);
-        set => SetValue(InteractionProperty, value);
+        get => (double)GetValue(MinScaleProperty);
+        set => SetValue(MinScaleProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the options that control how <see cref="SearchQuery"/> is matched.
+    /// Gets or sets the maximum allowed zoom scale factor.
     /// </summary>
-    public PdfPanelSearchSettings Search
+    public double MaxScale
     {
-        get => (PdfPanelSearchSettings)GetValue(SearchProperty);
-        set => SetValue(SearchProperty, value);
+        get => (double)GetValue(MaxScaleProperty);
+        set => SetValue(MaxScaleProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the text extraction and text highlight options.
+    /// Gets or sets the proportional scale change of a single zoom step (e.g. 0.1 for 10%).
     /// </summary>
-    public PdfPanelTextSettings Text
+    public double ZoomStep
     {
-        get => (PdfPanelTextSettings)GetValue(TextProperty);
-        set => SetValue(TextProperty, value);
+        get => (double)GetValue(ZoomStepProperty);
+        set => SetValue(ZoomStepProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the rendering quality and timing.
+    /// Gets or sets the background color drawn behind the pages.
     /// </summary>
-    public PdfPanelRenderingSettings Rendering
+    public System.Windows.Media.Color BackgroundColor
     {
-        get => (PdfPanelRenderingSettings)GetValue(RenderingProperty);
-        set => SetValue(RenderingProperty, value);
+        get => (System.Windows.Media.Color)GetValue(BackgroundColorProperty);
+        set => SetValue(BackgroundColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the corner radius for page rendering in unscaled page space.
+    /// </summary>
+    public double PageCornerRadius
+    {
+        get => (double)GetValue(PageCornerRadiusProperty);
+        set => SetValue(PageCornerRadiusProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether an animated placeholder is drawn over pages that have no decoded content yet.
+    /// </summary>
+    public bool ShowPageLoadingAnimation
+    {
+        get => (bool)GetValue(ShowPageLoadingAnimationProperty);
+        set => SetValue(ShowPageLoadingAnimationProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the color the selected text is highlighted with.
+    /// </summary>
+    public System.Windows.Media.Color SelectionColor
+    {
+        get => (System.Windows.Media.Color)GetValue(SelectionColorProperty);
+        set => SetValue(SelectionColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the color the search matches are highlighted with.
+    /// </summary>
+    public System.Windows.Media.Color SearchMatchColor
+    {
+        get => (System.Windows.Media.Color)GetValue(SearchMatchColorProperty);
+        set => SetValue(SearchMatchColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the color the current search match is highlighted with.
+    /// </summary>
+    public System.Windows.Media.Color SearchCurrentMatchColor
+    {
+        get => (System.Windows.Media.Color)GetValue(SearchCurrentMatchColorProperty);
+        set => SetValue(SearchCurrentMatchColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether letter case must match.
+    /// </summary>
+    public bool SearchMatchCase
+    {
+        get => (bool)GetValue(SearchMatchCaseProperty);
+        set => SetValue(SearchMatchCaseProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether a match must start and end on word boundaries.
+    /// </summary>
+    public bool SearchWholeWord
+    {
+        get => (bool)GetValue(SearchWholeWordProperty);
+        set => SetValue(SearchWholeWordProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether diacritics must match.
+    /// </summary>
+    public bool SearchMatchDiacritics
+    {
+        get => (bool)GetValue(SearchMatchDiacriticsProperty);
+        set => SetValue(SearchMatchDiacriticsProperty, value);
     }
 
     /// <summary>
@@ -228,11 +307,28 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets the text layer of the current document, or <see langword="null"/> when no document is shown.
+    /// Gets or sets whether the words of every page are extracted, not only of the pages that are rendered.
     /// </summary>
-    public PdfPanelTextLayer TextLayer
+    public bool ExtractText
     {
-        get => (PdfPanelTextLayer)GetValue(TextLayerProperty);
+        get => (bool)GetValue(ExtractTextProperty);
+        set => SetValue(ExtractTextProperty, value);
+    }
+
+    /// <summary>
+    /// Gets whether the words of every page of the current document have been extracted.
+    /// </summary>
+    public bool IsTextExtracted
+    {
+        get => (bool)GetValue(IsTextExtractedProperty);
+    }
+
+    /// <summary>
+    /// Gets the text of the current document, or <see langword="null"/> when no document is shown.
+    /// </summary>
+    public PdfPanelText Text
+    {
+        get => (PdfPanelText)GetValue(TextProperty);
     }
 
     /// <summary>
@@ -275,57 +371,20 @@ public partial class WpfPdfPanel
     private static void ScaleProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var source = (WpfPdfPanel)d;
-        PdfPanelZoomSettings zoom = source._settings.Zoom;
-
-        if (source.Scale < zoom.MinScale)
-        {
-            source.Scale = zoom.MinScale;
-        }
-
-        if (source.Scale > zoom.MaxScale)
-        {
-            source.Scale = zoom.MaxScale;
-        }
 
         if (!source._updatingScale)
         {
-            source.AutoScaleMode = PdfPanelAutoScaleMode.NoAutoScale;
             source.OnScaleChanged();
         }
     }
 
-    private static void SettingsGroupProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    private static void AutoScaleModeProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var source = (WpfPdfPanel)d;
-        PdfPanelSettings settings = source._settings;
 
-        if (e.Property == AppearanceProperty)
+        if (!source._updatingScale && source._context != null)
         {
-            settings.Appearance = (PdfPanelAppearanceSettings)e.NewValue;
-        }
-        else if (e.Property == ZoomProperty)
-        {
-            settings.Zoom = (PdfPanelZoomSettings)e.NewValue;
-        }
-        else if (e.Property == LayoutProperty)
-        {
-            settings.Layout = (IPdfPanelLayout)e.NewValue;
-        }
-        else if (e.Property == InteractionProperty)
-        {
-            settings.Interaction = (PdfPanelInteractionSettings)e.NewValue;
-        }
-        else if (e.Property == SearchProperty)
-        {
-            settings.Search = (PdfPanelSearchSettings)e.NewValue;
-        }
-        else if (e.Property == TextProperty)
-        {
-            settings.Text = (PdfPanelTextSettings)e.NewValue;
-        }
-        else if (e.Property == RenderingProperty)
-        {
-            settings.Rendering = (PdfPanelRenderingSettings)e.NewValue;
+            source._context.AutoScaleMode = source.AutoScaleMode;
         }
     }
 

@@ -1,14 +1,11 @@
-﻿using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Requests;
-using PdfPixel.PdfPanel.Settings;
-using PdfPixel.PdfPanel.Text;
 using PdfPixel.Skia;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
@@ -20,15 +17,16 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// decoding via <see cref="PdfPageContentProvider"/>. When decoding completes, individual pages are
 /// re-rendered on the UI thread without redrawing the whole panel.
 /// </summary>
-public sealed class PdfPanelRenderer : IDisposable
+public sealed partial class PdfPanelRenderer : IDisposable
 {
     private readonly ISkSurfaceFactory _surfaceFactory;
+    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelGraphics _graphics;
     private readonly SynchronizationContext? _synchronizationContext;
     private readonly Timer _contentUpdateTimer;
     private PdfPageContentTiler _tiler;
     private PdfAnimationClock _clock;
     private PagesDrawingRequest? _lastRequest;
-    private UserInterfaceDrawingRequest? _lastUserInterfaceRequest;
     private long _lastTick;
     private bool _contentUpdatePending;
     private bool _disposed;
@@ -37,52 +35,23 @@ public sealed class PdfPanelRenderer : IDisposable
     /// Initializes the renderer, registers the page-updated callback, and calls <see cref="ISkSurfaceFactory.Initialize"/>.
     /// Page and animation callbacks are posted to <paramref name="synchronizationContext"/>, or invoked on the calling thread when it is <see langword="null"/>.
     /// </summary>
-    public PdfPanelRenderer(
+    internal PdfPanelRenderer(
         ISkSurfaceFactory surfaceFactory,
         PdfPageContentProvider contentProvider,
-        PdfPanelSettings settings,
+        PdfPanelGraphics graphics,
         SynchronizationContext? synchronizationContext)
     {
         _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
-        ContentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
         _synchronizationContext = synchronizationContext;
-        _tiler = new PdfPageContentTiler(surfaceFactory, settings.Rendering.TileSize);
-        _clock = new PdfAnimationClock(settings.Rendering.AnimationFps);
+        _tiler = new PdfPageContentTiler(surfaceFactory, TileSize);
+        _clock = new PdfAnimationClock(AnimationFps);
         _contentUpdateTimer = new Timer(OnContentUpdateDue, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        InputProcessor = new PdfPanelInputProcessor(settings);
-        TextLayer = new PdfPanelTextLayer(contentProvider, settings, InputProcessor);
-        TextSearchEngine = new PdfPanelTextSearchEngine(TextLayer, contentProvider);
 
-        ContentProvider.OnPageUpdated = OnPageUpdated;
-        ContentProvider.PageTextExtracted += OnPageTextExtracted;
+        _contentProvider.OnPageUpdated = OnPageUpdated;
         _surfaceFactory.Initialize();
     }
-
-    /// <summary>
-    /// Provider of the decoded page content and extracted text the renderer draws.
-    /// </summary>
-    internal PdfPageContentProvider ContentProvider { get; }
-
-    /// <summary>
-    /// Turns pointer and key input into the events the panel's interaction handlers subscribe to.
-    /// </summary>
-    public PdfPanelInputProcessor InputProcessor { get; }
-
-    /// <summary>
-    /// Text layer of the panel: text selection and the highlights drawn over page content.
-    /// </summary>
-    public PdfPanelTextLayer TextLayer { get; }
-
-    /// <summary>
-    /// Search of the panel's text, holding the matches of the current search query.
-    /// </summary>
-    public PdfPanelTextSearchEngine TextSearchEngine { get; }
-
-    /// <summary>
-    /// Settings of the panel, applied by <see cref="Synchronize"/>.
-    /// </summary>
-    public PdfPanelSettings Settings { get; }
 
     /// <summary>
     /// Renders the current cache state immediately, then starts background decoding for visible pages.
@@ -106,17 +75,12 @@ public sealed class PdfPanelRenderer : IDisposable
 
         PagesDrawingRequest? previousRequest = _lastRequest;
 
-        if (previousRequest == null || !previousRequest.Appearance.Equals(request.Appearance))
-        {
-            TextLayer.Clear();
-        }
-
         RenderAll(request);
         _lastRequest = request;
 
         TimeSpan contentUpdateDelay = (previousRequest != null && previousRequest.Scale != request.Scale)
-            ? Settings.Rendering.ZoomContentUpdateDelay
-            : Settings.Rendering.ScrollContentUpdateDelay;
+            ? ZoomContentUpdateDelay
+            : ScrollContentUpdateDelay;
 
         if (contentUpdateDelay <= TimeSpan.Zero || NeedsImmediateContentUpdate(previousRequest, request))
         {
@@ -132,110 +96,11 @@ public sealed class PdfPanelRenderer : IDisposable
     }
 
     /// <summary>
-    /// Submits a user interface drawing request. Re-renders when the pointer is over a visible page
-    /// and the request has changed.
+    /// Redraws the visible pages among <paramref name="pageNumbers"/> with their current graphics.
     /// </summary>
-    internal void Submit(UserInterfaceDrawingRequest request)
+    internal void RedrawGraphics(IReadOnlyList<int> pageNumbers)
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
-
-        if (request.Equals(_lastUserInterfaceRequest))
-        {
-            return;
-        }
-
-        _lastUserInterfaceRequest = request;
-
-        if (_lastRequest == null)
-        {
-            return;
-        }
-
-        PdfPanelPagePoint? pointerPagePoint = request.PointerPosition?.PagePoint;
-
-        if (pointerPagePoint != null && _lastRequest.RenderTarget != null)
-        {
-            VisiblePageInfo page = _lastRequest.GetPage(pointerPagePoint.Value.PageNumber);
-
-            PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
-
-            if (pictures.Content?.HasContent == true)
-            {
-                SKSurface surface = GetSurface(_lastRequest);
-                surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.Background | PageDrawFlags.Content, default);
-                Present(GetSurface(_lastRequest), _lastRequest);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Applies the <see cref="PdfPanelSettings.Rendering"/> values that tiling and animation depend on.
-    /// </summary>
-    public void Synchronize()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        if (_tiler.TileSize != Settings.Rendering.TileSize)
-        {
-            _tiler.Dispose();
-            _tiler = new PdfPageContentTiler(_surfaceFactory, Settings.Rendering.TileSize);
-        }
-
-        if (_clock.Fps != Settings.Rendering.AnimationFps)
-        {
-            _clock.Tick -= OnAnimationTick;
-            _clock.Dispose();
-            _clock = new PdfAnimationClock(Settings.Rendering.AnimationFps);
-            UpdateClockSubscription();
-        }
-    }
-
-    /// <summary>
-    /// Searches the panel's text for <paramref name="query"/> when the query or <see cref="PdfPanelSettings.Search"/> changed,
-    /// and redraws the visible pages with the new matches. A change of <paramref name="currentMatch"/> redraws the visible pages
-    /// of the previous and the new current match.
-    /// </summary>
-    public void UpdateSearch(string? query, PdfPanelSearchMatch? currentMatch)
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        PdfPanelSearchMatch? previousMatch = TextSearchEngine.CurrentMatch;
-        bool currentMatchChanged = TextSearchEngine.UpdateCurrentMatch(currentMatch);
-        bool matchesChanged = TextSearchEngine.Update(query, Settings.Search);
-
-        if (!currentMatchChanged && !matchesChanged)
-        {
-            return;
-        }
-
-        int? previousMatchPageNumber = previousMatch?.Range.PageNumber;
-        int? currentMatchPageNumber = currentMatch?.Range.PageNumber;
-
-        if (previousMatchPageNumber != null)
-        {
-            TextLayer.Invalidate(previousMatchPageNumber.Value);
-        }
-
-        if (currentMatchPageNumber != null)
-        {
-            TextLayer.Invalidate(currentMatchPageNumber.Value);
-        }
-
-        if (_lastRequest == null || _lastRequest.RenderTarget == null)
+        if (_disposed || pageNumbers.Count == 0 || _lastRequest == null || _lastRequest.RenderTarget == null)
         {
             return;
         }
@@ -245,12 +110,11 @@ public sealed class PdfPanelRenderer : IDisposable
 
         foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
         {
-            if (!matchesChanged && page.PageNumber != previousMatchPageNumber && page.PageNumber != currentMatchPageNumber)
+            if (!pageNumbers.Contains(page.PageNumber))
             {
                 continue;
             }
 
-            TextLayer.Invalidate(page.PageNumber);
             DrawPageContent(surface, page);
             pageDrawn = true;
         }
@@ -262,9 +126,34 @@ public sealed class PdfPanelRenderer : IDisposable
     }
 
     /// <summary>
+    /// Applies the <see cref="TileSize"/> and <see cref="AnimationFps"/> values that tiling and animation depend on.
+    /// </summary>
+    internal void Synchronize()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (_tiler.TileSize != TileSize)
+        {
+            _tiler.Dispose();
+            _tiler = new PdfPageContentTiler(_surfaceFactory, TileSize);
+        }
+
+        if (_clock.Fps != AnimationFps)
+        {
+            _clock.Tick -= OnAnimationTick;
+            _clock.Dispose();
+            _clock = new PdfAnimationClock(AnimationFps);
+            UpdateClockSubscription();
+        }
+    }
+
+    /// <summary>
     /// Re-presents the current surface without redrawing page content. Used for overlay-only updates.
     /// </summary>
-    public void Refresh()
+    internal void Present()
     {
         if (_disposed || _lastRequest == null || _lastRequest.RenderTarget == null)
         {
@@ -277,7 +166,7 @@ public sealed class PdfPanelRenderer : IDisposable
     /// <summary>
     /// Clears the surface and presents the empty result. Called when pages are unloaded.
     /// </summary>
-    public void Reset()
+    internal void Reset()
     {
         if (_disposed || _lastRequest == null || _lastRequest.RenderTarget == null)
         {
@@ -289,13 +178,10 @@ public sealed class PdfPanelRenderer : IDisposable
         _contentUpdatePending = false;
         _contentUpdateTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-        InputProcessor.Leave();
-
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.Clear(SKColors.Transparent);
         Present(surface, _lastRequest);
         _lastRequest = null;
-        _lastUserInterfaceRequest = null;
     }
 
     private void RenderAll(PagesDrawingRequest request)
@@ -306,22 +192,21 @@ public sealed class PdfPanelRenderer : IDisposable
         }
 
         SKSurface surface = GetSurface(request);
-        surface.Canvas.Clear(request.Appearance.BackgroundColor.ToSkiaColor());
+        surface.Canvas.Clear(request.BackgroundColor.ToSkiaColor());
         AnimationState animation = GetAnimationState();
 
         _tiler.EvictExcept(request.VisiblePages);
-        TextLayer.EvictExcept(request.VisiblePages);
 
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
-            PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
+            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
-            if (!ContentProvider.NeedsContentUpdate(page.PageNumber, request))
+            if (!_contentProvider.NeedsContentUpdate(page.PageNumber, request))
             {
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
 
-            surface.Canvas.DrawPage(page, request, pictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.AllContent, animation);
+            surface.Canvas.DrawPage(page, request, pictures, _tiler, _graphics, PageDrawFlags.AllContent, animation);
         }
 
         Present(surface, request);
@@ -354,14 +239,14 @@ public sealed class PdfPanelRenderer : IDisposable
 
         foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
         {
-            PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
+            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
             if (pictures.Content?.HasContent == true)
             {
                 continue;
             }
 
-            surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.Background | PageDrawFlags.Placeholder, animation);
+            surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Placeholder, animation);
             anyRedrawn = true;
         }
 
@@ -380,9 +265,9 @@ public sealed class PdfPanelRenderer : IDisposable
     private void UpdateClockSubscription()
     {
         bool anyLoading = _lastRequest != null
-            && _lastRequest.Appearance.ShowPageLoadingAnimation
+            && _lastRequest.ShowPageLoadingAnimation
             && _lastRequest.VisiblePages.Any(
-                p => ContentProvider.GetExistingContentPictures(p.PageNumber).Content?.HasContent != true);
+                p => _contentProvider.GetExistingContentPictures(p.PageNumber).Content?.HasContent != true);
 
         if (anyLoading)
         {
@@ -408,7 +293,7 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             bool pageAppeared = !previousPages.Any(previousPage => previousPage.PageNumber == page.PageNumber);
 
-            if (pageAppeared || ContentProvider.NeedsAnnotationUpdate(page.PageNumber, request))
+            if (pageAppeared || _contentProvider.NeedsAnnotationUpdate(page.PageNumber, request))
             {
                 return true;
             }
@@ -426,7 +311,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         _contentUpdatePending = false;
         _contentUpdateTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        ContentProvider.UpdateContent(_lastRequest);
+        _contentProvider.UpdateContent(_lastRequest);
     }
 
     private void OnContentUpdateDue(object? state)
@@ -480,45 +365,7 @@ public sealed class PdfPanelRenderer : IDisposable
         _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 
         SKSurface surface = GetSurface(_lastRequest);
-        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.Background | PageDrawFlags.Content, default);
-        Present(surface, _lastRequest);
-    }
-
-    private void OnPageTextExtracted(object? sender, PageTextExtractedEventArgs args)
-    {
-        if (_synchronizationContext != null)
-        {
-            _synchronizationContext.Post(_ => OnPageTextExtractedSync(args.PageNumber), null);
-        }
-        else
-        {
-            OnPageTextExtractedSync(args.PageNumber);
-        }
-    }
-
-    private void OnPageTextExtractedSync(int pageNumber)
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        TextLayer.OnPageTextExtracted(pageNumber);
-
-        if (!TextSearchEngine.SearchPage(pageNumber))
-        {
-            return;
-        }
-
-        TextLayer.Invalidate(pageNumber);
-
-        if (_lastRequest == null || _lastRequest.RenderTarget == null || !_lastRequest.VisiblePages.Any(p => p.PageNumber == pageNumber))
-        {
-            return;
-        }
-
-        SKSurface surface = GetSurface(_lastRequest);
-        DrawPageContent(surface, _lastRequest.GetPage(pageNumber));
+        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Content, default);
         Present(surface, _lastRequest);
     }
 
@@ -529,8 +376,8 @@ public sealed class PdfPanelRenderer : IDisposable
             return;
         }
 
-        PdfContentPictures pictures = ContentProvider.GetExistingContentPictures(page.PageNumber);
-        surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextLayer, TextSearchEngine, PageDrawFlags.Background | PageDrawFlags.Content, default);
+        PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+        surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Content, default);
     }
 
     private SKSurface GetSurface(PagesDrawingRequest request)
@@ -563,10 +410,7 @@ public sealed class PdfPanelRenderer : IDisposable
         _clock.Dispose();
 
         _contentUpdateTimer.Dispose();
-        TextLayer.Dispose();
         _tiler.Dispose();
-        ContentProvider.OnPageUpdated = null;
-        ContentProvider.PageTextExtracted -= OnPageTextExtracted;
+        _contentProvider.OnPageUpdated = null;
     }
 }
-

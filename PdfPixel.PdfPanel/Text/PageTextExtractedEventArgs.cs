@@ -3,7 +3,7 @@ using System;
 namespace PdfPixel.PdfPanel.Text;
 
 /// <summary>
-/// Data for <see cref="PdfPanelTextLayer.PageTextExtracted"/>.
+/// Data for <see cref="PdfPanelText.PageTextExtracted"/>.
 /// </summary>
 public sealed class PageTextExtractedEventArgs : EventArgs
 {

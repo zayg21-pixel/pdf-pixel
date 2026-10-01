@@ -1,7 +1,6 @@
 ﻿using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Settings;
 using PdfPixel.PdfPanel.Text;
 using System;
 using System.Runtime.Versioning;
@@ -30,11 +29,6 @@ internal class PdfPanelResources
     public IPdfPanelRenderTargetFactory RenderTargetFactory { get; set; }
 
     /// <summary>
-    /// Gets or sets the renderer for the panel.
-    /// </summary>
-    public PdfPanelRenderer Renderer { get; set; }
-
-    /// <summary>
     /// Gets or sets the Skia surface factory for the panel.
     /// </summary>
     public ISkSurfaceFactory SkSurfaceFactory { get; set; }
@@ -55,9 +49,9 @@ internal class PdfPanelResources
     public PdfPanelPageCollection Pages { get; set; }
 
     /// <summary>
-    /// Gets or sets the settings parsed from the panel configuration.
+    /// Gets the panel values set through the panel configuration.
     /// </summary>
-    public PdfPanelSettings Settings { get; set; }
+    public PdfPanelConfiguration Configuration { get; } = new();
 
     /// <summary>
     /// Gets or sets the minimum time between two yields of page decoding.
@@ -89,7 +83,7 @@ internal class PdfPanelResources
     }
 
     /// <summary>
-    /// Schedules a redraw that sends the completed search state to JS.
+    /// Schedules a redraw that sends the extracted text state to JS.
     /// </summary>
-    public void OnSearchCompleted(object sender, EventArgs args) => PdfPanelInterop.ScheduleRedraw(ContainerId);
+    public void OnTextExtracted(object sender, EventArgs args) => PdfPanelInterop.ScheduleRedraw(ContainerId);
 }

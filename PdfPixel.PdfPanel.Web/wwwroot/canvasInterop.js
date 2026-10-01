@@ -108,22 +108,7 @@ class PdfPanelView {
             useWebGL: true,
             scrollStep: 20,
             yieldInterval: 16,
-            settings: {
-                appearance: {
-                    backgroundColor: '#D3D3D3',
-                    showPageLoadingAnimation: false
-                },
-                zoom: {
-                    minScale: 0.1,
-                    maxScale: 10.0,
-                    zoomStep: 0.1
-                },
-                layout: {},
-                interaction: {},
-                search: {},
-                text: {},
-                rendering: {}
-            }
+            settings: {}
         };
         this.configuration = mergeConfiguration(defaults, configuration);
 
@@ -149,7 +134,8 @@ class PdfPanelView {
             searchQuery: null,
             currentSearchResult: null,
             searchResults: [],
-            searchComplete: false
+            isTextExtracted: false,
+            zoomRequest: null
         };
 
         this._renderScheduled = false;
@@ -225,6 +211,7 @@ class PdfPanelView {
             verticalOffset: this.state.verticalOffset,
             horizontalOffset: this.state.horizontalOffset,
             scale: this.state.scale,
+            zoomRequest: this.state.zoomRequest,
             scrollWidth: 0,
             scrollHeight: 0,
             forcePageSet: this.state.forcePageSet,
@@ -239,6 +226,7 @@ class PdfPanelView {
         interop.RequestRedraw(this.id, redrawState);
 
         this.state.forcePageSet = 0;
+        this.state.zoomRequest = null;
         this.state.containerWidth = redrawState.containerWidth;
         this.state.containerHeight = redrawState.containerHeight;
         this.state.devicePixelScale = redrawState.devicePixelScale;
@@ -248,9 +236,10 @@ class PdfPanelView {
         this.state.scrollHeight = redrawState.scrollHeight;
         this.state.verticalOffset = redrawState.verticalOffset;
         this.state.horizontalOffset = redrawState.horizontalOffset;
+        this.state.scale = redrawState.scale;
         this.state.currentPage = redrawState.currentPage;
         this.state.pageCount = redrawState.pageCount;
-        this.state.searchComplete = redrawState.searchComplete;
+        this.state.isTextExtracted = redrawState.isTextExtracted;
 
         if (redrawState.searchResultsChanged) {
             this.state.searchResults = redrawState.searchResults || [];
@@ -296,12 +285,7 @@ class PdfPanelView {
         e.preventDefault();
 
         if (e.ctrlKey) {
-            const oldScale = this.state.scale;
-            const zoom = this.configuration.settings.zoom;
-            const nextScaleRequest = e.deltaY > 0 ? oldScale * (1 - zoom.zoomStep) : oldScale * (1 + zoom.zoomStep);
-            const nextScale = Math.max(zoom.minScale, Math.min(zoom.maxScale, nextScaleRequest));
-
-            // Compute center coordinates for zoom from mouse if available; otherwise center
+            // Zoom around the mouse if available; otherwise around the center
             let centerX = this.state.panelWidth / 2;
             let centerY = this.state.panelHeight / 2;
 
@@ -310,11 +294,7 @@ class PdfPanelView {
                 centerY = this.state.mouseY * this.state.devicePixelScale;
             }
 
-            // Update offsets to keep zoom centered around pointer (or center)
-            this.state.verticalOffset = (this.state.verticalOffset + centerY) * (nextScale / oldScale) - centerY;
-            this.state.horizontalOffset = (this.state.horizontalOffset + centerX) * (nextScale / oldScale) - centerX;
-
-            this.state.scale = nextScale;
+            this.state.zoomRequest = { step: e.deltaY > 0 ? -1 : 1, centerX: centerX, centerY: centerY };
         } else {
             let deltaX = e.deltaX;
             let deltaY = e.deltaY;
@@ -410,20 +390,12 @@ class PdfPanelView {
 
         const currentDistance = this._getTouchDistance(e.touches);
         const scaleFactor = currentDistance / this._touchStartDistance;
-        const newScale = Math.max(
-            this.configuration.settings.zoom.minScale,
-            Math.min(this.configuration.settings.zoom.maxScale, this._touchStartScale * scaleFactor)
-        );
-
-        const oldScale = this.state.scale;
         const midpoint = this._getTouchMidpoint(e.touches);
         const rect = this.scrollHost.getBoundingClientRect();
         const centerX = (midpoint.x - rect.left) * this.state.devicePixelScale;
         const centerY = (midpoint.y - rect.top) * this.state.devicePixelScale;
 
-        this.state.verticalOffset = (this.state.verticalOffset + centerY) * (newScale / oldScale) - centerY;
-        this.state.horizontalOffset = (this.state.horizontalOffset + centerX) * (newScale / oldScale) - centerX;
-        this.state.scale = newScale;
+        this.state.zoomRequest = { scale: this._touchStartScale * scaleFactor, centerX: centerX, centerY: centerY };
 
         this.requestRender();
     }
@@ -495,8 +467,67 @@ class PdfPanelView {
         void interop.RegisterPanel(this.id, this.configuration);
     }
 
+    /**
+     * Updates the configuration keys that are set in `configuration`; keys that are not set keep their current values.
+     * `useWebGL` and `yieldInterval` apply only to the initial configuration.
+     * @param {object} configuration `scrollStep` and `settings`, which mirrors `PdfPanelContext` in camelCase.
+     */
+    updateConfiguration(configuration) {
+        if (configuration.scrollStep !== undefined) {
+            this.configuration.scrollStep = configuration.scrollStep;
+        }
+
+        this.applyBackgroundColor(configuration);
+        interop.UpdateConfiguration(this.id, configuration);
+        this.requestRender();
+    }
+
+    /**
+     * Paints the container with `settings.renderer.backgroundColor` when the configuration sets it.
+     * @param {object} configuration The configuration.
+     */
+    applyBackgroundColor(configuration) {
+        const backgroundColor = configuration.settings?.renderer?.backgroundColor;
+
+        if (backgroundColor) {
+            this.container.style.backgroundColor = backgroundColor;
+        }
+    }
+
+    /**
+     * Selects the search result after (`step` 1) or before (`step` -1) the current one, wrapping around,
+     * or the first result on or after the current page when none is current.
+     * @param {number} step 1 for the next result, -1 for the previous one.
+     */
+    selectSearchResult(step) {
+        const results = this.state.searchResults;
+
+        if (results.length === 0) {
+            return;
+        }
+
+        const current = this.state.currentSearchResult;
+        const currentIndex = current
+            ? results.findIndex(result => result.pageNumber === current.pageNumber
+                && result.startIndex === current.startIndex
+                && result.length === current.length)
+            : -1;
+
+        let index;
+
+        if (currentIndex >= 0) {
+            index = (currentIndex + step + results.length) % results.length;
+        } else {
+            index = Math.max(results.findIndex(result => result.pageNumber >= this.state.currentPage), 0);
+        }
+
+        const result = results[index];
+        this.state.currentSearchResult = { pageNumber: result.pageNumber, startIndex: result.startIndex, length: result.length };
+        this.requestRender();
+    }
+
     start() {
-        this.container.style.backgroundColor = this.configuration.settings.appearance.backgroundColor;
+        this.applyBackgroundColor(this.configuration);
         this.attachEvents();
         this.initInterop();
         this.requestRender();
@@ -553,7 +584,7 @@ export async function initialize(setModuleImports, getAssemblyExports) {
  * Register a PDF panel view bound to a container element.
  * @param {string} id Unique view id.
  * @param {HTMLElement} containerElement The container element with the id `id`; the panel adds its canvases and scroll host to it.
- * @param {object} [configuration] `useWebGL`, `scrollStep`, `yieldInterval` (ms) and `settings`, which mirrors `PdfPanelSettings` in camelCase.
+ * @param {object} [configuration] `useWebGL`, `scrollStep`, `yieldInterval` (ms) and `settings`, which mirrors `PdfPanelContext` in camelCase.
  * @returns {Promise<boolean>} True if registration succeeded.
  */
 export function registerPanel(id, containerElement, configuration) {
@@ -661,7 +692,8 @@ export function setOnStateChanged(id, callback) {
 /**
  * Set the text to search for in the specified view, or `null` to stop searching.
  * The results arrive in the view state as `searchResults` (`{ pageNumber, startIndex, length, bounds }`, ordered by page),
- * with `searchComplete` set once every page has been searched.
+ * with `isTextExtracted` set once the words of every page are extracted. Every page is searched only while
+ * `settings.text.extractText` is set through `updateConfiguration`.
  * @param {string} id View id.
  * @param {string | null} query Text to search for.
  * @returns {boolean} True if the view was found and the query was set.
@@ -697,6 +729,55 @@ export function setCurrentSearchResult(id, result) {
 }
 
 /**
+ * Select the search result after the current one in the specified view, wrapping to the first,
+ * or the first result on or after the current page when none is current.
+ * @param {string} id View id.
+ * @returns {boolean} True if the view was found.
+ */
+export function nextSearchResult(id) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.selectSearchResult(1);
+    return true;
+}
+
+/**
+ * Select the search result before the current one in the specified view, wrapping to the last,
+ * or the first result on or after the current page when none is current.
+ * @param {string} id View id.
+ * @returns {boolean} True if the view was found.
+ */
+export function previousSearchResult(id) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.selectSearchResult(-1);
+    return true;
+}
+
+/**
+ * Update the configuration of the specified view. Only the keys that are set change; the others keep their current values.
+ * `useWebGL` and `yieldInterval` apply only to the configuration passed to `registerPanel`.
+ * @param {string} id View id.
+ * @param {object} configuration `scrollStep` and `settings`, which mirrors `PdfPanelContext` in camelCase.
+ * @returns {boolean} True if the view was found and the configuration was updated.
+ */
+export function updateConfiguration(id, configuration) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.updateConfiguration(configuration || {});
+    return true;
+}
+
+/**
  * Subscribe to frame notifications for the specified view.
  * The callback receives `{ id, canvas, frame }` after every presented frame: the view id, the overlay canvas the panel
  * adds to the container above its own canvas, sized to the frame in panel pixels, and the frame, which mirrors
@@ -727,16 +808,7 @@ export function setScale(id, scale) {
         console.error(`View not found for id '${id}'`);
         return false;
     }
-    const clampedScale = Math.max(
-        view.configuration.settings.zoom.minScale,
-        Math.min(view.configuration.settings.zoom.maxScale, scale)
-    );
-    const oldScale = view.state.scale;
-    const centerX = view.state.panelWidth / 2;
-    const centerY = view.state.panelHeight / 2;
-    view.state.verticalOffset = (view.state.verticalOffset + centerY) * (clampedScale / oldScale) - centerY;
-    view.state.horizontalOffset = (view.state.horizontalOffset + centerX) * (clampedScale / oldScale) - centerX;
-    view.state.scale = clampedScale;
+    view.state.zoomRequest = { scale: scale, centerX: view.state.panelWidth / 2, centerY: view.state.panelHeight / 2 };
     view.requestRender();
     return true;
 }

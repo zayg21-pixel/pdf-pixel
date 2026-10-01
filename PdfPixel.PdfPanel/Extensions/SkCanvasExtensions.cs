@@ -4,8 +4,6 @@ using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
-using PdfPixel.PdfPanel.Settings;
-using PdfPixel.PdfPanel.Text;
 using PdfPixel.Skia;
 using SkiaSharp;
 using System;
@@ -20,12 +18,11 @@ internal static class SkCanvasExtensions
         PagesDrawingRequest request,
         PdfContentPictures pictures,
         PdfPageContentTiler tiler,
-        PdfPanelTextLayer textLayer,
-        PdfPanelTextSearchEngine textSearchEngine,
+        PdfPanelGraphics graphics,
         PageDrawFlags flags,
         in AnimationState animation)
     {
-        float cornerRadius = request.Appearance.PageCornerRadius;
+        float cornerRadius = request.PageCornerRadius;
         int savedCount = canvas.Save();
         PdfMatrix deviceMatrix = page.GetContentToPanelMatrix(request.Scale);
 
@@ -55,21 +52,15 @@ internal static class SkCanvasExtensions
         {
             tiler.DrawTiles(canvas, in page, request.Scale, deviceMatrix);
             DrawPagePicture(canvas, pictures?.Annotations, page.Info);
-            DrawTextLayerPicture(canvas, textLayer, textSearchEngine, page, request.Appearance, request.Text);
+            DrawGraphicsPicture(canvas, graphics, page);
         }
 
         canvas.RestoreToCount(savedCount);
     }
 
-    private static void DrawTextLayerPicture(
-        SKCanvas canvas,
-        PdfPanelTextLayer textLayer,
-        PdfPanelTextSearchEngine textSearchEngine,
-        in VisiblePageInfo page,
-        PdfPanelAppearanceSettings appearance,
-        PdfPanelTextSettings text)
+    private static void DrawGraphicsPicture(SKCanvas canvas, PdfPanelGraphics graphics, in VisiblePageInfo page)
     {
-        SKPicture? picture = textLayer.GetTextLayerPicture(page.PageNumber, textSearchEngine.GetPageMatches(page.PageNumber), textSearchEngine.CurrentMatch, appearance, text);
+        SKPicture? picture = graphics.GetPicture(page.PageNumber);
         if (picture == null)
         {
             return;

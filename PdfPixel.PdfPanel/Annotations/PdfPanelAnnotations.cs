@@ -7,25 +7,25 @@ namespace PdfPixel.PdfPanel.Annotations;
 /// <summary>
 /// Tracks the annotation under the pointer and reports clicks on it.
 /// </summary>
-public sealed class PdfPanelAnnotationInteraction : IDisposable
+public sealed class PdfPanelAnnotations
 {
     private readonly PdfPanelPageCollection _pages;
-    private readonly PdfPanelInputProcessor _processor;
+    private readonly PdfPanelInput _input;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfPanelAnnotationInteraction"/> and subscribes it to the given processor.
+    /// Initializes a new <see cref="PdfPanelAnnotations"/> and subscribes it to the given input.
     /// </summary>
-    public PdfPanelAnnotationInteraction(PdfPanelPageCollection pages, PdfPanelInputProcessor processor)
+    internal PdfPanelAnnotations(PdfPanelPageCollection pages, PdfPanelInput input)
     {
         _pages = pages ?? throw new ArgumentNullException(nameof(pages));
-        _processor = processor ?? throw new ArgumentNullException(nameof(processor));
+        _input = input ?? throw new ArgumentNullException(nameof(input));
 
-        _processor.PointerMoved += OnPointerMoved;
-        _processor.PointerPressed += OnPointerPressed;
-        _processor.PointerReleased += OnPointerReleased;
-        _processor.PointerClicked += OnPointerClicked;
-        _processor.PointerExited += OnPointerExited;
-        _processor.DragStarted += OnDragStarted;
+        _input.PointerMoved += OnPointerMoved;
+        _input.PointerPressed += OnPointerPressed;
+        _input.PointerReleased += OnPointerReleased;
+        _input.PointerClicked += OnPointerClicked;
+        _input.PointerExited += OnPointerExited;
+        _input.DragStarted += OnDragStarted;
     }
 
     /// <summary>
@@ -34,7 +34,7 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
     public PdfAnnotationPopup? ActiveAnnotation { get; private set; }
 
     /// <summary>
-    /// Annotation clicked since the last <see cref="ClearClicked"/>, or <see langword="null"/> if there is none.
+    /// Annotation clicked during the last <see cref="PdfPanelContext.Synchronize"/>, or <see langword="null"/> if none was clicked.
     /// </summary>
     public PdfAnnotationPopup? ClickedAnnotation { get; private set; }
 
@@ -105,7 +105,7 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
             return PdfPanelPointerState.None;
         }
 
-        return (_processor.ButtonState == PdfPanelButtonState.Pressed)
+        return (_input.ButtonState == PdfPanelButtonState.Pressed)
             ? PdfPanelPointerState.Pressed
             : PdfPanelPointerState.Hovered;
     }
@@ -145,14 +145,16 @@ public sealed class PdfPanelAnnotationInteraction : IDisposable
         };
     }
 
-    /// <inheritdoc />
-    public void Dispose()
+    /// <summary>
+    /// Unsubscribes from the input.
+    /// </summary>
+    internal void Dispose()
     {
-        _processor.PointerMoved -= OnPointerMoved;
-        _processor.PointerPressed -= OnPointerPressed;
-        _processor.PointerReleased -= OnPointerReleased;
-        _processor.PointerClicked -= OnPointerClicked;
-        _processor.PointerExited -= OnPointerExited;
-        _processor.DragStarted -= OnDragStarted;
+        _input.PointerMoved -= OnPointerMoved;
+        _input.PointerPressed -= OnPointerPressed;
+        _input.PointerReleased -= OnPointerReleased;
+        _input.PointerClicked -= OnPointerClicked;
+        _input.PointerExited -= OnPointerExited;
+        _input.DragStarted -= OnDragStarted;
     }
 }

@@ -1,7 +1,11 @@
+using PdfPixel.Color;
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Settings;
+using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.Skia;
 using PdfPixel.TextExtraction;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -10,31 +14,39 @@ using System.Text;
 namespace PdfPixel.PdfPanel.Text;
 
 /// <summary>
-/// Searches the text of <see cref="PdfPanelTextLayer"/> and holds the matches of the current search query.
+/// Search of the panel's text, holding the matches of the current search query.
 /// </summary>
-public sealed class PdfPanelTextSearchEngine
+public sealed class PdfPanelSearch
 {
-    private readonly PdfPanelTextLayer _textLayer;
+    private readonly PdfPanelContext _context;
+    private readonly PdfPanelText _text;
     private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelGraphics _graphics;
     private readonly SortedDictionary<int, List<PdfPanelSearchMatch>> _pageMatches = [];
     private readonly List<PdfPanelSearchMatch> _matches = [];
     private readonly List<int> _characterIndexes = [];
     private readonly HashSet<PdfPanelTextRange> _matchedRanges = [];
     private readonly StringBuilder _textBuilder = new();
     private readonly StringBuilder _normalizationBuilder = new();
-    private PdfPanelSearchSettings _searchSettings = new();
     private string? _query;
+    private bool _matchCase;
+    private bool _wholeWord;
+    private bool _matchDiacritics;
     private string? _normalizedQuery;
-    private bool[] _searchedPages = [];
-    private int _searchedPageCount;
+    private PdfPanelSearchMatch? _drawnCurrentMatch;
+    private PdfColor _drawnMatchColor;
+    private PdfColor _drawnCurrentMatchColor;
+    private float _drawnLineMergeThreshold;
 
     /// <summary>
-    /// Initializes the engine that searches the text of <paramref name="textLayer"/> across the pages of <paramref name="contentProvider"/>.
+    /// Initializes the search of the text of <paramref name="text"/> across the pages of <paramref name="contentProvider"/>.
     /// </summary>
-    internal PdfPanelTextSearchEngine(PdfPanelTextLayer textLayer, PdfPageContentProvider contentProvider)
+    internal PdfPanelSearch(PdfPanelContext context, PdfPanelText text, PdfPageContentProvider contentProvider, PdfPanelGraphics graphics)
     {
-        _textLayer = textLayer ?? throw new ArgumentNullException(nameof(textLayer));
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _text = text ?? throw new ArgumentNullException(nameof(text));
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
     }
 
     /// <summary>
@@ -43,14 +55,39 @@ public sealed class PdfPanelTextSearchEngine
     public event EventHandler? MatchesChanged;
 
     /// <summary>
-    /// Raised when <see cref="IsComplete"/> becomes <see langword="true"/>.
+    /// Text to search for in the document, or <see langword="null"/> when no search is active.
     /// </summary>
-    public event EventHandler? Completed;
+    public string? Query { get; set; }
 
     /// <summary>
-    /// Whether every page has been searched for the current search query, so that <see cref="Matches"/> is final.
+    /// Whether letter case must match.
     /// </summary>
-    public bool IsComplete => _normalizedQuery?.Length > 0 && _searchedPageCount == _searchedPages.Length;
+    public bool MatchCase { get; set; }
+
+    /// <summary>
+    /// Whether a match must start and end on word boundaries.
+    /// </summary>
+    public bool WholeWord { get; set; }
+
+    /// <summary>
+    /// Whether diacritics must match, so that "e" does not match "é".
+    /// </summary>
+    public bool MatchDiacritics { get; set; }
+
+    /// <summary>
+    /// Color the search matches are highlighted with.
+    /// </summary>
+    public PdfColor MatchColor { get; set; } = new(255f / 255f, 200f / 255f, 0f / 255f, 100f / 255f);
+
+    /// <summary>
+    /// Color the current search match is highlighted with.
+    /// </summary>
+    public PdfColor CurrentMatchColor { get; set; } = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
+
+    /// <summary>
+    /// The match highlighted as current, or <see langword="null"/> when there is none.
+    /// </summary>
+    public PdfPanelSearchMatch? CurrentMatch { get; set; }
 
     /// <summary>
     /// Matches of the current search query on the pages whose characters have been extracted so far, ordered by page.
@@ -58,97 +95,181 @@ public sealed class PdfPanelTextSearchEngine
     public IReadOnlyList<PdfPanelSearchMatch> Matches => _matches;
 
     /// <summary>
-    /// The match highlighted as current, or <see langword="null"/> when there is none.
+    /// Sets <see cref="CurrentMatch"/> to the match after it, wrapping to the first match,
+    /// or to the first match on or after the current page when <see cref="CurrentMatch"/> is not one of <see cref="Matches"/>.
     /// </summary>
-    public PdfPanelSearchMatch? CurrentMatch { get; private set; }
+    public void Next() => SelectMatch(1);
 
     /// <summary>
-    /// Searches every page with extracted characters for <paramref name="query"/> when the query or <paramref name="searchSettings"/>
-    /// differ from the last search. A <see langword="null"/> or empty query clears the matches.
+    /// Sets <see cref="CurrentMatch"/> to the match before it, wrapping to the last match,
+    /// or to the first match on or after the current page when <see cref="CurrentMatch"/> is not one of <see cref="Matches"/>.
     /// </summary>
-    /// <returns><see langword="true"/> if the matches were searched again.</returns>
-    public bool Update(string? query, PdfPanelSearchSettings searchSettings)
+    public void Previous() => SelectMatch(-1);
+
+    /// <summary>
+    /// Searches every page with extracted characters for <see cref="Query"/> when the query or the match options
+    /// differ from the last search, and updates the match graphics that changed.
+    /// </summary>
+    internal void Synchronize()
     {
-        if (searchSettings == null)
+        bool queryChanged = Query != _query
+            || MatchCase != _matchCase
+            || WholeWord != _wholeWord
+            || MatchDiacritics != _matchDiacritics;
+
+        bool appearanceChanged = !MatchColor.Equals(_drawnMatchColor)
+            || !CurrentMatchColor.Equals(_drawnCurrentMatchColor)
+            || _text.LineMergeThreshold != _drawnLineMergeThreshold;
+
+        if (queryChanged)
         {
-            throw new ArgumentNullException(nameof(searchSettings));
+            Search();
         }
 
-        if (query == _query && searchSettings.Equals(_searchSettings))
+        if (queryChanged || appearanceChanged)
         {
-            return false;
+            _drawnCurrentMatch = CurrentMatch;
+            _drawnMatchColor = MatchColor;
+            _drawnCurrentMatchColor = CurrentMatchColor;
+            _drawnLineMergeThreshold = _text.LineMergeThreshold;
+
+            foreach (int pageNumber in _pageMatches.Keys)
+            {
+                UpdateGraphics(pageNumber);
+            }
+
+            return;
         }
 
-        _query = query;
-        _searchSettings = searchSettings.Clone();
-        _normalizedQuery = (query == null) ? null : NormalizeQuery(query);
-        _pageMatches.Clear();
-        _searchedPages = new bool[_contentProvider.GetPagesCount()];
-        _searchedPageCount = 0;
-
-        for (int pageNumber = 1; pageNumber <= _searchedPages.Length; pageNumber++)
+        if (CurrentMatch?.Range == _drawnCurrentMatch?.Range)
         {
-            SearchPageCharacters(pageNumber);
+            return;
         }
 
-        RebuildMatches();
+        int? previousPageNumber = _drawnCurrentMatch?.Range.PageNumber;
+        int? currentPageNumber = CurrentMatch?.Range.PageNumber;
 
-        if (IsComplete)
+        _drawnCurrentMatch = CurrentMatch;
+
+        if (previousPageNumber != null)
         {
-            Completed?.Invoke(this, EventArgs.Empty);
+            UpdateGraphics(previousPageNumber.Value);
         }
 
-        return true;
+        if (currentPageNumber != null && currentPageNumber != previousPageNumber)
+        {
+            UpdateGraphics(currentPageNumber.Value);
+        }
     }
 
     /// <summary>
     /// Searches a page whose characters have just been extracted for the current search query.
     /// </summary>
-    /// <returns><see langword="true"/> if the page added matches.</returns>
-    public bool SearchPage(int pageNumber)
+    internal void SearchPage(int pageNumber)
     {
         if (_pageMatches.ContainsKey(pageNumber))
         {
-            return false;
+            return;
         }
 
-        bool wasComplete = IsComplete;
-        bool matchesAdded = SearchPageCharacters(pageNumber);
-
-        if (matchesAdded)
+        if (!SearchPageCharacters(pageNumber))
         {
-            RebuildMatches();
+            return;
         }
 
-        if (!wasComplete && IsComplete)
-        {
-            Completed?.Invoke(this, EventArgs.Empty);
-        }
-
-        return matchesAdded;
+        RebuildMatches();
+        UpdateGraphics(pageNumber);
     }
 
-    /// <summary>
-    /// Sets the match highlighted as current.
-    /// </summary>
-    /// <returns><see langword="true"/> if the current match changed.</returns>
-    internal bool UpdateCurrentMatch(PdfPanelSearchMatch? currentMatch)
+    private void SelectMatch(int step)
     {
-        if (currentMatch?.Range == CurrentMatch?.Range)
+        if (_matches.Count == 0)
         {
-            return false;
+            return;
         }
 
-        CurrentMatch = currentMatch;
+        int currentIndex = _matches.FindIndex(IsCurrentMatch);
 
-        return true;
+        if (currentIndex >= 0)
+        {
+            CurrentMatch = _matches[(currentIndex + step + _matches.Count) % _matches.Count];
+            return;
+        }
+
+        int currentPageNumber = _context.GetCurrentPage();
+        int pageIndex = _matches.FindIndex(match => match.Range.PageNumber >= currentPageNumber);
+
+        CurrentMatch = _matches[Math.Max(pageIndex, 0)];
     }
 
-    /// <summary>
-    /// Returns the matches on the given page, or <see langword="null"/> if the page has none.
-    /// </summary>
-    internal IReadOnlyList<PdfPanelSearchMatch>? GetPageMatches(int pageNumber)
-        => (_pageMatches.TryGetValue(pageNumber, out List<PdfPanelSearchMatch>? pageMatches)) ? pageMatches : null;
+    private bool IsCurrentMatch(PdfPanelSearchMatch match) => match.Range == CurrentMatch?.Range;
+
+    private void Search()
+    {
+        foreach (int pageNumber in _pageMatches.Keys)
+        {
+            _graphics.Update(pageNumber, PdfPanelGraphicsLayer.SearchMatches, null);
+        }
+
+        _query = Query;
+        _matchCase = MatchCase;
+        _wholeWord = WholeWord;
+        _matchDiacritics = MatchDiacritics;
+        _normalizedQuery = (Query == null) ? null : NormalizeQuery(Query);
+        _pageMatches.Clear();
+
+        int pageCount = _contentProvider.GetPagesCount();
+
+        for (int pageNumber = 1; pageNumber <= pageCount; pageNumber++)
+        {
+            SearchPageCharacters(pageNumber);
+        }
+
+        RebuildMatches();
+    }
+
+    private void UpdateGraphics(int pageNumber)
+        => _graphics.Update(pageNumber, PdfPanelGraphicsLayer.SearchMatches, CreateMatchesPicture(pageNumber));
+
+    private SKPicture? CreateMatchesPicture(int pageNumber)
+    {
+        if (!_pageMatches.TryGetValue(pageNumber, out List<PdfPanelSearchMatch>? pageMatches))
+        {
+            return null;
+        }
+
+        PdfWord[]? words = _text.GetWords(pageNumber);
+
+        if (words == null)
+        {
+            return null;
+        }
+
+        PdfPanelPageInfo pageInfo = _contentProvider.GetPageInfo(pageNumber);
+
+        using SKPictureRecorder recorder = new();
+        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
+
+        using SKPaint matchPaint = new()
+        {
+            Style = SKPaintStyle.Fill,
+            Color = _drawnMatchColor.ToSkiaColor()
+        };
+
+        using SKPaint currentMatchPaint = new()
+        {
+            Style = SKPaintStyle.Fill,
+            Color = _drawnCurrentMatchColor.ToSkiaColor()
+        };
+
+        foreach (PdfPanelSearchMatch match in pageMatches)
+        {
+            SKPaint paint = (match.Range == _drawnCurrentMatch?.Range) ? currentMatchPaint : matchPaint;
+            PdfPanelHighlightBuilder.DrawHighlight(canvas, words, match.Range, paint, _drawnLineMergeThreshold);
+        }
+
+        return recorder.EndRecording();
+    }
 
     private bool SearchPageCharacters(int pageNumber)
     {
@@ -164,12 +285,6 @@ public sealed class PdfPanelTextSearchEngine
         if (words == null)
         {
             return false;
-        }
-
-        if (!_searchedPages[pageNumber - 1])
-        {
-            _searchedPages[pageNumber - 1] = true;
-            _searchedPageCount++;
         }
 
         if (words.Length == 0)
@@ -203,19 +318,19 @@ public sealed class PdfPanelTextSearchEngine
     /// </summary>
     private void FindMatches(int pageNumber, string pageText, string query, List<PdfPanelSearchMatch> pageMatches)
     {
-        StringComparison comparison = (_searchSettings.MatchCase) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        StringComparison comparison = _matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         int position = pageText.IndexOf(query, comparison);
 
         while (position >= 0)
         {
             int end = position + query.Length;
 
-            if (!_searchSettings.WholeWord || IsWordBoundary(pageText, position, end))
+            if (!_wholeWord || IsWordBoundary(pageText, position, end))
             {
                 int startIndex = _characterIndexes[position];
                 int lastIndex = _characterIndexes[end - 1];
                 PdfPanelTextRange range = new(pageNumber, startIndex, lastIndex - startIndex + 1);
-                PdfRectangle? bounds = _textLayer.GetBounds(range);
+                PdfRectangle? bounds = _text.GetBounds(range);
 
                 if (bounds != null && _matchedRanges.Add(range))
                 {
@@ -307,7 +422,7 @@ public sealed class PdfPanelTextSearchEngine
 
     /// <summary>
     /// Returns <paramref name="text"/> in compatibility decomposition (FormKD), without nonspacing marks
-    /// unless <see cref="PdfPanelSearchSettings.MatchDiacritics"/> is set.
+    /// unless <see cref="MatchDiacritics"/> is set.
     /// </summary>
     private string NormalizeText(string text)
     {
@@ -318,7 +433,7 @@ public sealed class PdfPanelTextSearchEngine
 
         string decomposedText = text.Normalize(NormalizationForm.FormKD);
 
-        if (_searchSettings.MatchDiacritics)
+        if (_matchDiacritics)
         {
             return decomposedText;
         }
