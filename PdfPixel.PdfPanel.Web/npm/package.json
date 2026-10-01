@@ -1,0 +1,29 @@
+{
+  "name": "pdf-pixel",
+  "version": "0.0.0",
+  "description": "PDF viewer panel for the browser: the PdfPixel renderer compiled to WebAssembly.",
+  "license": "MIT",
+  "author": "PDF Pixel",
+  "homepage": "https://github.com/zayg21-pixel/pdf-pixel",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zayg21-pixel/pdf-pixel.git"
+  },
+  "keywords": [
+    "pdf",
+    "pdf-viewer",
+    "webassembly",
+    "wasm",
+    "skia"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "canvasInterop.js",
+    "_framework/",
+    "licenses/"
+  ]
+}

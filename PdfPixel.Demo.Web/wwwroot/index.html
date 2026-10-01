@@ -374,20 +374,14 @@
     </footer>
 
     <script type="module">
-        import * as canvasInterop from './canvasInterop.js';
-        import { dotnet } from './_framework/dotnet.js';
+        import * as pdfPixel from './index.js';
 
-        const { setModuleImports, getAssemblyExports } = await dotnet
-            .withDiagnosticTracing(false)
-            .withApplicationArgumentsFromQuery()
-            .create();
-
-        await canvasInterop.initialize(setModuleImports, getAssemblyExports);
+        await pdfPixel.initialize();
 
         const container = document.getElementById('canvasContainer');
         const containerId = container.id;
 
-        await canvasInterop.registerPanel(containerId, container, {
+        await pdfPixel.registerPanel(containerId, container, {
             settings: {
                 renderer: {
                     backgroundColor: '#D3D3D3',
@@ -443,21 +437,21 @@
         searchInput.addEventListener('input', () => {
             clearTimeout(searchInputTimer);
             searchInputTimer = setTimeout(() => {
-                canvasInterop.updateConfiguration(containerId, { settings: { text: { extractText: searchInput.value.length > 0 } } });
-                canvasInterop.setCurrentSearchResult(containerId, null);
-                canvasInterop.setSearchQuery(containerId, searchInput.value);
+                pdfPixel.updateConfiguration(containerId, { settings: { text: { extractText: searchInput.value.length > 0 } } });
+                pdfPixel.setCurrentSearchResult(containerId, null);
+                pdfPixel.setSearchQuery(containerId, searchInput.value);
             }, 300);
         });
 
-        previousSearchResultButton.addEventListener('click', () => canvasInterop.previousSearchResult(containerId));
-        nextSearchResultButton.addEventListener('click', () => canvasInterop.nextSearchResult(containerId));
+        previousSearchResultButton.addEventListener('click', () => pdfPixel.previousSearchResult(containerId));
+        nextSearchResultButton.addEventListener('click', () => pdfPixel.nextSearchResult(containerId));
 
         searchMatchCaseInput.addEventListener('change', () =>
-            canvasInterop.updateConfiguration(containerId, { settings: { search: { matchCase: searchMatchCaseInput.checked } } }));
+            pdfPixel.updateConfiguration(containerId, { settings: { search: { matchCase: searchMatchCaseInput.checked } } }));
         searchWholeWordInput.addEventListener('change', () =>
-            canvasInterop.updateConfiguration(containerId, { settings: { search: { wholeWord: searchWholeWordInput.checked } } }));
+            pdfPixel.updateConfiguration(containerId, { settings: { search: { wholeWord: searchWholeWordInput.checked } } }));
         searchMatchDiacriticsInput.addEventListener('change', () =>
-            canvasInterop.updateConfiguration(containerId, { settings: { search: { matchDiacritics: searchMatchDiacriticsInput.checked } } }));
+            pdfPixel.updateConfiguration(containerId, { settings: { search: { matchDiacritics: searchMatchDiacriticsInput.checked } } }));
 
         function updateAnnotationPopup(state) {
             const popup = state.annotationPopup;
@@ -518,7 +512,7 @@
             return div.innerHTML;
         }
 
-        canvasInterop.setOnStateChanged(containerId, (state) => {
+        pdfPixel.setOnStateChanged(containerId, (state) => {
             currentState = state;
             const hasDocument = state.pageCount > 0;
             pageInput.disabled = !hasDocument;
@@ -535,7 +529,7 @@
             updateSearchStatus(state);
         });
 
-        canvasInterop.setOnFramePresented(containerId, ({ canvas, frame }) => {
+        pdfPixel.setOnFramePresented(containerId, ({ canvas, frame }) => {
             const context = canvas.getContext('2d');
             const { width, height } = frame.panelSize;
 
@@ -564,20 +558,20 @@
 
         prevPageButton.addEventListener('click', () => {
             if (currentState.currentPage > 1) {
-                canvasInterop.setPage(containerId, currentState.currentPage - 1);
+                pdfPixel.setPage(containerId, currentState.currentPage - 1);
             }
         });
 
         nextPageButton.addEventListener('click', () => {
             if (currentState.currentPage < currentState.pageCount) {
-                canvasInterop.setPage(containerId, currentState.currentPage + 1);
+                pdfPixel.setPage(containerId, currentState.currentPage + 1);
             }
         });
 
         pageInput.addEventListener('change', () => {
             const requestedPage = parseInt(pageInput.value, 10);
             if (!isNaN(requestedPage) && requestedPage >= 1 && requestedPage <= currentState.pageCount) {
-                canvasInterop.setPage(containerId, requestedPage);
+                pdfPixel.setPage(containerId, requestedPage);
             } else {
                 pageInput.value = String(currentState.currentPage);
             }
@@ -590,15 +584,15 @@
         });
 
         zoomOutButton.addEventListener('click', () => {
-            canvasInterop.setScale(containerId, currentState.scale * 0.9);
+            pdfPixel.setScale(containerId, currentState.scale * 0.9);
         });
 
         zoomInButton.addEventListener('click', () => {
-            canvasInterop.setScale(containerId, currentState.scale * 1.1);
+            pdfPixel.setScale(containerId, currentState.scale * 1.1);
         });
 
         resetZoomButton.addEventListener('click', () => {
-            canvasInterop.setScale(containerId, 1.0);
+            pdfPixel.setScale(containerId, 1.0);
         });
 
         loadPdfBtn.addEventListener('click', () => {
@@ -612,8 +606,8 @@
                 return;
             }
             const arrayBuffer = await file.arrayBuffer();
-            await canvasInterop.setDocument(containerId, new Uint8Array(arrayBuffer));
-            canvasInterop.requestRedraw(containerId);
+            await pdfPixel.setDocument(containerId, new Uint8Array(arrayBuffer));
+            pdfPixel.requestRedraw(containerId);
         });
     </script>
 </body>

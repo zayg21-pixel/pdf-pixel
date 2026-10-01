@@ -47,7 +47,7 @@ public partial class PdfPanelInterop
             return;
         }
 
-        LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddEmscriptenConsole());
+        LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddEmscriptenConsole(LogLevel.Warning));
         Logger = LoggerFactory.CreateLogger<PdfPanelInterop>();
         DocumentReader = new PdfDocumentReader(LoggerFactory, new SkiaFontSubstitutor(LoggerFactory));
         Logger.LogInformation("PdfPanelInterop initialized");

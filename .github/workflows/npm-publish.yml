@@ -1,0 +1,56 @@
+name: Publish npm Package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Publish
+        run: dotnet publish PdfPixel.PdfPanel.Web/PdfPixel.PdfPanel.Web.csproj --configuration Release --framework net10.0 --output publish
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Assemble package
+        run: |
+          mkdir -p package/licenses
+          cp -r publish/wwwroot/_framework package/
+          find package/_framework -type f \( -name '*.br' -o -name '*.gz' \) -delete
+          cp publish/wwwroot/index.js publish/wwwroot/canvasInterop.js package/
+          cp PdfPixel.PdfPanel.Web/npm/package.json PdfPixel.PdfPanel.Web/npm/README.md package/
+          cp LICENSE package/
+          cp PdfPixel/NOTICE.txt package/licenses/PdfPixel.NOTICE.txt
+          cp PdfPixel.Color/NOTICE.txt package/licenses/PdfPixel.Color.NOTICE.txt
+          cp PdfPixel.Fonts/NOTICE.txt package/licenses/PdfPixel.Fonts.NOTICE.txt
+          cd package
+          npm version "$(cat ../Version.txt)" --no-git-tag-version
+
+      - name: Publish to npm
+        working-directory: package
+        run: |
+          if grep -q -- '-' ../Version.txt; then
+            npm publish --access public --tag next
+          else
+            npm publish --access public
+          fi
