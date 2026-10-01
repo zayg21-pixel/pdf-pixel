@@ -34,7 +34,9 @@ jobs:
             'PdfPixel.Tiff',
             'PdfPixel.Color',
             'PdfPixel.Fonts',
-            'PdfPixel'
+            'PdfPixel',
+            'PdfPixel.PdfPanel',
+            'PdfPixel.PdfPanel.Wpf'
           )
           foreach ($project in $projects) {
             dotnet pack "$project/$project.csproj" --configuration Release --output "${{ github.workspace }}/nupkg"

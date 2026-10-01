@@ -1,27 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net8.0;net9.0;net10.0</TargetFrameworks>
-    <LangVersion>13</LangVersion>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisMode>All</AnalysisMode>
-    <Nullable>enable</Nullable>
+    <Description>Platform-independent PDF viewer core for .NET built on PdfPixel: page layout, scrolling and zooming, background page decoding, text selection, search and annotations. Hosts supply the drawing surface and input; see PdfPixel.PdfPanel.Wpf for a ready-made WPF control.</Description>
+    <PackageTags>pdf;viewer;panel;skia;skiasharp</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
 </Project>

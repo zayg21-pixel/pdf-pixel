@@ -1,10 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net48;net8.0-windows;net9.0-windows;net10.0-windows</TargetFrameworks>
-    <LangVersion>12.0</LangVersion>
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>false</IsAotCompatible>
+    <Description>WPF PDF viewer control for .NET built on PdfPixel and PdfPixel.PdfPanel, with scrolling, zooming, text selection and search, rendered through SkiaSharp.</Description>
+    <PackageTags>pdf;viewer;wpf;control;skia;skiasharp</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,4 +17,4 @@
     <ProjectReference Include="..\PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj" />
   </ItemGroup>
 
-  </Project>
+</Project>
