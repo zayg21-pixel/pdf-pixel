@@ -13,8 +13,6 @@ using System.Windows;
 using System.Windows.Input;
 using PdfPixel.Models;
 using System.Linq;
-using PdfPixel.TextExtraction;
-using System.Collections.Generic;
 
 namespace PdfPixel.Demo.Wpf;
 
@@ -33,8 +31,6 @@ public class PdfFileLocation
 
 public class MainWindowsViewModel : ObservableObject
 {
-    private static readonly Dictionary<int, List<PdfWord>> _extractedWords = new Dictionary<int, List<PdfWord>>();
-    private readonly PdfTextChunker _chunker = new PdfTextChunker();
     private readonly SkiaFontSubstitutor _fontSubstitutor;
     private readonly PdfDocumentReader _reader;
     private readonly ObservableLoggerFactory _loggerFactory;
@@ -177,34 +173,6 @@ public class MainWindowsViewModel : ObservableObject
 
     private void OnAfterDraw(SKCanvas canvas, PdfPanelFrame frame)
     {
-        //using var paint = new SKPaint
-        //{
-        //    Color = SKColors.Red.WithAlpha(128),
-        //    Style = SKPaintStyle.Stroke,
-        //    IsAntialias = true
-        //};
-
-        //foreach (var page in request.VisiblePages)
-        //{
-        //    if (!_extractedWords.TryGetValue(PageNumber, out var words))
-        //    {
-        //        var text = _document.Pages[page.PageNumber - 1].ExtractText();
-        //        words = _chunker.ChunkCharacters(text).ToList();
-        //        _extractedWords[page.PageNumber] = words;
-        //    }
-
-        //    canvas.Save();
-        //    var pageMatrix = page.GetToPageMatrix(request.Scale);
-        //    canvas.Concat(in pageMatrix);
-
-        //    foreach (var word in words)
-        //    {
-        //        canvas.DrawRect(page.FromPdfRect(word.BoundingBox), paint);
-        //    }
-
-        //    canvas.Restore();
-        //}
-
         SKColor defaultColor = SKColor.Parse("#21232B").WithAlpha(128);
         SKColor accentColor = SKColor.Parse("#4695EB").WithAlpha(128);
 
@@ -346,7 +314,6 @@ public class MainWindowsViewModel : ObservableObject
             return;
         }
 
-        _extractedWords.Clear();
         var currentPages = Pages;
         Pages = null;
         _document?.Dispose();

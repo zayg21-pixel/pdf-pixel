@@ -12,6 +12,15 @@
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <EmccLinkOptimizationFlag>-Oz</EmccLinkOptimizationFlag>
+    <WasmNativeDebugSymbols>false</WasmNativeDebugSymbols>
+    <InvariantTimezone>true</InvariantTimezone>
+    <DebuggerSupport>false</DebuggerSupport>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj" />
   </ItemGroup>
@@ -25,7 +34,6 @@
   <ItemGroup>
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="4.150.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
 
   </ItemGroup>
 

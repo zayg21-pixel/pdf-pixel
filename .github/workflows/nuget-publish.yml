@@ -31,6 +31,7 @@ jobs:
             'PdfPixel.Jbig2',
             'PdfPixel.Jpg',
             'PdfPixel.Jpx',
+            'PdfPixel.Tiff',
             'PdfPixel.Color',
             'PdfPixel.Fonts',
             'PdfPixel'

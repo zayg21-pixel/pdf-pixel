@@ -64,6 +64,7 @@ internal static class SoftMaskUtilities
         maskState.CTM = worldToMaskForm;
         maskState.ClipBounds = worldToMaskForm.MapRect(maskForm.BBox);
 
+        // TODO: [MEDIUM] text shown by the mask form is extracted like page text, in both rendering and text extraction
         PdfCommandRecorder recorder = new();
         PdfContentStreamRenderer contentRenderer = new(renderer, maskPage);
         PdfParseContext parseContext = new(contentData);
