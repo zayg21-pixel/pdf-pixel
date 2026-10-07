@@ -62,13 +62,12 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ✅ Pattern
 
 ### Encryption
-- ✅ RC4 40-bit / 128-bit
-- ✅ AES-128
+- ✅ RC4 40–128-bit *(R2–R4)*
+- ✅ AES-128 *(R4)*
 - ⚠️ AES-256 *(R6 only, R5 planned)*
 - ✅ Crypt filters
-- ⚠️ Owner password *(R6 only; R2–R4 accept the user password only)*
-- ⚠️ Embedded file filter (`/EFF`) *(applied only to streams marked `/Type /EmbeddedFile`)*
-- ❌ Public-key and custom security handlers *(Standard security handler only)*
+- ❌ Public-key security handler (`Adobe.PubSec`) *(decryption requires the recipient's certificate and private key)*
+- ❌ Proprietary DRM security handlers *(e.g. Adobe LiveCycle Rights Management, Microsoft IRM; keys are issued by the vendor's server)*
 
 ### Annotations
 - ✅ Text
@@ -87,7 +86,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 
 ### Interactive & Scripting
 - ⚠️ Text Selection *(extracts all glyphs, but does not sort into reading order; markup-aware selection not fully supported)*
-- 🔲 Attachments *(no API for embedded files, associated files or portfolios)*
+- 🔲 Attachments *(no API for embedded files, including encrypted ones (`/EFF`), associated files or portfolios)*
 - ❌ JavaScript *(not planned)*
 - ❌ XFA *(not planned)*
 

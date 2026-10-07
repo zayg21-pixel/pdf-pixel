@@ -33,20 +33,30 @@ internal static class StandardKeyDerivation
     }
 
     /// <summary>
-    /// Algorithm 2 steps a to f: MD5 of the padded password, /O, /P, the first /ID entry and,
+    /// Algorithm 2 step a: the password truncated or padded to 32 bytes.
+    /// </summary>
+    public static byte[] PadPassword(string password)
+    {
+        var paddedPassword = new byte[PasswordPadLength];
+        byte[] passwordBytes = Encoding.ASCII.GetBytes(password);
+        int passwordLength = Math.Min(passwordBytes.Length, PasswordPadLength);
+        passwordBytes.AsSpan(0, passwordLength).CopyTo(paddedPassword);
+        PasswordPadding.AsSpan(0, PasswordPadLength - passwordLength).CopyTo(paddedPassword.AsSpan(passwordLength));
+        return paddedPassword;
+    }
+
+    /// <summary>
+    /// Algorithm 2 steps b to f: MD5 of the padded password, /O, /P, the first /ID entry and,
     /// for R4 with unencrypted metadata, 0xFFFFFFFF.
     /// </summary>
-    public static byte[] ComputeKeyDigest(string password, PdfDecryptorParameters parameters)
+    public static byte[] ComputeKeyDigest(byte[] paddedPassword, PdfDecryptorParameters parameters)
     {
         byte[] fileId = GetFileId(parameters);
-        byte[] ownerEntry = parameters.OwnerEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /O (owner entry).");
+        byte[] ownerEntry = GetOwnerEntry(parameters);
         bool appendMetadataMarker = parameters.R >= 4 && !parameters.EncryptMetadata;
 
         var input = new byte[PasswordPadLength + ownerEntry.Length + 4 + fileId.Length + (appendMetadataMarker ? 4 : 0)];
-        byte[] passwordBytes = Encoding.ASCII.GetBytes(password);
-        int passwordLength = Math.Min(passwordBytes.Length, PasswordPadLength);
-        passwordBytes.AsSpan(0, passwordLength).CopyTo(input);
-        PasswordPadding.AsSpan(0, PasswordPadLength - passwordLength).CopyTo(input.AsSpan(passwordLength));
+        paddedPassword.CopyTo(input, 0);
 
         Span<byte> remaining = input.AsSpan(PasswordPadLength);
         ownerEntry.CopyTo(remaining);
@@ -69,6 +79,12 @@ internal static class StandardKeyDerivation
     /// </summary>
     public static byte[] GetFileId(PdfDecryptorParameters parameters)
         => parameters.FileIdFirst ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /ID first entry.");
+
+    /// <summary>
+    /// Returns the /O entry.
+    /// </summary>
+    public static byte[] GetOwnerEntry(PdfDecryptorParameters parameters)
+        => parameters.OwnerEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /O (owner entry).");
 
     /// <summary>
     /// Returns the /U entry.
