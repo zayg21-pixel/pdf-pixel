@@ -5,10 +5,11 @@ using PdfPixel.Encryption.Cryptography;
 namespace PdfPixel.Encryption;
 
 /// <summary>
-/// Decryptor for the Standard security handler revision R=6 (AES-256, ISO 32000-2).
+/// Decryptor for the Standard security handler revisions R=5 and R=6 (AES-256).
 /// Implements the hardened hash (Algorithm 2.B), user/owner password validation, and file key
 /// unwrapping (Algorithm 8.1) from the PDF 2.0 specification. Revision R=5 (the deprecated,
-/// pre-standardization AES-256 variant from ISO 32000-1 ExtensionLevel 3) is not supported.
+/// pre-standardization AES-256 variant from ISO 32000-1 ExtensionLevel 3) uses plain SHA-256
+/// in place of Algorithm 2.B.
 /// Object keys for AESV3 are the file encryption key itself; unlike RC4/AESV2, no per-object
 /// key derivation is performed.
 /// </summary>
@@ -20,11 +21,6 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
     public R5R6Decryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
         : base(parameters, onPasswordRequested)
     {
-        if (parameters.R != 6)
-        {
-            // TODO: [MEDIUM] implement R5 (deprecated, pre-standardization AES-256 variant from ISO 32000-1 ExtensionLevel 3)
-            throw new NotSupportedException($"PDF Standard Security Handler revision {parameters.R} (deprecated AES-256) is not supported. Only revision 6 is supported.");
-        }
     }
 
     /// <inheritdoc />
@@ -48,25 +44,31 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         var zeroIv = new byte[16];
 
         byte[] userValidationSalt = userEntry.AsSpan(32, 8).ToArray();
-        byte[] userHash = Hash2B(passwordBytes, userValidationSalt, userKey: null);
+        byte[] userHash = ComputeHash(passwordBytes, userValidationSalt, userKey: null);
         if (userHash.AsSpan().SequenceEqual(userEntry.AsSpan(0, 32)))
         {
             byte[] userKeySalt = userEntry.AsSpan(40, 8).ToArray();
-            byte[] intermediateKey = Hash2B(passwordBytes, userKeySalt, userKey: null);
+            byte[] intermediateKey = ComputeHash(passwordBytes, userKeySalt, userKey: null);
             return AesCbc.Decrypt(intermediateKey, zeroIv, userEncryptedKey, stripPkcs7Padding: false);
         }
 
         byte[] ownerValidationSalt = ownerEntry.AsSpan(32, 8).ToArray();
-        byte[] ownerHash = Hash2B(passwordBytes, ownerValidationSalt, uString);
+        byte[] ownerHash = ComputeHash(passwordBytes, ownerValidationSalt, uString);
         if (ownerHash.AsSpan().SequenceEqual(ownerEntry.AsSpan(0, 32)))
         {
             byte[] ownerKeySalt = ownerEntry.AsSpan(40, 8).ToArray();
-            byte[] intermediateKey = Hash2B(passwordBytes, ownerKeySalt, uString);
+            byte[] intermediateKey = ComputeHash(passwordBytes, ownerKeySalt, uString);
             return AesCbc.Decrypt(intermediateKey, zeroIv, ownerEncryptedKey, stripPkcs7Padding: false);
         }
 
         return null;
     }
+
+    /// <summary>
+    /// Password hash: SHA-256 for R5 (Adobe Extension Level 3), Algorithm 2.B for R6.
+    /// </summary>
+    private byte[] ComputeHash(byte[] password, byte[] salt, byte[]? userKey)
+        => (Parameters.R == 5) ? Sha256.ComputeHash(Concat(password, salt, userKey)) : Hash2B(password, salt, userKey);
 
     /// <summary>
     /// Implements ISO 32000-2 Algorithm 2.B (the R6 hardened hash).

@@ -64,7 +64,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 ### Encryption
 - ✅ RC4 40–128-bit *(R2–R4)*
 - ✅ AES-128 *(R4)*
-- ⚠️ AES-256 *(R6 only, R5 planned)*
+- ✅ AES-256 *(R5, R6)*
 - ✅ Crypt filters
 - ❌ Public-key security handler (`Adobe.PubSec`) *(decryption requires the recipient's certificate and private key)*
 - ❌ Proprietary DRM security handlers *(e.g. Adobe LiveCycle Rights Management, Microsoft IRM; keys are issued by the vendor's server)*
