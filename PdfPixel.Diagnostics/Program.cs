@@ -229,7 +229,7 @@ internal sealed class Program
     private static int GetPageCount(PdfDocumentReader reader, string pdfPath, string? password)
     {
         using FileStream fileStream = File.OpenRead(pdfPath);
-        using IPdfDocument document = reader.Read(fileStream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
+        using IPdfDocument document = reader.Read(fileStream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
         return document.Pages.Count;
     }
 
@@ -258,7 +258,7 @@ internal sealed class Program
         // Pages within one iteration share the document, the same way a viewer reads it.
         Stopwatch iterationStopwatch = Stopwatch.StartNew();
         using FileStream fileStream = File.OpenRead(pdfPath);
-        using IPdfDocument document = reader.Read(fileStream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
+        using IPdfDocument document = reader.Read(fileStream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
 
         // Guards the page's lazily-parsed content stream against concurrent access; use a private
         // object per concurrent render of the same page.

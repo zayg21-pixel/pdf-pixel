@@ -88,7 +88,7 @@ internal sealed class PdfXrefLoader
                     }
                 }
             }
-            catch (PdfIncorrectPasswordException)
+            catch (PdfAuthenticationException)
             {
                 throw;
             }
@@ -131,7 +131,7 @@ internal sealed class PdfXrefLoader
                 }
             }
         }
-        catch (PdfIncorrectPasswordException)
+        catch (PdfAuthenticationException)
         {
             throw;
         }

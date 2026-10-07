@@ -18,8 +18,9 @@ public abstract class BasePdfDecryptor
     private const int MaxObjectKeyLength = 16;
 
     private static readonly byte[] AesSalt = [0x73, 0x41, 0x6C, 0x54];
+    private static readonly PdfPasswordCredential EmptyPassword = new(string.Empty);
 
-    private readonly PdfPasswordRequestedCallback? _onPasswordRequested;
+    private readonly PdfCredentialRequestedCallback? _onCredentialRequested;
     private readonly object _authenticationLock = new();
     private volatile byte[]? _fileKey;
 
@@ -27,11 +28,11 @@ public abstract class BasePdfDecryptor
     /// Initializes the decryptor with the encryption parameters parsed from the PDF /Encrypt dictionary.
     /// </summary>
     /// <param name="parameters">Encryption parameters of the document.</param>
-    /// <param name="onPasswordRequested">Called when the empty user password does not authenticate, or null to try only the empty password.</param>
-    protected BasePdfDecryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
+    /// <param name="onCredentialRequested">Called when the empty user password does not authenticate, or null to try only the empty password.</param>
+    protected BasePdfDecryptor(PdfDecryptorParameters parameters, PdfCredentialRequestedCallback? onCredentialRequested)
     {
         Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
-        _onPasswordRequested = onPasswordRequested;
+        _onCredentialRequested = onCredentialRequested;
     }
 
     /// <summary>
@@ -44,7 +45,7 @@ public abstract class BasePdfDecryptor
     /// </summary>
     /// <param name="data">Encrypted (or plain) bytes.</param>
     /// <param name="reference">Owning object reference.</param>
-    /// <exception cref="PdfIncorrectPasswordException">Thrown if the string filter requires a password and none of the supplied passwords is correct.</exception>
+    /// <exception cref="PdfAuthenticationException">Thrown if the string filter requires a credential and none of the supplied credentials is accepted.</exception>
     public byte[] DecryptString(in ReadOnlyMemory<byte> data, in PdfReference reference)
     {
         PdfCryptFilter cryptFilter = Parameters.StringCryptFilter;
@@ -67,7 +68,7 @@ public abstract class BasePdfDecryptor
     /// <param name="reference">The PDF reference used to determine the decryption parameters.</param>
     /// <param name="cryptFilter">Crypt filter selected for the stream.</param>
     /// <returns>A stream containing the decrypted data. The caller is responsible for disposing of the returned stream.</returns>
-    /// <exception cref="PdfIncorrectPasswordException">Thrown if the crypt filter requires a password and none of the supplied passwords is correct.</exception>
+    /// <exception cref="PdfAuthenticationException">Thrown if the crypt filter requires a credential and none of the supplied credentials is accepted.</exception>
     public Stream DecryptStream(Stream stream, in PdfReference reference, PdfCryptFilter cryptFilter)
     {
         if (stream == null)
@@ -137,7 +138,7 @@ public abstract class BasePdfDecryptor
     /// Authenticates the document if any of its stream, string or embedded file filters requires
     /// authentication when the document is opened.
     /// </summary>
-    /// <exception cref="PdfIncorrectPasswordException">Thrown if none of the supplied passwords is correct.</exception>
+    /// <exception cref="PdfAuthenticationException">Thrown if none of the supplied credentials is accepted.</exception>
     internal void AuthenticateOnOpen()
     {
         bool requiresAuthentication = RequiresAuthenticationOnOpen(Parameters.StreamCryptFilter)
@@ -151,10 +152,10 @@ public abstract class BasePdfDecryptor
     }
 
     /// <summary>
-    /// Validates <paramref name="password"/> as the user or owner password and computes the file key.
+    /// Validates <paramref name="credential"/> and computes the file key.
     /// </summary>
-    /// <returns>The file key, or null when the password is not valid.</returns>
-    protected abstract byte[]? TryComputeFileKey(string password);
+    /// <returns>The file key, or null when the credential is not accepted.</returns>
+    protected abstract byte[]? TryComputeFileKey(PdfCredential credential);
 
     private byte[] Authenticate(PdfAuthEvent authEvent)
     {
@@ -172,35 +173,36 @@ public abstract class BasePdfDecryptor
                 return fileKey;
             }
 
-            fileKey = TryComputeFileKey(string.Empty);
+            fileKey = TryComputeFileKey(EmptyPassword);
             if (fileKey != null)
             {
                 _fileKey = fileKey;
                 return fileKey;
             }
 
-            if (_onPasswordRequested == null)
+            if (_onCredentialRequested == null)
             {
-                throw new PdfIncorrectPasswordException();
+                throw new PdfAuthenticationException();
             }
 
-            var reason = PdfPasswordRequestReason.PasswordRequired;
+            var reason = PdfCredentialRequestReason.CredentialRequired;
             while (true)
             {
-                string? password = _onPasswordRequested(reason, authEvent);
-                if (password == null)
+                PdfCredentialRequest request = new(reason, authEvent);
+                PdfCredential? credential = _onCredentialRequested(request);
+                if (credential == null)
                 {
-                    throw new PdfIncorrectPasswordException();
+                    throw new PdfAuthenticationException();
                 }
 
-                fileKey = TryComputeFileKey(password);
+                fileKey = TryComputeFileKey(credential);
                 if (fileKey != null)
                 {
                     _fileKey = fileKey;
                     return fileKey;
                 }
 
-                reason = PdfPasswordRequestReason.IncorrectPassword;
+                reason = PdfCredentialRequestReason.CredentialRejected;
             }
         }
     }

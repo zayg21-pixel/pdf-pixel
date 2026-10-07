@@ -14,15 +14,20 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
     private const int UserEntryCompareLength = 16;
     private const int MinV4KeyLength = 16;
 
-    public R3R4Decryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
-        : base(parameters, onPasswordRequested)
+    public R3R4Decryptor(PdfDecryptorParameters parameters, PdfCredentialRequestedCallback? onCredentialRequested)
+        : base(parameters, onCredentialRequested)
     {
     }
 
     /// <inheritdoc />
-    protected override byte[]? TryComputeFileKey(string password)
+    protected override byte[]? TryComputeFileKey(PdfCredential credential)
     {
-        byte[] paddedPassword = StandardKeyDerivation.PadPassword(password);
+        if (credential is not PdfPasswordCredential passwordCredential)
+        {
+            return null;
+        }
+
+        byte[] paddedPassword = StandardKeyDerivation.PadPassword(passwordCredential.Password);
         byte[]? fileKey = TryComputeUserFileKey(paddedPassword);
         if (fileKey == null)
         {

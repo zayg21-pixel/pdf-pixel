@@ -157,7 +157,7 @@ internal sealed class PdfTrailerParser
         // Resolving the entries above may run the recovery scan, which sets its own decryptor.
         if (_document.Decryptor == null)
         {
-            _document.Decryptor = PdfDecryptorFactory.Create(parameters, _document.OnPasswordRequested);
+            _document.Decryptor = PdfDecryptorFactory.Create(parameters, _document.OnCredentialRequested);
         }
     }
 }

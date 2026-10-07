@@ -31,21 +31,21 @@ public class PdfDocumentReader
     }
 
     /// <summary>
-    /// Reads a PDF document from the specified stream, requesting a password when an encrypted document needs one.
+    /// Reads a PDF document from the specified stream, requesting a credential when an encrypted document needs one.
     /// </summary>
     /// <remarks>The returned document parses lazily from <paramref name="stream"/>; it is not copied.
     /// The stream must stay open, readable and seekable for as long as the document is in use.</remarks>
     /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable.</param>
-    /// <param name="onPasswordRequested">Called when the empty user password does not decrypt the document, at open or on
+    /// <param name="onCredentialRequested">Called when the empty user password does not decrypt the document, at open or on
     /// first access to encrypted embedded files. When <see langword="null"/>, only the empty user password is tried.</param>
     /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF content. If the stream is empty, an empty <see
     /// cref="PdfDocument"/> is returned.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="stream"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">Thrown if <paramref name="stream"/> is not readable or does not support seeking.</exception>
     /// <exception cref="PdfInvalidDocumentException">Thrown if the PDF structure cannot be parsed.</exception>
-    /// <exception cref="PdfIncorrectPasswordException">Thrown if the document requires a password at open and none of the supplied passwords is correct.</exception>
+    /// <exception cref="PdfAuthenticationException">Thrown if the document requires a credential at open and none of the supplied credentials is accepted.</exception>
     /// <exception cref="NotSupportedException">Thrown if the document uses a feature that is not supported.</exception>
-    public IPdfDocument Read(Stream stream, PdfPasswordRequestedCallback? onPasswordRequested = null)
+    public IPdfDocument Read(Stream stream, PdfCredentialRequestedCallback? onCredentialRequested = null)
     {
         if (stream == null)
         {
@@ -70,7 +70,7 @@ public class PdfDocumentReader
         }
 
         IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontSubstitutor, stream);
-        document.OnPasswordRequested = onPasswordRequested;
+        document.OnCredentialRequested = onCredentialRequested;
         document.HeaderOffset = PdfByteScanner.LocateHeader(document.Stream);
 
         if (document.HeaderOffset != 0)
@@ -123,7 +123,7 @@ public class PdfDocumentReader
 
             _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);
         }
-        catch (PdfIncorrectPasswordException)
+        catch (PdfAuthenticationException)
         {
             throw;
         }
@@ -146,8 +146,8 @@ public class PdfDocumentReader
     /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable.</param>
     /// <param name="password">The password used to decrypt the PDF, if it is encrypted.</param>
     /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF content.</returns>
-    /// <exception cref="PdfIncorrectPasswordException">Thrown if the document is encrypted and the supplied password is incorrect.</exception>
-    [Obsolete("Use Read(Stream, PdfPasswordRequestedCallback?) and supply the password from the callback instead.")]
+    /// <exception cref="PdfAuthenticationException">Thrown if the document is encrypted and the supplied password is incorrect.</exception>
+    [Obsolete("Use Read(Stream, PdfCredentialRequestedCallback?) and supply the password from the callback instead.")]
     public IPdfDocument Read(Stream stream, string? password)
-        => Read(stream, (reason, authEvent) => (reason == PdfPasswordRequestReason.PasswordRequired) ? password : null);
+        => Read(stream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
 }

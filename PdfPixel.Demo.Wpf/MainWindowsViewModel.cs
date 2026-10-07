@@ -1,6 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using PdfPixel.Encryption;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.PdfPanel;
@@ -337,24 +336,30 @@ public class MainWindowsViewModel : ObservableObject
 
         try
         {
-            return _reader.Read(fileStream, OnPasswordRequested);
+            return _reader.Read(fileStream, OnCredentialRequested);
         }
-        catch (PdfIncorrectPasswordException)
+        catch (PdfAuthenticationException)
         {
             fileStream.Dispose();
             return null;
         }
     }
 
-    private static string OnPasswordRequested(PdfPasswordRequestReason reason, PdfAuthEvent authEvent)
+    private static PdfCredential OnCredentialRequested(PdfCredentialRequest request)
     {
         string errorMessage = null;
-        if (reason == PdfPasswordRequestReason.IncorrectPassword)
+        if (request.Reason == PdfCredentialRequestReason.CredentialRejected)
         {
             errorMessage = "Incorrect password. Please try again.";
         }
 
-        return PasswordPromptWindow.TryPromptForPassword(Application.Current.MainWindow, errorMessage);
+        string password = PasswordPromptWindow.TryPromptForPassword(Application.Current.MainWindow, errorMessage);
+        if (password == null)
+        {
+            return null;
+        }
+
+        return new PdfPasswordCredential(password);
     }
 
     private static Stream OpenFileStream(FileInfo fileInfo)

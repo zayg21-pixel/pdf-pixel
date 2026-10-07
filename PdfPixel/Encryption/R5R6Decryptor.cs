@@ -18,14 +18,19 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
     private const int MaxPasswordBytes = 127;
     private const int UEntryLength = 48;
 
-    public R5R6Decryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
-        : base(parameters, onPasswordRequested)
+    public R5R6Decryptor(PdfDecryptorParameters parameters, PdfCredentialRequestedCallback? onCredentialRequested)
+        : base(parameters, onCredentialRequested)
     {
     }
 
     /// <inheritdoc />
-    protected override byte[]? TryComputeFileKey(string password)
+    protected override byte[]? TryComputeFileKey(PdfCredential credential)
     {
+        if (credential is not PdfPasswordCredential passwordCredential)
+        {
+            return null;
+        }
+
         byte[] userEntry = Parameters.UserEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /U (user entry).");
         byte[] ownerEntry = Parameters.OwnerEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /O (owner entry).");
         byte[] userEncryptedKey = Parameters.UserEncryptedKey ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /UE (user encrypted key) entry.");
@@ -40,7 +45,7 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         // Some writers pad /U with trailing bytes beyond the required 48; only the first 48 are significant.
         byte[] uString = userEntry.AsSpan(0, UEntryLength).ToArray();
 
-        byte[] passwordBytes = GetPasswordBytes(password);
+        byte[] passwordBytes = GetPasswordBytes(passwordCredential.Password);
         var zeroIv = new byte[16];
 
         byte[] userValidationSalt = userEntry.AsSpan(32, 8).ToArray();
