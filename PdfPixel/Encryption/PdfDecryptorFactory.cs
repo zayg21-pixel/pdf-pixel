@@ -13,12 +13,22 @@ public static class PdfDecryptorFactory
     /// <param name="parameters">Encryption parameters of the document.</param>
     /// <param name="onPasswordRequested">Called when the empty user password does not authenticate, or null to try only the empty password.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="parameters"/> is <see langword="null"/>.</exception>
-    /// <exception cref="NotSupportedException">Thrown if the /R revision is not supported.</exception>
+    /// <exception cref="NotSupportedException">Thrown if the /Filter security handler, the /V algorithm or the /R revision is not supported.</exception>
     public static BasePdfDecryptor Create(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
     {
         if (parameters == null)
         {
             throw new ArgumentNullException(nameof(parameters));
+        }
+
+        if (parameters.Filter != PdfSecurityHandler.Standard)
+        {
+            throw new NotSupportedException("Unsupported security handler; only the Standard security handler is supported.");
+        }
+
+        if (parameters.V != 1 && parameters.V != 2 && parameters.V != 4 && parameters.V != 5)
+        {
+            throw new NotSupportedException($"Unsupported encryption algorithm (V={parameters.V} R={parameters.R}).");
         }
 
         if (parameters.R <= 2)

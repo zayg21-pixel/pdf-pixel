@@ -79,6 +79,12 @@ internal sealed class PdfTrailerParser
         parameters.LengthBits = encryptDict.GetIntegerOrDefault(PdfTokens.LengthKey);
         parameters.Permissions = encryptDict.GetIntegerOrDefault(PdfTokens.PKey);
 
+        PdfString? filter = encryptDict.GetName(PdfTokens.FilterKey);
+        if (filter.HasValue)
+        {
+            parameters.Filter = filter.Value.AsEnum<PdfSecurityHandler>();
+        }
+
         bool? encryptMetadata = encryptDict.GetBoolean(PdfTokens.EncryptMetadataKey);
         if (encryptMetadata.HasValue)
         {

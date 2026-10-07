@@ -44,6 +44,7 @@ public class PdfDocumentReader
     /// <exception cref="InvalidOperationException">Thrown if <paramref name="stream"/> is not readable or does not support seeking.</exception>
     /// <exception cref="PdfInvalidDocumentException">Thrown if the PDF structure cannot be parsed.</exception>
     /// <exception cref="PdfIncorrectPasswordException">Thrown if the document requires a password at open and none of the supplied passwords is correct.</exception>
+    /// <exception cref="NotSupportedException">Thrown if the document uses a feature that is not supported.</exception>
     public IPdfDocument Read(Stream stream, PdfPasswordRequestedCallback? onPasswordRequested = null)
     {
         if (stream == null)

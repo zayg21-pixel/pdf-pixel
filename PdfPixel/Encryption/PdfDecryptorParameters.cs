@@ -12,6 +12,11 @@ namespace PdfPixel.Encryption;
 public class PdfDecryptorParameters
 {
     /// <summary>
+    /// Security handler (/Filter), Standard when absent.
+    /// </summary>
+    public PdfSecurityHandler Filter { get; set; } = PdfSecurityHandler.Standard;
+
+    /// <summary>
     /// Encryption algorithm version (/V).
     /// </summary>
     public int V { get; set; }
