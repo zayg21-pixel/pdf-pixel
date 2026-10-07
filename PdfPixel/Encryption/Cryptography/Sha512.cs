@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Encryption;
+namespace PdfPixel.Encryption.Cryptography;
 
 /// <summary>
 /// Pure managed SHA-384/SHA-512 implementation based on FIPS 180-4.
@@ -9,7 +9,7 @@ namespace PdfPixel.Encryption;
 /// platforms where the native implementation is unavailable (e.g., Blazor WASM).
 /// Only needed by the R6 hardened-hash algorithm (ISO 32000-2 Algorithm 2.B).
 /// </summary>
-internal static class ManagedSha512
+internal static class Sha512
 {
     private static readonly ulong[] RoundConstants = [
         0x428a2f98d728ae22, 0x7137449123ef65cd, 0xb5c0fbcfec4d3b2f, 0xe9b5dba58189dbbc,

@@ -1,3 +1,4 @@
+using PdfPixel.Encryption.Cryptography;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
@@ -9,13 +10,18 @@ namespace PdfPixel.Encryption;
 
 /// <summary>
 /// Base decryptor that exposes unified byte decryption for both streams and string objects.
-/// Implementations derive file and object specific keys internally.
+/// Implementations derive the file key.
 /// </summary>
 public abstract class BasePdfDecryptor
 {
+    private const int AesBlockSize = 16;
+    private const int MaxObjectKeyLength = 16;
+
+    private static readonly byte[] AesSalt = [0x73, 0x41, 0x6C, 0x54];
+
     private readonly PdfPasswordRequestedCallback? _onPasswordRequested;
     private readonly object _authenticationLock = new();
-    private volatile bool _isAuthenticated;
+    private volatile byte[]? _fileKey;
 
     /// <summary>
     /// Initializes the decryptor with the encryption parameters parsed from the PDF /Encrypt dictionary.
@@ -47,8 +53,8 @@ public abstract class BasePdfDecryptor
             return data.ToArray();
         }
 
-        Authenticate(cryptFilter.AuthEvent);
-        return Decrypt(data, reference, cryptFilter);
+        byte[] fileKey = Authenticate(cryptFilter.AuthEvent);
+        return Decrypt(data.Span, reference, cryptFilter, fileKey);
     }
 
     /// <summary>
@@ -79,13 +85,13 @@ public abstract class BasePdfDecryptor
             return stream;
         }
 
-        Authenticate(cryptFilter.AuthEvent);
+        byte[] fileKey = Authenticate(cryptFilter.AuthEvent);
 
         using MemoryStream memoryStream = new();
         stream.CopyTo(memoryStream);
         byte[] decryptedBytes = (memoryStream.Length == 0)
             ? Array.Empty<byte>()
-            : Decrypt(memoryStream.ToArray(), reference, cryptFilter);
+            : Decrypt(memoryStream.ToArray(), reference, cryptFilter, fileKey);
 
         return new MemoryStream(decryptedBytes);
     }
@@ -145,40 +151,32 @@ public abstract class BasePdfDecryptor
     }
 
     /// <summary>
-    /// Validates <paramref name="password"/> as the user or owner password and, when valid, computes the file key.
+    /// Validates <paramref name="password"/> as the user or owner password and computes the file key.
     /// </summary>
-    /// <returns>True when the password is valid.</returns>
-    protected abstract bool TryAuthenticate(string password);
+    /// <returns>The file key, or null when the password is not valid.</returns>
+    protected abstract byte[]? TryComputeFileKey(string password);
 
-    /// <summary>
-    /// Decrypts non-empty data of the object identified by <paramref name="reference"/> with an authenticated file key.
-    /// </summary>
-    protected abstract byte[] Decrypt(ReadOnlyMemory<byte> data, PdfReference reference, PdfCryptFilter cryptFilter);
-
-    private static bool RequiresAuthenticationOnOpen(PdfCryptFilter cryptFilter)
+    private byte[] Authenticate(PdfAuthEvent authEvent)
     {
-        return cryptFilter.Method != PdfCryptFilterMethod.None
-            && cryptFilter.AuthEvent == PdfAuthEvent.DocumentOpen;
-    }
-
-    private void Authenticate(PdfAuthEvent authEvent)
-    {
-        if (_isAuthenticated)
+        byte[]? fileKey = _fileKey;
+        if (fileKey != null)
         {
-            return;
+            return fileKey;
         }
 
         lock (_authenticationLock)
         {
-            if (_isAuthenticated)
+            fileKey = _fileKey;
+            if (fileKey != null)
             {
-                return;
+                return fileKey;
             }
 
-            if (TryAuthenticate(string.Empty))
+            fileKey = TryComputeFileKey(string.Empty);
+            if (fileKey != null)
             {
-                _isAuthenticated = true;
-                return;
+                _fileKey = fileKey;
+                return fileKey;
             }
 
             if (_onPasswordRequested == null)
@@ -195,14 +193,61 @@ public abstract class BasePdfDecryptor
                     throw new PdfIncorrectPasswordException();
                 }
 
-                if (TryAuthenticate(password))
+                fileKey = TryComputeFileKey(password);
+                if (fileKey != null)
                 {
-                    _isAuthenticated = true;
-                    return;
+                    _fileKey = fileKey;
+                    return fileKey;
                 }
 
                 reason = PdfPasswordRequestReason.IncorrectPassword;
             }
         }
+    }
+
+    private static bool RequiresAuthenticationOnOpen(PdfCryptFilter cryptFilter)
+    {
+        return cryptFilter.Method != PdfCryptFilterMethod.None
+            && cryptFilter.AuthEvent == PdfAuthEvent.DocumentOpen;
+    }
+
+    private static byte[] Decrypt(in ReadOnlySpan<byte> data, in PdfReference reference, PdfCryptFilter cryptFilter, byte[] fileKey)
+    {
+        return cryptFilter.Method switch
+        {
+            PdfCryptFilterMethod.AESV2 => DecryptAes(DeriveObjectKey(fileKey, reference, AesSalt), data),
+            PdfCryptFilterMethod.AESV3 => DecryptAes(fileKey, data),
+            _ => Rc4.Transform(DeriveObjectKey(fileKey, reference, ReadOnlySpan<byte>.Empty), data)
+        };
+    }
+
+    /// <summary>
+    /// Algorithm 1 (ISO 32000-2, 7.6.3.3): MD5 of the file key, object number, generation and optional AES salt.
+    /// </summary>
+    private static byte[] DeriveObjectKey(byte[] fileKey, in PdfReference reference, in ReadOnlySpan<byte> salt)
+    {
+        Span<byte> buffer = stackalloc byte[fileKey.Length + 5 + salt.Length];
+        fileKey.CopyTo(buffer);
+        uint objectNumber = reference.ObjectNumber;
+        int generation = reference.Generation;
+        buffer[fileKey.Length + 0] = (byte)(objectNumber & 0xFF);
+        buffer[fileKey.Length + 1] = (byte)((objectNumber >> 8) & 0xFF);
+        buffer[fileKey.Length + 2] = (byte)((objectNumber >> 16) & 0xFF);
+        buffer[fileKey.Length + 3] = (byte)(generation & 0xFF);
+        buffer[fileKey.Length + 4] = (byte)((generation >> 8) & 0xFF);
+        salt.CopyTo(buffer.Slice(fileKey.Length + 5));
+
+        int keyLength = Math.Min(fileKey.Length + 5, MaxObjectKeyLength);
+        return Md5.ComputeHash(buffer).AsSpan(0, keyLength).ToArray();
+    }
+
+    private static byte[] DecryptAes(byte[] key, in ReadOnlySpan<byte> data)
+    {
+        if (data.Length < AesBlockSize)
+        {
+            return data.ToArray();
+        }
+
+        return AesCbc.Decrypt(key, data.Slice(0, AesBlockSize), data.Slice(AesBlockSize), stripPkcs7Padding: true);
     }
 }

@@ -23,7 +23,7 @@ public static class PdfDecryptorFactory
 
         if (parameters.R <= 2)
         {
-            return new StandardR2Decryptor(parameters, onPasswordRequested);
+            return new R2Decryptor(parameters, onPasswordRequested);
         }
 
         if (parameters.R == 3 || parameters.R == 4)

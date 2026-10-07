@@ -1,6 +1,6 @@
 using System;
 using System.Text;
-using PdfPixel.Models;
+using PdfPixel.Encryption.Cryptography;
 
 namespace PdfPixel.Encryption;
 
@@ -17,9 +17,6 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
     private const int MaxPasswordBytes = 127;
     private const int UEntryLength = 48;
 
-    private byte[]? _fileKey;
-    private readonly ManagedAes256Cbc _aes = new();
-
     public R5R6Decryptor(PdfDecryptorParameters parameters, PdfPasswordRequestedCallback? onPasswordRequested)
         : base(parameters, onPasswordRequested)
     {
@@ -30,26 +27,8 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         }
     }
 
-    protected override byte[] Decrypt(ReadOnlyMemory<byte> data, PdfReference reference, PdfCryptFilter cryptFilter)
-    {
-        if (data.Length < 16)
-        {
-            return data.ToArray();
-        }
-
-        ReadOnlySpan<byte> span = data.Span;
-        byte[] iv = span.Slice(0, 16).ToArray();
-        byte[] ciphertext = span.Slice(16).ToArray();
-
-        if (_fileKey == null)
-        {
-            throw new InvalidOperationException("File key must be computed before decrypting.");
-        }
-
-        return _aes.Decrypt(_fileKey, iv, ciphertext, stripPkcs7Padding: true);
-    }
-
-    protected override bool TryAuthenticate(string password)
+    /// <inheritdoc />
+    protected override byte[]? TryComputeFileKey(string password)
     {
         byte[] userEntry = Parameters.UserEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /U (user entry).");
         byte[] ownerEntry = Parameters.OwnerEntry ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /O (owner entry).");
@@ -74,8 +53,7 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         {
             byte[] userKeySalt = userEntry.AsSpan(40, 8).ToArray();
             byte[] intermediateKey = Hash2B(passwordBytes, userKeySalt, userKey: null);
-            _fileKey = _aes.Decrypt(intermediateKey, zeroIv, userEncryptedKey, stripPkcs7Padding: false);
-            return true;
+            return AesCbc.Decrypt(intermediateKey, zeroIv, userEncryptedKey, stripPkcs7Padding: false);
         }
 
         byte[] ownerValidationSalt = ownerEntry.AsSpan(32, 8).ToArray();
@@ -84,11 +62,10 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         {
             byte[] ownerKeySalt = ownerEntry.AsSpan(40, 8).ToArray();
             byte[] intermediateKey = Hash2B(passwordBytes, ownerKeySalt, uString);
-            _fileKey = _aes.Decrypt(intermediateKey, zeroIv, ownerEncryptedKey, stripPkcs7Padding: false);
-            return true;
+            return AesCbc.Decrypt(intermediateKey, zeroIv, ownerEncryptedKey, stripPkcs7Padding: false);
         }
 
-        return false;
+        return null;
     }
 
     /// <summary>
@@ -96,16 +73,13 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
     /// </summary>
     private static byte[] Hash2B(byte[] password, byte[] salt, byte[]? userKey)
     {
-        byte[] k = ManagedSha256.ComputeHash(Concat(password, salt, userKey));
-        ManagedAes128CbcEncryptor aesEncryptor = new();
+        byte[] k = Sha256.ComputeHash(Concat(password, salt, userKey));
 
         int round = 0;
         while (true)
         {
             byte[] k1 = RepeatConcat(password, k, userKey);
-            byte[] aesKey = k.AsSpan(0, 16).ToArray();
-            byte[] aesIv = k.AsSpan(16, 16).ToArray();
-            byte[] e = aesEncryptor.Encrypt(aesKey, aesIv, k1);
+            byte[] e = AesCbc.Encrypt(k.AsSpan(0, 16), k.AsSpan(16, 16), k1);
 
             int sum = 0;
             for (int i = 0; i < 16; i++)
@@ -115,9 +89,9 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
 
             k = (sum % 3) switch
             {
-                0 => ManagedSha256.ComputeHash(e),
-                1 => ManagedSha512.ComputeHash384(e),
-                _ => ManagedSha512.ComputeHash512(e)
+                0 => Sha256.ComputeHash(e),
+                1 => Sha512.ComputeHash384(e),
+                _ => Sha512.ComputeHash512(e)
             };
 
             round++;

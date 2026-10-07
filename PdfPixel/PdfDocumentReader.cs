@@ -132,6 +132,11 @@ public class PdfDocumentReader
             throw new PdfInvalidDocumentException("Failed to parse PDF document.", ex);
         }
 
+        if (document.Pages.Count == 0)
+        {
+            throw new PdfInvalidDocumentException("Failed to parse PDF document: no pages found.");
+        }
+
         return document;
     }
 

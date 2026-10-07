@@ -1,14 +1,14 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Encryption;
+namespace PdfPixel.Encryption.Cryptography;
 
 /// <summary>
 /// Pure managed SHA-256 implementation based on FIPS 180-4.
 /// Used in place of <see cref="System.Security.Cryptography.SHA256"/> to support
 /// platforms where the native implementation is unavailable (e.g., Blazor WASM).
 /// </summary>
-internal static class ManagedSha256
+internal static class Sha256
 {
     private static readonly uint[] RoundConstants = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,

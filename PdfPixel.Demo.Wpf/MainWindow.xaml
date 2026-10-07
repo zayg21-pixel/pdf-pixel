@@ -59,7 +59,6 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="100" />
         </Grid.RowDefinitions>
         <Grid>
@@ -142,83 +141,90 @@
             </ToolBar>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
-            <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
-                                     CurrentPage="{Binding PageNumber}"
-                                     Pages="{Binding Pages}"
-                                     AutoScaleMode="{Binding AutoScaleMode}"
-                                     SearchQuery="{Binding SearchQuery}"
-                                     CurrentSearchResult="{Binding CurrentSearchResult}"
-                                     ExtractText="{Binding ExtractText}"
-                                     SearchMatchCase="{Binding SearchMatchCase}"
-                                     SearchWholeWord="{Binding SearchWholeWord}"
-                                     SearchMatchDiacritics="{Binding SearchMatchDiacritics}"
-                                     PanelInterface="{Binding PanelInterface}"
-                                     PageCornerRadius="4">
-                <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
-                    <ToolTip>
-                        <ToolTip.Resources>
-                            <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationMessage}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Title}" Margin="4" FontSize="14" FontWeight="Bold" />
-                                    <TextBlock Text="{Binding Contents}" Margin="4" FontSize="12" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding CreationDate}" Margin="4" FontSize="10" />
-                                    <ItemsControl ItemsSource="{Binding Replies}" Margin="12,0,0,0" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ToolTip.Resources>
-                        <ToolTip.ContentTemplate>
-                            <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationPopup}">
-                                <ItemsControl ItemsSource="{Binding Messages}" MaxWidth="360" />
-                            </DataTemplate>
-                        </ToolTip.ContentTemplate>
-                    </ToolTip>
-                </wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
-            </wpfPdfPanel:WpfPdfPanel>
-        </ScrollViewer>
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        <Grid Grid.Row="2" Margin="8 4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+            <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
+                <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
+                                         CurrentPage="{Binding PageNumber}"
+                                         Pages="{Binding Pages}"
+                                         AutoScaleMode="{Binding AutoScaleMode}"
+                                         SearchQuery="{Binding SearchQuery}"
+                                         CurrentSearchResult="{Binding CurrentSearchResult}"
+                                         ExtractText="{Binding ExtractText}"
+                                         SearchMatchCase="{Binding SearchMatchCase}"
+                                         SearchWholeWord="{Binding SearchWholeWord}"
+                                         SearchMatchDiacritics="{Binding SearchMatchDiacritics}"
+                                         PanelInterface="{Binding PanelInterface}"
+                                         PageCornerRadius="4">
+                    <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
+                        <ToolTip>
+                            <ToolTip.Resources>
+                                <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationMessage}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" Margin="4" FontSize="14" FontWeight="Bold" />
+                                        <TextBlock Text="{Binding Contents}" Margin="4" FontSize="12" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding CreationDate}" Margin="4" FontSize="10" />
+                                        <ItemsControl ItemsSource="{Binding Replies}" Margin="12,0,0,0" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ToolTip.Resources>
+                            <ToolTip.ContentTemplate>
+                                <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationPopup}">
+                                    <ItemsControl ItemsSource="{Binding Messages}" MaxWidth="360" />
+                                </DataTemplate>
+                            </ToolTip.ContentTemplate>
+                        </ToolTip>
+                    </wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
+                </wpfPdfPanel:WpfPdfPanel>
+            </ScrollViewer>
 
-            <StackPanel Orientation="Horizontal">
-                <TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Delay=300}"
-                         ToolTip="Search"
-                         Width="240"
-                         VerticalContentAlignment="Center" />
+            <Grid Grid.Row="1" Margin="8 4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                <Button Command="{Binding PreviousSearchResultCommand}" ToolTip="Previous Result" Cursor="Hand" Margin="4 0 0 0">
-                    <TextBlock Text="&#xE70E;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="12" VerticalAlignment="Center" />
-                </Button>
+                <StackPanel Orientation="Horizontal">
+                    <TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Delay=300}"
+                             ToolTip="Search"
+                             Width="240"
+                             VerticalContentAlignment="Center" />
 
-                <Button Command="{Binding NextSearchResultCommand}" ToolTip="Next Result" Cursor="Hand" Margin="4 0 0 0">
-                    <TextBlock Text="&#xE70D;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="12" VerticalAlignment="Center" />
-                </Button>
+                    <Button Command="{Binding PreviousSearchResultCommand}" ToolTip="Previous Result" Cursor="Hand" Margin="4 0 0 0">
+                        <TextBlock Text="&#xE70E;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="12" VerticalAlignment="Center" />
+                    </Button>
 
-                <TextBlock VerticalAlignment="Center" Margin="4 0 0 0">
-                    <TextBlock.Text>
-                        <MultiBinding Converter="{StaticResource SearchStatusConverter}">
-                            <Binding Path="SearchResults" ElementName="pdfPanel" />
-                            <Binding Path="CurrentSearchResult" />
-                            <Binding Path="SearchResults.Count" ElementName="pdfPanel" />
-                            <Binding Path="IsTextExtracted" ElementName="pdfPanel" />
-                            <Binding Path="SearchQuery" />
-                        </MultiBinding>
-                    </TextBlock.Text>
-                </TextBlock>
-            </StackPanel>
+                    <Button Command="{Binding NextSearchResultCommand}" ToolTip="Next Result" Cursor="Hand" Margin="4 0 0 0">
+                        <TextBlock Text="&#xE70D;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="12" VerticalAlignment="Center" />
+                    </Button>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <CheckBox Content="Match case" IsChecked="{Binding SearchMatchCase}" VerticalAlignment="Center" Margin="4 0 0 0" />
-                <CheckBox Content="Whole word" IsChecked="{Binding SearchWholeWord}" VerticalAlignment="Center" Margin="4 0 0 0" />
-                <CheckBox Content="Match diacritics" IsChecked="{Binding SearchMatchDiacritics}" VerticalAlignment="Center" Margin="4 0 0 0" />
-            </StackPanel>
+                    <TextBlock VerticalAlignment="Center" Margin="4 0 0 0">
+                        <TextBlock.Text>
+                            <MultiBinding Converter="{StaticResource SearchStatusConverter}">
+                                <Binding Path="SearchResults" ElementName="pdfPanel" />
+                                <Binding Path="CurrentSearchResult" />
+                                <Binding Path="SearchResults.Count" ElementName="pdfPanel" />
+                                <Binding Path="IsTextExtracted" ElementName="pdfPanel" />
+                                <Binding Path="SearchQuery" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <CheckBox Content="Match case" IsChecked="{Binding SearchMatchCase}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                    <CheckBox Content="Whole word" IsChecked="{Binding SearchWholeWord}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                    <CheckBox Content="Match diacritics" IsChecked="{Binding SearchMatchDiacritics}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                </StackPanel>
+            </Grid>
         </Grid>
 
-        <GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"  />
-        <DataGrid x:Name="LogDataGrid" Grid.Row="4" ItemsSource="{Binding LogMessages}" AutoGenerateColumns="False" IsReadOnly="True" Margin="4">
+        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"  />
+        <DataGrid x:Name="LogDataGrid" Grid.Row="3" ItemsSource="{Binding LogMessages}" AutoGenerateColumns="False" IsReadOnly="True" Margin="4">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Time" Binding="{Binding DateTime, StringFormat=G}" Width="120" />
                 <DataGridTextColumn Header="Level" Binding="{Binding LogLevel}" Width="80" />

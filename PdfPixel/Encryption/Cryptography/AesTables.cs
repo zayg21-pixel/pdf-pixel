@@ -1,8 +1,7 @@
-namespace PdfPixel.Encryption;
+namespace PdfPixel.Encryption.Cryptography;
 
 /// <summary>
-/// Shared AES lookup tables (S-boxes, round constants, and GF(2^8) multiplication tables)
-/// used by both the AES-128 and AES-256 managed CBC implementations.
+/// AES lookup tables (S-boxes, round constants, and GF(2^8) multiplication tables).
 /// </summary>
 internal static class AesTables
 {
