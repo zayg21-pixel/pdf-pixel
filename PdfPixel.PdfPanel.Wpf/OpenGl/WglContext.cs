@@ -10,12 +10,16 @@ namespace PdfPixel.PdfPanel.Wpf.OpenGl;
 /// </summary>
 internal sealed class WglContext : IDisposable
 {
-    private IntPtr _hWnd;
-    private IntPtr _hDC;
-    private IntPtr _hGLRC;
+    private nint _hWnd;
+    private nint _hDC;
+    private nint _hGLRC;
     private bool _disposed;
 
-    private WglContext() { }
+    private WglContext()
+    {
+    }
+
+    ~WglContext() => Dispose(false);
 
     /// <summary>
     /// Creates a hidden window, sets up a pixel format, and creates a WGL rendering context.
@@ -24,7 +28,7 @@ internal sealed class WglContext : IDisposable
     /// <returns>A fully initialized <see cref="WglContext"/>.</returns>
     public static WglContext Create()
     {
-        var context = new WglContext();
+        WglContext context = new();
         context.Initialize();
         return context;
     }
@@ -43,37 +47,40 @@ internal sealed class WglContext : IDisposable
     /// <summary>
     /// Releases the OpenGL context from the calling thread.
     /// </summary>
-    public void ReleaseCurrent()
-    {
-        wglMakeCurrent(IntPtr.Zero, IntPtr.Zero);
-    }
+    public void ReleaseCurrent() => wglMakeCurrent(0, 0);
 
     private void Initialize()
     {
-        var moduleHandle = GetModuleHandleW(null);
+        nint moduleHandle = GetModuleHandleW(null);
 
         _hWnd = CreateWindowExW(
             0,
             "Static",
             "PdfPixelGlContext",
             WsPopup,
-            0, 0, 1, 1,
-            IntPtr.Zero, IntPtr.Zero, moduleHandle, IntPtr.Zero);
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            moduleHandle,
+            0);
 
-        if (_hWnd == IntPtr.Zero)
+        if (_hWnd == 0)
         {
             throw new InvalidOperationException("Failed to create hidden window for OpenGL context.");
         }
 
         _hDC = GetDC(_hWnd);
 
-        if (_hDC == IntPtr.Zero)
+        if (_hDC == 0)
         {
             DestroyWindow(_hWnd);
             throw new InvalidOperationException("Failed to get device context for OpenGL window.");
         }
 
-        var pfd = new PixelFormatDescriptor
+        PixelFormatDescriptor pfd = new()
         {
             Size = (ushort)Marshal.SizeOf<PixelFormatDescriptor>(),
             Version = 1,
@@ -90,23 +97,23 @@ internal sealed class WglContext : IDisposable
 
         if (pixelFormat == 0)
         {
-            ReleaseDC(_hWnd, _hDC);
+            _ = ReleaseDC(_hWnd, _hDC);
             DestroyWindow(_hWnd);
             throw new InvalidOperationException("ChoosePixelFormat failed.");
         }
 
         if (!SetPixelFormat(_hDC, pixelFormat, ref pfd))
         {
-            ReleaseDC(_hWnd, _hDC);
+            _ = ReleaseDC(_hWnd, _hDC);
             DestroyWindow(_hWnd);
             throw new InvalidOperationException("SetPixelFormat failed.");
         }
 
         _hGLRC = wglCreateContext(_hDC);
 
-        if (_hGLRC == IntPtr.Zero)
+        if (_hGLRC == 0)
         {
-            ReleaseDC(_hWnd, _hDC);
+            _ = ReleaseDC(_hWnd, _hDC);
             DestroyWindow(_hWnd);
             throw new InvalidOperationException("wglCreateContext failed.");
         }
@@ -114,8 +121,7 @@ internal sealed class WglContext : IDisposable
         MakeCurrent();
     }
 
-    /// <inheritdoc />
-    public void Dispose()
+    private void Dispose(bool disposing)
     {
         if (_disposed)
         {
@@ -124,23 +130,30 @@ internal sealed class WglContext : IDisposable
 
         _disposed = true;
 
-        if (_hGLRC != IntPtr.Zero)
+        if (_hGLRC != 0)
         {
-            wglMakeCurrent(IntPtr.Zero, IntPtr.Zero);
+            wglMakeCurrent(0, 0);
             wglDeleteContext(_hGLRC);
-            _hGLRC = IntPtr.Zero;
+            _hGLRC = 0;
         }
 
-        if (_hDC != IntPtr.Zero && _hWnd != IntPtr.Zero)
+        if (_hDC != 0 && _hWnd != 0)
         {
-            ReleaseDC(_hWnd, _hDC);
-            _hDC = IntPtr.Zero;
+            _ = ReleaseDC(_hWnd, _hDC);
+            _hDC = 0;
         }
 
-        if (_hWnd != IntPtr.Zero)
+        if (_hWnd != 0)
         {
             DestroyWindow(_hWnd);
-            _hWnd = IntPtr.Zero;
+            _hWnd = 0;
         }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }

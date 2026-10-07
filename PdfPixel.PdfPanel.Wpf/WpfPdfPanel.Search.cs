@@ -10,8 +10,13 @@ namespace PdfPixel.PdfPanel.Wpf;
 /// </summary>
 public partial class WpfPdfPanel
 {
-    private void OnSearchMatchesChanged(object sender, EventArgs e)
+    private void OnSearchMatchesChanged(object? sender, EventArgs e)
     {
+        if (_context == null)
+        {
+            return;
+        }
+
         IReadOnlyList<PdfPanelSearchMatch> matches = _context.Search.Matches;
         ObservableCollection<PdfPanelSearchMatch> results = SearchResults;
         int resultIndex = 0;

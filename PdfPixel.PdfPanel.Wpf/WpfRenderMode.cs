@@ -1,5 +1,8 @@
 namespace PdfPixel.PdfPanel.Wpf;
 
+/// <summary>
+/// Specifies the rendering backend of <see cref="WpfPdfPanel"/>.
+/// </summary>
 public enum WpfRenderMode
 {
     /// <summary>

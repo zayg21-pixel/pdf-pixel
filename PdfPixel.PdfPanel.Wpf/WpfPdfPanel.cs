@@ -11,7 +11,9 @@ using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -25,16 +27,20 @@ namespace PdfPixel.PdfPanel.Wpf;
 /// <summary>
 /// Represents a panel that displays a PDF document using SkiaSharp.
 /// </summary>
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable")]
 public partial class WpfPdfPanel : FrameworkElement
 {
     private readonly VisualCollection children;
 
-    private PdfPanelContext _context;
-    private IPdfPanelRenderTargetFactory _renderTargetFactory;
-    private ISkSurfaceFactory _surfaceFactory;
+    private PdfPanelContext? _context;
+    private IPdfPanelRenderTargetFactory? _renderTargetFactory;
+    private ISkSurfaceFactory? _surfaceFactory;
     private bool _updatingScale;
     private bool _updatingPages;
 
+    /// <summary>
+    /// Initializes a new <see cref="WpfPdfPanel"/>.
+    /// </summary>
     public WpfPdfPanel()
     {
         UseLayoutRounding = true;
@@ -48,9 +54,10 @@ public partial class WpfPdfPanel : FrameworkElement
         Unloaded += OnUnloaded;
     }
 
+    /// <inheritdoc />
     protected override int VisualChildrenCount => children.Count;
 
-    internal DrawingVisual DrawingVisual { get; private set; }
+    internal DrawingVisual? DrawingVisual { get; private set; }
 
     /// <summary>
     /// Size of the panel surface in device pixels.
@@ -69,7 +76,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        var source = PresentationSource.FromVisual(this);
+        PresentationSource source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.AddHook(Hook);
 
         DrawingVisual = new DrawingVisual();
@@ -77,7 +84,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         if (RenderMode == WpfRenderMode.OpenGl)
         {
-            var glFactory = new OpenGlRenderTargetFactory(this, sampleCount: 1);
+            OpenGlRenderTargetFactory glFactory = new(this, sampleCount: 1);
             _surfaceFactory = glFactory;
             _renderTargetFactory = glFactory;
         }
@@ -92,7 +99,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        var source = PresentationSource.FromVisual(this);
+        PresentationSource source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.RemoveHook(Hook);
 
         DisposeContext();
@@ -103,6 +110,7 @@ public partial class WpfPdfPanel : FrameworkElement
         _renderTargetFactory = null;
     }
 
+    /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
         (Size panelSize, Point hostScale, Point hostOffset) = this.MeasurePanel(finalSize);
@@ -132,22 +140,28 @@ public partial class WpfPdfPanel : FrameworkElement
         _context?.Reset();
     }
 
+    /// <inheritdoc />
     protected override void OnRender(DrawingContext drawingContext)
     {
-        var brush = new SolidColorBrush(BackgroundColor);
+        if (drawingContext == null)
+        {
+            throw new ArgumentNullException(nameof(drawingContext));
+        }
+
+        SolidColorBrush brush = new(BackgroundColor);
         brush.Freeze();
 
-        var size = new Size(ActualWidth, ActualHeight);
+        Size size = new(ActualWidth, ActualHeight);
         drawingContext.DrawRectangle(brush, null, new Rect(size));
 
         if (DrawingVisual != null)
+        {
             drawingContext.DrawDrawing(DrawingVisual.Drawing);
+        }
     }
 
-    protected override Visual GetVisualChild(int index)
-    {
-        return children[index];
-    }
+    /// <inheritdoc />
+    protected override Visual GetVisualChild(int index) => children[index];
 
     private void Update()
     {
@@ -159,7 +173,7 @@ public partial class WpfPdfPanel : FrameworkElement
         SynchronizeContext();
 
         _updatingPages = true;
-        var newPage = GetCurrentPage();
+        int newPage = GetCurrentPage();
 
         if (newPage != CurrentPage)
         {
@@ -175,12 +189,18 @@ public partial class WpfPdfPanel : FrameworkElement
         {
             return _context.GetCurrentPage();
         }
+
         return 0;
     }
 
     private void EnsureContext()
     {
         if (_context != null && _context.Pages == Pages)
+        {
+            return;
+        }
+
+        if (Pages == null || _surfaceFactory == null || _renderTargetFactory == null)
         {
             return;
         }
@@ -210,11 +230,16 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.Dispose();
     }
 
-    private void OnTextExtracted(object sender, EventArgs e) => SetValue(IsTextExtractedPropertyKey, true);
+    private void OnTextExtracted(object? sender, EventArgs e) => SetValue(IsTextExtractedPropertyKey, true);
 
     private void SynchronizeContext()
     {
         EnsureContext();
+
+        if (_context == null)
+        {
+            return;
+        }
 
         _context.PanelWidth = (float)PanelSize.Width;
         _context.PanelHeight = (float)PanelSize.Height;
@@ -260,14 +285,15 @@ public partial class WpfPdfPanel : FrameworkElement
         AutoScaleMode = _context.AutoScaleMode;
         _updatingScale = false;
 
-        ScrollOwner.InvalidateScrollInfo();
+        ScrollOwner?.InvalidateScrollInfo();
     }
 
     private bool CanRedraw()
     {
-        return Pages != null &&
-            this.IsPanelSizeValid(PanelSize) &&
-            IsLoaded && IsVisible;
+        return Pages != null
+            && this.IsPanelSizeValid(PanelSize)
+            && IsLoaded
+            && IsVisible;
     }
 
     private void HandleInterfaceRequest(PdfPanelInterfaceAction action)
@@ -275,35 +301,48 @@ public partial class WpfPdfPanel : FrameworkElement
         switch (action)
         {
             case PdfPanelInterfaceAction.ZoomIn:
-                ZoomIn();
-                break;
-
+                {
+                    ZoomIn();
+                    break;
+                }
             case PdfPanelInterfaceAction.ZoomOut:
-                ZoomOut();
-                break;
-
+                {
+                    ZoomOut();
+                    break;
+                }
             case PdfPanelInterfaceAction.NextSearchResult:
-                SelectNextSearchResult();
-                break;
-
+                {
+                    SelectNextSearchResult();
+                    break;
+                }
             case PdfPanelInterfaceAction.PreviousSearchResult:
-                SelectPreviousSearchResult();
-                break;
-
+                {
+                    SelectPreviousSearchResult();
+                    break;
+                }
             case PdfPanelInterfaceAction.RequestRedraw:
-                Update();
-                _context?.Render();
-                break;
+                {
+                    Update();
+                    _context?.Render();
+                    break;
+                }
             case PdfPanelInterfaceAction.RequestPresent:
-                _context?.Present();
-                break;
+                {
+                    _context?.Present();
+                    break;
+                }
         }
     }
 
     private void UpdatePointerState()
     {
+        if (_context == null)
+        {
+            return;
+        }
+
         PdfPoint panelPoint = GetPanelPosition(Mouse.GetPosition(this));
-        var state = Mouse.LeftButton == MouseButtonState.Pressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
+        PdfPanelButtonState state = (Mouse.LeftButton == MouseButtonState.Pressed) ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
         _context.Input.PointerPosition = panelPoint;
         _context.Input.PointerState = state;
@@ -311,8 +350,8 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private PdfPoint GetPanelPosition(Point hostPosition)
     {
-        var hostScale = new PdfPoint((float)HostScale.X, (float)HostScale.Y);
-        var hostOffset = new PdfPoint((float)HostOffset.X, (float)HostOffset.Y);
+        PdfPoint hostScale = new((float)HostScale.X, (float)HostScale.Y);
+        PdfPoint hostOffset = new((float)HostOffset.X, (float)HostOffset.Y);
         PdfMatrix hostToPanel = this.GetHostToPanelMatrix(hostOffset, hostScale);
 
         return hostToPanel.MapPoint(new PdfPoint((float)hostPosition.X, (float)hostPosition.Y));
@@ -320,6 +359,11 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void UpdateCursor()
     {
+        if (_context == null)
+        {
+            return;
+        }
+
         Cursor = _context.Input.Cursor switch
         {
             PdfPanelCursor.Hand => Cursors.Hand,
@@ -328,7 +372,7 @@ public partial class WpfPdfPanel : FrameworkElement
         };
     }
 
-    private void UpdateAnnotationPopup(PdfAnnotationPopup currentPopup)
+    private void UpdateAnnotationPopup(PdfAnnotationPopup? currentPopup)
     {
         if (AnnotationPopup == currentPopup)
         {
@@ -363,7 +407,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         if (link.Action is PdfGoToAction goToAction)
         {
-            PdfDestination actionDestination = goToAction.GetDestination();
+            PdfDestination? actionDestination = goToAction.GetDestination();
 
             if (actionDestination != null)
             {
@@ -379,7 +423,7 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        PdfDestination linkDestination = link.GetDestination();
+        PdfDestination? linkDestination = link.GetDestination();
 
         if (linkDestination != null)
         {
@@ -390,7 +434,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void HandleUriAction(string uriString)
     {
-        if (!Uri.TryCreate(uriString, UriKind.Absolute, out Uri uri)
+        if (!Uri.TryCreate(uriString, UriKind.Absolute, out Uri? uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             return;
@@ -412,7 +456,7 @@ public partial class WpfPdfPanel : FrameworkElement
             Process.Start(startInfo);
         }
 #if DEBUG
-        catch (Exception ex)
+        catch (Win32Exception ex)
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
@@ -420,7 +464,7 @@ public partial class WpfPdfPanel : FrameworkElement
             }));
         }
 #else
-        catch (Exception)
+        catch (Win32Exception)
         {
         }
 #endif

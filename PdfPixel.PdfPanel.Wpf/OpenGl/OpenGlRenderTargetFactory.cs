@@ -28,21 +28,21 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
     private readonly WpfPdfPanel _panel;
     private readonly int _sampleCount;
-    private WglContext _glContext;
-    private GRContext _grContext;
+    private WglContext? _glContext;
+    private GRContext? _grContext;
 
     // Drawing surface state
-    private SKSurface _currentSurface;
+    private SKSurface? _currentSurface;
     private int _currentWidth;
     private int _currentHeight;
 
     // Tiling surface state
-    private SKSurface _tilingSurface;
+    private SKSurface? _tilingSurface;
     private int _tilingWidth;
     private int _tilingHeight;
 
     // Presentation state (created/updated on UI thread via GetRenderTarget)
-    private WriteableBitmap _writeableBitmap;
+    private WriteableBitmap? _writeableBitmap;
     private PdfSize _lastPanelSize;
     private PdfPoint _lastHostScale;
     private PdfPoint _lastHostOffset;
@@ -72,7 +72,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         _glContext = WglContext.Create();
 
-        using var glInterface = GRGlInterface.Create();
+        using GRGlInterface glInterface = GRGlInterface.Create();
 
         if (glInterface == null)
         {
@@ -92,6 +92,11 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     /// <inheritdoc />
     public SKSurface GetDrawingSurface(int width, int height)
     {
+        if (_glContext == null || _grContext == null)
+        {
+            throw new InvalidOperationException("The OpenGL context is not initialized.");
+        }
+
         _glContext.MakeCurrent();
 
         if (_currentSurface != null && _currentWidth == width && _currentHeight == height)
@@ -99,8 +104,8 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
             return _currentSurface;
         }
 
-        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(_grContext, budgeted: true, info, sampleCount: _sampleCount);
+        SKImageInfo info = new(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        SKSurface newSurface = SKSurface.Create(_grContext, budgeted: true, info, sampleCount: _sampleCount);
 
         if (newSurface == null)
         {
@@ -114,7 +119,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
             newSurface.Canvas.DrawSurface(_currentSurface, SKPoint.Empty);
         }
 
-        var oldSurface = _currentSurface;
+        SKSurface? oldSurface = _currentSurface;
         _currentSurface = newSurface;
         _currentWidth = width;
         _currentHeight = height;
@@ -134,14 +139,14 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     /// </remarks>
     public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context)
     {
-        var panelSize = new PdfSize((float)_panel.PanelSize.Width, (float)_panel.PanelSize.Height);
-        var hostScale = new PdfPoint((float)_panel.HostScale.X, (float)_panel.HostScale.Y);
-        var hostOffset = new PdfPoint((float)_panel.HostOffset.X, (float)_panel.HostOffset.Y);
+        PdfSize panelSize = new((float)_panel.PanelSize.Width, (float)_panel.PanelSize.Height);
+        PdfPoint hostScale = new((float)_panel.HostScale.X, (float)_panel.HostScale.Y);
+        PdfPoint hostOffset = new((float)_panel.HostOffset.X, (float)_panel.HostOffset.Y);
 
-        if (_writeableBitmap == null ||
-            _lastPanelSize != panelSize ||
-            _lastHostScale != hostScale ||
-            _lastHostOffset != hostOffset)
+        if (_writeableBitmap == null
+            || _lastPanelSize != panelSize
+            || _lastHostScale != hostScale
+            || _lastHostOffset != hostOffset)
         {
             _writeableBitmap = new WriteableBitmap(
                 (int)panelSize.Width,
@@ -163,7 +168,17 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     /// <inheritdoc />
     public void Render(SKSurface surface, PdfPanelFrame frame)
     {
-        var imageInfo = new SKImageInfo(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
+        if (surface == null)
+        {
+            throw new ArgumentNullException(nameof(surface));
+        }
+
+        if (_glContext == null || _grContext == null)
+        {
+            throw new InvalidOperationException("The OpenGL context is not initialized.");
+        }
+
+        SKImageInfo imageInfo = new(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
         _glContext.MakeCurrent();
         _grContext.Flush();
@@ -173,7 +188,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
     private void PresentToWriteableBitmap(SKImageInfo imageInfo, SKSurface surface, PdfPanelFrame frame)
     {
-        if (_writeableBitmap == null)
+        if (_writeableBitmap == null || _panel.DrawingVisual == null)
         {
             return;
         }
@@ -195,11 +210,11 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         _writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));
 
-        var drawingVisual = _panel.DrawingVisual;
+        DrawingVisual drawingVisual = _panel.DrawingVisual;
         DrawingContext render = drawingVisual.RenderOpen();
 
-        var pixelOffsetX = _panel.SnapPosition(_lastHostOffset.X, _lastHostScale.X);
-        var pixelOffsetY = _panel.SnapPosition(_lastHostOffset.Y, _lastHostScale.Y);
+        double pixelOffsetX = _panel.SnapPosition(_lastHostOffset.X, _lastHostScale.X);
+        double pixelOffsetY = _panel.SnapPosition(_lastHostOffset.Y, _lastHostScale.Y);
 
         render.DrawImage(_writeableBitmap, new Rect(pixelOffsetX, pixelOffsetY, _writeableBitmap.Width, _writeableBitmap.Height));
 
@@ -211,6 +226,11 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     /// <inheritdoc />
     public SKSurface GetTilingSurface(int width, int height)
     {
+        if (_glContext == null || _grContext == null)
+        {
+            throw new InvalidOperationException("The OpenGL context is not initialized.");
+        }
+
         _glContext.MakeCurrent();
 
         if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
@@ -219,7 +239,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         }
 
         _tilingSurface?.Dispose();
-        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        SKImageInfo info = new(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
         _tilingSurface = SKSurface.Create(_grContext, budgeted: true, info);
         _tilingWidth = width;
         _tilingHeight = height;

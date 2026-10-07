@@ -10,93 +10,258 @@ namespace PdfPixel.PdfPanel.Wpf;
 
 public partial class WpfPdfPanel
 {
-    public static readonly DependencyProperty PagesProperty = DependencyProperty.Register(nameof(Pages), typeof(PdfPanelPageCollection), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="Pages"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty PagesProperty = DependencyProperty.Register(
+        nameof(Pages),
+        typeof(PdfPanelPageCollection),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, PagesProperty_Changed));
 
-    public static readonly DependencyProperty ScrollTickProperty = DependencyProperty.Register(nameof(ScrollTick), typeof(int), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="ScrollTick"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ScrollTickProperty = DependencyProperty.Register(
+        nameof(ScrollTick),
+        typeof(int),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(100, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(nameof(Scale), typeof(double), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="Scale"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(
+        nameof(Scale),
+        typeof(double),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(1d, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, ScaleProperty_Changed));
 
-    public static readonly DependencyProperty LayoutProperty = DependencyProperty.Register(nameof(Layout), typeof(IPdfPanelLayout), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="Layout"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty LayoutProperty = DependencyProperty.Register(
+        nameof(Layout),
+        typeof(IPdfPanelLayout),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty MinScaleProperty = DependencyProperty.Register(nameof(MinScale), typeof(double), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="MinScale"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty MinScaleProperty = DependencyProperty.Register(
+        nameof(MinScale),
+        typeof(double),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty MaxScaleProperty = DependencyProperty.Register(nameof(MaxScale), typeof(double), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="MaxScale"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty MaxScaleProperty = DependencyProperty.Register(
+        nameof(MaxScale),
+        typeof(double),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(10d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty ZoomStepProperty = DependencyProperty.Register(nameof(ZoomStep), typeof(double), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="ZoomStep"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ZoomStepProperty = DependencyProperty.Register(
+        nameof(ZoomStep),
+        typeof(double),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.None));
 
-    public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="BackgroundColor"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(
+        nameof(BackgroundColor),
+        typeof(System.Windows.Media.Color),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(System.Windows.Media.Color.FromRgb(211, 211, 211), FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty PageCornerRadiusProperty = DependencyProperty.Register(nameof(PageCornerRadius), typeof(double), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="PageCornerRadius"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty PageCornerRadiusProperty = DependencyProperty.Register(
+        nameof(PageCornerRadius),
+        typeof(double),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty ShowPageLoadingAnimationProperty = DependencyProperty.Register(nameof(ShowPageLoadingAnimation), typeof(bool), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="ShowPageLoadingAnimation"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ShowPageLoadingAnimationProperty = DependencyProperty.Register(
+        nameof(ShowPageLoadingAnimation),
+        typeof(bool),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty SelectionColorProperty = DependencyProperty.Register(nameof(SelectionColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="SelectionColor"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty SelectionColorProperty = DependencyProperty.Register(
+        nameof(SelectionColor),
+        typeof(System.Windows.Media.Color),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(80, 50, 100, 220), FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty SearchMatchColorProperty = DependencyProperty.Register(nameof(SearchMatchColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="SearchMatchColor"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty SearchMatchColorProperty = DependencyProperty.Register(
+        nameof(SearchMatchColor),
+        typeof(System.Windows.Media.Color),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(100, 255, 200, 0), FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty SearchCurrentMatchColorProperty = DependencyProperty.Register(nameof(SearchCurrentMatchColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="SearchCurrentMatchColor"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty SearchCurrentMatchColorProperty = DependencyProperty.Register(
+        nameof(SearchCurrentMatchColor),
+        typeof(System.Windows.Media.Color),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(140, 255, 120, 0), FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty SearchMatchCaseProperty = DependencyProperty.Register(nameof(SearchMatchCase), typeof(bool), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="SearchMatchCase"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty SearchMatchCaseProperty = DependencyProperty.Register(
+        nameof(SearchMatchCase),
+        typeof(bool),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty SearchWholeWordProperty = DependencyProperty.Register(nameof(SearchWholeWord), typeof(bool), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="SearchWholeWord"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty SearchWholeWordProperty = DependencyProperty.Register(
+        nameof(SearchWholeWord),
+        typeof(bool),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty SearchMatchDiacriticsProperty = DependencyProperty.Register(nameof(SearchMatchDiacritics), typeof(bool), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="SearchMatchDiacritics"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty SearchMatchDiacriticsProperty = DependencyProperty.Register(
+        nameof(SearchMatchDiacritics),
+        typeof(bool),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty CurrentPageProperty = DependencyProperty.Register(nameof(CurrentPage), typeof(int), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="CurrentPage"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty CurrentPageProperty = DependencyProperty.Register(
+        nameof(CurrentPage),
+        typeof(int),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentPageProperty_Changed));
 
-    public static readonly DependencyProperty AutoScaleModeProperty = DependencyProperty.Register(nameof(AutoScaleMode), typeof(PdfPanelAutoScaleMode), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(PdfPanelAutoScaleMode.NoAutoScale, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, AutoScaleModeProperty_Changed));
+    /// <summary>
+    /// Identifies the <see cref="AutoScaleMode"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty AutoScaleModeProperty = DependencyProperty.Register(
+        nameof(AutoScaleMode),
+        typeof(PdfPanelAutoScaleMode),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(
+            PdfPanelAutoScaleMode.NoAutoScale,
+            FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+            AutoScaleModeProperty_Changed));
 
-    public static readonly DependencyProperty AnnotationPopupProperty = DependencyProperty.Register(nameof(AnnotationPopup), typeof(PdfAnnotationPopup), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="AnnotationPopup"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty AnnotationPopupProperty = DependencyProperty.Register(
+        nameof(AnnotationPopup),
+        typeof(PdfAnnotationPopup),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty PanelInterfaceProperty = DependencyProperty.Register(nameof(PanelInterface), typeof(WpfPdfPanelInterface), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="PanelInterface"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty PanelInterfaceProperty = DependencyProperty.Register(
+        nameof(PanelInterface),
+        typeof(WpfPdfPanelInterface),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, PanelInterfaceProperty_Changed));
 
-    public static readonly DependencyProperty SearchQueryProperty = DependencyProperty.Register(nameof(SearchQuery), typeof(string), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="SearchQuery"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty SearchQueryProperty = DependencyProperty.Register(
+        nameof(SearchQuery),
+        typeof(string),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, SearchQueryProperty_Changed));
 
-    public static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
-        nameof(SearchResults), typeof(ObservableCollection<PdfPanelSearchMatch>), typeof(WpfPdfPanel),
+    private static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(SearchResults),
+        typeof(ObservableCollection<PdfPanelSearchMatch>),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="SearchResults"/> dependency property.
+    /// </summary>
     public static readonly DependencyProperty SearchResultsProperty = SearchResultsPropertyKey.DependencyProperty;
 
-    public static readonly DependencyProperty CurrentSearchResultProperty = DependencyProperty.Register(nameof(CurrentSearchResult), typeof(PdfPanelSearchMatch?), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="CurrentSearchResult"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty CurrentSearchResultProperty = DependencyProperty.Register(
+        nameof(CurrentSearchResult),
+        typeof(PdfPanelSearchMatch?),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentSearchResultProperty_Changed));
 
-    public static readonly DependencyProperty ExtractTextProperty = DependencyProperty.Register(nameof(ExtractText), typeof(bool), typeof(WpfPdfPanel),
+    /// <summary>
+    /// Identifies the <see cref="ExtractText"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ExtractTextProperty = DependencyProperty.Register(
+        nameof(ExtractText),
+        typeof(bool),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyPropertyKey IsTextExtractedPropertyKey = DependencyProperty.RegisterReadOnly(
-        nameof(IsTextExtracted), typeof(bool), typeof(WpfPdfPanel),
+    private static readonly DependencyPropertyKey IsTextExtractedPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(IsTextExtracted),
+        typeof(bool),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="IsTextExtracted"/> dependency property.
+    /// </summary>
     public static readonly DependencyProperty IsTextExtractedProperty = IsTextExtractedPropertyKey.DependencyProperty;
 
-    public static readonly DependencyPropertyKey TextPropertyKey = DependencyProperty.RegisterReadOnly(
-        nameof(Text), typeof(PdfPanelText), typeof(WpfPdfPanel),
+    private static readonly DependencyPropertyKey TextPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(Text),
+        typeof(PdfPanelText),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="Text"/> dependency property.
+    /// </summary>
     public static readonly DependencyProperty TextProperty = TextPropertyKey.DependencyProperty;
 
-    public static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
-        nameof(PageLabel), typeof(string), typeof(WpfPdfPanel),
+    private static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(PageLabel),
+        typeof(string),
+        typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(string.Empty, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="PageLabel"/> dependency property.
+    /// </summary>
     public static readonly DependencyProperty PageLabelProperty = PageLabelPropertyKey.DependencyProperty;
 
     /// <summary>
@@ -115,9 +280,9 @@ public partial class WpfPdfPanel
     /// <summary>
     /// Gets or sets the collection of pages.
     /// </summary>
-    public PdfPanelPageCollection Pages
+    public PdfPanelPageCollection? Pages
     {
-        get => (PdfPanelPageCollection)GetValue(PagesProperty);
+        get => (PdfPanelPageCollection?)GetValue(PagesProperty);
         set => SetValue(PagesProperty, value);
     }
 
@@ -278,23 +443,23 @@ public partial class WpfPdfPanel
     /// <summary>
     /// Annotation popup under the mouse cursor.
     /// </summary>
-    public PdfAnnotationPopup AnnotationPopup
+    public PdfAnnotationPopup? AnnotationPopup
     {
-        get => (PdfAnnotationPopup)GetValue(AnnotationPopupProperty);
+        get => (PdfAnnotationPopup?)GetValue(AnnotationPopupProperty);
         set => SetValue(AnnotationPopupProperty, value);
     }
 
     /// <summary>
     /// Annotation tooltip template.
     /// </summary>
-    public ToolTip AnnotationToolTip { get; set; }
+    public ToolTip? AnnotationToolTip { get; set; }
 
     /// <summary>
     /// Gets or sets the text to search for in the document, or <see langword="null"/> when no search is active.
     /// </summary>
-    public string SearchQuery
+    public string? SearchQuery
     {
-        get => (string)GetValue(SearchQueryProperty);
+        get => (string?)GetValue(SearchQueryProperty);
         set => SetValue(SearchQueryProperty, value);
     }
 
@@ -326,9 +491,9 @@ public partial class WpfPdfPanel
     /// <summary>
     /// Gets the text of the current document, or <see langword="null"/> when no document is shown.
     /// </summary>
-    public PdfPanelText Text
+    public PdfPanelText? Text
     {
-        get => (PdfPanelText)GetValue(TextProperty);
+        get => (PdfPanelText?)GetValue(TextProperty);
     }
 
     /// <summary>
@@ -343,9 +508,9 @@ public partial class WpfPdfPanel
     /// <summary>
     /// Gets or sets the panel interface for controlling panel operations via MVVM.
     /// </summary>
-    public WpfPdfPanelInterface PanelInterface
+    public WpfPdfPanelInterface? PanelInterface
     {
-        get => (WpfPdfPanelInterface)GetValue(PanelInterfaceProperty);
+        get => (WpfPdfPanelInterface?)GetValue(PanelInterfaceProperty);
         set => SetValue(PanelInterfaceProperty, value);
     }
 
@@ -353,7 +518,7 @@ public partial class WpfPdfPanel
     {
         var source = (WpfPdfPanel)d;
 
-        if (e.NewValue is null)
+        if (source.Pages == null)
         {
             source.ResetContent();
         }
@@ -361,8 +526,8 @@ public partial class WpfPdfPanel
         {
             if (source.CurrentPage > 0 && source.CurrentPage <= source.Pages.Count)
             {
-                var page = source.Pages[source.CurrentPage - 1];
-                var label = page.Info.Label;
+                PdfPanelPage page = source.Pages[source.CurrentPage - 1];
+                string label = page.Info.Label;
                 source.SetValue(PageLabelPropertyKey, label);
             }
         }
@@ -415,8 +580,8 @@ public partial class WpfPdfPanel
             source.CurrentPage = source.Pages.Count;
         }
 
-        var page = source.Pages[source.CurrentPage - 1];
-        var label = page.Info.Label;
+        PdfPanelPage page = source.Pages[source.CurrentPage - 1];
+        string label = page.Info.Label;
         source.SetValue(PageLabelPropertyKey, label);
 
         if (!source._updatingPages)

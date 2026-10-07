@@ -55,53 +55,72 @@ internal static class WglInterop
     }
 
     [DllImport(User32, SetLastError = true)]
-    internal static extern IntPtr CreateWindowExW(
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern nint CreateWindowExW(
         uint exStyle,
         [MarshalAs(UnmanagedType.LPWStr)] string className,
         [MarshalAs(UnmanagedType.LPWStr)] string windowName,
         uint style,
-        int x, int y, int width, int height,
-        IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
+        int x,
+        int y,
+        int width,
+        int height,
+        nint parent,
+        nint menu,
+        nint instance,
+        nint param);
 
     [DllImport(User32, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool DestroyWindow(IntPtr hWnd);
+    internal static extern bool DestroyWindow(nint hWnd);
 
     [DllImport(User32, SetLastError = true)]
-    internal static extern IntPtr GetDC(IntPtr hWnd);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern nint GetDC(nint hWnd);
 
     [DllImport(User32, SetLastError = true)]
-    internal static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int ReleaseDC(nint hWnd, nint hDC);
 
     [DllImport(Gdi32, SetLastError = true)]
-    internal static extern int ChoosePixelFormat(IntPtr hDC, ref PixelFormatDescriptor ppfd);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern int ChoosePixelFormat(nint hDC, ref PixelFormatDescriptor ppfd);
 
     [DllImport(Gdi32, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool SetPixelFormat(IntPtr hDC, int format, ref PixelFormatDescriptor ppfd);
+    internal static extern bool SetPixelFormat(nint hDC, int format, ref PixelFormatDescriptor ppfd);
 
     [DllImport(OpenGl32, SetLastError = true)]
-    internal static extern IntPtr wglCreateContext(IntPtr hDC);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern nint wglCreateContext(nint hDC);
 
     [DllImport(OpenGl32, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool wglMakeCurrent(IntPtr hDC, IntPtr hGLRC);
+    internal static extern bool wglMakeCurrent(nint hDC, nint hGLRC);
 
     [DllImport(OpenGl32, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool glEnable(uint cap);
 
     [DllImport(OpenGl32, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool glHint(uint target, uint mode);
 
     [DllImport(OpenGl32, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool wglDeleteContext(IntPtr hGLRC);
+    internal static extern bool wglDeleteContext(nint hGLRC);
 
     [DllImport(OpenGl32)]
-    internal static extern IntPtr wglGetCurrentContext();
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern nint wglGetCurrentContext();
 
     [DllImport(Kernel32)]
-    internal static extern IntPtr GetModuleHandleW([MarshalAs(UnmanagedType.LPWStr)] string moduleName);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern nint GetModuleHandleW([MarshalAs(UnmanagedType.LPWStr)] string? moduleName);
 }

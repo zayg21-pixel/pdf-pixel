@@ -16,73 +16,65 @@ public partial class WpfPdfPanel : IScrollInfo
 {
     private const int WM_MOUSEHWHEEL = 0x020E;
 
+    /// <inheritdoc />
     public bool CanHorizontallyScroll { get; set; } = true;
 
+    /// <inheritdoc />
     public bool CanVerticallyScroll { get; set; } = true;
 
+    /// <inheritdoc />
     public double ExtentHeight { get; set; }
 
+    /// <inheritdoc />
     public double ExtentWidth { get; set; }
 
+    /// <inheritdoc />
     public double HorizontalOffset { get; set; }
 
-    public ScrollViewer ScrollOwner { get; set; }
+    /// <inheritdoc />
+    public ScrollViewer? ScrollOwner { get; set; }
 
+    /// <inheritdoc />
     public double VerticalOffset { get; set; }
 
+    /// <inheritdoc />
     public double ViewportHeight { get; set; }
 
+    /// <inheritdoc />
     public double ViewportWidth { get; set; }
 
-    public void ScrollToPage(int pageNumber)
-    {
-        _context?.ScrollToPage(pageNumber);
-    }
+    /// <summary>
+    /// Scrolls to the page with the specified 1-based number.
+    /// </summary>
+    /// <param name="pageNumber">The 1-based page number.</param>
+    public void ScrollToPage(int pageNumber) => _context?.ScrollToPage(pageNumber);
 
-    public void LineDown()
-    {
-        SetVerticalOffset(VerticalOffset + ScrollTick);
-    }
+    /// <inheritdoc />
+    public void LineDown() => SetVerticalOffset(VerticalOffset + ScrollTick);
 
-    public void LineUp()
-    {
-        SetVerticalOffset(VerticalOffset - ScrollTick);
-    }
+    /// <inheritdoc />
+    public void LineUp() => SetVerticalOffset(VerticalOffset - ScrollTick);
 
-    public void LineLeft()
-    {
-        SetHorizontalOffset(HorizontalOffset - ScrollTick);
-    }
+    /// <inheritdoc />
+    public void LineLeft() => SetHorizontalOffset(HorizontalOffset - ScrollTick);
 
-    public void LineRight()
-    {
-        SetHorizontalOffset(HorizontalOffset + ScrollTick);
-    }
+    /// <inheritdoc />
+    public void LineRight() => SetHorizontalOffset(HorizontalOffset + ScrollTick);
 
-    public Rect MakeVisible(Visual visual, Rect rectangle)
-    {
-        return rectangle;
-    }
+    /// <inheritdoc />
+    public Rect MakeVisible(Visual visual, Rect rectangle) => rectangle;
 
-    private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+#pragma warning disable RCS1231 // Make parameter ref read-only
+    private nint Hook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+#pragma warning restore RCS1231 // Make parameter ref read-only
     {
         if (msg == WM_MOUSEHWHEEL)
         {
-            OnMouseTilt(HiWord(wParam));
-            return (IntPtr)1;
+            OnMouseTilt(unchecked((short)((int)wParam >> 16)));
+            return 1;
         }
 
-        return IntPtr.Zero;
-    }
-
-    public static int HiWord(IntPtr ptr)
-    {
-        return unchecked((short)((uint)GetIntUnchecked(ptr) >> 16));
-    }
-
-    public static int GetIntUnchecked(IntPtr value)
-    {
-        return IntPtr.Size == sizeof(long) ? unchecked((int)value.ToInt64()) : value.ToInt32();
+        return 0;
     }
 
     private void OnMouseTilt(int tilt)
@@ -97,6 +89,7 @@ public partial class WpfPdfPanel : IScrollInfo
         }
     }
 
+    /// <inheritdoc />
     public void MouseWheelDown()
     {
         if (Keyboard.IsKeyDown(Key.LeftCtrl))
@@ -109,6 +102,7 @@ public partial class WpfPdfPanel : IScrollInfo
         }
     }
 
+    /// <inheritdoc />
     public void MouseWheelUp()
     {
         if (Keyboard.IsKeyDown(Key.LeftCtrl))
@@ -121,6 +115,9 @@ public partial class WpfPdfPanel : IScrollInfo
         }
     }
 
+    /// <summary>
+    /// Increases the zoom level by <see cref="ZoomStep"/>.
+    /// </summary>
     public void ZoomIn()
     {
         if (_context == null)
@@ -128,12 +125,15 @@ public partial class WpfPdfPanel : IScrollInfo
             return;
         }
 
-        PdfPoint center = GetZoomCenter();
+        PdfPoint center = GetZoomCenter(_context);
 
         _context.ZoomIn(center.X, center.Y);
         InvalidateVisual();
     }
 
+    /// <summary>
+    /// Decreases the zoom level by <see cref="ZoomStep"/>.
+    /// </summary>
     public void ZoomOut()
     {
         if (_context == null)
@@ -141,7 +141,7 @@ public partial class WpfPdfPanel : IScrollInfo
             return;
         }
 
-        PdfPoint center = GetZoomCenter();
+        PdfPoint center = GetZoomCenter(_context);
 
         _context.ZoomOut(center.X, center.Y);
         InvalidateVisual();
@@ -154,32 +154,29 @@ public partial class WpfPdfPanel : IScrollInfo
             return;
         }
 
-        PdfPoint center = GetZoomCenter();
+        PdfPoint center = GetZoomCenter(_context);
 
         _context.Zoom((float)Scale, center.X, center.Y);
         InvalidateVisual();
     }
 
-    private PdfPoint GetZoomCenter()
+    private PdfPoint GetZoomCenter(PdfPanelContext context)
     {
         if (IsMouseOver)
         {
             return GetPanelPosition(Mouse.GetPosition(this));
         }
 
-        return new PdfPoint(_context.PanelWidth / 2, _context.PanelHeight / 2);
+        return new PdfPoint(context.PanelWidth / 2, context.PanelHeight / 2);
     }
 
-    public void MouseWheelLeft()
-    {
-        SetHorizontalOffset(HorizontalOffset - (ScrollTick * Scale));
-    }
+    /// <inheritdoc />
+    public void MouseWheelLeft() => SetHorizontalOffset(HorizontalOffset - (ScrollTick * Scale));
 
-    public void MouseWheelRight()
-    {
-        SetHorizontalOffset(HorizontalOffset + (ScrollTick * Scale));
-    }
+    /// <inheritdoc />
+    public void MouseWheelRight() => SetHorizontalOffset(HorizontalOffset + (ScrollTick * Scale));
 
+    /// <inheritdoc />
     public void PageDown()
     {
         if (_context != null)
@@ -188,6 +185,7 @@ public partial class WpfPdfPanel : IScrollInfo
         }
     }
 
+    /// <inheritdoc />
     public void PageUp()
     {
         if (_context != null)
@@ -196,6 +194,7 @@ public partial class WpfPdfPanel : IScrollInfo
         }
     }
 
+    /// <inheritdoc />
     public void PageLeft()
     {
         if (_context != null)
@@ -204,6 +203,7 @@ public partial class WpfPdfPanel : IScrollInfo
         }
     }
 
+    /// <inheritdoc />
     public void PageRight()
     {
         if (_context != null)

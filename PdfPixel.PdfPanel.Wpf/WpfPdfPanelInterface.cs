@@ -4,42 +4,6 @@ using System;
 namespace PdfPixel.PdfPanel.Wpf;
 
 /// <summary>
-/// Defines actions that can be performed on the PDF panel.
-/// </summary>
-internal enum PdfPanelInterfaceAction
-{
-    /// <summary>
-    /// Increase zoom level.
-    /// </summary>
-    ZoomIn,
-
-    /// <summary>
-    /// Decrease zoom level.
-    /// </summary>
-    ZoomOut,
-
-    /// <summary>
-    /// Select the next search result.
-    /// </summary>
-    NextSearchResult,
-
-    /// <summary>
-    /// Select the previous search result.
-    /// </summary>
-    PreviousSearchResult,
-
-    /// <summary>
-    /// Request panel redraw.
-    /// </summary>
-    RequestRedraw,
-
-    /// <summary>
-    /// Requests <see cref="WpfPdfPanelInterface.OnAfterDraw"/> without full page rendering.
-    /// </summary>
-    RequestPresent
-}
-
-/// <summary>
 /// Provides interface methods to control WpfPdfPanel operations via MVVM pattern.
 /// </summary>
 public class WpfPdfPanelInterface
@@ -47,60 +11,42 @@ public class WpfPdfPanelInterface
     /// <summary>
     /// Internal delegate invoked when an action is requested.
     /// </summary>
-    internal Action<PdfPanelInterfaceAction> OnRequest { get; set; }
+    internal Action<PdfPanelInterfaceAction>? OnRequest { get; set; }
 
     /// <summary>
     /// Increases the zoom level of the PDF panel by the configured scale factor.
     /// </summary>
-    public void ZoomIn()
-    {
-        OnRequest?.Invoke(PdfPanelInterfaceAction.ZoomIn);
-    }
+    public void ZoomIn() => OnRequest?.Invoke(PdfPanelInterfaceAction.ZoomIn);
 
     /// <summary>
     /// Decreases the zoom level of the PDF panel by the configured scale factor.
     /// </summary>
-    public void ZoomOut()
-    {
-        OnRequest?.Invoke(PdfPanelInterfaceAction.ZoomOut);
-    }
+    public void ZoomOut() => OnRequest?.Invoke(PdfPanelInterfaceAction.ZoomOut);
 
     /// <summary>
     /// Selects the search result after the current one, wrapping to the first,
     /// or the first result on or after the current page when none is selected.
     /// </summary>
-    public void NextSearchResult()
-    {
-        OnRequest?.Invoke(PdfPanelInterfaceAction.NextSearchResult);
-    }
+    public void NextSearchResult() => OnRequest?.Invoke(PdfPanelInterfaceAction.NextSearchResult);
 
     /// <summary>
     /// Selects the search result before the current one, wrapping to the last,
     /// or the first result on or after the current page when none is selected.
     /// </summary>
-    public void PreviousSearchResult()
-    {
-        OnRequest?.Invoke(PdfPanelInterfaceAction.PreviousSearchResult);
-    }
+    public void PreviousSearchResult() => OnRequest?.Invoke(PdfPanelInterfaceAction.PreviousSearchResult);
 
     /// <summary>
     /// Requests a redraw of the PDF panel.
     /// </summary>
-    public void RequestRedraw()
-    {
-        OnRequest?.Invoke(PdfPanelInterfaceAction.RequestRedraw);
-    }
+    public void RequestRedraw() => OnRequest?.Invoke(PdfPanelInterfaceAction.RequestRedraw);
 
     /// <summary>
     /// Requests <see cref="OnAfterDraw"/> without full page rendering.
     /// </summary>
-    public void RequestPresent()
-    {
-        OnRequest?.Invoke(PdfPanelInterfaceAction.RequestPresent);
-    }
+    public void RequestPresent() => OnRequest?.Invoke(PdfPanelInterfaceAction.RequestPresent);
 
     /// <summary>
     /// Gets or sets the action invoked after each present with the canvas in panel pixels and the presented <see cref="PdfPanelFrame"/>.
     /// </summary>
-    public Action<SKCanvas, PdfPanelFrame> OnAfterDraw { get; set; }
+    public Action<SKCanvas, PdfPanelFrame>? OnAfterDraw { get; set; }
 }

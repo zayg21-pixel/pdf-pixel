@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Input;
 
@@ -5,8 +6,14 @@ namespace PdfPixel.PdfPanel.Wpf;
 
 public partial class WpfPdfPanel
 {
+    /// <inheritdoc />
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
+        if (e == null)
+        {
+            throw new ArgumentNullException(nameof(e));
+        }
+
         base.OnMouseDown(e);
 
         if (Focus())
@@ -20,6 +27,7 @@ public partial class WpfPdfPanel
         }
     }
 
+    /// <inheritdoc />
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         base.OnMouseUp(e);
@@ -48,6 +56,7 @@ public partial class WpfPdfPanel
         e.Handled = true;
     }
 
+    /// <inheritdoc />
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
