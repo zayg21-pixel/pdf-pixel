@@ -99,15 +99,14 @@ public class PdfDocumentReader
             throw new PdfInvalidDocumentException("Failed to parse PDF document: catalog root not found.");
         }
 
-        document.Decryptor?.AuthenticateOnOpen();
-
         PdfPageExtractor pageExtractor = new(document);
-        PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
 
         try
         {
             pageExtractor.ExtractPages();
+            document.Decryptor?.AuthenticateOnOpen();
 
+            PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
             PdfOptionalContentGroupParser ocgParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOptionalContentGroupParser>());
             ((PdfDocument)document).OptionalContentGroups = ocgParser.Parse();
 

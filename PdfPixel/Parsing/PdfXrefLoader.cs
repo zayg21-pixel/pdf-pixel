@@ -487,7 +487,12 @@ internal sealed class PdfXrefLoader
 
         if (_document.RootObject == null)
         {
-            _document.RootObject = dict.GetObject(PdfTokens.RootKey);
+            // Resolving /Root may run the recovery scan, which selects its own root.
+            PdfObject? rootObject = dict.GetObject(PdfTokens.RootKey);
+            if (_document.RootObject == null)
+            {
+                _document.RootObject = rootObject;
+            }
         }
     }
 

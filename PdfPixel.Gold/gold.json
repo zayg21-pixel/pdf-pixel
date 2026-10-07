@@ -4451,6 +4451,20 @@
       "pages": []
     },
     {
+      "name": "issue19484_1.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/issue19484_1.pdf",
+      "sha256": "0f020604762fe289eaed602bfb5f4e3d921fb04ffc0fd61ec5423933a03f1948",
+      "origin": "https://github.com/mozilla/pdf.js/issues/19484",
+      "pages": []
+    },
+    {
+      "name": "issue19484_2.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/issue19484_2.pdf",
+      "sha256": "247215f0ca711ec552289c3076cc7ee38f117c3e0d9c83bfc136ff99f2627216",
+      "origin": "https://github.com/mozilla/pdf.js/issues/19484",
+      "pages": []
+    },
+    {
       "name": "issue19494.pdf",
       "url": "https://github.com/user-attachments/files/18810079/VERAPDF-1335-InlineImage.pdf",
       "sha256": "e0342808fdb3226eef4dd331eb7dc419c92960def3bf32b7cb58553521195713",
