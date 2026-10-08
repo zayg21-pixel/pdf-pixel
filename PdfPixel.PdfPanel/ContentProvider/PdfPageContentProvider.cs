@@ -48,7 +48,7 @@ internal sealed class PdfPageContentProvider : IDisposable
     }
 
     /// <summary>
-    /// Raised on the work queue thread when a page's characters have been extracted, by text extraction or by rendering.
+    /// Raised from a work item when a page's characters have been extracted, by text extraction or by rendering.
     /// </summary>
     public event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
 

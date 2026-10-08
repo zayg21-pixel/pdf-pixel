@@ -13,7 +13,7 @@ public interface IWorkItem
     bool IsSkippable { get; }
 
     /// <summary>
-    /// Executes the work item. Called on the worker thread.
+    /// Executes the work item.
     /// </summary>
     ValueTask ProcessAsync();
 }

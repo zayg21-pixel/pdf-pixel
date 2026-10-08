@@ -77,3 +77,46 @@ what a viewer does) and **behavior** (instructions to a viewer: how to open, sho
 | `/Tabs` | Annotation tab order: R, C, S, A, W |
 | `/TemplateInstantiated` | Named page created from a template |
 | `/PresSteps` | Sub-page navigation steps |
+
+## Fixes and rework
+
+| Item | Location | Work |
+|---|---|---|
+| Soft mask text | `Transparency/Utilities/SoftMaskUtilities.cs` | Text shown by the mask form is extracted like page text, in both rendering and text extraction |
+| Credential and encryption layout | `PdfCredential.cs` | Move `PdfCredential` to encryption; rework encryption to match the other folders' structure |
+| Object cache | `Models/PdfDocumentObjectCache.cs` | Use a single `PdfReference` cache; cache other big shared objects, such as CMaps |
+| Streaming decryption | `Encryption/BasePdfDecryptor.cs` | Decrypt streams chunk by chunk through a stream wrapper instead of buffering the whole stream; see below |
+
+### Streaming decryption
+
+`DecryptStream` currently copies the whole stream into memory, decrypts the array and returns a new
+`MemoryStream`. Decryption becomes a forward-only stream wrapper that can be chained with the decode
+streams; strings, being small and far less common, go through the same wrapper over a `MemoryStream`.
+
+**Ciphers (`Encryption/Cryptography`)**
+
+- `Rc4` — sealed instance class: key schedule in the constructor,
+  `Transform(ReadOnlySpan<byte> source, Span<byte> destination)` keeps `state`, `i`, `j` between calls.
+- `AesCbc` decryption — instance taking key and IV: round keys expanded and inverted once (`uint[]` field),
+  `DecryptBlocks(ReadOnlySpan<byte> ciphertext, Span<byte> plaintext)` on whole blocks, carrying the previous
+  ciphertext block between calls. No padding handling in the cipher.
+- `AesCbc.Encrypt`, `Md5`, `Sha256`, `Sha512` — unchanged; they only run on small key-derivation inputs.
+- Open: the one-shot calls in key derivation (`Rc4.Transform` in R2/R3R4, `AesCbc.Decrypt` in R5R6 file key
+  unwrap). Either keep static one-shot methods implemented on the instances, or migrate those callers to the
+  instances directly.
+
+**Streams (`Encryption`)**
+
+- `Rc4DecryptStream` — read a chunk, transform, return.
+- `AesCbcDecryptStream` — read the 16-byte IV, decrypt whole blocks, always hold back the last decrypted block;
+  at end of source strip PKCS#7 padding from the held block. A trailing partial block is dropped. No length
+  validation up front.
+- Both forward-only (`CanSeek` false, `Length` throws) and own their source (`leaveOpen: false`), like the
+  decode streams — the `SubrangeReadOnlyStream` from `PdfObjectStream.GetRawStream` is then disposed with the chain.
+
+**`BasePdfDecryptor`**
+
+- `Decrypt(Stream source, PdfReference reference, PdfCryptFilter cryptFilter, byte[] fileKey)` returns the
+  matching stream; per-object key derivation unchanged (AESV2 salted, AESV3 file key, RC4 unsalted).
+- `DecryptStream` returns that stream directly.
+- `DecryptString` wraps the bytes in a `MemoryStream`, reads the decrypt stream to the end and returns the array.

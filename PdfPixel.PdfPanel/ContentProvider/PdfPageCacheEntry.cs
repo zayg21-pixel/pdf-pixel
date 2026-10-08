@@ -133,7 +133,7 @@ internal sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// Clears cached content, keeping extracted characters. Must be called from the worker thread.
+    /// Clears cached content, keeping extracted characters. Must be called from a work item.
     /// </summary>
     public void ClearContent()
     {

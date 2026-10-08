@@ -4,8 +4,7 @@ using System;
 namespace PdfPixel.PdfPanel.WorkQueue;
 
 /// <summary>
-/// Work queue that starts each item on the calling thread.
-/// Intended for contexts where a dedicated worker thread is not available.
+/// Work queue that starts each item on the calling thread as soon as it is enqueued.
 /// </summary>
 public sealed class ImmidiateWorkQueue : IWorkQueue
 {
