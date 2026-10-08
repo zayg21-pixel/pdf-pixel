@@ -19,7 +19,7 @@ internal sealed class Program
 
         Option<WorkQueueMode> queueOption = new("--queue")
         {
-            Description = "Work queue the panel decodes pages with: 'immediate' or 'async'.",
+            Description = "Work queue the panel decodes pages with: 'immediate' or 'sequential'.",
             DefaultValueFactory = _ => WorkQueueMode.Immediate
         };
 

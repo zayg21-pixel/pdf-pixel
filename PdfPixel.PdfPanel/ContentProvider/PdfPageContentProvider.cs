@@ -14,7 +14,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
 /// Provides decoded page content and annotation pictures for rendering.
-/// Decodes page content and annotations on a background worker thread and notifies the UI via <see cref="OnPageUpdated"/>.
+/// Decodes page content and annotations through its work queue and notifies the UI via <see cref="OnPageUpdated"/>.
 /// </summary>
 internal sealed class PdfPageContentProvider : IDisposable
 {

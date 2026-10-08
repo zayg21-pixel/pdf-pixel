@@ -6,19 +6,19 @@ using System.Threading;
 namespace PdfPixel.PdfPanel.WorkQueue;
 
 /// <summary>
-/// Thread-safe work queue that processes <see cref="IWorkItem"/> instances on a background thread.
-/// Skippable items are discarded when the queue is drained past them.
+/// Thread-safe work queue that processes <see cref="IWorkItem"/> instances one at a time, in order,
+/// in an asynchronous loop that awaits a semaphore. Skippable items are discarded when the queue is drained past them.
 /// </summary>
-public sealed class AsyncWorkQueue : IWorkQueue
+public sealed class SequentialWorkQueue : IWorkQueue
 {
     private readonly ConcurrentQueue<IWorkItem> _workItems = [];
     private readonly SemaphoreSlim _semaphore = new(0);
-    private readonly ILogger<AsyncWorkQueue> _logger;
+    private readonly ILogger<SequentialWorkQueue> _logger;
 
     /// <summary>
-    /// Initialises the queue and starts the background processing loop.
+    /// Initialises the queue and starts the processing loop.
     /// </summary>
-    public AsyncWorkQueue(ILogger<AsyncWorkQueue> logger)
+    public SequentialWorkQueue(ILogger<SequentialWorkQueue> logger)
     {
         _logger = logger;
         ProcessingLoop();
@@ -33,7 +33,7 @@ public sealed class AsyncWorkQueue : IWorkQueue
 
     private async void ProcessingLoop()
     {
-        _logger.LogInformation("AsyncWorkQueue processing loop started.");
+        _logger.LogInformation("SequentialWorkQueue processing loop started.");
 
         while (true)
         {
@@ -80,7 +80,7 @@ public sealed class AsyncWorkQueue : IWorkQueue
 #pragma warning restore CA1031
         }
 
-        _logger.LogInformation("AsyncWorkQueue processing loop stopped.");
+        _logger.LogInformation("SequentialWorkQueue processing loop stopped.");
     }
 
     /// <inheritdoc />

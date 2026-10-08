@@ -194,7 +194,7 @@ public partial class PdfPanelInterop
 
             resources.Pages = PdfPanelPageCollection.FromDocument(
                 resources.Document,
-                new ImmidiateWorkQueue(LoggerFactory.CreateLogger<ImmidiateWorkQueue>()),
+                new SequentialWorkQueue(LoggerFactory.CreateLogger<SequentialWorkQueue>()),
                 new PdfYieldingObserverFactory(resources.YieldInterval));
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);

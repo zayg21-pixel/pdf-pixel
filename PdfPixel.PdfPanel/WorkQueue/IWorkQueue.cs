@@ -3,7 +3,8 @@ using System;
 namespace PdfPixel.PdfPanel.WorkQueue;
 
 /// <summary>
-/// Queues <see cref="IWorkItem"/> instances for background processing.
+/// Queues <see cref="IWorkItem"/> instances for processing.
+/// Implementations decide when, and on which thread, each item runs.
 /// </summary>
 public interface IWorkQueue : IDisposable
 {

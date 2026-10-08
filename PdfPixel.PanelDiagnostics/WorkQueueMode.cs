@@ -11,7 +11,7 @@ internal enum WorkQueueMode
     Immediate,
 
     /// <summary>
-    /// Pages decode one at a time on a background thread.
+    /// Pages decode one at a time, in order.
     /// </summary>
-    Async,
+    Sequential
 }

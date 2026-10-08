@@ -71,7 +71,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
     public static PdfPanelPageCollection FromDocument(IPdfDocument document, ILoggerFactory loggerFactory)
-        => FromDocument(document, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()), new PdfNonYieldingObserverFactory());
+        => FromDocument(document, new SequentialWorkQueue(loggerFactory.CreateLogger<SequentialWorkQueue>()), new PdfNonYieldingObserverFactory());
 
     /// <summary>
     /// Generates <see cref="PdfPanelPageCollection"/> from PDF document.
