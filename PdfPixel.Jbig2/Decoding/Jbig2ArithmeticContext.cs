@@ -20,84 +20,78 @@ internal sealed class Jbig2ArithmeticContext
     /// <summary>
     /// IADT – strip delta-T integer coder context (512 states).
     /// </summary>
-    internal readonly byte[] Iadt;
+    public readonly byte[] Iadt;
 
     /// <summary>
     /// IAFS – first-S integer coder context (512 states).
     /// </summary>
-    internal readonly byte[] Iafs;
+    public readonly byte[] Iafs;
 
     /// <summary>
     /// IADS – delta-S integer coder context (512 states).
     /// </summary>
-    internal readonly byte[] Iads;
+    public readonly byte[] Iads;
 
     /// <summary>
     /// IAIT – instance-T integer coder context (512 states).
     /// </summary>
-    internal readonly byte[] Iait;
+    public readonly byte[] Iait;
 
     /// <summary>
     /// IARI – refinement indicator integer coder context (512 states).
     /// </summary>
-    internal readonly byte[] Iari;
+    public readonly byte[] Iari;
 
     /// <summary>
     /// IARDW – refinement delta-width integer coder context (512 states).
     /// </summary>
-    internal readonly byte[] Iardw;
+    public readonly byte[] Iardw;
 
     /// <summary>
     /// IARDH – refinement delta-height integer coder context (512 states).
     /// </summary>
-    internal readonly byte[] Iardh;
+    public readonly byte[] Iardh;
 
     /// <summary>
     /// IAID – symbol-ID integer coder context. Size = <c>1 &lt;&lt; (symbolCodeLength + 1)</c>.
     /// May be injected from a parent decoder to persist probability state across symbols.
     /// </summary>
-    internal readonly byte[] IaId;
+    public readonly byte[] IaId;
 
     /// <summary>
     /// IARDX – refinement delta-X integer coder context (512 states).
     /// May be injected from a parent decoder.
     /// </summary>
-    internal readonly byte[] Iardx;
+    public readonly byte[] Iardx;
 
     /// <summary>
     /// IARDY – refinement delta-Y integer coder context (512 states).
     /// May be injected from a parent decoder.
     /// </summary>
-    internal readonly byte[] Iardy;
+    public readonly byte[] Iardy;
 
     /// <summary>
     /// GR – generic refinement region context. Size = <c>1 &lt;&lt; 13</c> for template 0,
     /// <c>1 &lt;&lt; 10</c> for template 1. May be injected from a parent decoder.
     /// </summary>
-    internal readonly byte[] Gr;
+    public readonly byte[] Gr;
 
     /// <summary>
     /// Refinement template identifier (0 or 1). Determines <see cref="Gr"/> array size
     /// and which AT pixel offsets are active.
     /// </summary>
-    internal readonly int RefinementTemplate;
+    public readonly int RefinementTemplate;
 
     /// <summary>
-    /// Refinement adaptive template pixel X offsets. Two entries are used for template 0;
-    /// unused for template 1.
+    /// Refinement row template built from <see cref="RefinementTemplate"/> and the refinement
+    /// adaptive template pixel offsets.
     /// </summary>
-    internal readonly sbyte[] RefinementAtX;
-
-    /// <summary>
-    /// Refinement adaptive template pixel Y offsets. Two entries are used for template 0;
-    /// unused for template 1.
-    /// </summary>
-    internal readonly sbyte[] RefinementAtY;
+    public readonly Jbig2RowTemplate RefinementRowTemplate;
 
     /// <summary>
     /// Symbol-ID code length (SYMCODELEN). Determines <see cref="IaId"/> array size.
     /// </summary>
-    internal readonly int SymbolCodeLength;
+    public readonly int SymbolCodeLength;
 
     // ── Safety limits ────────────────────────────────────────────────────────
 
@@ -106,14 +100,14 @@ internal sealed class Jbig2ArithmeticContext
     /// corrupt data or mis-synchronised contexts across text-region, refinement
     /// and symbol-dictionary decode chains.
     /// </summary>
-    internal const int InlineLimit = 256;
+    public const int InlineLimit = 256;
 
     /// <summary>
     /// Current inline decode depth. Incremented before each inline text-region
     /// or refinement call, decremented after. When this exceeds
     /// <see cref="InlineLimit"/> the caller should bail out.
     /// </summary>
-    internal int InlineLevel;
+    public int InlineLevel;
 
     // ── Placement parameters ─────────────────────────────────────────────────
 
@@ -123,7 +117,7 @@ internal sealed class Jbig2ArithmeticContext
     /// <see cref="Jbig2TextRegionFlags.DefaultInlineFlags"/> for inline aggregate decodes
     /// (ITU-T T.88 Section 6.5.8.2).
     /// </summary>
-    internal Jbig2TextRegionFlags PlacementFlags;
+    public Jbig2TextRegionFlags PlacementFlags;
 
     /// <summary>
     /// Initialises a context, allocating all arrays fresh.
@@ -156,8 +150,7 @@ internal sealed class Jbig2ArithmeticContext
         Iardy = new byte[512];
         Gr = existingGr ?? new byte[(refinementTemplate == 0) ? 1 << 13 : 1 << 10];
         RefinementTemplate = refinementTemplate;
-        RefinementAtX = refinementAtX ?? new sbyte[2];
-        RefinementAtY = refinementAtY ?? new sbyte[2];
+        RefinementRowTemplate = Jbig2Templates.BuildRefinementTemplate(refinementTemplate, refinementAtX ?? new sbyte[2], refinementAtY ?? new sbyte[2]);
         SymbolCodeLength = symbolCodeLength;
     }
 

@@ -23,7 +23,7 @@ internal static class Jbig2RefinementRegionDecoder
     /// <param name="referenceOffsetX">X offset of reference bitmap relative to output.</param>
     /// <param name="referenceOffsetY">Y offset of reference bitmap relative to output.</param>
     /// <returns>Refined bitmap.</returns>
-    internal static Jbig2Bitmap Decode(
+    public static Jbig2Bitmap Decode(
         in ReadOnlySpan<byte> data,
         Jbig2RegionHeader regionHeader,
         Jbig2Bitmap? reference,
@@ -61,8 +61,7 @@ internal static class Jbig2RefinementRegionDecoder
             reference,
             referenceOffsetX,
             referenceOffsetY,
-            atPixels.AtX,
-            atPixels.AtY,
+            Jbig2Templates.BuildRefinementTemplate(flags.TemplateId, atPixels.AtX, atPixels.AtY),
             flags.TypicalPrediction);
 
         return bitmap;
@@ -73,13 +72,13 @@ internal static class Jbig2RefinementRegionDecoder
     /// Used for inline refinement within text regions and symbol dictionaries.
     /// </summary>
     /// <param name="decoder">The active arithmetic decoder.</param>
-    /// <param name="context">Arithmetic context owning the GR array, refinement template, and AT offsets.</param>
+    /// <param name="context">Arithmetic context owning the GR array, refinement template, and refinement row template.</param>
     /// <param name="width">Output bitmap width.</param>
     /// <param name="height">Output bitmap height.</param>
     /// <param name="reference">Reference bitmap to refine.</param>
     /// <param name="referenceOffsetX">X offset of reference within the output bitmap.</param>
     /// <param name="referenceOffsetY">Y offset of reference within the output bitmap.</param>
-    internal static Jbig2Bitmap DecodeInline(
+    public static Jbig2Bitmap DecodeInline(
         ref Jbig2ArithmeticReader decoder,
         Jbig2ArithmeticContext context,
         int width,
@@ -101,8 +100,7 @@ internal static class Jbig2RefinementRegionDecoder
             reference,
             referenceOffsetX,
             referenceOffsetY,
-            context.RefinementAtX,
-            context.RefinementAtY,
+            context.RefinementRowTemplate,
             prediction: false);
 
         return bitmap;
@@ -125,8 +123,7 @@ internal static class Jbig2RefinementRegionDecoder
         Jbig2Bitmap reference,
         int refDx,
         int refDy,
-        sbyte[] atX,
-        sbyte[] atY,
+        Jbig2RowTemplate rowTemplate,
         bool prediction)
     {
         // TPGRON start context (ITU-T T.88 Table 13):
@@ -134,8 +131,6 @@ internal static class Jbig2RefinementRegionDecoder
         // template 0 → bit 8 = 0x0100, template 1 → bit 7 = 0x0080
         int tpgronContext = (templateId == 0) ? 0x0100 : 0x0080;
         int ltp = 0;
-
-        Jbig2RowTemplate fastTemplate = Jbig2Templates.BuildRefinementTemplate(templateId, atX, atY);
 
         for (int y = 0; y < height; y++)
         {
@@ -151,7 +146,7 @@ internal static class Jbig2RefinementRegionDecoder
                 contexts,
                 y,
                 width,
-                fastTemplate,
+                rowTemplate,
                 reference,
                 refDx,
                 refDy,

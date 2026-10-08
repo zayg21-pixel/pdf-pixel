@@ -14,4 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

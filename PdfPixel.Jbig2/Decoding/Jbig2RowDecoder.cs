@@ -24,7 +24,7 @@ internal static class Jbig2RowDecoder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static void DecodeRow(
+    public static void DecodeRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
         in Span<byte> contexts,
@@ -46,7 +46,7 @@ internal static class Jbig2RowDecoder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static void DecodeValue(
+    public static void DecodeValue(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
         in Span<byte> contexts,
@@ -75,7 +75,7 @@ internal static class Jbig2RowDecoder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static void DecodeRowSlow(
+    public static void DecodeRowSlow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
         in Span<byte> contexts,
@@ -187,7 +187,7 @@ internal static class Jbig2RowDecoder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static void DecodeRow(
+    public static void DecodeRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
         in Span<byte> contexts,
@@ -195,13 +195,114 @@ internal static class Jbig2RowDecoder
         int width,
         Jbig2RowTemplate tmpl)
     {
-        if (tmpl.RequiresSlowPath)
+        if (tmpl.Mode == Jbig2RowDecodeMode.DefaultTemplate0)
+        {
+            DecodeDefaultTemplate0Row(ref decoder, bitmap, contexts, y, width);
+            return;
+        }
+
+        if (tmpl.Mode == Jbig2RowDecodeMode.SlowTemplate)
         {
             DecodeRowSlow(ref decoder, bitmap, contexts, y, width, tmpl);
             return;
         }
 
         DecodeRowFast(ref decoder, bitmap, contexts, y, width, tmpl);
+    }
+
+    /// <summary>
+    /// Decodes one row of a generic region using template 0 with the default AT pixels
+    /// (3, -1), (-3, -1), (2, -2) and (-2, -2).
+    /// The two rows above are held in 32-bit windows that shift left by one pixel per decoded bit.
+    /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private static void DecodeDefaultTemplate0Row(
+        ref Jbig2ArithmeticReader decoder,
+        Jbig2Bitmap bitmap,
+        in Span<byte> contexts,
+        int y,
+        int width)
+    {
+        int stride = bitmap.Stride;
+        ref byte dataRef = ref MemoryMarshal.GetReference(bitmap.Data);
+        ref byte contextRef = ref MemoryMarshal.GetReference(contexts);
+
+        int rowOffset = y * stride;
+        int line1Offset = rowOffset - stride;
+        int line2Offset = line1Offset - stride;
+        bool hasLine1 = y > 0;
+        bool hasLine2 = y > 1;
+
+        // Pixel x of the row above sits at bit 15 of line1Window, pixel x of the row two above at bit 15 of line2Window.
+        uint line1Window = 0;
+        uint line2Window = 0;
+
+        if (hasLine1)
+        {
+            line1Window = (uint)Unsafe.Add(ref dataRef, line1Offset) << 8;
+
+            if (width > 8)
+            {
+                line1Window |= Unsafe.Add(ref dataRef, line1Offset + 1);
+            }
+        }
+
+        if (hasLine2)
+        {
+            line2Window = (uint)Unsafe.Add(ref dataRef, line2Offset) << 8;
+
+            if (width > 8)
+            {
+                line2Window |= Unsafe.Add(ref dataRef, line2Offset + 1);
+            }
+        }
+
+        // Decoded bits of the current row, the most recent at bit 0.
+        uint decodedBits = 0;
+
+        for (int x = 0; x < width; x++)
+        {
+            uint context = (decodedBits & 0x000F)
+                | ((line1Window >> 8) & 0x07F0)
+                | ((line2Window >> 2) & 0xF800);
+
+            int bit = decoder.DecodeBit(ref Unsafe.Add(ref contextRef, (int)context));
+
+            decodedBits = (decodedBits << 1) | (uint)bit;
+            line1Window <<= 1;
+            line2Window <<= 1;
+
+            if ((x & 7) == 7)
+            {
+                Unsafe.Add(ref dataRef, rowOffset + (x >> 3)) = (byte)decodedBits;
+
+                if (x + 9 < width)
+                {
+                    int nextByteIndex = (x >> 3) + 2;
+
+                    if (hasLine1)
+                    {
+                        line1Window |= Unsafe.Add(ref dataRef, line1Offset + nextByteIndex);
+                    }
+
+                    if (hasLine2)
+                    {
+                        line2Window |= Unsafe.Add(ref dataRef, line2Offset + nextByteIndex);
+                    }
+                }
+            }
+        }
+
+        int remainingBits = width & 7;
+
+        if (remainingBits != 0)
+        {
+            Unsafe.Add(ref dataRef, rowOffset + (width >> 3)) = (byte)(decodedBits << (8 - remainingBits));
+        }
     }
 
     /// <summary>
@@ -518,7 +619,7 @@ internal static class Jbig2RowDecoder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static void DecodeRefinementRow(
+    public static void DecodeRefinementRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
         in Span<byte> contexts,
@@ -530,6 +631,12 @@ internal static class Jbig2RowDecoder
         int refDy,
         bool usePrediction)
     {
+        if (tmpl.Mode == Jbig2RowDecodeMode.DefaultRefinementTemplate0)
+        {
+            DecodeDefaultRefinementTemplate0Row(ref decoder, bitmap, contexts, y, width, reference, refDx, refDy, usePrediction);
+            return;
+        }
+
         int groupCount = tmpl.Groups.Length;
         Span<byte> data = bitmap.Data;
         int stride = bitmap.Stride;
@@ -695,13 +802,108 @@ internal static class Jbig2RowDecoder
     }
 
     /// <summary>
+    /// Decodes one row of a refinement region using template 0 with the default AT pixels (-1, -1) and (-1, -1).
+    /// The row above and the three reference rows around the reference pixel are held in 32-bit windows
+    /// that are reloaded every 8 pixels and shift left by one pixel per decoded bit.
+    /// When <paramref name="usePrediction"/> is set, a pixel whose 3x3 reference neighborhood is uniform takes
+    /// the reference value without decoding.
+    /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private static void DecodeDefaultRefinementTemplate0Row(
+        ref Jbig2ArithmeticReader decoder,
+        Jbig2Bitmap bitmap,
+        in Span<byte> contexts,
+        int y,
+        int width,
+        Jbig2Bitmap reference,
+        int refDx,
+        int refDy,
+        bool usePrediction)
+    {
+        ref byte dataRef = ref MemoryMarshal.GetReference(bitmap.Data);
+        ref byte contextRef = ref MemoryMarshal.GetReference(contexts);
+
+        int rowOffset = y * bitmap.Stride;
+        int referenceY = y - refDy;
+
+        // Pixels x - 1, x and x + 1 of each row sit at bits 31, 30 and 29 of its window.
+        uint codingAboveWindow = 0;
+        uint referenceAboveWindow = 0;
+        uint referenceWindow = 0;
+        uint referenceBelowWindow = 0;
+
+        // Decoded bits of the current row, the most recent at bit 0.
+        uint decodedBits = 0;
+
+        for (int x = 0; x < width; x++)
+        {
+            if ((x & 7) == 0)
+            {
+                int referenceX = x - refDx - 1;
+
+                codingAboveWindow = LoadRowWindow(bitmap, y - 1, x - 1);
+                referenceAboveWindow = LoadRowWindow(reference, referenceY - 1, referenceX);
+                referenceWindow = LoadRowWindow(reference, referenceY, referenceX);
+                referenceBelowWindow = LoadRowWindow(reference, referenceY + 1, referenceX);
+            }
+
+            uint codingAbove = codingAboveWindow >> 29;
+            uint referenceAbove = referenceAboveWindow >> 29;
+            uint referenceCenter = referenceWindow >> 29;
+            uint referenceBelow = referenceBelowWindow >> 29;
+
+            int bit;
+
+            if (usePrediction
+                && (referenceCenter == 0 || referenceCenter == 7)
+                && referenceAbove == referenceCenter
+                && referenceBelow == referenceCenter)
+            {
+                bit = (int)(referenceCenter & 1);
+            }
+            else
+            {
+                uint context = (decodedBits & 1)
+                    | (codingAbove << 1)
+                    | (referenceBelow << 4)
+                    | (referenceCenter << 7)
+                    | (referenceAbove << 10);
+
+                bit = decoder.DecodeBit(ref Unsafe.Add(ref contextRef, (int)context));
+            }
+
+            decodedBits = (decodedBits << 1) | (uint)bit;
+            codingAboveWindow <<= 1;
+            referenceAboveWindow <<= 1;
+            referenceWindow <<= 1;
+            referenceBelowWindow <<= 1;
+
+            if ((x & 7) == 7)
+            {
+                Unsafe.Add(ref dataRef, rowOffset + (x >> 3)) = (byte)decodedBits;
+            }
+        }
+
+        int remainingBits = width & 7;
+
+        if (remainingBits != 0)
+        {
+            Unsafe.Add(ref dataRef, rowOffset + (width >> 3)) = (byte)(decodedBits << (8 - remainingBits));
+        }
+    }
+
+    /// <summary>
     /// Checks whether a pixel's value can be predicted from the reference bitmap alone
     /// (ITU-T T.88 Section 6.3.5.6, step 5). Returns the implicit pixel value (0 or 1)
     /// if all 8 neighbors in the reference match the center, or -1 if arithmetic decoding
     /// is required.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static int GetImplicitValue(Jbig2Bitmap reference, int rx, int ry)
+    public static int GetImplicitValue(Jbig2Bitmap reference, int rx, int ry)
     {
         int center = reference.GetPixel(rx, ry);
 
@@ -746,5 +948,42 @@ internal static class Jbig2RowDecoder
         }
 
         return center;
+    }
+
+    /// <summary>
+    /// Returns 32 pixels of <paramref name="row"/> starting at <paramref name="column"/>, the first at bit 31.
+    /// Pixels outside the bitmap are 0.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static uint LoadRowWindow(Jbig2Bitmap bitmap, int row, int column)
+    {
+        if ((uint)row >= (uint)bitmap.Height || column >= bitmap.Width || column <= -32)
+        {
+            return 0;
+        }
+
+        ReadOnlySpan<byte> rowData = bitmap.GetRowReadOnly(row);
+        int firstByte = column >> 3;
+        ulong bits = 0;
+
+        for (int byteIndex = firstByte; byteIndex < firstByte + 5; byteIndex++)
+        {
+            bits <<= 8;
+
+            if ((uint)byteIndex < (uint)rowData.Length)
+            {
+                bits |= rowData[byteIndex];
+            }
+        }
+
+        var window = (uint)(bits >> (8 - (column & 7)));
+        int validPixels = bitmap.Width - column;
+
+        if (validPixels < 32)
+        {
+            window &= ~0u << (32 - validPixels);
+        }
+
+        return window;
     }
 }

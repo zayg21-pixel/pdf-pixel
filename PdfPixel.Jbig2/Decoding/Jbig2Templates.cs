@@ -126,13 +126,13 @@ internal static class Jbig2Templates
     /// Returns the number of adaptive template pixel pairs for a generic template.
     /// Template 0 uses 4 AT pixels; templates 1–3 use 1.
     /// </summary>
-    internal static int AtPixelCount(int templateId) => (templateId == 0) ? 4 : 1;
+    public static int AtPixelCount(int templateId) => (templateId == 0) ? 4 : 1;
 
     /// <summary>
     /// Reads <paramref name="count"/> (X, Y) adaptive template pixel pairs from the front of
     /// <paramref name="data"/>. Pairs that fall outside the available data are left as zero.
     /// </summary>
-    internal static Jbig2AtPixels ReadAtPixelPairs(in ReadOnlySpan<byte> data, int count)
+    public static Jbig2AtPixels ReadAtPixelPairs(in ReadOnlySpan<byte> data, int count)
     {
         var atX = new sbyte[count];
         var atY = new sbyte[count];
@@ -154,7 +154,7 @@ internal static class Jbig2Templates
     /// Returns the default AT pixels for generic region arithmetic decoding.
     /// These are the fixed positions used by halftone regions (ITU-T T.88 Section 7.4.5.1.2).
     /// </summary>
-    internal static Jbig2AtPixels GetDefaultAtPixels(int templateId)
+    public static Jbig2AtPixels GetDefaultAtPixels(int templateId)
     {
         int atCount = AtPixelCount(templateId);
         var atX = new sbyte[atCount];
@@ -179,7 +179,7 @@ internal static class Jbig2Templates
     /// AT[0] = (-patternWidth, 0) prevents cross-pattern context contamination;
     /// remaining positions follow the template defaults (ITU-T T.88 Section 7.4.4.1.2).
     /// </summary>
-    internal static Jbig2AtPixels GetPatternDictionaryAtPixels(int templateId, int patternWidth)
+    public static Jbig2AtPixels GetPatternDictionaryAtPixels(int templateId, int patternWidth)
     {
         int atCount = AtPixelCount(templateId);
         var atX = new sbyte[atCount];
@@ -239,7 +239,7 @@ internal static class Jbig2Templates
     /// <param name="atX">Adaptive template X offsets.</param>
     /// <param name="atY">Adaptive template Y offsets.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static ReadOnlySpan<Jbig2ContextPixel> ResolveTemplate(int templateId, sbyte[] atX, sbyte[] atY)
+    public static ReadOnlySpan<Jbig2ContextPixel> ResolveTemplate(int templateId, sbyte[] atX, sbyte[] atY)
     {
         return (IsDefaultAt(templateId, atX, atY))
             ? GetDefaultTemplatePixels(templateId)
@@ -251,7 +251,7 @@ internal static class Jbig2Templates
     /// and replacing the adaptive-template (AT) pixel positions with the supplied offsets.
     /// Each replaced pixel keeps its original bit shift from the spec-defined layout.
     /// </summary>
-    internal static Jbig2ContextPixel[] BuildCustomTemplate(int templateId, sbyte[] atX, sbyte[] atY)
+    public static Jbig2ContextPixel[] BuildCustomTemplate(int templateId, sbyte[] atX, sbyte[] atY)
     {
         ReadOnlySpan<Jbig2ContextPixel> defaultPixels = GetDefaultTemplatePixels(templateId);
         int count = defaultPixels.Length;
@@ -283,7 +283,7 @@ internal static class Jbig2Templates
     /// <summary>
     /// Returns the context array size for a given generic template.
     /// </summary>
-    internal static int GetContextSize(int templateId)
+    public static int GetContextSize(int templateId)
     {
         return templateId switch
         {
@@ -303,10 +303,10 @@ internal static class Jbig2Templates
     /// Builds a <see cref="Jbig2RowTemplate"/> from the given generic template pixels by grouping
     /// them by dy and computing min/max dx and context shift for each group.
     /// </summary>
-    internal static Jbig2RowTemplate BuildFastTemplate(int templateId, in Jbig2AtPixels atPixels)
+    public static Jbig2RowTemplate BuildFastTemplate(int templateId, in Jbig2AtPixels atPixels)
     {
         ReadOnlySpan<Jbig2ContextPixel> pixels = ResolveTemplate(templateId, atPixels.AtX, atPixels.AtY);
-        return BuildRowTemplateFromPixels(pixels);
+        return BuildRowTemplateFromPixels(pixels, GetGenericDecodeMode(templateId, atPixels, pixels));
     }
 
     /// <summary>
@@ -315,7 +315,9 @@ internal static class Jbig2Templates
     /// are strictly consecutive (dx increases by 1, shift decreases by 1). This correctly
     /// handles non-consecutive custom AT positions such as (-1, 1, 17) within a single row.
     /// </summary>
-    internal static Jbig2RowTemplate BuildRowTemplateFromPixels(in ReadOnlySpan<Jbig2ContextPixel> pixels)
+    /// <param name="pixels">Template context pixels.</param>
+    /// <param name="mode">How the rows of the template are decoded.</param>
+    public static Jbig2RowTemplate BuildRowTemplateFromPixels(in ReadOnlySpan<Jbig2ContextPixel> pixels, Jbig2RowDecodeMode mode)
     {
         Jbig2ContextPixel[] sorted = pixels.ToArray();
 
@@ -347,7 +349,7 @@ internal static class Jbig2Templates
                 sorted[i].Shift));
         }
 
-        return new Jbig2RowTemplate(groups.ToArray(), pixels.ToArray());
+        return new Jbig2RowTemplate(groups.ToArray(), pixels.ToArray(), mode);
     }
 
     /// <summary>
@@ -359,7 +361,7 @@ internal static class Jbig2Templates
     /// <param name="templateId">Refinement template index (0 or 1).</param>
     /// <param name="atX">Adaptive template X offsets (template 0 uses atX[0] for coding, atX[1] for reference).</param>
     /// <param name="atY">Adaptive template Y offsets.</param>
-    internal static Jbig2RowTemplate BuildRefinementTemplate(int templateId, sbyte[] atX, sbyte[] atY)
+    public static Jbig2RowTemplate BuildRefinementTemplate(int templateId, sbyte[] atX, sbyte[] atY)
     {
         Jbig2ContextPixel[] coding;
         Jbig2ContextPixel[] reference;
@@ -380,7 +382,11 @@ internal static class Jbig2Templates
             reference = RefinementReferenceTemplate1;
         }
 
-        return BuildRowTemplateFromDualPixels(coding, reference);
+        Jbig2RowDecodeMode mode = (templateId == 0 && IsDefaultRefinementTemplate0AtPixels(atX, atY))
+            ? Jbig2RowDecodeMode.DefaultRefinementTemplate0
+            : Jbig2RowDecodeMode.Template;
+
+        return BuildRowTemplateFromDualPixels(coding, reference, mode);
     }
 
     /// <summary>
@@ -389,7 +395,8 @@ internal static class Jbig2Templates
     /// </summary>
     private static Jbig2RowTemplate BuildRowTemplateFromDualPixels(
         in ReadOnlySpan<Jbig2ContextPixel> codingPixels,
-        in ReadOnlySpan<Jbig2ContextPixel> referencePixels)
+        in ReadOnlySpan<Jbig2ContextPixel> referencePixels,
+        Jbig2RowDecodeMode mode)
     {
         List<Jbig2RowGroupInfo> groups = new(codingPixels.Length + referencePixels.Length);
 
@@ -401,7 +408,7 @@ internal static class Jbig2Templates
         codingPixels.CopyTo(allOriginals);
         referencePixels.CopyTo(allOriginals.AsSpan(codingPixels.Length));
 
-        return new Jbig2RowTemplate(groups.ToArray(), allOriginals);
+        return new Jbig2RowTemplate(groups.ToArray(), allOriginals, mode);
     }
 
     /// <summary>
@@ -440,5 +447,60 @@ internal static class Jbig2Templates
                 sorted[i].Shift,
                 isReference));
         }
+    }
+
+    /// <summary>
+    /// Returns the <see cref="Jbig2RowDecodeMode"/> of a generic template built from <paramref name="pixels"/>.
+    /// </summary>
+    private static Jbig2RowDecodeMode GetGenericDecodeMode(int templateId, in Jbig2AtPixels atPixels, in ReadOnlySpan<Jbig2ContextPixel> pixels)
+    {
+        if (templateId == 0 && IsDefaultTemplate0AtPixels(atPixels))
+        {
+            return Jbig2RowDecodeMode.DefaultTemplate0;
+        }
+
+        foreach (Jbig2ContextPixel pixel in pixels)
+        {
+            if (pixel.Dy == 0 && pixel.Dx < -32)
+            {
+                return Jbig2RowDecodeMode.SlowTemplate;
+            }
+        }
+
+        return Jbig2RowDecodeMode.Template;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="atPixels"/> are the default template 0 AT pixels
+    /// (3, -1), (-3, -1), (2, -2) and (-2, -2).
+    /// </summary>
+    private static bool IsDefaultTemplate0AtPixels(in Jbig2AtPixels atPixels)
+    {
+        sbyte[] atX = atPixels.AtX;
+        sbyte[] atY = atPixels.AtY;
+
+        return atX.Length == 4
+            && atX[0] == 3
+            && atY[0] == -1
+            && atX[1] == -3
+            && atY[1] == -1
+            && atX[2] == 2
+            && atY[2] == -2
+            && atX[3] == -2
+            && atY[3] == -2;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="atX"/> and <paramref name="atY"/> are the default
+    /// refinement template 0 AT pixels (-1, -1) and (-1, -1).
+    /// </summary>
+    private static bool IsDefaultRefinementTemplate0AtPixels(sbyte[] atX, sbyte[] atY)
+    {
+        return atX.Length >= 2
+            && atY.Length >= 2
+            && atX[0] == -1
+            && atY[0] == -1
+            && atX[1] == -1
+            && atY[1] == -1;
     }
 }
