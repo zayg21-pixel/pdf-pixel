@@ -383,7 +383,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
     private SKSurface GetSurface(PagesDrawingRequest request)
         => _surfaceFactory.GetDrawingSurface((int)request.PanelSize.Width, (int)request.PanelSize.Height);
 
-    private static void Present(SKSurface surface, PagesDrawingRequest request)
+    private void Present(SKSurface surface, PagesDrawingRequest request)
     {
         IPdfPanelRenderTarget? renderTarget = request.RenderTarget;
 
@@ -392,7 +392,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
             return;
         }
 
-        renderTarget.Render(surface, new PdfPanelFrame(request, renderTarget.HostToPanel));
+        renderTarget.Render(surface, new PdfPanelFrame(request, renderTarget.HostToPanel, _contentProvider));
     }
 
     /// <summary>

@@ -91,6 +91,18 @@ internal sealed class PdfPageContentProvider : IDisposable
     public PdfWord[]? GetWords(int pageNumber) => _cache[pageNumber - 1].Content.Words;
 
     /// <summary>
+    /// Returns the information about the rendered content of the specified 1-based page number,
+    /// or <see langword="null"/> if it has not been rendered yet.
+    /// </summary>
+    public PdfPanelRenderedLayerInfo? GetRenderedContentInfo(int pageNumber) => _cache[pageNumber - 1].Content.GetRenderedLayerInfo();
+
+    /// <summary>
+    /// Returns the information about the rendered annotations of the specified 1-based page number,
+    /// or <see langword="null"/> if they have not been rendered yet.
+    /// </summary>
+    public PdfPanelRenderedLayerInfo? GetRenderedAnnotationsInfo(int pageNumber) => _cache[pageNumber - 1].AnnotationContent.GetRenderedLayerInfo();
+
+    /// <summary>
     /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the content
     /// picture of the specified 1-based page number for <paramref name="request"/>.
     /// </summary>

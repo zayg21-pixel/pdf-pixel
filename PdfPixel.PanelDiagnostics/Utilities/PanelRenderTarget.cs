@@ -27,7 +27,22 @@ internal sealed class PanelRenderTarget : IPdfPanelRenderTarget, IPdfPanelRender
     /// <inheritdoc />
     public void Render(SKSurface surface, PdfPanelFrame frame)
     {
-        string pageNumbers = string.Join(", ", frame.Pages.Select(page => page.PageNumber));
-        Console.WriteLine($"{_clock.Elapsed.TotalMilliseconds,10:F1} ms  frame, pages {pageNumbers}");
+        string pages = string.Join(", ", frame.Pages.Select(FormatPage));
+        Console.WriteLine($"{_clock.Elapsed.TotalMilliseconds,10:F1} ms  frame, pages {pages}");
+    }
+
+    private static string FormatPage(PdfPanelFramePage page)
+        => $"{page.PageNumber} [content {FormatLayer(page.RenderedContent)}, annotations {FormatLayer(page.RenderedAnnotations)}]";
+
+    private static string FormatLayer(PdfPanelRenderedLayerInfo? layer)
+    {
+        if (layer == null)
+        {
+            return "-";
+        }
+
+        string region = (layer.Value.RegionOfInterest == null) ? "full" : $"roi {layer.Value.RegionOfInterest.Value}";
+
+        return $"scale {layer.Value.Scale} {region}";
     }
 }

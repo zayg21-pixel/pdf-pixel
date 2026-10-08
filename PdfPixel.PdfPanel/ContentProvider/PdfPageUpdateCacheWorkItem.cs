@@ -105,6 +105,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
             }
         }
 
+        await _parseObserver.YieldAsync().ConfigureAwait(false);
+
         if (CacheEntry.Content.NeedsPictureUpdate(_request))
         {
             PdfCommandRecorder? contentRecording;
@@ -151,6 +153,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             _onPageUpdated?.Invoke(
                 new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, _request.GetPage(CacheEntry.PageNumber).RegionOfInterest));
+
+            await _contentObserver.YieldAsync().ConfigureAwait(false);
         }
 
         var annotationRecordingUpdated = false;

@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;
 using System.Collections.Generic;
 
@@ -9,7 +10,7 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public sealed class PdfPanelFrame
 {
-    internal PdfPanelFrame(DrawingRequest request, in PdfMatrix hostToPanel)
+    internal PdfPanelFrame(DrawingRequest request, in PdfMatrix hostToPanel, PdfPageContentProvider contentProvider)
     {
         HostToPanel = hostToPanel;
         PanelSize = request.PanelSize;
@@ -18,7 +19,13 @@ public sealed class PdfPanelFrame
 
         for (int pageIndex = 0; pageIndex < pages.Length; pageIndex++)
         {
-            pages[pageIndex] = new PdfPanelFramePage(request.VisiblePages[pageIndex], request.Scale);
+            VisiblePageInfo page = request.VisiblePages[pageIndex];
+
+            pages[pageIndex] = new PdfPanelFramePage(
+                page,
+                request.Scale,
+                contentProvider.GetRenderedContentInfo(page.PageNumber),
+                contentProvider.GetRenderedAnnotationsInfo(page.PageNumber));
         }
 
         Pages = pages;

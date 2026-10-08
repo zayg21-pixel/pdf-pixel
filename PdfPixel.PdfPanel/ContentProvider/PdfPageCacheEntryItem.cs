@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Commands.Model;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
@@ -120,6 +121,28 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
         }
 
         return ((Features & PdfCommandFeatures.Scale) != 0) ? request.Scale : 1f;
+    }
+
+    /// <summary>
+    /// Returns the information about the cached content picture, or <see langword="null"/> when no picture is cached.
+    /// </summary>
+    public PdfPanelRenderedLayerInfo? GetRenderedLayerInfo()
+    {
+        PagesDrawingRequest? lastRequest = LastRequest;
+
+        if (!ContentPicture.HasContent || lastRequest == null)
+        {
+            return null;
+        }
+
+        PdfRectangle? regionOfInterest = null;
+
+        if ((Features & PdfCommandFeatures.Region) != 0)
+        {
+            regionOfInterest = lastRequest.GetPage(PageNumber).RegionOfInterest;
+        }
+
+        return new PdfPanelRenderedLayerInfo(lastRequest.Scale, regionOfInterest);
     }
 
     /// <summary>
