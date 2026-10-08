@@ -3,6 +3,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <summary>
     /// Pages content provider that handles rendering of page content and annotation layers.
     /// </summary>
-    public PdfPageContentProvider ContentProvider { get; }
+    internal PdfPageContentProvider ContentProvider { get; }
 
     /// <summary>
     /// Returns the page if it exists.
@@ -70,24 +71,18 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
     public static PdfPanelPageCollection FromDocument(IPdfDocument document, ILoggerFactory loggerFactory)
-    {
-        PdfPageContentProvider contentProvider = new(document, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()));
-
-        return FromContentProvider(contentProvider);
-    }
+        => FromDocument(document, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()), new PdfNonYieldingObserverFactory());
 
     /// <summary>
-    /// Generates <see cref="PdfPanelPageCollection"/> from page content provider.
+    /// Generates <see cref="PdfPanelPageCollection"/> from PDF document.
     /// </summary>
-    /// <param name="contentProvider">Document content provider.</param>
+    /// <param name="document">PDF document.</param>
+    /// <param name="processingQueue">Queue the page content is decoded on.</param>
+    /// <param name="observerFactory">Factory of the execution observers the page content is decoded with.</param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
-    public static PdfPanelPageCollection FromContentProvider(PdfPageContentProvider contentProvider)
+    public static PdfPanelPageCollection FromDocument(IPdfDocument document, IWorkQueue processingQueue, IPdfExecutionObserverFactory observerFactory)
     {
-        if (contentProvider == null)
-        {
-            throw new ArgumentNullException(nameof(contentProvider));
-        }
-
+        PdfPageContentProvider contentProvider = new(document, processingQueue, observerFactory);
         List<PdfPanelPage> pages = [];
 
         for (int i = 0; i < contentProvider.GetPagesCount(); i++)

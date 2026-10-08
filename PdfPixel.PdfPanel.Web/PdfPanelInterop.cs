@@ -5,7 +5,6 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
@@ -193,12 +192,10 @@ public partial class PdfPanelInterop
 
             resources.Document = DocumentReader.Read(new MemoryStream(document));
 
-            PdfPageContentProvider contentProvider = new(
+            resources.Pages = PdfPanelPageCollection.FromDocument(
                 resources.Document,
                 new ImmidiateWorkQueue(LoggerFactory.CreateLogger<ImmidiateWorkQueue>()),
                 new PdfYieldingObserverFactory(resources.YieldInterval));
-
-            resources.Pages = PdfPanelPageCollection.FromContentProvider(contentProvider);
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 

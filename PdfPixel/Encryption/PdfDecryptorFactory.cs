@@ -26,7 +26,8 @@ public static class PdfDecryptorFactory
             throw new NotSupportedException("Unsupported security handler; only the Standard security handler is supported.");
         }
 
-        if (parameters.V != 1 && parameters.V != 2 && parameters.V != 4 && parameters.V != 5)
+        // V3 is an unpublished algorithm; it takes the RC4 path of V2, as PDFium does.
+        if (parameters.V < 1 || parameters.V > 5)
         {
             throw new NotSupportedException($"Unsupported encryption algorithm (V={parameters.V} R={parameters.R}).");
         }

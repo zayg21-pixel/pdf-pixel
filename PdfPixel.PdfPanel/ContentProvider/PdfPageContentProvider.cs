@@ -16,7 +16,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// Provides decoded page content and annotation pictures for rendering.
 /// Decodes page content and annotations on a background worker thread and notifies the UI via <see cref="OnPageUpdated"/>.
 /// </summary>
-public sealed class PdfPageContentProvider : IDisposable
+internal sealed class PdfPageContentProvider : IDisposable
 {
     private readonly IPdfDocument _document;
     private readonly IWorkQueue _processingQueue;
@@ -33,10 +33,10 @@ public sealed class PdfPageContentProvider : IDisposable
     /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work
     /// and <paramref name="observerFactory"/> to create per-page cancellation observers.
     /// </summary>
-    public PdfPageContentProvider(IPdfDocument document, IWorkQueue processingQueue, IPdfExecutionObserverFactory? observerFactory = null)
+    public PdfPageContentProvider(IPdfDocument document, IWorkQueue processingQueue, IPdfExecutionObserverFactory observerFactory)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
-        _observerFactory = observerFactory ?? new PdfNonYieldingObserverFactory();
+        _observerFactory = observerFactory ?? throw new ArgumentNullException(nameof(observerFactory));
         _cache = new PdfPageCacheEntry[document.Pages.Count];
 
         for (int i = 0; i < document.Pages.Count; i++)
@@ -50,33 +50,33 @@ public sealed class PdfPageContentProvider : IDisposable
     /// <summary>
     /// Raised on the work queue thread when a page's characters have been extracted, by text extraction or by rendering.
     /// </summary>
-    internal event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
+    public event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
 
     /// <summary>
     /// Synchronisation object used to serialise access to the underlying PDF document.
     /// </summary>
-    internal object DocumentLocker { get; } = new();
+    public object DocumentLocker { get; } = new();
 
     /// <summary>
     /// Called on the UI thread whenever a page's content or annotations have been decoded and are ready to render.
     /// </summary>
-    internal Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
+    public Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
 
     /// <summary>
     /// Returns the annotation popups for the specified 1-based page number.
     /// </summary>
-    internal PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _cache[pageNumber - 1].GetAnnotations(_document, DocumentLocker);
+    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _cache[pageNumber - 1].GetAnnotations(_document, DocumentLocker);
 
     /// <summary>
     /// Returns the total number of pages in the document.
     /// </summary>
-    internal int GetPagesCount() => _cache.Length;
+    public int GetPagesCount() => _cache.Length;
 
     /// <summary>
     /// Returns the currently cached <see cref="PdfContentPictures"/> for the specified 1-based page number.
     /// Returns empty pictures if the page has not been decoded yet.
     /// </summary>
-    internal PdfContentPictures GetExistingContentPictures(int pageNumber)
+    public PdfContentPictures GetExistingContentPictures(int pageNumber)
     {
         PdfPageCacheEntry cacheEntry = _cache[pageNumber - 1];
 
@@ -88,19 +88,19 @@ public sealed class PdfPageContentProvider : IDisposable
     /// Returns the extracted words of the specified 1-based page number in reading order,
     /// or <see langword="null"/> if they have not been extracted yet.
     /// </summary>
-    internal PdfWord[]? GetWords(int pageNumber) => _cache[pageNumber - 1].Content.Words;
+    public PdfWord[]? GetWords(int pageNumber) => _cache[pageNumber - 1].Content.Words;
 
     /// <summary>
     /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the content
     /// picture of the specified 1-based page number for <paramref name="request"/>.
     /// </summary>
-    internal bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
+    public bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
 
     /// <summary>
     /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the annotation
     /// recording of the specified 1-based page number for <paramref name="request"/>.
     /// </summary>
-    internal bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request)
+    public bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request)
     {
         PdfPageCacheEntry cacheEntry = _cache[pageNumber - 1];
 
@@ -112,7 +112,7 @@ public sealed class PdfPageContentProvider : IDisposable
     /// Starts or updates background decoding for the pages described by <paramref name="request"/>.
     /// Pages no longer visible are cancelled and their cache cleared.
     /// </summary>
-    internal void UpdateContent(PagesDrawingRequest request)
+    public void UpdateContent(PagesDrawingRequest request)
     {
         if (request == null)
         {
@@ -149,7 +149,7 @@ public sealed class PdfPageContentProvider : IDisposable
     /// <summary>
     /// Starts or stops extracting the characters of every page that has none yet, one page at a time.
     /// </summary>
-    internal void UpdateTextExtraction(bool extractText)
+    public void UpdateTextExtraction(bool extractText)
     {
         _extractText = extractText;
         EnqueueNextTextExtraction();
@@ -158,7 +158,7 @@ public sealed class PdfPageContentProvider : IDisposable
     /// <summary>
     /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.
     /// </summary>
-    internal PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
+    public PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
 
     private void EnqueueNextTextExtraction()
     {
