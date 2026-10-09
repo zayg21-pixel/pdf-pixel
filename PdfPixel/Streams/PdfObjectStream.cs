@@ -1,4 +1,5 @@
-using PdfPixel.Encryption;
+using PdfPixel.Encryption.Decryption;
+using PdfPixel.Encryption.Model;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using System;

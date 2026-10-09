@@ -1,4 +1,4 @@
-using PdfPixel.Annotations.Models;
+using PdfPixel.Annotations.Model;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Model;
@@ -50,47 +50,47 @@ internal static class PdfAnnotationLineEndingRenderer
 
         switch (style)
         {
-            case Models.PdfLineEndingStyle.OpenArrow:
+            case PdfLineEndingStyle.OpenArrow:
                 {
                     DrawOpenArrow(processor, endingSize, lineWidth, lineColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.ClosedArrow:
+            case PdfLineEndingStyle.ClosedArrow:
                 {
                     DrawClosedArrow(processor, endingSize, lineWidth, lineColor, interiorColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.Square:
+            case PdfLineEndingStyle.Square:
                 {
                     DrawSquare(processor, endingSize, lineWidth, lineColor, interiorColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.Circle:
+            case PdfLineEndingStyle.Circle:
                 {
                     DrawCircle(processor, endingSize, lineWidth, lineColor, interiorColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.Diamond:
+            case PdfLineEndingStyle.Diamond:
                 {
                     DrawDiamond(processor, endingSize, lineWidth, lineColor, interiorColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.Butt:
+            case PdfLineEndingStyle.Butt:
                 {
                     DrawButt(processor, endingSize, lineWidth, lineColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.ROpenArrow:
+            case PdfLineEndingStyle.ROpenArrow:
                 {
                     DrawROpenArrow(processor, endingSize, lineWidth, lineColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.RClosedArrow:
+            case PdfLineEndingStyle.RClosedArrow:
                 {
                     DrawRClosedArrow(processor, endingSize, lineWidth, lineColor, interiorColor);
                     break;
                 }
-            case Models.PdfLineEndingStyle.Slash:
+            case PdfLineEndingStyle.Slash:
                 {
                     DrawSlash(processor, endingSize, lineWidth, lineColor);
                     break;

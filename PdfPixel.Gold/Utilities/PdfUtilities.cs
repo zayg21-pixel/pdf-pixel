@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using PdfPixel.Annotations.Models;
+using PdfPixel.Annotations.Model;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
+using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;

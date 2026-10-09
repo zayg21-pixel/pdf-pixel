@@ -1,5 +1,6 @@
 using System;
-using PdfPixel.Encryption;
+using PdfPixel.Encryption.Decryption;
+using PdfPixel.Encryption.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
 

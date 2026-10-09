@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using PdfPixel.Encryption.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
 

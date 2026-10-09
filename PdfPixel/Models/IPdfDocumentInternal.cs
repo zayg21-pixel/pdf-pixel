@@ -1,4 +1,5 @@
-using PdfPixel.Encryption;
+using PdfPixel.Encryption.Decryption;
+using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;

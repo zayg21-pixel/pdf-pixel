@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.PdfPanel;

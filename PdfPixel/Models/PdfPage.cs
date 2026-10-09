@@ -1,5 +1,5 @@
 using PdfPixel.Rendering;
-using PdfPixel.Annotations.Models;
+using PdfPixel.Annotations.Model;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;

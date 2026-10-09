@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
-using PdfPixel.Encryption;
+using PdfPixel.Encryption.Decryption;
+using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;

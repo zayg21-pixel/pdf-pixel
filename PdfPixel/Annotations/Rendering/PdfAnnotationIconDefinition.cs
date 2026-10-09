@@ -1,4 +1,4 @@
-using PdfPixel.Annotations.Models;
+using PdfPixel.Annotations.Model;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Annotations.Rendering;

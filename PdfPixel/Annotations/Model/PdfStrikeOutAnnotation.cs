@@ -1,0 +1,69 @@
+using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands.Model;
+using PdfPixel.Geometry;
+using PdfPixel.Models;
+
+namespace PdfPixel.Annotations.Model;
+
+/// <summary>
+/// Represents a PDF strikeout annotation.
+/// </summary>
+/// <remarks>
+/// Strikeout annotations mark text with a line drawn through the middle of it,
+/// typically used to indicate deleted or obsolete content.
+/// </remarks>
+public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfStrikeOutAnnotation"/> class.
+    /// </summary>
+    /// <param name="annotationObject">The PDF object representing this strikeout annotation.</param>
+    public PdfStrikeOutAnnotation(PdfObject annotationObject)
+        : base(annotationObject, PdfAnnotationSubType.StrikeOut)
+    {
+    }
+
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    {
+        PdfPoint[][] quads = Quadrilaterals;
+        if (quads.Length == 0)
+        {
+            return false;
+        }
+
+        PdfColor color = ResolveColor(page, PdfColors.Red);
+
+        foreach (PdfPoint[] quad in quads)
+        {
+            float startX = (quad[0].X + quad[3].X) / 2;
+            float startY = (quad[0].Y + quad[3].Y) / 2;
+            float endX = (quad[1].X + quad[2].X) / 2;
+            float endY = (quad[1].Y + quad[2].Y) / 2;
+
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
+
+            PdfPathBuilder linePath = new();
+            linePath.MoveTo(startX, startY);
+            linePath.LineTo(endX, endY);
+            processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Returns a string representation of this strikeout annotation.
+    /// </summary>
+    /// <returns>A string containing the annotation type.</returns>
+    public override string ToString()
+    {
+        if (Contents != null)
+        {
+            return $"StrikeOut Annotation: {Contents}";
+        }
+
+        return "StrikeOut Annotation";
+    }
+}
