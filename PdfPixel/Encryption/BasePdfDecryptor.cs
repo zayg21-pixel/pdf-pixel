@@ -55,16 +55,39 @@ public abstract class BasePdfDecryptor
         }
 
         byte[] fileKey = Authenticate(cryptFilter.AuthEvent);
-        return Decrypt(data.Span, reference, cryptFilter, fileKey);
+
+        ReadOnlySpan<byte> encrypted = data.Span;
+        int ivLength = GetIvLength(cryptFilter);
+        if (encrypted.Length < ivLength)
+        {
+            return Array.Empty<byte>();
+        }
+
+        IDecryptionCipher cipher = CreateCipher(encrypted.Slice(0, ivLength), reference, cryptFilter, fileKey);
+        ReadOnlySpan<byte> body = encrypted.Slice(ivLength);
+        int wholeBlocksLength = body.Length - (body.Length % cipher.BlockSize);
+
+        var decrypted = new byte[wholeBlocksLength];
+        cipher.Decrypt(body.Slice(0, wholeBlocksLength), decrypted);
+
+        if (wholeBlocksLength < cipher.BlockSize)
+        {
+            return decrypted;
+        }
+
+        int paddingLength = cipher.GetPaddingLength(decrypted.AsSpan(wholeBlocksLength - cipher.BlockSize));
+        if (paddingLength == 0)
+        {
+            return decrypted;
+        }
+
+        return decrypted.AsSpan(0, wholeBlocksLength - paddingLength).ToArray();
     }
 
     /// <summary>
-    /// Decrypts the contents of the specified stream using the provided PDF reference.
+    /// Wraps the specified stream in a forward-only stream that decrypts its contents.
     /// </summary>
-    /// <remarks>The method reads the entire content of the input stream, decrypts it, and returns a
-    /// new memory stream containing the decrypted data. The input stream is not modified or disposed by this
-    /// method.</remarks>
-    /// <param name="stream">The input stream containing the encrypted data. The stream must be readable.</param>
+    /// <param name="stream">The input stream containing the encrypted data. The returned stream takes ownership of it.</param>
     /// <param name="reference">The PDF reference used to determine the decryption parameters.</param>
     /// <param name="cryptFilter">Crypt filter selected for the stream.</param>
     /// <returns>A stream containing the decrypted data. The caller is responsible for disposing of the returned stream.</returns>
@@ -88,13 +111,21 @@ public abstract class BasePdfDecryptor
 
         byte[] fileKey = Authenticate(cryptFilter.AuthEvent);
 
-        using MemoryStream memoryStream = new();
-        stream.CopyTo(memoryStream);
-        byte[] decryptedBytes = (memoryStream.Length == 0)
-            ? Array.Empty<byte>()
-            : Decrypt(memoryStream.ToArray(), reference, cryptFilter, fileKey);
+        var iv = new byte[GetIvLength(cryptFilter)];
+        int ivRead = 0;
+        while (ivRead < iv.Length)
+        {
+            int read = stream.Read(iv, ivRead, iv.Length - ivRead);
+            if (read <= 0)
+            {
+                stream.Dispose();
+                return Stream.Null;
+            }
 
-        return new MemoryStream(decryptedBytes);
+            ivRead += read;
+        }
+
+        return new PdfDecryptStream(stream, CreateCipher(iv, reference, cryptFilter, fileKey));
     }
 
     /// <summary>
@@ -213,13 +244,26 @@ public abstract class BasePdfDecryptor
             && cryptFilter.AuthEvent == PdfAuthEvent.DocumentOpen;
     }
 
-    private static byte[] Decrypt(in ReadOnlySpan<byte> data, in PdfReference reference, PdfCryptFilter cryptFilter, byte[] fileKey)
+    /// <summary>
+    /// Gets the length of the initialization vector that starts data encrypted with <paramref name="cryptFilter"/>.
+    /// </summary>
+    private static int GetIvLength(PdfCryptFilter cryptFilter)
+    {
+        if (cryptFilter.Method == PdfCryptFilterMethod.AESV2 || cryptFilter.Method == PdfCryptFilterMethod.AESV3)
+        {
+            return AesBlockSize;
+        }
+
+        return 0;
+    }
+
+    private static IDecryptionCipher CreateCipher(in ReadOnlySpan<byte> iv, in PdfReference reference, PdfCryptFilter cryptFilter, byte[] fileKey)
     {
         return cryptFilter.Method switch
         {
-            PdfCryptFilterMethod.AESV2 => DecryptAes(DeriveObjectKey(fileKey, reference, AesSalt), data),
-            PdfCryptFilterMethod.AESV3 => DecryptAes(fileKey, data),
-            _ => Rc4.Transform(DeriveObjectKey(fileKey, reference, ReadOnlySpan<byte>.Empty), data)
+            PdfCryptFilterMethod.AESV2 => new AesCbc(DeriveObjectKey(fileKey, reference, AesSalt), iv),
+            PdfCryptFilterMethod.AESV3 => new AesCbc(fileKey, iv),
+            _ => new Rc4(DeriveObjectKey(fileKey, reference, ReadOnlySpan<byte>.Empty))
         };
     }
 
@@ -241,15 +285,5 @@ public abstract class BasePdfDecryptor
 
         int keyLength = Math.Min(fileKey.Length + 5, MaxObjectKeyLength);
         return Md5.ComputeHash(buffer).AsSpan(0, keyLength).ToArray();
-    }
-
-    private static byte[] DecryptAes(byte[] key, in ReadOnlySpan<byte> data)
-    {
-        if (data.Length < AesBlockSize)
-        {
-            return data.ToArray();
-        }
-
-        return AesCbc.Decrypt(key, data.Slice(0, AesBlockSize), data.Slice(AesBlockSize), stripPkcs7Padding: true);
     }
 }

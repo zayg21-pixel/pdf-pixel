@@ -54,7 +54,10 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         {
             byte[] userKeySalt = userEntry.AsSpan(40, 8).ToArray();
             byte[] intermediateKey = ComputeHash(passwordBytes, userKeySalt, userKey: null);
-            return AesCbc.Decrypt(intermediateKey, zeroIv, userEncryptedKey, stripPkcs7Padding: false);
+            var fileKey = new byte[userEncryptedKey.Length];
+            new AesCbc(intermediateKey, zeroIv).Decrypt(userEncryptedKey, fileKey);
+
+            return fileKey;
         }
 
         byte[] ownerValidationSalt = ownerEntry.AsSpan(32, 8).ToArray();
@@ -63,7 +66,10 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         {
             byte[] ownerKeySalt = ownerEntry.AsSpan(40, 8).ToArray();
             byte[] intermediateKey = ComputeHash(passwordBytes, ownerKeySalt, uString);
-            return AesCbc.Decrypt(intermediateKey, zeroIv, ownerEncryptedKey, stripPkcs7Padding: false);
+            var fileKey = new byte[ownerEncryptedKey.Length];
+            new AesCbc(intermediateKey, zeroIv).Decrypt(ownerEncryptedKey, fileKey);
+
+            return fileKey;
         }
 
         return null;

@@ -8,46 +8,80 @@ namespace PdfPixel.Encryption.Cryptography;
 /// Used in place of <see cref="System.Security.Cryptography.Aes"/> to support
 /// platforms where the native implementation is unavailable (e.g., Blazor WASM).
 /// </summary>
-internal static class AesCbc
+internal sealed class AesCbc : IDecryptionCipher
 {
-    private const int BlockSize = 16;
+    private const int AesBlockSize = 16;
+
+    private readonly int _rounds;
+    private readonly uint[] _roundKeys;
+    private readonly byte[] _previousBlock = new byte[AesBlockSize];
 
     /// <summary>
-    /// Decrypts <paramref name="ciphertext"/> using AES-CBC with the given 16- or 32-byte
-    /// <paramref name="key"/> and 16-byte <paramref name="iv"/>.
+    /// Initializes AES-CBC decryption with the given 16- or 32-byte <paramref name="key"/> and
+    /// 16-byte <paramref name="iv"/>.
     /// </summary>
     /// <param name="key">128-bit (16-byte) or 256-bit (32-byte) AES key.</param>
-    /// <param name="iv">128-bit (16-byte) initialisation vector.</param>
-    /// <param name="ciphertext">Ciphertext whose length must be a multiple of 16.</param>
-    /// <param name="stripPkcs7Padding">Whether to remove PKCS#7 padding from the result.</param>
-    /// <returns>Decrypted plaintext, with PKCS#7 padding removed when <paramref name="stripPkcs7Padding"/> is <see langword="true"/> and the padding is valid.</returns>
-    public static byte[] Decrypt(in ReadOnlySpan<byte> key, in ReadOnlySpan<byte> iv, in ReadOnlySpan<byte> ciphertext, bool stripPkcs7Padding)
+    /// <param name="iv">128-bit (16-byte) initialization vector.</param>
+    public AesCbc(in ReadOnlySpan<byte> key, in ReadOnlySpan<byte> iv)
     {
-        int rounds = GetRounds(key, iv);
-        if (ciphertext.Length == 0 || ciphertext.Length % BlockSize != 0)
+        _rounds = GetRounds(key, iv);
+        _roundKeys = new uint[4 * (_rounds + 1)];
+        ExpandKey(key, _roundKeys);
+        InvertMixColumns(_roundKeys, _rounds);
+        iv.CopyTo(_previousBlock);
+    }
+
+    /// <inheritdoc />
+    public int BlockSize => AesBlockSize;
+
+    /// <inheritdoc />
+    public void Decrypt(in ReadOnlySpan<byte> source, in Span<byte> destination)
+    {
+        if (source.Length % AesBlockSize != 0)
         {
-            return ciphertext.ToArray();
+            throw new ArgumentException("Ciphertext length must be a multiple of 16 bytes.", nameof(source));
         }
 
-        Span<uint> roundKeys = stackalloc uint[4 * (rounds + 1)];
-        ExpandKey(key, roundKeys);
-        InvertMixColumns(roundKeys, rounds);
-
-        var plaintext = new byte[ciphertext.Length];
-        Span<byte> state = stackalloc byte[BlockSize];
-        for (int blockStart = 0; blockStart < ciphertext.Length; blockStart += BlockSize)
+        if (destination.Length < source.Length)
         {
-            ciphertext.Slice(blockStart, BlockSize).CopyTo(state);
-            DecryptBlock(state, roundKeys, rounds);
+            throw new ArgumentException("Destination is shorter than source.", nameof(destination));
+        }
 
-            ReadOnlySpan<byte> previousBlock = (blockStart == 0) ? iv : ciphertext.Slice(blockStart - BlockSize, BlockSize);
-            for (int i = 0; i < BlockSize; i++)
+        Span<byte> state = stackalloc byte[AesBlockSize];
+        Span<byte> ciphertextBlock = stackalloc byte[AesBlockSize];
+        for (int blockStart = 0; blockStart < source.Length; blockStart += AesBlockSize)
+        {
+            source.Slice(blockStart, AesBlockSize).CopyTo(ciphertextBlock);
+            ciphertextBlock.CopyTo(state);
+            DecryptBlock(state, _roundKeys, _rounds);
+
+            for (int i = 0; i < AesBlockSize; i++)
             {
-                plaintext[blockStart + i] = (byte)(state[i] ^ previousBlock[i]);
+                destination[blockStart + i] = (byte)(state[i] ^ _previousBlock[i]);
+            }
+
+            ciphertextBlock.CopyTo(_previousBlock);
+        }
+    }
+
+    /// <inheritdoc />
+    public int GetPaddingLength(in ReadOnlySpan<byte> lastBlock)
+    {
+        int paddingLength = lastBlock[lastBlock.Length - 1];
+        if (paddingLength < 1 || paddingLength > AesBlockSize)
+        {
+            return 0;
+        }
+
+        for (int i = lastBlock.Length - paddingLength; i < lastBlock.Length; i++)
+        {
+            if (lastBlock[i] != paddingLength)
+            {
+                return 0;
             }
         }
 
-        return stripPkcs7Padding ? RemovePkcs7Padding(plaintext) : plaintext;
+        return paddingLength;
     }
 
     /// <summary>
@@ -58,7 +92,7 @@ internal static class AesCbc
     public static byte[] Encrypt(in ReadOnlySpan<byte> key, in ReadOnlySpan<byte> iv, in ReadOnlySpan<byte> plaintext)
     {
         int rounds = GetRounds(key, iv);
-        if (plaintext.Length % BlockSize != 0)
+        if (plaintext.Length % AesBlockSize != 0)
         {
             throw new ArgumentException("Plaintext length must be a multiple of 16 bytes.", nameof(plaintext));
         }
@@ -67,17 +101,17 @@ internal static class AesCbc
         ExpandKey(key, roundKeys);
 
         var ciphertext = new byte[plaintext.Length];
-        Span<byte> state = stackalloc byte[BlockSize];
-        for (int blockStart = 0; blockStart < plaintext.Length; blockStart += BlockSize)
+        Span<byte> state = stackalloc byte[AesBlockSize];
+        for (int blockStart = 0; blockStart < plaintext.Length; blockStart += AesBlockSize)
         {
-            ReadOnlySpan<byte> previousBlock = (blockStart == 0) ? iv : ciphertext.AsSpan(blockStart - BlockSize, BlockSize);
-            for (int i = 0; i < BlockSize; i++)
+            ReadOnlySpan<byte> previousBlock = (blockStart == 0) ? iv : ciphertext.AsSpan(blockStart - AesBlockSize, AesBlockSize);
+            for (int i = 0; i < AesBlockSize; i++)
             {
                 state[i] = (byte)(plaintext[blockStart + i] ^ previousBlock[i]);
             }
 
             EncryptBlock(state, roundKeys, rounds);
-            state.CopyTo(ciphertext.AsSpan(blockStart, BlockSize));
+            state.CopyTo(ciphertext.AsSpan(blockStart, AesBlockSize));
         }
 
         return ciphertext;
@@ -90,35 +124,12 @@ internal static class AesCbc
             throw new ArgumentException("Key must be exactly 16 or 32 bytes.", nameof(key));
         }
 
-        if (iv.Length != BlockSize)
+        if (iv.Length != AesBlockSize)
         {
             throw new ArgumentException("IV must be exactly 16 bytes.", nameof(iv));
         }
 
         return (key.Length / 4) + 6;
-    }
-
-    /// <summary>
-    /// Removes valid PKCS#7 padding from <paramref name="data"/>.
-    /// Returns <paramref name="data"/> unchanged if the padding is not valid.
-    /// </summary>
-    private static byte[] RemovePkcs7Padding(byte[] data)
-    {
-        int padLength = data[data.Length - 1];
-        if (padLength < 1 || padLength > BlockSize)
-        {
-            return data;
-        }
-
-        for (int i = data.Length - padLength; i < data.Length; i++)
-        {
-            if (data[i] != padLength)
-            {
-                return data;
-            }
-        }
-
-        return data.AsSpan(0, data.Length - padLength).ToArray();
     }
 
     /// <summary>
@@ -263,7 +274,7 @@ internal static class AesCbc
 
     private static void SubBytes(in Span<byte> state)
     {
-        for (int i = 0; i < BlockSize; i++)
+        for (int i = 0; i < AesBlockSize; i++)
         {
             state[i] = AesTables.SBox[state[i]];
         }

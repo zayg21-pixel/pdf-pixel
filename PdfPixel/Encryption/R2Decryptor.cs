@@ -44,7 +44,8 @@ internal sealed class R2Decryptor : BasePdfDecryptor
         int keyLength = StandardKeyDerivation.GetKeyLength(Parameters, DefaultKeyBits);
         byte[] fileKey = StandardKeyDerivation.ComputeKeyDigest(paddedPassword, Parameters).AsSpan(0, keyLength).ToArray();
 
-        byte[] expectedUserEntry = Rc4.Transform(fileKey, StandardKeyDerivation.PasswordPadding);
+        var expectedUserEntry = new byte[StandardKeyDerivation.PasswordPadding.Length];
+        new Rc4(fileKey).Decrypt(StandardKeyDerivation.PasswordPadding, expectedUserEntry);
         int compareLength = Math.Min(expectedUserEntry.Length, userEntry.Length);
         if (!expectedUserEntry.AsSpan(0, compareLength).SequenceEqual(userEntry.AsSpan(0, compareLength)))
         {
@@ -62,6 +63,9 @@ internal sealed class R2Decryptor : BasePdfDecryptor
         int keyLength = StandardKeyDerivation.GetKeyLength(Parameters, DefaultKeyBits);
         byte[] ownerKey = Md5.ComputeHash(paddedOwnerPassword).AsSpan(0, keyLength).ToArray();
         byte[] ownerEntry = StandardKeyDerivation.GetOwnerEntry(Parameters);
-        return Rc4.Transform(ownerKey, ownerEntry.AsSpan(0, Math.Min(ownerEntry.Length, StandardKeyDerivation.PasswordPadding.Length)));
+        byte[] paddedUserPassword = ownerEntry.AsSpan(0, Math.Min(ownerEntry.Length, StandardKeyDerivation.PasswordPadding.Length)).ToArray();
+        new Rc4(ownerKey).Decrypt(paddedUserPassword, paddedUserPassword);
+
+        return paddedUserPassword;
     }
 }

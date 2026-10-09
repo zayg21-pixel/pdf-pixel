@@ -5,37 +5,56 @@ namespace PdfPixel.Encryption.Cryptography;
 /// <summary>
 /// Pure managed RC4 stream cipher.
 /// </summary>
-internal static class Rc4
+internal sealed class Rc4 : IDecryptionCipher
 {
+    private readonly byte[] _state = new byte[256];
+    private int _index;
+    private int _swapIndex;
+
     /// <summary>
-    /// Encrypts or decrypts <paramref name="data"/> with <paramref name="key"/>.
+    /// Initializes the cipher state from <paramref name="key"/>.
     /// </summary>
-    public static byte[] Transform(in ReadOnlySpan<byte> key, in ReadOnlySpan<byte> data)
+    public Rc4(in ReadOnlySpan<byte> key)
     {
-        Span<byte> state = stackalloc byte[256];
         for (int i = 0; i < 256; i++)
         {
-            state[i] = (byte)i;
+            _state[i] = (byte)i;
         }
 
         int j = 0;
         for (int i = 0; i < 256; i++)
         {
-            j = (j + state[i] + key[i % key.Length]) & 0xFF;
-            (state[i], state[j]) = (state[j], state[i]);
+            j = (j + _state[i] + key[i % key.Length]) & 0xFF;
+            (_state[i], _state[j]) = (_state[j], _state[i]);
+        }
+    }
+
+    /// <inheritdoc />
+    public int BlockSize => 1;
+
+    /// <inheritdoc />
+    public void Decrypt(in ReadOnlySpan<byte> source, in Span<byte> destination)
+    {
+        if (destination.Length < source.Length)
+        {
+            throw new ArgumentException("Destination is shorter than source.", nameof(destination));
         }
 
-        var output = new byte[data.Length];
-        int index = 0;
-        j = 0;
-        for (int position = 0; position < data.Length; position++)
+        byte[] state = _state;
+        int index = _index;
+        int swapIndex = _swapIndex;
+        for (int position = 0; position < source.Length; position++)
         {
             index = (index + 1) & 0xFF;
-            j = (j + state[index]) & 0xFF;
-            (state[index], state[j]) = (state[j], state[index]);
-            output[position] = (byte)(data[position] ^ state[(state[index] + state[j]) & 0xFF]);
+            swapIndex = (swapIndex + state[index]) & 0xFF;
+            (state[index], state[swapIndex]) = (state[swapIndex], state[index]);
+            destination[position] = (byte)(source[position] ^ state[(state[index] + state[swapIndex]) & 0xFF]);
         }
 
-        return output;
+        _index = index;
+        _swapIndex = swapIndex;
     }
+
+    /// <inheritdoc />
+    public int GetPaddingLength(in ReadOnlySpan<byte> lastBlock) => 0;
 }

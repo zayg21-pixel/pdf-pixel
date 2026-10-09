@@ -85,7 +85,7 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
                 roundKey[i] = (byte)(fileKey[i] ^ round);
             }
 
-            block = Rc4.Transform(roundKey, block);
+            new Rc4(roundKey).Decrypt(block, block);
         }
 
         return block;
@@ -109,7 +109,7 @@ internal sealed class R3R4Decryptor : BasePdfDecryptor
                 roundKey[i] = (byte)(ownerKey[i] ^ round);
             }
 
-            block = Rc4.Transform(roundKey, block);
+            new Rc4(roundKey).Decrypt(block, block);
         }
 
         return block;
