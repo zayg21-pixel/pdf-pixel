@@ -5,7 +5,7 @@ using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
-using PdfPixel.TextExtraction;
+using PdfPixel.Tagging.Model;
 using System;
 using System.IO;
 

@@ -26,6 +26,11 @@ internal interface IPdfPageInternal : IPdfPage
     PdfReference PageReference { get; }
 
     /// <summary>
+    /// Structural parent key (/StructParents) of the content streams, or null when absent.
+    /// </summary>
+    int? StructParents { get; }
+
+    /// <summary>
     /// Stream sources named by the page's /Contents entry, in the order they are to be read.
     /// </summary>
     IReadOnlyList<PdfObjectStream> ContentStreams { get; }

@@ -12,16 +12,16 @@ internal readonly struct PdfSoftMaskRecordingKey : IEquatable<PdfSoftMaskRecordi
     /// <summary>
     /// Initializes the key with the mask form object and the matrix its content was recorded under.
     /// </summary>
-    public PdfSoftMaskRecordingKey(in PdfReference maskForm, in PdfMatrix worldToMaskForm)
+    public PdfSoftMaskRecordingKey(in PdfReference formReference, in PdfMatrix worldToMaskForm)
     {
-        MaskForm = maskForm;
+        FormReference = formReference;
         WorldToMaskForm = worldToMaskForm;
     }
 
     /// <summary>
     /// Gets the reference of the mask form object whose content was recorded.
     /// </summary>
-    public PdfReference MaskForm { get; }
+    public PdfReference FormReference { get; }
 
     /// <summary>
     /// Gets the matrix mapping the space the mask is used from onto the mask form's own space.
@@ -30,13 +30,13 @@ internal readonly struct PdfSoftMaskRecordingKey : IEquatable<PdfSoftMaskRecordi
 
     /// <inheritdoc />
     public bool Equals(PdfSoftMaskRecordingKey other)
-        => MaskForm == other.MaskForm && WorldToMaskForm == other.WorldToMaskForm;
+        => FormReference == other.FormReference && WorldToMaskForm == other.WorldToMaskForm;
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is PdfSoftMaskRecordingKey other && Equals(other);
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(MaskForm, WorldToMaskForm);
+    public override int GetHashCode() => HashCode.Combine(FormReference, WorldToMaskForm);
 
     /// <summary>
     /// Returns whether the two keys name the same recording.

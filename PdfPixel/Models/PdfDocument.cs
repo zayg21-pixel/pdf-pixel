@@ -7,7 +7,7 @@ using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
-using PdfPixel.TextExtraction;
+using PdfPixel.Tagging.Model;
 using System.Collections.Generic;
 using System.IO;
 

@@ -13,10 +13,10 @@ public sealed class PdfVisibilityExpression
 {
     private const int MaxNestingDepth = 10;
 
-    private PdfVisibilityExpression(in PdfReference group)
+    private PdfVisibilityExpression(in PdfReference groupReference)
     {
         Type = PdfVisibilityExpressionType.Group;
-        Group = group;
+        GroupReference = groupReference;
         Operands = Array.Empty<PdfVisibilityExpression>();
     }
 
@@ -28,19 +28,19 @@ public sealed class PdfVisibilityExpression
     }
 
     /// <summary>
-    /// Distinguishes whether this node is a <see cref="Group"/> leaf or an <see cref="Operator"/> node.
+    /// Distinguishes whether this node is a <see cref="GroupReference"/> leaf or an <see cref="Operator"/> node.
     /// </summary>
     public PdfVisibilityExpressionType Type { get; }
 
     /// <summary>
-    /// The referenced optional content group. Meaningful only when <see cref="Type"/> is <see cref="PdfVisibilityExpressionType.Group"/>.
+    /// The referenced optional content group, or <see langword="null"/> when <see cref="Type"/> is <see cref="PdfVisibilityExpressionType.Operator"/>.
     /// </summary>
-    public PdfReference Group { get; }
+    public PdfReference? GroupReference { get; }
 
     /// <summary>
-    /// The operator combining <see cref="Operands"/>. Meaningful only when <see cref="Type"/> is <see cref="PdfVisibilityExpressionType.Operator"/>.
+    /// The operator combining <see cref="Operands"/>, or <see langword="null"/> when <see cref="Type"/> is <see cref="PdfVisibilityExpressionType.Group"/>.
     /// </summary>
-    public PdfVisibilityExpressionOperator Operator { get; }
+    public PdfVisibilityExpressionOperator? Operator { get; }
 
     /// <summary>
     /// Operands combined by <see cref="Operator"/>. Empty when <see cref="Type"/> is <see cref="PdfVisibilityExpressionType.Group"/>.

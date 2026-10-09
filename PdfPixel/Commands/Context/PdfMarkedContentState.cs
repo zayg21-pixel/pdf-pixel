@@ -195,9 +195,9 @@ public sealed class PdfMarkedContentState
 
     private bool EvaluateVisibilityExpression(PdfVisibilityExpression expression)
     {
-        if (expression.Type == PdfVisibilityExpressionType.Group)
+        if (expression.GroupReference != null)
         {
-            return GetGroupVisibility(expression.Group);
+            return GetGroupVisibility(expression.GroupReference.Value);
         }
 
         IReadOnlyList<PdfVisibilityExpression> operands = expression.Operands;

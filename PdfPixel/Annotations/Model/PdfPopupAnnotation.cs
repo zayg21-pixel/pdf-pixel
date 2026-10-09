@@ -41,14 +41,14 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     public PdfPopupAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Popup)
     {
-        ParentAnnotation = annotationObject.Dictionary.GetReference(PdfTokens.ParentKey);
+        Parent = annotationObject.Dictionary.GetReference(PdfTokens.ParentKey);
         IsOpen = annotationObject.Dictionary.GetBooleanOrDefault(PdfTokens.OpenKey);
     }
 
     /// <summary>
     /// Gets the reference to the parent annotation that this popup is associated with.
     /// </summary>
-    public PdfReference? ParentAnnotation { get; }
+    public PdfReference? Parent { get; }
 
     /// <summary>
     /// Gets a value indicating whether the annotation is initially displayed in an open state.

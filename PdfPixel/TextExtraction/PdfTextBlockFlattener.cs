@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -46,7 +47,7 @@ public sealed class PdfTextBlockFlattener
             CollectBounds(block, matrix, ref unionBounds);
             if (unionBounds != null)
             {
-                result.Add(new PdfCharacter(block.Markup.ActualText.Value.ToString(), unionBounds.Value));
+                result.Add(new PdfCharacter(block.Markup.ActualText.Value.DecodePdfString(), unionBounds.Value));
             }
 
             return;

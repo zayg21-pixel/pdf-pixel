@@ -1,6 +1,7 @@
 using PdfPixel.Commands.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
+using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
 using PdfPixel.TextExtraction;
 using System.Collections.Generic;
@@ -23,12 +24,14 @@ internal class MarkedContentOperators : IOperatorProcessor
     private readonly Stack<IPdfValue> _operandStack;
     private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
+    private readonly PdfStructureTree? _structureTree;
 
     public MarkedContentOperators(Stack<IPdfValue> operandStack, IPdfPageInternal page, IPdfCommandProcessor processor)
     {
         _operandStack = operandStack;
         _page = page;
         _processor = processor;
+        _structureTree = page.Document.StructureTree;
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -52,13 +55,13 @@ internal class MarkedContentOperators : IOperatorProcessor
             case "BMC":
             {
                 // Begin marked content
-                ProcessBeginMarkedContent();
+                ProcessBeginMarkedContent(graphicsState);
                 break;
             }
             case "BDC":
             {
                 // Begin marked content with properties
-                ProcessBeginMarkedContentWithProperties();
+                ProcessBeginMarkedContentWithProperties(graphicsState);
                 break;
             }
             case "EMC":
@@ -84,7 +87,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null);
+        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null, graphicsState);
     }
 
     private void ProcessMarkedContentPointWithProperties(PdfGraphicsState graphicsState)
@@ -102,10 +105,10 @@ internal class MarkedContentOperators : IOperatorProcessor
         }
 
         PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
-        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary);
+        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary, graphicsState);
     }
 
-    private void ProcessBeginMarkedContent()
+    private void ProcessBeginMarkedContent(PdfGraphicsState graphicsState)
     {
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
@@ -119,14 +122,14 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfMarkedContent markedContent = new(tagName.Value) { TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null) };
+        PdfMarkedContent markedContent = new(tagName.Value) { TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null, graphicsState) };
 
         _processor.Process(new BeginMarkedContentCommand(markedContent));
     }
 
     private void ProcessEndMarkedContent() => _processor.Process(new EndMarkedContentCommand());
 
-    private void ProcessBeginMarkedContentWithProperties()
+    private void ProcessBeginMarkedContentWithProperties(PdfGraphicsState graphicsState)
     {
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2)
@@ -149,13 +152,13 @@ internal class MarkedContentOperators : IOperatorProcessor
         else
         {
             PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
-            markedContent.TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary);
+            markedContent.TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary, graphicsState);
         }
 
         _processor.Process(new BeginMarkedContentCommand(markedContent));
     }
 
-    private PdfTextMarkup? TryParseTextMarkup(in PdfString tagName, PdfDictionary? propertiesDictionary)
+    private PdfTextMarkup? TryParseTextMarkup(in PdfString tagName, PdfDictionary? propertiesDictionary, PdfGraphicsState graphicsState)
     {
         PdfTextTag tag = tagName.AsEnum<PdfTextTag>();
 
@@ -170,19 +173,23 @@ internal class MarkedContentOperators : IOperatorProcessor
             mcid = propertiesDictionary.GetInteger(PdfTokens.MCIDKey);
         }
 
-        // TODO: [MEDIUM] fall back to the structure element the MCID belongs to for /ActualText and /Lang,
-        // resolving it through the structure tree's /ParentTree entry named by /StructParents
-
         if (tag == PdfTextTag.Custom && actualText == null && lang == null && mcid == null)
         {
             return null;
         }
 
+        PdfStructureElement? structureElement = null;
+        if (mcid != null && graphicsState.RenderingParameters.ExtractText)
+        {
+            structureElement = FindStructureParent(mcid.Value);
+        }
+
         PdfTextMarkup markup = new(tag)
         {
-            ActualText = actualText,
-            Lang = lang,
-            Mcid = mcid
+            ActualText = actualText ?? structureElement?.ActualText,
+            Lang = lang ?? structureElement?.Lang,
+            Mcid = mcid,
+            StructureElement = structureElement
         };
 
         if (tag == PdfTextTag.Custom)
@@ -191,6 +198,17 @@ internal class MarkedContentOperators : IOperatorProcessor
         }
 
         return markup;
+    }
+
+    private PdfStructureElement? FindStructureParent(int mcid)
+    {
+        int? structParents = _page.StructParents;
+        if (_structureTree == null || structParents == null)
+        {
+            return null;
+        }
+
+        return _structureTree.FindParent(structParents.Value, mcid);
     }
 
     private PdfDictionary? ResolvePropertiesDictionary(IPdfValue propertiesOperand)

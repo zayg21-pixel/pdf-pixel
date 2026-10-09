@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Fonts.Management;
-using PdfPixel.TextExtraction;
+using PdfPixel.Tagging.Model;
 using System;
 using System.Collections.Generic;
 

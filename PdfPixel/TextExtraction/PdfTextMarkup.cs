@@ -1,4 +1,5 @@
 using PdfPixel.Models;
+using PdfPixel.Tagging.Model;
 
 namespace PdfPixel.TextExtraction;
 
@@ -27,12 +28,13 @@ public class PdfTextMarkup
     public PdfString? CustomTag { get; internal set; }
 
     /// <summary>
-    /// Replacement text for ligatures or decorative glyphs (/ActualText).
+    /// Replacement text for ligatures or decorative glyphs (/ActualText), falling back to that of
+    /// <see cref="StructureElement"/>.
     /// </summary>
     public PdfString? ActualText { get; internal set; }
 
     /// <summary>
-    /// Language tag (/Lang).
+    /// Language tag (/Lang), falling back to that of <see cref="StructureElement"/>.
     /// </summary>
     public PdfString? Lang { get; internal set; }
 
@@ -45,4 +47,9 @@ public class PdfTextMarkup
     /// Marked content identifier (/MCID), or <see langword="null"/> when absent.
     /// </summary>
     public int? Mcid { get; internal set; }
+
+    /// <summary>
+    /// Structure element holding the marked content (/MCID), or <see langword="null"/> when not linked to the structure tree.
+    /// </summary>
+    public PdfStructureElement? StructureElement { get; internal set; }
 }

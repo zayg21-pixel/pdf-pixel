@@ -28,6 +28,7 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
+    private readonly int? _structParents;
 
     /// <summary>
     /// Initializes a new instance from values already resolved out of the page object, so that a caller
@@ -104,6 +105,7 @@ internal class PdfPage : IPdfPageInternal
             resourceDictionary,
             pageObject.Dictionary)
     {
+        _structParents = pageObject.Dictionary.GetInteger(PdfTokens.StructParentsKey);
     }
 
     /// <summary>
@@ -147,6 +149,8 @@ internal class PdfPage : IPdfPageInternal
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
     PdfReference IPdfPageInternal.PageReference => _pageReference;
+
+    int? IPdfPageInternal.StructParents => _structParents;
 
     IReadOnlyList<PdfObjectStream> IPdfPageInternal.ContentStreams => _contentStreams;
 
