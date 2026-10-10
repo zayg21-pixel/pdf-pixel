@@ -1,4 +1,5 @@
 using PdfPixel.Models;
+using PdfPixel.Tagging.Model.Attributes;
 using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
@@ -19,7 +20,9 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
         Reference = reference;
         Tree = tree;
         RawType = dictionary.GetNameOrDefault(PdfTokens.StructureTypeKey);
-        Type = tree.MapRole(RawType);
+        Namespace = tree.GetNamespace(dictionary.GetReference(PdfTokens.NamespaceKey));
+        Type = tree.MapRole(RawType, Namespace, out PdfStructureNamespace? typeNamespace);
+        TypeNamespace = typeNamespace;
         PageReference = dictionary.GetReference(PdfTokens.PgKey);
         Id = dictionary.GetString(PdfTokens.IdKey);
         Lang = dictionary.GetString(PdfTokens.LangKey);
@@ -43,14 +46,25 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
     public PdfReference? Reference { get; }
 
     /// <summary>
-    /// Structure type (/S), mapped through the tree's /RoleMap.
+    /// Structure type (/S), mapped through the tree's /RoleMap, or through the namespace role maps (/RoleMapNS)
+    /// when the element has a <see cref="Namespace"/>.
     /// </summary>
     public PdfString Type { get; }
 
     /// <summary>
-    /// Structure type (/S) as written, before /RoleMap.
+    /// Namespace of <see cref="Type"/>, or <see langword="null"/> for the default standard structure namespace.
+    /// </summary>
+    public PdfStructureNamespace? TypeNamespace { get; }
+
+    /// <summary>
+    /// Structure type (/S) as written, before role mapping.
     /// </summary>
     public PdfString RawType { get; }
+
+    /// <summary>
+    /// Namespace (/NS, PDF 2.0) of <see cref="RawType"/>, or <see langword="null"/> for the default standard structure namespace.
+    /// </summary>
+    public PdfStructureNamespace? Namespace { get; }
 
     /// <summary>
     /// Page (/Pg) the element's content appears on, or <see langword="null"/> when absent.
@@ -103,8 +117,6 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
     /// </summary>
     public PdfString? PhoneticAlphabet { get; }
 
-    // TODO: [LOW] parse /A and /C attributes, including the revision numbers paired with them
-
     /// <summary>
     /// Parent structure element (/P), or <see langword="null"/> when the parent is the
     /// structure tree root.
@@ -141,7 +153,111 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
         }
     }
 
-    // TODO: [LOW] parse /AF associated file specifications, /NS namespace
+    /// <summary>
+    /// Attribute objects attached through /A in array order, followed by those of the attribute classes
+    /// named in /C.
+    /// </summary>
+    public IEnumerable<PdfStructureAttributeBase> EnumerateAttributes()
+    {
+        IPdfValue? attributes = _dictionary.GetValue(PdfTokens.AttributesKey);
+        PdfArray? attributeArray = attributes.AsArray();
+
+        if (attributeArray == null)
+        {
+            PdfDictionary? single = attributes.AsDictionary();
+            if (single != null)
+            {
+                yield return PdfStructureAttributeFactory.Create(single, null, Tree);
+            }
+        }
+        else
+        {
+            for (int index = 0; index < attributeArray.Count; index++)
+            {
+                PdfDictionary? attribute = attributeArray.GetDictionary(index);
+                if (attribute == null)
+                {
+                    continue;
+                }
+
+                int? revision = attributeArray.GetInteger(index + 1);
+                if (revision != null)
+                {
+                    index++;
+                }
+
+                yield return PdfStructureAttributeFactory.Create(attribute, revision, Tree);
+            }
+        }
+
+        IPdfValue? classes = _dictionary.GetValue(PdfTokens.ClassKey);
+        PdfArray? classArray = classes.AsArray();
+
+        if (classArray == null)
+        {
+            PdfString? single = classes.AsName();
+            if (single != null)
+            {
+                foreach (PdfStructureAttributeBase attribute in CreateClassAttributes(single.Value, null))
+                {
+                    yield return attribute;
+                }
+            }
+
+            yield break;
+        }
+
+        for (int index = 0; index < classArray.Count; index++)
+        {
+            PdfString? className = classArray.GetName(index);
+            if (className == null)
+            {
+                continue;
+            }
+
+            int? revision = classArray.GetInteger(index + 1);
+            if (revision != null)
+            {
+                index++;
+            }
+
+            foreach (PdfStructureAttributeBase attribute in CreateClassAttributes(className.Value, revision))
+            {
+                yield return attribute;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Attribute class names (/C) in array order.
+    /// </summary>
+    public IEnumerable<PdfString> EnumerateClasses()
+    {
+        IPdfValue? classes = _dictionary.GetValue(PdfTokens.ClassKey);
+        PdfArray? classArray = classes.AsArray();
+
+        if (classArray == null)
+        {
+            PdfString? single = classes.AsName();
+            if (single != null)
+            {
+                yield return single.Value;
+            }
+
+            yield break;
+        }
+
+        for (int index = 0; index < classArray.Count; index++)
+        {
+            PdfString? className = classArray.GetName(index);
+            if (className != null)
+            {
+                yield return className.Value;
+            }
+        }
+    }
+
+    // TODO: [LOW] parse /AF associated file specifications
 
     /// <inheritdoc />
     public IEnumerable<IPdfStructureNode> EnumerateChildren()
@@ -167,6 +283,20 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
             {
                 yield return node;
             }
+        }
+    }
+
+    private IEnumerable<PdfStructureAttributeBase> CreateClassAttributes(PdfString className, int? revision)
+    {
+        PdfDictionary[]? attributes = Tree.GetClassAttributes(className);
+        if (attributes == null)
+        {
+            yield break;
+        }
+
+        foreach (PdfDictionary attribute in attributes)
+        {
+            yield return PdfStructureAttributeFactory.Create(attribute, revision, Tree);
         }
     }
 

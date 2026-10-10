@@ -9,16 +9,23 @@ namespace PdfPixel.Tagging.Model;
 /// </summary>
 public sealed class PdfStructureTree
 {
+    private const int MaxNamespaceRoleMappingSteps = 32;
+
     private readonly PdfDictionary _dictionary;
     private readonly PdfDictionary? _roleMap;
     private readonly Dictionary<int, PdfReference?[]> _contentParents = [];
     private readonly Dictionary<int, PdfReference> _objectParents = [];
+    private readonly Dictionary<PdfReference, PdfStructureNamespace> _namespacesByReference = [];
+    private readonly Dictionary<PdfString, PdfDictionary[]> _classMap = [];
+    private readonly Dictionary<PdfString, PdfReference> _elementsById = [];
 
     internal PdfStructureTree(PdfDictionary dictionary)
     {
         _dictionary = dictionary;
         _roleMap = dictionary.GetDictionary(PdfTokens.RoleMapKey);
         ParentTreeNextKey = dictionary.GetInteger(PdfTokens.ParentTreeNextKeyKey);
+        Namespaces = ReadNamespaces(dictionary.GetArray(PdfTokens.NamespacesKey));
+        ReadClassMap(dictionary.GetDictionary(PdfTokens.ClassMapKey));
 
         PdfDictionary? parentTree = dictionary.GetDictionary(PdfTokens.ParentTreeKey);
         if (parentTree != null)
@@ -33,7 +40,12 @@ public sealed class PdfStructureTree
     /// </summary>
     public int? ParentTreeNextKey { get; }
 
-    // TODO: [LOW] parse /IDTree, /ClassMap, /Namespaces, /PronunciationLexicon
+    /// <summary>
+    /// Namespaces used in the structure tree (/Namespaces, PDF 2.0).
+    /// </summary>
+    public IReadOnlyList<PdfStructureNamespace> Namespaces { get; }
+
+    // TODO: [LOW] parse /IDTree, /PronunciationLexicon, /AF
 
     /// <summary>
     /// A tree over the catalog's /StructTreeRoot entry, or <see langword="null"/> when the
@@ -129,6 +141,133 @@ public sealed class PdfStructureTree
         }
 
         return mapped;
+    }
+
+    /// <summary>
+    /// The structure type <paramref name="structureType"/> of <paramref name="structureNamespace"/> maps onto
+    /// through the namespace role maps (/RoleMapNS), or through /RoleMap when <paramref name="structureNamespace"/>
+    /// is the default standard structure namespace.
+    /// </summary>
+    /// <param name="structureType">Structure type as written.</param>
+    /// <param name="structureNamespace">Namespace of <paramref name="structureType"/>, or <see langword="null"/> for the default standard structure namespace.</param>
+    /// <param name="mappedNamespace">Namespace of the returned type, or <see langword="null"/> for the default standard structure namespace.</param>
+    internal PdfString MapRole(in PdfString structureType, PdfStructureNamespace? structureNamespace, out PdfStructureNamespace? mappedNamespace)
+    {
+        mappedNamespace = structureNamespace;
+        if (structureNamespace == null)
+        {
+            return MapRole(structureType);
+        }
+
+        PdfString mapped = structureType;
+
+        for (int step = 0; step < MaxNamespaceRoleMappingSteps; step++)
+        {
+            if (mappedNamespace?.RoleMapNamespace == null
+                || !mappedNamespace.RoleMapNamespace.TryGetValue(mapped, out PdfStructureRoleMapping mapping))
+            {
+                break;
+            }
+
+            PdfStructureNamespace? targetNamespace = GetNamespace(mapping.NamespaceReference);
+            if ((mapping.NamespaceReference != null && targetNamespace == null)
+                || (mapping.Type == mapped && targetNamespace == mappedNamespace))
+            {
+                break;
+            }
+
+            mapped = mapping.Type;
+            mappedNamespace = targetNamespace;
+        }
+
+        return mapped;
+    }
+
+    /// <summary>
+    /// The namespace at <paramref name="reference"/>, or <see langword="null"/> when there is none.
+    /// </summary>
+    internal PdfStructureNamespace? GetNamespace(PdfReference? reference)
+    {
+        if (reference == null)
+        {
+            return null;
+        }
+
+        if (_namespacesByReference.TryGetValue(reference.Value, out PdfStructureNamespace? listed))
+        {
+            return listed;
+        }
+
+        PdfDictionary? dictionary = _dictionary.Document.ObjectCache.GetObject(reference.Value)?.Value.AsDictionary();
+        return PdfStructureNamespace.FromDictionary(dictionary, reference);
+    }
+
+    /// <summary>
+    /// Attribute objects of the attribute class <paramref name="className"/> (/ClassMap), or <see langword="null"/> when undefined.
+    /// </summary>
+    internal PdfDictionary[]? GetClassAttributes(in PdfString className)
+        => (_classMap.TryGetValue(className, out PdfDictionary[]? attributes)) ? attributes : null;
+
+    private List<PdfStructureNamespace> ReadNamespaces(PdfArray? namespaces)
+    {
+        List<PdfStructureNamespace> result = [];
+        if (namespaces == null)
+        {
+            return result;
+        }
+
+        for (int index = 0; index < namespaces.Count; index++)
+        {
+            PdfReference? reference = namespaces.GetReference(index);
+            PdfStructureNamespace? structureNamespace = PdfStructureNamespace.FromDictionary(namespaces.GetDictionary(index), reference);
+            if (structureNamespace == null)
+            {
+                continue;
+            }
+
+            result.Add(structureNamespace);
+            if (reference != null)
+            {
+                _namespacesByReference[reference.Value] = structureNamespace;
+            }
+        }
+
+        return result;
+    }
+
+    private void ReadClassMap(PdfDictionary? classMap)
+    {
+        if (classMap == null)
+        {
+            return;
+        }
+
+        foreach (PdfString className in classMap.RawValues.Keys)
+        {
+            PdfArray? attributeArray = classMap.GetArray(className);
+            if (attributeArray == null)
+            {
+                PdfDictionary? attributes = classMap.GetDictionary(className);
+                if (attributes != null)
+                {
+                    _classMap[className] = new PdfDictionary[] { attributes };
+                }
+
+                continue;
+            }
+
+            List<PdfDictionary> attributeObjects = new(attributeArray.Count);
+            for (int index = 0; index < attributeArray.Count; index++)
+            {
+                PdfDictionary? attributes = attributeArray.GetDictionary(index);
+                if (attributes != null)
+                {
+                    attributeObjects.Add(attributes);
+                }
+            }
+
+            _classMap[className] = attributeObjects.ToArray();
+        }
     }
 
     private PdfStructureElement? LoadElement(PdfReference? reference)
