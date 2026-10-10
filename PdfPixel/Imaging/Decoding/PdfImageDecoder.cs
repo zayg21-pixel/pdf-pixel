@@ -20,7 +20,7 @@ public abstract class PdfImageDecoder
     /// Initializes the base decoder with the source image, decoding context, and logger factory.
     /// </summary>
     /// <param name="image">The PDF image descriptor to decode.</param>
-    /// <param name="context">Decoding context holding the page and color space resolved for <paramref name="image"/>.</param>
+    /// <param name="context">Decoding context holding the content host and color space resolved for <paramref name="image"/>.</param>
     /// <param name="loggerFactory">Logger factory used to create per-decoder loggers.</param>
     protected PdfImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
@@ -42,7 +42,7 @@ public abstract class PdfImageDecoder
     public PdfImage Image { get; }
 
     /// <summary>
-    /// Decoding context this decoder was constructed with, holding the page and the color space
+    /// Decoding context this decoder was constructed with, holding the content host and the color space
     /// resolved for <see cref="Image"/>.
     /// </summary>
     public ImageDecodingContext Context { get; }
@@ -62,7 +62,7 @@ public abstract class PdfImageDecoder
     /// Returns null for unsupported encodings.
     /// </summary>
     /// <param name="pdfImage">The image descriptor to decode.</param>
-    /// <param name="context">Decoding context holding the page and color space resolved for <paramref name="pdfImage"/>.</param>
+    /// <param name="context">Decoding context holding the content host and color space resolved for <paramref name="pdfImage"/>.</param>
     /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns>A concrete <see cref="PdfImageDecoder"/> instance, or null if unsupported.</returns>
     public static PdfImageDecoder? GetDecoder(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)

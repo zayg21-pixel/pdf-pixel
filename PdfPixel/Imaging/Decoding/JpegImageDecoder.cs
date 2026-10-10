@@ -26,7 +26,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         : base(image, context, loggerFactory)
     {
         _colorSpaceConverter = context.ColorSpaceConverter
-            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
+            ?? context.Host.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
     }
 
     public override PdfImageRowDecodingParameters Initialize(

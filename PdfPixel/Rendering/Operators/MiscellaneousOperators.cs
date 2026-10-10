@@ -31,17 +31,17 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfPageInternal page, IPdfCommandProcessor processor)
+    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;
-        _page = page;
+        _host = host;
         _processor = processor;
-        _logger = page.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
+        _logger = host.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -97,7 +97,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfXObject? pageObject = _page.Cache.GetXObject(xObjectName.Value);
+        PdfXObject? pageObject = _host.Cache.GetXObject(xObjectName.Value);
 
         if (pageObject == null)
         {
@@ -127,7 +127,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             }
             case PdfXObjectSubtype.Form:
             {
-                PdfForm formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
+                PdfForm formXObject = PdfForm.FromXObject(pageObject.XObject, _host);
                 _renderer.DrawForm(_processor, formXObject, graphicsState);
                 break;
             }
@@ -173,7 +173,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfShading? shading = _page.Cache.GetShading(shadingName.Value);
+        PdfShading? shading = _host.Cache.GetShading(shadingName.Value);
 
         if (shading == null)
         {

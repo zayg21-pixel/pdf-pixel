@@ -26,7 +26,7 @@ internal class JpxImageDecoder : PdfImageDecoder
     public JpxImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
-        PdfColorSpaceResolver colorSpace = context.Page.Cache.ColorSpace;
+        PdfColorSpaceResolver colorSpace = context.Host.Cache.ColorSpace;
         _deviceGray = colorSpace.ResolveDeviceConverter(1);
         _deviceRgb = colorSpace.ResolveDeviceConverter(3);
         _deviceCmyk = colorSpace.ResolveDeviceConverter(4);

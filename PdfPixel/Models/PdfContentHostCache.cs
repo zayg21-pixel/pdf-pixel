@@ -13,15 +13,15 @@ using System.Collections.Generic;
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Per-page name-based resource cache to avoid repeated dictionary lookups and conversions.
+/// Per-host name-based resource cache to avoid repeated dictionary lookups and conversions.
 /// Caches fonts, patterns, and color spaces by their resource name (e.g. /F1, /P1, /CS1).
 /// Underlying PdfDocument still caches referenced resources by indirect object reference.
 /// </summary>
-internal sealed class PdfPageCache
+internal sealed class PdfContentHostCache
 {
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly IPdfDocumentInternal _document;
-    private readonly ILogger<PdfPageCache> _logger;
+    private readonly ILogger<PdfContentHostCache> _logger;
     private readonly Dictionary<PdfString, PdfFontBase> _fontsByName = [];
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
@@ -35,11 +35,11 @@ internal sealed class PdfPageCache
     private readonly PdfDictionary? _shadingDictionary;
     private readonly PdfDictionary? _propertiesDictionary;
 
-    public PdfPageCache(IPdfPageInternal page, IPdfDocumentInternal document, PdfDictionary resources)
+    public PdfContentHostCache(IPdfContentHost host, IPdfDocumentInternal document, PdfDictionary resources)
     {
-        _page = page;
+        _host = host;
         _document = document;
-        _logger = document.LoggerFactory.CreateLogger<PdfPageCache>();
+        _logger = document.LoggerFactory.CreateLogger<PdfContentHostCache>();
         ColorSpace = new PdfColorSpaceResolver(document, resources);
         _fontDictionary = resources.GetDictionary(PdfTokens.FontKey);
         _patternDictionary = resources.GetDictionary(PdfTokens.PatternKey);
@@ -283,7 +283,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(patternObject, _page);
+        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(patternObject, _host);
 
         if (parsedPattern == null)
         {
@@ -293,7 +293,7 @@ internal sealed class PdfPageCache
         {
             _patternsByName[patternName] = parsedPattern;
 
-            if (patternObject.Reference.IsValid && parsedPattern.IsPageIndependent)
+            if (patternObject.Reference.IsValid && parsedPattern.IsHostIndependent)
             {
                 _document.ObjectCache.Patterns[patternObject.Reference] = parsedPattern;
             }
@@ -358,7 +358,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        PdfGraphicsStateParameters parameters = PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(graphicsStateDictionary, _page);
+        PdfGraphicsStateParameters parameters = PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(graphicsStateDictionary, _host);
 
         if (graphicsStateReference != null && parameters.SoftMask == null)
         {

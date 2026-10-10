@@ -21,9 +21,9 @@ namespace PdfPixel.Rendering.State
         /// Parse graphics state parameters into a parameter container without mutating the target state.
         /// </summary>
         /// <param name="gsDict">Graphics state dictionary.</param>
-        /// <param name="page">Owning page (used for soft mask parsing).</param>
+        /// <param name="host">Owning content host (used for soft mask parsing).</param>
         /// <returns>Populated parameters container.</returns>
-        internal static PdfGraphicsStateParameters ParseGraphicsStateParametersFromDictionary(PdfDictionary gsDict, IPdfPageInternal page)
+        internal static PdfGraphicsStateParameters ParseGraphicsStateParametersFromDictionary(PdfDictionary gsDict, IPdfContentHost host)
         {
             PdfGraphicsStateParameters parameters = new();
             if (gsDict == null)
@@ -138,7 +138,7 @@ namespace PdfPixel.Rendering.State
                 else
                 {
                     PdfDictionary? softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
-                    parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict, page);
+                    parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict, host);
                 }
             }
 
@@ -164,7 +164,7 @@ namespace PdfPixel.Rendering.State
                 PdfObject? fontObject = fontArray.GetObject(0);
                 float fontSize = fontArray.GetFloatOrDefault(1);
 
-                parameters.Font = page.Cache.GetFont(fontObject);
+                parameters.Font = host.Cache.GetFont(fontObject);
                 parameters.FontSize = fontSize;
             }
 

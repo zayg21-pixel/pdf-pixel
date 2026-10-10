@@ -24,12 +24,12 @@ internal class InlineImageOperators : IOperatorProcessor
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
 
-    public InlineImageOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfPageInternal page, IPdfCommandProcessor processor)
+    public InlineImageOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;
         _processor = processor;
-        _logger = page.Document.LoggerFactory.CreateLogger<InlineImageOperators>();
+        _logger = host.Document.LoggerFactory.CreateLogger<InlineImageOperators>();
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);

@@ -41,18 +41,18 @@ internal class TextOperators : IOperatorProcessor
     ];
 
     private readonly IPdfRenderer _renderer;
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly ILogger<TextOperators> _logger;
 
-    public TextOperators(IPdfRenderer renderer, IPdfPageInternal page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack)
+    public TextOperators(IPdfRenderer renderer, IPdfContentHost host, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack)
     {
         _renderer = renderer;
-        _page = page;
+        _host = host;
         _processor = processor;
         _operandStack = operandStack;
-        _logger = page.Document.LoggerFactory.CreateLogger<TextOperators>();
+        _logger = host.Document.LoggerFactory.CreateLogger<TextOperators>();
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -187,7 +187,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.CurrentFont = _page.Cache.GetFont(fontName.Value);
+        graphicsState.CurrentFont = _host.Cache.GetFont(fontName.Value);
         graphicsState.FontSize = fontSize.Value;
     }
 

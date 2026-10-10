@@ -76,7 +76,7 @@ public sealed class PdfShadingContent
     /// <param name="state">Graphics state the shading is drawn from.</param>
     internal static PdfShadingContent Build(PdfShading shading, ColorTransformSampler sampler, PdfGraphicsState state)
     {
-        PdfShadingBuilder builder = new(state.Page.Document.LoggerFactory);
+        PdfShadingBuilder builder = new(state.Host.Document.LoggerFactory);
         int functionSamples = state.RenderingParameters.DefaultFunctionSamples;
         PdfShadingContent content = new(shading.ShadingType, shading.BBox);
 

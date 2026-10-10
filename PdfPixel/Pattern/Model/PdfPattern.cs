@@ -32,9 +32,9 @@ public abstract class PdfPattern
     public PdfPatternType PatternType { get; }
 
     /// <summary>
-    /// Whether the pattern holds nothing bound to the page it was parsed from.
+    /// Whether the pattern holds nothing bound to the content host it was parsed from.
     /// </summary>
-    internal abstract bool IsPageIndependent { get; }
+    internal abstract bool IsHostIndependent { get; }
 
     /// <summary>
     /// Renders the pattern using the given command processor and graphics state.

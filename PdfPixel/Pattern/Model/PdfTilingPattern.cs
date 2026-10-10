@@ -85,7 +85,7 @@ public sealed class PdfTilingPattern : PdfPattern
     internal PdfCommandRecorder? CellRecording { get; set; }
 
     /// <inheritdoc />
-    internal override bool IsPageIndependent => true;
+    internal override bool IsHostIndependent => true;
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {

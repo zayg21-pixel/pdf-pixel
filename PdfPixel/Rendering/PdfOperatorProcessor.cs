@@ -15,7 +15,7 @@ namespace PdfPixel.Rendering;
 internal class PdfOperatorProcessor
 {
     private readonly IPdfRenderer _renderer;
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
@@ -31,26 +31,26 @@ internal class PdfOperatorProcessor
 
     public PdfOperatorProcessor(
         IPdfRenderer renderer,
-        IPdfPageInternal page,
+        IPdfContentHost host,
         IPdfCommandProcessor processor,
         Stack<IPdfValue> operandStack,
         Stack<PdfGraphicsState> graphicsStack,
         PdfPathBuilder currentPath)
     {
         _renderer = renderer;
-        _page = page;
+        _host = host;
         _processor = processor;
         _operandStack = operandStack;
         _graphicsStack = graphicsStack;
         _currentPath = currentPath;
-        _graphicsStateOperators = new GraphicsStateOperators(page, processor, operandStack, graphicsStack);
-        _textOperators = new TextOperators(renderer, page, processor, operandStack);
-        _pathOperators = new PathOperators(renderer, operandStack, processor, currentPath, page);
-        _colorOperators = new ColorOperators(operandStack, page);
-        _inlineImageOperators = new InlineImageOperators(renderer, operandStack, page, processor);
-        _markedContentOperators = new MarkedContentOperators(operandStack, page, processor);
-        _miscOperators = new MiscellaneousOperators(renderer, operandStack, page, processor);
-        _logger = page.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
+        _graphicsStateOperators = new GraphicsStateOperators(host, processor, operandStack, graphicsStack);
+        _textOperators = new TextOperators(renderer, host, processor, operandStack);
+        _pathOperators = new PathOperators(renderer, operandStack, processor, currentPath, host);
+        _colorOperators = new ColorOperators(operandStack, host);
+        _inlineImageOperators = new InlineImageOperators(renderer, operandStack, host, processor);
+        _markedContentOperators = new MarkedContentOperators(operandStack, host, processor);
+        _miscOperators = new MiscellaneousOperators(renderer, operandStack, host, processor);
+        _logger = host.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
     }
 
     internal static List<IPdfValue> GetOperands(int count, Stack<IPdfValue> operandStack)

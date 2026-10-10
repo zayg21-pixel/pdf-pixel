@@ -9,7 +9,7 @@ namespace PdfPixel.Rendering.Text;
 
 /// <summary>
 /// Defines the contract for drawing PDF text.
-/// Implementations are responsible for rendering text using the provided font, graphics state, and page context.
+/// Implementations are responsible for rendering text using the provided font and graphics state.
 /// </summary>
 public interface IPdfTextRenderer
 {

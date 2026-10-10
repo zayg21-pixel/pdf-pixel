@@ -21,7 +21,7 @@ internal class PdfPage : IPdfPageInternal
 {
     private static readonly PdfRectangle DefaultMediaBox = new(0, 0, 612, 792);
 
-    private readonly Lazy<PdfPageCache> _pageCache;
+    private readonly Lazy<PdfContentHostCache> _pageCache;
     private readonly Lazy<IReadOnlyList<PdfPageAnnotation>> _annotations;
     private readonly IPdfDocumentInternal _document;
     private readonly PdfReference _pageReference;
@@ -30,34 +30,33 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
     private readonly int? _structParents;
-    private readonly Lazy<PdfImage?>? _thumbnail;
+    private readonly Lazy<PdfImage?> _thumbnail;
 
     /// <summary>
-    /// Initializes a new instance from values already resolved out of the page object, so that a caller
-    /// holding a page's reference, content streams and resources does not have to materialize the object.
+    /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
     /// </summary>
     /// <param name="pageNumber">1-based page index.</param>
     /// <param name="pageLabel">Resolved page label for this page.</param>
     /// <param name="document">Owning document.</param>
-    /// <param name="pageReference">Reference of the underlying page object.</param>
-    /// <param name="contentStreams">Content streams making up the page.</param>
+    /// <param name="pageObject">Underlying /Page object.</param>
     /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
-    /// <param name="resourceDictionary">Resource dictionary the page's names resolve against.</param>
-    /// <param name="groupOwnerDictionary">Dictionary holding the page's /Group entry, or null when there is none.</param>
-    protected internal PdfPage(
+    internal PdfPage(
         int pageNumber,
         in PdfString pageLabel,
         IPdfDocumentInternal document,
-        in PdfReference pageReference,
-        List<PdfObjectStream> contentStreams,
-        PdfPageResources pageResources,
-        PdfDictionary resourceDictionary,
-        PdfDictionary? groupOwnerDictionary)
+        PdfObject pageObject,
+        PdfPageResources pageResources)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
-        _pageReference = pageReference;
-        _contentStreams = contentStreams ?? throw new ArgumentNullException(nameof(contentStreams));
+        if (pageObject == null)
+        {
+            throw new ArgumentNullException(nameof(pageObject));
+        }
+
         _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
+        _pageReference = pageObject.Reference;
+        _contentStreams = ExtractContentStreams(pageObject);
+        PdfDictionary resourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
 
         PageNumber = pageNumber;
         PdfRectangle media = DefaultMediaBox;
@@ -83,50 +82,13 @@ internal class PdfPage : IPdfPageInternal
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = resourceDictionary;
         PageLabel = pageLabel;
-        _pageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this, document, resourceDictionary));
+        _pageCache = new Lazy<PdfContentHostCache>(() => new PdfContentHostCache(this, document, resourceDictionary));
 
         _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
 
-        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupOwnerDictionary, PdfTokens.GroupKey, this);
-    }
-
-    protected internal PdfPage(
-        int pageNumber,
-        in PdfString pageLabel,
-        IPdfDocumentInternal document,
-        PdfObject pageObject,
-        PdfPageResources pageResources,
-        PdfDictionary resourceDictionary)
-        : this(
-            pageNumber,
-            pageLabel,
-            document,
-            (pageObject ?? throw new ArgumentNullException(nameof(pageObject))).Reference,
-            ExtractContentStreams(pageObject),
-            pageResources,
-            resourceDictionary,
-            pageObject.Dictionary)
-    {
+        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey, this);
         _structParents = pageObject.Dictionary.GetInteger(PdfTokens.StructParentsKey);
         _thumbnail = new Lazy<PdfImage?>(() => PdfImage.FromDictionaryEntry(pageObject.Dictionary, PdfTokens.ThumbnailKey));
-    }
-
-    /// <summary>
-    /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
-    /// </summary>
-    /// <param name="pageNumber">1-based page index.</param>
-    /// <param name="pageLabel">Resolved page label for this page.</param>
-    /// <param name="document">Owning document.</param>
-    /// <param name="pageObject">Underlying /Page object.</param>
-    /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
-    internal PdfPage(
-        int pageNumber,
-        in PdfString pageLabel,
-        IPdfDocumentInternal document,
-        PdfObject pageObject,
-        PdfPageResources pageResources)
-        : this(pageNumber, pageLabel, document, pageObject, pageResources, pageResources.Resources ?? new PdfDictionary(document))
-    {
     }
 
     /// <inheritdoc/>
@@ -148,21 +110,21 @@ internal class PdfPage : IPdfPageInternal
     public PdfString PageLabel { get; }
 
     /// <inheritdoc/>
-    public PdfImage? Thumbnail => _thumbnail?.Value;
+    public PdfImage? Thumbnail => _thumbnail.Value;
 
-    PdfPageCache IPdfPageInternal.Cache => _pageCache.Value;
+    PdfContentHostCache IPdfContentHost.Cache => _pageCache.Value;
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
     PdfReference IPdfPageInternal.PageReference => _pageReference;
 
-    int? IPdfPageInternal.StructParents => _structParents;
+    int? IPdfContentHost.StructParents => _structParents;
 
     IReadOnlyList<PdfObjectStream> IPdfPageInternal.ContentStreams => _contentStreams;
 
-    PdfDictionary IPdfPageInternal.ResourceDictionary => _resourceDictionary;
+    PdfDictionary IPdfContentHost.ResourceDictionary => _resourceDictionary;
 
-    IPdfDocumentInternal IPdfPageInternal.Document => _document;
+    IPdfDocumentInternal IPdfContentHost.Document => _document;
 
     PdfTransparencyGroup? IPdfPageInternal.TransparencyGroup => _transparencyGroup;
 
@@ -194,7 +156,7 @@ internal class PdfPage : IPdfPageInternal
             processor.Process(new SaveLayerCommand(CropBox));
         }
 
-        contentRenderer.RenderContent(processor, renderingParameters, observer);
+        contentRenderer.RenderContent(processor, _contentStreams, MediaBox, renderingParameters, observer);
 
         if (needsGroupLayer)
         {

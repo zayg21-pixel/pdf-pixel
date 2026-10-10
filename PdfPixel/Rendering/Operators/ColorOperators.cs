@@ -36,12 +36,12 @@ internal class ColorOperators : IOperatorProcessor
     ];
 
     private readonly Stack<IPdfValue> _operandStack;
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
 
-    public ColorOperators(Stack<IPdfValue> operandStack, IPdfPageInternal page)
+    public ColorOperators(Stack<IPdfValue> operandStack, IPdfContentHost host)
     {
         _operandStack = operandStack;
-        _page = page;
+        _host = host;
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -133,7 +133,7 @@ internal class ColorOperators : IOperatorProcessor
             return;
         }
 
-        PdfColorSpaceConverter converter = _page.Cache.ColorSpace.ResolveDeviceConverter(space);
+        PdfColorSpaceConverter converter = _host.Cache.ColorSpace.ResolveDeviceConverter(space);
         state.FillColorConverter = converter;
 
         var components = new float[converter.Components];
@@ -182,7 +182,7 @@ internal class ColorOperators : IOperatorProcessor
             return;
         }
 
-        PdfColorSpaceConverter converter = _page.Cache.ColorSpace.ResolveDeviceConverter(space);
+        PdfColorSpaceConverter converter = _host.Cache.ColorSpace.ResolveDeviceConverter(space);
         state.StrokeColorConverter = converter;
 
         var components = new float[converter.Components];
@@ -242,7 +242,7 @@ internal class ColorOperators : IOperatorProcessor
         if (converter is PdfPatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].AsName();
-            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(patternName.Value);
+            PdfPattern? resolvedPattern = (patternName == null) ? null : _host.Cache.GetPattern(patternName.Value);
 
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
@@ -288,7 +288,7 @@ internal class ColorOperators : IOperatorProcessor
         if (converter is PdfPatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].AsName();
-            PdfPattern? resolvedPattern = (patternName == null) ? null : _page.Cache.GetPattern(patternName.Value);
+            PdfPattern? resolvedPattern = (patternName == null) ? null : _host.Cache.GetPattern(patternName.Value);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
                 PdfColor tintColor = PdfColors.Black;
@@ -330,7 +330,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         IPdfValue raw = operands[0];
-        state.FillColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
+        state.FillColorConverter = _host.Cache.ColorSpace.ResolveByValue(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
         state.FillPaint = state.FillPaint.WithSolidColor(PdfColors.Black);
     }
 
@@ -343,7 +343,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         IPdfValue raw = operands[0];
-        state.StrokeColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
+        state.StrokeColorConverter = _host.Cache.ColorSpace.ResolveByValue(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
         state.StrokePaint = state.StrokePaint.WithSolidColor(PdfColors.Black);
     }
 

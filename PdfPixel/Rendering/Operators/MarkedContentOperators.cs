@@ -22,16 +22,16 @@ internal class MarkedContentOperators : IOperatorProcessor
     ];
 
     private readonly Stack<IPdfValue> _operandStack;
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfStructureTree? _structureTree;
 
-    public MarkedContentOperators(Stack<IPdfValue> operandStack, IPdfPageInternal page, IPdfCommandProcessor processor)
+    public MarkedContentOperators(Stack<IPdfValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _operandStack = operandStack;
-        _page = page;
+        _host = host;
         _processor = processor;
-        _structureTree = page.Document.StructureTree;
+        _structureTree = host.Document.StructureTree;
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -202,7 +202,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private PdfStructureElement? FindStructureParent(int mcid)
     {
-        int? structParents = _page.StructParents;
+        int? structParents = _host.StructParents;
         if (_structureTree == null || structParents == null)
         {
             return null;
@@ -225,7 +225,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             return null;
         }
 
-        return _page.Cache.GetProperties(propertiesName.Value);
+        return _host.Cache.GetProperties(propertiesName.Value);
     }
 
     private PdfOptionalContentMembership? ResolveOptionalContent(IPdfValue propertiesOperand)
@@ -234,7 +234,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         PdfDictionary? inlineDictionary = propertiesOperand.AsDictionary();
         if (inlineDictionary != null)
         {
-            PdfObject inlineObject = new(default, _page.Document, propertiesOperand);
+            PdfObject inlineObject = new(default, _host.Document, propertiesOperand);
             return PdfOptionalContentMembership.FromOptionalContentObject(inlineObject);
         }
 
@@ -245,6 +245,6 @@ internal class MarkedContentOperators : IOperatorProcessor
             return null;
         }
 
-        return _page.Cache.GetOptionalContent(propertiesName.Value);
+        return _host.Cache.GetOptionalContent(propertiesName.Value);
     }
 }

@@ -4,7 +4,7 @@ using PdfPixel.Text;
 namespace PdfPixel.Color.ColorSpace;
 
 /// <summary>
-/// Instance color space resolver bound to a single <see cref="PdfPage"/> providing
+/// Instance color space resolver bound to a single <see cref="IPdfContentHost"/> providing
 /// resolution, caching (by indirect object reference and by resource name), and default device space substitution.
 /// </summary>
 internal sealed partial class PdfColorSpaceResolver
@@ -94,7 +94,7 @@ internal sealed partial class PdfColorSpaceResolver
     ///1) A name (device or resource key)
     ///2) A parameter array (e.g. [/ICCBased obj])
     ///3) Null (default device fallback).
-    /// Results are cached by indirect reference (document-level) and by resource name (page-level) when applicable.
+    /// Results are cached by indirect reference (document-level) and by resource name (host-level) when applicable.
     /// </summary>
     public PdfColorSpaceConverter? ResolveByValue(IPdfValue? value, int defaultComponents = 3)
     {

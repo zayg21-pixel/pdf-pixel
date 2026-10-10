@@ -3,7 +3,6 @@ using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Pattern.Model;
-using PdfPixel.Forms;
 using PdfPixel.Rendering.State;
 using PdfPixel.Commands.Model;
 
@@ -42,14 +41,11 @@ internal sealed class TilingPatternShaderBuilder
         PdfCommandRecorder recorder = new();
 
         // Render pattern cell without tint or color filter
-        FormXObjectPageWrapper patternPage = new(
-            sourceState.Page.Document,
-            patternReference,
-            pattern.SourceStream,
-            pattern.CellResources);
-        PdfGraphicsState cellState = new(patternPage, sourceState);
-        PdfRenderer cellRenderer = new(sourceState.Page.Document.LoggerFactory);
-        PdfContentStreamRenderer contentRenderer = new(cellRenderer, patternPage);
+        IPdfDocumentInternal document = sourceState.Host.Document;
+        PdfContentHost patternHost = new(document, pattern.CellResources ?? new PdfDictionary(document), null);
+        PdfGraphicsState cellState = new(patternHost, pattern.BBox, sourceState);
+        PdfRenderer cellRenderer = new(document.LoggerFactory);
+        PdfContentStreamRenderer contentRenderer = new(cellRenderer, patternHost);
         PdfParseContext parseContext = new(streamData);
         contentRenderer.RenderContext(recorder, ref parseContext, cellState);
 

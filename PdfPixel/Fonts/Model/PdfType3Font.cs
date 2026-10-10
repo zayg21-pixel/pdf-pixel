@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Model;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
@@ -139,13 +138,15 @@ public class PdfType3Font : PdfSingleByteFont
 
         PdfCommandRecorder recorder = new();
 
-        FormXObjectPageWrapper glyphPage = new(sourceState.Page, FontObject);
-        PdfContentStreamRenderer contentRenderer = new(renderer, glyphPage);
+        IPdfContentHost sourceHost = sourceState.Host;
+        PdfDictionary glyphResources = FontObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? sourceHost.ResourceDictionary;
+        PdfContentHost glyphHost = new(sourceHost.Document, glyphResources, null);
+        PdfContentStreamRenderer contentRenderer = new(renderer, glyphHost);
         PdfParseContext parseContext = new(streamData);
 
         (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
 
-        PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, sourceState.RenderingParameters);
+        PdfGraphicsState charState = new(glyphHost, sourceState.ClipBounds, sourceState.RecursionGuard, default, sourceState.RenderingParameters);
 
         PdfRectangle? glyphBounds = boundingBox ?? FontBBox;
         if (glyphBounds != null)

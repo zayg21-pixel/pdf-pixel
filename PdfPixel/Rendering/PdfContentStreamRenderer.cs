@@ -17,15 +17,15 @@ namespace PdfPixel.Rendering;
 /// </summary>
 internal class PdfContentStreamRenderer
 {
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly ILogger<PdfContentStreamRenderer> _logger;
     private readonly IPdfRenderer _renderer;
 
-    public PdfContentStreamRenderer(IPdfRenderer renderer, IPdfPageInternal page)
+    public PdfContentStreamRenderer(IPdfRenderer renderer, IPdfContentHost host)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
-        _page = page ?? throw new ArgumentNullException(nameof(page));
-        _logger = page.Document.LoggerFactory.CreateLogger<PdfContentStreamRenderer>();
+        _host = host ?? throw new ArgumentNullException(nameof(host));
+        _logger = host.Document.LoggerFactory.CreateLogger<PdfContentStreamRenderer>();
     }
 
     /// <summary>
@@ -33,11 +33,18 @@ internal class PdfContentStreamRenderer
     /// This treats all content streams as logically one stream while preserving graphics state continuity.
     /// </summary>
     /// <param name="processor">The command processor to emit drawing commands to.</param>
+    /// <param name="pageContentStreams">Stream sources named by the page's /Contents entry, in reading order.</param>
+    /// <param name="clipBounds">Initial clip bounds of the graphics state.</param>
     /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
-    public void RenderContent(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, IPdfExecutionObserver observer)
+    public void RenderContent(
+        IPdfCommandProcessor processor,
+        IReadOnlyList<PdfObjectStream> pageContentStreams,
+        in PdfRectangle clipBounds,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
-        List<ReadOnlyMemory<byte>> contentStreams = GetPageContentStreams();
+        List<ReadOnlyMemory<byte>> contentStreams = GetPageContentStreams(pageContentStreams);
 
         if (contentStreams.Count == 0)
         {
@@ -47,16 +54,16 @@ internal class PdfContentStreamRenderer
         // Create unified context that treats all streams as one continuous stream
         PdfParseContext parseContext = new(contentStreams);
 
-        PdfGraphicsState state = new(_page, new HashSet<uint>(), observer, renderingParameters);
+        PdfGraphicsState state = new(_host, clipBounds, new HashSet<uint>(), observer, renderingParameters);
 
         RenderContext(processor, ref parseContext, state);
     }
 
-    private List<ReadOnlyMemory<byte>> GetPageContentStreams()
+    private static List<ReadOnlyMemory<byte>> GetPageContentStreams(IReadOnlyList<PdfObjectStream> pageContentStreams)
     {
         List<ReadOnlyMemory<byte>> contentStreams = [];
 
-        foreach (PdfObjectStream contentStream in _page.ContentStreams)
+        foreach (PdfObjectStream contentStream in pageContentStreams)
         {
             ReadOnlyMemory<byte> contentData = contentStream.DecodeAsMemory();
 
@@ -81,8 +88,8 @@ internal class PdfContentStreamRenderer
         Stack<PdfGraphicsState> graphicsStack = [];
         Stack<IPdfValue> operandStack = [];
         PdfPathBuilder currentPath = new();
-        PdfOperatorProcessor operatorProcessor = new(_renderer, _page, processor, operandStack, graphicsStack, currentPath);
-        PdfParser parser = new(parseContext, _page.Document, allowReferences: false, decrypt: false);
+        PdfOperatorProcessor operatorProcessor = new(_renderer, _host, processor, operandStack, graphicsStack, currentPath);
+        PdfParser parser = new(parseContext, _host.Document, allowReferences: false, decrypt: false);
         IPdfValue? value;
 
         while ((value = parser.ReadNextValue(operandStack)) != null)

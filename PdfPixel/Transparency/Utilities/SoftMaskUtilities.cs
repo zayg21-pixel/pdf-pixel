@@ -44,7 +44,7 @@ internal static class SoftMaskUtilities
             return null;
         }
 
-        Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> recordingCache = sourceState.Page.Document.ObjectCache.SoftMaskForms;
+        Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> recordingCache = sourceState.Host.Document.ObjectCache.SoftMaskForms;
         PdfSoftMaskRecordingKey key = new(maskFormReference, worldToMaskForm);
 
         if (maskFormReference.IsValid && recordingCache.TryGetValue(key, out PdfCommandRecorder? cachedRecording))
@@ -56,17 +56,17 @@ internal static class SoftMaskUtilities
 
         sourceState.RecursionGuard.Add(maskFormReference.ObjectNumber);
 
-        FormXObjectPageWrapper maskPage = maskForm.GetFormPage();
+        PdfContentHost maskHost = maskForm.GetFormHost();
+        PdfRectangle maskClipBounds = worldToMaskForm.MapRect(maskForm.BBox);
         PdfGraphicsState maskState = (softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
-            ? CreateLuminosityMaskGraphicsState(maskPage, sourceState)
-            : CreateAlphaMaskGraphicsState(maskPage, sourceState);
+            ? CreateLuminosityMaskGraphicsState(maskHost, maskClipBounds, sourceState)
+            : CreateAlphaMaskGraphicsState(maskHost, maskClipBounds, sourceState);
 
         maskState.CTM = worldToMaskForm;
-        maskState.ClipBounds = worldToMaskForm.MapRect(maskForm.BBox);
 
         // TODO: [MEDIUM] text shown by the mask form is extracted like page text, in both rendering and text extraction
         PdfCommandRecorder recorder = new();
-        PdfContentStreamRenderer contentRenderer = new(renderer, maskPage);
+        PdfContentStreamRenderer contentRenderer = new(renderer, maskHost);
         PdfParseContext parseContext = new(contentData);
         contentRenderer.RenderContext(recorder, ref parseContext, maskState);
 
@@ -84,9 +84,9 @@ internal static class SoftMaskUtilities
     /// Creates the graphics state an alpha soft mask (Subtype = /Alpha) renders its content with,
     /// painting in solid white.
     /// </summary>
-    public static PdfGraphicsState CreateAlphaMaskGraphicsState(PdfPage page, PdfGraphicsState sourceState)
+    public static PdfGraphicsState CreateAlphaMaskGraphicsState(IPdfContentHost host, in PdfRectangle clipBounds, PdfGraphicsState sourceState)
     {
-        return new(page, sourceState)
+        return new(host, clipBounds, sourceState)
         {
             StrokePaint = PdfPaint.Solid(PdfColors.White, PdfPaintStyle.Stroke),
             FillPaint = PdfPaint.Solid(PdfColors.White, PdfPaintStyle.Fill)
@@ -97,9 +97,9 @@ internal static class SoftMaskUtilities
     /// Creates the graphics state a luminosity soft mask (Subtype = /Luminosity) renders its content
     /// with, painting in solid black.
     /// </summary>
-    public static PdfGraphicsState CreateLuminosityMaskGraphicsState(PdfPage page, PdfGraphicsState sourceState)
+    public static PdfGraphicsState CreateLuminosityMaskGraphicsState(IPdfContentHost host, in PdfRectangle clipBounds, PdfGraphicsState sourceState)
     {
-        return new(page, sourceState)
+        return new(host, clipBounds, sourceState)
         {
             StrokePaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Stroke),
             FillPaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Fill)

@@ -85,9 +85,9 @@ public class FormRenderer : IFormRenderer
         ReadOnlyMemory<byte> content = formXObject.GetFormData();
         if (!content.IsEmpty)
         {
-            FormXObjectPageWrapper formPage = formXObject.GetFormPage();
+            PdfContentHost formHost = formXObject.GetFormHost();
 
-            PdfGraphicsState localGs = graphicsState.CloneForPage(formPage);
+            PdfGraphicsState localGs = graphicsState.CloneForHost(formHost);
             localGs.SoftMask = null;
             localGs.TextClipPath = null;
             localGs.CTM = formXObject.Matrix;
@@ -99,7 +99,7 @@ public class FormRenderer : IFormRenderer
                 localGs.StrokePaint = localGs.StrokePaint.WithAlpha(1f).WithBlendMode(PdfBlendMode.Normal);
             }
 
-            PdfContentStreamRenderer renderer = new(_renderer, formPage);
+            PdfContentStreamRenderer renderer = new(_renderer, formHost);
             PdfParseContext parseContext = new(content);
 
             renderer.RenderContext(recorder, ref parseContext, localGs);

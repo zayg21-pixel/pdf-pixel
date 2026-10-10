@@ -28,7 +28,7 @@ internal class RawImageDecoder : PdfImageDecoder
             : PdfColorSpaceType.DeviceRGB;
 
         _colorSpaceConverter = context.ColorSpaceConverter
-            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultColorSpace);
+            ?? context.Host.Cache.ColorSpace.ResolveDeviceConverter(defaultColorSpace);
     }
 
     public override PdfImageRowDecodingParameters Initialize(

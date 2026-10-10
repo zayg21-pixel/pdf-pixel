@@ -27,7 +27,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         : base(image, context, loggerFactory)
     {
         _colorSpaceConverter = context.ColorSpaceConverter
-            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+            ?? context.Host.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
 
     public override PdfImageRowDecodingParameters Initialize(
@@ -117,7 +117,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         }
 
         Models.PdfReference globalsReference = decodeParameters.Jbig2GlobalsReference;
-        Models.PdfDocumentObjectCache? objectCache = Context.Page.Document.ObjectCache;
+        Models.PdfDocumentObjectCache? objectCache = Context.Host.Document.ObjectCache;
 
         if (objectCache != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsReference, out Jbig2SegmentCache? existing))
         {

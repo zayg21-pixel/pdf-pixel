@@ -17,19 +17,19 @@ internal class GraphicsStateOperators : IOperatorProcessor
         "q","Q","cm","w","J","j","M","d","gs","ri","i"
     ];
 
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly ILogger<GraphicsStateOperators> _logger;
 
-    public GraphicsStateOperators(IPdfPageInternal page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack)
+    public GraphicsStateOperators(IPdfContentHost host, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack)
     {
-        _page = page;
+        _host = host;
         _processor = processor;
         _operandStack = operandStack;
         _graphicsStack = graphicsStack;
-        _logger = page.Document.LoggerFactory.CreateLogger<GraphicsStateOperators>();
+        _logger = host.Document.LoggerFactory.CreateLogger<GraphicsStateOperators>();
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
@@ -286,7 +286,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        _page.Cache.ApplyGraphicsStateParameters(gsName.Value, _processor, graphicsState);
+        _host.Cache.ApplyGraphicsStateParameters(gsName.Value, _processor, graphicsState);
     }
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)

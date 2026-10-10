@@ -8,7 +8,7 @@ using System;
 namespace PdfPixel.Forms;
 
 /// <summary>
-/// Represents a parsed PDF Form XObject with geometry, resources, transparency group, parent page, and original object.
+/// Represents a parsed PDF Form XObject with geometry, resources, transparency group, parent content host, and original object.
 /// </summary>
 public sealed class PdfForm
 {
@@ -16,13 +16,13 @@ public sealed class PdfForm
         in PdfMatrix matrix,
         in PdfRectangle bbox,
         PdfTransparencyGroup? transparencyGroup,
-        IPdfPageInternal page,
+        IPdfContentHost host,
         PdfObject xObject)
     {
         Matrix = matrix;
         BBox = bbox;
         TransparencyGroup = transparencyGroup;
-        Page = page;
+        Host = host;
         XObject = xObject;
     }
 
@@ -42,9 +42,9 @@ public sealed class PdfForm
     public PdfTransparencyGroup? TransparencyGroup { get; }
 
     /// <summary>
-    /// The parent page for this form.
+    /// The parent content host for this form.
     /// </summary>
-    internal IPdfPageInternal Page { get; }
+    internal IPdfContentHost Host { get; }
 
     /// <summary>
     /// The original Form XObject.
@@ -55,9 +55,9 @@ public sealed class PdfForm
     /// Creates a <see cref="PdfForm"/> from a Form XObject.
     /// </summary>
     /// <param name="xObject">The Form XObject.</param>
-    /// <param name="page">Parent page.</param>
+    /// <param name="host">Parent content host.</param>
     /// <returns>A parsed <see cref="PdfForm"/> instance.</returns>
-    internal static PdfForm FromXObject(PdfObject xObject, IPdfPageInternal page)
+    internal static PdfForm FromXObject(PdfObject xObject, IPdfContentHost host)
     {
         PdfDictionary dict = xObject.Dictionary;
         PdfArray? matrixArray = dict.GetArray(PdfTokens.MatrixKey);
@@ -66,16 +66,22 @@ public sealed class PdfForm
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
         PdfRectangle bbox = PdfRectangle.FromArray(bboxArray) ?? PdfRectangle.Empty;
 
-        PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(dict, PdfTokens.GroupKey, page);
+        PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(dict, PdfTokens.GroupKey, host);
 
-        return new PdfForm(matrix, bbox, transparencyGroup, page, xObject);
+        return new PdfForm(matrix, bbox, transparencyGroup, host, xObject);
     }
 
     /// <summary>
-    /// Creates a <see cref="FormXObjectPageWrapper"/> for this form using the stored page and resources.
+    /// Creates a <see cref="PdfContentHost"/> for this form's content stream, resolving against the form's own
+    /// /Resources or, when absent, the parent content host's resources.
     /// </summary>
-    /// <returns>A <see cref="FormXObjectPageWrapper"/> instance.</returns>
-    internal FormXObjectPageWrapper GetFormPage() => new(Page, XObject);
+    /// <returns>A <see cref="PdfContentHost"/> instance.</returns>
+    internal PdfContentHost GetFormHost()
+    {
+        PdfDictionary resources = XObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? Host.ResourceDictionary;
+        int? structParents = XObject.Dictionary.GetInteger(PdfTokens.StructParentsKey);
+        return new PdfContentHost(Host.Document, resources, structParents);
+    }
 
     /// <summary>
     /// Returns the decoded form stream data as <c>ReadOnlyMemory&lt;byte&gt;</c>.

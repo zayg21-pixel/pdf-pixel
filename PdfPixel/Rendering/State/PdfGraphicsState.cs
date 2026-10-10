@@ -30,32 +30,33 @@ public class PdfGraphicsState
     private TransferFunctionTransform? _transferFunction;
 
     /// <summary>
-    /// Initializes a new graphics state for the given page.
+    /// Initializes a new graphics state for the given content host.
     /// </summary>
-    /// <param name="statePage">The page this graphics state is associated with.</param>
+    /// <param name="stateHost">The content host this graphics state is associated with.</param>
+    /// <param name="clipBounds">Initial clip bounds.</param>
     /// <param name="recursionGuard">Guard set used to detect and break XObject recursion cycles.</param>
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
     /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
-    internal PdfGraphicsState(IPdfPageInternal statePage, HashSet<uint> recursionGuard, IPdfExecutionObserver? observer, PdfRenderingParameters renderingParameters)
+    internal PdfGraphicsState(IPdfContentHost stateHost, in PdfRectangle clipBounds, HashSet<uint> recursionGuard, IPdfExecutionObserver? observer, PdfRenderingParameters renderingParameters)
     {
-        Page = statePage ?? throw new ArgumentNullException(nameof(statePage));
+        Host = stateHost ?? throw new ArgumentNullException(nameof(stateHost));
         RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
         ExecutionObserver = observer;
         RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
-        _fillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
-        _strokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
-        ClipBounds = statePage.CropBox;
+        _fillColorConverter = stateHost.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        _strokeColorConverter = stateHost.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        ClipBounds = clipBounds;
     }
 
-    internal PdfGraphicsState(IPdfPageInternal statePage, PdfGraphicsState sourceState)
-        : this(statePage, sourceState.RecursionGuard, sourceState.ExecutionObserver, sourceState.RenderingParameters)
+    internal PdfGraphicsState(IPdfContentHost stateHost, in PdfRectangle clipBounds, PdfGraphicsState sourceState)
+        : this(stateHost, clipBounds, sourceState.RecursionGuard, sourceState.ExecutionObserver, sourceState.RenderingParameters)
     {
     }
 
     /// <summary>
-    /// Page associated with this graphics state (needed for resource lookups, etc.).
+    /// Content host associated with this graphics state (needed for resource lookups, etc.).
     /// </summary>
-    internal IPdfPageInternal Page { get; }
+    internal IPdfContentHost Host { get; }
 
     /// <summary>
     /// Recursion guard to prevent infinite loops.
@@ -280,7 +281,7 @@ public class PdfGraphicsState
 
     /// <summary>
     /// Bounding box of the current clipping path, in the same space <see cref="CTM"/> maps to, starting
-    /// at the page's crop box. A non-rectangular clip contributes the bounds of its path, so this is
+    /// at the clip bounds given on construction. A non-rectangular clip contributes the bounds of its path, so this is
     /// always a superset of the area the clip actually keeps.
     /// </summary>
     public PdfRectangle ClipBounds { get; set; }
@@ -312,17 +313,17 @@ public class PdfGraphicsState
     /// <summary>
     /// Create a copy for stack push (q operator).
     /// </summary>
-    public PdfGraphicsState Clone() => CloneForPage(Page);
+    public PdfGraphicsState Clone() => CloneForHost(Host);
 
     /// <summary>
-    /// Create a copy that resolves resources against <paramref name="statePage"/>, for a nested content
+    /// Create a copy that resolves resources against <paramref name="stateHost"/>, for a nested content
     /// stream that carries its own resource dictionary while inheriting the caller's graphics state.
     /// </summary>
-    /// <param name="statePage">The page the copy resolves resources against.</param>
+    /// <param name="stateHost">The content host the copy resolves resources against.</param>
     /// <returns>The copied graphics state.</returns>
-    internal PdfGraphicsState CloneForPage(IPdfPageInternal statePage)
+    internal PdfGraphicsState CloneForHost(IPdfContentHost stateHost)
     {
-        return new(statePage, this)
+        return new(stateHost, ClipBounds, this)
         {
             StrokePaint = StrokePaint,
             FillPaint = FillPaint,

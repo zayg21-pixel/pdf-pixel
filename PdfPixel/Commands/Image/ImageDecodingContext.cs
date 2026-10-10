@@ -17,7 +17,7 @@ public sealed class ImageDecodingContext
 {
     /// <summary>
     /// Creates a decoding context by capturing the relevant values from a <see cref="PdfGraphicsState"/>
-    /// and resolving <paramref name="image"/>'s color space against the state's page.
+    /// and resolving <paramref name="image"/>'s color space against the state's content host.
     /// </summary>
     public ImageDecodingContext(PdfImage image, PdfGraphicsState state)
     {
@@ -31,7 +31,7 @@ public sealed class ImageDecodingContext
             throw new ArgumentNullException(nameof(state));
         }
 
-        Page = state.Page;
+        Host = state.Host;
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = state.RenderingParameters.ImageTileSize;
         CacheDecodedTiles = state.RenderingParameters.CacheDecodedTiles;
@@ -44,7 +44,7 @@ public sealed class ImageDecodingContext
     /// and with explicit compositing overrides. Used for cases such as pattern-layer masking, where the
     /// target image and the desired blend mode and fill colour differ from the original graphics state.
     /// </summary>
-    /// <param name="source">The context to derive shared values (page, tile sizing, transfer function) from.</param>
+    /// <param name="source">The context to derive shared values (content host, tile sizing, transfer function) from.</param>
     /// <param name="image">The image this context resolves a color space converter for.</param>
     /// <param name="fillPaint">Fill paint override.</param>
     /// <param name="isStencilMaskComposite">
@@ -63,7 +63,7 @@ public sealed class ImageDecodingContext
             throw new ArgumentNullException(nameof(image));
         }
 
-        Page = source.Page;
+        Host = source.Host;
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = source.DefaultTileSize;
         CacheDecodedTiles = source.CacheDecodedTiles;
@@ -73,10 +73,10 @@ public sealed class ImageDecodingContext
     }
 
     /// <summary>
-    /// Page the image was drawn on. Some color space converters (e.g. Separation, Indexed) need
-    /// page-level resource resolution to build their underlying converters.
+    /// Content host the image was drawn in. Some color space converters (e.g. Separation, Indexed) need
+    /// host-level resource resolution to build their underlying converters.
     /// </summary>
-    internal IPdfPageInternal Page { get; }
+    internal IPdfContentHost Host { get; }
 
     /// <summary>
     /// Color space converter resolved for the target image's /ColorSpace entry. Null when not declared.
@@ -111,5 +111,5 @@ public sealed class ImageDecodingContext
     /// </summary>
     public bool IsStencilMaskComposite { get; }
 
-    private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Page.Cache.ColorSpace.Resolve(image.ColorSpaceReference, defaultComponents: -1);
+    private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Host.Cache.ColorSpace.Resolve(image.ColorSpaceReference, defaultComponents: -1);
 }

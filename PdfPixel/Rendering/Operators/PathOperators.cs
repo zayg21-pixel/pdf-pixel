@@ -43,20 +43,20 @@ internal class PathOperators : IOperatorProcessor
     private readonly Stack<IPdfValue> _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfPathBuilder _currentPath;
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfContentHost _host;
     private readonly ILogger<PathOperators> _logger;
     private PdfPathFillType? _pendingClipFillType;
     private PdfPoint _lastPoint;
     private PdfPoint _subPathStart;
 
-    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfPageInternal page)
+    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfContentHost host)
     {
         _renderer = renderer;
         _operandStack = operandStack;
         _processor = processor;
         _currentPath = currentPath;
-        _page = page;
-        _logger = page.Document.LoggerFactory.CreateLogger<PathOperators>();
+        _host = host;
+        _logger = host.Document.LoggerFactory.CreateLogger<PathOperators>();
     }
 
     public bool CanProcess(string op) => SupportedOperators.Contains(op);
