@@ -1,6 +1,6 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Annotations.Model;
+namespace PdfPixel.Navigation.Model;
 
 /// <summary>
 /// Defines how a destination page should be displayed.

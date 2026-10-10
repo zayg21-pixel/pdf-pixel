@@ -15,12 +15,14 @@ public sealed class PdfLayerViewModel : INotifyPropertyChanged
     private readonly Action _onVisibilityChanged;
     private readonly List<PdfLayerViewModel> _radioButtonSiblings = [];
     private string? _name;
+    private bool _reportedIsVisible;
 
     internal PdfLayerViewModel(PdfOptionalContentItem item, Action onVisibilityChanged, IReadOnlyList<PdfLayerViewModel> children)
     {
         _state = item.State;
         _onVisibilityChanged = onVisibilityChanged;
         Children = children;
+        _reportedIsVisible = IsVisible;
 
         if (_state != null)
         {
@@ -72,11 +74,11 @@ public sealed class PdfLayerViewModel : INotifyPropertyChanged
             }
 
             _state.IsOn = value;
-            OnPropertyChanged(nameof(IsVisible));
+            ReportIsVisible();
 
             foreach (PdfLayerViewModel sibling in _radioButtonSiblings)
             {
-                sibling.OnPropertyChanged(nameof(IsVisible));
+                sibling.ReportIsVisible();
             }
 
             _onVisibilityChanged();
@@ -96,6 +98,29 @@ public sealed class PdfLayerViewModel : INotifyPropertyChanged
     internal PdfOptionalContentGroupState? State => _state;
 
     internal void AddRadioButtonSibling(PdfLayerViewModel sibling) => _radioButtonSiblings.Add(sibling);
+
+    /// <summary>
+    /// Reports <see cref="IsVisible"/> of this node and its children where the layer state changed since it was
+    /// last reported.
+    /// </summary>
+    internal void Synchronize()
+    {
+        if (IsVisible != _reportedIsVisible)
+        {
+            ReportIsVisible();
+        }
+
+        foreach (PdfLayerViewModel child in Children)
+        {
+            child.Synchronize();
+        }
+    }
+
+    private void ReportIsVisible()
+    {
+        _reportedIsVisible = IsVisible;
+        OnPropertyChanged(nameof(IsVisible));
+    }
 
     private void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

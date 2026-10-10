@@ -3,27 +3,7 @@
 Entries the reader currently ignores, ordered by effort. Spec references are ISO 32000-2:2020 tables
 unless noted otherwise.
 
-## 1. Easy wins
-
-Single values or small dictionaries, exposed as-is on existing types.
-
-### Remaining
-
-| Entry | Location | Spec | Contents |
-|---|---|---|---|
-| `/Mac` | Embedded file `/Params` | Table 45 | Mac OS Subtype, Creator, ResFork (deprecated in 2.0) |
-
-## 2. Model rework
-
-Models that replace or restructure an existing API.
-
-### Document
-
-| Entry | Location | Spec | Work |
-|---|---|---|---|
-| `/OpenAction` | Catalog | Table 29 | Initial destination (page + zoom), or action run on open (e.g. JavaScript `print()`, Named `/Print`) |
-
-## 3. Model additions
+## 1. Model additions
 
 New typed models on an existing owner. Catalog entries land on `IPdfDocument`; nested dictionaries keep the PDF object hierarchy as their own types.
 
@@ -32,7 +12,6 @@ New typed models on an existing owner. Catalog entries land on `IPdfDocument`; n
 | Entry | Location | Spec | Contents |
 |---|---|---|---|
 | `/ViewerPreferences` | Catalog | Table 147 | Window: HideToolbar, HideMenubar, HideWindowUI, FitWindow, CenterWindow, DisplayDocTitle. Presentation: NonFullScreenPageMode, Direction. Print: PrintScaling, Duplex, PickTrayByPDFSize, PrintPageRange, NumCopies. Deprecated (2.0): ViewArea, ViewClip, PrintArea, PrintClip. Other: Enforce |
-| Additional actions (`/AA`) | Catalog | Tables 29, 200 | Trigger-event actions: WillClose (`WC`), WillSave (`WS`), DidSave (`DS`), WillPrint (`WP`), DidPrint (`DP`) |
 | `/PieceInfo` | Catalog | Table 350 | Application private data |
 | `/Requirements` | Catalog | Tables 273–276 | Features a viewer must support |
 | `/Legal` | Catalog | Table 264 | Legal attestation |
@@ -50,7 +29,7 @@ New typed models on an existing owner. Catalog entries land on `IPdfDocument`; n
 | `/SeparationInfo` | Page | Table 400 | Separation page information |
 | `/PieceInfo` | Page | Table 350 | Application private data |
 
-## 4. Complex
+## 2. Complex
 
 Trees, cross-references between objects, or changes to rendering and text extraction.
 
@@ -59,7 +38,7 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 | `/AF`, `/Metadata`, `/PieceInfo` | Image and form XObjects | Tables 87, 93, 350, 14.13.7 | Associated files and XMP metadata of an XObject, page-piece data of a form XObject; XObjects are only created during rendering, so this needs a public access path |
 | `/Outlines` | Catalog | Tables 150, 151 | Bookmark tree |
 | `/Threads`, `/B` | Catalog, Page | Tables 162, 163 | Article threads and the beads on each page |
-| `/Names` | Catalog | Table 32 | Everything except `/Dests` and `/EmbeddedFiles`: JavaScript, AP, Pages, Templates, IDS, URLS, AlternatePresentations, Renditions |
+| `/Names` | Catalog | Table 32 | AP, IDS, URLS, AlternatePresentations, Renditions |
 | `/DPartRoot`, `/DPart` | Catalog, Page | Tables 408, 409 | Document parts hierarchy, its `/AF` and `/Metadata` |
 | `/PresSteps` | Page | Table 165 | Sub-page navigation steps |
 | `/VP` | Page | Tables 265, 266 | Viewports (measurement, geospatial) |
@@ -80,20 +59,20 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 | `/ActualText` over non-text content | `TextExtraction/PdfTextBlockFlattener.cs` | 14.9.4 | Replacement text of a block drawn with paths or images is dropped: its bounds come from characters only |
 | `AF` marked content | BDC with tag `AF` | 14.13.5 | Associated files of a content section; the property list is an array of file specifications |
 
-## 5. Public API
+## 3. Public API
 
 | Item | Location | Work |
 |---|---|---|
 | Image conversion | `Imaging/Model/PdfImage.cs` | No public way to get pixels from a `PdfImage` (`/Thumb`, file specification thumbnails, image XObjects): decoding needs an internal `ImageDecodingContext`, and `Skia/Converters/PdfImageConverter.cs` is internal |
 
-## 6. Refactoring
+## 4. Refactoring
 
 | Item | Location | Work |
 |---|---|---|
 | Object cache | `Models/PdfDocumentObjectCache.cs` | Use a single `PdfReference` cache, including `FileSpecifications` and `EmbeddedFiles`; cache other big shared objects, such as CMaps |
 | Content locker | `PdfPixel.PdfPanel`, `PdfCommandExecutionContext.ContentLocker` | Investigate document access safety: lazily loaded content read from the UI thread can corrupt content read on another thread. Make access safer by exposing the locker through the panel's page collection |
 
-## 7. Bugs
+## 5. Bugs
 
 | Bug | Location | Spec | Wrong output |
 |---|---|---|---|

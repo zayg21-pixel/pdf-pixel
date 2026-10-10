@@ -1,7 +1,7 @@
 using PdfPixel.Models;
 using PdfPixel.Text;
 
-namespace PdfPixel.Annotations.Model;
+namespace PdfPixel.Actions.Model;
 
 /// <summary>
 /// Represents a URI action that resolves a uniform resource identifier.
@@ -15,8 +15,8 @@ public class PdfUriAction : PdfAction
     /// Initializes a new instance of the <see cref="PdfUriAction"/> class.
     /// </summary>
     /// <param name="actionDictionary">The PDF dictionary representing the URI action.</param>
-    public PdfUriAction(PdfDictionary actionDictionary)
-        : base(actionDictionary, PdfActionType.Uri)
+    internal PdfUriAction(PdfDictionary actionDictionary)
+        : base(PdfActionType.Uri)
     {
         Uri = actionDictionary.GetString(PdfTokens.URIKey);
         IsMap = actionDictionary.GetBooleanOrDefault(PdfTokens.IsMapKey);

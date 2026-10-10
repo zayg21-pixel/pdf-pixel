@@ -19,11 +19,6 @@ internal interface IPdfDocumentInternal : IPdfDocument
     new List<IPdfPageInternal> Pages { get; }
 
     /// <summary>
-    /// Gets the resolver for the destinations of the document, explicit and named alike.
-    /// </summary>
-    PdfDestinationResolver Destinations { get; }
-
-    /// <summary>
     /// Reader of the document's name trees and number trees.
     /// </summary>
     PdfTreeReader TreeReader { get; }

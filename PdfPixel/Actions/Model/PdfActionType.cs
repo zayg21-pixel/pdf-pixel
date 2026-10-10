@@ -1,6 +1,6 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Annotations.Model;
+namespace PdfPixel.Actions.Model;
 
 /// <summary>
 /// Represents PDF action types.
@@ -31,6 +31,12 @@ public enum PdfActionType
     /// </summary>
     [PdfEnumValue("GoToE")]
     GoToEmbedded,
+
+    /// <summary>
+    /// Go to a document part in the current document (PDF 2.0).
+    /// </summary>
+    [PdfEnumValue("GoToDp")]
+    GoToDocumentPart,
 
     /// <summary>
     /// Launch an application or open a document.
@@ -69,7 +75,7 @@ public enum PdfActionType
     Hide,
 
     /// <summary>
-    /// Set the name field in a form.
+    /// Execute a predefined action.
     /// </summary>
     [PdfEnumValue("Named")]
     Named,
@@ -120,5 +126,11 @@ public enum PdfActionType
     /// Go to a 3D view.
     /// </summary>
     [PdfEnumValue("GoTo3DView")]
-    GoTo3DView
+    GoTo3DView,
+
+    /// <summary>
+    /// Send a command to the handler of a rich media annotation (PDF 2.0).
+    /// </summary>
+    [PdfEnumValue("RichMediaExecute")]
+    RichMediaExecute
 }

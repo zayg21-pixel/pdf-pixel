@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Actions.Model;
 using PdfPixel.Color.Intent;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption.Decryption;
@@ -7,6 +8,7 @@ using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Navigation;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
@@ -60,6 +62,12 @@ internal class PdfDocument : IPdfDocumentInternal
     public CommandCache CommandCache { get; } = new();
 
     IReadOnlyList<IPdfPage> IPdfDocument.Pages => _pages;
+
+    /// <inheritdoc />
+    public PdfDestinationResolver Destinations => _destinationResolver;
+
+    /// <inheritdoc />
+    public PdfOpenAction? OpenAction { get; internal set; }
 
     /// <inheritdoc />
     public PdfOptionalContentProperties? OptionalContentProperties { get; internal set; }
@@ -119,8 +127,6 @@ internal class PdfDocument : IPdfDocumentInternal
     public PdfSignatureFlags SignatureFlags { get; internal set; }
 
     List<IPdfPageInternal> IPdfDocumentInternal.Pages => _pages;
-
-    PdfDestinationResolver IPdfDocumentInternal.Destinations => _destinationResolver;
 
     PdfTreeReader IPdfDocumentInternal.TreeReader => _treeReader;
 

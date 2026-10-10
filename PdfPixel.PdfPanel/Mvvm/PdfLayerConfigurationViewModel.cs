@@ -57,6 +57,17 @@ public sealed class PdfLayerConfigurationViewModel : INotifyPropertyChanged
 
     internal PdfUserOptionalContentConfiguration Configuration { get; }
 
+    /// <summary>
+    /// Reports the visibility of the layers whose state changed since it was last reported.
+    /// </summary>
+    internal void Synchronize()
+    {
+        foreach (PdfLayerViewModel layer in Layers)
+        {
+            layer.Synchronize();
+        }
+    }
+
     private static List<PdfLayerViewModel> BuildLayers(
         IReadOnlyList<PdfOptionalContentItem> items,
         Action onVisibilityChanged,

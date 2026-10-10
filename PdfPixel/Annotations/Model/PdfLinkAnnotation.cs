@@ -1,9 +1,12 @@
+using PdfPixel.Actions.Model;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Navigation;
+using PdfPixel.Navigation.Model;
 using PdfPixel.Text;
 using System;
 
@@ -18,9 +21,6 @@ namespace PdfPixel.Annotations.Model;
 /// </remarks>
 public class PdfLinkAnnotation : PdfTextMarkupAnnotation
 {
-    private readonly IPdfDocumentInternal _document;
-    private readonly PdfDestinationReference _destination;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfLinkAnnotation"/> class.
     /// </summary>
@@ -28,8 +28,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     internal PdfLinkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Link)
     {
-        _document = annotationObject.Dictionary.Document;
-        _destination = PdfDestinationReference.FromDictionary(annotationObject.Dictionary, PdfTokens.DestKey);
+        Destination = annotationObject.Dictionary.Document.Destinations.Parse(annotationObject.Dictionary, PdfTokens.DestKey);
 
         PdfDictionary? actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
         Action = PdfAction.FromDictionary(actionDict);
@@ -44,10 +43,11 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     public override bool IsInteractive => true;
 
     /// <summary>
-    /// Gets the destination shown when the annotation is activated.
-    /// Null if the link uses an Action instead; per PDF spec a link carries either a Dest or an A entry.
+    /// Gets the destination (/Dest) shown when the annotation is activated, resolved by this document's
+    /// <see cref="PdfDestinationResolver"/>. Null if the link uses an Action instead; per PDF spec a link
+    /// carries either a Dest or an A entry.
     /// </summary>
-    public PdfDestination? GetDestination() => _document.Destinations.Resolve(_destination);
+    public PdfDestination? Destination { get; }
 
     /// <summary>
     /// Gets the action dictionary that defines the action to be performed when the annotation is activated.

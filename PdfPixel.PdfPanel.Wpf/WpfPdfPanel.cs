@@ -1,4 +1,5 @@
-﻿using PdfPixel.Annotations.Model;
+﻿using PdfPixel.Actions.Model;
+using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
@@ -211,10 +212,13 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context = new PdfPanelContext(Pages, _surfaceFactory, _renderTargetFactory, SynchronizationContext.Current);
         _context.AutoScaleMode = AutoScaleMode;
+        _context.Actions.UriRequested += OnUriRequested;
+        _context.Actions.RemoteDocumentRequested += OnRemoteDocumentRequested;
         _context.Search.MatchesChanged += OnSearchMatchesChanged;
         _context.Text.TextExtracted += OnTextExtracted;
         SetValue(TextPropertyKey, _context.Text);
         SetValue(IsTextExtractedPropertyKey, _context.Text.IsTextExtracted);
+        SetValue(ActionsPropertyKey, _context.Actions);
         PdfLayersViewModel layers = new(_context.Layers);
         layers.Changed += OnLayersChanged;
         SetValue(LayersPropertyKey, layers);
@@ -229,12 +233,15 @@ public partial class WpfPdfPanel : FrameworkElement
 
         SetValue(TextPropertyKey, null);
         SetValue(IsTextExtractedPropertyKey, false);
+        SetValue(ActionsPropertyKey, null);
         if (Layers != null)
         {
             Layers.Changed -= OnLayersChanged;
         }
 
         SetValue(LayersPropertyKey, null);
+        _context.Actions.UriRequested -= OnUriRequested;
+        _context.Actions.RemoteDocumentRequested -= OnRemoteDocumentRequested;
         _context.Search.MatchesChanged -= OnSearchMatchesChanged;
         _context.Text.TextExtracted -= OnTextExtracted;
         _context.Dispose();
@@ -275,12 +282,7 @@ public partial class WpfPdfPanel : FrameworkElement
         UpdatePointerState();
 
         _context.Synchronize();
-
-        if (_context.Annotations.ClickedAnnotation != null)
-        {
-            HandleAnnotationClick(_context.Annotations.ClickedAnnotation);
-            _context.Synchronize();
-        }
+        Layers?.Synchronize();
 
         UpdateAnnotationPopup(_context.Annotations.ActiveAnnotation);
         UpdateCursor();
@@ -404,49 +406,19 @@ public partial class WpfPdfPanel : FrameworkElement
         }
     }
 
-    private void HandleAnnotationClick(PdfAnnotationPopup popup)
+    private void OnRemoteDocumentRequested(object? sender, PdfPanelActionEventArgs<PdfGoToRemoteAction> e)
     {
-        if (popup.PageAnnotation?.Content is not PdfLinkAnnotation link)
-        {
-            return;
-        }
-
-        if (link.Action is PdfUriAction uriAction && uriAction.Uri != null)
-        {
-            HandleUriAction(uriAction.Uri.Value.ToString());
-            return;
-        }
-
-        if (link.Action is PdfGoToAction goToAction)
-        {
-            PdfDestination? actionDestination = goToAction.GetDestination();
-
-            if (actionDestination != null)
-            {
-                _context?.ScrollToDestination(actionDestination);
-                InvalidateVisual();
-                return;
-            }
-        }
-
-        if (link.Action is PdfGoToRemoteAction)
-        {
-            // TODO: handle remote file loading
-            return;
-        }
-
-        PdfDestination? linkDestination = link.GetDestination();
-
-        if (linkDestination != null)
-        {
-            _context?.ScrollToDestination(linkDestination);
-            InvalidateVisual();
-        }
+        // TODO: handle remote file loading
     }
 
-    private void HandleUriAction(string uriString)
+    private void OnUriRequested(object? sender, PdfPanelActionEventArgs<PdfUriAction> e)
     {
-        if (!Uri.TryCreate(uriString, UriKind.Absolute, out Uri? uri)
+        if (e.Action.Uri == null)
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(e.Action.Uri.Value.ToString(), UriKind.Absolute, out Uri? uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             return;

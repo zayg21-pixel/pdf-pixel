@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Annotations.Model;
 using PdfPixel.Color;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
@@ -202,6 +201,8 @@ public partial class PdfPanelInterop
             DisposeContext(resources);
             resources.Context = new PdfPanelContext(resources.Pages, resources.SkSurfaceFactory, resources.RenderTargetFactory, SynchronizationContext.Current);
             resources.Configuration.Apply(resources.Context);
+            resources.Context.Actions.UriRequested += resources.OnUriRequested;
+            resources.Context.Actions.RemoteDocumentRequested += resources.OnRemoteDocumentRequested;
             resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;
             resources.Context.Text.TextExtracted += resources.OnTextExtracted;
             resources.SearchResultsChanged = true;
@@ -269,16 +270,9 @@ public partial class PdfPanelInterop
 
             resources.Context.Synchronize();
 
-            string openUri = string.Empty;
-
-            if (resources.Context.Annotations.ClickedAnnotation != null)
-            {
-                HandleAnnotationClick(resources, resources.Context.Annotations.ClickedAnnotation, out openUri);
-                resources.Context.Synchronize();
-            }
-
             state.SetProperty("cursorStyle", GetCursorStyle(resources.Context.Input.Cursor));
-            state.SetProperty("openUri", openUri);
+            state.SetProperty("openUri", resources.OpenUri);
+            resources.OpenUri = string.Empty;
 
             PdfAnnotationPopup activeAnnotation = resources.Context.Annotations.ActiveAnnotation;
 
@@ -353,6 +347,8 @@ public partial class PdfPanelInterop
             return;
         }
 
+        resources.Context.Actions.UriRequested -= resources.OnUriRequested;
+        resources.Context.Actions.RemoteDocumentRequested -= resources.OnRemoteDocumentRequested;
         resources.Context.Search.MatchesChanged -= resources.OnSearchMatchesChanged;
         resources.Context.Text.TextExtracted -= resources.OnTextExtracted;
         resources.Context.Dispose();
@@ -510,54 +506,6 @@ public partial class PdfPanelInterop
             PdfPanelCursor.IBeam => "text",
             _ => "default"
         };
-    }
-
-    /// <summary>
-    /// Handles an annotation click by processing the associated action.
-    /// URI actions set <paramref name="openUri"/> for the JS side to open.
-    /// GoTo actions scroll the context to the destination.
-    /// </summary>
-    private static void HandleAnnotationClick(
-        PdfPanelResources resources,
-        PdfAnnotationPopup popup,
-        out string openUri)
-    {
-        openUri = string.Empty;
-
-        if (popup.PageAnnotation?.Content is not PdfLinkAnnotation link)
-        {
-            return;
-        }
-
-        if (link.Action is PdfUriAction uriAction && uriAction.Uri != null)
-        {
-            openUri = uriAction.Uri.Value.ToString();
-            return;
-        }
-
-        if (link.Action is PdfGoToAction goToAction)
-        {
-            PdfDestination actionDestination = goToAction.GetDestination();
-
-            if (actionDestination != null)
-            {
-                resources.Context?.ScrollToDestination(actionDestination);
-                return;
-            }
-        }
-
-        if (link.Action is PdfGoToRemoteAction)
-        {
-            // TODO: handle remote file loading
-            return;
-        }
-
-        PdfDestination linkDestination = link.GetDestination();
-
-        if (linkDestination != null)
-        {
-            resources.Context?.ScrollToDestination(linkDestination);
-        }
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Annotations;
+﻿using PdfPixel.PdfPanel.Actions;
+using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Mvvm;
@@ -265,6 +266,17 @@ public partial class WpfPdfPanel
     /// </summary>
     public static readonly DependencyProperty TextProperty = TextPropertyKey.DependencyProperty;
 
+    private static readonly DependencyPropertyKey ActionsPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(Actions),
+        typeof(PdfPanelActions),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="Actions"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ActionsProperty = ActionsPropertyKey.DependencyProperty;
+
     private static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(PageLabel),
         typeof(string),
@@ -514,6 +526,14 @@ public partial class WpfPdfPanel
     public PdfPanelText? Text
     {
         get => (PdfPanelText?)GetValue(TextProperty);
+    }
+
+    /// <summary>
+    /// Gets the actions of the current document, or <see langword="null"/> when no document is shown.
+    /// </summary>
+    public PdfPanelActions? Actions
+    {
+        get => (PdfPanelActions?)GetValue(ActionsProperty);
     }
 
     /// <summary>

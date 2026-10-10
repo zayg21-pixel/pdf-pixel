@@ -1,6 +1,4 @@
-﻿using PdfPixel.Annotations.Model;
-using PdfPixel.Geometry;
-using PdfPixel.Models;
+﻿using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Text;
@@ -136,59 +134,6 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Scrolls the panel to the specified annotation destination, optionally updating the zoom level.
-    /// </summary>
-    /// <param name="context">The panel context to scroll.</param>
-    /// <param name="destination">The annotation destination to navigate to.</param>
-    public static void ScrollToDestination(this PdfPanelContext context, PdfDestination? destination)
-    {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        IPdfPage? destinationPage = destination?.GetPdfPage();
-
-        if (destination == null || destinationPage == null)
-        {
-            return;
-        }
-
-        if (!context.Pages.TryGetPage(destinationPage.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
-        {
-            return;
-        }
-
-        float? fitZoom = ComputeFitZoom(targetPage, destination, context.PanelWidth, context.PanelHeight);
-
-        if (fitZoom > 0)
-        {
-            context.Scale = fitZoom.Value;
-        }
-        else if (destination.Zoom > 0)
-        {
-            context.Scale = destination.Zoom.Value;
-        }
-
-        if (destination.TargetLocation.HasValue)
-        {
-            PdfRectangle pdfRect = destination.TargetLocation.Value;
-            PdfPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
-            PdfPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
-
-            PdfMatrix pageToExtent = targetPage.PanelToPageMatrix(context.Scale, 0, 0).Invert();
-            PdfPoint extentLocation = pageToExtent.MapPoint(pageLocation);
-
-            context.HorizontalOffset = extentLocation.X;
-            context.VerticalOffset = extentLocation.Y;
-        }
-        else
-        {
-            context.ScrollToPage(targetPage.PageNumber);
-        }
-    }
-
-    /// <summary>
     /// Scrolls the panel so the specified search match is centered in it.
     /// </summary>
     /// <param name="context">The panel context to scroll.</param>
@@ -210,23 +155,5 @@ public static class PdfPanelContextExtensions
 
         context.HorizontalOffset = extentCenter.X - (context.PanelWidth / 2);
         context.VerticalOffset = extentCenter.Y - (context.PanelHeight / 2);
-    }
-
-    private static float? ComputeFitZoom(PdfPanelPage page, PdfDestination destination, float panelWidth, float panelHeight)
-    {
-        PdfSize pageSize = page.GetRotatedSize();
-
-        return destination.FitType switch
-        {
-            PdfDestinationFitType.Fit or PdfDestinationFitType.FitB =>
-                Math.Min(panelWidth / pageSize.Width, panelHeight / pageSize.Height),
-            PdfDestinationFitType.FitH or PdfDestinationFitType.FitBH =>
-                panelWidth / pageSize.Width,
-            PdfDestinationFitType.FitV or PdfDestinationFitType.FitBV =>
-                panelHeight / pageSize.Height,
-            PdfDestinationFitType.FitR when destination.TargetLocation is { Width: > 0, Height: > 0 } rect =>
-                Math.Min(panelWidth / rect.Width, panelHeight / rect.Height),
-            _ => null
-        };
     }
 }

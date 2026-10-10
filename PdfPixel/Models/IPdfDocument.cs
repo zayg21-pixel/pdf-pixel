@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Actions.Model;
 using PdfPixel.Color.Intent;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Navigation;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Tagging.Model;
 using System;
@@ -19,6 +21,17 @@ public interface IPdfDocument : IDisposable
     /// Gets the list of pages in the PDF document.
     /// </summary>
     IReadOnlyList<IPdfPage> Pages { get; }
+
+    /// <summary>
+    /// Gets the resolver turning the document's destinations into the targets a viewer navigates to.
+    /// </summary>
+    PdfDestinationResolver Destinations { get; }
+
+    /// <summary>
+    /// Gets the destination displayed or the action performed when the document is opened (/OpenAction),
+    /// or <see langword="null"/> when absent.
+    /// </summary>
+    PdfOpenAction? OpenAction { get; }
 
     /// <summary>
     /// Gets the version the document conforms to: the catalog /Version when later than the header version,

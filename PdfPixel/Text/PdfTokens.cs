@@ -405,6 +405,11 @@ internal static class PdfTokens
     public static readonly PdfString SActionKey = (PdfString)"S"u8;                   // Action subtype (alias for SKey)
     public static readonly PdfString NextKey = (PdfString)"Next"u8;                   // Next action
     public static readonly PdfString IsMapKey = (PdfString)"IsMap"u8;                 // URI action IsMap flag
+    public static readonly PdfString StructureDestinationKey = (PdfString)"SD"u8;     // Structure destination (GoTo and GoToR actions, PDF 2.0)
+    public static readonly PdfString NamedActionNameKey = (PdfString)"N"u8;           // Name of a named action
+    public static readonly PdfString OptionalContentStateKey = (PdfString)"State"u8;  // Set-OCG-state action array, unlike the annotation /State text string
+    public static readonly PdfString PreserveRBKey = (PdfString)"PreserveRB"u8;       // Set-OCG-state action radio-button flag
+    public static readonly PdfString OpenActionKey = (PdfString)"OpenAction"u8;       // Catalog destination or action performed on open
 
     // Form field and widget annotation keys
     public static readonly PdfString AcroFormKey = (PdfString)"AcroForm"u8;           // Catalog AcroForm dictionary

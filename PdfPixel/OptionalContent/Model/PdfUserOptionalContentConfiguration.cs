@@ -1,4 +1,6 @@
+using PdfPixel.Actions.Model;
 using PdfPixel.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,6 +13,7 @@ public sealed class PdfUserOptionalContentConfiguration
 {
     private readonly PdfOptionalContentProperties _properties;
     private readonly List<PdfOptionalContentGroupState> _groups = [];
+    private readonly Dictionary<PdfReference, PdfOptionalContentGroupState> _statesByReference;
 
     internal PdfUserOptionalContentConfiguration(
         PdfOptionalContentConfiguration source,
@@ -24,7 +27,7 @@ public sealed class PdfUserOptionalContentConfiguration
         _properties = properties;
 
         Dictionary<PdfReference, bool> resolvedStates = PdfOptionalContentEvaluator.Evaluate(properties, source, contextEvent, zoom, language, user);
-        Dictionary<PdfReference, PdfOptionalContentGroupState> statesByReference = new(resolvedStates.Count);
+        _statesByReference = new Dictionary<PdfReference, PdfOptionalContentGroupState>(resolvedStates.Count);
 
         foreach (PdfOptionalContentGroup group in properties.Groups.Values)
         {
@@ -33,12 +36,12 @@ public sealed class PdfUserOptionalContentConfiguration
                 PdfOptionalContentGroupState state = new(group, source.Locked.Contains(group.Reference));
                 state.ResetState(isDefaultOn);
                 _groups.Add(state);
-                statesByReference[group.Reference] = state;
+                _statesByReference[group.Reference] = state;
             }
         }
 
-        LinkRadioButtonSiblings(source, statesByReference);
-        Items = BuildItems(source.Order, statesByReference);
+        LinkRadioButtonSiblings(source, _statesByReference);
+        Items = BuildItems(source.Order, _statesByReference);
     }
 
     /// <summary>
@@ -70,6 +73,49 @@ public sealed class PdfUserOptionalContentConfiguration
         }
 
         return states;
+    }
+
+    /// <summary>
+    /// Applies the group states a set-OCG-state action sets, in the order the action lists them.
+    /// Locked groups change too: /Locked only guards against changes through a user interface.
+    /// </summary>
+    /// <param name="action">The set-OCG-state action to apply.</param>
+    public void Apply(PdfSetOcgStateAction action)
+    {
+        if (action == null)
+        {
+            throw new ArgumentNullException(nameof(action));
+        }
+
+        if (action.State == null)
+        {
+            return;
+        }
+
+        foreach (PdfOptionalContentStateChange change in action.State)
+        {
+            if (!_statesByReference.TryGetValue(change.Group, out PdfOptionalContentGroupState? state))
+            {
+                continue;
+            }
+
+            bool isOn = change.Operation switch
+            {
+                PdfOptionalContentStateOperation.On => true,
+                PdfOptionalContentStateOperation.Off => false,
+                PdfOptionalContentStateOperation.Toggle => !state.IsOn,
+                _ => state.IsOn
+            };
+
+            if (action.PreserveRadioButtons)
+            {
+                state.IsOn = isOn;
+            }
+            else
+            {
+                state.SetIsOnIgnoringRadioButtons(isOn);
+            }
+        }
     }
 
     /// <summary>

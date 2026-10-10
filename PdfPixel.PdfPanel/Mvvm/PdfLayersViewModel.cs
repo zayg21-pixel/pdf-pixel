@@ -70,5 +70,11 @@ public sealed class PdfLayersViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Reports the visibility of the layers whose state changed outside the view model, such as by a
+    /// set-OCG-state action performed in <see cref="PdfPanelContext.Synchronize"/>.
+    /// </summary>
+    public void Synchronize() => _configuration?.Synchronize();
+
     private void OnChanged() => Changed?.Invoke(this, EventArgs.Empty);
 }

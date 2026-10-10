@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
@@ -48,6 +49,7 @@ public sealed class PdfPanelContext : IDisposable
         Search = new PdfPanelSearch(this, Text, _contentProvider, _graphics);
         Annotations = new PdfPanelAnnotations(pages, Input);
         Layers = new PdfPanelLayers(_contentProvider.Document);
+        Actions = new PdfPanelActions(this, _contentProvider.Document, Annotations, Layers);
         Renderer = new PdfPanelRenderer(surfaceFactory, _contentProvider, _graphics, synchronizationContext);
 
         _contentProvider.PageTextExtracted += OnPageTextExtracted;
@@ -151,6 +153,11 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelLayers Layers { get; }
 
     /// <summary>
+    /// Actions of the document's open action and of activated links, and navigation to destinations.
+    /// </summary>
+    public PdfPanelActions Actions { get; }
+
+    /// <summary>
     /// Appearance and rendering quality of the panel.
     /// </summary>
     public PdfPanelRenderer Renderer { get; }
@@ -162,23 +169,12 @@ public sealed class PdfPanelContext : IDisposable
 
     /// <summary>
     /// Synchronizes the panel state with the current property values: recalculates dimensions and page positions,
-    /// clamps scroll offsets and dispatches pointer input. Should be called after changing any property.
+    /// clamps scroll offsets, dispatches pointer input and performs the actions it triggers, together with the
+    /// document's open action once the panel has a size. Should be called after changing any property.
     /// </summary>
     public void Synchronize()
     {
-        Scale = Clamp(Scale, MinScale, MaxScale);
-
-        ApplyAutoScale();
-
-        PdfSize extentSize = Layout.CalculateDimensions(Pages, Scale, PanelWidth, PanelHeight);
-
-        ExtentWidth = extentSize.Width;
-        ExtentHeight = extentSize.Height;
-
-        Layout.CalculatePageOffsets(Pages, Scale, ExtentWidth, ExtentHeight);
-
-        VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - PanelHeight));
-        HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - PanelWidth));
+        UpdateLayout();
 
         PdfPanelPointerPosition? pointerPosition = null;
 
@@ -189,6 +185,12 @@ public sealed class PdfPanelContext : IDisposable
 
         Annotations.ClearClicked();
         Input.Synchronize(pointerPosition);
+
+        if (Actions.Synchronize())
+        {
+            UpdateLayout();
+        }
+
         Text.Synchronize();
         Search.Synchronize();
         Renderer.Synchronize();
@@ -279,6 +281,25 @@ public sealed class PdfPanelContext : IDisposable
         }
 
         return new PdfPanelPointerPosition(panelPosition, null);
+    }
+
+    private void UpdateLayout()
+    {
+        Scale = Clamp(Scale, MinScale, MaxScale);
+
+        ApplyAutoScale();
+
+        PdfSize extentSize = Layout.CalculateDimensions(Pages, Scale, PanelWidth, PanelHeight);
+
+        ExtentWidth = extentSize.Width;
+        ExtentHeight = extentSize.Height;
+
+        Layout.CalculatePageOffsets(Pages, Scale, ExtentWidth, ExtentHeight);
+
+        Actions.ApplyNavigation();
+
+        VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - PanelHeight));
+        HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - PanelWidth));
     }
 
     private PagesDrawingRequest BuildRequest()

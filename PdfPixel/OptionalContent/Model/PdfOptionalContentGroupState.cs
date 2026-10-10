@@ -66,6 +66,8 @@ public sealed class PdfOptionalContentGroupState
         }
     }
 
+    internal void SetIsOnIgnoringRadioButtons(bool isOn) => _isOn = isOn;
+
     internal void ResetState(bool isDefaultOn)
     {
         IsDefaultOn = isDefaultOn;

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Actions.Model;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Intent;
 using PdfPixel.Encryption.Model;
@@ -195,6 +196,7 @@ public class PdfDocumentReader
         document.NeedsRendering = catalog.GetBoolean(PdfTokens.NeedsRenderingKey);
         document.AssociatedFiles = PdfFileSpecification.FromArray(catalog.GetArray(PdfTokens.AssociatedFilesKey));
         document.Metadata = PdfMetadata.FromDictionary(catalog);
+        document.OpenAction = PdfOpenAction.FromCatalog(catalog, document.Destinations);
 
         int? permissions = internalDocument.Decryptor?.Parameters.Permissions;
         if (permissions != null)

@@ -1,4 +1,6 @@
-﻿using PdfPixel.Models;
+﻿using PdfPixel.Actions.Model;
+using PdfPixel.Models;
+using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
@@ -72,6 +74,30 @@ internal class PdfPanelResources
     /// Gets or sets the range of the current search result last received from JS, or null when there is none.
     /// </summary>
     public PdfPanelTextRange? CurrentSearchRange { get; set; }
+
+    /// <summary>
+    /// Gets or sets the URI requested during the last synchronization for JS to open, or empty when none was requested.
+    /// </summary>
+    public string OpenUri { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Keeps the first URI requested during a synchronization for JS to open.
+    /// </summary>
+    public void OnUriRequested(object sender, PdfPanelActionEventArgs<PdfUriAction> args)
+    {
+        if (args.Action.Uri != null && OpenUri.Length == 0)
+        {
+            OpenUri = args.Action.Uri.Value.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Handles a request to open the document of a remote go-to action.
+    /// </summary>
+    public void OnRemoteDocumentRequested(object sender, PdfPanelActionEventArgs<PdfGoToRemoteAction> args)
+    {
+        // TODO: handle remote file loading
+    }
 
     /// <summary>
     /// Marks the search matches as changed and schedules a redraw that sends them to JS.
