@@ -1,8 +1,9 @@
 using PdfPixel.Models;
 using PdfPixel.Text;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 
 namespace PdfPixel.Parsing;
 
@@ -11,6 +12,10 @@ namespace PdfPixel.Parsing;
 /// </summary>
 public class PdfPageLabelResolver
 {
+    private static readonly int[] RomanValues = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+    private static readonly string[] UpperRomanNumerals = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"];
+    private static readonly string[] LowerRomanNumerals = ["m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i"];
+
     private readonly Dictionary<int, PdfDictionary> _labels = [];
     private readonly int[] _startPageIndices = Array.Empty<int>();
 
@@ -41,7 +46,7 @@ public class PdfPageLabelResolver
 
         if (position < 0)
         {
-            return PdfString.FromString((pageIndex + 1).ToString(CultureInfo.CurrentCulture));
+            return PdfString.FromString((pageIndex + 1).ToString(CultureInfo.InvariantCulture));
         }
 
         int startPageIndex = _startPageIndices[position];
@@ -50,92 +55,80 @@ public class PdfPageLabelResolver
 
     private static PdfDictionary? ReadLabel(PdfArray numbers, int index) => numbers.GetDictionary(index);
 
-    private static PdfString FormatLabel(PdfDictionary labelDict, int index)
+    private static PdfString FormatLabel(PdfDictionary labelDictionary, int offset)
     {
-        PdfString? prefix = labelDict.GetString(PdfTokens.PrefixKey);
-        PageLabelStyle style = labelDict.GetNameOrDefault(PdfTokens.StyleKey).AsEnum<PageLabelStyle>();
-        int start = labelDict.GetInteger(PdfTokens.StartKey) ?? 1;
-        int number = start + index;
-        PdfString numStr = style switch
+        PdfString? prefix = labelDictionary.GetString(PdfTokens.PrefixKey);
+        PageLabelStyle? style = labelDictionary.GetName(PdfTokens.StyleKey)?.AsEnum<PageLabelStyle>();
+        if (style == null || style == PageLabelStyle.Unknown)
         {
-            PageLabelStyle.Decimal => PdfString.FromString(number.ToString(CultureInfo.CurrentCulture)),
-            PageLabelStyle.LowerRoman => PdfString.FromString(ToRoman(number, false)),
-            PageLabelStyle.UpperRoman => PdfString.FromString(ToRoman(number, true)),
-            PageLabelStyle.LowerAlpha => PdfString.FromString(ToAlpha(number, false)),
-            PageLabelStyle.UpperAlpha => PdfString.FromString(ToAlpha(number, true)),
-            _ => PdfString.FromString(number.ToString(CultureInfo.CurrentCulture))
-        };
-        // Concatenate prefix and numStr at the byte level
-        if (prefix == null)
-        {
-            return numStr;
+            return prefix ?? PdfString.Empty;
         }
 
-        if (numStr.IsEmpty)
+        int start = labelDictionary.GetInteger(PdfTokens.StartKey) ?? 1;
+        int number = start + offset;
+
+        PdfString numberText = style switch
+        {
+            PageLabelStyle.LowerRoman => PdfString.FromString(ToRoman(number, uppercase: false)),
+            PageLabelStyle.UpperRoman => PdfString.FromString(ToRoman(number, uppercase: true)),
+            PageLabelStyle.LowerAlpha => PdfString.FromString(ToAlpha(number, uppercase: false)),
+            PageLabelStyle.UpperAlpha => PdfString.FromString(ToAlpha(number, uppercase: true)),
+            _ => PdfString.FromString(number.ToString(CultureInfo.InvariantCulture))
+        };
+
+        if (prefix == null)
+        {
+            return numberText;
+        }
+
+        if (numberText.IsEmpty)
         {
             return prefix.Value;
         }
 
         ReadOnlySpan<byte> prefixBytes = prefix.Value.Value.Span;
-        ReadOnlySpan<byte> numBytes = numStr.Value.Span;
-        var result = new byte[prefixBytes.Length + numBytes.Length];
-        prefixBytes.CopyTo(result);
-        numBytes.CopyTo(result.AsSpan().Slice(prefixBytes.Length));
-        return new PdfString(result);
+        ReadOnlySpan<byte> numberBytes = numberText.Value.Span;
+        var label = new byte[prefixBytes.Length + numberBytes.Length];
+        prefixBytes.CopyTo(label);
+        numberBytes.CopyTo(label.AsSpan(prefixBytes.Length));
+
+        return new PdfString(label);
     }
 
-    private static string ToRoman(int number, bool upper)
+    private static string ToRoman(int number, bool uppercase)
     {
         if (number <= 0)
         {
-            return number.ToString(CultureInfo.CurrentCulture);
+            return number.ToString(CultureInfo.InvariantCulture);
         }
 
-        var numerals = new[]
+        string[] numerals = uppercase ? UpperRomanNumerals : LowerRomanNumerals;
+        StringBuilder roman = new();
+        int remaining = number;
+
+        for (int index = 0; index < RomanValues.Length; index++)
         {
-            new { Value = 1000, Numeral = "M" },
-            new { Value = 900, Numeral = "CM" },
-            new { Value = 500, Numeral = "D" },
-            new { Value = 400, Numeral = "CD" },
-            new { Value = 100, Numeral = "C" },
-            new { Value = 90, Numeral = "XC" },
-            new { Value = 50, Numeral = "L" },
-            new { Value = 40, Numeral = "XL" },
-            new { Value = 10, Numeral = "X" },
-            new { Value = 9, Numeral = "IX" },
-            new { Value = 5, Numeral = "V" },
-            new { Value = 4, Numeral = "IV" },
-            new { Value = 1, Numeral = "I" }
-        };
-        string result = string.Empty;
-        foreach (var item in numerals)
-        {
-            while (number >= item.Value)
+            while (remaining >= RomanValues[index])
             {
-                result += item.Numeral;
-                number -= item.Value;
+                roman.Append(numerals[index]);
+                remaining -= RomanValues[index];
             }
         }
 
-        return upper ? result : result.ToLower(CultureInfo.CurrentCulture);
+        return roman.ToString();
     }
 
-    private static string ToAlpha(int number, bool upper)
+    private static string ToAlpha(int number, bool uppercase)
     {
         if (number <= 0)
         {
-            return number.ToString(CultureInfo.CurrentCulture);
+            return number.ToString(CultureInfo.InvariantCulture);
         }
 
-        string result = string.Empty;
-        int n = number;
-        while (n > 0)
-        {
-            n--;
-            result = (char)((upper ? 'A' : 'a') + (n % 26)) + result;
-            n /= 26;
-        }
+        char firstLetter = uppercase ? 'A' : 'a';
+        var letter = (char)(firstLetter + ((number - 1) % 26));
+        int repeatCount = ((number - 1) / 26) + 1;
 
-        return result;
+        return new string(letter, repeatCount);
     }
 }
