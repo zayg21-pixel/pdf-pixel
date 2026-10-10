@@ -22,13 +22,6 @@ Models that replace or restructure an existing API.
 | Entry | Location | Spec | Work |
 |---|---|---|---|
 | `/OpenAction` | Catalog | Table 29 | Initial destination (page + zoom), or action run on open (e.g. JavaScript `print()`, Named `/Print`) |
-| `/OutputIntents` | Catalog | Tables 401, 402 | S (GTS_PDFX, GTS_PDFA1, ISO_PDFE1), OutputCondition, OutputConditionIdentifier, RegistryName, Info, DestOutputProfile, DestOutputProfileRef, MixingHints, SpectralData. Today only the first usable catalog ICC profile is used internally |
-
-### Page
-
-| Entry | Location | Spec | Work |
-|---|---|---|---|
-| `/OutputIntents` | Page (2.0) | Tables 401, 402 | S (GTS_PDFX, GTS_PDFA1, ISO_PDFE1), OutputCondition, OutputConditionIdentifier, RegistryName, Info, DestOutputProfile, DestOutputProfileRef, MixingHints, SpectralData. Today only the first usable catalog ICC profile is used internally |
 
 ## 3. Model additions
 
@@ -106,5 +99,4 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 |---|---|---|---|
 | Non-inheritable page attributes inherited | `Models/PdfPageResources.cs` | 7.7.3.4, Table 31 | BleedBox, TrimBox, ArtBox and `/Annots` are taken from `/Pages` nodes; only Resources, MediaBox, CropBox and Rotate are inheritable. Annotations on an intermediate node appear on every page below it |
 | `/UserUnit` ignored | Page | Table 31, 8.3.2.3 | Pages with a user unit other than 1 get the wrong physical size; the value is exposed as `IPdfPage.UserUnit` but not applied |
-| Page `/OutputIntents` ignored | `Parsing/PdfOutputIntentParser.cs` | 14.11.5 | When output intents are respected, a page-level output intent shall be used for that page; the catalog profile is used instead |
 | Soft mask text | `Transparency/Utilities/SoftMaskUtilities.cs` | | Text shown by the mask form is extracted like page text, in both rendering and text extraction |

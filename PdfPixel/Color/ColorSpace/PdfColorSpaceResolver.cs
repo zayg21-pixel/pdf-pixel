@@ -10,7 +10,6 @@ namespace PdfPixel.Color.ColorSpace;
 internal sealed partial class PdfColorSpaceResolver
 {
     private readonly IPdfDocumentInternal _document;
-    private readonly PdfDictionary _resources;
     private readonly PdfDictionary? _colorSpaceDictionary;
 
     private readonly PdfColorSpaceConverter _defaultGray;
@@ -20,7 +19,6 @@ internal sealed partial class PdfColorSpaceResolver
     public PdfColorSpaceResolver(IPdfDocumentInternal document, PdfDictionary resources)
     {
         _document = document;
-        _resources = resources;
         _colorSpaceDictionary = resources.GetDictionary(PdfTokens.ColorSpaceKey);
 
         _defaultGray = ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey, 1) ?? PdfDeviceGrayColorSpaceConverter.Instance;
@@ -159,7 +157,7 @@ internal sealed partial class PdfColorSpaceResolver
 
     private PdfColorSpaceConverter? ResolveDefaultDeviceSpace(in PdfString defaultKey, int n)
     {
-        IPdfValue? defaultVal = _resources.GetValue(defaultKey);
+        IPdfValue? defaultVal = _colorSpaceDictionary?.GetValue(defaultKey);
         if (defaultVal != null)
         {
             PdfColorSpaceConverter? conv = ResolveByValue(defaultVal, -1); // Recursive parse; do not override components.
@@ -174,9 +172,9 @@ internal sealed partial class PdfColorSpaceResolver
             }
         }
 
-        if (_document.ObjectCache.OutputIntentProfileConverter != null && _document.ObjectCache.OutputIntentProfileConverter.N == n)
+        if (_document.ObjectCache.OutputIntentConverter != null && _document.ObjectCache.OutputIntentConverter.N == n)
         {
-            return _document.ObjectCache.OutputIntentProfileConverter;
+            return _document.ObjectCache.OutputIntentConverter;
         }
 
         return null;

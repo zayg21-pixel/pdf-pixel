@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color.Intent;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
@@ -70,6 +71,11 @@ public interface IPdfDocument : IDisposable
     /// Gets the files associated with the document as a whole (/AF), or <see langword="null"/> when absent.
     /// </summary>
     IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
+
+    /// <summary>
+    /// Gets the output intents of the document (/OutputIntents), or <see langword="null"/> when absent.
+    /// </summary>
+    IReadOnlyList<PdfOutputIntent>? OutputIntents { get; }
 
     /// <summary>
     /// Gets the optional content (layers) properties (/OCProperties), or <see langword="null"/> when the

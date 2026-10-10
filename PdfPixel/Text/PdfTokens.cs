@@ -272,6 +272,17 @@ internal static class PdfTokens
     public static readonly PdfString RangeKey = (PdfString)"Range"u8; // /Lab range specification
     public static readonly PdfString OutputIntentsKey = (PdfString)"OutputIntents"u8;        // Catalog array of output intents
     public static readonly PdfString DestOutputProfileKey = (PdfString)"DestOutputProfile"u8; // Output intent profile stream
+    public static readonly PdfString OutputIntentSubtypeKey = (PdfString)"S"u8;               // Output intent subtype
+    public static readonly PdfString OutputConditionKey = (PdfString)"OutputCondition"u8;
+    public static readonly PdfString OutputConditionIdentifierKey = (PdfString)"OutputConditionIdentifier"u8;
+    public static readonly PdfString RegistryNameKey = (PdfString)"RegistryName"u8;
+    public static readonly PdfString OutputIntentInfoKey = (PdfString)"Info"u8;               // Output intent text string, unlike the trailer /Info dictionary
+    public static readonly PdfString DestOutputProfileRefKey = (PdfString)"DestOutputProfileRef"u8; // Output intent referenced ICC profile information (PDF 2.0)
+    public static readonly PdfString ColorantTableKey = (PdfString)"ColorantTable"u8;
+    public static readonly PdfString ICCVersionKey = (PdfString)"ICCVersion"u8;
+    public static readonly PdfString ProfileCSKey = (PdfString)"ProfileCS"u8;
+    public static readonly PdfString ProfileNameKey = (PdfString)"ProfileName"u8;
+    public static readonly PdfString URLsKey = (PdfString)"URLs"u8;
     public static readonly PdfString DefaultCMYKKey = (PdfString)"DefaultCMYK"u8;            // Page resource default CMYK color space
     public static readonly PdfString DefaultGrayKey = (PdfString)"DefaultGray"u8;            // Page resource default Gray color space (PDF 1.5+)
     public static readonly PdfString DefaultRGBKey = (PdfString)"DefaultRGB"u8;              // Page resource default RGB color space (PDF 1.5+)

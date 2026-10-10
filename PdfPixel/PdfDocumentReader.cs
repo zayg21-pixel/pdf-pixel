@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Icc.Model;
+using PdfPixel.Color.Intent;
 using PdfPixel.Encryption.Model;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
@@ -10,6 +10,7 @@ using PdfPixel.Parsing;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace PdfPixel;
@@ -108,10 +109,13 @@ public class PdfDocumentReader
 
         try
         {
+            List<PdfOutputIntent>? outputIntents = PdfOutputIntent.FromArray(document.RootObject.Dictionary.GetArray(PdfTokens.OutputIntentsKey));
+            ((PdfDocument)document).OutputIntents = outputIntents;
+            document.ObjectCache.OutputIntentConverter = PdfOutputIntent.CreateConverter(outputIntents);
+
             pageExtractor.ExtractPages();
             document.Decryptor?.AuthenticateOnOpen();
 
-            PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
             PdfDictionary? optionalContentProperties = document.RootObject.Dictionary.GetDictionary(PdfTokens.OCPropertiesKey);
             if (optionalContentProperties != null)
             {
@@ -121,14 +125,6 @@ public class PdfDocumentReader
             ((PdfDocument)document).StructureTree = PdfStructureTree.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
             ((PdfDocument)document).EmbeddedFiles = PdfFileSpecification.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
             ReadDocumentEntries((PdfDocument)document, document.RootObject.Dictionary);
-
-            IccProfile? outputIntentProfile = outputIntentParser.ParseFirstOutputIntentProfile();
-            document.ObjectCache.OutputIntentProfile = outputIntentProfile;
-
-            if (outputIntentProfile != null && outputIntentProfile.ChannelsCount != 0)
-            {
-                document.ObjectCache.OutputIntentConverter = new PdfIccColorSpaceConverter(outputIntentProfile.ChannelsCount, default, outputIntentProfile);
-            }
 
             _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);
         }

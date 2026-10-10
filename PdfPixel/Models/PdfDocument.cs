@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color.Intent;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption.Decryption;
 using PdfPixel.Encryption.Model;
@@ -104,6 +105,9 @@ internal class PdfDocument : IPdfDocumentInternal
 
     /// <inheritdoc />
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; internal set; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<PdfOutputIntent>? OutputIntents { get; internal set; }
 
     /// <inheritdoc />
     public PdfMetadata? Metadata { get; internal set; }

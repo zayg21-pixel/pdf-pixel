@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Icc.Model;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands.Model;
 using PdfPixel.Files;
@@ -39,18 +38,8 @@ internal class PdfDocumentObjectCache
     }
 
     /// <summary>
-    /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
-    /// Populated by <see cref="Parsing.PdfOutputIntentParser"/> post xref/catalog load.
-    /// </summary>
-    public IccProfile? OutputIntentProfile { get; set; }
-
-    /// <summary>
-    /// Parsed catalog output intent profile converter. Null when none present or invalid.
-    /// </summary>
-    public PdfIccColorSpaceConverter? OutputIntentProfileConverter { get; set; }
-
-    /// <summary>
-    /// Catalog output intent converter parsed from <see cref="IccProfile"/>. Null when none present or invalid.
+    /// Converter of the catalog output intent profile used for device colors. Null when no catalog output
+    /// intent has a usable profile.
     /// </summary>
     public PdfIccColorSpaceConverter? OutputIntentConverter { get; set; }
 
