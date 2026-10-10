@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption.Decryption;
 using PdfPixel.Encryption.Model;
+using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
@@ -26,6 +27,7 @@ internal class PdfDocument : IPdfDocumentInternal
     private readonly PdfStreamDecoder _streamDecoder;
     private readonly BufferedStream _stream;
     private readonly PdfDestinationResolver _destinationResolver;
+    private readonly PdfTreeReader _treeReader;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfDocument"/> class.
@@ -42,6 +44,7 @@ internal class PdfDocument : IPdfDocumentInternal
         _objectCache = new PdfDocumentObjectCache(this, new PdfObjectParser(this));
         _stream = new BufferedStream(fileStream);
         _cMapCache = new CMapCache(_logger);
+        _treeReader = new PdfTreeReader(loggerFactory.CreateLogger<PdfTreeReader>());
         _destinationResolver = new PdfDestinationResolver(this);
     }
 
@@ -62,9 +65,14 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <inheritdoc />
     public PdfStructureTree? StructureTree { get; internal set; }
 
+    /// <inheritdoc />
+    public IReadOnlyDictionary<PdfString, PdfFileSpecification> EmbeddedFiles { get; internal set; } = new Dictionary<PdfString, PdfFileSpecification>();
+
     List<IPdfPageInternal> IPdfDocumentInternal.Pages => _pages;
 
     PdfDestinationResolver IPdfDocumentInternal.Destinations => _destinationResolver;
+
+    PdfTreeReader IPdfDocumentInternal.TreeReader => _treeReader;
 
     PdfObject? IPdfDocumentInternal.RootObject { get; set; }
 

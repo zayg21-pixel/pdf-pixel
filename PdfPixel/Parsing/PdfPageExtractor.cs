@@ -58,7 +58,7 @@ internal class PdfPageExtractor
         }
 
         // Try to resolve page labels from the catalog
-        PdfPageLabelResolver labelResolver = new(rootObject.Dictionary);
+        PdfPageLabelResolver labelResolver = new(rootObject.Dictionary, _document.TreeReader);
 
         PdfPageResources initialResources = new();
         initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages

@@ -1,5 +1,6 @@
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using PdfPixel.Text;
 using System.Collections.Generic;
 
@@ -171,6 +172,21 @@ public sealed class PdfFileSpecification
         }
 
         return FromReference(array.Document, reference.Value);
+    }
+
+    /// <summary>
+    /// The document-level embedded files (/Names /EmbeddedFiles) of <paramref name="catalog"/>, keyed by name.
+    /// Empty when the catalog has none.
+    /// </summary>
+    internal static Dictionary<PdfString, PdfFileSpecification> FromCatalog(PdfDictionary catalog, PdfTreeReader treeReader)
+    {
+        PdfDictionary? embeddedFiles = catalog.GetDictionary(PdfTokens.NamesKey)?.GetDictionary(PdfTokens.EmbeddedFilesKey);
+        if (embeddedFiles == null)
+        {
+            return new Dictionary<PdfString, PdfFileSpecification>();
+        }
+
+        return treeReader.ReadNameTree(embeddedFiles, FromArrayEntry);
     }
 
     /// <summary>

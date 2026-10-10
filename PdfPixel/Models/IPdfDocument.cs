@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
+using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Tagging.Model;
 using System;
@@ -44,4 +45,10 @@ public interface IPdfDocument : IDisposable
     /// or <see langword="null"/> for untagged documents.
     /// </summary>
     PdfStructureTree? StructureTree { get; }
+
+    /// <summary>
+    /// Gets the document-level attachments (/Names /EmbeddedFiles), keyed by their name.
+    /// Empty if the document has none.
+    /// </summary>
+    IReadOnlyDictionary<PdfString, PdfFileSpecification> EmbeddedFiles { get; }
 }

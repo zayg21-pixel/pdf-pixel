@@ -24,6 +24,11 @@ internal interface IPdfDocumentInternal : IPdfDocument
     PdfDestinationResolver Destinations { get; }
 
     /// <summary>
+    /// Reader of the document's name trees and number trees.
+    /// </summary>
+    PdfTreeReader TreeReader { get; }
+
+    /// <summary>
     /// Gets or sets the root object of the PDF document.
     /// </summary>
     PdfObject? RootObject { get; set; }

@@ -148,13 +148,16 @@ internal sealed class PdfDestinationResolver
     /// </summary>
     private Dictionary<PdfString, PdfDestinationReference> CollectNamedEntries()
     {
-        Dictionary<PdfString, PdfDestinationReference> entries = [];
-
         PdfObject? rootObject = _document.RootObject;
         if (rootObject == null)
         {
-            return entries;
+            return new Dictionary<PdfString, PdfDestinationReference>();
         }
+
+        PdfDictionary? destinationsTree = rootObject.Dictionary.GetDictionary(PdfTokens.NamesKey)?.GetDictionary(PdfTokens.DestsKey);
+        Dictionary<PdfString, PdfDestinationReference> entries = (destinationsTree != null)
+            ? _document.TreeReader.ReadNameTree(destinationsTree, PdfDestinationReference.FromArray)
+            : new Dictionary<PdfString, PdfDestinationReference>();
 
         PdfDictionary? destinationsDictionary = rootObject.Dictionary.GetDictionary(PdfTokens.DestsKey);
         if (destinationsDictionary != null)
@@ -165,54 +168,7 @@ internal sealed class PdfDestinationResolver
             }
         }
 
-        PdfDictionary? namesDictionary = rootObject.Dictionary.GetDictionary(PdfTokens.NamesKey);
-        PdfDictionary? destinationsTree = namesDictionary?.GetDictionary(PdfTokens.DestsKey);
-
-        if (destinationsTree != null)
-        {
-            HashSet<PdfReference> visitedNodes = [];
-            CollectNameTreeEntries(destinationsTree, entries, visitedNodes);
-        }
-
         return entries;
-    }
-
-    private static void CollectNameTreeEntries(PdfDictionary node, Dictionary<PdfString, PdfDestinationReference> entries, HashSet<PdfReference> visitedNodes)
-    {
-        PdfArray? namesArray = node.GetArray(PdfTokens.NamesKey);
-        if (namesArray != null)
-        {
-            for (int i = 0; i + 1 < namesArray.Count; i += 2)
-            {
-                PdfString? name = namesArray.GetString(i);
-
-                if (name != null && !entries.ContainsKey(name.Value))
-                {
-                    entries.Add(name.Value, PdfDestinationReference.FromArray(namesArray, i + 1));
-                }
-            }
-        }
-
-        PdfArray? kidsArray = node.GetArray(PdfTokens.KidsKey);
-        if (kidsArray == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < kidsArray.Count; i++)
-        {
-            PdfReference? kidReference = kidsArray.GetReference(i);
-            if (kidReference != null && !visitedNodes.Add(kidReference.Value))
-            {
-                continue;
-            }
-
-            PdfDictionary? kidNode = kidsArray.GetDictionary(i);
-            if (kidNode != null)
-            {
-                CollectNameTreeEntries(kidNode, entries, visitedNodes);
-            }
-        }
     }
 
     /// <summary>

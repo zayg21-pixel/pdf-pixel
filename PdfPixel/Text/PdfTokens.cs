@@ -376,6 +376,7 @@ internal static class PdfTokens
     public static readonly PdfString RelatedFilesKey = (PdfString)"RF"u8;            // Related files arrays inside filespec
     public static readonly PdfString EncryptedPayloadKey = (PdfString)"EP"u8;        // Encrypted payload dictionary inside filespec
     public static readonly PdfString ThumbnailKey = (PdfString)"Thumb"u8;            // Thumbnail image
+    public static readonly PdfString EmbeddedFilesKey = (PdfString)"EmbeddedFiles"u8; // Name tree of document-level embedded files
     public static readonly PdfString AssociatedFileRelationshipKey = (PdfString)"AFRelationship"u8;
     public static readonly PdfString ParamsKey = (PdfString)"Params"u8;              // Embedded file parameter dictionary
     public static readonly PdfString ModDateKey = (PdfString)"ModDate"u8;            // Modification date of an embedded file

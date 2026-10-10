@@ -11,34 +11,21 @@ namespace PdfPixel.Parsing;
 /// </summary>
 public class PdfPageLabelResolver
 {
-    private readonly List<PageLabelEntry> _entries = [];
+    private readonly Dictionary<int, PdfDictionary> _labels = [];
+    private readonly int[] _startPageIndices = Array.Empty<int>();
 
-    internal PdfPageLabelResolver(PdfDictionary catalog)
+    internal PdfPageLabelResolver(PdfDictionary catalog, PdfTreeReader treeReader)
     {
-        PdfObject? pageLabelsObj = catalog.GetObject(PdfTokens.PageLabelsKey);
-        if (pageLabelsObj == null)
+        PdfDictionary? numberTree = catalog.GetDictionary(PdfTokens.PageLabelsKey);
+        if (numberTree == null)
         {
             return;
         }
 
-        PdfDictionary numberTree = pageLabelsObj.Dictionary;
-        PdfArray? nums = numberTree.GetValue(PdfTokens.NumsKey)?.AsArray();
-        if (nums == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i + 1 < nums.Count; i += 2)
-        {
-            int pageIndex = nums.GetIntegerOrDefault(i);
-            PdfDictionary? labelDict = nums.GetObject(i + 1)?.Dictionary;
-            if (labelDict != null)
-            {
-                _entries.Add(new PageLabelEntry(pageIndex, labelDict));
-            }
-        }
-
-        _entries.Sort((a, b) => a.PageIndex.CompareTo(b.PageIndex));
+        _labels = treeReader.ReadNumberTree(numberTree, ReadLabel);
+        _startPageIndices = new int[_labels.Count];
+        _labels.Keys.CopyTo(_startPageIndices, 0);
+        Array.Sort(_startPageIndices);
     }
 
     /// <summary>
@@ -46,29 +33,22 @@ public class PdfPageLabelResolver
     /// </summary>
     public PdfString GetLabel(int pageIndex)
     {
-        if (_entries.Count == 0)
+        int position = Array.BinarySearch(_startPageIndices, pageIndex);
+        if (position < 0)
+        {
+            position = ~position - 1;
+        }
+
+        if (position < 0)
         {
             return PdfString.FromString((pageIndex + 1).ToString(CultureInfo.CurrentCulture));
         }
 
-        PageLabelEntry? current = null;
-        foreach (PageLabelEntry entry in _entries)
-        {
-            if (entry.PageIndex > pageIndex)
-            {
-                break;
-            }
-
-            current = entry;
-        }
-
-        if (current == null)
-        {
-            return PdfString.FromString((pageIndex + 1).ToString(CultureInfo.CurrentCulture));
-        }
-
-        return FormatLabel(current.LabelDict, pageIndex - current.PageIndex);
+        int startPageIndex = _startPageIndices[position];
+        return FormatLabel(_labels[startPageIndex], pageIndex - startPageIndex);
     }
+
+    private static PdfDictionary? ReadLabel(PdfArray numbers, int index) => numbers.GetDictionary(index);
 
     private static PdfString FormatLabel(PdfDictionary labelDict, int index)
     {
@@ -157,17 +137,5 @@ public class PdfPageLabelResolver
         }
 
         return result;
-    }
-
-    private class PageLabelEntry
-    {
-        public int PageIndex { get; }
-        public PdfDictionary LabelDict { get; }
-
-        public PageLabelEntry(int pageIndex, PdfDictionary labelDict)
-        {
-            PageIndex = pageIndex;
-            LabelDict = labelDict;
-        }
     }
 }
