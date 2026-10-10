@@ -153,7 +153,8 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelLayers Layers { get; }
 
     /// <summary>
-    /// Actions of the document's open action and of activated links, and navigation to destinations.
+    /// Actions of the document's open action, of the current page's open and close actions and of activated links,
+    /// and navigation to destinations.
     /// </summary>
     public PdfPanelActions Actions { get; }
 
@@ -170,7 +171,8 @@ public sealed class PdfPanelContext : IDisposable
     /// <summary>
     /// Synchronizes the panel state with the current property values: recalculates dimensions and page positions,
     /// clamps scroll offsets, dispatches pointer input and performs the actions it triggers, together with the
-    /// document's open action once the panel has a size. Should be called after changing any property.
+    /// document's open action once the panel has a size and the close and open actions of the pages when the current
+    /// page changes. Should be called after changing any property.
     /// </summary>
     public void Synchronize()
     {
@@ -186,10 +188,7 @@ public sealed class PdfPanelContext : IDisposable
         Annotations.ClearClicked();
         Input.Synchronize(pointerPosition);
 
-        if (Actions.Synchronize())
-        {
-            UpdateLayout();
-        }
+        Actions.Synchronize();
 
         Text.Synchronize();
         Search.Synchronize();
@@ -283,7 +282,10 @@ public sealed class PdfPanelContext : IDisposable
         return new PdfPanelPointerPosition(panelPosition, null);
     }
 
-    private void UpdateLayout()
+    /// <summary>
+    /// Recalculates dimensions and page positions, scrolls to a recorded navigation target and clamps scroll offsets.
+    /// </summary>
+    internal void UpdateLayout()
     {
         Scale = Clamp(Scale, MinScale, MaxScale);
 

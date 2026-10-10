@@ -12,22 +12,13 @@ New typed models on an existing owner. Catalog entries land on `IPdfDocument`; n
 | Entry | Location | Spec | Contents |
 |---|---|---|---|
 | `/ViewerPreferences` | Catalog | Table 147 | Window: HideToolbar, HideMenubar, HideWindowUI, FitWindow, CenterWindow, DisplayDocTitle. Presentation: NonFullScreenPageMode, Direction. Print: PrintScaling, Duplex, PickTrayByPDFSize, PrintPageRange, NumCopies. Deprecated (2.0): ViewArea, ViewClip, PrintArea, PrintClip. Other: Enforce |
-| `/PieceInfo` | Catalog | Table 350 | Application private data |
-| `/Requirements` | Catalog | Tables 273–276 | Features a viewer must support |
-| `/Legal` | Catalog | Table 264 | Legal attestation |
-| `/DSS` | Catalog | Table 261 | Document security store (signature validation data) |
-| `/SpiderInfo` | Catalog | Table 386 | Web capture information |
-| `/Collection` | Catalog | Tables 153–158, 46, 47 | Portfolio, together with the file specification `/CI` collection items |
 
 ### Page
 
 | Entry | Location | Spec | Contents |
 |---|---|---|---|
-| Additional actions (`/AA`) | Page | Tables 31, 198 | Trigger-event actions: PageOpened (`O`), PageClosed (`C`) |
 | `/Trans` | Page | Table 164 | Presentation transition effect (Split, Blinds, Box, Wipe, Dissolve, Glitter, Fly, Push, Cover, Uncover, Fade) |
 | `/BoxColorInfo` | Page | Tables 396, 397 | Display colors and styles for page boundaries |
-| `/SeparationInfo` | Page | Table 400 | Separation page information |
-| `/PieceInfo` | Page | Table 350 | Application private data |
 
 ## 2. Complex
 
@@ -35,20 +26,10 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 
 | Entry | Location | Spec | Work |
 |---|---|---|---|
-| `/AF`, `/Metadata`, `/PieceInfo` | Image and form XObjects | Tables 87, 93, 350, 14.13.7 | Associated files and XMP metadata of an XObject, page-piece data of a form XObject; XObjects are only created during rendering, so this needs a public access path |
+| `/AF`, `/Metadata` | Image and form XObjects | Tables 87, 93, 14.13.7 | Associated files and XMP metadata of an XObject; XObjects are only created during rendering, so this needs a public access path |
 | `/Outlines` | Catalog | Tables 150, 151 | Bookmark tree |
 | `/Threads`, `/B` | Catalog, Page | Tables 162, 163 | Article threads and the beads on each page |
-| `/Names` | Catalog | Table 32 | AP, IDS, URLS, AlternatePresentations, Renditions |
-| `/DPartRoot`, `/DPart` | Catalog, Page | Tables 408, 409 | Document parts hierarchy, its `/AF` and `/Metadata` |
 | `/PresSteps` | Page | Table 165 | Sub-page navigation steps |
-| `/VP` | Page | Tables 265, 266 | Viewports (measurement, geospatial) |
-| `/Measure`, `/PtData` | Image and form XObjects | Tables 87, 93, 266, 272 | Measurement and point data |
-| `/Perms` | Catalog | Table 263 | DocMDP / UR3 permission signatures |
-| `/AcroForm` | Catalog | Table 224 | NeedAppearances, DR, DA, Q — affects rendering of widgets without appearance streams |
-| `/Alternates` | Image XObject | Table 89 | Alternate images; selection by OC and DefaultForPrinting (8.9.5.4 algorithm) |
-| `/UseBlackPtComp` | ExtGState | Table 57, PDF 2.0 AN001 | Black point compensation: ON, OFF, Default |
-| AESV4 crypt filter | Encryption | ISO/TS 32003 | AES-GCM encryption; such files cannot be opened today |
-| Integrity protection | Encryption | ISO/TS 32004 | `KDFSalt` and document MAC |
 
 ### Marked content and text extraction
 
@@ -79,3 +60,4 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 | Non-inheritable page attributes inherited | `Models/PdfPageResources.cs` | 7.7.3.4, Table 31 | BleedBox, TrimBox, ArtBox and `/Annots` are taken from `/Pages` nodes; only Resources, MediaBox, CropBox and Rotate are inheritable. Annotations on an intermediate node appear on every page below it |
 | `/UserUnit` ignored | Page | Table 31, 8.3.2.3 | Pages with a user unit other than 1 get the wrong physical size; the value is exposed as `IPdfPage.UserUnit` but not applied |
 | Soft mask text | `Transparency/Utilities/SoftMaskUtilities.cs` | | Text shown by the mask form is extracted like page text, in both rendering and text extraction |
+| Color space regression | Color spaces | | Wrong colors since the color space update. `issue20513.pdf`: the red and black logo renders washed out pink and gray. `issue6289.pdf` (GWG 18.1, 16-bit DeviceCMYK image): the whole page differs from the gold. Renders in `PdfPixel.Gold/Inspect` |

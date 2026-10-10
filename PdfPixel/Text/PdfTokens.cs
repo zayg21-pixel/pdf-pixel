@@ -576,4 +576,9 @@ internal static class PdfTokens
     public static readonly PdfString WebCaptureIdKey = (PdfString)"ID"u8;                // Page web capture identifier
     public static readonly PdfString PZKey = (PdfString)"PZ"u8;
     public static readonly PdfString UserUnitKey = (PdfString)"UserUnit"u8;
+    public static readonly PdfString AdditionalActionsKey = (PdfString)"AA"u8;
+
+    // Page additional-actions keys
+    public static readonly PdfString PageOpenKey = (PdfString)"O"u8;
+    public static readonly PdfString PageCloseKey = (PdfString)"C"u8;
 }

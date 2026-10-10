@@ -1,4 +1,5 @@
 using PdfPixel.Rendering;
+using PdfPixel.Actions.Model;
 using PdfPixel.Annotations.Model;
 using PdfPixel.Files;
 using PdfPixel.Imaging.Model;
@@ -104,6 +105,7 @@ internal class PdfPage : IPdfPageInternal
         TemplateInstantiated = pageDictionary.GetName(PdfTokens.TemplateInstantiatedKey);
         Id = pageDictionary.GetString(PdfTokens.WebCaptureIdKey);
         PreferredZoom = pageDictionary.GetFloat(PdfTokens.PZKey);
+        AdditionalActions = PdfPageAdditionalActions.FromPage(pageDictionary);
     }
 
     /// <inheritdoc/>
@@ -165,6 +167,9 @@ internal class PdfPage : IPdfPageInternal
 
     /// <inheritdoc/>
     public float? PreferredZoom { get; }
+
+    /// <inheritdoc/>
+    public PdfPageAdditionalActions? AdditionalActions { get; }
 
     PdfContentHostCache IPdfContentHost.Cache => _pageCache.Value;
 

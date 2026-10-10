@@ -121,6 +121,8 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 
 ### Stage 3
 - Add AcroForm / Widget annotation support
+- Add digital signature reading and verification: signature fields and dictionaries (`/V`, `/Lock`, `/SV`), `/Perms` (DocMDP, UR3) and `/DSS` validation data
+- Add AESV4 crypt filter (ISO/TS 32003) and integrity protection (ISO/TS 32004)
 - Add embedded, remote and linked documents: attachments API, navigation to other documents (GoToR, GoToE, Launch)
 - Add page hierarchy display (StructureTree)
 - Add Avalonia and MAUI support

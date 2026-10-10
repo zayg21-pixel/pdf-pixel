@@ -1,3 +1,4 @@
+using PdfPixel.Actions.Model;
 using PdfPixel.Annotations.Model;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
@@ -114,6 +115,11 @@ public interface IPdfPage
     /// Preferred zoom factor of the page (/PZ), or <see langword="null"/> when absent.
     /// </summary>
     float? PreferredZoom { get; }
+
+    /// <summary>
+    /// Actions performed when the page is opened or closed (/AA), or <see langword="null"/> when absent.
+    /// </summary>
+    PdfPageAdditionalActions? AdditionalActions { get; }
 
     /// <summary>
     /// Render the page content via the command processor.

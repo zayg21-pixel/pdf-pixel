@@ -10,9 +10,9 @@ using System;
 namespace PdfPixel.PdfPanel.Actions;
 
 /// <summary>
-/// Actions of the panel: the document's open action and the actions of activated links. Go-to and named actions
-/// navigate the panel, set-OCG-state actions change its layers, and the actions the host performs are raised
-/// as events during <see cref="PdfPanelContext.Synchronize"/>.
+/// Actions of the panel: the document's open action, the open and close actions of the current page and the
+/// actions of activated links. Go-to and named actions navigate the panel, set-OCG-state actions change its
+/// layers, and the actions the host performs are raised as events during <see cref="PdfPanelContext.Synchronize"/>.
 /// </summary>
 public sealed class PdfPanelActions
 {
@@ -21,6 +21,7 @@ public sealed class PdfPanelActions
     private readonly PdfPanelAnnotations _annotations;
     private readonly PdfPanelLayers _layers;
     private bool _openActionPerformed;
+    private int? _currentPageNumber;
     private PdfDestination? _requestedDestination;
     private int? _targetPageNumber;
     private PdfPoint? _targetLocation;
@@ -38,19 +39,20 @@ public sealed class PdfPanelActions
 
     /// <summary>
     /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a URI action is performed: by an activated
-    /// link, a chained action or the document's open action.
+    /// link, a chained action, a page's open or close action or the document's open action.
     /// </summary>
     public event EventHandler<PdfPanelActionEventArgs<PdfUriAction>>? UriRequested;
 
     /// <summary>
     /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a remote go-to action is performed: by an
-    /// activated link, a chained action or the document's open action.
+    /// activated link, a chained action, a page's open or close action or the document's open action.
     /// </summary>
     public event EventHandler<PdfPanelActionEventArgs<PdfGoToRemoteAction>>? RemoteDocumentRequested;
 
     /// <summary>
     /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a named action not defined by ISO 32000, such
-    /// as a viewer's <c>Print</c>, is performed: by an activated link, a chained action or the document's open action.
+    /// as a viewer's <c>Print</c>, is performed: by an activated link, a chained action, a page's open or close
+    /// action or the document's open action.
     /// </summary>
     public event EventHandler<PdfPanelActionEventArgs<PdfNamedAction>>? NamedActionRequested;
 
@@ -63,12 +65,12 @@ public sealed class PdfPanelActions
         => _requestedDestination = destination ?? throw new ArgumentNullException(nameof(destination));
 
     /// <summary>
-    /// Performs the document's open action the first time the panel has a size, then a requested destination
-    /// and the action or destination of the link activated by the pointer. Navigation sets the scale and records
-    /// the target, which <see cref="ApplyNavigation"/> scrolls to once the pages are laid out at that scale.
+    /// Performs the document's open action the first time the panel has a size, then a requested destination and
+    /// the action or destination of the link activated by the pointer, then the close and open actions of the
+    /// pages when the current page has changed. Navigation sets the scale and records the target, which
+    /// <see cref="ApplyNavigation"/> scrolls to when the panel lays out the pages at that scale.
     /// </summary>
-    /// <returns>Whether a navigation target was recorded.</returns>
-    internal bool Synchronize()
+    internal void Synchronize()
     {
         bool hasSize = _context.PanelWidth > 0 && _context.PanelHeight > 0;
 
@@ -83,7 +85,7 @@ public sealed class PdfPanelActions
             }
             else if (openAction?.Action != null)
             {
-                PerformAction(openAction.Action);
+                PerformAction(openAction.Action, PdfPanelActionSource.DocumentOpen);
             }
         }
 
@@ -97,7 +99,7 @@ public sealed class PdfPanelActions
         {
             if (link.Action != null)
             {
-                PerformAction(link.Action);
+                PerformAction(link.Action, PdfPanelActionSource.Annotation);
             }
             else if (link.Destination != null)
             {
@@ -105,12 +107,26 @@ public sealed class PdfPanelActions
             }
         }
 
-        return _targetPageNumber != null;
+        if (_targetPageNumber != null)
+        {
+            _context.UpdateLayout();
+        }
+
+        if (!hasSize)
+        {
+            return;
+        }
+
+        SynchronizeCurrentPage();
+
+        if (_targetPageNumber != null)
+        {
+            _context.UpdateLayout();
+        }
     }
 
     /// <summary>
-    /// Scrolls to the navigation target recorded by <see cref="Synchronize"/>; the pages must be laid out at the
-    /// current scale.
+    /// Scrolls to the recorded navigation target; the pages must be laid out at the current scale.
     /// </summary>
     internal void ApplyNavigation()
     {
@@ -144,9 +160,44 @@ public sealed class PdfPanelActions
     }
 
     /// <summary>
+    /// Performs the close action of the previous current page and the open action of the new one when the current
+    /// page has changed since the last call.
+    /// </summary>
+    private void SynchronizeCurrentPage()
+    {
+        if (_context.Pages.Count == 0)
+        {
+            return;
+        }
+
+        int currentPageNumber = _context.GetCurrentPage();
+        if (currentPageNumber == _currentPageNumber)
+        {
+            return;
+        }
+
+        if (_currentPageNumber != null)
+        {
+            PdfAction? pageClose = _document.Pages[_currentPageNumber.Value - 1].AdditionalActions?.PageClose;
+            if (pageClose != null)
+            {
+                PerformAction(pageClose, PdfPanelActionSource.PageClose);
+            }
+        }
+
+        _currentPageNumber = currentPageNumber;
+
+        PdfAction? pageOpen = _document.Pages[currentPageNumber - 1].AdditionalActions?.PageOpen;
+        if (pageOpen != null)
+        {
+            PerformAction(pageOpen, PdfPanelActionSource.PageOpen);
+        }
+    }
+
+    /// <summary>
     /// Performs an action and the actions chained after it (/Next), in order.
     /// </summary>
-    private void PerformAction(PdfAction action)
+    private void PerformAction(PdfAction action, PdfPanelActionSource source)
     {
         switch (action)
         {
@@ -161,7 +212,7 @@ public sealed class PdfPanelActions
             }
             case PdfNamedAction namedAction:
             {
-                PerformNamedAction(namedAction);
+                PerformNamedAction(namedAction, source);
                 break;
             }
             case PdfSetOcgStateAction setOcgStateAction:
@@ -171,12 +222,12 @@ public sealed class PdfPanelActions
             }
             case PdfUriAction uriAction:
             {
-                UriRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfUriAction>(uriAction));
+                UriRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfUriAction>(uriAction, source));
                 break;
             }
             case PdfGoToRemoteAction goToRemoteAction:
             {
-                RemoteDocumentRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfGoToRemoteAction>(goToRemoteAction));
+                RemoteDocumentRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfGoToRemoteAction>(goToRemoteAction, source));
                 break;
             }
         }
@@ -188,15 +239,15 @@ public sealed class PdfPanelActions
 
         foreach (PdfAction nextAction in action.Next)
         {
-            PerformAction(nextAction);
+            PerformAction(nextAction, source);
         }
     }
 
-    private void PerformNamedAction(PdfNamedAction action)
+    private void PerformNamedAction(PdfNamedAction action, PdfPanelActionSource source)
     {
         if (action.Name == PdfNamedActionName.Raw)
         {
-            NamedActionRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfNamedAction>(action));
+            NamedActionRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfNamedAction>(action, source));
             return;
         }
 
