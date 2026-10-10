@@ -6,6 +6,7 @@ using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using PdfPixel.Tagging.Model;
@@ -60,7 +61,7 @@ internal class PdfDocument : IPdfDocumentInternal
     IReadOnlyList<IPdfPage> IPdfDocument.Pages => _pages;
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; internal set; } = new Dictionary<PdfReference, PdfOptionalContentGroup>();
+    public PdfOptionalContentProperties? OptionalContentProperties { get; internal set; }
 
     /// <inheritdoc />
     public PdfStructureTree? StructureTree { get; internal set; }

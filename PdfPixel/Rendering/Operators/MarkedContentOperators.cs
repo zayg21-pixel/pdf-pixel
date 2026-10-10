@@ -1,5 +1,6 @@
 using PdfPixel.Commands.Model;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;

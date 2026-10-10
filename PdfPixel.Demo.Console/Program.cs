@@ -6,6 +6,7 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using SkiaSharp;
 using System.Diagnostics;
 using PdfPixel.Commands.Context;
@@ -43,8 +44,8 @@ namespace PdfPixel.Console.Demo
             using IPdfDocument document = reader.Read(fileStream);
 
             // Optional content groups are the PDF's layers (e.g. "Notes", "Watermark"). Passing the
-            // document's groups renders every layer in its default visibility state.
-            IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups = document.OptionalContentGroups;
+            // document's default configuration renders every layer in its default visibility state.
+            PdfUserOptionalContentConfiguration? optionalContentConfiguration = document.OptionalContentProperties?.DefaultConfiguration.ToUserConfiguration();
 
             // Each PDF gets its own output subfolder, named after the source file, under pdfs/.
             string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", Path.GetFileNameWithoutExtension(pdfPath));
@@ -77,7 +78,7 @@ namespace PdfPixel.Console.Demo
                     document,
                     new PdfCommandExecutionParameters(),
                     contentLocker,
-                    optionalContentGroups,
+                    optionalContentConfiguration?.ToStates(),
                     executionObserver);
 
                 // Executes each drawing command immediately against canvas.

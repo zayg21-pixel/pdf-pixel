@@ -1,5 +1,7 @@
 using PdfPixel.Color;
+using PdfPixel.Models;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Requests;
 
@@ -33,6 +35,11 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     /// </summary>
     public bool ShowPageLoadingAnimation { get; set; }
 
+    /// <summary>
+    /// ON/OFF state of the optional content groups content is rendered with, or null for the document's default configuration.
+    /// </summary>
+    public IReadOnlyDictionary<PdfReference, bool>? OptionalContentStates { get; set; }
+
     /// <inheritdoc />
     public override bool Equals(object? obj)
     {
@@ -43,10 +50,37 @@ internal sealed class PagesDrawingRequest : DrawingRequest
                 && SnapToDevicePixels == other.SnapToDevicePixels
                 && BackgroundColor.Equals(other.BackgroundColor)
                 && PageCornerRadius == other.PageCornerRadius
-                && ShowPageLoadingAnimation == other.ShowPageLoadingAnimation;
+                && ShowPageLoadingAnimation == other.ShowPageLoadingAnimation
+                && AreOptionalContentStatesEqual(OptionalContentStates, other.OptionalContentStates);
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Returns whether two optional content state snapshots hold the same state for every group.
+    /// </summary>
+    public static bool AreOptionalContentStatesEqual(IReadOnlyDictionary<PdfReference, bool>? left, IReadOnlyDictionary<PdfReference, bool>? right)
+    {
+        if (left == null || right == null)
+        {
+            return left == right;
+        }
+
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<PdfReference, bool> entry in left)
+        {
+            if (!right.TryGetValue(entry.Key, out bool isOn) || isOn != entry.Value)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />

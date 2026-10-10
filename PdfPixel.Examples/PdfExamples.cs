@@ -9,6 +9,7 @@ using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Skia;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
@@ -91,8 +92,8 @@ internal static class PdfExamples
         IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
         // Optional content groups are the PDF's layers (e.g. "Notes", "Watermark"). Passing the
-        // document's groups renders every layer in its default visibility state.
-        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups = document.OptionalContentGroups;
+        // document's default configuration renders every layer in its default visibility state.
+        PdfUserOptionalContentConfiguration? optionalContentConfiguration = document.OptionalContentProperties?.DefaultConfiguration.ToUserConfiguration();
 
         // Bundles the canvas, rendering options, and the objects above into the state every
         // drawing command reads from while the page is replayed.
@@ -101,7 +102,7 @@ internal static class PdfExamples
             document,
             executionParameters,
             contentLocker,
-            optionalContentGroups,
+            optionalContentConfiguration?.ToStates(),
             executionObserver);
 
         // Executes each drawing command immediately against the canvas.

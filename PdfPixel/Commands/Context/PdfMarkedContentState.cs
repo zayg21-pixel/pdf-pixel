@@ -1,6 +1,7 @@
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace PdfPixel.Commands.Context;
 /// </summary>
 public sealed class PdfMarkedContentState
 {
-    private readonly IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> _optionalContentGroups;
+    private readonly IReadOnlyDictionary<PdfReference, bool> _groupStates;
     private readonly Stack<PdfMarkedContent> _stack = [];
     private readonly List<PdfCharacter> _characterBuffer = [];
     private readonly PdfTextBlock _rootTextBlock;
@@ -24,11 +25,12 @@ public sealed class PdfMarkedContentState
     private PdfTextBlock _currentTextBlock;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfMarkedContentState"/> with the document's optional content groups.
+    /// Initializes a new <see cref="PdfMarkedContentState"/> with the ON/OFF states of the optional content
+    /// groups that take part in visibility; groups not listed have no effect.
     /// </summary>
-    public PdfMarkedContentState(IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
+    public PdfMarkedContentState(IReadOnlyDictionary<PdfReference, bool> groupStates)
     {
-        _optionalContentGroups = optionalContentGroups;
+        _groupStates = groupStates;
         _rootTextBlock = new PdfTextBlock();
         _currentTextBlock = _rootTextBlock;
     }
@@ -177,18 +179,35 @@ public sealed class PdfMarkedContentState
             return EvaluateVisibilityExpression(membership.VisibilityExpression);
         }
 
-        IReadOnlyList<PdfReference> groups = membership.Groups;
-        if (groups.Count == 0)
+        int onCount = 0;
+        int offCount = 0;
+
+        foreach (PdfReference group in membership.Groups)
+        {
+            if (_groupStates.TryGetValue(group, out bool isOn))
+            {
+                if (isOn)
+                {
+                    onCount++;
+                }
+                else
+                {
+                    offCount++;
+                }
+            }
+        }
+
+        if (onCount + offCount == 0)
         {
             return true;
         }
 
         return membership.VisibilityPolicy switch
         {
-            PdfOptionalContentVisibilityPolicy.AllOn => AreAllVisible(groups),
-            PdfOptionalContentVisibilityPolicy.AnyOn => IsAnyVisible(groups),
-            PdfOptionalContentVisibilityPolicy.AnyOff => IsAnyHidden(groups),
-            PdfOptionalContentVisibilityPolicy.AllOff => AreAllHidden(groups),
+            PdfOptionalContentVisibilityPolicy.AllOn => offCount == 0,
+            PdfOptionalContentVisibilityPolicy.AnyOn => onCount > 0,
+            PdfOptionalContentVisibilityPolicy.AnyOff => offCount > 0,
+            PdfOptionalContentVisibilityPolicy.AllOff => onCount == 0,
             _ => true
         };
     }
@@ -241,61 +260,9 @@ public sealed class PdfMarkedContentState
 
     private bool GetGroupVisibility(in PdfReference reference)
     {
-        if (_optionalContentGroups.TryGetValue(reference, out PdfOptionalContentGroup? group))
+        if (_groupStates.TryGetValue(reference, out bool isOn))
         {
-            return group.Visible ?? group.DefaultVisible ?? true;
-        }
-
-        return true;
-    }
-
-    private bool AreAllVisible(IReadOnlyList<PdfReference> groups)
-    {
-        for (int index = 0; index < groups.Count; index++)
-        {
-            if (!GetGroupVisibility(groups[index]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private bool IsAnyVisible(IReadOnlyList<PdfReference> groups)
-    {
-        for (int index = 0; index < groups.Count; index++)
-        {
-            if (GetGroupVisibility(groups[index]))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private bool IsAnyHidden(IReadOnlyList<PdfReference> groups)
-    {
-        for (int index = 0; index < groups.Count; index++)
-        {
-            if (!GetGroupVisibility(groups[index]))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private bool AreAllHidden(IReadOnlyList<PdfReference> groups)
-    {
-        for (int index = 0; index < groups.Count; index++)
-        {
-            if (GetGroupVisibility(groups[index]))
-            {
-                return false;
-            }
+            return isOn;
         }
 
         return true;

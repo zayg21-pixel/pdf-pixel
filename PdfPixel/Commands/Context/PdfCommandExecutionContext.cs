@@ -2,6 +2,7 @@ using PdfPixel.Color;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
@@ -23,15 +24,29 @@ public sealed class PdfCommandExecutionContext : IDisposable
         IPdfDocument document,
         PdfCommandExecutionParameters parameters,
         object contentLocker,
-        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups,
+        IReadOnlyDictionary<PdfReference, bool>? optionalContentStates,
         IPdfExecutionObserver executionObserver,
         PdfRectangle? pageRegionOfInterest = null)
     {
         Document = document ?? throw new ArgumentNullException(nameof(document));
         Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
-        OptionalContentGroups = optionalContentGroups ?? throw new ArgumentNullException(nameof(optionalContentGroups));
-        MarkedContent = new PdfMarkedContentState(OptionalContentGroups);
+
+        if (optionalContentStates == null)
+        {
+            PdfOptionalContentProperties? optionalContentProperties = document.OptionalContentProperties;
+            if (optionalContentProperties == null)
+            {
+                optionalContentStates = new Dictionary<PdfReference, bool>();
+            }
+            else
+            {
+                optionalContentStates = optionalContentProperties.DefaultConfiguration.ToUserConfiguration().ToStates();
+            }
+        }
+
+        OptionalContentStates = optionalContentStates;
+        MarkedContent = new PdfMarkedContentState(optionalContentStates);
         ExecutionObserver = executionObserver;
         PageRegionOfInterest = pageRegionOfInterest;
     }
@@ -85,9 +100,9 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public PdfMarkedContentState MarkedContent { get; }
 
     /// <summary>
-    /// Optional content groups (layers) defined by the document, keyed by their indirect reference.
+    /// ON/OFF state of the optional content groups content visibility is evaluated under, keyed by group reference.
     /// </summary>
-    public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; }
+    public IReadOnlyDictionary<PdfReference, bool> OptionalContentStates { get; }
 
     /// <summary>
     /// Returns the root of the text block tree built during command execution.

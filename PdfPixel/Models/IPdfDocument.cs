@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Tagging.Model;
 using System;
 using System.Collections.Generic;
@@ -71,10 +72,10 @@ public interface IPdfDocument : IDisposable
     IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
-    /// Gets the optional content groups (layers) defined in the document,
-    /// keyed by their indirect object reference. Empty if the document has no optional content.
+    /// Gets the optional content (layers) properties (/OCProperties), or <see langword="null"/> when the
+    /// document has no optional content.
     /// </summary>
-    IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; }
+    PdfOptionalContentProperties? OptionalContentProperties { get; }
 
     /// <summary>
     /// Gets the document structure tree providing per-page MCID reading order,

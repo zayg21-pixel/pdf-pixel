@@ -525,6 +525,33 @@ internal static class PdfTokens
     public static readonly PdfString NeedsRenderingKey = (PdfString)"NeedsRendering"u8;
     public static readonly PdfString SigFlagsKey = (PdfString)"SigFlags"u8;
 
+    // Optional content keys
+    public static readonly PdfString OptionalContentIntentKey = (PdfString)"Intent"u8;   // Optional content intent name or array
+    public static readonly PdfString UsageKey = (PdfString)"Usage"u8;
+    public static readonly PdfString ConfigsKey = (PdfString)"Configs"u8;
+    public static readonly PdfString BaseStateKey = (PdfString)"BaseState"u8;
+    public static readonly PdfString ListModeKey = (PdfString)"ListMode"u8;
+    public static readonly PdfString RBGroupsKey = (PdfString)"RBGroups"u8;
+    public static readonly PdfString LockedKey = (PdfString)"Locked"u8;
+    public static readonly PdfString AutoStateKey = (PdfString)"AS"u8;                   // Optional content usage application array
+    public static readonly PdfString EventKey = (PdfString)"Event"u8;
+    public static readonly PdfString CategoryKey = (PdfString)"Category"u8;
+    public static readonly PdfString CreatorInfoKey = (PdfString)"CreatorInfo"u8;
+    public static readonly PdfString LanguageKey = (PdfString)"Language"u8;
+    public static readonly PdfString PreferredKey = (PdfString)"Preferred"u8;
+    public static readonly PdfString ExportKey = (PdfString)"Export"u8;
+    public static readonly PdfString ExportStateKey = (PdfString)"ExportState"u8;
+    public static readonly PdfString ZoomKey = (PdfString)"Zoom"u8;
+    public static readonly PdfString MinKey = (PdfString)"min"u8;
+    public static readonly PdfString MaxKey = (PdfString)"max"u8;
+    public static readonly PdfString PrintKey = (PdfString)"Print"u8;
+    public static readonly PdfString PrintStateKey = (PdfString)"PrintState"u8;
+    public static readonly PdfString ViewKey = (PdfString)"View"u8;
+    public static readonly PdfString ViewStateKey = (PdfString)"ViewState"u8;
+    public static readonly PdfString UserKey = (PdfString)"User"u8;
+    public static readonly PdfString UserNameKey = (PdfString)"Name"u8;                 // Usage user name text string or array
+    public static readonly PdfString PageElementKey = (PdfString)"PageElement"u8;
+
     // Page object keys
     public static readonly PdfString LastModifiedKey = (PdfString)"LastModified"u8;
     public static readonly PdfString DurKey = (PdfString)"Dur"u8;

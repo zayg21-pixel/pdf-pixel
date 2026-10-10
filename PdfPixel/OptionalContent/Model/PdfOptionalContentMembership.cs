@@ -1,7 +1,8 @@
+using PdfPixel.Models;
 using PdfPixel.Text;
 using System.Collections.Generic;
 
-namespace PdfPixel.Models;
+namespace PdfPixel.OptionalContent.Model;
 
 /// <summary>
 /// Represents optional content membership — a set of optional content group references
@@ -14,14 +15,21 @@ public class PdfOptionalContentMembership
     /// the specified group references and visibility policy.
     /// </summary>
     public PdfOptionalContentMembership(
+        PdfOptionalContentType type,
         IReadOnlyList<PdfReference> groups,
         PdfOptionalContentVisibilityPolicy visibilityPolicy,
         PdfVisibilityExpression? visibilityExpression = null)
     {
+        Type = type;
         Groups = groups;
         VisibilityPolicy = visibilityPolicy;
         VisibilityExpression = visibilityExpression;
     }
+
+    /// <summary>
+    /// Whether the content refers to a single optional content group or to a membership dictionary.
+    /// </summary>
+    public PdfOptionalContentType Type { get; }
 
     /// <summary>
     /// References to the optional content groups in this membership.
@@ -72,7 +80,7 @@ public class PdfOptionalContentMembership
     }
 
     private static PdfOptionalContentMembership FromGroupObject(PdfObject groupObject)
-        => new([groupObject.Reference], PdfOptionalContentVisibilityPolicy.AllOn);
+        => new(PdfOptionalContentType.Group, [groupObject.Reference], PdfOptionalContentVisibilityPolicy.AllOn);
 
     private static PdfOptionalContentMembership FromMembershipDictionary(PdfDictionary membershipDictionary)
     {
@@ -87,14 +95,14 @@ public class PdfOptionalContentMembership
 
         if (visibilityExpression != null)
         {
-            return new PdfOptionalContentMembership([], policy, visibilityExpression);
+            return new PdfOptionalContentMembership(PdfOptionalContentType.Membership, [], policy, visibilityExpression);
         }
 
         // /OCGs can be a single OCG reference or an array of OCG references.
         List<PdfObject>? groupObjects = membershipDictionary.GetObjects(PdfTokens.OptionalContentGroupsKey);
         if (groupObjects == null || groupObjects.Count == 0)
         {
-            return new PdfOptionalContentMembership([], policy);
+            return new PdfOptionalContentMembership(PdfOptionalContentType.Membership, [], policy);
         }
 
         List<PdfReference> groups = new(groupObjects.Count);
@@ -106,6 +114,6 @@ public class PdfOptionalContentMembership
             }
         }
 
-        return new PdfOptionalContentMembership(groups, policy);
+        return new PdfOptionalContentMembership(PdfOptionalContentType.Membership, groups, policy);
     }
 }

@@ -1,6 +1,6 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Models;
+namespace PdfPixel.OptionalContent.Model;
 
 /// <summary>
 /// Enumerates the types of optional content dictionaries.

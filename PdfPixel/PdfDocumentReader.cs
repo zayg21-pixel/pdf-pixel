@@ -5,6 +5,7 @@ using PdfPixel.Encryption.Model;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
@@ -111,8 +112,11 @@ public class PdfDocumentReader
             document.Decryptor?.AuthenticateOnOpen();
 
             PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
-            PdfOptionalContentGroupParser ocgParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOptionalContentGroupParser>());
-            ((PdfDocument)document).OptionalContentGroups = ocgParser.Parse();
+            PdfDictionary? optionalContentProperties = document.RootObject.Dictionary.GetDictionary(PdfTokens.OCPropertiesKey);
+            if (optionalContentProperties != null)
+            {
+                ((PdfDocument)document).OptionalContentProperties = new PdfOptionalContentProperties(optionalContentProperties, document.RootObject.Dictionary.GetString(PdfTokens.LangKey));
+            }
 
             ((PdfDocument)document).StructureTree = PdfStructureTree.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
             ((PdfDocument)document).EmbeddedFiles = PdfFileSpecification.FromCatalog(document.RootObject.Dictionary, document.TreeReader);

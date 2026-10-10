@@ -1,3 +1,4 @@
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Text;
 using System;
 

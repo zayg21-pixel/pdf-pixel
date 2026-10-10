@@ -125,7 +125,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                     _document,
                     _executionParameters,
                     _documentLocker,
-                    _document.OptionalContentGroups,
+                    _request.OptionalContentStates,
                     _contentObserver,
                     ToPictureRegion(_request.GetPage(CacheEntry.PageNumber).RegionOfInterest, pictureScale));
 
@@ -197,7 +197,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                     _document,
                     _executionParameters,
                     _documentLocker,
-                    _document.OptionalContentGroups,
+                    _request.OptionalContentStates,
                     _contentObserver,
                     ToPictureRegion(_request.GetPage(CacheEntry.PageNumber).RegionOfInterest, annotationPictureScale));
 

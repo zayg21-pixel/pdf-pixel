@@ -1,6 +1,7 @@
 ﻿using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
+using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Text;
 using System.Collections.ObjectModel;
 using System.Windows;
@@ -201,6 +202,17 @@ public partial class WpfPdfPanel
         typeof(string),
         typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, SearchQueryProperty_Changed));
+
+    private static readonly DependencyPropertyKey OptionalContentPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(OptionalContent),
+        typeof(PdfOptionalContentViewModel),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="OptionalContent"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty OptionalContentProperty = OptionalContentPropertyKey.DependencyProperty;
 
     private static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(SearchResults),
@@ -461,6 +473,14 @@ public partial class WpfPdfPanel
     {
         get => (string?)GetValue(SearchQueryProperty);
         set => SetValue(SearchQueryProperty, value);
+    }
+
+    /// <summary>
+    /// Gets the optional content (layers) of the shown document, or null when no pages are shown.
+    /// </summary>
+    public PdfOptionalContentViewModel? OptionalContent
+    {
+        get => (PdfOptionalContentViewModel?)GetValue(OptionalContentProperty);
     }
 
     /// <summary>

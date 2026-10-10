@@ -4,6 +4,7 @@ using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;

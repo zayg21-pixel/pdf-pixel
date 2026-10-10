@@ -6,6 +6,7 @@ using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Skia;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
@@ -70,9 +71,9 @@ internal static class PdfUtilities
                 continue;
             }
 
-            // Optional content groups are the PDF's layers; passing the document's groups renders
-            // every layer in its default visibility state.
-            yield return (page.PageNumber, RenderPage(document, page, document.OptionalContentGroups));
+            // Optional content groups are the PDF's layers; passing the document's default configuration
+            // renders every layer in its default visibility state.
+            yield return (page.PageNumber, RenderPage(document, page, document.OptionalContentProperties?.DefaultConfiguration.ToUserConfiguration()));
         }
     }
 
@@ -85,7 +86,7 @@ internal static class PdfUtilities
         SKGraphics.PurgeFontCache();
     }
 
-    private static SKBitmap RenderPage(IPdfDocument document, IPdfPage page, IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups)
+    private static SKBitmap RenderPage(IPdfDocument document, IPdfPage page, PdfUserOptionalContentConfiguration? optionalContentConfiguration)
     {
         // CropBox is the visible page area in PDF units; scale it to get the output image size.
         int width = (int)(page.CropBox.Width * Scale);
@@ -128,7 +129,7 @@ internal static class PdfUtilities
             document,
             executionParameters,
             contentLocker,
-            optionalContentGroups,
+            optionalContentConfiguration?.ToStates(),
             executionObserver);
 
         // Executes each drawing command immediately against canvas.

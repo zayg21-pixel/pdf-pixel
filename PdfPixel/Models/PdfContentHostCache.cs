@@ -3,6 +3,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Model;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Pattern.Utilities;
 using PdfPixel.Rendering.State;

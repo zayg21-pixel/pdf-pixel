@@ -8,6 +8,7 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Jbig2.Decoding;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;

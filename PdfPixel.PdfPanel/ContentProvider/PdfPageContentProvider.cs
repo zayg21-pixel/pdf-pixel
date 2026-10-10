@@ -58,6 +58,11 @@ internal sealed class PdfPageContentProvider : IDisposable
     public object DocumentLocker { get; } = new();
 
     /// <summary>
+    /// Document the pages are decoded from.
+    /// </summary>
+    public IPdfDocument Document => _document;
+
+    /// <summary>
     /// Called on the UI thread whenever a page's content or annotations have been decoded and are ready to render.
     /// </summary>
     public Action<PageUpdatedArgs>? OnPageUpdated { get; set; }

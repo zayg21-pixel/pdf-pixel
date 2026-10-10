@@ -1,6 +1,6 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Models;
+namespace PdfPixel.OptionalContent.Model;
 
 /// <summary>
 /// Boolean operator combining the operands of a <see cref="PdfVisibilityExpression"/> node.

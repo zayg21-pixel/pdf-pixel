@@ -3,6 +3,7 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Layout;
+using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf.Drawing;
@@ -214,6 +215,9 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.Text.TextExtracted += OnTextExtracted;
         SetValue(TextPropertyKey, _context.Text);
         SetValue(IsTextExtractedPropertyKey, _context.Text.IsTextExtracted);
+        PdfOptionalContentViewModel optionalContent = new(_context.OptionalContent);
+        optionalContent.Changed += OnOptionalContentChanged;
+        SetValue(OptionalContentPropertyKey, optionalContent);
     }
 
     private void DisposeContext()
@@ -225,12 +229,20 @@ public partial class WpfPdfPanel : FrameworkElement
 
         SetValue(TextPropertyKey, null);
         SetValue(IsTextExtractedPropertyKey, false);
+        if (OptionalContent != null)
+        {
+            OptionalContent.Changed -= OnOptionalContentChanged;
+        }
+
+        SetValue(OptionalContentPropertyKey, null);
         _context.Search.MatchesChanged -= OnSearchMatchesChanged;
         _context.Text.TextExtracted -= OnTextExtracted;
         _context.Dispose();
     }
 
     private void OnTextExtracted(object? sender, EventArgs e) => SetValue(IsTextExtractedPropertyKey, true);
+
+    private void OnOptionalContentChanged(object? sender, EventArgs e) => InvalidateVisual();
 
     private void SynchronizeContext()
     {

@@ -1,8 +1,9 @@
+using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Models;
+namespace PdfPixel.OptionalContent.Model;
 
 /// <summary>
 /// Represents a parsed /VE visibility expression: a boolean tree combining optional content

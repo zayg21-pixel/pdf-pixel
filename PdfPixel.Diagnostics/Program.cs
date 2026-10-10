@@ -347,7 +347,7 @@ internal sealed class Program
                 document,
                 new PdfCommandExecutionParameters(),
                 contentLocker,
-                document.OptionalContentGroups,
+                null,
                 executionObserver);
 
             // Text-only replays through the processor that collects characters and draws nothing.

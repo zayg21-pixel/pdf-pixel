@@ -168,7 +168,7 @@ public sealed partial class SkCanvasCommandProcessor
             _executionContext.Document,
             childParameters,
             _executionContext.ContentLocker,
-            _executionContext.OptionalContentGroups,
+            _executionContext.OptionalContentStates,
             _executionContext.ExecutionObserver);
 
         childContext.Frames.OnConcatMatrix(_executionContext.Frames.TotalMatrix);

@@ -90,7 +90,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
                 _document,
                 new PdfCommandExecutionParameters(),
                 _documentLocker,
-                _document.OptionalContentGroups,
+                null,
                 _observer);
 
             PdfTextExtractionCommandProcessor processor = new(executionContext);

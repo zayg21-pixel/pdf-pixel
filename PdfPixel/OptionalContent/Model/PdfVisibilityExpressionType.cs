@@ -1,4 +1,4 @@
-namespace PdfPixel.Models;
+namespace PdfPixel.OptionalContent.Model;
 
 /// <summary>
 /// Distinguishes the two node kinds of a <see cref="PdfVisibilityExpression"/> tree.
