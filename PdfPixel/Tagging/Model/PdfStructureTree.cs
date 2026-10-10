@@ -1,5 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.Text;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Tagging.Model;
@@ -31,7 +32,14 @@ public sealed class PdfStructureTree
         if (parentTree != null)
         {
             HashSet<PdfReference> visitedNodes = [];
-            ReadParentTreeNode(parentTree, visitedNodes);
+            ReadTreeNodes(parentTree, visitedNodes, ReadParentTreeEntries);
+        }
+
+        PdfDictionary? idTree = dictionary.GetDictionary(PdfTokens.IdTreeKey);
+        if (idTree != null)
+        {
+            HashSet<PdfReference> visitedNodes = [];
+            ReadTreeNodes(idTree, visitedNodes, ReadIdTreeEntries);
         }
     }
 
@@ -45,7 +53,7 @@ public sealed class PdfStructureTree
     /// </summary>
     public IReadOnlyList<PdfStructureNamespace> Namespaces { get; }
 
-    // TODO: [LOW] parse /IDTree, /PronunciationLexicon, /AF
+    // TODO: [LOW] parse /PronunciationLexicon, /AF
 
     /// <summary>
     /// A tree over the catalog's /StructTreeRoot entry, or <see langword="null"/> when the
@@ -114,6 +122,20 @@ public sealed class PdfStructureTree
         }
 
         return LoadElement(parent);
+    }
+
+    /// <summary>
+    /// Structure element (/IDTree) whose element identifier (/ID) is <paramref name="id"/>,
+    /// or <see langword="null"/> when none is.
+    /// </summary>
+    public PdfStructureElement? FindById(in PdfString id)
+    {
+        if (!_elementsById.TryGetValue(id, out PdfReference element))
+        {
+            return null;
+        }
+
+        return LoadElement(element);
     }
 
     /// <summary>
@@ -286,39 +308,65 @@ public sealed class PdfStructureTree
         return new PdfStructureElement(element, reference, this);
     }
 
-    private void ReadParentTreeNode(PdfDictionary node, HashSet<PdfReference> visitedNodes)
+    private void ReadParentTreeEntries(PdfDictionary node)
     {
         PdfArray? numbers = node.GetArray(PdfTokens.NumsKey);
-        if (numbers != null)
+        if (numbers == null)
         {
-            for (int index = 0; index + 1 < numbers.Count; index += 2)
+            return;
+        }
+
+        for (int index = 0; index + 1 < numbers.Count; index += 2)
+        {
+            int? key = numbers.GetInteger(index);
+            if (key == null)
             {
-                int? key = numbers.GetInteger(index);
-                if (key == null)
+                continue;
+            }
+
+            PdfArray? parents = numbers.GetArray(index + 1);
+            if (parents != null)
+            {
+                var references = new PdfReference?[parents.Count];
+                for (int mcid = 0; mcid < parents.Count; mcid++)
                 {
-                    continue;
+                    references[mcid] = parents.GetReference(mcid);
                 }
 
-                PdfArray? parents = numbers.GetArray(index + 1);
-                if (parents != null)
-                {
-                    var references = new PdfReference?[parents.Count];
-                    for (int mcid = 0; mcid < parents.Count; mcid++)
-                    {
-                        references[mcid] = parents.GetReference(mcid);
-                    }
+                _contentParents[key.Value] = references;
+                continue;
+            }
 
-                    _contentParents[key.Value] = references;
-                    continue;
-                }
-
-                PdfReference? parent = numbers.GetReference(index + 1);
-                if (parent != null)
-                {
-                    _objectParents[key.Value] = parent.Value;
-                }
+            PdfReference? parent = numbers.GetReference(index + 1);
+            if (parent != null)
+            {
+                _objectParents[key.Value] = parent.Value;
             }
         }
+    }
+
+    private void ReadIdTreeEntries(PdfDictionary node)
+    {
+        PdfArray? names = node.GetArray(PdfTokens.NamesKey);
+        if (names == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index + 1 < names.Count; index += 2)
+        {
+            PdfString? id = names.GetString(index);
+            PdfReference? element = names.GetReference(index + 1);
+            if (id != null && element != null)
+            {
+                _elementsById[id.Value] = element.Value;
+            }
+        }
+    }
+
+    private static void ReadTreeNodes(PdfDictionary node, HashSet<PdfReference> visitedNodes, Action<PdfDictionary> readEntries)
+    {
+        readEntries(node);
 
         PdfArray? kids = node.GetArray(PdfTokens.KidsKey);
         if (kids == null)
@@ -337,7 +385,7 @@ public sealed class PdfStructureTree
             PdfDictionary? kid = kids.GetDictionary(index);
             if (kid != null)
             {
-                ReadParentTreeNode(kid, visitedNodes);
+                ReadTreeNodes(kid, visitedNodes, readEntries);
             }
         }
     }
