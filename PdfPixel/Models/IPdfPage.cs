@@ -1,6 +1,7 @@
 using PdfPixel.Annotations.Model;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Model;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -40,6 +41,11 @@ public interface IPdfPage
     /// Gets the resolved page label for this page (may be null if not present in the document).
     /// </summary>
     PdfString PageLabel { get; }
+
+    /// <summary>
+    /// Thumbnail image of the page (/Thumb), or <see langword="null"/> when absent.
+    /// </summary>
+    PdfImage? Thumbnail { get; }
 
     /// <summary>
     /// Render the page content via the command processor.

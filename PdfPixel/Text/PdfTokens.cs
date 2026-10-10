@@ -368,6 +368,19 @@ internal static class PdfTokens
     public static readonly PdfString FSKey = (PdfString)"FS"u8;                      // File specification dictionary key (for file attachment annotations)
     public static readonly PdfString EFKey = (PdfString)"EF"u8;                      // Embedded file dictionary key inside a filespec
     public static readonly PdfString UFKey = (PdfString)"UF"u8;                      // Unicode file name key inside filespec
+    public static readonly PdfString FileSystemKey = (PdfString)"FS"u8;              // File system of a file specification dictionary
+    public static readonly PdfString DosKey = (PdfString)"DOS"u8;                    // DOS file name inside filespec (deprecated)
+    public static readonly PdfString MacKey = (PdfString)"Mac"u8;                    // Mac OS file name inside filespec (deprecated)
+    public static readonly PdfString UnixKey = (PdfString)"Unix"u8;                  // UNIX file name inside filespec (deprecated)
+    public static readonly PdfString VolatileKey = (PdfString)"V"u8;                 // Volatile flag of a file specification
+    public static readonly PdfString RelatedFilesKey = (PdfString)"RF"u8;            // Related files arrays inside filespec
+    public static readonly PdfString EncryptedPayloadKey = (PdfString)"EP"u8;        // Encrypted payload dictionary inside filespec
+    public static readonly PdfString ThumbnailKey = (PdfString)"Thumb"u8;            // Thumbnail image
+    public static readonly PdfString AssociatedFileRelationshipKey = (PdfString)"AFRelationship"u8;
+    public static readonly PdfString ParamsKey = (PdfString)"Params"u8;              // Embedded file parameter dictionary
+    public static readonly PdfString ModDateKey = (PdfString)"ModDate"u8;            // Modification date of an embedded file
+    public static readonly PdfString CheckSumKey = (PdfString)"CheckSum"u8;          // MD5 checksum of an embedded file
+    public static readonly PdfString VersionKey = (PdfString)"Version"u8;            // Version of an encrypted payload's crypt filter
     public static readonly PdfString FKey = (PdfString)"F"u8;                        // File name key inside filespec
 
     // Link annotation specific keys
@@ -421,6 +434,9 @@ internal static class PdfTokens
     public static readonly PdfString NamespaceKey = (PdfString)"NS"u8;                    // Namespace of a structure element or attribute object; name of a namespace
     public static readonly PdfString NamespacesKey = (PdfString)"Namespaces"u8;           // Namespaces used in the structure tree
     public static readonly PdfString RoleMapNamespaceKey = (PdfString)"RoleMapNS"u8;      // Maps structure types of a namespace onto another namespace
+    public static readonly PdfString SchemaKey = (PdfString)"Schema"u8;                   // Schema file of a namespace
+    public static readonly PdfString PronunciationLexiconKey = (PdfString)"PronunciationLexicon"u8;
+    public static readonly PdfString AssociatedFilesKey = (PdfString)"AF"u8;              // Associated files (PDF 2.0)
 
     // Structure attribute keys
     public static readonly PdfString AttributeOwnerKey = (PdfString)"O"u8;                // Owner of an attribute object

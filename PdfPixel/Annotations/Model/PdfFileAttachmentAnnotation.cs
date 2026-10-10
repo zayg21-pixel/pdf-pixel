@@ -1,6 +1,7 @@
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Commands.Model;
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -23,27 +24,8 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     public PdfFileAttachmentAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FileAttachment)
     {
-        // Filespec can be in the /FS entry (PDF spec) or in the /F string key for older usage.
-        FileSpec = annotationObject.Dictionary.GetDictionary(PdfTokens.FSKey) ?? annotationObject.Dictionary.GetDictionary(PdfTokens.FKey);
-
-        if (FileSpec != null)
-        {
-            FileName = FileSpec.GetString(PdfTokens.FKey);
-
-            // Embedded file dictionary is in /EF with key /F or /UF. Try both.
-            PdfDictionary? efDict = FileSpec.GetDictionary(PdfTokens.EFKey);
-            if (efDict != null)
-            {
-                EmbeddedFileObject = efDict.GetObject(PdfTokens.FKey) ?? efDict.GetObject(PdfTokens.UFKey);
-            }
-
-            // Alternatively some filespecs place the file stream directly in the Filespec as /EF
-            EmbeddedFileObject ??= FileSpec.GetObject(PdfTokens.EFKey);
-        }
-
+        FileSpecification = PdfFileSpecification.FromDictionaryEntry(annotationObject.Dictionary, PdfTokens.FSKey);
         Icon = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfFileAttachmentIcon>();
-
-        // TODO: [LOW] complete FileSpec object parsing
     }
 
     /// <inheritdoc/>
@@ -53,24 +35,14 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     public override bool IsInteractive => true;
 
     /// <summary>
-    /// The filespec dictionary describing the attached file.
+    /// File specification of the attached file (FS), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfDictionary? FileSpec { get; }
+    public PdfFileSpecification? FileSpecification { get; }
 
     /// <summary>
     /// The icon type that should be used to display this file attachment.
     /// </summary>
     public PdfFileAttachmentIcon Icon { get; }
-
-    /// <summary>
-    /// The original file name of the attached file, if present.
-    /// </summary>
-    public PdfString? FileName { get; }
-
-    /// <summary>
-    /// The PDF object that contains the embedded file stream, if available.
-    /// </summary>
-    public PdfObject? EmbeddedFileObject { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -93,9 +65,10 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     /// <inheritdoc/>
     public override string ToString()
     {
-        if (FileName != null)
+        PdfString? fileName = FileSpecification?.UnicodeFile ?? FileSpecification?.File;
+        if (fileName != null)
         {
-            return $"FileAttachment: {FileName}";
+            return $"FileAttachment: {fileName.Value.DecodePdfString()}";
         }
 
         return "FileAttachment";

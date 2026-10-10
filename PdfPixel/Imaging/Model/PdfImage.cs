@@ -228,6 +228,27 @@ public class PdfImage
         return image;
     }
 
+    /// <summary>
+    /// The image XObject held by <paramref name="key"/> of <paramref name="owner"/>, resolved from the
+    /// document's cache when available, or <see langword="null"/> when absent.
+    /// </summary>
+    internal static PdfImage? FromDictionaryEntry(PdfDictionary owner, in PdfString key)
+    {
+        PdfReference? reference = owner.GetReference(key);
+        if (reference != null && owner.Document.ObjectCache.Images.TryGetValue(reference.Value, out PdfImage? cachedImage))
+        {
+            return cachedImage;
+        }
+
+        PdfObject? imageObject = owner.GetObject(key);
+        if (imageObject == null || !imageObject.HasStream)
+        {
+            return null;
+        }
+
+        return GetImage(imageObject);
+    }
+
     private static PdfImageSoftMaskInData MapSoftMaskInData(int value)
     {
         return value switch

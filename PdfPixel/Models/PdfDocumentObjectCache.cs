@@ -3,6 +3,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc.Model;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands.Model;
+using PdfPixel.Files;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
 using PdfPixel.Imaging.Model;
@@ -94,6 +95,16 @@ internal class PdfDocumentObjectCache
     /// High-level cache for parsed PDF image XObjects, keyed by reference.
     /// </summary>
     public Dictionary<PdfReference, PdfImage> Images { get; } = [];
+
+    /// <summary>
+    /// High-level cache for parsed file specification dictionaries, keyed by reference.
+    /// </summary>
+    public Dictionary<PdfReference, PdfFileSpecification> FileSpecifications { get; } = [];
+
+    /// <summary>
+    /// High-level cache for parsed embedded file streams, keyed by reference.
+    /// </summary>
+    public Dictionary<PdfReference, PdfEmbeddedFile> EmbeddedFiles { get; } = [];
 
     /// <summary>
     /// High-level cache for XObject wrappers, keyed by reference.

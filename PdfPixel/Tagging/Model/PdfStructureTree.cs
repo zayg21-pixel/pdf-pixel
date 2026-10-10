@@ -1,3 +1,4 @@
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
@@ -26,6 +27,8 @@ public sealed class PdfStructureTree
         _roleMap = dictionary.GetDictionary(PdfTokens.RoleMapKey);
         ParentTreeNextKey = dictionary.GetInteger(PdfTokens.ParentTreeNextKeyKey);
         Namespaces = ReadNamespaces(dictionary.GetArray(PdfTokens.NamespacesKey));
+        PronunciationLexicon = PdfFileSpecification.FromArray(dictionary.GetArray(PdfTokens.PronunciationLexiconKey));
+        AssociatedFiles = PdfFileSpecification.FromArray(dictionary.GetArray(PdfTokens.AssociatedFilesKey));
         ReadClassMap(dictionary.GetDictionary(PdfTokens.ClassMapKey));
 
         PdfDictionary? parentTree = dictionary.GetDictionary(PdfTokens.ParentTreeKey);
@@ -53,7 +56,15 @@ public sealed class PdfStructureTree
     /// </summary>
     public IReadOnlyList<PdfStructureNamespace> Namespaces { get; }
 
-    // TODO: [LOW] parse /PronunciationLexicon, /AF
+    /// <summary>
+    /// Pronunciation lexicons (/PronunciationLexicon, PDF 2.0), or <see langword="null"/> when absent.
+    /// </summary>
+    public IReadOnlyList<PdfFileSpecification>? PronunciationLexicon { get; }
+
+    /// <summary>
+    /// Associated files of the structure tree (/AF, PDF 2.0), or <see langword="null"/> when absent.
+    /// </summary>
+    public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
     /// A tree over the catalog's /StructTreeRoot entry, or <see langword="null"/> when the

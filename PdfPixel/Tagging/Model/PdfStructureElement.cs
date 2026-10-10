@@ -1,3 +1,4 @@
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.Tagging.Model.Attributes;
 using PdfPixel.Text;
@@ -257,7 +258,26 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
         }
     }
 
-    // TODO: [LOW] parse /AF associated file specifications
+    /// <summary>
+    /// Associated files (/AF, PDF 2.0) in array order.
+    /// </summary>
+    public IEnumerable<PdfFileSpecification> EnumerateAssociatedFiles()
+    {
+        PdfArray? associatedFiles = _dictionary.GetArray(PdfTokens.AssociatedFilesKey);
+        if (associatedFiles == null)
+        {
+            yield break;
+        }
+
+        for (int index = 0; index < associatedFiles.Count; index++)
+        {
+            PdfFileSpecification? specification = PdfFileSpecification.FromArrayEntry(associatedFiles, index);
+            if (specification != null)
+            {
+                yield return specification;
+            }
+        }
+    }
 
     /// <inheritdoc />
     public IEnumerable<IPdfStructureNode> EnumerateChildren()

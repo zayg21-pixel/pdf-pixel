@@ -1,3 +1,4 @@
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
@@ -16,6 +17,7 @@ public sealed class PdfStructureNamespace : IEquatable<PdfStructureNamespace>
         Reference = reference;
         Name = name;
         RoleMapNamespace = ReadRoleMap(dictionary.GetDictionary(PdfTokens.RoleMapNamespaceKey));
+        Schema = PdfFileSpecification.FromDictionaryEntry(dictionary, PdfTokens.SchemaKey);
     }
 
     /// <summary>
@@ -33,7 +35,10 @@ public sealed class PdfStructureNamespace : IEquatable<PdfStructureNamespace>
     /// </summary>
     public IReadOnlyDictionary<PdfString, PdfStructureRoleMapping>? RoleMapNamespace { get; }
 
-    // TODO: [LOW] parse /Schema file specification
+    /// <summary>
+    /// Schema file defining this namespace (/Schema), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfFileSpecification? Schema { get; }
 
     /// <summary>
     /// A namespace over <paramref name="dictionary"/>, or <see langword="null"/> when it has no namespace name (/NS).

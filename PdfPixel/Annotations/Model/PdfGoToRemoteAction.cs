@@ -1,3 +1,4 @@
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -20,14 +21,14 @@ public class PdfGoToRemoteAction : PdfAction
     {
         _document = actionDictionary.Document;
         _destination = PdfDestinationReference.FromDictionary(actionDictionary, PdfTokens.DKey);
-        FileSpecification = actionDictionary.GetString(PdfTokens.FKey);
+        FileSpecification = PdfFileSpecification.FromDictionaryEntry(actionDictionary, PdfTokens.FKey);
         NewWindow = actionDictionary.GetBooleanOrDefault(PdfTokens.NewWindowKey);
     }
 
     /// <summary>
     /// Gets the file specification for the remote document.
     /// </summary>
-    public PdfString? FileSpecification { get; }
+    public PdfFileSpecification? FileSpecification { get; }
 
     /// <summary>
     /// Gets a value indicating whether to open the destination in a new window.

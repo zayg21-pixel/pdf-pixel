@@ -1,5 +1,6 @@
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Model;
+using PdfPixel.Imaging.Model;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
@@ -29,6 +30,7 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
     private readonly int? _structParents;
+    private readonly Lazy<PdfImage?>? _thumbnail;
 
     /// <summary>
     /// Initializes a new instance from values already resolved out of the page object, so that a caller
@@ -106,6 +108,7 @@ internal class PdfPage : IPdfPageInternal
             pageObject.Dictionary)
     {
         _structParents = pageObject.Dictionary.GetInteger(PdfTokens.StructParentsKey);
+        _thumbnail = new Lazy<PdfImage?>(() => PdfImage.FromDictionaryEntry(pageObject.Dictionary, PdfTokens.ThumbnailKey));
     }
 
     /// <summary>
@@ -143,6 +146,9 @@ internal class PdfPage : IPdfPageInternal
 
     /// <inheritdoc/>
     public PdfString PageLabel { get; }
+
+    /// <inheritdoc/>
+    public PdfImage? Thumbnail => _thumbnail?.Value;
 
     PdfPageCache IPdfPageInternal.Cache => _pageCache.Value;
 
