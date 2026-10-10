@@ -190,7 +190,7 @@ public partial class WpfPdfPanel
     /// </summary>
     public static readonly DependencyProperty PanelInterfaceProperty = DependencyProperty.Register(
         nameof(PanelInterface),
-        typeof(WpfPdfPanelInterface),
+        typeof(PdfPanelInterface),
         typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, PanelInterfaceProperty_Changed));
 
@@ -203,16 +203,16 @@ public partial class WpfPdfPanel
         typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, SearchQueryProperty_Changed));
 
-    private static readonly DependencyPropertyKey OptionalContentPropertyKey = DependencyProperty.RegisterReadOnly(
-        nameof(OptionalContent),
-        typeof(PdfOptionalContentViewModel),
+    private static readonly DependencyPropertyKey LayersPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(Layers),
+        typeof(PdfLayersViewModel),
         typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
 
     /// <summary>
-    /// Identifies the <see cref="OptionalContent"/> dependency property.
+    /// Identifies the <see cref="Layers"/> dependency property.
     /// </summary>
-    public static readonly DependencyProperty OptionalContentProperty = OptionalContentPropertyKey.DependencyProperty;
+    public static readonly DependencyProperty LayersProperty = LayersPropertyKey.DependencyProperty;
 
     private static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(SearchResults),
@@ -476,11 +476,11 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets the optional content (layers) of the shown document, or null when no pages are shown.
+    /// Gets the layers (optional content) of the shown document, or null when no pages are shown.
     /// </summary>
-    public PdfOptionalContentViewModel? OptionalContent
+    public PdfLayersViewModel? Layers
     {
-        get => (PdfOptionalContentViewModel?)GetValue(OptionalContentProperty);
+        get => (PdfLayersViewModel?)GetValue(LayersProperty);
     }
 
     /// <summary>
@@ -528,9 +528,9 @@ public partial class WpfPdfPanel
     /// <summary>
     /// Gets or sets the panel interface for controlling panel operations via MVVM.
     /// </summary>
-    public WpfPdfPanelInterface? PanelInterface
+    public PdfPanelInterface? PanelInterface
     {
-        get => (WpfPdfPanelInterface?)GetValue(PanelInterfaceProperty);
+        get => (PdfPanelInterface?)GetValue(PanelInterfaceProperty);
         set => SetValue(PanelInterfaceProperty, value);
     }
 
@@ -633,14 +633,14 @@ public partial class WpfPdfPanel
     {
         var source = (WpfPdfPanel)d;
 
-        if (e.OldValue is WpfPdfPanelInterface oldInterface)
+        if (e.OldValue is PdfPanelInterface oldInterface)
         {
-            oldInterface.OnRequest = null;
+            oldInterface.Requested -= source.HandleInterfaceRequest;
         }
 
-        if (e.NewValue is WpfPdfPanelInterface newInterface)
+        if (e.NewValue is PdfPanelInterface newInterface)
         {
-            newInterface.OnRequest = source.HandleInterfaceRequest;
+            newInterface.Requested += source.HandleInterfaceRequest;
         }
     }
 }

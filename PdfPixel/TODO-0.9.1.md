@@ -24,24 +24,6 @@ Models that replace or restructure an existing API.
 | `/OpenAction` | Catalog | Table 29 | Initial destination (page + zoom), or action run on open (e.g. JavaScript `print()`, Named `/Print`) |
 | `/OutputIntents` | Catalog | Tables 401, 402 | S (GTS_PDFX, GTS_PDFA1, ISO_PDFE1), OutputCondition, OutputConditionIdentifier, RegistryName, Info, DestOutputProfile, DestOutputProfileRef, MixingHints, SpectralData. Today only the first usable catalog ICC profile is used internally |
 
-### Optional content (agreed design)
-
-Model follows the PDF shape (8.11, Tables 96–101); content-side `/OC` keeps pointing to an OCG or OCMD.
-
-| Type | Members |
-|---|---|
-| `PdfOptionalContentProperties` (`IPdfDocument.OptionalContentProperties`, replaces `OptionalContentGroups`) | `Groups` (`/OCGs`, by reference), `DefaultConfiguration` (`/D`), `Configurations` (`/Configs`) |
-| `PdfOptionalContentGroup` | `Reference`, `Name`, `Intent` (`IReadOnlyList<PdfOptionalContentIntent>?`), `Usage`; no visibility state |
-| `PdfOptionalContentUsage` | Table 100 flattened: `Creator`, `CreatorSubtype` (+ `RawCreatorSubtype`), `Lang`, `IsLanguagePreferred`, `IsExportOn`, `ZoomMin`, `ZoomMax`, `PrintSubtype` (+ `RawPrintSubtype`), `IsPrintOn`, `IsViewOn`, `UserType`, `UserNames`, `PageElement` |
-| `IPdfOptionalContentConfiguration` | Table 99, resolved (`Order`/`RBGroups` inherited from `/D`): `Name`, `Creator`, `BaseState`, `On`, `Off`, `Intent`, `AutoState`, `Order` (tree: `Label`, `Group`, `Children`), `ListMode`, `RadioButtonGroups`, `Locked`; context: `Event`, `Zoom`, `Language`, `User` |
-| `PdfOptionalContentConfiguration` | Sealed, immutable, parsed from `/D` and `/Configs`; context members null; `ToUserConfiguration()` |
-| `PdfUserOptionalContentConfiguration` | Sealed, mutable; same members, collections edited in place (`On`/`Off`/`Locked` sets); copy constructor from `IPdfOptionalContentConfiguration` |
-| `PdfOptionalContentUsageApplication` | `/AS` entry: `Event`, `Groups`, `Category` |
-| `PdfOptionalContentMembership` | OCG or OCMD: `Type`, `Groups`, `VisibilityPolicy` (default `AnyOn`), `VisibilityExpression` |
-| Value types | `PdfOptionalContentIntent` (`Type`: `Raw`, `View`, `Design`, `All`; `RawType`), `PdfOptionalContentBaseState`, `PdfOptionalContentListMode`, `PdfOptionalContentEvent`, `PdfOptionalContentUsageCategory` |
-
-Rendering takes one `IPdfOptionalContentConfiguration`. Context defaults when applied: `Event` View, `Zoom` 1, `Language` document `Lang` falling back to `en`; null `User` skips the User category. Evaluation: `BaseState`, then `On`/`Off`, then `/AS` entries matching `Event`; groups whose intents do not match `Intent` have no effect (8.11.2.3). Fixes the `/Intent` and `/AS` bugs.
-
 ### Page
 
 | Entry | Location | Spec | Work |
@@ -125,5 +107,4 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 | Non-inheritable page attributes inherited | `Models/PdfPageResources.cs` | 7.7.3.4, Table 31 | BleedBox, TrimBox, ArtBox and `/Annots` are taken from `/Pages` nodes; only Resources, MediaBox, CropBox and Rotate are inheritable. Annotations on an intermediate node appear on every page below it |
 | `/UserUnit` ignored | Page | Table 31, 8.3.2.3 | Pages with a user unit other than 1 get the wrong physical size; the value is exposed as `IPdfPage.UserUnit` but not applied |
 | Page `/OutputIntents` ignored | `Parsing/PdfOutputIntentParser.cs` | 14.11.5 | When output intents are respected, a page-level output intent shall be used for that page; the catalog profile is used instead |
-| OCMD `/P` default | `Models/PdfOptionalContentVisibilityPolicy.cs` | Table 97 | Absent `/P` is read as `AllOn`; the default is `AnyOn` |
 | Soft mask text | `Transparency/Utilities/SoftMaskUtilities.cs` | | Text shown by the mask form is extracted like page text, in both rendering and text extraction |

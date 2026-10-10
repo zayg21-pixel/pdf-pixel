@@ -47,7 +47,7 @@ public sealed class PdfPanelContext : IDisposable
         Text = new PdfPanelText(_contentProvider, Input, _graphics);
         Search = new PdfPanelSearch(this, Text, _contentProvider, _graphics);
         Annotations = new PdfPanelAnnotations(pages, Input);
-        OptionalContent = new PdfPanelOptionalContent(_contentProvider.Document);
+        Layers = new PdfPanelLayers(_contentProvider.Document);
         Renderer = new PdfPanelRenderer(surfaceFactory, _contentProvider, _graphics, synchronizationContext);
 
         _contentProvider.PageTextExtracted += OnPageTextExtracted;
@@ -146,9 +146,9 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelAnnotations Annotations { get; }
 
     /// <summary>
-    /// Optional content (layers) configuration content is rendered with.
+    /// Layers (optional content) configuration content is rendered with.
     /// </summary>
-    public PdfPanelOptionalContent OptionalContent { get; }
+    public PdfPanelLayers Layers { get; }
 
     /// <summary>
     /// Appearance and rendering quality of the panel.
@@ -297,7 +297,7 @@ public sealed class PdfPanelContext : IDisposable
             BackgroundColor = Renderer.BackgroundColor,
             PageCornerRadius = Renderer.PageCornerRadius,
             ShowPageLoadingAnimation = Renderer.ShowPageLoadingAnimation,
-            OptionalContentStates = OptionalContent.Configuration?.ToStates()
+            OptionalContentStates = Layers.Configuration?.ToStates()
         };
     }
 

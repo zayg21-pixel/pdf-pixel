@@ -157,23 +157,28 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <ComboBox ItemsSource="{Binding OptionalContent.Configurations, ElementName=pdfPanel}"
-                                  SelectedItem="{Binding OptionalContent.Configuration, ElementName=pdfPanel}"
-                                  DisplayMemberPath="Name"
-                                  Margin="0 0 0 4" />
+                        <ComboBox ItemsSource="{Binding Layers.Configurations, ElementName=pdfPanel}"
+                                  SelectedItem="{Binding Layers.Configuration, ElementName=pdfPanel}"
+                                  Margin="0 0 0 4">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfLayerConfigurationViewModel}">
+                                    <TextBlock Text="{Binding Name, TargetNullValue='Unnamed configuration'}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
 
-                        <TreeView Grid.Row="1" ItemsSource="{Binding OptionalContent.Configuration.Items, ElementName=pdfPanel}">
+                        <TreeView Grid.Row="1" ItemsSource="{Binding Layers.Configuration.Layers, ElementName=pdfPanel}">
                             <TreeView.ItemContainerStyle>
                                 <Style TargetType="TreeViewItem">
                                     <Setter Property="IsExpanded" Value="True" />
                                 </Style>
                             </TreeView.ItemContainerStyle>
                             <TreeView.Resources>
-                                <HierarchicalDataTemplate DataType="{x:Type pdfPanelMvvm:PdfOptionalContentItemViewModel}" ItemsSource="{Binding Children}">
+                                <HierarchicalDataTemplate DataType="{x:Type pdfPanelMvvm:PdfLayerViewModel}" ItemsSource="{Binding Children}">
                                     <Grid>
-                                        <CheckBox Content="{Binding Text}"
-                                                  IsChecked="{Binding IsOn}"
-                                                  Visibility="{Binding IsGroup, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <CheckBox Content="{Binding Name, TargetNullValue='Unnamed layer'}"
+                                                  IsChecked="{Binding IsVisible}"
+                                                  Visibility="{Binding IsLayer, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <CheckBox.Style>
                                                 <Style TargetType="CheckBox">
                                                     <Style.Triggers>
@@ -184,11 +189,11 @@
                                                 </Style>
                                             </CheckBox.Style>
                                         </CheckBox>
-                                        <TextBlock Text="{Binding Text}" FontWeight="SemiBold">
+                                        <TextBlock Text="{Binding Name, TargetNullValue='Unnamed'}" FontWeight="SemiBold">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                        <DataTrigger Binding="{Binding IsLayer}" Value="True">
                                                             <Setter Property="Visibility" Value="Collapsed" />
                                                         </DataTrigger>
                                                     </Style.Triggers>

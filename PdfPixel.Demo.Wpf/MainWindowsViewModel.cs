@@ -4,6 +4,7 @@ using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.PdfPanel;
+using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf;
 using SkiaSharp;
@@ -56,7 +57,7 @@ public class MainWindowsViewModel : ObservableObject
         _fontSubstitutor = new SkiaFontSubstitutor(_loggerFactory);
         _reader = new PdfDocumentReader(_loggerFactory, _fontSubstitutor);
 
-        PanelInterface = new WpfPdfPanelInterface();
+        PanelInterface = new PdfPanelInterface();
         PanelInterface.OnAfterDraw = OnAfterDraw;
         RotatePageCommand = new RelayCommand(RotatePage);
         RotateAllPagesCommand = new RelayCommand(RotateAllPages);
@@ -105,7 +106,7 @@ public class MainWindowsViewModel : ObservableObject
 
     public ICommand OpenFileCommand { get; }
 
-    public WpfPdfPanelInterface PanelInterface { get; }
+    public PdfPanelInterface PanelInterface { get; }
 
     public ObservableCollection<PdfFileLocation> PdfFiles { get; } = new ObservableCollection<PdfFileLocation>();
 

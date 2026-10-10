@@ -215,9 +215,9 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.Text.TextExtracted += OnTextExtracted;
         SetValue(TextPropertyKey, _context.Text);
         SetValue(IsTextExtractedPropertyKey, _context.Text.IsTextExtracted);
-        PdfOptionalContentViewModel optionalContent = new(_context.OptionalContent);
-        optionalContent.Changed += OnOptionalContentChanged;
-        SetValue(OptionalContentPropertyKey, optionalContent);
+        PdfLayersViewModel layers = new(_context.Layers);
+        layers.Changed += OnLayersChanged;
+        SetValue(LayersPropertyKey, layers);
     }
 
     private void DisposeContext()
@@ -229,12 +229,12 @@ public partial class WpfPdfPanel : FrameworkElement
 
         SetValue(TextPropertyKey, null);
         SetValue(IsTextExtractedPropertyKey, false);
-        if (OptionalContent != null)
+        if (Layers != null)
         {
-            OptionalContent.Changed -= OnOptionalContentChanged;
+            Layers.Changed -= OnLayersChanged;
         }
 
-        SetValue(OptionalContentPropertyKey, null);
+        SetValue(LayersPropertyKey, null);
         _context.Search.MatchesChanged -= OnSearchMatchesChanged;
         _context.Text.TextExtracted -= OnTextExtracted;
         _context.Dispose();
@@ -242,7 +242,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void OnTextExtracted(object? sender, EventArgs e) => SetValue(IsTextExtractedPropertyKey, true);
 
-    private void OnOptionalContentChanged(object? sender, EventArgs e) => InvalidateVisual();
+    private void OnLayersChanged(object? sender, EventArgs e) => InvalidateVisual();
 
     private void SynchronizeContext()
     {
@@ -308,9 +308,9 @@ public partial class WpfPdfPanel : FrameworkElement
             && IsVisible;
     }
 
-    private void HandleInterfaceRequest(PdfPanelInterfaceAction action)
+    private void HandleInterfaceRequest(object? sender, PdfPanelInterfaceActionEventArgs e)
     {
-        switch (action)
+        switch (e.Action)
         {
             case PdfPanelInterfaceAction.ZoomIn:
                 {

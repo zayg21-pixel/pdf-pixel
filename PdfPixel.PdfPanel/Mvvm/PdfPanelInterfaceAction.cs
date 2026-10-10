@@ -1,9 +1,9 @@
-namespace PdfPixel.PdfPanel.Wpf;
+namespace PdfPixel.PdfPanel.Mvvm;
 
 /// <summary>
 /// Defines actions that can be performed on the PDF panel.
 /// </summary>
-internal enum PdfPanelInterfaceAction
+public enum PdfPanelInterfaceAction
 {
     /// <summary>
     /// Increase zoom level.
@@ -31,7 +31,7 @@ internal enum PdfPanelInterfaceAction
     RequestRedraw,
 
     /// <summary>
-    /// Requests <see cref="WpfPdfPanelInterface.OnAfterDraw"/> without full page rendering.
+    /// Requests <see cref="PdfPanelInterface.OnAfterDraw"/> without full page rendering.
     /// </summary>
     RequestPresent
 }
