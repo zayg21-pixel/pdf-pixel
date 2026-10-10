@@ -145,7 +145,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
             return null;
         }
 
-        ReadOnlyMemory<byte> streamData = functionObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> streamData = functionObject.Stream.DecodeAsMemory();
         if (streamData.Length == 0)
         {
             return null;

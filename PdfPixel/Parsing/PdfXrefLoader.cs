@@ -278,7 +278,7 @@ internal sealed class PdfXrefLoader
     /// <param name="crossReferenceStream">A parsed object whose dictionary is of <c>/Type /XRef</c>.</param>
     public void ApplyCrossReferenceStream(PdfObject crossReferenceStream)
     {
-        ReadOnlyMemory<byte> decoded = crossReferenceStream.DecodeAsMemory();
+        ReadOnlyMemory<byte> decoded = crossReferenceStream.Stream.DecodeAsMemory();
         if (decoded.IsEmpty)
         {
             _logger.LogWarning("Cross-reference stream {Reference} decoded to nothing.", crossReferenceStream.Reference);
@@ -330,7 +330,7 @@ internal sealed class PdfXrefLoader
             return null;
         }
 
-        ReadOnlyMemory<byte> decoded = xrefObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> decoded = xrefObject.Stream.DecodeAsMemory();
         if (decoded.IsEmpty)
         {
             _logger.LogWarning("Decoded xref stream empty.");

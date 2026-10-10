@@ -79,7 +79,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
         lock (contentLocker)
         {
-            imageData = Image.GetImageData(observer);
+            imageData = Image.Stream.DecodeAsMemory(observer);
         }
 
         if (imageData.IsEmpty)

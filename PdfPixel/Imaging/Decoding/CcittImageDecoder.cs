@@ -34,7 +34,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
         {
-            encodedData = Image.GetImageData(observer);
+            encodedData = Image.Stream.DecodeAsMemory(observer);
         }
 
         if (encodedData.IsEmpty)

@@ -38,7 +38,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
         {
-            encodedData = Image.GetImageData(observer);
+            encodedData = Image.Stream.DecodeAsMemory(observer);
         }
 
         JpgHeader header = JpgReader.ParseHeader(encodedData.Span);

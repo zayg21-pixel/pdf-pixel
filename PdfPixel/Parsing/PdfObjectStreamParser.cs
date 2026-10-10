@@ -119,7 +119,7 @@ internal class PdfObjectStreamParser
             return null;
         }
 
-        ReadOnlyMemory<byte> decoded = containerObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> decoded = containerObject.Stream.DecodeAsMemory();
         if (decoded.IsEmpty)
         {
             return null;

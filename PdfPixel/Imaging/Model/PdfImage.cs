@@ -107,16 +107,6 @@ public class PdfImage
     public PdfObjectStream Stream { get; }
 
     /// <summary>
-    /// Returns the raw image data decoded from the PDF stream after reversing the /Filter chain.
-    /// </summary>
-    public ReadOnlyMemory<byte> GetImageData(IPdfExecutionObserver? observer) => Stream.DecodeAsMemory(observer);
-
-    /// <summary>
-    /// Retrieves the image data as a stream (for large images).
-    /// </summary>
-    public Stream GetImageDataStream() => Stream.DecodeAsStream();
-
-    /// <summary>
     /// Image width in pixels (/Width).
     /// </summary>
     public int Width { get; }

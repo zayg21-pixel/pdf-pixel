@@ -41,7 +41,7 @@ internal partial class PdfColorSpaceResolver
         PdfObject? lookupObject = colorSpaceArray.GetObject(3);
         if (lookupObject != null)
         {
-            ReadOnlyMemory<byte> lookupData = lookupObject.DecodeAsMemory();
+            ReadOnlyMemory<byte> lookupData = lookupObject.Stream.DecodeAsMemory();
             if (!lookupData.IsEmpty)
             {
                 lookupTableBytes = lookupData.ToArray();
@@ -190,7 +190,7 @@ internal partial class PdfColorSpaceResolver
         byte[]? iccProfileBytes = null;
         if (pdfObject.HasStream)
         {
-            ReadOnlyMemory<byte> iccData = pdfObject.DecodeAsMemory();
+            ReadOnlyMemory<byte> iccData = pdfObject.Stream.DecodeAsMemory();
             iccProfileBytes = iccData.ToArray();
         }
 

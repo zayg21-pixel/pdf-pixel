@@ -202,7 +202,7 @@ public class PdfCompositeFont : PdfFontBase
             return cachedCMap;
         }
 
-        ReadOnlyMemory<byte> data = cmapObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> data = cmapObject.Stream.DecodeAsMemory();
         if (data.IsEmpty)
         {
             return null;

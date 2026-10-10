@@ -338,7 +338,7 @@ public abstract class PdfFontBase
             return cachedCMap;
         }
 
-        ReadOnlyMemory<byte> cmapData = toUnicodeObj.DecodeAsMemory();
+        ReadOnlyMemory<byte> cmapData = toUnicodeObj.Stream.DecodeAsMemory();
 
         PdfCMap parsedCMap = PdfCMapScanner.Scan(cmapData, Document.CMapCache.GetCmap);
 

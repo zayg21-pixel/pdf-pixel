@@ -77,7 +77,7 @@ internal sealed class PdfOutputIntentParser
                 continue; // No stream to parse.
             }
 
-            ReadOnlyMemory<byte> decoded = profileObj.DecodeAsMemory();
+            ReadOnlyMemory<byte> decoded = profileObj.Stream.DecodeAsMemory();
             if (decoded.IsEmpty)
             {
                 continue;

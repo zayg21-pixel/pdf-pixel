@@ -49,7 +49,7 @@ internal class RawImageDecoder : PdfImageDecoder
 
         lock (contentLocker)
         {
-            _dataStream = Image.GetImageDataStream();
+            _dataStream = Image.Stream.DecodeAsStream();
         }
 
         return parameters;

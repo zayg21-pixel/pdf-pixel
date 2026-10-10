@@ -7,60 +7,6 @@ unless noted otherwise.
 
 Single values or small dictionaries, exposed as-is on existing types.
 
-### Document and page information (agreed design)
-
-New types:
-
-| Type | Kind | Members | Spec |
-|---|---|---|---|
-| `PdfVersion` | readonly struct | `Major`, `Minor`; parsed from `%PDF-x.y` and from a `/Version` name such as `/2.0` | 7.5.2, Table 29 |
-| `PdfFileIdentifier` | readonly struct | `Permanent`, `Changing` (`PdfString`) | Tables 15, 43 |
-| `PdfDocumentInformation` | sealed class | `Title`, `Author`, `Subject`, `Keywords`, `Creator`, `Producer` (`PdfString?`); `CreationDate`, `ModificationDate` (`DateTime?`); `IsTrapped` (`bool?`: `/True`, `/False`, null for `/Unknown` or absent); `CustomEntries` (`IReadOnlyDictionary<PdfString, PdfString>`, other keys are text strings per 14.3.3) | Table 349 |
-| `PdfDeveloperExtension` | sealed class | `BaseVersion` (`PdfVersion?`), `ExtensionLevel` (`int?`), `Url` (`PdfString?`), `ExtensionRevision` (`PdfString?`) | Table 49 |
-| `PdfMarkInformation` | sealed class | `Marked`, `UserProperties`, `Suspects` (`bool?`) | Table 353 |
-| `PdfMetadata` | sealed class | `Reference`, `Stream`, `GetData()`; raw XMP, no XML parsing | Table 347 |
-| `PdfPageMode` | `[PdfEnum]` | `UseNone`, `UseOutlines`, `UseThumbs`, `FullScreen`, `UseOC`, `UseAttachments`, `Unknown` | Table 29 |
-| `PdfPageLayout` | `[PdfEnum]` | `SinglePage`, `OneColumn`, `TwoColumnLeft`, `TwoColumnRight`, `TwoPageLeft`, `TwoPageRight`, `Unknown` | Table 29 |
-| `PdfTabOrder` | `[PdfEnum]` | `Row` (R), `Column` (C), `Structure` (S), `AnnotationsArray` (A), `Widget` (W), `Unknown` | Table 31 |
-| `PdfPermissions` | `[Flags]` | `Print` 1<<2, `Modify` 1<<3, `Copy` 1<<4, `Annotate` 1<<5, `FillForms` 1<<8, `Assemble` 1<<10, `HighQualityPrint` 1<<11 (bit 10 ignored per Table 22) | Tables 22, 24 |
-| `PdfSignatureFlags` | `[Flags]` | `None` 0, `SignaturesExist` 1<<0, `AppendOnly` 1<<1 | Table 224 |
-
-`IPdfDocument`:
-
-| Property | Type | Source |
-|---|---|---|
-| `HeaderVersion` | `PdfVersion?` | `%PDF-` header |
-| `Version` | `PdfVersion?` | Effective version: catalog `/Version` when later than the header (7.7.2) |
-| `Extensions` | `IReadOnlyDictionary<PdfString, IReadOnlyList<PdfDeveloperExtension>>` | Catalog; prefix to dictionary or array (2.0) |
-| `Information` | `PdfDocumentInformation?` | Trailer `/Info` |
-| `Id` | `PdfFileIdentifier?` | Trailer `/ID` |
-| `Lang` | `PdfString?` | Catalog |
-| `MarkInformation` | `PdfMarkInformation?` | Catalog `/MarkInfo` |
-| `BaseUri` | `PdfString?` | Catalog `/URI` `Base` (Table 211) |
-| `PageMode`, `PageLayout` | `PdfPageMode?`, `PdfPageLayout?` | Catalog |
-| `NeedsRendering` | `bool?` | Catalog |
-| `AssociatedFiles` | `IReadOnlyList<PdfFileSpecification>?` | Catalog `/AF` |
-| `Metadata` | `PdfMetadata?` | Catalog |
-| `Permissions` | `PdfPermissions?` | Encryption `/P`; null when not encrypted |
-| `SignatureFlags` | `PdfSignatureFlags` | AcroForm `/SigFlags`; default `None` |
-
-`IPdfPage`:
-
-| Property | Type | Source |
-|---|---|---|
-| `BleedBox`, `TrimBox`, `ArtBox` | `PdfRectangle` | Default CropBox, intersected with MediaBox (14.11.2) |
-| `UserUnit` | `float` | Default 1.0 |
-| `StructParents` | `int?` | Read internally today |
-| `LastModified` | `DateTime?` | |
-| `Metadata` | `PdfMetadata?` | |
-| `AssociatedFiles` | `IReadOnlyList<PdfFileSpecification>?` | `/AF` |
-| `Duration` | `float?` | `/Dur`; null means no auto-advance |
-| `Tabs` | `PdfTabOrder?` | |
-| `TemplateInstantiated` | `PdfString?` | |
-| `Id`, `PreferredZoom` | `PdfString?`, `float?` | Web capture `/ID`, `/PZ` |
-
-Migration: `PdfFileSpecification.Id` becomes `PdfFileIdentifier?`.
-
 ### Remaining
 
 | Entry | Location | Spec | Contents |
@@ -138,7 +84,7 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 | Bug | Location | Spec | Wrong output |
 |---|---|---|---|
 | Non-inheritable page attributes inherited | `Models/PdfPageResources.cs` | 7.7.3.4, Table 31 | BleedBox, TrimBox, ArtBox and `/Annots` are taken from `/Pages` nodes; only Resources, MediaBox, CropBox and Rotate are inheritable. Annotations on an intermediate node appear on every page below it |
-| `/UserUnit` ignored | Page | Table 31, 8.3.2.3 | Pages with a user unit other than 1 get the wrong physical size |
+| `/UserUnit` ignored | Page | Table 31, 8.3.2.3 | Pages with a user unit other than 1 get the wrong physical size; the value is exposed as `IPdfPage.UserUnit` but not applied |
 | Page `/OutputIntents` ignored | `Parsing/PdfOutputIntentParser.cs` | 14.11.5 | When output intents are respected, a page-level output intent shall be used for that page; the catalog profile is used instead |
 | Optional content `/Intent` ignored | `Parsing/PdfOptionalContentGroupParser.cs`, `Commands/Context/PdfMarkedContentState.cs` | 8.11.2.3, Table 99 | The default configuration's intent is View. A group whose intents do not include View shall have no effect on visibility; it is hidden today when listed in `/OFF`. Not yet checked against Acrobat |
 | Optional content `/AS` View event ignored | `Parsing/PdfOptionalContentGroupParser.cs` | 8.11.4.4, Tables 100, 101 | Groups managed by a View usage application shall start in their `ViewState`; they keep the `/ON`/`/OFF` state today. Not yet checked against Acrobat |

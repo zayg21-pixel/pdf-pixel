@@ -191,7 +191,7 @@ public class PdfCidFont : PdfFontBase
         if (cidToGidObj != null)
         {
             // Load as stream data
-            ReadOnlyMemory<byte> cidToGidData = cidToGidObj.DecodeAsMemory();
+            ReadOnlyMemory<byte> cidToGidData = cidToGidObj.Stream.DecodeAsMemory();
             return PdfCidToGidMap.FromStreamData(cidToGidData);
         }
 

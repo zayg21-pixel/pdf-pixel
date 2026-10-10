@@ -122,7 +122,7 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        ReadOnlyMemory<byte> streamData = charObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> streamData = charObject.Stream.DecodeAsMemory();
 
         if (streamData.IsEmpty)
         {

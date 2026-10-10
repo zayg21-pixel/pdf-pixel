@@ -3,7 +3,6 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
-using System;
 
 namespace PdfPixel.Forms;
 
@@ -83,11 +82,6 @@ public sealed class PdfForm
         return new PdfContentHost(Host.Document, resources, structParents);
     }
 
-    /// <summary>
-    /// Returns the decoded form stream data as <c>ReadOnlyMemory&lt;byte&gt;</c>.
-    /// </summary>
-    /// <returns>The decoded form stream data.</returns>
-    public ReadOnlyMemory<byte> GetFormData() => XObject.DecodeAsMemory();
 
 
     /// <summary>

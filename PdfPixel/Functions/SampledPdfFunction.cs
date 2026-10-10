@@ -134,7 +134,7 @@ public sealed class SampledPdfFunction : PdfFunction
             totalSamples = (int)nextTotal;
         }
 
-        ReadOnlyMemory<byte> raw = functionObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> raw = functionObject.Stream.DecodeAsMemory();
         if (raw.Length == 0)
         {
             return null;

@@ -64,14 +64,4 @@ public class PdfObject
     /// Gets the self-contained stream source for this object, created lazily on first access.
     /// </summary>
     public PdfObjectStream Stream => _stream ??= PdfObjectStream.FromPdfObject(this);
-
-    /// <summary>
-    /// Decodes the object's stream using the document's stream decoder and returns a readable <see cref="System.IO.Stream"/>.
-    /// </summary>
-    public System.IO.Stream DecodeAsStream() => Stream.DecodeAsStream();
-
-    /// <summary>
-    /// Decodes the object's stream using the document's stream decoder and returns the decoded bytes as memory.
-    /// </summary>
-    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver? observer = default) => Stream.DecodeAsMemory(observer);
 }

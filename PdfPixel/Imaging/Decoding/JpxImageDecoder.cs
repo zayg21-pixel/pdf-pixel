@@ -41,7 +41,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
         {
-            encodedData = Image.GetImageData(observer);
+            encodedData = Image.Stream.DecodeAsMemory(observer);
         }
 
         JpxHeader jpxHeader = JpxReader.ParseHeader(encodedData.Span);

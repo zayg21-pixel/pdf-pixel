@@ -1,6 +1,5 @@
 using PdfPixel.Streams;
 using PdfPixel.Text;
-using System;
 
 namespace PdfPixel.Models;
 
@@ -24,11 +23,6 @@ public sealed class PdfMetadata
     /// Stream holding the XMP packet.
     /// </summary>
     public PdfObjectStream Stream { get; }
-
-    /// <summary>
-    /// Returns the decoded XMP packet bytes.
-    /// </summary>
-    public ReadOnlyMemory<byte> GetData() => Stream.DecodeAsMemory();
 
     /// <summary>
     /// The metadata stream stored under /Metadata in <paramref name="dictionary"/>, or <see langword="null"/>
