@@ -7,6 +7,7 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Tagging.Model;
+using PdfPixel.Text;
 using System;
 using System.IO;
 
@@ -115,6 +116,7 @@ public class PdfDocumentReader
 
             ((PdfDocument)document).StructureTree = PdfStructureTree.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
             ((PdfDocument)document).EmbeddedFiles = PdfFileSpecification.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
+            ReadDocumentEntries((PdfDocument)document, document.RootObject.Dictionary);
 
             IccProfile? outputIntentProfile = outputIntentParser.ParseFirstOutputIntentProfile();
             document.ObjectCache.OutputIntentProfile = outputIntentProfile;
@@ -153,4 +155,79 @@ public class PdfDocumentReader
     [Obsolete("Use Read(Stream, PdfCredentialRequestedCallback?) and supply the password from the callback instead.")]
     public IPdfDocument Read(Stream stream, string? password)
         => Read(stream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
+
+    private static void ReadDocumentEntries(PdfDocument document, PdfDictionary catalog)
+    {
+        IPdfDocumentInternal internalDocument = document;
+        PdfDictionary? trailer = internalDocument.Trailer;
+
+        PdfVersion? headerVersion = ReadHeaderVersion(internalDocument);
+        PdfString? catalogVersionName = catalog.GetName(PdfTokens.CatalogVersionKey);
+        PdfVersion? catalogVersion = (catalogVersionName == null) ? null : PdfVersion.Parse(catalogVersionName.Value.Value.Span);
+
+        document.HeaderVersion = headerVersion;
+        document.Version = headerVersion;
+        if (catalogVersion != null && (headerVersion == null || catalogVersion.Value.IsLaterThan(headerVersion.Value)))
+        {
+            document.Version = catalogVersion;
+        }
+
+        document.Extensions = PdfDeveloperExtension.FromExtensions(catalog.GetDictionary(PdfTokens.ExtensionsKey));
+
+        PdfDictionary? information = trailer?.GetDictionary(PdfTokens.InfoKey);
+        if (information != null)
+        {
+            document.Information = new PdfDocumentInformation(information);
+        }
+
+        document.Id = PdfFileIdentifier.FromArray(trailer?.GetArray(PdfTokens.IdKey));
+        document.Lang = catalog.GetString(PdfTokens.LangKey);
+
+        PdfDictionary? markInformation = catalog.GetDictionary(PdfTokens.MarkInfoKey);
+        if (markInformation != null)
+        {
+            document.MarkInformation = new PdfMarkInformation(markInformation);
+        }
+
+        document.BaseUri = catalog.GetDictionary(PdfTokens.UriDictionaryKey)?.GetString(PdfTokens.BaseKey);
+        document.PageMode = catalog.GetName(PdfTokens.PageModeKey)?.AsEnum<PdfPageMode>();
+        document.PageLayout = catalog.GetName(PdfTokens.PageLayoutKey)?.AsEnum<PdfPageLayout>();
+        document.NeedsRendering = catalog.GetBoolean(PdfTokens.NeedsRenderingKey);
+        document.AssociatedFiles = PdfFileSpecification.FromArray(catalog.GetArray(PdfTokens.AssociatedFilesKey));
+        document.Metadata = PdfMetadata.FromDictionary(catalog);
+
+        int? permissions = internalDocument.Decryptor?.Parameters.Permissions;
+        if (permissions != null)
+        {
+            PdfPermissions definedPermissions = PdfPermissions.Print
+                | PdfPermissions.Modify
+                | PdfPermissions.Copy
+                | PdfPermissions.Annotate
+                | PdfPermissions.FillForms
+                | PdfPermissions.Assemble
+                | PdfPermissions.HighQualityPrint;
+            document.Permissions = (PdfPermissions)permissions.Value & definedPermissions;
+        }
+
+        int signatureFlags = catalog.GetDictionary(PdfTokens.AcroFormKey)?.GetInteger(PdfTokens.SigFlagsKey) ?? 0;
+        document.SignatureFlags = (PdfSignatureFlags)signatureFlags & (PdfSignatureFlags.SignaturesExist | PdfSignatureFlags.AppendOnly);
+    }
+
+    private static PdfVersion? ReadHeaderVersion(IPdfDocumentInternal document)
+    {
+        Stream stream = document.Stream;
+        long versionPosition = document.HeaderOffset + PdfTokens.Header.Length;
+        if (versionPosition >= stream.Length)
+        {
+            return null;
+        }
+
+        var versionBytes = new byte[8];
+        long previousPosition = stream.Position;
+        stream.Position = versionPosition;
+        int bytesRead = stream.Read(versionBytes, 0, versionBytes.Length);
+        stream.Position = previousPosition;
+
+        return PdfVersion.Parse(versionBytes.AsSpan(0, bytesRead));
+    }
 }

@@ -497,4 +497,40 @@ internal static class PdfTokens
     public static readonly PdfString PrefixKey = (PdfString)"P"u8;
     public static readonly PdfString StyleKey = (PdfString)"S"u8;
     public static readonly PdfString StartKey = (PdfString)"St"u8;
+
+    // Document information dictionary keys
+    public static readonly PdfString InformationTitleKey = (PdfString)"Title"u8;
+    public static readonly PdfString AuthorKey = (PdfString)"Author"u8;
+    public static readonly PdfString InformationSubjectKey = (PdfString)"Subject"u8;
+    public static readonly PdfString KeywordsKey = (PdfString)"Keywords"u8;
+    public static readonly PdfString CreatorKey = (PdfString)"Creator"u8;
+    public static readonly PdfString ProducerKey = (PdfString)"Producer"u8;
+    public static readonly PdfString TrappedKey = (PdfString)"Trapped"u8;
+
+    // Catalog keys
+    public static readonly PdfString CatalogVersionKey = (PdfString)"Version"u8;          // Catalog version name
+    public static readonly PdfString ExtensionsKey = (PdfString)"Extensions"u8;
+    public static readonly PdfString BaseVersionKey = (PdfString)"BaseVersion"u8;
+    public static readonly PdfString ExtensionLevelKey = (PdfString)"ExtensionLevel"u8;
+    public static readonly PdfString UrlKey = (PdfString)"URL"u8;
+    public static readonly PdfString ExtensionRevisionKey = (PdfString)"ExtensionRevision"u8;
+    public static readonly PdfString MarkInfoKey = (PdfString)"MarkInfo"u8;
+    public static readonly PdfString MarkedKey = (PdfString)"Marked"u8;
+    public static readonly PdfString MarkInfoUserPropertiesKey = (PdfString)"UserProperties"u8; // Mark information user properties flag
+    public static readonly PdfString SuspectsKey = (PdfString)"Suspects"u8;
+    public static readonly PdfString UriDictionaryKey = (PdfString)"URI"u8;              // Catalog URI dictionary
+    public static readonly PdfString BaseKey = (PdfString)"Base"u8;
+    public static readonly PdfString PageModeKey = (PdfString)"PageMode"u8;
+    public static readonly PdfString PageLayoutKey = (PdfString)"PageLayout"u8;
+    public static readonly PdfString NeedsRenderingKey = (PdfString)"NeedsRendering"u8;
+    public static readonly PdfString SigFlagsKey = (PdfString)"SigFlags"u8;
+
+    // Page object keys
+    public static readonly PdfString LastModifiedKey = (PdfString)"LastModified"u8;
+    public static readonly PdfString DurKey = (PdfString)"Dur"u8;
+    public static readonly PdfString TabsKey = (PdfString)"Tabs"u8;
+    public static readonly PdfString TemplateInstantiatedKey = (PdfString)"TemplateInstantiated"u8;
+    public static readonly PdfString WebCaptureIdKey = (PdfString)"ID"u8;                // Page web capture identifier
+    public static readonly PdfString PZKey = (PdfString)"PZ"u8;
+    public static readonly PdfString UserUnitKey = (PdfString)"UserUnit"u8;
 }

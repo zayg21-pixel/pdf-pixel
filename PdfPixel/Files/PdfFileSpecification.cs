@@ -24,7 +24,7 @@ public sealed class PdfFileSpecification
         Dos = dictionary.GetString(PdfTokens.DosKey);
         Mac = dictionary.GetString(PdfTokens.MacKey);
         Unix = dictionary.GetString(PdfTokens.UnixKey);
-        Id = ReadId(dictionary.GetArray(PdfTokens.IdKey));
+        Id = PdfFileIdentifier.FromArray(dictionary.GetArray(PdfTokens.IdKey));
         Volatile = dictionary.GetBoolean(PdfTokens.VolatileKey);
 
         PdfDictionary? embeddedFiles = dictionary.GetDictionary(PdfTokens.EFKey);
@@ -88,7 +88,7 @@ public sealed class PdfFileSpecification
     /// <summary>
     /// File identifier of the referenced file (ID), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString[]? Id { get; }
+    public PdfFileIdentifier? Id { get; }
 
     /// <summary>
     /// Whether the referenced file changes frequently (V, PDF 1.2), or <see langword="null"/> when absent.
@@ -244,26 +244,6 @@ public sealed class PdfFileSpecification
         }
 
         return new PdfFileSpecification(dictionary, reference);
-    }
-
-    private static PdfString[]? ReadId(PdfArray? identifiers)
-    {
-        if (identifiers == null)
-        {
-            return null;
-        }
-
-        List<PdfString> result = new(identifiers.Count);
-        for (int index = 0; index < identifiers.Count; index++)
-        {
-            PdfString? identifier = identifiers.GetString(index);
-            if (identifier != null)
-            {
-                result.Add(identifier.Value);
-            }
-        }
-
-        return result.ToArray();
     }
 
     private static List<PdfRelatedFile>? ReadRelatedFiles(PdfArray? relatedFiles)

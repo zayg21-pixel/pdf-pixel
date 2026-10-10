@@ -486,6 +486,11 @@ internal sealed class PdfXrefLoader
 
         _trailerParser.TrySetDecryptor(dict);
 
+        if (_document.Trailer == null)
+        {
+            _document.Trailer = dict;
+        }
+
         if (_document.RootObject == null)
         {
             // Resolving /Root may run the recovery scan, which selects its own root.

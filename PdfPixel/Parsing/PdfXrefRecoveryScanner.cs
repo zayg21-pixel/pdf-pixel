@@ -104,6 +104,11 @@ internal sealed class PdfXrefRecoveryScanner
 
         RecoverDecryptor(trailerDictionaries);
         SelectRootObject(trailerDictionaries, catalogReference, referenceWithRoot);
+
+        if (_document.Trailer == null && trailerDictionaries.Count > 0)
+        {
+            _document.Trailer = trailerDictionaries[trailerDictionaries.Count - 1];
+        }
     }
 
     /// <summary>

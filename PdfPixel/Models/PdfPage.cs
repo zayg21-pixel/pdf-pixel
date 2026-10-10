@@ -1,6 +1,8 @@
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Model;
+using PdfPixel.Files;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
@@ -29,7 +31,6 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
-    private readonly int? _structParents;
     private readonly Lazy<PdfImage?> _thumbnail;
 
     /// <summary>
@@ -79,6 +80,9 @@ internal class PdfPage : IPdfPageInternal
 
         MediaBox = media;
         CropBox = crop;
+        BleedBox = ResolveBoundary(pageResources.BleedBoxRect, media, crop);
+        TrimBox = ResolveBoundary(pageResources.TrimBoxRect, media, crop);
+        ArtBox = ResolveBoundary(pageResources.ArtBoxRect, media, crop);
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = resourceDictionary;
         PageLabel = pageLabel;
@@ -87,8 +91,19 @@ internal class PdfPage : IPdfPageInternal
         _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
 
         _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey, this);
-        _structParents = pageObject.Dictionary.GetInteger(PdfTokens.StructParentsKey);
         _thumbnail = new Lazy<PdfImage?>(() => PdfImage.FromDictionaryEntry(pageObject.Dictionary, PdfTokens.ThumbnailKey));
+
+        PdfDictionary pageDictionary = pageObject.Dictionary;
+        UserUnit = pageDictionary.GetFloat(PdfTokens.UserUnitKey) ?? 1f;
+        StructParents = pageDictionary.GetInteger(PdfTokens.StructParentsKey);
+        LastModified = PdfDateParser.ParsePdfDate(pageDictionary.GetString(PdfTokens.LastModifiedKey));
+        Metadata = PdfMetadata.FromDictionary(pageDictionary);
+        AssociatedFiles = PdfFileSpecification.FromArray(pageDictionary.GetArray(PdfTokens.AssociatedFilesKey));
+        Duration = pageDictionary.GetFloat(PdfTokens.DurKey);
+        Tabs = pageDictionary.GetName(PdfTokens.TabsKey)?.AsEnum<PdfTabOrder>();
+        TemplateInstantiated = pageDictionary.GetName(PdfTokens.TemplateInstantiatedKey);
+        Id = pageDictionary.GetString(PdfTokens.WebCaptureIdKey);
+        PreferredZoom = pageDictionary.GetFloat(PdfTokens.PZKey);
     }
 
     /// <inheritdoc/>
@@ -112,13 +127,52 @@ internal class PdfPage : IPdfPageInternal
     /// <inheritdoc/>
     public PdfImage? Thumbnail => _thumbnail.Value;
 
+    /// <inheritdoc/>
+    public PdfRectangle BleedBox { get; }
+
+    /// <inheritdoc/>
+    public PdfRectangle TrimBox { get; }
+
+    /// <inheritdoc/>
+    public PdfRectangle ArtBox { get; }
+
+    /// <inheritdoc/>
+    public float UserUnit { get; }
+
+    /// <inheritdoc/>
+    public int? StructParents { get; }
+
+    /// <inheritdoc/>
+    public DateTime? LastModified { get; }
+
+    /// <inheritdoc/>
+    public PdfMetadata? Metadata { get; }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
+
+    /// <inheritdoc/>
+    public float? Duration { get; }
+
+    /// <inheritdoc/>
+    public PdfTabOrder? Tabs { get; }
+
+    /// <inheritdoc/>
+    public PdfString? TemplateInstantiated { get; }
+
+    /// <inheritdoc/>
+    public PdfString? Id { get; }
+
+    /// <inheritdoc/>
+    public float? PreferredZoom { get; }
+
     PdfContentHostCache IPdfContentHost.Cache => _pageCache.Value;
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
     PdfReference IPdfPageInternal.PageReference => _pageReference;
 
-    int? IPdfContentHost.StructParents => _structParents;
+    int? IPdfContentHost.StructParents => StructParents;
 
     IReadOnlyList<PdfObjectStream> IPdfPageInternal.ContentStreams => _contentStreams;
 
@@ -178,6 +232,26 @@ internal class PdfPage : IPdfPageInternal
         }
 
         return annotations;
+    }
+
+    /// <summary>
+    /// Resolves a page boundary to its intersection with the MediaBox, falling back to the CropBox
+    /// when undeclared or when the intersection is empty (ISO 32000-2, 14.11.2).
+    /// </summary>
+    private static PdfRectangle ResolveBoundary(PdfRectangle? declared, in PdfRectangle media, in PdfRectangle crop)
+    {
+        if (declared == null)
+        {
+            return crop;
+        }
+
+        PdfRectangle visible = PdfRectangle.Intersect(declared.Value, media);
+        if (visible.Width > 0 && visible.Height > 0)
+        {
+            return visible;
+        }
+
+        return crop;
     }
 
     /// <summary>

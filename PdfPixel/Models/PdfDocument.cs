@@ -68,6 +68,51 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <inheritdoc />
     public IReadOnlyDictionary<PdfString, PdfFileSpecification> EmbeddedFiles { get; internal set; } = new Dictionary<PdfString, PdfFileSpecification>();
 
+    /// <inheritdoc />
+    public PdfVersion? HeaderVersion { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfVersion? Version { get; internal set; }
+
+    /// <inheritdoc />
+    public IReadOnlyDictionary<PdfString, IReadOnlyList<PdfDeveloperExtension>> Extensions { get; internal set; } = new Dictionary<PdfString, IReadOnlyList<PdfDeveloperExtension>>();
+
+    /// <inheritdoc />
+    public PdfDocumentInformation? Information { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfFileIdentifier? Id { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfString? Lang { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfMarkInformation? MarkInformation { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfString? BaseUri { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfPageMode? PageMode { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfPageLayout? PageLayout { get; internal set; }
+
+    /// <inheritdoc />
+    public bool? NeedsRendering { get; internal set; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfMetadata? Metadata { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfPermissions? Permissions { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfSignatureFlags SignatureFlags { get; internal set; }
+
     List<IPdfPageInternal> IPdfDocumentInternal.Pages => _pages;
 
     PdfDestinationResolver IPdfDocumentInternal.Destinations => _destinationResolver;
@@ -75,6 +120,8 @@ internal class PdfDocument : IPdfDocumentInternal
     PdfTreeReader IPdfDocumentInternal.TreeReader => _treeReader;
 
     PdfObject? IPdfDocumentInternal.RootObject { get; set; }
+
+    PdfDictionary? IPdfDocumentInternal.Trailer { get; set; }
 
     int IPdfDocumentInternal.HeaderOffset { get; set; }
 
