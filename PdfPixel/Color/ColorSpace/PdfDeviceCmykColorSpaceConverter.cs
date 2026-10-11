@@ -31,6 +31,6 @@ public sealed class PdfDeviceCmykColorSpaceConverter : PdfColorSpaceConverter
     public override bool IsDevice => true;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
-        => new(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent.ToIccRenderingIntent()), postTransform));
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
+        => new(new ChainedColorTransform(_iccTransform.GetIntentTransform(parameters.RenderingIntent.ToIccRenderingIntent(), parameters.UseBlackPointCompensation), parameters.TransferFunction));
 }

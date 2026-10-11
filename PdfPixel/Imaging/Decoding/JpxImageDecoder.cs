@@ -68,13 +68,14 @@ internal class JpxImageDecoder : PdfImageDecoder
             : ResolveSoftMaskAlphaType(matte);
 
         PdfIntegerSize decodedSize = new(_rowConverter.Width, _rowConverter.Height);
+        PdfColorConversionParameters colorConversionParameters = new(Image.RenderingIntent, Context.TransferFunction, Context.UseBlackPointCompensation);
 
         PdfImageRowDecodingParameters parameters = new(
             Context,
             decodedSize.Width,
             decodedSize.Height,
             _rowConverter.BitsPerComponent,
-            Image.RenderingIntent,
+            colorConversionParameters,
             _resolvedConverter,
             Image.HasImageMask,
             Image.MaskArray,

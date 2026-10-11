@@ -72,6 +72,6 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
     protected ChainedColorTransform ToSrgbTransform { get; }
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
-        => new(new ChainedColorTransform(ToSrgbTransform, postTransform));
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
+        => new(new ChainedColorTransform(ToSrgbTransform, parameters.TransferFunction));
 }

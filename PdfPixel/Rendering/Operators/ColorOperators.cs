@@ -142,7 +142,7 @@ internal class ColorOperators : IOperatorProcessor
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        PdfColor color = converter.ToSrgb(components, state.RenderingIntent, state.TransferFunction);
+        PdfColor color = converter.ToSrgb(components, new PdfColorConversionParameters(state));
         state.FillPaint = state.FillPaint.WithSolidColor(color);
     }
 
@@ -191,7 +191,7 @@ internal class ColorOperators : IOperatorProcessor
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        PdfColor color = converter.ToSrgb(components, state.RenderingIntent, state.TransferFunction);
+        PdfColor color = converter.ToSrgb(components, new PdfColorConversionParameters(state));
         state.StrokePaint = state.StrokePaint.WithSolidColor(color);
     }
 
@@ -273,7 +273,7 @@ internal class ColorOperators : IOperatorProcessor
             numericComponents[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        state.FillPaint = state.FillPaint.WithSolidColor(converter.ToSrgb(numericComponents, state.RenderingIntent, state.TransferFunction));
+        state.FillPaint = state.FillPaint.WithSolidColor(converter.ToSrgb(numericComponents, new PdfColorConversionParameters(state)));
     }
 
     private void ProcessSetStrokeColorN(PdfGraphicsState state)
@@ -318,7 +318,7 @@ internal class ColorOperators : IOperatorProcessor
             numericComponents[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        state.StrokePaint = state.StrokePaint.WithSolidColor(converter.ToSrgb(numericComponents, state.RenderingIntent, state.TransferFunction));
+        state.StrokePaint = state.StrokePaint.WithSolidColor(converter.ToSrgb(numericComponents, new PdfColorConversionParameters(state)));
     }
 
     private void ProcessSetFillColorSpace(PdfGraphicsState state)

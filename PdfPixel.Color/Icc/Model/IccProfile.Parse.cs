@@ -166,6 +166,11 @@ public sealed partial class IccProfile
                         profile.A2BLut2 = ParseA2BLut(reader, tag);
                         break;
                     }
+                case IccConstants.TagB2A0:
+                    {
+                        profile.B2ALut0 = ParseB2ALut(reader, tag);
+                        break;
+                    }
             }
         }
     }

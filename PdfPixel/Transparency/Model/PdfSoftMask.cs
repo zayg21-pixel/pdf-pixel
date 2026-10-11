@@ -87,6 +87,6 @@ public class PdfSoftMask
 
         PdfColorSpaceConverter? converter = state.Host.Cache.ColorSpace.Resolve(MaskForm.TransparencyGroup.ColorSpaceReference);
 
-        return converter?.ToSrgb(BackgroundColorComponents, state.RenderingIntent, state.TransferFunction) ?? PdfColors.Black;
+        return converter?.ToSrgb(BackgroundColorComponents, new PdfColorConversionParameters(state)) ?? PdfColors.Black;
     }
 }

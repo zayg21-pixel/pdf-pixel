@@ -139,13 +139,14 @@ public abstract class PdfImageDecoder
     {
         PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize);
         float[]? matte = ResolveSoftMaskMatte(colorSpaceConverter);
+        PdfColorConversionParameters colorConversionParameters = new(Image.RenderingIntent, Context.TransferFunction, Context.UseBlackPointCompensation);
 
         return new PdfImageRowDecodingParameters(
             Context,
             decodedSize.Width,
             decodedSize.Height,
             bitsPerComponent,
-            Image.RenderingIntent,
+            colorConversionParameters,
             colorSpaceConverter,
             Image.HasImageMask,
             Image.MaskArray,

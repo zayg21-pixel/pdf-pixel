@@ -183,6 +183,12 @@ namespace PdfPixel.Rendering.State
                 parameters.PdfRenderingIntent = gsDict.GetNameOrDefault(PdfTokens.StateIntentKey).AsEnum<PdfRenderingIntent>();
             }
 
+            // Black point compensation (/UseBlackPtComp)
+            if (gsDict.HasKey(PdfTokens.UseBlackPtCompKey))
+            {
+                parameters.UseBlackPtComp = gsDict.GetNameOrDefault(PdfTokens.UseBlackPtCompKey).AsEnum<PdfBlackPointCompensation>();
+            }
+
             return parameters;
         }
 

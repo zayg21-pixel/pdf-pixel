@@ -29,6 +29,8 @@ public class PdfGraphicsState
 
     private TransferFunctionTransform? _transferFunction;
 
+    private bool _useBlackPointCompensation = true;
+
     /// <summary>
     /// Initializes a new graphics state for the given content host.
     /// </summary>
@@ -90,7 +92,7 @@ public class PdfGraphicsState
     {
         get
         {
-            _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(RenderingIntent, TransferFunction);
+            _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this));
 
             return _fillRgbaSampler;
         }
@@ -103,7 +105,7 @@ public class PdfGraphicsState
     {
         get
         {
-            _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(RenderingIntent, TransferFunction);
+            _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this));
             return _strokeRgbaSampler;
         }
     }
@@ -171,6 +173,23 @@ public class PdfGraphicsState
             if (_transferFunction != value)
             {
                 _transferFunction = value;
+                InvalidateRgbaSamplers();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether black point compensation is applied in color conversions. Defaults to true.
+    /// </summary>
+    public bool UseBlackPointCompensation
+    {
+        get => _useBlackPointCompensation;
+
+        set
+        {
+            if (_useBlackPointCompensation != value)
+            {
+                _useBlackPointCompensation = value;
                 InvalidateRgbaSamplers();
             }
         }
@@ -334,6 +353,7 @@ public class PdfGraphicsState
             SoftMask = SoftMask,
             SoftMaskCTM = SoftMaskCTM,
             TransferFunction = TransferFunction,
+            UseBlackPointCompensation = UseBlackPointCompensation,
             AlphaIsShape = AlphaIsShape,
             OverprintMode = OverprintMode,
             CurrentFont = CurrentFont,

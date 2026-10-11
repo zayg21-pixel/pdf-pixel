@@ -69,17 +69,17 @@ public sealed partial class IccProfile
     public IccXyz? BlueMatrix { get; private set; }
 
     /// <summary>
-    /// Red channel tone reproduction curve (rTRC) – may be gamma, sampled or parametric.
+    /// Red channel tone reproduction curve (rTRC) â€“ may be gamma, sampled or parametric.
     /// </summary>
     public IccTrc? RedTrc { get; private set; }
 
     /// <summary>
-    /// Green channel tone reproduction curve (gTRC) – may be gamma, sampled or parametric.
+    /// Green channel tone reproduction curve (gTRC) â€“ may be gamma, sampled or parametric.
     /// </summary>
     public IccTrc? GreenTrc { get; private set; }
 
     /// <summary>
-    /// Blue channel tone reproduction curve (bTRC) – may be gamma, sampled or parametric.
+    /// Blue channel tone reproduction curve (bTRC) â€“ may be gamma, sampled or parametric.
     /// </summary>
     public IccTrc? BlueTrc { get; private set; }
 
@@ -99,7 +99,7 @@ public sealed partial class IccProfile
     public string? Description { get; private set; }
 
     /// <summary>
-    /// Parsed A2B LUT pipeline (Perceptual intent) if available – contains raw tables and CLUT.
+    /// Parsed A2B LUT pipeline (Perceptual intent) if available â€“ contains raw tables and CLUT.
     /// </summary>
     public IccLutPipeline? A2BLut0 { get; set; }
 
@@ -112,4 +112,9 @@ public sealed partial class IccProfile
     /// Parsed A2B LUT pipeline (Saturation intent) if available.
     /// </summary>
     public IccLutPipeline? A2BLut2 { get; set; }
+
+    /// <summary>
+    /// Parsed B2A LUT pipeline (Perceptual intent) if available.
+    /// </summary>
+    public IccLutPipeline? B2ALut0 { get; set; }
 }

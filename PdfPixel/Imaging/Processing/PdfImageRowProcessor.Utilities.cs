@@ -13,7 +13,7 @@ internal sealed partial class PdfImageRowProcessor
 {
     private static RgbaPacked[] BuildPackedPalette(PdfImageRowDecodingParameters parameters, int bitsPerComponent)
     {
-        ColorTransformSampler sampler = parameters.ColorSpaceConverter.GetRgbaSampler(parameters.RenderingIntent, parameters.Context.TransferFunction);
+        ColorTransformSampler sampler = parameters.ColorSpaceConverter.GetRgbaSampler(parameters.ColorConversionParameters);
         int paletteSize = 1 << bitsPerComponent;
         var palette = new RgbaPacked[paletteSize];
         Span<float> comps = stackalloc float[1];

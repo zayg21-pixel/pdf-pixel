@@ -18,7 +18,7 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
     private readonly int _hiVal;
     private readonly byte[] _lookup;
 
-    private readonly Dictionary<PaletteCacheKey, Vector4[]> _paletteCache = [];
+    private readonly Dictionary<PdfColorConversionParameters, Vector4[]> _paletteCache = [];
 
     /// <summary>
     /// Initializes the space from its base color space, its highest valid index, and the bytes of
@@ -38,17 +38,16 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
     public override bool IsDevice => false;
 
     /// <summary>
-    /// Build (or retrieve cached) palette for this Indexed color space under the specified rendering intent.
+    /// Build (or retrieve cached) palette for this Indexed color space under the specified color conversion parameters.
     /// </summary>
-    public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, TransferFunctionTransform? postTransform)
+    public Vector4[] BuildPalette(in PdfColorConversionParameters parameters)
     {
-        PaletteCacheKey key = new(renderingIntent, postTransform);
-        if (_paletteCache.TryGetValue(key, out Vector4[]? existing))
+        if (_paletteCache.TryGetValue(parameters, out Vector4[]? existing))
         {
             return existing;
         }
 
-        ColorTransformSampler sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform, normalize: false);
+        ColorTransformSampler sampler = _baseConv.GetRgbaSampler(parameters, normalize: false);
 
         int baseComps = _baseConv.Components;
         int paletteSize = _hiVal + 1;
@@ -69,17 +68,17 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
             palette[index] = sampler.Sample(comps);
         }
 
-        _paletteCache[key] = palette;
+        _paletteCache[parameters] = palette;
         return palette;
     }
 
     /// <summary>
-    /// Build (or retrieve cached) palette for this Indexed color space under the specified rendering
-    /// intent, packed as RGBA bytes.
+    /// Build (or retrieve cached) palette for this Indexed color space under the specified color
+    /// conversion parameters, packed as RGBA bytes.
     /// </summary>
-    public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, TransferFunctionTransform? postTransform)
+    public RgbaPacked[] BuildPackedPalette(in PdfColorConversionParameters parameters)
     {
-        Vector4[] palette = BuildPalette(renderingIntent, postTransform);
+        Vector4[] palette = BuildPalette(parameters);
         int paletteSize = palette.Length;
         var packedPalette = new RgbaPacked[paletteSize];
         for (int i = 0; i < paletteSize; i++)
@@ -91,25 +90,6 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
     }
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
-        => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
-
-    private readonly struct PaletteCacheKey : IEquatable<PaletteCacheKey>
-    {
-        private readonly PdfRenderingIntent _intent;
-        private readonly TransferFunctionTransform? _postTransform;
-
-        public PaletteCacheKey(PdfRenderingIntent intent, TransferFunctionTransform? postTransform)
-        {
-            _intent = intent;
-            _postTransform = postTransform;
-        }
-
-        public bool Equals(PaletteCacheKey other)
-            => _intent == other._intent && ReferenceEquals(_postTransform, other._postTransform);
-
-        public override bool Equals(object? obj) => obj is PaletteCacheKey k && Equals(k);
-
-        public override int GetHashCode() => HashCode.Combine(_intent, RuntimeHelpers.GetHashCode(_postTransform));
-    }
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
+        => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(parameters), _hiVal)));
 }

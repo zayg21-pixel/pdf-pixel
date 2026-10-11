@@ -21,9 +21,9 @@ public sealed class PdfDeviceRgbColorSpaceConverter : PdfColorSpaceConverter
     public override bool IsDevice => true;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
     {
-        ChainedColorTransform chained = new(postTransform);
+        ChainedColorTransform chained = new(parameters.TransferFunction);
         return new ColorTransformSampler(chained);
     }
 }

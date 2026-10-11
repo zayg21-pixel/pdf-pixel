@@ -96,16 +96,16 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
     }
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
     {
         if (_useDefault || _iccTransform == null)
         {
-            return _default.GetRgbaSampler(intent, postTransform, normalize);
+            return _default.GetRgbaSampler(parameters, normalize);
         }
 
-        IColorTransform iccPipeline = _iccTransform.GetIntentTransform(intent.ToIccRenderingIntent());
+        IColorTransform iccPipeline = _iccTransform.GetIntentTransform(parameters.RenderingIntent.ToIccRenderingIntent(), parameters.UseBlackPointCompensation);
         IColorTransform? normalizeTransform = normalize ? _default.NormalizeTransform : null;
-        ChainedColorTransform chained = new(normalizeTransform, iccPipeline, postTransform);
+        ChainedColorTransform chained = new(normalizeTransform, iccPipeline, parameters.TransferFunction);
         return new ColorTransformSampler(chained);
     }
 }

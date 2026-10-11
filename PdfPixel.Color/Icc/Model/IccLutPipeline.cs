@@ -29,7 +29,7 @@ public sealed class IccLutPipeline
         Clut = clut;
         OutputTables = outTables;
         Matrix3x3 = matrix3x3;
-        IsMab = false;
+        Type = IccLutPipelineType.Lut;
         _lazyTransform = new Lazy<IColorTransform>(CreateTransform);
     }
 
@@ -66,9 +66,9 @@ public sealed class IccLutPipeline
     public IccTrc[]? OutputTables { get; }
 
     /// <summary>
-    /// True when this pipeline represents a multi-process element (mAB) sequence.
+    /// ICC tag type this pipeline was parsed from.
     /// </summary>
-    public bool IsMab { get; private set; }
+    public IccLutPipelineType Type { get; private set; }
 
     /// <summary>
     /// A curves (one per input channel) for mAB pipelines. Null for legacy pipelines.
@@ -112,7 +112,24 @@ public sealed class IccLutPipeline
             CurvesB = b,
             Matrix3x3 = matrix,
             MatrixOffset = offset,
-            IsMab = true
+            Type = IccLutPipelineType.Mab
+        };
+        return pipeline;
+    }
+
+    /// <summary>
+    /// Factory for a multi-process element (mBA) pipeline.
+    /// </summary>
+    public static IccLutPipeline CreateMba(int inCh, int outCh, int[] gridPerDim, IccTrc[]? a, IccTrc[]? m, IccTrc[]? b, float[]? clut, float[,]? matrix, float[]? offset)
+    {
+        IccLutPipeline pipeline = new(inCh, outCh, gridPerDim, null, clut, null, matrix)
+        {
+            CurvesA = a,
+            CurvesM = m,
+            CurvesB = b,
+            Matrix3x3 = matrix,
+            MatrixOffset = offset,
+            Type = IccLutPipelineType.Mba
         };
         return pipeline;
     }
@@ -121,7 +138,7 @@ public sealed class IccLutPipeline
     {
         List<IColorTransform> transforms = [];
 
-        if (IsMab)
+        if (Type == IccLutPipelineType.Mab)
         {
             if (CurvesA != null)
             {
@@ -146,6 +163,33 @@ public sealed class IccLutPipeline
             if (CurvesB != null)
             {
                 transforms.Add(new PerChannelTrcTransform(CurvesB));
+            }
+        }
+        else if (Type == IccLutPipelineType.Mba)
+        {
+            if (CurvesB != null)
+            {
+                transforms.Add(new PerChannelTrcTransform(CurvesB));
+            }
+
+            if (Matrix3x3 != null)
+            {
+                transforms.Add(new MatrixColorTransform(Matrix3x3, MatrixOffset));
+            }
+
+            if (CurvesM != null)
+            {
+                transforms.Add(new PerChannelTrcTransform(CurvesM));
+            }
+
+            if (Clut != null)
+            {
+                transforms.Add(new ClutTransform(Clut, OutChannels, GridPointsPerDim));
+            }
+
+            if (CurvesA != null)
+            {
+                transforms.Add(new PerChannelTrcTransform(CurvesA));
             }
         }
         else

@@ -221,6 +221,7 @@ internal static class PdfTokens
     public static readonly PdfString OverprintStrokeKey = (PdfString)"OP"u8;
     public static readonly PdfString OverprintFillKey = (PdfString)"op"u8;
     public static readonly PdfString StateIntentKey = (PdfString)"RI"u8;
+    public static readonly PdfString UseBlackPtCompKey = (PdfString)"UseBlackPtComp"u8;
     public static readonly PdfString AlphaConstantKey = (PdfString)"AIS"u8;
     public static readonly PdfString GroupSubtypeKey = (PdfString)"S"u8;
     public static readonly PdfString GroupColorSpaceKey = (PdfString)"CS"u8;

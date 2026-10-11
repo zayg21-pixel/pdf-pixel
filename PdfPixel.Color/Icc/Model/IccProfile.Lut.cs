@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Color.Icc.Model;
 
 /// <summary>
-/// Partial ICC profile implementation: parsing of LUT-based A2B pipelines (lut8 / lut16, mAB).
+/// Partial ICC profile implementation: parsing of LUT-based A2B and B2A pipelines (lut8 / lut16, mAB, mBA).
 /// Keeps raw LUT data for evaluation; evaluation logic is handled elsewhere.
 /// </summary>
 public sealed partial class IccProfile
@@ -40,7 +40,34 @@ public sealed partial class IccProfile
 
         if (typeSignature == BigEndianReader.FourCC(IccConstants.TypeMAB))
         {
-            return ParseMab(reader, tag.Offset, tag.Size);
+            return ParseMab(reader, tag.Offset, tag.Size, false);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parse a LUT-based B2A tag entry (supports legacy lut8 / lut16 and mBA multi-process elements).
+    /// </summary>
+    /// <param name="reader">Big endian reader.</param>
+    /// <param name="tag">Tag entry.</param>
+    internal static IccLutPipeline? ParseB2ALut(BigEndianReader reader, IccTagEntry tag)
+    {
+        uint typeSignature = reader.ReadUInt32(tag.Offset);
+
+        if (typeSignature == BigEndianReader.FourCC(IccConstants.TypeLut8))
+        {
+            return ParseLut8(reader, tag.Offset, tag.Size);
+        }
+
+        if (typeSignature == BigEndianReader.FourCC(IccConstants.TypeLut16))
+        {
+            return ParseLut16(reader, tag.Offset, tag.Size);
+        }
+
+        if (typeSignature == BigEndianReader.FourCC(IccConstants.TypeMBA))
+        {
+            return ParseMab(reader, tag.Offset, tag.Size, true);
         }
 
         return null;
@@ -204,12 +231,12 @@ public sealed partial class IccProfile
     }
 
     /// <summary>
-    /// Parse mAB (multi-process elements) A2B structure.
+    /// Parse mAB (multi-process elements) A2B structure, or mBA B2A structure when <paramref name="isBToA"/> is set.
     /// </summary>
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    private static IccLutPipeline? ParseMab(BigEndianReader reader, int tagStart, int tagSize)
+    private static IccLutPipeline? ParseMab(BigEndianReader reader, int tagStart, int tagSize, bool isBToA)
     {
         if (reader == null)
         {
@@ -235,6 +262,9 @@ public sealed partial class IccProfile
         uint offsetClut = reader.ReadUInt32(tagStart + 24);
         uint offsetA = reader.ReadUInt32(tagStart + 28);
 
+        int curvesACount = isBToA ? outputChannels : inputChannels;
+        int curvesBCount = isBToA ? inputChannels : outputChannels;
+
         IccTrc[]? curvesA = null;
         IccTrc[]? curvesB = null;
         IccTrc[]? curvesM = null;
@@ -247,7 +277,7 @@ public sealed partial class IccProfile
                 return null;
             }
 
-            curvesA = ParseCurveSequence(reader, posA, inputChannels);
+            curvesA = ParseCurveSequence(reader, posA, curvesACount);
         }
 
         if (offsetB != 0)
@@ -258,7 +288,7 @@ public sealed partial class IccProfile
                 return null;
             }
 
-            curvesB = ParseCurveSequence(reader, posB, outputChannels);
+            curvesB = ParseCurveSequence(reader, posB, curvesBCount);
         }
 
         if (offsetM != 0)
@@ -269,12 +299,12 @@ public sealed partial class IccProfile
                 return null;
             }
 
-            curvesM = ParseCurveSequence(reader, posM, outputChannels);
+            curvesM = ParseCurveSequence(reader, posM, curvesBCount);
         }
 
         float[,]? matrix3x3 = null;
         float[]? matrixOffset = null;
-        if (offsetMatrix != 0 && inputChannels == 3)
+        if (offsetMatrix != 0 && curvesBCount == 3)
         {
             int posMatrix = tagStart + (int)offsetMatrix;
             const int matrixBlockSize = 48; // 9 + 3 s15Fixed16 values
@@ -365,6 +395,11 @@ public sealed partial class IccProfile
                     clut[i] = reader.ReadUInt16(dataStart + (i * 2)) / 65535f;
                 }
             }
+        }
+
+        if (isBToA)
+        {
+            return IccLutPipeline.CreateMba(inputChannels, outputChannels, gridPerDim, curvesA, curvesM, curvesB, clut, matrix3x3, matrixOffset);
         }
 
         IccLutPipeline pipeline = IccLutPipeline.CreateMab(inputChannels, outputChannels, gridPerDim, curvesA, curvesM, curvesB, clut, matrix3x3, matrixOffset);

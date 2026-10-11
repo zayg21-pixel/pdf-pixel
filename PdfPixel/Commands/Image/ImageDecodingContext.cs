@@ -36,6 +36,7 @@ public sealed class ImageDecodingContext
         DefaultTileSize = state.RenderingParameters.ImageTileSize;
         CacheDecodedTiles = state.RenderingParameters.CacheDecodedTiles;
         TransferFunction = state.TransferFunction;
+        UseBlackPointCompensation = state.UseBlackPointCompensation;
         FillPaint = state.FillPaint;
     }
 
@@ -68,6 +69,7 @@ public sealed class ImageDecodingContext
         DefaultTileSize = source.DefaultTileSize;
         CacheDecodedTiles = source.CacheDecodedTiles;
         TransferFunction = source.TransferFunction;
+        UseBlackPointCompensation = source.UseBlackPointCompensation;
         FillPaint = fillPaint ?? throw new ArgumentNullException(nameof(fillPaint));
         IsStencilMaskComposite = isStencilMaskComposite;
     }
@@ -98,6 +100,11 @@ public sealed class ImageDecodingContext
     /// Transfer function (TR) from the graphics state, applied during color conversion.
     /// </summary>
     public TransferFunctionTransform? TransferFunction { get; }
+
+    /// <summary>
+    /// Whether black point compensation from the graphics state is applied during color conversion.
+    /// </summary>
+    public bool UseBlackPointCompensation { get; }
 
     /// <summary>
     /// Fill paint from the graphics state. Its color is used for stencil mask rendering, and its blend

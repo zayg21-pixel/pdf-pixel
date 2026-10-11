@@ -109,6 +109,11 @@ namespace PdfPixel.Rendering.State
         public PdfRenderingIntent? PdfRenderingIntent { get; set; }
 
         /// <summary>
+        /// Parsed black point compensation setting (/UseBlackPtComp). Null when absent.
+        /// </summary>
+        public PdfBlackPointCompensation? UseBlackPtComp { get; set; }
+
+        /// <summary>
         /// Parsed alpha-is-shape flag (/AIS). Null when absent.
         /// </summary>
         public bool? AlphaIsShape { get; set; }
@@ -185,6 +190,11 @@ namespace PdfPixel.Rendering.State
             if (PdfRenderingIntent.HasValue)
             {
                 graphicsState.RenderingIntent = PdfRenderingIntent.Value;
+            }
+
+            if (UseBlackPtComp.HasValue)
+            {
+                graphicsState.UseBlackPointCompensation = UseBlackPtComp.Value != PdfBlackPointCompensation.Off;
             }
 
             if (AlphaIsShape.HasValue)

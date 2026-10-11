@@ -22,6 +22,6 @@ public sealed class PdfPatternColorSpaceConverter : PdfColorSpaceConverter
     public override int Components => _baseColorSpace?.Components ?? 0;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
-        => _baseColorSpace?.GetRgbaSampler(intent, postTransform, normalize) ?? new ColorTransformSampler(new ChainedColorTransform(postTransform));
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
+        => _baseColorSpace?.GetRgbaSampler(parameters, normalize) ?? new ColorTransformSampler(new ChainedColorTransform(parameters.TransferFunction));
 }

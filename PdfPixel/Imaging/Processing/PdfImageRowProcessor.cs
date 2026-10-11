@@ -135,7 +135,7 @@ internal sealed partial class PdfImageRowProcessor
             if (parameters.ColorSpaceConverter is PdfIndexedColorSpaceConverter indexedConverter)
             {
                 _pipeline = RowPipeline.Palette;
-                _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.TransferFunction);
+                _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.ColorConversionParameters);
             }
             else if (_components == 1 && bitsPerComponent <= 8 && (_stages & RowStages.AlphaInterleaved) == 0)
             {
@@ -153,7 +153,7 @@ internal sealed partial class PdfImageRowProcessor
                 // Normalize only when Decode denormalizes samples to real component values below.
                 bool applyDecode = (_stages & RowStages.Decode) != 0;
                 _pipeline = RowPipeline.Transformed;
-                _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.TransferFunction, normalize: applyDecode);
+                _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.ColorConversionParameters, normalize: applyDecode);
             }
         }
         else
@@ -196,7 +196,7 @@ internal sealed partial class PdfImageRowProcessor
 
             if (matte != null)
             {
-                PdfColor backdropColor = _converter.ToSrgb(matte, parameters.RenderingIntent, parameters.Context.TransferFunction);
+                PdfColor backdropColor = _converter.ToSrgb(matte, parameters.ColorConversionParameters);
                 _backdrop = new Vector4(backdropColor.Red, backdropColor.Green, backdropColor.Blue, 1f);
                 _stages |= RowStages.Matte;
             }

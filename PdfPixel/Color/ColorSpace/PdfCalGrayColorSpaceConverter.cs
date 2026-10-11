@@ -25,12 +25,12 @@ public sealed class PdfCalGrayColorSpaceConverter : PdfCalRgbColorSpaceConverter
     public override bool IsDevice => false;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
     {
         ChainedColorTransform toGrayChain = new(
             new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)),
             ToSrgbTransform,
-            postTransform,
+            parameters.TransferFunction,
             new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)));
         return new ColorTransformSampler(toGrayChain);
     }

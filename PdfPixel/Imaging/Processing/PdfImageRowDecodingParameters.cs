@@ -23,7 +23,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="width">Width of the source image in samples.</param>
     /// <param name="height">Height of the source image in samples.</param>
     /// <param name="bitsPerComponent">Bit depth of each color component in the source stream.</param>
-    /// <param name="renderingIntent">PDF rendering intent applied during color conversion.</param>
+    /// <param name="colorConversionParameters">Parameters applied during color conversion.</param>
     /// <param name="colorSpaceConverter">Converter that maps raw sample values to output colors.</param>
     /// <param name="hasImageMask">True when the image is a stencil mask (PDF /ImageMask).</param>
     /// <param name="maskArray">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
@@ -37,7 +37,7 @@ public sealed class PdfImageRowDecodingParameters
         int width,
         int height,
         int bitsPerComponent,
-        PdfRenderingIntent renderingIntent,
+        in PdfColorConversionParameters colorConversionParameters,
         PdfColorSpaceConverter colorSpaceConverter,
         bool hasImageMask,
         int[]? maskArray,
@@ -80,7 +80,7 @@ public sealed class PdfImageRowDecodingParameters
         Width = width;
         Height = height;
         BitsPerComponent = bitsPerComponent;
-        RenderingIntent = renderingIntent;
+        ColorConversionParameters = colorConversionParameters;
         ColorSpaceConverter = colorSpaceConverter;
         Context = context;
         HasImageMask = hasImageMask;
@@ -108,9 +108,9 @@ public sealed class PdfImageRowDecodingParameters
     public int BitsPerComponent { get; }
 
     /// <summary>
-    /// PDF rendering intent applied during color conversion.
+    /// Parameters applied during color conversion.
     /// </summary>
-    public PdfRenderingIntent RenderingIntent { get; }
+    public PdfColorConversionParameters ColorConversionParameters { get; }
 
     /// <summary>
     /// Converter that maps raw sample values to output colors.

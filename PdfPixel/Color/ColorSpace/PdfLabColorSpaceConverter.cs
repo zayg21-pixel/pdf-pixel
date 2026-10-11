@@ -66,10 +66,10 @@ public sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
     public override IColorTransform NormalizeTransform => _normalizeTransform;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, TransferFunctionTransform? postTransform, bool normalize)
+    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
     {
         IColorTransform? firstStage = normalize ? _normalizeTransform : null;
-        ChainedColorTransform chained = new(firstStage, _labTransform, postTransform);
+        ChainedColorTransform chained = new(firstStage, _labTransform, parameters.TransferFunction);
         return new ColorTransformSampler(chained);
     }
 }
