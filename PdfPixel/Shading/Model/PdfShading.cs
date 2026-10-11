@@ -94,35 +94,18 @@ public sealed class PdfShading
     public PdfReference SourceReference { get; }
 
     /// <summary>
-    /// Returns a parsed PdfShading instance for the given shading object, using the document's cache if available.
+    /// Creates a <see cref="PdfShading"/> from a PDF shading object.
     /// </summary>
     /// <param name="pdfObject">PDF shading object.</param>
-    /// <returns>PdfShading instance, resolved from cache or newly parsed.</returns>
-    public static PdfShading GetShading(PdfObject pdfObject)
+    /// <returns>Newly parsed PdfShading instance.</returns>
+    internal static PdfShading FromObject(PdfObject pdfObject)
     {
         if (pdfObject == null)
         {
             throw new ArgumentNullException(nameof(pdfObject));
         }
 
-        if (pdfObject.Reference.IsValid)
-        {
-            Dictionary<PdfReference, PdfShading> cache = pdfObject.Document.ObjectCache.Shadings;
-            if (cache.TryGetValue(pdfObject.Reference, out PdfShading? cachedShading))
-            {
-                return cachedShading;
-            }
-        }
-
-        PdfShading shading = new(pdfObject);
-
-        if (pdfObject.Reference.IsValid)
-        {
-            Dictionary<PdfReference, PdfShading> cache = pdfObject.Document.ObjectCache.Shadings;
-            cache[pdfObject.Reference] = shading;
-        }
-
-        return shading;
+        return new PdfShading(pdfObject);
     }
 
     /// <summary>

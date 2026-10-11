@@ -73,27 +73,14 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        PdfReference? xObjectReference = _xObjectDictionary.GetReference(xObjectName);
-        if (xObjectReference != null && _document.ObjectCache.XObjects.TryGetValue(xObjectReference.Value, out PdfXObject? documentCachedXObject))
-        {
-            _xObjectsByName[xObjectName] = documentCachedXObject;
-            return documentCachedXObject;
-        }
-
-        PdfObject? pageObject = _xObjectDictionary.GetObject(xObjectName);
-        if (pageObject == null)
+        PdfXObject? xObject = _document.ObjectCache.GetOrCreate(_xObjectDictionary, xObjectName, PdfXObject.FromObject);
+        if (xObject == null)
         {
             _logger.LogWarning("XObject '{XObjectName}' could not be resolved.", xObjectName);
             return null;
         }
 
-        PdfXObject xObject = PdfXObject.FromObject(pageObject);
         _xObjectsByName[xObjectName] = xObject;
-
-        if (pageObject.Reference.IsValid)
-        {
-            _document.ObjectCache.XObjects[pageObject.Reference] = xObject;
-        }
 
         return xObject;
     }
@@ -115,7 +102,7 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        PdfShading? shading = ResolveShading(_shadingDictionary, shadingName);
+        PdfShading? shading = _document.ObjectCache.GetOrCreate(_shadingDictionary, shadingName, PdfShading.FromObject);
         if (shading == null)
         {
             _logger.LogWarning("Shading '{ShadingName}' is not present in the page's /Shading resources.", shadingName);
@@ -132,7 +119,7 @@ internal sealed class PdfContentHostCache
     /// pattern declares none.
     /// </summary>
     public PdfShading? GetShadingForPattern(PdfDictionary patternDictionary)
-        => ResolveShading(patternDictionary, PdfTokens.ShadingKey);
+        => _document.ObjectCache.GetOrCreate(patternDictionary, PdfTokens.ShadingKey, PdfShading.FromObject);
 
     /// <summary>
     /// Get (and cache) the optional content membership a /Properties resource name refers to. Returns
@@ -376,23 +363,4 @@ internal sealed class PdfContentHostCache
         return parameters;
     }
 
-    /// <summary>
-    /// Resolves the shading a dictionary entry names.
-    /// </summary>
-    private PdfShading? ResolveShading(PdfDictionary dictionary, in PdfString key)
-    {
-        PdfReference? shadingReference = dictionary.GetReference(key);
-        if (shadingReference != null && _document.ObjectCache.Shadings.TryGetValue(shadingReference.Value, out PdfShading? documentCachedShading))
-        {
-            return documentCachedShading;
-        }
-
-        PdfObject? shadingObject = dictionary.GetObject(key);
-        if (shadingObject == null)
-        {
-            return null;
-        }
-
-        return PdfShading.GetShading(shadingObject);
-    }
 }

@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands.Model;
-using PdfPixel.Files;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
 using PdfPixel.Imaging.Model;
@@ -11,8 +10,9 @@ using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
-using PdfPixel.Shading.Model;
+using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -28,6 +28,7 @@ internal class PdfDocumentObjectCache
     private readonly PdfObjectParser _pdfObjectParser;
     private readonly PdfXrefRecoveryScanner _recoveryScanner;
     private readonly ILogger<PdfDocumentObjectCache> _logger;
+    private readonly Dictionary<Type, Dictionary<PdfReference, object>> _objectsByType = [];
     private bool _recoveryScanAttempted;
 
     public PdfDocumentObjectCache(IPdfDocumentInternal document, PdfObjectParser parser)
@@ -71,11 +72,6 @@ internal class PdfDocumentObjectCache
     public Dictionary<PdfReference, TransferFunctionTransform> TransferFunctionTransforms { get; } = [];
 
     /// <summary>
-    /// High-level cache for parsed PDF shadings, keyed by reference.
-    /// </summary>
-    public Dictionary<PdfReference, PdfShading> Shadings { get; } = [];
-
-    /// <summary>
     /// Document cache for parsed ExtGState parameters, keyed by reference. Holds only parameters
     /// without a soft mask, a soft mask being bound to the page it was parsed from.
     /// </summary>
@@ -85,21 +81,6 @@ internal class PdfDocumentObjectCache
     /// High-level cache for parsed PDF image XObjects, keyed by reference.
     /// </summary>
     public Dictionary<PdfReference, PdfImage> Images { get; } = [];
-
-    /// <summary>
-    /// High-level cache for parsed file specification dictionaries, keyed by reference.
-    /// </summary>
-    public Dictionary<PdfReference, PdfFileSpecification> FileSpecifications { get; } = [];
-
-    /// <summary>
-    /// High-level cache for parsed embedded file streams, keyed by reference.
-    /// </summary>
-    public Dictionary<PdfReference, PdfEmbeddedFile> EmbeddedFiles { get; } = [];
-
-    /// <summary>
-    /// High-level cache for XObject wrappers, keyed by reference.
-    /// </summary>
-    public Dictionary<PdfReference, PdfXObject> XObjects { get; } = [];
 
     /// <summary>
     /// High-level cache for optional content memberships, keyed by the reference of the OCG or OCMD object.
@@ -158,6 +139,102 @@ internal class PdfDocumentObjectCache
         }
 
         return parsed;
+    }
+
+    /// <summary>
+    /// Returns the <typeparamref name="T"/> cached for a reference, or creates it with
+    /// <paramref name="factory"/> from the object the reference names and caches it.
+    /// </summary>
+    /// <typeparam name="T">Type created from the object.</typeparam>
+    /// <param name="reference">Target object reference.</param>
+    /// <param name="factory">Creates the <typeparamref name="T"/> from the resolved object, or returns null when it cannot.</param>
+    /// <param name="requiresStream">When true, an object without a stream yields null without invoking <paramref name="factory"/>.</param>
+    /// <returns>Cached or created <typeparamref name="T"/>, or null if the object is unavailable or the factory returned null.</returns>
+    public T? GetOrCreate<T>(in PdfReference reference, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
+    {
+        if (!reference.IsValid)
+        {
+            return null;
+        }
+
+        if (!_objectsByType.TryGetValue(typeof(T), out Dictionary<PdfReference, object>? objects))
+        {
+            objects = new Dictionary<PdfReference, object>();
+            _objectsByType[typeof(T)] = objects;
+        }
+
+        if (objects.TryGetValue(reference, out object? cached))
+        {
+            return (T)cached;
+        }
+
+        PdfObject? pdfObject = GetObject(reference);
+        if (pdfObject == null || (requiresStream && !pdfObject.HasStream))
+        {
+            return null;
+        }
+
+        T? created = factory(pdfObject);
+        if (created != null)
+        {
+            objects[reference] = created;
+        }
+
+        return created;
+    }
+
+    /// <summary>
+    /// Returns the <typeparamref name="T"/> for the entry <paramref name="key"/> of <paramref name="dictionary"/>.
+    /// An indirect entry is cached by its reference; a direct entry is created with <paramref name="factory"/> and not cached.
+    /// </summary>
+    /// <typeparam name="T">Type created from the object.</typeparam>
+    /// <param name="dictionary">Dictionary holding the entry.</param>
+    /// <param name="key">Key of the entry.</param>
+    /// <param name="factory">Creates the <typeparamref name="T"/> from the resolved object, or returns null when it cannot.</param>
+    /// <param name="requiresStream">When true, an object without a stream yields null without invoking <paramref name="factory"/>.</param>
+    /// <returns>Cached or created <typeparamref name="T"/>, or null if the entry is absent or the factory returned null.</returns>
+    public T? GetOrCreate<T>(PdfDictionary dictionary, in PdfString key, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
+    {
+        PdfReference? reference = dictionary.GetReference(key);
+        if (reference != null)
+        {
+            return GetOrCreate(reference.Value, factory, requiresStream);
+        }
+
+        PdfObject? directObject = dictionary.GetObject(key);
+        if (directObject == null || (requiresStream && !directObject.HasStream))
+        {
+            return null;
+        }
+
+        return factory(directObject);
+    }
+
+    /// <summary>
+    /// Returns the <typeparamref name="T"/> for the entry at <paramref name="index"/> of <paramref name="array"/>.
+    /// An indirect entry is cached by its reference; a direct entry is created with <paramref name="factory"/> and not cached.
+    /// </summary>
+    /// <typeparam name="T">Type created from the object.</typeparam>
+    /// <param name="array">Array holding the entry.</param>
+    /// <param name="index">Index of the entry.</param>
+    /// <param name="factory">Creates the <typeparamref name="T"/> from the resolved object, or returns null when it cannot.</param>
+    /// <param name="requiresStream">When true, an object without a stream yields null without invoking <paramref name="factory"/>.</param>
+    /// <returns>Cached or created <typeparamref name="T"/>, or null if the entry is absent or the factory returned null.</returns>
+    public T? GetOrCreate<T>(PdfArray array, int index, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
+    {
+        PdfReference? reference = array.GetReference(index);
+        if (reference != null)
+        {
+            return GetOrCreate(reference.Value, factory, requiresStream);
+        }
+
+        PdfObject? directObject = array.GetObject(index);
+        if (directObject == null || (requiresStream && !directObject.HasStream))
+        {
+            return null;
+        }
+
+        return factory(directObject);
     }
 
     /// <summary>

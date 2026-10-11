@@ -14,7 +14,7 @@ public sealed class PdfFileSpecification
     private PdfFileSpecification(in PdfString file)
         => File = file;
 
-    private PdfFileSpecification(PdfDictionary dictionary, PdfReference? reference)
+    private PdfFileSpecification(PdfDictionary dictionary, in PdfReference reference)
     {
         Reference = reference;
         RawFileSystem = dictionary.GetName(PdfTokens.FileSystemKey);
@@ -44,10 +44,9 @@ public sealed class PdfFileSpecification
     }
 
     /// <summary>
-    /// Indirect reference of the file specification dictionary, or <see langword="null"/> when it is a
-    /// direct object or a string.
+    /// Reference of the file specification dictionary. Invalid unless the dictionary is indirect.
     /// </summary>
-    public PdfReference? Reference { get; }
+    public PdfReference Reference { get; }
 
     /// <summary>
     /// File system interpreting the specification (FS), or <see langword="null"/> when absent.
@@ -149,30 +148,14 @@ public sealed class PdfFileSpecification
     /// dictionary form, or <see langword="null"/> when absent.
     /// </summary>
     internal static PdfFileSpecification? FromDictionaryEntry(PdfDictionary owner, in PdfString key)
-    {
-        PdfReference? reference = owner.GetReference(key);
-        if (reference == null)
-        {
-            return FromValue(owner.GetValue(key), null);
-        }
-
-        return FromReference(owner.Document, reference.Value);
-    }
+        => owner.Document.ObjectCache.GetOrCreate(owner, key, FromObject);
 
     /// <summary>
     /// The file specification at <paramref name="index"/> of <paramref name="array"/>, in string or
     /// dictionary form, or <see langword="null"/> when absent.
     /// </summary>
     internal static PdfFileSpecification? FromArrayEntry(PdfArray array, int index)
-    {
-        PdfReference? reference = array.GetReference(index);
-        if (reference == null)
-        {
-            return FromValue(array.GetValue(index), null);
-        }
-
-        return FromReference(array.Document, reference.Value);
-    }
+        => array.Document.ObjectCache.GetOrCreate(array, index, FromObject);
 
     /// <summary>
     /// The document-level embedded files (/Names /EmbeddedFiles) of <paramref name="catalog"/>, keyed by name.
@@ -212,38 +195,21 @@ public sealed class PdfFileSpecification
         return result;
     }
 
-    private static PdfFileSpecification? FromReference(IPdfDocumentInternal document, in PdfReference reference)
+    private static PdfFileSpecification? FromObject(PdfObject specificationObject)
     {
-        Dictionary<PdfReference, PdfFileSpecification> cache = document.ObjectCache.FileSpecifications;
-        if (cache.TryGetValue(reference, out PdfFileSpecification? cached))
-        {
-            return cached;
-        }
-
-        PdfFileSpecification? specification = FromValue(document.ObjectCache.GetObject(reference)?.Value, reference);
-        if (specification != null)
-        {
-            cache[reference] = specification;
-        }
-
-        return specification;
-    }
-
-    private static PdfFileSpecification? FromValue(IPdfValue? value, PdfReference? reference)
-    {
-        PdfString? file = value.AsString();
+        PdfString? file = specificationObject.Value.AsString();
         if (file != null)
         {
             return new PdfFileSpecification(file.Value);
         }
 
-        PdfDictionary? dictionary = value.AsDictionary();
+        PdfDictionary? dictionary = specificationObject.Value.AsDictionary();
         if (dictionary == null)
         {
             return null;
         }
 
-        return new PdfFileSpecification(dictionary, reference);
+        return new PdfFileSpecification(dictionary, specificationObject.Reference);
     }
 
     private static List<PdfRelatedFile>? ReadRelatedFiles(PdfArray? relatedFiles)

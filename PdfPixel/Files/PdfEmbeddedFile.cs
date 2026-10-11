@@ -3,7 +3,6 @@ using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Files;
 
@@ -73,21 +72,8 @@ public sealed class PdfEmbeddedFile
             return null;
         }
 
-        Dictionary<PdfReference, PdfEmbeddedFile> cache = document.ObjectCache.EmbeddedFiles;
-        if (cache.TryGetValue(reference.Value, out PdfEmbeddedFile? cached))
-        {
-            return cached;
-        }
-
-        PdfObject? fileObject = document.ObjectCache.GetObject(reference.Value);
-        if (fileObject == null || !fileObject.HasStream)
-        {
-            return null;
-        }
-
-        PdfEmbeddedFile embeddedFile = new(fileObject);
-        cache[reference.Value] = embeddedFile;
-
-        return embeddedFile;
+        return document.ObjectCache.GetOrCreate(reference.Value, FromObject, requiresStream: true);
     }
+
+    private static PdfEmbeddedFile FromObject(PdfObject fileObject) => new(fileObject);
 }
