@@ -37,22 +37,20 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 |---|---|---|---|
 | `/ActualText` over non-text content | `TextExtraction/PdfTextBlockFlattener.cs` | 14.9.4 | Replacement text of a block drawn with paths or images is dropped: its bounds come from characters only |
 
+### PdfPanel
+
+| Entry | Location | Spec | Work |
+|---|---|---|---|
+| `/UserUnit` | `PdfPixel.PdfPanel/PdfPanelPageInfo.cs` | Table 31, 8.3.2.3 | Not supported: pages are laid out in their own units, so pages with different user units keep the wrong relative size. Supporting it adds a per-page scale on top of the global zoom, which layout, rendering and screen-to-page mapping must apply. Page content is unaffected; the value is already exposed as `IPdfPage.UserUnit` |
+
 ## 3. Public API
 
 | Item | Location | Work |
 |---|---|---|
 | Image conversion | `Imaging/Model/PdfImage.cs` | No public way to get pixels from a `PdfImage` (`/Thumb`, file specification thumbnails, image XObjects): decoding needs an internal `ImageDecodingContext`, and `Skia/Converters/PdfImageConverter.cs` is internal |
 
-## 4. Refactoring
-
-| Item | Location | Work |
-|---|---|---|
-| Content locker | `PdfPixel.PdfPanel`, `PdfCommandExecutionContext.ContentLocker` | Investigate document access safety: lazily loaded content read from the UI thread can corrupt content read on another thread. Make access safer by exposing the locker through the panel's page collection |
-
-## 5. Bugs
+## 4. Bugs
 
 | Bug | Location | Spec | Wrong output |
 |---|---|---|---|
-| Non-inheritable page attributes inherited | `Models/PdfPageResources.cs` | 7.7.3.4, Table 31 | BleedBox, TrimBox, ArtBox and `/Annots` are taken from `/Pages` nodes; only Resources, MediaBox, CropBox and Rotate are inheritable. Annotations on an intermediate node appear on every page below it |
-| `/UserUnit` ignored | Page | Table 31, 8.3.2.3 | Pages with a user unit other than 1 get the wrong physical size; the value is exposed as `IPdfPage.UserUnit` but not applied |
 | Soft mask text | `Transparency/Utilities/SoftMaskUtilities.cs` | | Text shown by the mask form is extracted like page text, in both rendering and text extraction |

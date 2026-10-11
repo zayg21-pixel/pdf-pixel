@@ -14,7 +14,7 @@ public sealed partial class SkCanvasCommandProcessor
         PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(_executionContext.Frames.TotalMatrix);
         PdfIntegerRectangle imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(command.ImageSize, _executionContext);
 
-        command.TileCache.Initialize(ctm, imageRegion, _executionContext.ContentLocker, _executionContext.ExecutionObserver);
+        command.TileCache.Initialize(ctm, imageRegion, _executionContext.ExecutionObserver);
     }
 
     private void ExecuteDrawImageTile(DrawImageTileCommand command)

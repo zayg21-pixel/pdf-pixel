@@ -1,5 +1,6 @@
 using PdfPixel.Rendering;
 using PdfPixel.Actions.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Annotations.Model;
 using PdfPixel.Files;
 using PdfPixel.Imaging.Model;
@@ -79,22 +80,22 @@ internal class PdfPage : IPdfPageInternal
             }
         }
 
+        PdfDictionary pageDictionary = pageObject.Dictionary;
         MediaBox = media;
         CropBox = crop;
-        BleedBox = ResolveBoundary(pageResources.BleedBoxRect, media, crop);
-        TrimBox = ResolveBoundary(pageResources.TrimBoxRect, media, crop);
-        ArtBox = ResolveBoundary(pageResources.ArtBoxRect, media, crop);
+        BleedBox = ResolveBoundary(PdfRectangle.FromArray(pageDictionary.GetArray(PdfTokens.BleedBoxKey)), media, crop);
+        TrimBox = ResolveBoundary(PdfRectangle.FromArray(pageDictionary.GetArray(PdfTokens.TrimBoxKey)), media, crop);
+        ArtBox = ResolveBoundary(PdfRectangle.FromArray(pageDictionary.GetArray(PdfTokens.ArtBoxKey)), media, crop);
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = resourceDictionary;
         PageLabel = pageLabel;
         _pageCache = new Lazy<PdfContentHostCache>(() => new PdfContentHostCache(document, resourceDictionary));
 
-        _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
+        _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(() => CreateAnnotations(pageDictionary));
 
         _transparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey);
         _thumbnail = new Lazy<PdfImage?>(() => PdfImage.GetImage(pageObject.Dictionary, PdfTokens.ThumbnailKey));
 
-        PdfDictionary pageDictionary = pageObject.Dictionary;
         UserUnit = pageDictionary.GetFloat(PdfTokens.UserUnitKey) ?? 1f;
         StructParents = pageDictionary.GetInteger(PdfTokens.StructParentsKey);
         LastModified = PdfDateParser.ParsePdfDate(pageDictionary.GetString(PdfTokens.LastModifiedKey));
@@ -224,16 +225,26 @@ internal class PdfPage : IPdfPageInternal
     }
 
     /// <summary>
-    /// Binds each annotation resolved for this page to the page itself.
+    /// Parses the page's /Annots entries and binds each annotation to the page itself.
     /// </summary>
-    private List<PdfPageAnnotation> CreateAnnotations()
+    private List<PdfPageAnnotation> CreateAnnotations(PdfDictionary pageDictionary)
     {
-        List<PdfAnnotationBase> rawAnnotations = _pageResources.Annotations ?? new List<PdfAnnotationBase>();
-        List<PdfPageAnnotation> annotations = new(rawAnnotations.Count);
+        List<PdfObject>? annotationObjects = pageDictionary.GetObjects(PdfTokens.AnnotsKey);
 
-        foreach (PdfAnnotationBase annotation in rawAnnotations)
+        if (annotationObjects == null)
         {
-            annotations.Add(new PdfPageAnnotation(this, annotation));
+            return new List<PdfPageAnnotation>();
+        }
+
+        List<PdfPageAnnotation> annotations = new(annotationObjects.Count);
+
+        foreach (PdfObject annotationObject in annotationObjects)
+        {
+            PdfAnnotationBase? annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
+            if (annotation != null)
+            {
+                annotations.Add(new PdfPageAnnotation(this, annotation));
+            }
         }
 
         return annotations;

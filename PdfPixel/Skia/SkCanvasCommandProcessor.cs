@@ -69,19 +69,22 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
             return;
         }
 
-        try
+        lock (_executionContext.ContentLocker)
         {
-            ProcessInternal(command);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
+            try
+            {
+                ProcessInternal(command);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
 #pragma warning disable CA1031 // Do not catch general exception types
-        catch (Exception exception)
+            catch (Exception exception)
 #pragma warning restore CA1031 // Do not catch general exception types
-        {
-            _logger.LogWarning(exception, "Command {CommandType} failed during execution.", command.GetType().Name);
+            {
+                _logger.LogWarning(exception, "Command {CommandType} failed during execution.", command.GetType().Name);
+            }
         }
     }
 

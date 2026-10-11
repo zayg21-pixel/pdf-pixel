@@ -77,7 +77,12 @@ public sealed class PdfPanelActions
         if (!_openActionPerformed && hasSize)
         {
             _openActionPerformed = true;
-            PdfOpenAction? openAction = _document.OpenAction;
+            PdfOpenAction? openAction;
+
+            lock (_context.Pages.DocumentLocker)
+            {
+                openAction = _document.OpenAction;
+            }
 
             if (openAction?.Destination != null)
             {
@@ -178,7 +183,13 @@ public sealed class PdfPanelActions
 
         if (_currentPageNumber != null)
         {
-            PdfAction? pageClose = _document.Pages[_currentPageNumber.Value - 1].AdditionalActions?.PageClose;
+            PdfAction? pageClose;
+
+            lock (_context.Pages.DocumentLocker)
+            {
+                pageClose = _document.Pages[_currentPageNumber.Value - 1].AdditionalActions?.PageClose;
+            }
+
             if (pageClose != null)
             {
                 PerformAction(pageClose, PdfPanelActionSource.PageClose);
@@ -187,7 +198,13 @@ public sealed class PdfPanelActions
 
         _currentPageNumber = currentPageNumber;
 
-        PdfAction? pageOpen = _document.Pages[currentPageNumber - 1].AdditionalActions?.PageOpen;
+        PdfAction? pageOpen;
+
+        lock (_context.Pages.DocumentLocker)
+        {
+            pageOpen = _document.Pages[currentPageNumber - 1].AdditionalActions?.PageOpen;
+        }
+
         if (pageOpen != null)
         {
             PerformAction(pageOpen, PdfPanelActionSource.PageOpen);
@@ -278,7 +295,13 @@ public sealed class PdfPanelActions
     /// </summary>
     private void NavigateTo(PdfDestination destination)
     {
-        PdfNavigationTarget? target = _document.Destinations.Resolve(destination);
+        PdfNavigationTarget? target;
+
+        lock (_context.Pages.DocumentLocker)
+        {
+            target = _document.Destinations.Resolve(destination);
+        }
+
         if (target == null)
         {
             return;

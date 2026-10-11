@@ -31,6 +31,12 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     internal PdfPageContentProvider ContentProvider { get; }
 
     /// <summary>
+    /// Lock object serializing access to the document the pages are decoded from.
+    /// Code reading the document while the pages are in use must lock on it.
+    /// </summary>
+    public object DocumentLocker => ContentProvider.DocumentLocker;
+
+    /// <summary>
     /// Returns the page if it exists.
     /// </summary>
     /// <param name="pageNumber">Number of the page.</param>

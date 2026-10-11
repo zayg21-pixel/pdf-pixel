@@ -32,11 +32,10 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     public override PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        object contentLocker,
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        EnsureBitmapDecoded(contentLocker, observer);
+        EnsureBitmapDecoded(observer);
         if (_cachedBitmap == null)
         {
             throw new InvalidOperationException($"JBIG2 page decoding failed (Reference={Image.Reference}).");
@@ -68,26 +67,21 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         return true;
     }
 
-    private void EnsureBitmapDecoded(object contentLocker, IPdfExecutionObserver? observer)
+    private void EnsureBitmapDecoded(IPdfExecutionObserver? observer)
     {
         if (_cachedBitmap != null)
         {
             return;
         }
 
-        ReadOnlyMemory<byte> imageData;
-
-        lock (contentLocker)
-        {
-            imageData = Image.Stream.DecodeAsMemory(observer);
-        }
+        ReadOnlyMemory<byte> imageData = Image.Stream.DecodeAsMemory(observer);
 
         if (imageData.IsEmpty)
         {
             throw new InvalidOperationException($"JBIG2 image data is empty (Reference={Image.Reference}).");
         }
 
-        Jbig2SegmentCache? globalCache = ResolveGlobalsCache(contentLocker);
+        Jbig2SegmentCache? globalCache = ResolveGlobalsCache();
         Jbig2PageDecoder pageDecoder = new();
         Jbig2Observer jbig2Observer = new(observer);
         _cachedBitmap = pageDecoder.Decode(imageData.Span, Image.Width, Image.Height, globalCache, jbig2Observer);
@@ -102,7 +96,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         }
     }
 
-    private Jbig2SegmentCache? ResolveGlobalsCache(object contentLocker)
+    private Jbig2SegmentCache? ResolveGlobalsCache()
     {
         PdfDecodeParameters? decodeParameters = Image.DecodeParms;
         if (decodeParameters == null)
@@ -110,10 +104,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             return null;
         }
 
-        lock (contentLocker)
-        {
-            return Context.Host.Document.ObjectCache.GetOrCreate(decodeParameters.Jbig2GlobalsReference, DecodeGlobalsCache, requiresStream: true);
-        }
+        return Context.Host.Document.ObjectCache.GetOrCreate(decodeParameters.Jbig2GlobalsReference, DecodeGlobalsCache, requiresStream: true);
     }
 
     private static Jbig2SegmentCache? DecodeGlobalsCache(PdfObject globalsObject)

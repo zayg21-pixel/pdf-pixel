@@ -16,7 +16,6 @@ internal class RawImageDecoder : PdfImageDecoder
 {
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    private object? _contentLocker;
     private byte[]? _buffer;
     private Stream? _dataStream;
 
@@ -33,12 +32,9 @@ internal class RawImageDecoder : PdfImageDecoder
 
     public override PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        object contentLocker,
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        _contentLocker = contentLocker;
-
         PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
             ctm,
             new PdfIntegerSize(Image.Width, Image.Height),
@@ -47,25 +43,19 @@ internal class RawImageDecoder : PdfImageDecoder
 
         _buffer = new byte[parameters.RowBytes];
 
-        lock (contentLocker)
-        {
-            _dataStream = Image.Stream.DecodeAsStream();
-        }
+        _dataStream = Image.Stream.DecodeAsStream();
 
         return parameters;
     }
 
     public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
-        if (_contentLocker == null || _dataStream == null || _buffer == null)
+        if (_dataStream == null || _buffer == null)
         {
             return false;
         }
 
-        lock (_contentLocker)
-        {
-            ReadFull(_dataStream, _buffer);
-        }
+        ReadFull(_dataStream, _buffer);
 
         _buffer.CopyTo(destination);
 
@@ -92,6 +82,5 @@ internal class RawImageDecoder : PdfImageDecoder
     {
         _dataStream?.Dispose();
         _dataStream = null;
-        _contentLocker = null;
     }
 }

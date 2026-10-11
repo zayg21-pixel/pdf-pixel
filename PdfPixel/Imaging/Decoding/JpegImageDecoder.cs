@@ -31,15 +31,10 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 
     public override PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        object contentLocker,
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        ReadOnlyMemory<byte> encodedData;
-        lock (contentLocker)
-        {
-            encodedData = Image.Stream.DecodeAsMemory(observer);
-        }
+        ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
 
         JpgHeader header = JpgReader.ParseHeader(encodedData.Span);
 

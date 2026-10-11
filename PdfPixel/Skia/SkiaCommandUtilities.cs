@@ -114,19 +114,16 @@ internal static class SkiaCommandUtilities
         TypefaceCommandCacheKey key = new(typeface);
         CommandCache cache = executionContext.Document.CommandCache;
 
-        lock (executionContext.ContentLocker)
+        if (cache.GetEntry(key) is SkTypefaceCommandCacheEntry existing)
         {
-            if (cache.GetEntry(key) is SkTypefaceCommandCacheEntry existing)
-            {
-                return existing.Typeface;
-            }
-
-            SKTypeface skTypeface = CreateSkTypeface(fontSubstitutor, typeface);
-
-            cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
-
-            return skTypeface;
+            return existing.Typeface;
         }
+
+        SKTypeface skTypeface = CreateSkTypeface(fontSubstitutor, typeface);
+
+        cache.StoreEntry(key, new SkTypefaceCommandCacheEntry(skTypeface));
+
+        return skTypeface;
     }
 
     /// <summary>

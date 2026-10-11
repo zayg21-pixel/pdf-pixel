@@ -104,13 +104,11 @@ public abstract class PdfImageDecoder
     /// Derived classes parse format-specific stream headers and allocate buffers here.
     /// </summary>
     /// <param name="regionsOfInterest">Regions, in original image sample coordinates, that must be reconstructed; every other region may be produced blank. Null means the whole image must be reconstructed.</param>
-    /// <param name="contentLocker">Lock object used to serialize access to the compressed image data.</param>
     /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
     /// <param name="observer">Observer notified during initialization steps.</param>
     /// <returns>The parameters describing the rows this decoder will produce.</returns>
     public abstract PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        object contentLocker,
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer);
 

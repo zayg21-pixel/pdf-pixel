@@ -37,16 +37,15 @@ internal sealed class SoftMaskAlphaRowSource : IAlphaRowSource
     /// Decodes the mask and prepares it to serve rows of <paramref name="targetSize"/> pixels.
     /// </summary>
     /// <param name="targetSize">Output grid the rows are produced for.</param>
-    /// <param name="contentLocker">Lock object used to serialize access to the compressed mask data.</param>
     /// <param name="observer">Observer notified as decoding progresses.</param>
-    public void Initialize(in PdfIntegerSize targetSize, object contentLocker, IPdfExecutionObserver? observer)
+    public void Initialize(in PdfIntegerSize targetSize, IPdfExecutionObserver? observer)
     {
         _unpackedRowIndex = -1;
 
         // A transformation covering the target extent asks the decoder for the largest reduction
         // that still fills it; a mask no larger than the target reports no reduction at all.
         PdfMatrix targetExtent = PdfMatrix.CreateScale(targetSize.Width, targetSize.Height);
-        PdfImageRowDecodingParameters maskParameters = _decoder.Initialize(null, contentLocker, targetExtent, observer);
+        PdfImageRowDecodingParameters maskParameters = _decoder.Initialize(null, targetExtent, observer);
 
         PdfImageRowProcessor processor = new(maskParameters, targetSize, _loggerFactory.CreateLogger<PdfImageRowProcessor>());
 

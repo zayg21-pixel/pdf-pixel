@@ -56,7 +56,7 @@ public sealed class PdfImageTileCacheEntry
     /// Marks in-viewport tiles without a decoded image as pending and starts decoding them, dropping
     /// tiles whose decode size has changed and evicting tiles outside <paramref name="imageRegion"/>.
     /// </summary>
-    public void Initialize(in PdfMatrix ctm, in PdfIntegerRectangle imageRegion, object contentLocker, IPdfExecutionObserver observer)
+    public void Initialize(in PdfMatrix ctm, in PdfIntegerRectangle imageRegion, IPdfExecutionObserver observer)
     {
         FinishDecoding();
 
@@ -78,10 +78,10 @@ public sealed class PdfImageTileCacheEntry
 
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
-            _imageParameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), contentLocker, ctm, observer);
+            _imageParameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), ctm, observer);
             _tilingContext = new PdfImageTilingContext(TileInfo, _imageParameters, outputSize, tileIndexesToDecode, _loggerFactory);
             _rowBuffer = new byte[_imageParameters.RowBytes];
-            _alphaRowSource?.Initialize(outputSize, contentLocker, observer);
+            _alphaRowSource?.Initialize(outputSize, observer);
             _decoderActive = true;
         }
     }

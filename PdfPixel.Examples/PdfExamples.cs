@@ -84,8 +84,8 @@ internal static class PdfExamples
         SKCanvas canvas = surface.Canvas;
         canvas.Clear(SKColors.White);
 
-        // Guards the page's lazily-parsed content stream against concurrent access; use a private
-        // object per concurrent render of the same page.
+        // Held while each drawing command executes; share one object per document with any other
+        // code that reads the same document from another thread.
         object contentLocker = new();
 
         // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.

@@ -34,15 +34,10 @@ internal class JpxImageDecoder : PdfImageDecoder
 
     public override PdfImageRowDecodingParameters Initialize(
         IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        object contentLocker,
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
-        ReadOnlyMemory<byte> encodedData;
-        lock (contentLocker)
-        {
-            encodedData = Image.Stream.DecodeAsMemory(observer);
-        }
+        ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
 
         JpxHeader jpxHeader = JpxReader.ParseHeader(encodedData.Span);
 

@@ -1,13 +1,10 @@
-using PdfPixel.Annotations;
-using PdfPixel.Annotations.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Text;
-using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Accumulates inheritable page-tree attributes (Resources, MediaBox, CropBox, Rotate and other box types)
+/// Accumulates inheritable page-tree attributes (Resources, MediaBox, CropBox, Rotate)
 /// for top-down traversal. Each child overrides previously inherited values for any keys it defines.
 /// Only stores parsed <see cref="PdfRectangle"/> values for box arrays (no raw PdfArray retention).
 /// Rotation value is normalized here (0,90,180,270) when encountered.
@@ -35,26 +32,6 @@ internal sealed class PdfPageResources
     public int? Rotate { get; private set; }
 
     /// <summary>
-    /// Current effective /BleedBox rectangle.
-    /// </summary>
-    public PdfRectangle? BleedBoxRect { get; private set; }
-
-    /// <summary>
-    /// Current effective /TrimBox rectangle.
-    /// </summary>
-    public PdfRectangle? TrimBoxRect { get; private set; }
-
-    /// <summary>
-    /// Current effective /ArtBox rectangle.
-    /// </summary>
-    public PdfRectangle? ArtBoxRect { get; private set; }
-
-    /// <summary>
-    /// Current effective /Annots array - parsed annotation objects.
-    /// </summary>
-    public List<PdfAnnotationBase>? Annotations { get; private set; }
-
-    /// <summary>
     /// Create a shallow clone of the current effective values. Resource dictionary reference is reused.
     /// </summary>
     /// <returns>New <see cref="PdfPageResources"/> instance with copied values.</returns>
@@ -65,10 +42,6 @@ internal sealed class PdfPageResources
         copy.MediaBoxRect = MediaBoxRect;
         copy.CropBoxRect = CropBoxRect;
         copy.Rotate = Rotate;
-        copy.BleedBoxRect = BleedBoxRect;
-        copy.TrimBoxRect = TrimBoxRect;
-        copy.ArtBoxRect = ArtBoxRect;
-        copy.Annotations = Annotations;
         return copy;
     }
 
@@ -109,26 +82,6 @@ internal sealed class PdfPageResources
         {
             Rotate = NormalizeRotation(dict.GetIntegerOrDefault(PdfTokens.RotateKey));
         }
-
-        if (dict.HasKey(PdfTokens.BleedBoxKey))
-        {
-            BleedBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.BleedBoxKey));
-        }
-
-        if (dict.HasKey(PdfTokens.TrimBoxKey))
-        {
-            TrimBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.TrimBoxKey));
-        }
-
-        if (dict.HasKey(PdfTokens.ArtBoxKey))
-        {
-            ArtBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.ArtBoxKey));
-        }
-
-        if (dict.HasKey(PdfTokens.AnnotsKey))
-        {
-            Annotations = ParseAnnotations(dict.GetObjects(PdfTokens.AnnotsKey));
-        }
     }
 
     private static int NormalizeRotation(int rotation) => ((rotation % 360) + 360) % 360;
@@ -151,31 +104,5 @@ internal sealed class PdfPageResources
         }
 
         return inherited.MergeWith(current);
-    }
-
-    private static List<PdfAnnotationBase>? ParseAnnotations(List<PdfObject>? annotationObjects)
-    {
-        List<PdfAnnotationBase> annotations = [];
-
-        if (annotationObjects == null)
-        {
-            return null;
-        }
-
-        foreach (PdfObject annotationObject in annotationObjects)
-        {
-            PdfAnnotationBase? annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
-            if (annotation != null)
-            {
-                annotations.Add(annotation);
-            }
-        }
-
-        if (annotations.Count == 0)
-        {
-            return null;
-        }
-
-        return annotations;
     }
 }
