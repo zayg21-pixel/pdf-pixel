@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Model;
+using PdfPixel.Files;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
 using PdfPixel.OptionalContent.Model;
@@ -181,6 +182,12 @@ internal sealed class PdfContentHostCache
     /// </summary>
     public PdfDictionary? GetProperties(in PdfString propertiesName)
         => _propertiesDictionary?.GetDictionary(propertiesName);
+
+    /// <summary>
+    /// Get the associated files a /Properties resource name refers to. Returns null if not found.
+    /// </summary>
+    public List<PdfFileSpecification>? GetAssociatedFiles(in PdfString propertiesName)
+        => PdfFileSpecification.FromArray(_propertiesDictionary?.GetArray(propertiesName));
 
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.

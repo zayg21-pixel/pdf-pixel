@@ -1,5 +1,7 @@
+using PdfPixel.Files;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.TextExtraction;
+using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
@@ -23,6 +25,12 @@ public class PdfMarkedContent
     /// Set only when <see cref="Tag"/> is "OC".
     /// </summary>
     public PdfOptionalContentMembership? OptionalContent { get; set; }
+
+    /// <summary>
+    /// Files associated with the enclosed content.
+    /// Set only when <see cref="Tag"/> is "AF".
+    /// </summary>
+    public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; set; }
 
     /// <summary>
     /// Text-related markup properties extracted from the marked content scope.

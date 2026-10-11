@@ -1,12 +1,12 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Tagging.Model.Attributes;
+namespace PdfPixel.Tagging.Model;
 
 /// <summary>
 /// Subtype of artifact (Subtype).
 /// </summary>
 [PdfEnum]
-public enum PdfStructureArtifactSubtype
+public enum PdfArtifactSubtype
 {
     /// <summary>
     /// Subtype not defined by a specification.

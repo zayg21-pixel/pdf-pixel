@@ -34,6 +34,16 @@ public class PdfTextMarkup
     public PdfString? ActualText { get; internal set; }
 
     /// <summary>
+    /// Alternate description (/Alt), falling back to that of <see cref="StructureElement"/>.
+    /// </summary>
+    public PdfString? Alt { get; internal set; }
+
+    /// <summary>
+    /// Expansion of an abbreviation or acronym (/E), falling back to that of <see cref="StructureElement"/>.
+    /// </summary>
+    public PdfString? ExpandedForm { get; internal set; }
+
+    /// <summary>
     /// Language tag (/Lang), falling back to that of <see cref="StructureElement"/>.
     /// </summary>
     public PdfString? Lang { get; internal set; }
@@ -42,6 +52,12 @@ public class PdfTextMarkup
     /// Whether this scope is an artifact (non-logical content to exclude from selection).
     /// </summary>
     public bool IsArtifact { get; }
+
+    /// <summary>
+    /// Property list of the artifact, or <see langword="null"/> when this scope is not an artifact or
+    /// has no property list.
+    /// </summary>
+    public PdfArtifactProperties? Artifact { get; internal set; }
 
     /// <summary>
     /// Marked content identifier (/MCID), or <see langword="null"/> when absent.

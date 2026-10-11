@@ -1,4 +1,5 @@
 using PdfPixel.Commands.Model;
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Rendering.State;
@@ -150,6 +151,10 @@ internal class MarkedContentOperators : IOperatorProcessor
         {
             markedContent.OptionalContent = ResolveOptionalContent(operands[1]);
         }
+        else if (tagName.Value == PdfTokens.AssociatedFilesKey)
+        {
+            markedContent.AssociatedFiles = ResolveAssociatedFiles(operands[1]);
+        }
         else
         {
             PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
@@ -164,17 +169,26 @@ internal class MarkedContentOperators : IOperatorProcessor
         PdfTextTag tag = tagName.AsEnum<PdfTextTag>();
 
         PdfString? actualText = null;
+        PdfString? alt = null;
+        PdfString? expandedForm = null;
         PdfString? lang = null;
         int? mcid = null;
 
         if (propertiesDictionary != null)
         {
             actualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
+            alt = propertiesDictionary.GetString(PdfTokens.AltKey);
+            expandedForm = propertiesDictionary.GetString(PdfTokens.ExpandedFormKey);
             lang = propertiesDictionary.GetString(PdfTokens.LangKey);
             mcid = propertiesDictionary.GetInteger(PdfTokens.MCIDKey);
         }
 
-        if (tag == PdfTextTag.Custom && actualText == null && lang == null && mcid == null)
+        if (tag == PdfTextTag.Custom
+            && actualText == null
+            && alt == null
+            && expandedForm == null
+            && lang == null
+            && mcid == null)
         {
             return null;
         }
@@ -188,6 +202,8 @@ internal class MarkedContentOperators : IOperatorProcessor
         PdfTextMarkup markup = new(tag)
         {
             ActualText = actualText ?? structureElement?.ActualText,
+            Alt = alt ?? structureElement?.Alt,
+            ExpandedForm = expandedForm ?? structureElement?.ExpandedForm,
             Lang = lang ?? structureElement?.Lang,
             Mcid = mcid,
             StructureElement = structureElement
@@ -196,6 +212,11 @@ internal class MarkedContentOperators : IOperatorProcessor
         if (tag == PdfTextTag.Custom)
         {
             markup.CustomTag = tagName;
+        }
+
+        if (tag == PdfTextTag.Artifact && propertiesDictionary != null)
+        {
+            markup.Artifact = new PdfArtifactProperties(propertiesDictionary);
         }
 
         return markup;
@@ -227,6 +248,23 @@ internal class MarkedContentOperators : IOperatorProcessor
         }
 
         return _host.Cache.GetProperties(propertiesName.Value);
+    }
+
+    private List<PdfFileSpecification>? ResolveAssociatedFiles(IPdfValue propertiesOperand)
+    {
+        PdfArray? inlineArray = propertiesOperand.AsArray();
+        if (inlineArray != null)
+        {
+            return PdfFileSpecification.FromArray(inlineArray);
+        }
+
+        PdfString? propertiesName = propertiesOperand.AsName();
+        if (propertiesName == null)
+        {
+            return null;
+        }
+
+        return _host.Cache.GetAssociatedFiles(propertiesName.Value);
     }
 
     private PdfOptionalContentMembership? ResolveOptionalContent(IPdfValue propertiesOperand)

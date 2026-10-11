@@ -430,6 +430,7 @@ internal static class PdfTokens
     public static readonly PdfString PgKey = (PdfString)"Pg"u8;                           // Page reference in structure element
     public static readonly PdfString AltKey = (PdfString)"Alt"u8;                         // Alternative text in structure element
     public static readonly PdfString ExpandedFormKey = (PdfString)"E"u8;                  // Expanded form of abbreviation in structure element
+    public static readonly PdfString AttachedKey = (PdfString)"Attached"u8;               // Page edges an artifact is attached to
     public static readonly PdfString ParentTreeKey = (PdfString)"ParentTree"u8;           // Number tree mapping structural parent keys to structure elements
     public static readonly PdfString IdTreeKey = (PdfString)"IDTree"u8;                   // Name tree mapping element identifiers to structure elements
     public static readonly PdfString StructParentsKey = (PdfString)"StructParents"u8;     // Structural parent key of a content stream holding marked content

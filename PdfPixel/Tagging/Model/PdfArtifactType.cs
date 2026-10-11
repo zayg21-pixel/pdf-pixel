@@ -1,12 +1,12 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Tagging.Model.Attributes;
+namespace PdfPixel.Tagging.Model;
 
 /// <summary>
 /// Type of artifact (Type).
 /// </summary>
 [PdfEnum]
-public enum PdfStructureArtifactType
+public enum PdfArtifactType
 {
     /// <summary>
     /// Unrecognized value.
@@ -31,6 +31,12 @@ public enum PdfStructureArtifactType
     /// </summary>
     [PdfEnumValue("Page")]
     Page,
+
+    /// <summary>
+    /// Template content repeated across pages, such as full-page images or colored blocks.
+    /// </summary>
+    [PdfEnumValue("Background")]
+    Background,
 
     /// <summary>
     /// Artifact content with context in the logical structure (PDF 2.0).

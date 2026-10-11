@@ -35,10 +35,7 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 
 | Entry | Location | Spec | Work |
 |---|---|---|---|
-| Artifact property list | `Artifact` BDC properties | 14.8.2.2 | Type (Pagination, Layout, Page, Background), Subtype, BBox, Attached (Top, Bottom, Left, Right) |
-| `/Alt`, `/E` | `Span` and `Artifact` BDC properties | 14.9.3, 14.9.5 | Alternate description and expansion, falling back to the MCID's structure element like `/ActualText` |
 | `/ActualText` over non-text content | `TextExtraction/PdfTextBlockFlattener.cs` | 14.9.4 | Replacement text of a block drawn with paths or images is dropped: its bounds come from characters only |
-| `AF` marked content | BDC with tag `AF` | 14.13.5 | Associated files of a content section; the property list is an array of file specifications |
 
 ## 3. Public API
 
