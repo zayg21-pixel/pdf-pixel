@@ -49,7 +49,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         _resolvedConverter = ResolveConverter(jpxHeader);
         if (_resolvedConverter == null)
         {
-            throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (SourceReference={Image.SourceReference}).");
+            throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (Reference={Image.Reference}).");
         }
 
         bool includeOpacityComponent = Image.SoftMaskInData != PdfImageSoftMaskInData.None;
@@ -97,7 +97,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         JpxObserver jpxObserver = new(observer);
         if (!_rowConverter.TryGetNextRow(destination, jpxObserver))
         {
-            throw new InvalidOperationException($"JPX decode failed (SourceReference={Image.SourceReference}).");
+            throw new InvalidOperationException($"JPX decode failed (Reference={Image.Reference}).");
         }
 
         return true;

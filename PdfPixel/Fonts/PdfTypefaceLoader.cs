@@ -78,15 +78,7 @@ public sealed class PdfTypefaceLoader
             return LoadTypeface();
         }
 
-        if (objectCache.Typefaces.TryGetValue(fontFileReference.Value, out IPdfTypeface? cachedTypeface))
-        {
-            return cachedTypeface;
-        }
-
-        IPdfTypeface typeface = LoadTypeface();
-        objectCache.Typefaces[fontFileReference.Value] = typeface;
-
-        return typeface;
+        return objectCache.GetOrCreate<IPdfTypeface>(fontFileReference, _ => LoadTypeface()) ?? LoadTypeface();
     }
 
     /// <summary>

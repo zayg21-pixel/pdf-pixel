@@ -2,6 +2,7 @@ using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Model;
+using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
@@ -48,8 +49,8 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfObject? appearanceObject = Appearance?.GetStream(visualStateKind);
-        PdfDictionary? resources = appearanceObject?.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+        PdfForm? appearanceForm = Appearance?.GetStream(visualStateKind);
+        PdfDictionary? resources = appearanceForm?.XObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
 
         if (resources == null || !resources.HasKey(PdfTokens.ExtGStateKey))
         {

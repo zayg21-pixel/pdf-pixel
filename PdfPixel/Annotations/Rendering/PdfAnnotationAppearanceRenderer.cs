@@ -2,7 +2,6 @@ using PdfPixel.Annotations.Model;
 using PdfPixel.Commands.Model;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Rendering;
@@ -37,16 +36,14 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfObject? appearanceObject = annotation.Appearance?.GetStream(visualStateKind);
+        PdfForm? appearanceForm = annotation.Appearance?.GetStream(visualStateKind);
 
-        if (appearanceObject == null)
+        if (appearanceForm == null)
         {
             return false;
         }
 
-        PdfXObject xObject = PdfXObject.FromObject(appearanceObject);
-
-        PdfOptionalContentMembership? optionalContent = xObject.OptionalContent;
+        PdfOptionalContentMembership? optionalContent = appearanceForm.OptionalContent;
         if (optionalContent != null)
         {
             PdfMarkedContent markedContent = new(PdfTokens.OptionalContentKey) { OptionalContent = optionalContent };
@@ -55,21 +52,7 @@ internal static class PdfAnnotationAppearanceRenderer
 
         processor.Process(SaveStateCommand.Instance);
 
-        var success = false;
-
-        switch (xObject.Subtype)
-        {
-            case PdfXObjectSubtype.Form:
-            {
-                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
-                break;
-            }
-            case PdfXObjectSubtype.Image:
-            {
-                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
-                break;
-            }
-        }
+        RenderFormAppearance(processor, appearanceForm, annotation.Rectangle, page, renderer, renderingParameters, observer);
 
         processor.Process(RestoreStateCommand.Instance);
 
@@ -78,27 +61,21 @@ internal static class PdfAnnotationAppearanceRenderer
             processor.Process(new EndMarkedContentCommand());
         }
 
-        return success;
+        return true;
     }
 
     /// <summary>
     /// Renders a Form XObject appearance.
     /// </summary>
-    private static bool RenderFormAppearance(
+    private static void RenderFormAppearance(
         IPdfCommandProcessor processor,
-        PdfObject formObject,
+        PdfForm formXObject,
         in PdfRectangle annotationRect,
         IPdfPageInternal page,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfForm? formXObject = PdfForm.FromXObject(formObject);
-        if (formXObject == null)
-        {
-            return false;
-        }
-
         PdfRectangle appearanceBBox = formXObject.BBox;
         PdfMatrix matrix = formXObject.Matrix;
 
@@ -109,8 +86,6 @@ internal static class PdfAnnotationAppearanceRenderer
 
         PdfGraphicsState state = new(page, page.MediaBox, new HashSet<uint>(), observer, renderingParameters);
         renderer.DrawForm(processor, formXObject, state);
-
-        return true;
     }
 
     /// <summary>
@@ -126,35 +101,5 @@ internal static class PdfAnnotationAppearanceRenderer
         float translateY = annotationRect.Top - (transformedBBox.Top * scaleY);
 
         return PdfMatrix.CreateScaleTranslation(scaleX, scaleY, translateX, translateY);
-    }
-
-    /// <summary>
-    /// Renders an Image XObject appearance.
-    /// </summary>
-    private static bool RenderImageAppearance(
-        IPdfCommandProcessor processor,
-        PdfObject imageObject,
-        in PdfRectangle annotationRect,
-        IPdfPageInternal page,
-        IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters,
-        IPdfExecutionObserver observer)
-    {
-        PdfImage pdfImage = PdfImage.GetImage(imageObject);
-        if (pdfImage == null)
-        {
-            return false;
-        }
-
-        if (!annotationRect.IsEmpty)
-        {
-            processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(annotationRect.Left, annotationRect.Top)));
-            processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(annotationRect.Width, annotationRect.Height)));
-        }
-
-        PdfGraphicsState state = new(page, page.MediaBox, new HashSet<uint>(), observer, renderingParameters);
-        renderer.DrawImage(processor, pdfImage, state);
-
-        return true;
     }
 }

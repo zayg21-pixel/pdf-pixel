@@ -113,32 +113,20 @@ internal class MiscellaneousOperators : IOperatorProcessor
             _processor.Process(new BeginMarkedContentCommand(markedContent));
         }
 
-        switch (pageObject.Subtype)
+        switch (pageObject)
         {
-            case PdfXObjectSubtype.Image:
+            case PdfImage pdfImage:
             {
-                if (!graphicsState.RenderingParameters.RenderImages)
+                if (graphicsState.RenderingParameters.RenderImages)
                 {
-                    break;
-                }
-
-                PdfImage pdfImage = PdfImage.GetImage(pageObject.XObject);
-                _renderer.DrawImage(_processor, pdfImage, graphicsState);
-                break;
-            }
-            case PdfXObjectSubtype.Form:
-            {
-                PdfForm? formXObject = PdfForm.FromXObject(pageObject.XObject);
-                if (formXObject != null)
-                {
-                    _renderer.DrawForm(_processor, formXObject, graphicsState);
+                    _renderer.DrawImage(_processor, pdfImage, graphicsState);
                 }
 
                 break;
             }
-            default:
+            case PdfForm formXObject:
             {
-                _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
+                _renderer.DrawForm(_processor, formXObject, graphicsState);
                 break;
             }
         }

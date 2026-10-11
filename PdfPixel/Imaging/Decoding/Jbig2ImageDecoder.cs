@@ -39,7 +39,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         EnsureBitmapDecoded(contentLocker, observer);
         if (_cachedBitmap == null)
         {
-            throw new InvalidOperationException($"JBIG2 page decoding failed (SourceReference={Image.SourceReference}).");
+            throw new InvalidOperationException($"JBIG2 page decoding failed (Reference={Image.Reference}).");
         }
 
         PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
@@ -84,7 +84,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
         if (imageData.IsEmpty)
         {
-            throw new InvalidOperationException($"JBIG2 image data is empty (SourceReference={Image.SourceReference}).");
+            throw new InvalidOperationException($"JBIG2 image data is empty (Reference={Image.Reference}).");
         }
 
         Jbig2SegmentCache? globalCache = ResolveGlobalsCache(contentLocker);

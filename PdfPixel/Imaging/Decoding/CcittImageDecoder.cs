@@ -39,7 +39,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 
         if (encodedData.IsEmpty)
         {
-            throw new InvalidOperationException($"CCITT image data is empty (SourceReference={Image.SourceReference}).");
+            throw new InvalidOperationException($"CCITT image data is empty (Reference={Image.Reference}).");
         }
 
         PdfDecodeParameters? parameters = Image.DecodeParms;
@@ -73,7 +73,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         Span<byte> buffer = destination;
         if (!_rowDecoder.DecodeNextRow(buffer))
         {
-            Logger.LogWarning("CCITT row decoder ended early at image row {Row} (SourceReference={SourceReference}).", _currentImageRow, Image.SourceReference);
+            Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Reference={Reference}).", _currentImageRow, Image.Reference);
             return false;
         }
 

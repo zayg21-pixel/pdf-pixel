@@ -1,3 +1,4 @@
+using PdfPixel.Forms;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -12,7 +13,7 @@ namespace PdfPixel.Annotations.Model;
 /// </remarks>
 public sealed class PdfAnnotationAppearance
 {
-    private PdfAnnotationAppearance(PdfObject? normal, PdfObject? rollover, PdfObject? down)
+    private PdfAnnotationAppearance(PdfForm? normal, PdfForm? rollover, PdfForm? down)
     {
         Normal = normal;
         Rollover = rollover;
@@ -41,17 +42,17 @@ public sealed class PdfAnnotationAppearance
     /// <summary>
     /// Gets the appearance stream of the normal state (N).
     /// </summary>
-    public PdfObject? Normal { get; }
+    public PdfForm? Normal { get; }
 
     /// <summary>
     /// Gets the appearance stream of the rollover state (R).
     /// </summary>
-    public PdfObject? Rollover { get; }
+    public PdfForm? Rollover { get; }
 
     /// <summary>
     /// Gets the appearance stream of the down state (D).
     /// </summary>
-    public PdfObject? Down { get; }
+    public PdfForm? Down { get; }
 
     /// <summary>
     /// Gets the visual states this appearance carries a stream for.
@@ -71,9 +72,9 @@ public sealed class PdfAnnotationAppearance
             return null;
         }
 
-        PdfObject? normal = ResolveState(appearanceDictionary, PdfTokens.NKey, appearanceState);
-        PdfObject? rollover = ResolveState(appearanceDictionary, PdfTokens.RolloverKey, appearanceState);
-        PdfObject? down = ResolveState(appearanceDictionary, PdfTokens.DownKey, appearanceState);
+        PdfForm? normal = ResolveState(appearanceDictionary, PdfTokens.NKey, appearanceState);
+        PdfForm? rollover = ResolveState(appearanceDictionary, PdfTokens.RolloverKey, appearanceState);
+        PdfForm? down = ResolveState(appearanceDictionary, PdfTokens.DownKey, appearanceState);
 
         if (normal == null && rollover == null && down == null)
         {
@@ -88,8 +89,8 @@ public sealed class PdfAnnotationAppearance
     /// the states this appearance does carry, or null when it carries none of them.
     /// </summary>
     /// <param name="visualStateKind">The requested visual state.</param>
-    /// <returns>The appearance stream object, or null.</returns>
-    public PdfObject? GetStream(PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>The appearance stream form, or null.</returns>
+    public PdfForm? GetStream(PdfAnnotationVisualStateKind visualStateKind)
     {
         return visualStateKind switch
         {
@@ -103,18 +104,13 @@ public sealed class PdfAnnotationAppearance
     /// Resolves a single appearance state entry to its stream, selecting through
     /// <paramref name="appearanceState"/> when the entry holds a sub-dictionary of streams.
     /// </summary>
-    private static PdfObject? ResolveState(PdfDictionary appearanceDictionary, in PdfString stateKey, PdfString? appearanceState)
+    private static PdfForm? ResolveState(PdfDictionary appearanceDictionary, in PdfString stateKey, PdfString? appearanceState)
     {
-        PdfObject? stateObject = appearanceDictionary.GetObject(stateKey);
+        PdfXObject? stateXObject = PdfXObject.GetXObject(appearanceDictionary, stateKey);
 
-        if (stateObject == null)
+        if (stateXObject != null)
         {
-            return null;
-        }
-
-        if (stateObject.HasStream)
-        {
-            return stateObject;
+            return stateXObject as PdfForm;
         }
 
         if (appearanceState == null)
@@ -122,13 +118,13 @@ public sealed class PdfAnnotationAppearance
             return null;
         }
 
-        PdfObject? selectedObject = stateObject.Dictionary.GetObject(appearanceState.Value);
+        PdfDictionary? stateDictionary = appearanceDictionary.GetDictionary(stateKey);
 
-        if (selectedObject == null || !selectedObject.HasStream)
+        if (stateDictionary == null)
         {
             return null;
         }
 
-        return selectedObject;
+        return PdfXObject.GetXObject(stateDictionary, appearanceState.Value) as PdfForm;
     }
 }

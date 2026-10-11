@@ -71,7 +71,7 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        PdfXObject? xObject = _document.ObjectCache.GetOrCreate(_xObjectDictionary, xObjectName, PdfXObject.FromObject);
+        PdfXObject? xObject = PdfXObject.GetXObject(_xObjectDictionary, xObjectName);
         if (xObject == null)
         {
             _logger.LogWarning("XObject '{XObjectName}' could not be resolved.", xObjectName);

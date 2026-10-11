@@ -72,7 +72,7 @@ internal class InlineImageOperators : IOperatorProcessor
             return;
         }
 
-        PdfImage pdfImage = PdfImage.GetImage(inlineObject);
+        PdfImage pdfImage = PdfImage.FromInlineObject(inlineObject);
         _renderer.DrawImage(_processor, pdfImage, graphicsState);
     }
 }

@@ -45,7 +45,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 
         if (header == null || header.ContentOffset < 0)
         {
-            throw new InvalidOperationException($"JPEG header is invalid (SourceReference={Image.SourceReference}).");
+            throw new InvalidOperationException($"JPEG header is invalid (Reference={Image.Reference}).");
         }
 
         PdfColorSpaceConverter resolvedConverter = _colorSpaceConverter;
@@ -86,7 +86,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 
         if (!_jpgRowDecoder.TryReadRow(destination))
         {
-            throw new InvalidOperationException($"JPEG decode failed (SourceReference={Image.SourceReference}).");
+            throw new InvalidOperationException($"JPEG decode failed (Reference={Image.Reference}).");
         }
 
         return true;

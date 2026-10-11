@@ -152,12 +152,7 @@ internal class PdfDocument : IPdfDocumentInternal
     public void Dispose()
     {
         CommandCache.Dispose();
-
-        foreach (IPdfTypeface typeface in _objectCache.Typefaces.Values)
-        {
-            typeface.Dispose();
-        }
-
+        _objectCache.Dispose();
         _fontProvider.Dispose();
         _stream.Dispose();
     }

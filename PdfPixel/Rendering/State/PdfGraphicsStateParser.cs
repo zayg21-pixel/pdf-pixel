@@ -1,7 +1,6 @@
 ﻿using PdfPixel.Models;
 using System;
 using PdfPixel.Text;
-using PdfPixel.Transparency.Utilities;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
@@ -149,7 +148,7 @@ namespace PdfPixel.Rendering.State
                 else
                 {
                     PdfDictionary? softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
-                    parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict);
+                    parameters.SoftMask = PdfSoftMask.FromDictionary(softMaskDict);
                 }
             }
 

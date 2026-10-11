@@ -79,7 +79,7 @@ internal class ImageFillRenderTarget : IRenderTarget
             PdfImage? stencilMask = image.StencilMask;
             if (stencilMask == null)
             {
-                throw new ArgumentException($"Stencil mask not defined for image {image.SourceReference}.");
+                throw new ArgumentException($"Stencil mask not defined for image {image.Reference}.");
             }
 
             ImageDecodingContext imageLayerContext = new(context, image, OpaqueWhiteFill, isStencilMaskComposite: false);

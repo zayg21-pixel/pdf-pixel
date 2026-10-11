@@ -11,12 +11,13 @@ namespace PdfPixel.Imaging.Model;
 /// <summary>
 /// Represents a PDF Image XObject with all its properties and data.
 /// </summary>
-public class PdfImage
+public class PdfImage : PdfXObject
 {
-    private PdfImage(PdfObject imageXObject)
+    internal PdfImage(PdfObject imageXObject, in PdfReference reference, bool isInlineImage)
+        : base(imageXObject, reference, PdfXObjectSubtype.Image)
     {
         PdfDictionary dictionary = imageXObject.Dictionary;
-        SourceReference = imageXObject.Reference;
+        IsInlineImage = isInlineImage;
         Stream = imageXObject.Stream;
 
         int bitsPerComponent = dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
@@ -42,17 +43,13 @@ public class PdfImage
         }
         else
         {
-            PdfObject? maskObject = dictionary.GetObject(PdfTokens.MaskKey);
-            if (maskObject?.HasStream == true)
-            {
-                PdfImage maskImage = GetImage(maskObject);
+            PdfImage? maskImage = GetImage(dictionary, PdfTokens.MaskKey);
 
-                // Only an /ImageMask true stream is a stencil mask; any other stream leaves
-                // the base image unmasked.
-                if (maskImage.HasImageMask)
-                {
-                    StencilMask = maskImage;
-                }
+            // Only an /ImageMask true stream is a stencil mask; any other stream leaves
+            // the base image unmasked.
+            if (maskImage != null && maskImage.HasImageMask)
+            {
+                StencilMask = maskImage;
             }
         }
 
@@ -89,17 +86,13 @@ public class PdfImage
             }
         }
 
-        PdfObject? softMaskObject = dictionary.GetObject(PdfTokens.SoftMaskKey);
-        if (softMaskObject != null)
-        {
-            SoftMask = GetImage(softMaskObject);
-        }
+        SoftMask = GetImage(dictionary, PdfTokens.SoftMaskKey);
     }
 
     /// <summary>
-    /// Source object reference, or <see langword="null"/> when it is a direct object.
+    /// True for an inline image (BI/ID/EI), whose <see cref="PdfXObject.Reference"/> names object 0.
     /// </summary>
-    public PdfReference? SourceReference { get; }
+    public bool IsInlineImage { get; }
 
     /// <summary>
     /// Gets the self-contained stream source for this image.
@@ -187,56 +180,27 @@ public class PdfImage
     public PdfImage? StencilMask { get; }
 
     /// <summary>
-    /// Returns a parsed PdfImage instance for the given image XObject, using the document's cache if available.
-    /// </summary>
-    /// <param name="pdfObject">PDF image XObject.</param>
-    /// <returns>PdfImage instance, resolved from cache or newly parsed.</returns>
-    public static PdfImage GetImage(PdfObject pdfObject)
-    {
-        if (pdfObject == null)
-        {
-            throw new ArgumentNullException(nameof(pdfObject));
-        }
-
-        if (pdfObject.Reference != null)
-        {
-            Dictionary<PdfReference, PdfImage> cache = pdfObject.Document.ObjectCache.Images;
-            if (cache.TryGetValue(pdfObject.Reference.Value, out PdfImage? cachedImage))
-            {
-                return cachedImage;
-            }
-        }
-
-        PdfImage image = new(pdfObject);
-
-        if (pdfObject.Reference != null)
-        {
-            Dictionary<PdfReference, PdfImage> cache = pdfObject.Document.ObjectCache.Images;
-            cache[pdfObject.Reference.Value] = image;
-        }
-
-        return image;
-    }
-
-    /// <summary>
-    /// The image XObject held by <paramref name="key"/> of <paramref name="owner"/>, resolved from the
-    /// document's cache when available, or <see langword="null"/> when absent.
+    /// The image held by <paramref name="key"/> of <paramref name="owner"/>, resolved from the
+    /// document's XObject cache when available, or <see langword="null"/> when absent or not an image.
+    /// An entry without /Subtype is taken as an image.
     /// </summary>
     internal static PdfImage? GetImage(PdfDictionary owner, in PdfString key)
+        => owner.Document.ObjectCache.GetOrCreate<PdfXObject>(owner, key, FromImageEntryObject, requiresStream: true) as PdfImage;
+
+    /// <summary>
+    /// Creates an image from an inline image object (BI/ID/EI).
+    /// </summary>
+    /// <param name="inlineObject">The inline image object.</param>
+    internal static PdfImage FromInlineObject(PdfObject inlineObject) => new(inlineObject, new PdfReference(0), isInlineImage: true);
+
+    private static PdfXObject? FromImageEntryObject(PdfObject imageObject)
     {
-        PdfReference? reference = owner.GetReference(key);
-        if (reference != null && owner.Document.ObjectCache.Images.TryGetValue(reference.Value, out PdfImage? cachedImage))
+        if (imageObject.Reference == null || imageObject.Dictionary.HasKey(PdfTokens.SubtypeKey))
         {
-            return cachedImage;
+            return FromObject(imageObject);
         }
 
-        PdfObject? imageObject = owner.GetObject(key);
-        if (imageObject == null || !imageObject.HasStream)
-        {
-            return null;
-        }
-
-        return GetImage(imageObject);
+        return new PdfImage(imageObject, imageObject.Reference.Value, isInlineImage: false);
     }
 
     private static PdfImageSoftMaskInData MapSoftMaskInData(int value)

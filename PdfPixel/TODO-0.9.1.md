@@ -47,7 +47,6 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 
 | Item | Location | Work |
 |---|---|---|
-| Object cache | `Models/PdfDocumentObjectCache.cs` | Use a single `PdfReference` cache, including `FileSpecifications` and `EmbeddedFiles`; cache other big shared objects, such as CMaps |
 | Content locker | `PdfPixel.PdfPanel`, `PdfCommandExecutionContext.ContentLocker` | Investigate document access safety: lazily loaded content read from the UI thread can corrupt content read on another thread. Make access safer by exposing the locker through the panel's page collection |
 
 ## 5. Bugs

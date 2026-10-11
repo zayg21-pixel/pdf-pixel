@@ -1,28 +1,35 @@
+using PdfPixel.Forms;
+using PdfPixel.Imaging.Model;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Text;
-using System;
 
 namespace PdfPixel.Models;
 
 /// <summary>
 /// Represents a PDF XObject.
 /// </summary>
-public class PdfXObject
+public abstract class PdfXObject
 {
     /// <summary>
-    /// Initializes a new <see cref="PdfXObject"/> wrapping the given source object and resolved subtype.
+    /// Initializes a new <see cref="PdfXObject"/> wrapping the given source object.
     /// </summary>
-    public PdfXObject(PdfObject xObject, PdfXObjectSubtype subtype, PdfOptionalContentMembership? optionalContent)
+    private protected PdfXObject(PdfObject xObject, in PdfReference reference, PdfXObjectSubtype subtype)
     {
         XObject = xObject;
+        Reference = reference;
         Subtype = subtype;
-        OptionalContent = optionalContent;
+        OptionalContent = PdfOptionalContentMembership.FromDictionary(xObject.Dictionary);
     }
 
     /// <summary>
     /// Source PDF object representing the XObject.
     /// </summary>
     public PdfObject XObject { get; }
+
+    /// <summary>
+    /// Reference of the XObject stream.
+    /// </summary>
+    public PdfReference Reference { get; }
 
     /// <summary>
     /// Subtype of the XObject.
@@ -35,18 +42,33 @@ public class PdfXObject
     public PdfOptionalContentMembership? OptionalContent { get; }
 
     /// <summary>
-    /// Creates a <see cref="PdfXObject"/> from a PDF object by reading its /Subtype entry.
+    /// Returns the XObject held by <paramref name="key"/> of <paramref name="dictionary"/>, using the document's cache if available.
     /// </summary>
-    public static PdfXObject FromObject(PdfObject sourceObject)
+    /// <param name="dictionary">Dictionary holding the XObject entry.</param>
+    /// <param name="key">Key of the XObject entry.</param>
+    /// <returns>The <see cref="PdfImage"/> or <see cref="PdfForm"/>, or <see langword="null"/> when absent or of an unsupported subtype.</returns>
+    internal static PdfXObject? GetXObject(PdfDictionary dictionary, in PdfString key)
+        => dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, FromObject, requiresStream: true);
+
+    /// <summary>
+    /// Creates the XObject of the type its /Subtype names.
+    /// </summary>
+    /// <param name="xObject">The XObject stream object.</param>
+    /// <returns>The <see cref="PdfImage"/> or <see cref="PdfForm"/>, or <see langword="null"/> for a direct object or an unsupported subtype.</returns>
+    internal static PdfXObject? FromObject(PdfObject xObject)
     {
-        if (sourceObject == null)
+        if (xObject.Reference == null)
         {
-            throw new ArgumentNullException(nameof(sourceObject));
+            return null;
         }
 
-        PdfXObjectSubtype subtype = sourceObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
-        PdfOptionalContentMembership? optionalContent = PdfOptionalContentMembership.FromDictionary(sourceObject.Dictionary);
+        PdfXObjectSubtype subtype = xObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
 
-        return new PdfXObject(sourceObject, subtype, optionalContent);
+        return subtype switch
+        {
+            PdfXObjectSubtype.Image => new PdfImage(xObject, xObject.Reference.Value, isInlineImage: false),
+            PdfXObjectSubtype.Form => new PdfForm(xObject, xObject.Reference.Value),
+            _ => null
+        };
     }
 }

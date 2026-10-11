@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Imaging.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Text;
 using System;
@@ -9,13 +8,11 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
-// TODO: [MEDIUM] investigate reworking to use single PdfReference cache, cache other things that can be big and shared, as CMaps
-
 /// <summary>
 /// Holds the PDF object index and the document-wide caches of the resources parsed out of it, and
 /// resolves objects from the index.
 /// </summary>
-internal class PdfDocumentObjectCache
+internal class PdfDocumentObjectCache : IDisposable
 {
     private readonly PdfObjectParser _pdfObjectParser;
     private readonly PdfXrefRecoveryScanner _recoveryScanner;
@@ -35,18 +32,6 @@ internal class PdfDocumentObjectCache
     /// intent has a usable profile.
     /// </summary>
     public PdfIccColorSpaceConverter? OutputIntentConverter { get; set; }
-
-    /// <summary>
-    /// Document typeface cache, keyed by the reference of the object holding the embedded font
-    /// program, so a program several font descriptors share is parsed only once. Owns the typefaces
-    /// it holds; they live as long as the document.
-    /// </summary>
-    public Dictionary<PdfReference, IPdfTypeface> Typefaces { get; } = [];
-
-    /// <summary>
-    /// High-level cache for parsed PDF image XObjects, keyed by reference.
-    /// </summary>
-    public Dictionary<PdfReference, PdfImage> Images { get; } = [];
 
     /// <summary>
     /// Document object index collection.
@@ -203,5 +188,20 @@ internal class PdfDocumentObjectCache
         }
 
         return _pdfObjectParser.ParseSingleIndexedObject(reference, info);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (!_objectsByType.TryGetValue(typeof(IPdfTypeface), out Dictionary<PdfReference, object?>? typefaces))
+        {
+            return;
+        }
+
+        foreach (object? value in typefaces.Values)
+        {
+            var typeface = (IPdfTypeface?)value;
+            typeface?.Dispose();
+        }
     }
 }

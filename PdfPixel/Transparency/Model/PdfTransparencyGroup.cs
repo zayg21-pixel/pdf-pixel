@@ -9,20 +9,27 @@ namespace PdfPixel.Transparency.Model;
 /// </summary>
 public class PdfTransparencyGroup
 {
+    private PdfTransparencyGroup(in PdfColorSpaceReference colorSpaceReference, bool isolated, bool knockout)
+    {
+        ColorSpaceReference = colorSpaceReference;
+        Isolated = isolated;
+        Knockout = knockout;
+    }
+
     /// <summary>
     /// The group's blending color space (CS) as written.
     /// </summary>
-    public PdfColorSpaceReference ColorSpaceReference { get; set; }
+    public PdfColorSpaceReference ColorSpaceReference { get; }
 
     /// <summary>
     /// Isolated flag (I). When true, the group composites against a transparent backdrop.
     /// </summary>
-    public bool Isolated { get; set; }
+    public bool Isolated { get; }
 
     /// <summary>
     /// Knockout flag (K). Parsed but not yet applied during compositing.
     /// </summary>
-    public bool Knockout { get; set; }
+    public bool Knockout { get; }
 
     /// <summary>
     /// True when the group is isolated or knockout.
@@ -51,13 +58,9 @@ public class PdfTransparencyGroup
             return null;
         }
 
-        PdfTransparencyGroup group = new()
-        {
-            ColorSpaceReference = PdfColorSpaceReference.FromDictionary(groupDictionary, PdfTokens.GroupColorSpaceKey),
-            Isolated = groupDictionary.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey),
-            Knockout = groupDictionary.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey)
-        };
-
-        return group;
+        return new PdfTransparencyGroup(
+            PdfColorSpaceReference.FromDictionary(groupDictionary, PdfTokens.GroupColorSpaceKey),
+            groupDictionary.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey),
+            groupDictionary.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey));
     }
 }
