@@ -9,7 +9,7 @@ namespace PdfPixel.Transparency.Utilities;
 
 internal static class PdfSoftMaskParser
 {
-    public static PdfSoftMask? ParseSoftMaskDictionary(PdfDictionary? softMaskDict, IPdfContentHost host)
+    public static PdfSoftMask? ParseSoftMaskDictionary(PdfDictionary? softMaskDict)
     {
         if (softMaskDict == null)
         {
@@ -25,7 +25,7 @@ internal static class PdfSoftMaskParser
             return null;
         }
 
-        PdfForm? formObject = PdfForm.FromXObject(groupObject, host);
+        PdfForm? formObject = PdfForm.FromXObject(groupObject);
         if (formObject == null)
         {
             return null;
@@ -42,51 +42,5 @@ internal static class PdfSoftMaskParser
         softMask.TransferFunction = TransferFunctionTransform.GetTransferFunction(softMaskDict, PdfTokens.TransferFunctionKey);
 
         return softMask;
-    }
-
-    /// <summary>
-    /// Parses the transparency group <paramref name="ownerDictionary"/> holds under <paramref name="key"/>.
-    /// </summary>
-    public static PdfTransparencyGroup? ParseTransparencyGroup(PdfDictionary? ownerDictionary, in PdfString key, IPdfContentHost host)
-    {
-        if (ownerDictionary == null)
-        {
-            return null;
-        }
-
-        PdfReference? groupReference = ownerDictionary.GetReference(key);
-
-        if (groupReference != null && host.Document.ObjectCache.TransparencyGroups.TryGetValue(groupReference.Value, out PdfTransparencyGroup? documentCachedGroup))
-        {
-            return documentCachedGroup;
-        }
-
-        PdfDictionary? groupDictionary = ownerDictionary.GetDictionary(key);
-
-        if (groupDictionary == null)
-        {
-            return null;
-        }
-
-        if (groupDictionary.GetName(PdfTokens.GroupSubtypeKey) != PdfTokens.TransparencyGroupValue)
-        {
-            return null;
-        }
-
-        PdfColorSpaceReference colorSpaceReference = PdfColorSpaceReference.FromDictionary(groupDictionary, PdfTokens.GroupColorSpaceKey);
-
-        PdfTransparencyGroup group = new()
-        {
-            ColorSpaceConverter = host.Cache.ColorSpace.Resolve(colorSpaceReference),
-            Isolated = groupDictionary.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey),
-            Knockout = groupDictionary.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey)
-        };
-
-        if (groupReference != null && colorSpaceReference.Reference != null)
-        {
-            host.Document.ObjectCache.TransparencyGroups[groupReference.Value] = group;
-        }
-
-        return group;
     }
 }

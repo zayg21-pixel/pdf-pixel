@@ -85,7 +85,7 @@ public class FormRenderer : IFormRenderer
         ReadOnlyMemory<byte> content = formXObject.XObject.Stream.DecodeAsMemory();
         if (!content.IsEmpty)
         {
-            PdfContentHost formHost = formXObject.GetFormHost();
+            PdfContentHost formHost = formXObject.GetFormHost(graphicsState);
 
             PdfGraphicsState localGs = graphicsState.CloneForHost(formHost);
             localGs.SoftMask = null;

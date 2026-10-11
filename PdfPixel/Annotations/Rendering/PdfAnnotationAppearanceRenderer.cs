@@ -93,7 +93,7 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfForm? formXObject = PdfForm.FromXObject(formObject, page);
+        PdfForm? formXObject = PdfForm.FromXObject(formObject);
         if (formXObject == null)
         {
             return false;

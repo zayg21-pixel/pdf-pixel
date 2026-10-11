@@ -87,11 +87,11 @@ internal class PdfPage : IPdfPageInternal
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = resourceDictionary;
         PageLabel = pageLabel;
-        _pageCache = new Lazy<PdfContentHostCache>(() => new PdfContentHostCache(this, document, resourceDictionary));
+        _pageCache = new Lazy<PdfContentHostCache>(() => new PdfContentHostCache(document, resourceDictionary));
 
         _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
 
-        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey, this);
+        _transparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey);
         _thumbnail = new Lazy<PdfImage?>(() => PdfImage.GetImage(pageObject.Dictionary, PdfTokens.ThumbnailKey));
 
         PdfDictionary pageDictionary = pageObject.Dictionary;

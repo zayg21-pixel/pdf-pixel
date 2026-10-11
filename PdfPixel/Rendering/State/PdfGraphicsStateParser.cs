@@ -19,18 +19,28 @@ namespace PdfPixel.Rendering.State
     public static class PdfGraphicsStateParser
     {
         /// <summary>
+        /// The graphics state parameters of the ExtGState dictionary held by <paramref name="key"/> of
+        /// <paramref name="dictionary"/>, or <see langword="null"/> when absent or not a dictionary.
+        /// </summary>
+        /// <param name="dictionary">Dictionary holding the ExtGState entry.</param>
+        /// <param name="key">Key of the ExtGState entry.</param>
+        internal static PdfGraphicsStateParameters? GetGraphicsStateParameters(PdfDictionary dictionary, in PdfString key)
+            => dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, FromObject);
+
+        /// <summary>
         /// Parse graphics state parameters into a parameter container without mutating the target state.
         /// </summary>
-        /// <param name="gsDict">Graphics state dictionary.</param>
-        /// <param name="host">Owning content host (used for soft mask parsing).</param>
-        /// <returns>Populated parameters container.</returns>
-        internal static PdfGraphicsStateParameters ParseGraphicsStateParametersFromDictionary(PdfDictionary gsDict, IPdfContentHost host)
+        /// <param name="graphicsStateObject">Graphics state dictionary object.</param>
+        /// <returns>Populated parameters container, or <see langword="null"/> when the object is not a dictionary.</returns>
+        private static PdfGraphicsStateParameters? FromObject(PdfObject graphicsStateObject)
         {
-            PdfGraphicsStateParameters parameters = new();
+            PdfDictionary? gsDict = graphicsStateObject.Value.AsDictionary();
             if (gsDict == null)
             {
-                return parameters;
+                return null;
             }
+
+            PdfGraphicsStateParameters parameters = new();
 
             parameters.AlphaIsShape = gsDict.GetBoolean(PdfTokens.AlphaIsShapeKey);
             parameters.LineWidth = gsDict.GetFloat(PdfTokens.LineWidthKey);
@@ -139,7 +149,7 @@ namespace PdfPixel.Rendering.State
                 else
                 {
                     PdfDictionary? softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
-                    parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict, host);
+                    parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict);
                 }
             }
 
@@ -164,7 +174,7 @@ namespace PdfPixel.Rendering.State
             {
                 float fontSize = fontArray.GetFloatOrDefault(1);
 
-                parameters.Font = host.Document.ObjectCache.GetOrCreate(fontArray, 0, PdfFontFactory.CreateFont);
+                parameters.Font = gsDict.Document.ObjectCache.GetOrCreate(fontArray, 0, PdfFontFactory.CreateFont);
                 parameters.FontSize = fontSize;
             }
 

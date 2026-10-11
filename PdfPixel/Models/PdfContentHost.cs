@@ -17,7 +17,7 @@ internal sealed class PdfContentHost : IPdfContentHost
         Document = document;
         ResourceDictionary = resourceDictionary;
         StructParents = structParents;
-        Cache = new PdfContentHostCache(this, document, resourceDictionary);
+        Cache = new PdfContentHostCache(document, resourceDictionary);
     }
 
     /// <inheritdoc/>

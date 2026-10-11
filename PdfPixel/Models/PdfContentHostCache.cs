@@ -21,7 +21,6 @@ namespace PdfPixel.Models;
 /// </summary>
 internal sealed class PdfContentHostCache
 {
-    private readonly IPdfContentHost _host;
     private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfContentHostCache> _logger;
     private readonly Dictionary<PdfString, PdfFontBase> _fontsByName = [];
@@ -37,9 +36,8 @@ internal sealed class PdfContentHostCache
     private readonly PdfDictionary? _shadingDictionary;
     private readonly PdfDictionary? _propertiesDictionary;
 
-    public PdfContentHostCache(IPdfContentHost host, IPdfDocumentInternal document, PdfDictionary resources)
+    public PdfContentHostCache(IPdfDocumentInternal document, PdfDictionary resources)
     {
-        _host = host;
         _document = document;
         _logger = document.LoggerFactory.CreateLogger<PdfContentHostCache>();
         ColorSpace = new PdfColorSpaceResolver(document, resources);
@@ -102,7 +100,7 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        PdfShading? shading = _document.ObjectCache.GetOrCreate(_shadingDictionary, shadingName, PdfShading.FromObject);
+        PdfShading? shading = PdfShading.GetShading(_shadingDictionary, shadingName);
         if (shading == null)
         {
             _logger.LogWarning("Shading '{ShadingName}' is not present in the page's /Shading resources.", shadingName);
@@ -113,13 +111,6 @@ internal sealed class PdfContentHostCache
 
         return shading;
     }
-
-    /// <summary>
-    /// Get a shading from the /Shading entry of a shading pattern dictionary. Returns null if the
-    /// pattern declares none.
-    /// </summary>
-    public PdfShading? GetShadingForPattern(PdfDictionary patternDictionary)
-        => _document.ObjectCache.GetOrCreate(patternDictionary, PdfTokens.ShadingKey, PdfShading.FromObject);
 
     /// <summary>
     /// Get (and cache) the optional content membership a /Properties resource name refers to. Returns
@@ -211,7 +202,7 @@ internal sealed class PdfContentHostCache
 
         // we're capturing host here for external graphics state of pattern, even though it's now "page level" content, in practice it's just to have consistent API
         // we it's doubtful that pattern would need something from host besides render time
-        PdfPattern? pattern = _document.ObjectCache.GetOrCreate(_patternDictionary, patternName, patternObject => PdfPatternParser.ParsePattern(patternObject, _host));
+        PdfPattern? pattern = _document.ObjectCache.GetOrCreate(_patternDictionary, patternName, PdfPatternParser.ParsePattern);
         if (pattern == null)
         {
             _logger.LogWarning("Pattern '{PatternName}' could not be resolved from the page's /Pattern resources.", patternName);
@@ -245,7 +236,7 @@ internal sealed class PdfContentHostCache
 
         if (!_graphicsStateParametersByName.TryGetValue(graphicsStateName, out PdfGraphicsStateParameters? parameters))
         {
-            parameters = ResolveGraphicsStateParameters(_extGStateDictionary, graphicsStateName);
+            parameters = PdfGraphicsStateParser.GetGraphicsStateParameters(_extGStateDictionary, graphicsStateName);
             if (parameters == null)
             {
                 _logger.LogWarning("ExtGState '{GraphicsStateName}' is not present in the page's /ExtGState resources.", graphicsStateName);
@@ -261,32 +252,4 @@ internal sealed class PdfContentHostCache
             processor.Process(new ConcatMatrixCommand(parameters.TransformMatrix.Value));
         }
     }
-
-    /// <summary>
-    /// Resolves the ExtGState parameters a dictionary entry names.
-    /// </summary>
-    private PdfGraphicsStateParameters? ResolveGraphicsStateParameters(PdfDictionary dictionary, in PdfString key)
-    {
-        PdfReference? graphicsStateReference = dictionary.GetReference(key);
-        if (graphicsStateReference != null && _document.ObjectCache.GraphicsStateParameters.TryGetValue(graphicsStateReference.Value, out PdfGraphicsStateParameters? documentCachedParameters))
-        {
-            return documentCachedParameters;
-        }
-
-        PdfDictionary? graphicsStateDictionary = dictionary.GetDictionary(key);
-        if (graphicsStateDictionary == null)
-        {
-            return null;
-        }
-
-        PdfGraphicsStateParameters parameters = PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(graphicsStateDictionary, _host);
-
-        if (graphicsStateReference != null && parameters.SoftMask == null)
-        {
-            _document.ObjectCache.GraphicsStateParameters[graphicsStateReference.Value] = parameters;
-        }
-
-        return parameters;
-    }
-
 }

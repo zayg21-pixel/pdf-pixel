@@ -16,16 +16,15 @@ internal static class PdfPatternParser
     /// (PatternType 2).  Patterns with other types are not supported and will result in a <see langword="null"/>
     /// return value.</remarks>
     /// <param name="patternObject">The PDF object representing the pattern. Must contain a valid dictionary with a <c>PatternType</c> key.</param>
-    /// <param name="host">The content host owning the pattern, used to parse the shading pattern's graphics state parameters.</param>
     /// <returns>A <see cref="PdfPattern"/> instance representing the parsed pattern, or <see langword="null"/> if the
     /// pattern type is unsupported.</returns>
-    public static PdfPattern? ParsePattern(PdfObject patternObject, IPdfContentHost host)
+    public static PdfPattern? ParsePattern(PdfObject patternObject)
     {
         int patternType = patternObject.Dictionary.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
         return patternType switch
         {
             1 => ParseTilingPattern(patternObject),
-            2 => ParseShadingPattern(patternObject, host),
+            2 => ParseShadingPattern(patternObject),
             _ => null// Unsupported pattern type
         };
     }
@@ -70,24 +69,21 @@ internal static class PdfPatternParser
             matrix);
     }
 
-    private static PdfShadingPattern? ParseShadingPattern(PdfObject patternObject, IPdfContentHost host)
+    private static PdfShadingPattern? ParseShadingPattern(PdfObject patternObject)
     {
         PdfDictionary dictionary = patternObject.Dictionary;
 
         PdfArray? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
 
-        PdfShading? shading = host.Cache.GetShadingForPattern(dictionary);
+        PdfShading? shading = PdfShading.GetShading(dictionary, PdfTokens.ShadingKey);
 
         if (shading == null)
         {
             return null; // Invalid shading pattern without /Shading
         }
 
-        PdfDictionary? extGStateDictionary = dictionary.GetDictionary(PdfTokens.ExtGStateKey);
-        PdfGraphicsStateParameters? extGState = (extGStateDictionary == null)
-            ? null
-            : PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(extGStateDictionary, host);
+        PdfGraphicsStateParameters? extGState = PdfGraphicsStateParser.GetGraphicsStateParameters(dictionary, PdfTokens.ExtGStateKey);
 
         return new PdfShadingPattern(shading, matrix, extGState);
     }

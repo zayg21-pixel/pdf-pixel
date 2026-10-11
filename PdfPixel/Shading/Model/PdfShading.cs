@@ -102,11 +102,20 @@ public sealed class PdfShading
     public PdfReference? SourceReference { get; }
 
     /// <summary>
+    /// Returns the shading held by <paramref name="key"/> of <paramref name="dictionary"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="dictionary">Dictionary holding the shading entry.</param>
+    /// <param name="key">Key of the shading entry.</param>
+    /// <returns>PdfShading instance, or <see langword="null"/> when absent.</returns>
+    internal static PdfShading? GetShading(PdfDictionary dictionary, in PdfString key)
+        => dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, FromObject);
+
+    /// <summary>
     /// Creates a <see cref="PdfShading"/> from a PDF shading object.
     /// </summary>
     /// <param name="pdfObject">PDF shading object.</param>
     /// <returns>Newly parsed PdfShading instance.</returns>
-    internal static PdfShading FromObject(PdfObject pdfObject)
+    private static PdfShading FromObject(PdfObject pdfObject)
     {
         if (pdfObject == null)
         {

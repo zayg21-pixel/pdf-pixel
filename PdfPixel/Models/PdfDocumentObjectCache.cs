@@ -1,12 +1,9 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands.Model;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using PdfPixel.Transparency.Model;
 using System;
 using System.Collections.Generic;
 
@@ -47,28 +44,9 @@ internal class PdfDocumentObjectCache
     public Dictionary<PdfReference, IPdfTypeface> Typefaces { get; } = [];
 
     /// <summary>
-    /// Document cache for parsed ExtGState parameters, keyed by reference. Holds only parameters
-    /// without a soft mask, a soft mask being bound to the page it was parsed from.
-    /// </summary>
-    public Dictionary<PdfReference, PdfGraphicsStateParameters> GraphicsStateParameters { get; } = [];
-
-    /// <summary>
     /// High-level cache for parsed PDF image XObjects, keyed by reference.
     /// </summary>
     public Dictionary<PdfReference, PdfImage> Images { get; } = [];
-
-    /// <summary>
-    /// High-level cache for parsed transparency groups, keyed by the reference of the /Group
-    /// dictionary. Holds only groups whose blending colour space is an indirect reference.
-    /// </summary>
-    public Dictionary<PdfReference, PdfTransparencyGroup> TransparencyGroups { get; } = [];
-
-    /// <summary>
-    /// Cache for recorded soft mask form content, keyed by the mask form and the matrix it was recorded
-    /// under. A mask applies to every painting operation carried out under it, so without this its
-    /// content stream is parsed and recorded once per operation rather than once per use.
-    /// </summary>
-    public Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> SoftMaskForms { get; } = [];
 
     /// <summary>
     /// Document object index collection.

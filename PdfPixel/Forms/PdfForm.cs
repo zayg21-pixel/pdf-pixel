@@ -1,13 +1,13 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
-using PdfPixel.Transparency.Utilities;
 
 namespace PdfPixel.Forms;
 
 /// <summary>
-/// Represents a parsed PDF Form XObject with geometry, resources, transparency group, parent content host, and original object.
+/// Represents a parsed PDF Form XObject with geometry, resources, transparency group, and original object.
 /// </summary>
 public sealed class PdfForm
 {
@@ -15,14 +15,12 @@ public sealed class PdfForm
         in PdfMatrix matrix,
         in PdfRectangle bbox,
         PdfTransparencyGroup? transparencyGroup,
-        IPdfContentHost host,
         PdfObject xObject,
         in PdfReference reference)
     {
         Matrix = matrix;
         BBox = bbox;
         TransparencyGroup = transparencyGroup;
-        Host = host;
         XObject = xObject;
         Reference = reference;
     }
@@ -43,11 +41,6 @@ public sealed class PdfForm
     public PdfTransparencyGroup? TransparencyGroup { get; }
 
     /// <summary>
-    /// The parent content host for this form.
-    /// </summary>
-    internal IPdfContentHost Host { get; }
-
-    /// <summary>
     /// The original Form XObject.
     /// </summary>
     public PdfObject XObject { get; }
@@ -61,9 +54,8 @@ public sealed class PdfForm
     /// Creates a <see cref="PdfForm"/> from a Form XObject.
     /// </summary>
     /// <param name="xObject">The Form XObject.</param>
-    /// <param name="host">Parent content host.</param>
     /// <returns>A parsed <see cref="PdfForm"/> instance, or <see langword="null"/> when <paramref name="xObject"/> is a direct object.</returns>
-    internal static PdfForm? FromXObject(PdfObject xObject, IPdfContentHost host)
+    internal static PdfForm? FromXObject(PdfObject xObject)
     {
         if (xObject.Reference == null)
         {
@@ -77,21 +69,22 @@ public sealed class PdfForm
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
         PdfRectangle bbox = PdfRectangle.FromArray(bboxArray) ?? PdfRectangle.Empty;
 
-        PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(dict, PdfTokens.GroupKey, host);
+        PdfTransparencyGroup? transparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(dict, PdfTokens.GroupKey);
 
-        return new PdfForm(matrix, bbox, transparencyGroup, host, xObject, xObject.Reference.Value);
+        return new PdfForm(matrix, bbox, transparencyGroup, xObject, xObject.Reference.Value);
     }
 
     /// <summary>
     /// Creates a <see cref="PdfContentHost"/> for this form's content stream, resolving against the form's own
     /// /Resources or, when absent, the parent content host's resources.
     /// </summary>
+    /// <param name="state">Graphics state the form is drawn in.</param>
     /// <returns>A <see cref="PdfContentHost"/> instance.</returns>
-    internal PdfContentHost GetFormHost()
+    internal PdfContentHost GetFormHost(PdfGraphicsState state)
     {
-        PdfDictionary resources = XObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? Host.ResourceDictionary;
+        PdfDictionary resources = XObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? state.Host.ResourceDictionary;
         int? structParents = XObject.Dictionary.GetInteger(PdfTokens.StructParentsKey);
-        return new PdfContentHost(Host.Document, resources, structParents);
+        return new PdfContentHost(XObject.Document, resources, structParents);
     }
 
 

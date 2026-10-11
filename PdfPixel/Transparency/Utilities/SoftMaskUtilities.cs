@@ -44,19 +44,9 @@ internal static class SoftMaskUtilities
             return null;
         }
 
-        Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> recordingCache = sourceState.Host.Document.ObjectCache.SoftMaskForms;
-        PdfSoftMaskRecordingKey key = new(maskFormReference, worldToMaskForm);
-
-        if (recordingCache.TryGetValue(key, out PdfCommandRecorder? cachedRecording))
-        {
-            return cachedRecording;
-        }
-
-        bool reachedAtTopLevel = sourceState.RecursionGuard.Count == 0;
-
         sourceState.RecursionGuard.Add(maskFormReference.ObjectNumber);
 
-        PdfContentHost maskHost = maskForm.GetFormHost();
+        PdfContentHost maskHost = maskForm.GetFormHost(sourceState);
         PdfRectangle maskClipBounds = worldToMaskForm.MapRect(maskForm.BBox);
         PdfGraphicsState maskState = (softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
             ? CreateLuminosityMaskGraphicsState(maskHost, maskClipBounds, sourceState)
@@ -71,11 +61,6 @@ internal static class SoftMaskUtilities
         contentRenderer.RenderContext(recorder, ref parseContext, maskState);
 
         sourceState.RecursionGuard.Remove(maskFormReference.ObjectNumber);
-
-        if (reachedAtTopLevel)
-        {
-            recordingCache[key] = recorder;
-        }
 
         return recorder;
     }

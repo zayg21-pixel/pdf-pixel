@@ -128,7 +128,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             }
             case PdfXObjectSubtype.Form:
             {
-                PdfForm? formXObject = PdfForm.FromXObject(pageObject.XObject, _host);
+                PdfForm? formXObject = PdfForm.FromXObject(pageObject.XObject);
                 if (formXObject != null)
                 {
                     _renderer.DrawForm(_processor, formXObject, graphicsState);

@@ -2,6 +2,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
 using PdfPixel.Forms;
+using PdfPixel.Rendering.State;
 
 namespace PdfPixel.Transparency.Model;
 
@@ -34,16 +35,17 @@ public class PdfSoftMask
     /// <summary>
     /// Retrieves the background color, converting it to sRGB if necessary.
     /// </summary>
-    /// <param name="intent">Current intent.</param>
-    /// <param name="postTransform">Post color transform (if defined).</param>
+    /// <param name="state">Graphics state the mask is applied in.</param>
     /// <returns>Background color.</returns>
-    public PdfColor GetBackgroundColor(PdfRenderingIntent intent, TransferFunctionTransform? postTransform)
+    internal PdfColor GetBackgroundColor(PdfGraphicsState state)
     {
-        if (MaskForm == null || BackgroundColorComponents == null)
+        if (MaskForm == null || MaskForm.TransparencyGroup == null || BackgroundColorComponents == null)
         {
             return PdfColors.Black;
         }
 
-        return MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColorComponents, intent, postTransform) ?? PdfColors.Black;
+        PdfColorSpaceConverter? converter = state.Host.Cache.ColorSpace.Resolve(MaskForm.TransparencyGroup.ColorSpaceReference);
+
+        return converter?.ToSrgb(BackgroundColorComponents, state.RenderingIntent, state.TransferFunction) ?? PdfColors.Black;
     }
 }
