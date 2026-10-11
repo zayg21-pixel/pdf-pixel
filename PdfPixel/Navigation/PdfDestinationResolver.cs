@@ -128,7 +128,7 @@ public sealed class PdfDestinationResolver
         }
 
         PdfReference? pageReference = destinationArray.GetReference(0);
-        if (pageReference?.IsValid == true)
+        if (pageReference != null)
         {
             return new PdfPageDestination(destinationArray, pageReference.Value);
         }
@@ -367,9 +367,10 @@ public sealed class PdfDestinationResolver
 
         foreach (IPdfPageInternal page in pages)
         {
-            if (page.PageReference.IsValid && !pagesByReference.ContainsKey(page.PageReference))
+            PdfReference? pageReference = page.PageReference;
+            if (pageReference != null && !pagesByReference.ContainsKey(pageReference.Value))
             {
-                pagesByReference.Add(page.PageReference, page);
+                pagesByReference.Add(pageReference.Value, page);
             }
         }
 

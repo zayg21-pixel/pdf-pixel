@@ -47,7 +47,7 @@ public class FormRenderer : IFormRenderer
             throw new ArgumentNullException(nameof(graphicsState));
         }
 
-        uint objectNumber = formXObject.XObject.Reference.ObjectNumber;
+        uint objectNumber = formXObject.Reference.ObjectNumber;
 
         if (graphicsState.RecursionGuard.Contains(objectNumber))
         {

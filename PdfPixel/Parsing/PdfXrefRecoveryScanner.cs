@@ -49,9 +49,9 @@ internal sealed class PdfXrefRecoveryScanner
             int objectStart = parser.Position;
             PdfObject? obj = parser.ScanObject();
 
-            if (obj != null)
+            if (obj != null && obj.Reference != null)
             {
-                _document.ObjectCache.SetObjectOffset(obj.Reference, objectStart);
+                _document.ObjectCache.SetObjectOffset(obj.Reference.Value, objectStart);
                 objectsFound++;
 
                 PdfString? typeName = obj.Dictionary.GetName(PdfTokens.TypeKey);

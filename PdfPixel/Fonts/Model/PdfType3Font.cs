@@ -117,10 +117,12 @@ public class PdfType3Font : PdfSingleByteFont
         }
 
         PdfObject? charObject = CharProcs.GetObject(charName);
-        if (charObject == null)
+        if (charObject == null || charObject.Reference == null)
         {
             return PdfType3CharacterInfo.Undefined;
         }
+
+        uint charObjectNumber = charObject.Reference.Value.ObjectNumber;
 
         ReadOnlyMemory<byte> streamData = charObject.Stream.DecodeAsMemory();
 
@@ -129,12 +131,12 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        if (sourceState.RecursionGuard.Contains(charObject.Reference.ObjectNumber))
+        if (sourceState.RecursionGuard.Contains(charObjectNumber))
         {
             return PdfType3CharacterInfo.Undefined;
         }
 
-        sourceState.RecursionGuard.Add(charObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Add(charObjectNumber);
 
         PdfCommandRecorder recorder = new();
 
@@ -159,7 +161,7 @@ public class PdfType3Font : PdfSingleByteFont
         PdfType3CharacterInfo info = new(recorder, boundingBox, advancement);
         type3Cache[charCode] = info;
 
-        sourceState.RecursionGuard.Remove(charObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Remove(charObjectNumber);
 
         return info;
     }

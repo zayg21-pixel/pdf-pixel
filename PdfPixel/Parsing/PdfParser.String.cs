@@ -51,9 +51,9 @@ internal partial struct PdfParser
 
         ReadOnlyMemory<byte> bytes = _localBuffer.ToArray();
 
-        if (_decrypt && _document.Decryptor != null && _currentReference.IsValid)
+        if (_decrypt && _document.Decryptor != null && _currentReference != null)
         {
-            bytes = _document.Decryptor.DecryptString(bytes, _currentReference);
+            bytes = _document.Decryptor.DecryptString(bytes, _currentReference.Value);
         }
 
         return PdfValueFactory.String(new PdfString(bytes));
@@ -162,9 +162,9 @@ internal partial struct PdfParser
 
         ReadOnlyMemory<byte> bytes = _localBuffer.ToArray();
 
-        if (_decrypt && _document.Decryptor != null && _currentReference.IsValid)
+        if (_decrypt && _document.Decryptor != null && _currentReference != null)
         {
-            bytes = _document.Decryptor.DecryptString(bytes, _currentReference);
+            bytes = _document.Decryptor.DecryptString(bytes, _currentReference.Value);
         }
 
         return PdfValueFactory.String(new PdfString(bytes));

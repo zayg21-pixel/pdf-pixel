@@ -37,7 +37,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
         Flags = (PdfFormFieldFlags)dictionary.GetIntegerOrDefault(PdfTokens.FieldFlagsKey);
         Value = dictionary.GetValue(PdfTokens.ValueKey);
         DefaultValue = dictionary.GetValue(PdfTokens.DefaultValueKey);
-        Parent = dictionary.GetReference(PdfTokens.ParentKey) ?? default;
+        Parent = dictionary.GetReference(PdfTokens.ParentKey);
         DefaultAppearance = dictionary.GetString(PdfTokens.DefaultAppearanceKey);
         Quadding = dictionary.GetIntegerOrDefault(PdfTokens.QuadKey);
     }
@@ -88,12 +88,12 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     public IPdfValue? DefaultValue { get; }
 
     /// <summary>
-    /// Gets the reference to the parent field.
+    /// Gets the reference to the parent field, or <see langword="null"/> when absent.
     /// </summary>
     /// <remarks>
     /// Form fields can be organized hierarchically. Terminal fields have widgets.
     /// </remarks>
-    public PdfReference Parent { get; }
+    public PdfReference? Parent { get; }
 
     /// <summary>
     /// Gets the default appearance string.

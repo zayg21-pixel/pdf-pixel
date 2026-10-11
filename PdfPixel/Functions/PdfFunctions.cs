@@ -104,10 +104,10 @@ internal static class PdfFunctions
             return null;
         }
 
-        if (functionObject.Reference.IsValid)
+        if (functionObject.Reference != null)
         {
             Dictionary<PdfReference, PdfFunction> cache = functionObject.Document.ObjectCache.Functions;
-            if (cache.TryGetValue(functionObject.Reference, out PdfFunction? cachedFunction))
+            if (cache.TryGetValue(functionObject.Reference.Value, out PdfFunction? cachedFunction))
             {
                 return cachedFunction;
             }
@@ -142,10 +142,10 @@ internal static class PdfFunctions
                 return null;
         }
 
-        if (function != null && functionObject.Reference.IsValid)
+        if (function != null && functionObject.Reference != null)
         {
             Dictionary<PdfReference, PdfFunction> cache = functionObject.Document.ObjectCache.Functions;
-            cache[functionObject.Reference] = function;
+            cache[functionObject.Reference.Value] = function;
         }
 
         return function;

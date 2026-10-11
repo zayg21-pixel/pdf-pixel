@@ -189,7 +189,7 @@ public class PdfArray
         }
 
         // return synthetic object
-        return new PdfObject(default, Document, storedValue);
+        return new PdfObject(null, Document, storedValue);
     }
 
     /// <summary>

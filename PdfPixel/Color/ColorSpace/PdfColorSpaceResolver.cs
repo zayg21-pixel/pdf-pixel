@@ -65,7 +65,7 @@ internal sealed partial class PdfColorSpaceResolver
     /// <param name="defaultComponents">Component count to assume when no colour space was written.</param>
     public PdfColorSpaceConverter? Resolve(in PdfColorSpaceReference colorSpaceReference, int defaultComponents = 3)
     {
-        if (colorSpaceReference.Reference.IsValid)
+        if (colorSpaceReference.Reference != null)
         {
             if (TryResolveFromCacheByReference(colorSpaceReference.Reference, out PdfColorSpaceConverter? cached) && cached != null)
             {
@@ -321,7 +321,7 @@ internal sealed partial class PdfColorSpaceResolver
             return false;
         }
 
-        if (pdfObject.Reference.IsValid && _document.ObjectCache.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out PdfColorSpaceConverter? existing))
+        if (pdfObject.Reference != null && _document.ObjectCache.ColorSpaceConverters.TryGetValue(pdfObject.Reference.Value, out PdfColorSpaceConverter? existing))
         {
             converter = existing;
             return true;
@@ -338,9 +338,9 @@ internal sealed partial class PdfColorSpaceResolver
             return false;
         }
 
-        if (pdfObject.Reference.IsValid)
+        if (pdfObject.Reference != null)
         {
-            _document.ObjectCache.ColorSpaceConverters[pdfObject.Reference] = converter;
+            _document.ObjectCache.ColorSpaceConverters[pdfObject.Reference.Value] = converter;
             return true;
         }
 

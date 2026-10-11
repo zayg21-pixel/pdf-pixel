@@ -116,10 +116,10 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             return null;
         }
 
-        Models.PdfReference globalsReference = decodeParameters.Jbig2GlobalsReference;
+        Models.PdfReference? globalsReference = decodeParameters.Jbig2GlobalsReference;
         Models.PdfDocumentObjectCache? objectCache = Context.Host.Document.ObjectCache;
 
-        if (objectCache != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsReference, out Jbig2SegmentCache? existing))
+        if (objectCache != null && globalsReference != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsReference.Value, out Jbig2SegmentCache? existing))
         {
             return existing;
         }
@@ -138,9 +138,9 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         Jbig2PageDecoder pageDecoder = new();
         Jbig2SegmentCache globalsCache = pageDecoder.DecodeGlobalCache(globalsData.Span);
 
-        if (objectCache != null)
+        if (objectCache != null && globalsReference != null)
         {
-            objectCache.Jbig2GlobalCaches[globalsReference] = globalsCache;
+            objectCache.Jbig2GlobalCaches[globalsReference.Value] = globalsCache;
         }
 
         return globalsCache;

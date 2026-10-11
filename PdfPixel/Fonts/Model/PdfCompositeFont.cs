@@ -197,7 +197,12 @@ public class PdfCompositeFont : PdfFontBase
     /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this stream.</param>
     private PdfCMap? LoadCMapStream(PdfObject cmapObject, int useCMapDepth)
     {
-        if (cmapObject.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(cmapObject.Reference, out PdfCMap? cachedCMap))
+        if (cmapObject.Reference == null)
+        {
+            return null;
+        }
+
+        if (Document.CMapCache.CMapStreams.TryGetValue(cmapObject.Reference.Value, out PdfCMap? cachedCMap))
         {
             return cachedCMap;
         }
@@ -212,10 +217,7 @@ public class PdfCompositeFont : PdfFontBase
 
         ApplyCMapStreamDictionary(cmapObject.Dictionary, result, useCMapDepth);
 
-        if (cmapObject.Reference.IsValid)
-        {
-            Document.CMapCache.CMapStreams[cmapObject.Reference] = result;
-        }
+        Document.CMapCache.CMapStreams[cmapObject.Reference.Value] = result;
 
         return result;
     }

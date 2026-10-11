@@ -76,9 +76,9 @@ internal class PdfPageExtractor
             return currentPageNum;
         }
 
-        if (!visited.Add(pagesObj.Reference.ObjectNumber))
+        if (pagesObj.Reference != null && !visited.Add(pagesObj.Reference.Value.ObjectNumber))
         {
-            _logger.LogWarning("Cycle detected in page tree at /Pages ref {Ref}; skipping.", pagesObj.Reference.ObjectNumber);
+            _logger.LogWarning("Cycle detected in page tree at /Pages ref {Ref}; skipping.", pagesObj.Reference);
             return currentPageNum;
         }
 
@@ -89,7 +89,7 @@ internal class PdfPageExtractor
         PdfArray? kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
         if (kidsArray == null)
         {
-            _logger.LogWarning("/Pages node (ref {Ref}) missing /Kids array.", pagesObj.Reference.ObjectNumber);
+            _logger.LogWarning("/Pages node (ref {Ref}) missing /Kids array.", pagesObj.Reference);
             return currentPageNum;
         }
 
@@ -98,7 +98,7 @@ internal class PdfPageExtractor
             PdfObject? kidObject = kidsArray.GetObject(i);
             if (kidObject == null)
             {
-                _logger.LogWarning("Null kid reference at index {Index} in /Kids array of /Pages ref {Ref}.", i, pagesObj.Reference.ObjectNumber);
+                _logger.LogWarning("Null kid reference at index {Index} in /Kids array of /Pages ref {Ref}.", i, pagesObj.Reference);
                 continue;
             }
 

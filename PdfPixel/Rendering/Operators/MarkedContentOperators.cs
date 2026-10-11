@@ -273,7 +273,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         PdfDictionary? inlineDictionary = propertiesOperand.AsDictionary();
         if (inlineDictionary != null)
         {
-            PdfObject inlineObject = new(default, _host.Document, propertiesOperand);
+            PdfObject inlineObject = new(null, _host.Document, propertiesOperand);
             return PdfOptionalContentMembership.FromOptionalContentObject(inlineObject);
         }
 

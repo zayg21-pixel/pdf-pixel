@@ -14,7 +14,7 @@ public sealed class PdfFileSpecification
     private PdfFileSpecification(in PdfString file)
         => File = file;
 
-    private PdfFileSpecification(PdfDictionary dictionary, in PdfReference reference)
+    private PdfFileSpecification(PdfDictionary dictionary, PdfReference? reference)
     {
         Reference = reference;
         RawFileSystem = dictionary.GetName(PdfTokens.FileSystemKey);
@@ -44,9 +44,9 @@ public sealed class PdfFileSpecification
     }
 
     /// <summary>
-    /// Reference of the file specification dictionary. Invalid unless the dictionary is indirect.
+    /// Reference of the file specification dictionary, or <see langword="null"/> when it is a direct object or a string.
     /// </summary>
-    public PdfReference Reference { get; }
+    public PdfReference? Reference { get; }
 
     /// <summary>
     /// File system interpreting the specification (FS), or <see langword="null"/> when absent.

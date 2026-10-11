@@ -26,11 +26,6 @@ public readonly struct PdfReference : IEquatable<PdfReference>
     /// </summary>
     public int Generation { get; }
 
-    /// <summary>
-    /// True if this is a valid reference (object number > 0).
-    /// </summary>
-    public bool IsValid => ObjectNumber > 0;
-
     /// <inheritdoc/>
     public override string ToString() => $"{ObjectNumber} {Generation} R";
 

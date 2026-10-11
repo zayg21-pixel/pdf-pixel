@@ -9,9 +9,9 @@ namespace PdfPixel.OptionalContent.Model;
 /// </summary>
 public sealed class PdfOptionalContentGroup
 {
-    internal PdfOptionalContentGroup(PdfObject groupObject, in PdfString name)
+    internal PdfOptionalContentGroup(PdfObject groupObject, in PdfReference reference, in PdfString name)
     {
-        Reference = groupObject.Reference;
+        Reference = reference;
         Name = name;
         Intent = PdfOptionalContentIntent.FromDictionary(groupObject.Dictionary);
 

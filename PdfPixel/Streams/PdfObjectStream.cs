@@ -87,7 +87,7 @@ public sealed class PdfObjectStream
                 pdfObject.EmbaddedStream);
         }
 
-        if (pdfObject.StreamInfo.HasValue)
+        if (pdfObject.StreamInfo.HasValue && pdfObject.Reference != null)
         {
             return new PdfObjectStream(
                 document.StreamDecoder,
@@ -97,7 +97,7 @@ public sealed class PdfObjectStream
                 document.Stream,
                 document.Decryptor,
                 cryptFilter,
-                pdfObject.Reference);
+                pdfObject.Reference.Value);
         }
 
         return new PdfObjectStream(
@@ -137,7 +137,7 @@ public sealed class PdfObjectStream
         PdfObjectStreamReference streamReference = _streamReference.Value;
         SubrangeReadOnlyStream subrange = new(_documentStream, streamReference.Offset, streamReference.Length, leaveOpen: true);
 
-        if (streamReference.IsEncrypted && _decryptor != null && _objectReference.IsValid)
+        if (streamReference.IsEncrypted && _decryptor != null)
         {
             return _decryptor.DecryptStream(subrange, _objectReference, _cryptFilter);
         }

@@ -77,7 +77,7 @@ internal partial struct PdfParser
         _currentReference = reference;
 
         IPdfValue? value = ReadNextValue();
-        _currentReference = default;
+        _currentReference = null;
 
         if (value == null)
         {

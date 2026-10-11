@@ -122,20 +122,20 @@ internal class PdfDocumentObjectCache
     /// </summary>
     /// <param name="reference">Target object reference.</param>
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
-    public PdfObject? GetObject(in PdfReference reference)
+    public PdfObject? GetObject(PdfReference? reference)
     {
-        if (!reference.IsValid)
+        if (reference == null)
         {
             return null;
         }
 
-        PdfObject? parsed = ResolveIndexedObject(reference);
+        PdfObject? parsed = ResolveIndexedObject(reference.Value);
 
         if (parsed == null && !_recoveryScanAttempted)
         {
             _logger.LogWarning("Object {Reference} could not be resolved from the xref table; running a fallback recovery scan.", reference);
             RunRecoveryScan();
-            parsed = ResolveIndexedObject(reference);
+            parsed = ResolveIndexedObject(reference.Value);
         }
 
         return parsed;
@@ -150,9 +150,9 @@ internal class PdfDocumentObjectCache
     /// <param name="factory">Creates the <typeparamref name="T"/> from the resolved object, or returns null when it cannot.</param>
     /// <param name="requiresStream">When true, an object without a stream yields null without invoking <paramref name="factory"/>.</param>
     /// <returns>Cached or created <typeparamref name="T"/>, or null if the object is unavailable or the factory returned null.</returns>
-    public T? GetOrCreate<T>(in PdfReference reference, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
+    public T? GetOrCreate<T>(PdfReference? reference, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
     {
-        if (!reference.IsValid)
+        if (reference == null)
         {
             return null;
         }
@@ -163,7 +163,7 @@ internal class PdfDocumentObjectCache
             _objectsByType[typeof(T)] = objects;
         }
 
-        if (objects.TryGetValue(reference, out object? cached))
+        if (objects.TryGetValue(reference.Value, out object? cached))
         {
             return (T)cached;
         }
@@ -177,7 +177,7 @@ internal class PdfDocumentObjectCache
         T? created = factory(pdfObject);
         if (created != null)
         {
-            objects[reference] = created;
+            objects[reference.Value] = created;
         }
 
         return created;
@@ -198,7 +198,7 @@ internal class PdfDocumentObjectCache
         PdfReference? reference = dictionary.GetReference(key);
         if (reference != null)
         {
-            return GetOrCreate(reference.Value, factory, requiresStream);
+            return GetOrCreate(reference, factory, requiresStream);
         }
 
         PdfObject? directObject = dictionary.GetObject(key);
@@ -225,7 +225,7 @@ internal class PdfDocumentObjectCache
         PdfReference? reference = array.GetReference(index);
         if (reference != null)
         {
-            return GetOrCreate(reference.Value, factory, requiresStream);
+            return GetOrCreate(reference, factory, requiresStream);
         }
 
         PdfObject? directObject = array.GetObject(index);

@@ -25,7 +25,12 @@ internal static class PdfSoftMaskParser
             return null;
         }
 
-        PdfForm formObject = PdfForm.FromXObject(groupObject, host);
+        PdfForm? formObject = PdfForm.FromXObject(groupObject, host);
+        if (formObject == null)
+        {
+            return null;
+        }
+
         softMask.MaskForm = formObject;
 
         PdfArray? bcArray = softMaskDict.GetArray(PdfTokens.SoftMaskBCKey);
@@ -81,7 +86,7 @@ internal static class PdfSoftMaskParser
             Knockout = groupDictionary.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey)
         };
 
-        if (groupReference != null && colorSpaceReference.Reference.IsValid)
+        if (groupReference != null && colorSpaceReference.Reference != null)
         {
             host.Document.ObjectCache.TransparencyGroups[groupReference.Value] = group;
         }

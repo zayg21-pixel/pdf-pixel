@@ -156,9 +156,9 @@ internal sealed class PdfContentHostCache
         PdfOptionalContentMembership? membership = PdfOptionalContentMembership.FromOptionalContentObject(propertiesObject);
         _optionalContentByName[propertiesName] = membership;
 
-        if (propertiesObject.Reference.IsValid)
+        if (propertiesObject.Reference != null)
         {
-            _document.ObjectCache.OptionalContentMemberships[propertiesObject.Reference] = membership;
+            _document.ObjectCache.OptionalContentMemberships[propertiesObject.Reference.Value] = membership;
         }
 
         return membership;
@@ -228,7 +228,7 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        if (fontObject.Reference.IsValid && _document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out PdfFontBase? documentCachedFont))
+        if (fontObject.Reference != null && _document.ObjectCache.Fonts.TryGetValue(fontObject.Reference.Value, out PdfFontBase? documentCachedFont))
         {
             return documentCachedFont;
         }
@@ -238,9 +238,9 @@ internal sealed class PdfContentHostCache
         {
             _logger.LogWarning("Font object {Reference} could not be created from its dictionary.", fontObject.Reference);
         }
-        else if (fontObject.Reference.IsValid)
+        else if (fontObject.Reference != null)
         {
-            _document.ObjectCache.Fonts[fontObject.Reference] = newFont;
+            _document.ObjectCache.Fonts[fontObject.Reference.Value] = newFont;
         }
 
         return newFont;
@@ -288,9 +288,9 @@ internal sealed class PdfContentHostCache
         {
             _patternsByName[patternName] = parsedPattern;
 
-            if (patternObject.Reference.IsValid && parsedPattern.IsHostIndependent)
+            if (patternObject.Reference != null && parsedPattern.IsHostIndependent)
             {
-                _document.ObjectCache.Patterns[patternObject.Reference] = parsedPattern;
+                _document.ObjectCache.Patterns[patternObject.Reference.Value] = parsedPattern;
             }
         }
 

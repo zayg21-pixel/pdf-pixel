@@ -9,16 +9,16 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public readonly struct PdfColorSpaceReference
 {
-    private PdfColorSpaceReference(in PdfReference reference, IPdfValue? value)
+    private PdfColorSpaceReference(PdfReference? reference, IPdfValue? value)
     {
         Reference = reference;
         Value = value;
     }
 
     /// <summary>
-    /// Reference to the object holding the color space. Invalid unless the color space is indirect.
+    /// Reference to the object holding the color space. Null unless the color space is indirect.
     /// </summary>
-    public PdfReference Reference { get; }
+    public PdfReference? Reference { get; }
 
     /// <summary>
     /// The color space written in place, a name or an array. Null unless it is written in place.
@@ -28,7 +28,7 @@ public readonly struct PdfColorSpaceReference
     /// <summary>
     /// True when a color space was written at all.
     /// </summary>
-    public bool IsPresent => Reference.IsValid || Value != null;
+    public bool IsPresent => Reference != null || Value != null;
 
     /// <summary>
     /// Reads the color space a dictionary holds under a key, resolving nothing it points at.
@@ -43,12 +43,12 @@ public readonly struct PdfColorSpaceReference
         PdfReference? reference = dictionary.GetReference(key);
         if (reference != null)
         {
-            return new PdfColorSpaceReference(reference.Value, null);
+            return new PdfColorSpaceReference(reference, null);
         }
 
         if (dictionary.RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
-            return new PdfColorSpaceReference(default, storedValue);
+            return new PdfColorSpaceReference(null, storedValue);
         }
 
         return default;

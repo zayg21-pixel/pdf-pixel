@@ -80,7 +80,7 @@ public sealed class PdfVisibilityExpression
             }
 
             PdfReference? groupReference = array.GetReference(index);
-            if (groupReference != null && groupReference.Value.IsValid)
+            if (groupReference != null)
             {
                 operands.Add(new PdfVisibilityExpression(groupReference.Value));
             }

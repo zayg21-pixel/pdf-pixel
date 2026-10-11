@@ -16,13 +16,15 @@ public sealed class PdfForm
         in PdfRectangle bbox,
         PdfTransparencyGroup? transparencyGroup,
         IPdfContentHost host,
-        PdfObject xObject)
+        PdfObject xObject,
+        in PdfReference reference)
     {
         Matrix = matrix;
         BBox = bbox;
         TransparencyGroup = transparencyGroup;
         Host = host;
         XObject = xObject;
+        Reference = reference;
     }
 
     /// <summary>
@@ -51,13 +53,23 @@ public sealed class PdfForm
     public PdfObject XObject { get; }
 
     /// <summary>
+    /// Reference of the Form XObject.
+    /// </summary>
+    public PdfReference Reference { get; }
+
+    /// <summary>
     /// Creates a <see cref="PdfForm"/> from a Form XObject.
     /// </summary>
     /// <param name="xObject">The Form XObject.</param>
     /// <param name="host">Parent content host.</param>
-    /// <returns>A parsed <see cref="PdfForm"/> instance.</returns>
-    internal static PdfForm FromXObject(PdfObject xObject, IPdfContentHost host)
+    /// <returns>A parsed <see cref="PdfForm"/> instance, or <see langword="null"/> when <paramref name="xObject"/> is a direct object.</returns>
+    internal static PdfForm? FromXObject(PdfObject xObject, IPdfContentHost host)
     {
+        if (xObject.Reference == null)
+        {
+            return null;
+        }
+
         PdfDictionary dict = xObject.Dictionary;
         PdfArray? matrixArray = dict.GetArray(PdfTokens.MatrixKey);
         PdfArray? bboxArray = dict.GetArray(PdfTokens.BBoxKey);
@@ -67,7 +79,7 @@ public sealed class PdfForm
 
         PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(dict, PdfTokens.GroupKey, host);
 
-        return new PdfForm(matrix, bbox, transparencyGroup, host, xObject);
+        return new PdfForm(matrix, bbox, transparencyGroup, host, xObject, xObject.Reference.Value);
     }
 
     /// <summary>

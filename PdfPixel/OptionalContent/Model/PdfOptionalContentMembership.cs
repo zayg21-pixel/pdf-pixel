@@ -80,7 +80,14 @@ public class PdfOptionalContentMembership
     }
 
     private static PdfOptionalContentMembership FromGroupObject(PdfObject groupObject)
-        => new(PdfOptionalContentType.Group, [groupObject.Reference], PdfOptionalContentVisibilityPolicy.AllOn);
+    {
+        if (groupObject.Reference == null)
+        {
+            return new PdfOptionalContentMembership(PdfOptionalContentType.Group, [], PdfOptionalContentVisibilityPolicy.AllOn);
+        }
+
+        return new PdfOptionalContentMembership(PdfOptionalContentType.Group, [groupObject.Reference.Value], PdfOptionalContentVisibilityPolicy.AllOn);
+    }
 
     private static PdfOptionalContentMembership FromMembershipDictionary(PdfDictionary membershipDictionary)
     {
@@ -108,9 +115,9 @@ public class PdfOptionalContentMembership
         List<PdfReference> groups = new(groupObjects.Count);
         foreach (PdfObject groupObject in groupObjects)
         {
-            if (groupObject.Reference.IsValid)
+            if (groupObject.Reference != null)
             {
-                groups.Add(groupObject.Reference);
+                groups.Add(groupObject.Reference.Value);
             }
         }
 

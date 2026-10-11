@@ -328,12 +328,12 @@ public abstract class PdfFontBase
     {
         PdfObject? toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
 
-        if (toUnicodeObj == null || !toUnicodeObj.HasStream)
+        if (toUnicodeObj == null || toUnicodeObj.Reference == null || !toUnicodeObj.HasStream)
         {
             return null;
         }
 
-        if (toUnicodeObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference, out PdfCMap? cachedCMap))
+        if (Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference.Value, out PdfCMap? cachedCMap))
         {
             return cachedCMap;
         }
@@ -342,10 +342,7 @@ public abstract class PdfFontBase
 
         PdfCMap parsedCMap = PdfCMapScanner.Scan(cmapData, Document.CMapCache.GetCmap);
 
-        if (toUnicodeObj.Reference.IsValid)
-        {
-            Document.CMapCache.CMapStreams[toUnicodeObj.Reference] = parsedCMap;
-        }
+        Document.CMapCache.CMapStreams[toUnicodeObj.Reference.Value] = parsedCMap;
 
         return parsedCMap;
     }

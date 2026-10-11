@@ -70,8 +70,7 @@ internal class PdfObjectParser
         }
 
         // Validate reference matches index metadata to guard against malformed offsets.
-        if (parsedObject.Reference.ObjectNumber != reference.ObjectNumber
-            || parsedObject.Reference.Generation != reference.Generation)
+        if (parsedObject.Reference != reference)
         {
             _logger.LogWarning(
                 "Xref offset {Offset} for {ExpectedReference} actually contains {ActualReference}; treating the xref entry as invalid.",

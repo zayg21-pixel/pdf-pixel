@@ -114,9 +114,9 @@ internal static class PdfDocumentAnnotationExtractor
         {
             PdfAnnotationBase annotation = pageAnnotation.Content;
 
-            if (annotation.Reference.IsValid)
+            if (annotation.Reference != null)
             {
-                pageReferences.Add(annotation.Reference);
+                pageReferences.Add(annotation.Reference.Value);
             }
         }
 
@@ -135,7 +135,7 @@ internal static class PdfDocumentAnnotationExtractor
         {
             PdfAnnotationBase annotation = pageAnnotation.Content;
 
-            if (!annotation.Reference.IsValid || !annotation.InReplyTo.HasValue)
+            if (annotation.Reference == null || !annotation.InReplyTo.HasValue)
             {
                 continue;
             }
@@ -182,12 +182,12 @@ internal static class PdfDocumentAnnotationExtractor
         PdfAnnotationBase annotation,
         Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent)
     {
-        if (!annotation.Reference.IsValid)
+        if (annotation.Reference == null)
         {
             return new List<PdfAnnotationBase>();
         }
 
-        if (!repliesByParent.TryGetValue(annotation.Reference, out List<PdfAnnotationBase>? replies))
+        if (!repliesByParent.TryGetValue(annotation.Reference.Value, out List<PdfAnnotationBase>? replies))
         {
             return new List<PdfAnnotationBase>();
         }

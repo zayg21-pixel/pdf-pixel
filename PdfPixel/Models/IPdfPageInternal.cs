@@ -15,9 +15,9 @@ internal interface IPdfPageInternal : IPdfPage, IPdfContentHost
     PdfPageResources PageResources { get; }
 
     /// <summary>
-    /// Reference of the underlying /Page object.
+    /// Reference of the underlying /Page object, or <see langword="null"/> when it is a direct object.
     /// </summary>
-    PdfReference PageReference { get; }
+    PdfReference? PageReference { get; }
 
     /// <summary>
     /// Stream sources named by the page's /Contents entry, in the order they are to be read.

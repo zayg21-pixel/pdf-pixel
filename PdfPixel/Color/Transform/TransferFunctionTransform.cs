@@ -45,10 +45,10 @@ public sealed class TransferFunctionTransform : IColorTransform
             return null;
         }
 
-        if (functionObject.Reference.IsValid)
+        if (functionObject.Reference != null)
         {
             Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
-            if (cache.TryGetValue(functionObject.Reference, out TransferFunctionTransform? cachedTransform))
+            if (cache.TryGetValue(functionObject.Reference.Value, out TransferFunctionTransform? cachedTransform))
             {
                 return cachedTransform;
             }
@@ -56,10 +56,10 @@ public sealed class TransferFunctionTransform : IColorTransform
 
         TransferFunctionTransform? transform = FromPdfObjectCore(functionObject);
 
-        if (transform != null && functionObject.Reference.IsValid)
+        if (transform != null && functionObject.Reference != null)
         {
             Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
-            cache[functionObject.Reference] = transform;
+            cache[functionObject.Reference.Value] = transform;
         }
 
         return transform;

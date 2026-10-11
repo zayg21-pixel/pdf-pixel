@@ -88,7 +88,7 @@ public class PdfDecodeParameters
     /// Reference of the object the JBIG2 globals stream was read from, under which its decoded segments
     /// are cached for every image sharing it.
     /// </summary>
-    public PdfReference Jbig2GlobalsReference { get; private set; }
+    public PdfReference? Jbig2GlobalsReference { get; private set; }
 
     /// <summary>
     /// Parse a /DecodeParms dictionary to a strongly-typed <see cref="PdfDecodeParameters"/> instance.

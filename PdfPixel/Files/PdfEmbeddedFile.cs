@@ -11,9 +11,9 @@ namespace PdfPixel.Files;
 /// </summary>
 public sealed class PdfEmbeddedFile
 {
-    private PdfEmbeddedFile(PdfObject fileObject)
+    private PdfEmbeddedFile(PdfObject fileObject, in PdfReference reference)
     {
-        Reference = fileObject.Reference;
+        Reference = reference;
         Stream = fileObject.Stream;
         Subtype = fileObject.Dictionary.GetName(PdfTokens.SubtypeKey);
 
@@ -66,14 +66,15 @@ public sealed class PdfEmbeddedFile
     /// The embedded file stream at <paramref name="reference"/>, or <see langword="null"/> when there is none.
     /// </summary>
     internal static PdfEmbeddedFile? FromReference(IPdfDocumentInternal document, PdfReference? reference)
+        => document.ObjectCache.GetOrCreate(reference, FromObject, requiresStream: true);
+
+    private static PdfEmbeddedFile? FromObject(PdfObject fileObject)
     {
-        if (reference == null)
+        if (fileObject.Reference == null)
         {
             return null;
         }
 
-        return document.ObjectCache.GetOrCreate(reference.Value, FromObject, requiresStream: true);
+        return new PdfEmbeddedFile(fileObject, fileObject.Reference.Value);
     }
-
-    private static PdfEmbeddedFile FromObject(PdfObject fileObject) => new(fileObject);
 }

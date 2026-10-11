@@ -89,9 +89,9 @@ public sealed class PdfShading
     }
 
     /// <summary>
-    /// Source object reference.
+    /// Source object reference, or <see langword="null"/> when it is a direct object.
     /// </summary>
-    public PdfReference SourceReference { get; }
+    public PdfReference? SourceReference { get; }
 
     /// <summary>
     /// Creates a <see cref="PdfShading"/> from a PDF shading object.

@@ -71,20 +71,20 @@ public sealed class PdfTypefaceLoader
     public IPdfTypeface GetTypeface()
     {
         PdfDocumentObjectCache? objectCache = _fontDescriptor.ObjectCache;
-        PdfReference fontFileReference = _fontDescriptor.FontFileReference;
+        PdfReference? fontFileReference = _fontDescriptor.FontFileReference;
 
-        if (objectCache == null || !fontFileReference.IsValid)
+        if (objectCache == null || fontFileReference == null)
         {
             return LoadTypeface();
         }
 
-        if (objectCache.Typefaces.TryGetValue(fontFileReference, out IPdfTypeface? cachedTypeface))
+        if (objectCache.Typefaces.TryGetValue(fontFileReference.Value, out IPdfTypeface? cachedTypeface))
         {
             return cachedTypeface;
         }
 
         IPdfTypeface typeface = LoadTypeface();
-        objectCache.Typefaces[fontFileReference] = typeface;
+        objectCache.Typefaces[fontFileReference.Value] = typeface;
 
         return typeface;
     }

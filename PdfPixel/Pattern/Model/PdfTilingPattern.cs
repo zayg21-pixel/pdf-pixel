@@ -100,9 +100,7 @@ public sealed class PdfTilingPattern : PdfPattern
 
             tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(this, state);
 
-            if (tileRecorder != null
-                && SourceReference.IsValid
-                && reachedAtTopLevel)
+            if (tileRecorder != null && reachedAtTopLevel)
             {
                 CellRecording = tileRecorder;
             }

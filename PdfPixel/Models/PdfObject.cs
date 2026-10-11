@@ -14,10 +14,10 @@ public class PdfObject
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfObject"/> class.
     /// </summary>
-    /// <param name="reference">The PDF reference for this object.</param>
+    /// <param name="reference">The PDF reference for this object, or <see langword="null"/> for a direct object.</param>
     /// <param name="document">The owning PDF document.</param>
     /// <param name="value">The value of the PDF object.</param>
-    internal PdfObject(in PdfReference reference, IPdfDocumentInternal document, IPdfValue value)
+    internal PdfObject(PdfReference? reference, IPdfDocumentInternal document, IPdfValue value)
     {
         Reference = reference;
         Document = document;
@@ -26,9 +26,9 @@ public class PdfObject
     }
 
     /// <summary>
-    /// Gets the PDF reference for this object.
+    /// Gets the PDF reference for this object, or <see langword="null"/> when it is a direct object.
     /// </summary>
-    public PdfReference Reference { get; }
+    public PdfReference? Reference { get; }
 
     /// <summary>
     /// Gets the owning PDF document.

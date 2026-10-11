@@ -97,9 +97,9 @@ public class PdfImage
     }
 
     /// <summary>
-    /// Source object reference.
+    /// Source object reference, or <see langword="null"/> when it is a direct object.
     /// </summary>
-    public PdfReference SourceReference { get; }
+    public PdfReference? SourceReference { get; }
 
     /// <summary>
     /// Gets the self-contained stream source for this image.
@@ -198,10 +198,10 @@ public class PdfImage
             throw new ArgumentNullException(nameof(pdfObject));
         }
 
-        if (pdfObject.Reference.IsValid)
+        if (pdfObject.Reference != null)
         {
             Dictionary<PdfReference, PdfImage> cache = pdfObject.Document.ObjectCache.Images;
-            if (cache.TryGetValue(pdfObject.Reference, out PdfImage? cachedImage))
+            if (cache.TryGetValue(pdfObject.Reference.Value, out PdfImage? cachedImage))
             {
                 return cachedImage;
             }
@@ -209,10 +209,10 @@ public class PdfImage
 
         PdfImage image = new(pdfObject);
 
-        if (pdfObject.Reference.IsValid)
+        if (pdfObject.Reference != null)
         {
             Dictionary<PdfReference, PdfImage> cache = pdfObject.Document.ObjectCache.Images;
-            cache[pdfObject.Reference] = image;
+            cache[pdfObject.Reference.Value] = image;
         }
 
         return image;

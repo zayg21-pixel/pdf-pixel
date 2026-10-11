@@ -8,9 +8,9 @@ namespace PdfPixel.Models;
 /// </summary>
 public sealed class PdfMetadata
 {
-    internal PdfMetadata(PdfObject metadataObject)
+    internal PdfMetadata(PdfObject metadataObject, in PdfReference reference)
     {
-        Reference = metadataObject.Reference;
+        Reference = reference;
         Stream = metadataObject.Stream;
     }
 
@@ -32,11 +32,11 @@ public sealed class PdfMetadata
     internal static PdfMetadata? FromDictionary(PdfDictionary dictionary)
     {
         PdfObject? metadataObject = dictionary.GetObject(PdfTokens.MetadataKey);
-        if (metadataObject == null || !metadataObject.HasStream)
+        if (metadataObject == null || metadataObject.Reference == null || !metadataObject.HasStream)
         {
             return null;
         }
 
-        return new PdfMetadata(metadataObject);
+        return new PdfMetadata(metadataObject, metadataObject.Reference.Value);
     }
 }

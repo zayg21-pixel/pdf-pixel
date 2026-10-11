@@ -41,7 +41,7 @@ internal ref partial struct PdfParser
 
     private int _lastSetPostion = 0;
     private PdfParseContext _parseContext;
-    private PdfReference _currentReference;
+    private PdfReference? _currentReference;
 
     public PdfParser(PdfParseContext parseContext, IPdfDocumentInternal document, bool allowReferences, bool decrypt)
     {
@@ -166,7 +166,16 @@ internal ref partial struct PdfParser
                         if (generation != null && objectNumber != null)
                         {
                             values.RemoveRange(values.Count - 2, 2);
-                            values.Add(PdfValueFactory.Reference(new PdfReference((uint)objectNumber.Value, generation.Value)));
+
+                            // Invalid object identifier (7.3.10): the null object.
+                            if (objectNumber.Value > 0 && generation.Value >= 0)
+                            {
+                                values.Add(PdfValueFactory.Reference(new PdfReference((uint)objectNumber.Value, generation.Value)));
+                            }
+                            else
+                            {
+                                values.Add(PdfValueFactory.Null());
+                            }
                         }
                     }
 

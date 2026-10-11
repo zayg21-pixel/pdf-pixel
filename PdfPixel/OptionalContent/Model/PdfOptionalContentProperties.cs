@@ -20,9 +20,9 @@ public sealed class PdfOptionalContentProperties
             foreach (PdfObject groupObject in groupObjects)
             {
                 PdfString? name = groupObject.Dictionary.GetString(PdfTokens.NameKey);
-                if (groupObject.Reference.IsValid && name != null)
+                if (groupObject.Reference != null && name != null)
                 {
-                    groups[groupObject.Reference] = new PdfOptionalContentGroup(groupObject, name.Value);
+                    groups[groupObject.Reference.Value] = new PdfOptionalContentGroup(groupObject, groupObject.Reference.Value, name.Value);
                 }
             }
         }

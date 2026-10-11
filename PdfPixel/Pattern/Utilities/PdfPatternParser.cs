@@ -30,8 +30,13 @@ internal static class PdfPatternParser
         };
     }
 
-    private static PdfTilingPattern ParseTilingPattern(PdfObject patternObject)
+    private static PdfTilingPattern? ParseTilingPattern(PdfObject patternObject)
     {
+        if (patternObject.Reference == null)
+        {
+            return null;
+        }
+
         PdfDictionary dictionary = patternObject.Dictionary;
 
         PdfArray? bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
@@ -54,7 +59,7 @@ internal static class PdfPatternParser
         PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
 
         return new PdfTilingPattern(
-            patternObject.Reference,
+            patternObject.Reference.Value,
             patternObject.Stream,
             dictionary.GetDictionary(PdfTokens.ResourcesKey),
             bbox,

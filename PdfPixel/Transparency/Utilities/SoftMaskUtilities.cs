@@ -37,7 +37,7 @@ internal static class SoftMaskUtilities
             return null;
         }
 
-        PdfReference maskFormReference = maskForm.XObject.Reference;
+        PdfReference maskFormReference = maskForm.Reference;
 
         if (sourceState.RecursionGuard.Contains(maskFormReference.ObjectNumber))
         {
@@ -47,7 +47,7 @@ internal static class SoftMaskUtilities
         Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> recordingCache = sourceState.Host.Document.ObjectCache.SoftMaskForms;
         PdfSoftMaskRecordingKey key = new(maskFormReference, worldToMaskForm);
 
-        if (maskFormReference.IsValid && recordingCache.TryGetValue(key, out PdfCommandRecorder? cachedRecording))
+        if (recordingCache.TryGetValue(key, out PdfCommandRecorder? cachedRecording))
         {
             return cachedRecording;
         }
@@ -72,7 +72,7 @@ internal static class SoftMaskUtilities
 
         sourceState.RecursionGuard.Remove(maskFormReference.ObjectNumber);
 
-        if (maskFormReference.IsValid && reachedAtTopLevel)
+        if (reachedAtTopLevel)
         {
             recordingCache[key] = recorder;
         }

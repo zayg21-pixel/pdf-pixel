@@ -130,9 +130,9 @@ public class PdfFontDescriptor
 
     /// <summary>
     /// Reference of the object holding <see cref="FontFileStream"/>, which several descriptors may
-    /// share. Invalid when this descriptor embeds no font program.
+    /// share. <see langword="null"/> when this descriptor embeds no font program.
     /// </summary>
-    public PdfReference FontFileReference { get; set; }
+    public PdfReference? FontFileReference { get; set; }
 
     /// <summary>
     /// Format of the embedded font file.

@@ -27,7 +27,7 @@ internal class PdfPage : IPdfPageInternal
     private readonly Lazy<PdfContentHostCache> _pageCache;
     private readonly Lazy<IReadOnlyList<PdfPageAnnotation>> _annotations;
     private readonly IPdfDocumentInternal _document;
-    private readonly PdfReference _pageReference;
+    private readonly PdfReference? _pageReference;
     private readonly List<PdfObjectStream> _contentStreams;
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
@@ -175,7 +175,7 @@ internal class PdfPage : IPdfPageInternal
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
-    PdfReference IPdfPageInternal.PageReference => _pageReference;
+    PdfReference? IPdfPageInternal.PageReference => _pageReference;
 
     int? IPdfContentHost.StructParents => StructParents;
 

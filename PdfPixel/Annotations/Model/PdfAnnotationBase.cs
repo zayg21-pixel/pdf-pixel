@@ -78,9 +78,9 @@ public abstract class PdfAnnotationBase
     }
 
     /// <summary>
-    /// Gets the reference of the PDF object that represents this annotation.
+    /// Gets the reference of the PDF object that represents this annotation, or <see langword="null"/> when it is a direct object.
     /// </summary>
-    public PdfReference Reference { get; }
+    public PdfReference? Reference { get; }
 
     /// <summary>
     /// Gets the annotation subtype (e.g., Text, Link, Widget, etc.).
