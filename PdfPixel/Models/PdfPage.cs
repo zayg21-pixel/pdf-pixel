@@ -92,14 +92,14 @@ internal class PdfPage : IPdfPageInternal
         _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(CreateAnnotations);
 
         _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey, this);
-        _thumbnail = new Lazy<PdfImage?>(() => PdfImage.FromDictionaryEntry(pageObject.Dictionary, PdfTokens.ThumbnailKey));
+        _thumbnail = new Lazy<PdfImage?>(() => PdfImage.GetImage(pageObject.Dictionary, PdfTokens.ThumbnailKey));
 
         PdfDictionary pageDictionary = pageObject.Dictionary;
         UserUnit = pageDictionary.GetFloat(PdfTokens.UserUnitKey) ?? 1f;
         StructParents = pageDictionary.GetInteger(PdfTokens.StructParentsKey);
         LastModified = PdfDateParser.ParsePdfDate(pageDictionary.GetString(PdfTokens.LastModifiedKey));
         Metadata = PdfMetadata.FromDictionary(pageDictionary);
-        AssociatedFiles = PdfFileSpecification.FromArray(pageDictionary.GetArray(PdfTokens.AssociatedFilesKey));
+        AssociatedFiles = PdfFileSpecification.GetFileSpecifications(pageDictionary.GetArray(PdfTokens.AssociatedFilesKey));
         Duration = pageDictionary.GetFloat(PdfTokens.DurKey);
         Tabs = pageDictionary.GetName(PdfTokens.TabsKey)?.AsEnum<PdfTabOrder>();
         TemplateInstantiated = pageDictionary.GetName(PdfTokens.TemplateInstantiatedKey);

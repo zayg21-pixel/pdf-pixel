@@ -45,9 +45,6 @@ public sealed class PdfShadingPattern : PdfPattern
     /// </summary>
     internal PdfGraphicsStateParameters? ExtGState { get; }
 
-    /// <inheritdoc />
-    internal override bool IsHostIndependent => ExtGState?.SoftMask == null;
-
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
         PdfGraphicsState shadingState = state;

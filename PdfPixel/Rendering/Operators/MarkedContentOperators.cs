@@ -255,7 +255,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         PdfArray? inlineArray = propertiesOperand.AsArray();
         if (inlineArray != null)
         {
-            return PdfFileSpecification.FromArray(inlineArray);
+            return PdfFileSpecification.GetFileSpecifications(inlineArray);
         }
 
         PdfString? propertiesName = propertiesOperand.AsName();
@@ -274,7 +274,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         if (inlineDictionary != null)
         {
             PdfObject inlineObject = new(null, _host.Document, propertiesOperand);
-            return PdfOptionalContentMembership.FromOptionalContentObject(inlineObject);
+            return PdfOptionalContentMembership.FromObject(inlineObject);
         }
 
         // Resource name — look up in /Properties subdictionary.

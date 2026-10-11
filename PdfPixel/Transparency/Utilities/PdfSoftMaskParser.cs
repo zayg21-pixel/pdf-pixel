@@ -39,11 +39,7 @@ internal static class PdfSoftMaskParser
             softMask.BackgroundColorComponents = bcArray.GetFloatArray();
         }
 
-        PdfObject? trObject = softMaskDict.GetObject(PdfTokens.TransferFunctionKey);
-        if (trObject != null)
-        {
-            softMask.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
-        }
+        softMask.TransferFunction = TransferFunctionTransform.GetTransferFunction(softMaskDict, PdfTokens.TransferFunctionKey);
 
         return softMask;
     }

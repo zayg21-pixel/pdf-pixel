@@ -24,7 +24,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     public PdfFileAttachmentAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FileAttachment)
     {
-        FileSpecification = PdfFileSpecification.FromDictionaryEntry(annotationObject.Dictionary, PdfTokens.FSKey);
+        FileSpecification = PdfFileSpecification.GetFileSpecification(annotationObject.Dictionary, PdfTokens.FSKey);
         Icon = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfFileAttachmentIcon>();
     }
 

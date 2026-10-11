@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using PdfPixel.Models;
+using PdfPixel.Text;
 
 namespace PdfPixel.Functions;
 
@@ -93,61 +94,52 @@ internal static class PdfFunctions
     }
 
     /// <summary>
-    /// Returns a parsed PdfFunction instance for the given function object, using the cache if available.
+    /// Returns a parsed PdfFunction instance for the function held by <paramref name="key"/> of <paramref name="dictionary"/>, using the cache if available.
+    /// </summary>
+    /// <param name="dictionary">Dictionary holding the function entry.</param>
+    /// <param name="key">Key of the function entry.</param>
+    /// <returns>PdfFunction instance, or null if absent, unsupported or invalid.</returns>
+    public static PdfFunction? GetFunction(PdfDictionary dictionary, in PdfString key)
+        => dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, FromObject);
+
+    /// <summary>
+    /// Returns a parsed PdfFunction instance for the function at <paramref name="index"/> of <paramref name="array"/>, using the cache if available.
+    /// </summary>
+    /// <param name="array">Array holding the function entry.</param>
+    /// <param name="index">Index of the function entry.</param>
+    /// <returns>PdfFunction instance, or null if absent, unsupported or invalid.</returns>
+    public static PdfFunction? GetFunction(PdfArray array, int index)
+        => array.Document.ObjectCache.GetOrCreate(array, index, FromObject);
+
+    /// <summary>
+    /// Parses a PdfFunction instance from the given function object.
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>PdfFunction instance, or null if type is unsupported or invalid.</returns>
-    public static PdfFunction? GetFunction(PdfObject? functionObject)
+    public static PdfFunction? FromObject(PdfObject functionObject)
     {
-        if (functionObject == null || functionObject.Dictionary == null)
-        {
-            return null;
-        }
-
-        if (functionObject.Reference != null)
-        {
-            Dictionary<PdfReference, PdfFunction> cache = functionObject.Document.ObjectCache.Functions;
-            if (cache.TryGetValue(functionObject.Reference.Value, out PdfFunction? cachedFunction))
-            {
-                return cachedFunction;
-            }
-        }
-
         PdfFunctionType functionType = PdfFunction.GetFunctionType(functionObject);
-        PdfFunction? function;
 
         switch (functionType)
         {
             case PdfFunctionType.Sampled:
                 {
-                    function = SampledPdfFunction.FromObject(functionObject);
-                    break;
+                    return SampledPdfFunction.FromObject(functionObject);
                 }
             case PdfFunctionType.Exponential:
                 {
-                    function = ExponentialPdfFunction.FromObject(functionObject);
-                    break;
+                    return ExponentialPdfFunction.FromObject(functionObject);
                 }
             case PdfFunctionType.Stitching:
                 {
-                    function = StitchingPdfFunction.FromObject(functionObject);
-                    break;
+                    return StitchingPdfFunction.FromObject(functionObject);
                 }
             case PdfFunctionType.PostScript:
                 {
-                    function = PostScriptPdfFunction.FromObject(functionObject);
-                    break;
+                    return PostScriptPdfFunction.FromObject(functionObject);
                 }
             default:
                 return null;
         }
-
-        if (function != null && functionObject.Reference != null)
-        {
-            Dictionary<PdfReference, PdfFunction> cache = functionObject.Document.ObjectCache.Functions;
-            cache[functionObject.Reference.Value] = function;
-        }
-
-        return function;
     }
 }

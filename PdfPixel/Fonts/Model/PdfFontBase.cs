@@ -29,7 +29,7 @@ public abstract class PdfFontBase
 
         Type = Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
         BaseFont = Dictionary.GetString(PdfTokens.BaseFontKey);
-        ToUnicodeCMap = LoadToUnicodeCMap();
+        ToUnicodeCMap = PdfCMap.GetCMap(Dictionary, PdfTokens.ToUnicodeKey);
         FontDescriptor = PdfFontDescriptor.FromDictionary(Dictionary.GetDictionary(PdfTokens.FontDescriptorKey));
         SubstitutionInfo = PdfSubstitutionInfo.Parse(BaseFont, FontDescriptor);
     }
@@ -318,32 +318,5 @@ public abstract class PdfFontBase
         }
 
         return (xScale, new PdfPoint(offsetX, offsetY), advancement);
-    }
-
-    /// <summary>
-    /// Parses the /ToUnicode CMap stream, or returns null when the font states none. A CMap already
-    /// parsed for the same stream object is taken from the document's CMap cache.
-    /// </summary>
-    private PdfCMap? LoadToUnicodeCMap()
-    {
-        PdfObject? toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
-
-        if (toUnicodeObj == null || toUnicodeObj.Reference == null || !toUnicodeObj.HasStream)
-        {
-            return null;
-        }
-
-        if (Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference.Value, out PdfCMap? cachedCMap))
-        {
-            return cachedCMap;
-        }
-
-        ReadOnlyMemory<byte> cmapData = toUnicodeObj.Stream.DecodeAsMemory();
-
-        PdfCMap parsedCMap = PdfCMapScanner.Scan(cmapData, Document.CMapCache.GetCmap);
-
-        Document.CMapCache.CMapStreams[toUnicodeObj.Reference.Value] = parsedCMap;
-
-        return parsedCMap;
     }
 }

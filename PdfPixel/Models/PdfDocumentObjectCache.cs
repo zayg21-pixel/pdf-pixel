@@ -1,14 +1,9 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Transform;
 using PdfPixel.Commands.Model;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Functions;
 using PdfPixel.Imaging.Model;
-using PdfPixel.Jbig2.Decoding;
-using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
-using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
@@ -28,7 +23,7 @@ internal class PdfDocumentObjectCache
     private readonly PdfObjectParser _pdfObjectParser;
     private readonly PdfXrefRecoveryScanner _recoveryScanner;
     private readonly ILogger<PdfDocumentObjectCache> _logger;
-    private readonly Dictionary<Type, Dictionary<PdfReference, object>> _objectsByType = [];
+    private readonly Dictionary<Type, Dictionary<PdfReference, object?>> _objectsByType = [];
     private bool _recoveryScanAttempted;
 
     public PdfDocumentObjectCache(IPdfDocumentInternal document, PdfObjectParser parser)
@@ -45,31 +40,11 @@ internal class PdfDocumentObjectCache
     public PdfIccColorSpaceConverter? OutputIntentConverter { get; set; }
 
     /// <summary>
-    /// Document font cache.
-    /// </summary>
-    public Dictionary<PdfReference, PdfFontBase> Fonts { get; } = [];
-
-    /// <summary>
     /// Document typeface cache, keyed by the reference of the object holding the embedded font
     /// program, so a program several font descriptors share is parsed only once. Owns the typefaces
     /// it holds; they live as long as the document.
     /// </summary>
     public Dictionary<PdfReference, IPdfTypeface> Typefaces { get; } = [];
-
-    /// <summary>
-    /// Document color space converter cache.
-    /// </summary>
-    public Dictionary<PdfReference, PdfColorSpaceConverter?> ColorSpaceConverters { get; } = [];
-
-    /// <summary>
-    /// High-level cache for parsed PDF functions, keyed by reference.
-    /// </summary>
-    public Dictionary<PdfReference, PdfFunction> Functions { get; } = [];
-
-    /// <summary>
-    /// Document cache for parsed transfer function transforms (TR), keyed by reference.
-    /// </summary>
-    public Dictionary<PdfReference, TransferFunctionTransform> TransferFunctionTransforms { get; } = [];
 
     /// <summary>
     /// Document cache for parsed ExtGState parameters, keyed by reference. Holds only parameters
@@ -83,17 +58,6 @@ internal class PdfDocumentObjectCache
     public Dictionary<PdfReference, PdfImage> Images { get; } = [];
 
     /// <summary>
-    /// High-level cache for optional content memberships, keyed by the reference of the OCG or OCMD object.
-    /// </summary>
-    public Dictionary<PdfReference, PdfOptionalContentMembership?> OptionalContentMemberships { get; } = [];
-
-    /// <summary>
-    /// High-level cache for parsed PDF patterns, keyed by reference. Holds only patterns that are
-    /// page independent.
-    /// </summary>
-    public Dictionary<PdfReference, PdfPattern> Patterns { get; } = [];
-
-    /// <summary>
     /// High-level cache for parsed transparency groups, keyed by the reference of the /Group
     /// dictionary. Holds only groups whose blending colour space is an indirect reference.
     /// </summary>
@@ -105,12 +69,6 @@ internal class PdfDocumentObjectCache
     /// content stream is parsed and recorded once per operation rather than once per use.
     /// </summary>
     public Dictionary<PdfSoftMaskRecordingKey, PdfCommandRecorder> SoftMaskForms { get; } = [];
-
-    /// <summary>
-    /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.
-    /// Populated on first use so each globals stream is decoded only once per document.
-    /// </summary>
-    public Dictionary<PdfReference, Jbig2SegmentCache> Jbig2GlobalCaches { get; } = [];
 
     /// <summary>
     /// Document object index collection.
@@ -157,28 +115,25 @@ internal class PdfDocumentObjectCache
             return null;
         }
 
-        if (!_objectsByType.TryGetValue(typeof(T), out Dictionary<PdfReference, object>? objects))
+        if (!_objectsByType.TryGetValue(typeof(T), out Dictionary<PdfReference, object?>? objects))
         {
-            objects = new Dictionary<PdfReference, object>();
+            objects = new Dictionary<PdfReference, object?>();
             _objectsByType[typeof(T)] = objects;
         }
 
         if (objects.TryGetValue(reference.Value, out object? cached))
         {
-            return (T)cached;
+            return (T?)cached;
         }
 
         PdfObject? pdfObject = GetObject(reference);
-        if (pdfObject == null || (requiresStream && !pdfObject.HasStream))
+        T? created = null;
+        if (pdfObject != null && (!requiresStream || pdfObject.HasStream))
         {
-            return null;
+            created = factory(pdfObject);
         }
 
-        T? created = factory(pdfObject);
-        if (created != null)
-        {
-            objects[reference.Value] = created;
-        }
+        objects[reference.Value] = created;
 
         return created;
     }

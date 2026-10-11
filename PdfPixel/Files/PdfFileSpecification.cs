@@ -28,8 +28,8 @@ public sealed class PdfFileSpecification
         Volatile = dictionary.GetBoolean(PdfTokens.VolatileKey);
 
         PdfDictionary? embeddedFiles = dictionary.GetDictionary(PdfTokens.EFKey);
-        EmbeddedFile = PdfEmbeddedFile.FromReference(dictionary.Document, embeddedFiles?.GetReference(PdfTokens.FKey));
-        UnicodeEmbeddedFile = PdfEmbeddedFile.FromReference(dictionary.Document, embeddedFiles?.GetReference(PdfTokens.UFKey));
+        EmbeddedFile = PdfEmbeddedFile.GetEmbeddedFile(dictionary.Document, embeddedFiles?.GetReference(PdfTokens.FKey));
+        UnicodeEmbeddedFile = PdfEmbeddedFile.GetEmbeddedFile(dictionary.Document, embeddedFiles?.GetReference(PdfTokens.UFKey));
 
         PdfDictionary? relatedFiles = dictionary.GetDictionary(PdfTokens.RelatedFilesKey);
         RelatedFiles = ReadRelatedFiles(relatedFiles?.GetArray(PdfTokens.FKey));
@@ -40,7 +40,7 @@ public sealed class PdfFileSpecification
         AssociatedFileRelationship = RawAssociatedFileRelationship?.AsEnum<PdfFileRelationship>();
         EncryptedPayload = PdfEncryptedPayload.FromDictionary(dictionary.GetDictionary(PdfTokens.EncryptedPayloadKey));
 
-        Thumbnail = PdfImage.FromDictionaryEntry(dictionary, PdfTokens.ThumbnailKey);
+        Thumbnail = PdfImage.GetImage(dictionary, PdfTokens.ThumbnailKey);
     }
 
     /// <summary>
@@ -147,21 +147,21 @@ public sealed class PdfFileSpecification
     /// The file specification held by <paramref name="key"/> of <paramref name="owner"/>, in string or
     /// dictionary form, or <see langword="null"/> when absent.
     /// </summary>
-    internal static PdfFileSpecification? FromDictionaryEntry(PdfDictionary owner, in PdfString key)
+    internal static PdfFileSpecification? GetFileSpecification(PdfDictionary owner, in PdfString key)
         => owner.Document.ObjectCache.GetOrCreate(owner, key, FromObject);
 
     /// <summary>
     /// The file specification at <paramref name="index"/> of <paramref name="array"/>, in string or
     /// dictionary form, or <see langword="null"/> when absent.
     /// </summary>
-    internal static PdfFileSpecification? FromArrayEntry(PdfArray array, int index)
+    internal static PdfFileSpecification? GetFileSpecification(PdfArray array, int index)
         => array.Document.ObjectCache.GetOrCreate(array, index, FromObject);
 
     /// <summary>
     /// The document-level embedded files (/Names /EmbeddedFiles) of <paramref name="catalog"/>, keyed by name.
     /// Empty when the catalog has none.
     /// </summary>
-    internal static Dictionary<PdfString, PdfFileSpecification> FromCatalog(PdfDictionary catalog, PdfTreeReader treeReader)
+    internal static Dictionary<PdfString, PdfFileSpecification> GetFileSpecifications(PdfDictionary catalog, PdfTreeReader treeReader)
     {
         PdfDictionary? embeddedFiles = catalog.GetDictionary(PdfTokens.NamesKey)?.GetDictionary(PdfTokens.EmbeddedFilesKey);
         if (embeddedFiles == null)
@@ -169,13 +169,13 @@ public sealed class PdfFileSpecification
             return new Dictionary<PdfString, PdfFileSpecification>();
         }
 
-        return treeReader.ReadNameTree(embeddedFiles, FromArrayEntry);
+        return treeReader.ReadNameTree(embeddedFiles, GetFileSpecification);
     }
 
     /// <summary>
     /// The file specifications in <paramref name="array"/>, or <see langword="null"/> when it is absent.
     /// </summary>
-    internal static List<PdfFileSpecification>? FromArray(PdfArray? array)
+    internal static List<PdfFileSpecification>? GetFileSpecifications(PdfArray? array)
     {
         if (array == null)
         {
@@ -185,7 +185,7 @@ public sealed class PdfFileSpecification
         List<PdfFileSpecification> result = new(array.Count);
         for (int index = 0; index < array.Count; index++)
         {
-            PdfFileSpecification? specification = FromArrayEntry(array, index);
+            PdfFileSpecification? specification = GetFileSpecification(array, index);
             if (specification != null)
             {
                 result.Add(specification);
@@ -223,7 +223,7 @@ public sealed class PdfFileSpecification
         for (int index = 0; index + 1 < relatedFiles.Count; index += 2)
         {
             PdfString? name = relatedFiles.GetString(index);
-            PdfEmbeddedFile? file = PdfEmbeddedFile.FromReference(relatedFiles.Document, relatedFiles.GetReference(index + 1));
+            PdfEmbeddedFile? file = PdfEmbeddedFile.GetEmbeddedFile(relatedFiles.Document, relatedFiles.GetReference(index + 1));
             if (name != null && file != null)
             {
                 result.Add(new PdfRelatedFile(name.Value, file));

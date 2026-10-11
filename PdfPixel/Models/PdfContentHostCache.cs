@@ -139,27 +139,14 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        PdfReference? propertiesReference = _propertiesDictionary.GetReference(propertiesName);
-        if (propertiesReference != null && _document.ObjectCache.OptionalContentMemberships.TryGetValue(propertiesReference.Value, out PdfOptionalContentMembership? documentCachedMembership))
-        {
-            _optionalContentByName[propertiesName] = documentCachedMembership;
-            return documentCachedMembership;
-        }
-
-        PdfObject? propertiesObject = _propertiesDictionary.GetObject(propertiesName);
-        if (propertiesObject == null)
+        if (!_propertiesDictionary.HasKey(propertiesName))
         {
             _logger.LogWarning("Properties '{PropertiesName}' is not present in the page's /Properties resources.", propertiesName);
             return null;
         }
 
-        PdfOptionalContentMembership? membership = PdfOptionalContentMembership.FromOptionalContentObject(propertiesObject);
+        PdfOptionalContentMembership? membership = _document.ObjectCache.GetOrCreate(_propertiesDictionary, propertiesName, PdfOptionalContentMembership.FromObject);
         _optionalContentByName[propertiesName] = membership;
-
-        if (propertiesObject.Reference != null)
-        {
-            _document.ObjectCache.OptionalContentMemberships[propertiesObject.Reference.Value] = membership;
-        }
 
         return membership;
     }
@@ -174,7 +161,7 @@ internal sealed class PdfContentHostCache
     /// Get the associated files a /Properties resource name refers to. Returns null if not found.
     /// </summary>
     public List<PdfFileSpecification>? GetAssociatedFiles(in PdfString propertiesName)
-        => PdfFileSpecification.FromArray(_propertiesDictionary?.GetArray(propertiesName));
+        => PdfFileSpecification.GetFileSpecifications(_propertiesDictionary?.GetArray(propertiesName));
 
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.
@@ -193,57 +180,16 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        PdfReference? fontReference = _fontDictionary.GetReference(fontName);
-        if (fontReference != null && _document.ObjectCache.Fonts.TryGetValue(fontReference.Value, out PdfFontBase? documentCachedFont))
+        PdfFontBase? font = _document.ObjectCache.GetOrCreate(_fontDictionary, fontName, PdfFontFactory.CreateFont);
+        if (font == null)
         {
-            _fontsByName[fontName] = documentCachedFont;
-            return documentCachedFont;
-        }
-
-        PdfObject? fontObject = _fontDictionary.GetObject(fontName);
-        if (fontObject == null)
-        {
-            _logger.LogWarning("Font '{FontName}' is not present in the page's /Font resources.", fontName);
+            _logger.LogWarning("Font '{FontName}' could not be resolved from the page's /Font resources.", fontName);
             return null;
         }
 
-        PdfFontBase? font = GetFont(fontObject);
-        if (font != null)
-        {
-            _fontsByName[fontName] = font;
-        }
+        _fontsByName[fontName] = font;
 
         return font;
-    }
-
-    /// <summary>
-    /// Get (and cache) a font from a PdfObject. Returns null if not found or cannot be created.
-    /// </summary>
-    /// <param name="fontObject">Font object.</param>
-    /// <returns></returns>
-    public PdfFontBase? GetFont(PdfObject? fontObject)
-    {
-        if (fontObject == null)
-        {
-            return null;
-        }
-
-        if (fontObject.Reference != null && _document.ObjectCache.Fonts.TryGetValue(fontObject.Reference.Value, out PdfFontBase? documentCachedFont))
-        {
-            return documentCachedFont;
-        }
-
-        PdfFontBase? newFont = PdfFontFactory.CreateFont(fontObject);
-        if (newFont == null)
-        {
-            _logger.LogWarning("Font object {Reference} could not be created from its dictionary.", fontObject.Reference);
-        }
-        else if (fontObject.Reference != null)
-        {
-            _document.ObjectCache.Fonts[fontObject.Reference.Value] = newFont;
-        }
-
-        return newFont;
     }
 
     /// <summary>
@@ -263,38 +209,18 @@ internal sealed class PdfContentHostCache
             return null;
         }
 
-        PdfReference? patternReference = _patternDictionary.GetReference(patternName);
-        if (patternReference != null && _document.ObjectCache.Patterns.TryGetValue(patternReference.Value, out PdfPattern? documentCachedPattern))
+        // we're capturing host here for external graphics state of pattern, even though it's now "page level" content, in practice it's just to have consistent API
+        // we it's doubtful that pattern would need something from host besides render time
+        PdfPattern? pattern = _document.ObjectCache.GetOrCreate(_patternDictionary, patternName, patternObject => PdfPatternParser.ParsePattern(patternObject, _host));
+        if (pattern == null)
         {
-            _patternsByName[patternName] = documentCachedPattern;
-            return documentCachedPattern;
-        }
-
-        PdfObject? patternObject = _patternDictionary.GetObject(patternName);
-
-        if (patternObject == null)
-        {
-            _logger.LogWarning("Pattern '{PatternName}' is not present in the page's /Pattern resources.", patternName);
+            _logger.LogWarning("Pattern '{PatternName}' could not be resolved from the page's /Pattern resources.", patternName);
             return null;
         }
 
-        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(patternObject, _host);
+        _patternsByName[patternName] = pattern;
 
-        if (parsedPattern == null)
-        {
-            _logger.LogWarning("Pattern '{PatternName}' could not be parsed.", patternName);
-        }
-        else
-        {
-            _patternsByName[patternName] = parsedPattern;
-
-            if (patternObject.Reference != null && parsedPattern.IsHostIndependent)
-            {
-                _document.ObjectCache.Patterns[patternObject.Reference.Value] = parsedPattern;
-            }
-        }
-
-        return parsedPattern;
+        return pattern;
     }
 
     /// <summary>

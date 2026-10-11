@@ -44,16 +44,12 @@ internal sealed partial class PdfColorSpaceResolver
             return ResolveDeviceConverter(defaultComponents);
         }
 
-        if (TryResolveFromCache(pdfObject, out PdfColorSpaceConverter? cached))
+        if (pdfObject.Reference != null)
         {
-            return cached;
+            return ResolveByReference(pdfObject.Reference.Value, defaultComponents);
         }
 
-        PdfColorSpaceConverter? result = ResolveByValue(pdfObject.Value, defaultComponents);
-
-        TryStoreByReference(pdfObject, result);
-
-        return result;
+        return ResolveByValue(pdfObject.Value, defaultComponents);
     }
 
     /// <summary>
@@ -67,16 +63,7 @@ internal sealed partial class PdfColorSpaceResolver
     {
         if (colorSpaceReference.Reference != null)
         {
-            if (TryResolveFromCacheByReference(colorSpaceReference.Reference, out PdfColorSpaceConverter? cached) && cached != null)
-            {
-                return cached;
-            }
-
-            PdfObject? resolved = _document.ObjectCache.GetObject(colorSpaceReference.Reference);
-            PdfColorSpaceConverter? converter = ResolveByValue(resolved?.Value, defaultComponents);
-            TryStoreByReference(resolved, converter);
-
-            return converter;
+            return ResolveByReference(colorSpaceReference.Reference.Value, defaultComponents);
         }
 
         if (colorSpaceReference.Value != null)
@@ -244,23 +231,10 @@ internal sealed partial class PdfColorSpaceResolver
                 // Resource name lookup path.
                 if (_colorSpaceDictionary != null)
                 {
-                    if (TryResolveFromCacheByReference(_colorSpaceDictionary.GetReference(name), out PdfColorSpaceConverter? documentCached) && documentCached != null)
-                    {
-                        return documentCached;
-                    }
-
-                    PdfObject? resourceValue = _colorSpaceDictionary.GetObject(name);
-
-                    if (TryResolveFromCache(resourceValue, out PdfColorSpaceConverter? cached) && cached != null)
-                    {
-                        return cached;
-                    }
-
-                    PdfColorSpaceConverter? resolved = ResolveByValue(resourceValue?.Value);
+                    PdfColorSpaceConverter? resolved = Resolve(PdfColorSpaceReference.FromDictionary(_colorSpaceDictionary, name));
 
                     if (resolved != null)
                     {
-                        TryStoreByReference(resourceValue, resolved);
                         return resolved;
                     }
                 }
@@ -301,49 +275,10 @@ internal sealed partial class PdfColorSpaceResolver
         return false;
     }
 
-    private bool TryResolveFromCacheByReference(PdfReference? reference, out PdfColorSpaceConverter? converter)
+    private PdfColorSpaceConverter? ResolveByReference(in PdfReference reference, int defaultComponents)
     {
-        if (reference != null && _document.ObjectCache.ColorSpaceConverters.TryGetValue(reference.Value, out PdfColorSpaceConverter? existing))
-        {
-            converter = existing;
-            return true;
-        }
+        PdfColorSpaceConverter? converter = _document.ObjectCache.GetOrCreate(reference, colorSpaceObject => ResolveByValue(colorSpaceObject.Value, defaultComponents));
 
-        converter = null;
-        return false;
-    }
-
-    private bool TryResolveFromCache(PdfObject? pdfObject, out PdfColorSpaceConverter? converter)
-    {
-        if (pdfObject == null)
-        {
-            converter = null;
-            return false;
-        }
-
-        if (pdfObject.Reference != null && _document.ObjectCache.ColorSpaceConverters.TryGetValue(pdfObject.Reference.Value, out PdfColorSpaceConverter? existing))
-        {
-            converter = existing;
-            return true;
-        }
-
-        converter = null;
-        return false;
-    }
-
-    private bool TryStoreByReference(PdfObject? pdfObject, PdfColorSpaceConverter? converter)
-    {
-        if (pdfObject == null)
-        {
-            return false;
-        }
-
-        if (pdfObject.Reference != null)
-        {
-            _document.ObjectCache.ColorSpaceConverters[pdfObject.Reference.Value] = converter;
-            return true;
-        }
-
-        return false;
+        return converter ?? ResolveDeviceConverter(defaultComponents);
     }
 }

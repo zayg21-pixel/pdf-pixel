@@ -17,7 +17,7 @@ public sealed class PdfStructureNamespace : IEquatable<PdfStructureNamespace>
         Reference = reference;
         Name = name;
         RoleMapNamespace = ReadRoleMap(dictionary.GetDictionary(PdfTokens.RoleMapNamespaceKey));
-        Schema = PdfFileSpecification.FromDictionaryEntry(dictionary, PdfTokens.SchemaKey);
+        Schema = PdfFileSpecification.GetFileSpecification(dictionary, PdfTokens.SchemaKey);
     }
 
     /// <summary>

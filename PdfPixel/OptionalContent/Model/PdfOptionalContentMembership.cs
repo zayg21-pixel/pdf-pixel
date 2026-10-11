@@ -59,13 +59,13 @@ public class PdfOptionalContentMembership
             return null;
         }
 
-        return FromOptionalContentObject(optionalContentObject);
+        return FromObject(optionalContentObject);
     }
 
     /// <summary>
     /// Parses an OCG or OCMD object directly into a membership.
     /// </summary>
-    internal static PdfOptionalContentMembership? FromOptionalContentObject(PdfObject optionalContentObject)
+    internal static PdfOptionalContentMembership? FromObject(PdfObject optionalContentObject)
     {
         PdfOptionalContentType type = optionalContentObject.Dictionary
             .GetNameOrDefault(PdfTokens.TypeKey)

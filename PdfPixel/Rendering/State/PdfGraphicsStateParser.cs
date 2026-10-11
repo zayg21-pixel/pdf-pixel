@@ -6,6 +6,7 @@ using PdfPixel.Transparency.Model;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
+using PdfPixel.Fonts;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Rendering.State
@@ -161,10 +162,9 @@ namespace PdfPixel.Rendering.State
             PdfArray? fontArray = gsDict.GetArray(PdfTokens.FontKey);
             if (fontArray?.Count == 2)
             {
-                PdfObject? fontObject = fontArray.GetObject(0);
                 float fontSize = fontArray.GetFloatOrDefault(1);
 
-                parameters.Font = host.Cache.GetFont(fontObject);
+                parameters.Font = host.Document.ObjectCache.GetOrCreate(fontArray, 0, PdfFontFactory.CreateFont);
                 parameters.FontSize = fontSize;
             }
 
@@ -188,8 +188,7 @@ namespace PdfPixel.Rendering.State
                 return;
             }
 
-            PdfObject? transferFunctionObject = gsDict.GetObject(key);
-            parameters.TransferFunction = TransferFunctionTransform.FromPdfObject(transferFunctionObject);
+            parameters.TransferFunction = TransferFunctionTransform.GetTransferFunction(gsDict, key);
         }
     }
 }

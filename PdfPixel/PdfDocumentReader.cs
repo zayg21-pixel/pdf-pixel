@@ -124,7 +124,7 @@ public class PdfDocumentReader
             }
 
             ((PdfDocument)document).StructureTree = PdfStructureTree.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
-            ((PdfDocument)document).EmbeddedFiles = PdfFileSpecification.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
+            ((PdfDocument)document).EmbeddedFiles = PdfFileSpecification.GetFileSpecifications(document.RootObject.Dictionary, document.TreeReader);
             ReadDocumentEntries((PdfDocument)document, document.RootObject.Dictionary);
 
             _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);
@@ -194,7 +194,7 @@ public class PdfDocumentReader
         document.PageMode = catalog.GetName(PdfTokens.PageModeKey)?.AsEnum<PdfPageMode>();
         document.PageLayout = catalog.GetName(PdfTokens.PageLayoutKey)?.AsEnum<PdfPageLayout>();
         document.NeedsRendering = catalog.GetBoolean(PdfTokens.NeedsRenderingKey);
-        document.AssociatedFiles = PdfFileSpecification.FromArray(catalog.GetArray(PdfTokens.AssociatedFilesKey));
+        document.AssociatedFiles = PdfFileSpecification.GetFileSpecifications(catalog.GetArray(PdfTokens.AssociatedFilesKey));
         document.Metadata = PdfMetadata.FromDictionary(catalog);
         document.OpenAction = PdfOpenAction.FromCatalog(catalog, document.Destinations);
 

@@ -70,16 +70,16 @@ public sealed class StitchingPdfFunction : PdfFunction
         }
 
         PdfDictionary dictionary = functionObject.Dictionary;
-        List<PdfObject>? subFunctionObjects = dictionary.GetObjects(PdfTokens.FunctionsKey);
-        if (subFunctionObjects == null || subFunctionObjects.Count == 0)
+        PdfArray? subFunctionArray = dictionary.GetArray(PdfTokens.FunctionsKey);
+        if (subFunctionArray == null || subFunctionArray.Count == 0)
         {
             return null;
         }
 
-        List<PdfFunction?> subFunctions = new(subFunctionObjects.Count);
-        foreach (PdfObject subFunctionObject in subFunctionObjects)
+        List<PdfFunction?> subFunctions = new(subFunctionArray.Count);
+        for (int index = 0; index < subFunctionArray.Count; index++)
         {
-            PdfFunction? subFunction = PdfFunctions.GetFunction(subFunctionObject);
+            PdfFunction? subFunction = PdfFunctions.GetFunction(subFunctionArray, index);
             if (subFunction != null)
             {
                 subFunctions.Add(subFunction);

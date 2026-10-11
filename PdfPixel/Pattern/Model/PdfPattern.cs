@@ -32,11 +32,6 @@ public abstract class PdfPattern
     public PdfPatternType PatternType { get; }
 
     /// <summary>
-    /// Whether the pattern holds nothing bound to the content host it was parsed from.
-    /// </summary>
-    internal abstract bool IsHostIndependent { get; }
-
-    /// <summary>
     /// Renders the pattern using the given command processor and graphics state.
     /// </summary>
     /// <param name="processor">Command processor to draw through.</param>

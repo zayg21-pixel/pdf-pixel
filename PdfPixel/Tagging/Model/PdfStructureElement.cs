@@ -271,7 +271,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
 
         for (int index = 0; index < associatedFiles.Count; index++)
         {
-            PdfFileSpecification? specification = PdfFileSpecification.FromArrayEntry(associatedFiles, index);
+            PdfFileSpecification? specification = PdfFileSpecification.GetFileSpecification(associatedFiles, index);
             if (specification != null)
             {
                 yield return specification;

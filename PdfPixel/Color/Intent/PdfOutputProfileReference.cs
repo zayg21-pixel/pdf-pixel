@@ -17,7 +17,7 @@ public sealed class PdfOutputProfileReference
         ICCVersion = dictionary.GetString(PdfTokens.ICCVersionKey);
         ProfileCS = dictionary.GetString(PdfTokens.ProfileCSKey);
         ProfileName = dictionary.GetString(PdfTokens.ProfileNameKey);
-        URLs = PdfFileSpecification.FromArray(dictionary.GetArray(PdfTokens.URLsKey));
+        URLs = PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.URLsKey));
     }
 
     /// <summary>

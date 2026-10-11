@@ -1,5 +1,6 @@
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
+using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -13,6 +14,11 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public class PdfCMap
 {
+    /// <summary>
+    /// The longest /UseCMap chain followed when loading an embedded CMap stream.
+    /// </summary>
+    private const int MaxUseCMapDepth = 8;
+
     private readonly Dictionary<PdfCharacterCode, string> _characterCodeToUnicode = [];
     private readonly Dictionary<PdfCharacterCode, int> _codeToCid = [];
 
@@ -425,6 +431,86 @@ public class PdfCMap
     /// in the range [0, 0x10FFFF] and not in the surrogate range [0xD800, 0xDFFF].
     /// </summary>
     public static bool IsValidCodePoint(int codePoint) => codePoint >= 0 && codePoint <= 0x10FFFF && (codePoint < 0xD800 || codePoint > 0xDFFF);
+
+    /// <summary>
+    /// The CMap held by <paramref name="key"/> of <paramref name="dictionary"/>: the predefined CMap it names,
+    /// or the embedded CMap stream it points at. Returns <see langword="null"/> when absent or not parsable.
+    /// </summary>
+    /// <param name="dictionary">Dictionary holding the CMap entry.</param>
+    /// <param name="key">Key of the CMap entry.</param>
+    /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this entry.</param>
+    internal static PdfCMap? GetCMap(PdfDictionary dictionary, in PdfString key, int useCMapDepth = 0)
+    {
+        PdfString? predefinedName = dictionary.GetName(key);
+        if (predefinedName != null)
+        {
+            return dictionary.Document.CMapCache.GetCmap(predefinedName.Value);
+        }
+
+        return dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, cmapObject => FromObject(cmapObject, useCMapDepth), requiresStream: true);
+    }
+
+    /// <summary>
+    /// Parses a CMap stream object into a <see cref="PdfCMap"/>, applying the CMap entries of its stream
+    /// dictionary on top of the stream body.
+    /// Returns <see langword="null"/> when the stream carries no data or does not parse.
+    /// </summary>
+    /// <param name="cmapObject">The CMap stream object to parse.</param>
+    /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this stream.</param>
+    private static PdfCMap? FromObject(PdfObject cmapObject, int useCMapDepth)
+    {
+        ReadOnlyMemory<byte> data = cmapObject.Stream.DecodeAsMemory();
+        if (data.IsEmpty)
+        {
+            return null;
+        }
+
+        PdfCMap result = PdfCMapScanner.Scan(data, cmapObject.Document.CMapCache.GetCmap);
+
+        result.ApplyCMapStreamDictionary(cmapObject.Dictionary, useCMapDepth);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Applies the /CMapName, /CIDSystemInfo, /WMode and /UseCMap entries of a CMap stream dictionary to this
+    /// CMap parsed from the stream body. /CMapName replaces the parsed name; /CIDSystemInfo and /WMode fill in
+    /// what the body left at its default; /UseCMap contributes the mappings and codespace ranges of the CMap it
+    /// designates, which the body's own entries take precedence over.
+    /// </summary>
+    /// <param name="cmapDictionary">The stream dictionary of the CMap being loaded.</param>
+    /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this dictionary.</param>
+    private void ApplyCMapStreamDictionary(PdfDictionary cmapDictionary, int useCMapDepth)
+    {
+        if (useCMapDepth < MaxUseCMapDepth)
+        {
+            PdfCMap? baseCMap = GetCMap(cmapDictionary, PdfTokens.UseCMapKey, useCMapDepth + 1);
+            if (baseCMap != null)
+            {
+                MergeFrom(baseCMap);
+            }
+        }
+
+        PdfString? cmapName = cmapDictionary.GetName(PdfTokens.CMapNameKey);
+        if (cmapName != null)
+        {
+            Name = cmapName;
+        }
+
+        if (CidSystemInfo == null)
+        {
+            CidSystemInfo = PdfCidSystemInfo.FromDictionary(cmapDictionary.GetDictionary(PdfTokens.CidSystemInfoKey));
+        }
+
+        if (WMode == CMapWMode.Horizontal)
+        {
+            int? writingMode = cmapDictionary.GetInteger(PdfTokens.WModeKey);
+            if (writingMode != null)
+            {
+                WMode = (CMapWMode)writingMode.Value;
+            }
+        }
+    }
 
     private static bool IsRangeBucketsEmpty<T>(LengthBuckets<T> buckets)
     {

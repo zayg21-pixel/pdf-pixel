@@ -1,6 +1,6 @@
 using PdfPixel.Functions;
 using PdfPixel.Models;
-using System.Collections.Generic;
+using PdfPixel.Text;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -36,36 +36,13 @@ public sealed class TransferFunctionTransform : IColorTransform
     /// - An array with at least 3 functions: first three applied to X, Y, Z components.
     /// Returns null if the input is not compliant or parsing fails.
     /// </summary>
-    /// <param name="functionObject">The PDF object representing TR function(s).</param>
-    /// <returns>A <see cref="TransferFunctionTransform"/> instance, or null for non-compliant input.</returns>
-    public static TransferFunctionTransform? FromPdfObject(PdfObject? functionObject)
-    {
-        if (functionObject == null || functionObject.Value == null)
-        {
-            return null;
-        }
+    /// <param name="dictionary">Dictionary holding the TR entry.</param>
+    /// <param name="key">Key of the TR entry.</param>
+    /// <returns>A <see cref="TransferFunctionTransform"/> instance, or null for absent or non-compliant input.</returns>
+    internal static TransferFunctionTransform? GetTransferFunction(PdfDictionary dictionary, in PdfString key)
+        => dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, FromObject);
 
-        if (functionObject.Reference != null)
-        {
-            Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
-            if (cache.TryGetValue(functionObject.Reference.Value, out TransferFunctionTransform? cachedTransform))
-            {
-                return cachedTransform;
-            }
-        }
-
-        TransferFunctionTransform? transform = FromPdfObjectCore(functionObject);
-
-        if (transform != null && functionObject.Reference != null)
-        {
-            Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
-            cache[functionObject.Reference.Value] = transform;
-        }
-
-        return transform;
-    }
-
-    private static TransferFunctionTransform? FromPdfObjectCore(PdfObject functionObject)
+    private static TransferFunctionTransform? FromObject(PdfObject functionObject)
     {
         IPdfValue value = functionObject.Value;
 
@@ -83,9 +60,9 @@ public sealed class TransferFunctionTransform : IColorTransform
                 return null;
             }
 
-            PdfFunction? fx = PdfFunctions.GetFunction(arr.GetObject(0));
-            PdfFunction? fy = PdfFunctions.GetFunction(arr.GetObject(1));
-            PdfFunction? fz = PdfFunctions.GetFunction(arr.GetObject(2));
+            PdfFunction? fx = PdfFunctions.GetFunction(arr, 0);
+            PdfFunction? fy = PdfFunctions.GetFunction(arr, 1);
+            PdfFunction? fz = PdfFunctions.GetFunction(arr, 2);
 
             if (fx == null || fy == null || fz == null)
             {
@@ -97,7 +74,7 @@ public sealed class TransferFunctionTransform : IColorTransform
         else
         {
             // Non-spec compliant rule: single function applied to all components.
-            PdfFunction? fn = PdfFunctions.GetFunction(functionObject);
+            PdfFunction? fn = PdfFunctions.FromObject(functionObject);
             if (fn == null)
             {
                 return null;

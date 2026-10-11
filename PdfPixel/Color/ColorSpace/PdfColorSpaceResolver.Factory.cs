@@ -235,13 +235,7 @@ internal partial class PdfColorSpaceResolver
             return null;
         }
 
-        PdfObject? tintFunctionObject = colorSpaceArray.GetObject(tintFunctionIndex);
-        if (tintFunctionObject != null)
-        {
-            return PdfFunctions.GetFunction(tintFunctionObject);
-        }
-
-        return null;
+        return PdfFunctions.GetFunction(colorSpaceArray, tintFunctionIndex);
     }
 
     private static PdfDictionary? GetDictionaryValue(IPdfValue value)

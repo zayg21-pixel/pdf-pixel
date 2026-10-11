@@ -26,8 +26,8 @@ public sealed class PdfStructureTree
         _roleMap = dictionary.GetDictionary(PdfTokens.RoleMapKey);
         ParentTreeNextKey = dictionary.GetInteger(PdfTokens.ParentTreeNextKeyKey);
         Namespaces = ReadNamespaces(dictionary.GetArray(PdfTokens.NamespacesKey));
-        PronunciationLexicon = PdfFileSpecification.FromArray(dictionary.GetArray(PdfTokens.PronunciationLexiconKey));
-        AssociatedFiles = PdfFileSpecification.FromArray(dictionary.GetArray(PdfTokens.AssociatedFilesKey));
+        PronunciationLexicon = PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.PronunciationLexiconKey));
+        AssociatedFiles = PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.AssociatedFilesKey));
         ReadClassMap(dictionary.GetDictionary(PdfTokens.ClassMapKey));
 
         PdfDictionary? parentTree = dictionary.GetDictionary(PdfTokens.ParentTreeKey);

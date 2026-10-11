@@ -47,16 +47,24 @@ public sealed class PdfShading
         ColorSpaceReference = PdfColorSpaceReference.FromDictionary(rawDictionary, PdfTokens.ColorSpaceKey);
         Functions = new List<PdfFunction>();
 
-        List<PdfObject>? functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
-        if (functionObjects != null)
+        PdfArray? functionArray = rawDictionary.GetArray(PdfTokens.FunctionKey);
+        if (functionArray != null)
         {
-            foreach (PdfObject functionObject in functionObjects)
+            for (int index = 0; index < functionArray.Count; index++)
             {
-                PdfFunction? function = PdfFunctions.GetFunction(functionObject);
+                PdfFunction? function = PdfFunctions.GetFunction(functionArray, index);
                 if (function != null)
                 {
                     Functions.Add(function);
                 }
+            }
+        }
+        else
+        {
+            PdfFunction? function = PdfFunctions.GetFunction(rawDictionary, PdfTokens.FunctionKey);
+            if (function != null)
+            {
+                Functions.Add(function);
             }
         }
 

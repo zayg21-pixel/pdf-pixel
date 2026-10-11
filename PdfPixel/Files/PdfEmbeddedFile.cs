@@ -65,7 +65,7 @@ public sealed class PdfEmbeddedFile
     /// <summary>
     /// The embedded file stream at <paramref name="reference"/>, or <see langword="null"/> when there is none.
     /// </summary>
-    internal static PdfEmbeddedFile? FromReference(IPdfDocumentInternal document, PdfReference? reference)
+    internal static PdfEmbeddedFile? GetEmbeddedFile(IPdfDocumentInternal document, PdfReference? reference)
         => document.ObjectCache.GetOrCreate(reference, FromObject, requiresStream: true);
 
     private static PdfEmbeddedFile? FromObject(PdfObject fileObject)

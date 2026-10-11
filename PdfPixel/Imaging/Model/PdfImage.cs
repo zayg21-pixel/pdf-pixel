@@ -222,7 +222,7 @@ public class PdfImage
     /// The image XObject held by <paramref name="key"/> of <paramref name="owner"/>, resolved from the
     /// document's cache when available, or <see langword="null"/> when absent.
     /// </summary>
-    internal static PdfImage? FromDictionaryEntry(PdfDictionary owner, in PdfString key)
+    internal static PdfImage? GetImage(PdfDictionary owner, in PdfString key)
     {
         PdfReference? reference = owner.GetReference(key);
         if (reference != null && owner.Document.ObjectCache.Images.TryGetValue(reference.Value, out PdfImage? cachedImage))

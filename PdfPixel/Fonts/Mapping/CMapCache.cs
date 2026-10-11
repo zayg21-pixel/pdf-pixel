@@ -18,11 +18,6 @@ internal class CMapCache
     /// </summary>
     private static readonly Dictionary<PdfString, PdfCMap> GlobalCMaps = [];
 
-    /// <summary>
-    /// Per-document cache for CMaps loaded from streams.
-    /// </summary>
-    internal Dictionary<PdfReference, PdfCMap> CMapStreams { get; } = [];
-
     public CMapCache(ILogger logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>

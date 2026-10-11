@@ -18,7 +18,7 @@ public class PdfGoToRemoteAction : PdfAction
     internal PdfGoToRemoteAction(PdfDictionary actionDictionary)
         : base(PdfActionType.GoToRemote)
     {
-        FileSpecification = PdfFileSpecification.FromDictionaryEntry(actionDictionary, PdfTokens.FKey);
+        FileSpecification = PdfFileSpecification.GetFileSpecification(actionDictionary, PdfTokens.FKey);
         NewWindow = actionDictionary.GetBoolean(PdfTokens.NewWindowKey);
 
         if (PdfDestinationResolver.ParseStructure(actionDictionary, PdfTokens.StructureDestinationKey) is PdfStructureIdDestination structureIdDestination)
