@@ -2,6 +2,15 @@ namespace PdfPixel.Color.Icc.Model;
 
 internal static class IccConstants
 {
+    // Device classes (profile header)
+    public const string ClassInput = "scnr";
+    public const string ClassDisplay = "mntr";
+    public const string ClassOutput = "prtr";
+    public const string ClassDeviceLink = "link";
+    public const string ClassColorSpace = "spac";
+    public const string ClassAbstract = "abst";
+    public const string ClassNamedColor = "nmcl";
+
     // Color spaces (profile header)
     public const string SpaceGray = "GRAY";
     public const string SpaceRgb  = "RGB ";

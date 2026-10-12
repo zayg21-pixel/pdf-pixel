@@ -17,12 +17,12 @@ public sealed class IccProfileHeader
     private const int OffsetColorSpace = 16;       // color space of data 4CC
     private const int OffsetPcs = 20;              // PCS 4CC
     private const int OffsetCreationDate = 24;     // dateTimeNumber (year..second) 6 * uInt16
-        // profile file signature (expected 'acsp') – currently ignored
+        // profile file signature (expected 'acsp') â€” currently ignored
     private const int OffsetPlatform = 40;         // primary platform
     private const int OffsetFlags = 44;            // profile flags
     private const int OffsetDeviceManufacturer = 48; // manufacturer 4CC
     private const int OffsetDeviceModel = 52;      // model (uInt32)
-    private const int OffsetAttributes = 56;       // device attributes (uInt64) – currently not exposed
+    private const int OffsetAttributes = 56;       // device attributes (uInt64) â€” currently not exposed
     private const int OffsetRenderingIntent = 64;  // rendering intent (uInt32)
     private const int OffsetIlluminant = 68;       // XYZ of profile illuminant (3 * s15Fixed16)
     private const int OffsetCreator = 80;          // profile creator signature
@@ -45,7 +45,12 @@ public sealed class IccProfileHeader
     /// <summary>
     /// Device / profile class signature (e.g. 'mntr', 'prtr', 'spac').
     /// </summary>
-    public string? DeviceClass { get; private set; }
+    public string? DeviceClassName { get; private set; }
+
+    /// <summary>
+    /// Known device class as enum, or Unknown if not recognized.
+    /// </summary>
+    public IccDeviceClass DeviceClass { get; private set; }
 
     /// <summary>
     /// Data color space signature (e.g. 'RGB ', 'CMYK', 'GRAY').
@@ -120,7 +125,7 @@ public sealed class IccProfileHeader
             throw new ArgumentNullException(nameof(reader));
         }
 
-        // Basic bounds guard – standard ICC header is 128 bytes.
+        // Basic bounds guard â€” standard ICC header is 128 bytes.
         if (!reader.CanRead(0, 128))
         {
             throw new ArgumentException("ICC profile header truncated or missing.", nameof(reader));
@@ -163,7 +168,8 @@ public sealed class IccProfileHeader
             (int)(versionPacked >> 24 & 0xFF),
             (int)(versionPacked >> 20 & 0x0F),
             (int)(versionPacked >> 16 & 0x0F));
-        header.DeviceClass = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetDeviceClass));
+        header.DeviceClassName = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetDeviceClass));
+        header.DeviceClass = DeviceClassFromSignature(header.DeviceClassName);
         header.ColorSpaceName = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetColorSpace));
         header.ColorSpace = FromSignature(header.ColorSpaceName);
         header.PcsName = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetPcs));
@@ -199,6 +205,21 @@ public sealed class IccProfileHeader
             IccConstants.SpaceHls => IccColorSpace.Hls,
             IccConstants.SpaceCmy => IccColorSpace.Cmy,
             _ => IccColorSpace.Unknown
+        };
+    }
+
+    private static IccDeviceClass DeviceClassFromSignature(string signature)
+    {
+        return signature switch
+        {
+            IccConstants.ClassInput => IccDeviceClass.Input,
+            IccConstants.ClassDisplay => IccDeviceClass.Display,
+            IccConstants.ClassOutput => IccDeviceClass.Output,
+            IccConstants.ClassDeviceLink => IccDeviceClass.DeviceLink,
+            IccConstants.ClassColorSpace => IccDeviceClass.ColorSpace,
+            IccConstants.ClassAbstract => IccDeviceClass.Abstract,
+            IccConstants.ClassNamedColor => IccDeviceClass.NamedColor,
+            _ => IccDeviceClass.Unknown
         };
     }
 }

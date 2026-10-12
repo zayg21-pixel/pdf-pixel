@@ -13,7 +13,7 @@ public class PdfDecodeParameters
 {
     /// <summary>
     /// PNG/TIFF predictor method used for post-decompression sample reconstruction.
-    /// 2 = TIFF predictor; 10�15 = PNG predictors.
+    /// 2 = TIFF predictor; 10–15 = PNG predictors.
     /// Applies to FlateDecode and LZWDecode.
     /// </summary>
     public int? Predictor { get; private set; }

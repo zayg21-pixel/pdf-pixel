@@ -12,17 +12,13 @@ namespace PdfPixel.Color.Icc;
 /// </summary>
 public sealed class IccProfileTransform
 {
-    private const float BlackPointMaxLightness = 50f;
-    private const float NegativeProfileMinLightness = 95f;
-    private const float NeutralLabEncoded = 128f / 255f;
-    private const float CieEpsilon = 216f / 24389f;
-    private const float CieKappa = 24389f / 27f;
+    private const int IntentCount = 4;
 
-    private static readonly Vector4 PerceptualBlack = new(0.00336f, 0.0034731f, 0.00287f, 1f);
-
-    private readonly bool _hasLut;
-    private readonly IColorTransform _transform;
-    private readonly IColorTransform? _pcsToXyzTransform;
+    private readonly IccLutPipeline?[] _intentLuts = new IccLutPipeline?[IntentCount];
+    private readonly IColorTransform?[] _blackPointCompensationTransforms = new IColorTransform?[IntentCount];
+    private readonly IColorTransform _modelTransform;
+    private readonly IColorTransform? _lutPcsToXyzTransform;
+    private readonly IColorTransform? _modelPcsToXyzTransform;
     private readonly IccProfile _iccProfile;
 
     /// <summary>
@@ -34,29 +30,40 @@ public sealed class IccProfileTransform
     {
         _iccProfile = profile ?? throw new ArgumentNullException(nameof(profile));
 
-        IccLutPipeline? lut = GetA2BLutByIntent(profile);
+        var hasTrcModel = false;
+        var hasModel = true;
 
-        if (lut != null)
+        if (profile.Header.Pcs == IccColorSpace.Lab)
         {
-            _hasLut = true;
-            _transform = new ChainedColorTransform();
+            _lutPcsToXyzTransform = IccTransforms.LabD50ToXyzTransform;
+            _modelPcsToXyzTransform = IccTransforms.LabD50ToXyzTransform;
         }
-        else if (profile.GrayTrc != null && profile.Header.Pcs == IccColorSpace.Lab)
+        else
         {
-            // Neutral a*/b* in the ICC 8-bit Lab encoding: 0.5 == 0.
-            _transform = new ChainedColorTransform(
-                new PerChannelTrcTransform([profile.GrayTrc]),
-                new FunctionColorTransform(x => new Vector4(x.X, 0.5f, 0.5f, 1f)));
+            _lutPcsToXyzTransform = new FunctionColorTransform(x => x * 2.0f);
         }
-        else if (profile.GrayTrc != null)
+
+        if (profile.GrayTrc != null)
         {
-            _transform = new ChainedColorTransform(
-                new PerChannelTrcTransform([profile.GrayTrc]),
-                new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1)));
+            if (profile.Header.Pcs == IccColorSpace.Lab)
+            {
+                // Neutral a*/b* in the ICC 8-bit Lab encoding: 0.5 == 0.
+                _modelTransform = new ChainedColorTransform(
+                    new PerChannelTrcTransform([profile.GrayTrc]),
+                    new FunctionColorTransform(x => new Vector4(x.X, 0.5f, 0.5f, 1f)));
+            }
+            else
+            {
+                _modelTransform = new ChainedColorTransform(
+                    new PerChannelTrcTransform([profile.GrayTrc]),
+                    new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1)));
+            }
+
+            hasTrcModel = true;
         }
         else if (profile.Header.ColorSpace == IccColorSpace.Lab)
         {
-            _transform = IccTransforms.LabD50ToXyzTransform;
+            _modelTransform = IccTransforms.LabD50ToXyzTransform;
         }
         else if (profile.RedMatrix.HasValue && profile.GreenMatrix.HasValue && profile.BlueMatrix.HasValue)
         {
@@ -66,25 +73,38 @@ public sealed class IccProfileTransform
             {
                 PerChannelTrcTransform trcLuts = new([profile.RedTrc, profile.GreenTrc, profile.BlueTrc]);
                 matrixTransforms.Add(trcLuts);
+                hasTrcModel = true;
             }
 
             MatrixColorTransform matrixTransform = new([profile.RedMatrix.Value, profile.GreenMatrix.Value, profile.BlueMatrix.Value]);
             matrixTransforms.Add(matrixTransform);
 
-            _transform = new ChainedColorTransform(matrixTransforms.ToArray());
+            _modelTransform = new ChainedColorTransform(matrixTransforms.ToArray());
         }
         else
         {
-            _transform = new ChainedColorTransform();
+            _modelTransform = new ChainedColorTransform();
+            hasModel = false;
         }
 
-        if (profile.Header.Pcs == IccColorSpace.Lab)
+        for (int intentIndex = 0; intentIndex < IntentCount; intentIndex++)
         {
-            _pcsToXyzTransform = IccTransforms.LabD50ToXyzTransform;
+            IccLutPipeline? intentLut = profile.GetA2BLut((IccRenderingIntent)intentIndex) ?? profile.A2BLut0;
+            if (intentLut == null && !hasModel)
+            {
+                intentLut = profile.A2BLut1 ?? profile.A2BLut2;
+            }
+
+            _intentLuts[intentIndex] = intentLut;
         }
-        else if (_hasLut)
+
+        bool hasLut = profile.A2BLut0 != null
+            || profile.A2BLut1 != null
+            || profile.A2BLut2 != null;
+
+        if (hasLut || hasTrcModel)
         {
-            _pcsToXyzTransform = new FunctionColorTransform(x => x * 2.0f);
+            BuildBlackPointCompensationTransforms(hasTrcModel);
         }
     }
 
@@ -98,320 +118,115 @@ public sealed class IccProfileTransform
     public ChainedColorTransform GetIntentTransform(IccRenderingIntent? intent = default, bool useBlackPointCompensation = true)
     {
         IccRenderingIntent resolvedIntent = intent ?? _iccProfile.Header.RenderingIntent;
-        IccLutPipeline? lutTransform = GetA2BLutByIntent(_iccProfile, resolvedIntent);
+        if (resolvedIntent < IccRenderingIntent.Perceptual || resolvedIntent > IccRenderingIntent.AbsoluteColorimetric)
+        {
+            resolvedIntent = IccRenderingIntent.Perceptual;
+        }
 
-        FunctionColorTransform? blackPointCompensation = null;
+        IColorTransform? blackPointCompensation = null;
         if (useBlackPointCompensation)
         {
-            Vector4? blackPoint = GetBlackPoint(resolvedIntent);
-            if (blackPoint != null)
-            {
-                blackPointCompensation = CreateBlackPointCompensation(blackPoint.Value);
-            }
+            blackPointCompensation = _blackPointCompensationTransforms[(int)resolvedIntent];
         }
 
         return new ChainedColorTransform(
-            (_hasLut && lutTransform != null) ? lutTransform.Transform : _transform,
-            _pcsToXyzTransform,
+            GetDeviceToPcsTransform(resolvedIntent),
+            GetPcsToXyzTransform(resolvedIntent),
             blackPointCompensation,
             IccTransforms.XyzD50ToSrgbTransform);
     }
 
-    private Vector4? GetBlackPoint(IccRenderingIntent intent)
+    private IColorTransform GetDeviceToPcsTransform(IccRenderingIntent intent)
     {
-        if (intent == IccRenderingIntent.AbsoluteColorimetric)
+        IccLutPipeline? intentLut = _intentLuts[(int)intent];
+        if (intentLut != null)
+        {
+            return intentLut.Transform;
+        }
+
+        return _modelTransform;
+    }
+
+    private IColorTransform? GetPcsToXyzTransform(IccRenderingIntent intent)
+    {
+        if (_intentLuts[(int)intent] != null)
+        {
+            return _lutPcsToXyzTransform;
+        }
+
+        return _modelPcsToXyzTransform;
+    }
+
+    private void BuildBlackPointCompensationTransforms(bool hasTrcModel)
+    {
+        for (int intentIndex = 0; intentIndex < IntentCount; intentIndex++)
+        {
+            Vector4? blackPoint = GetBlackPoint((IccRenderingIntent)intentIndex, hasTrcModel);
+            if (blackPoint != null)
+            {
+                _blackPointCompensationTransforms[intentIndex] = IccTransforms.BuildBlackPointCompensationTransform(blackPoint.Value);
+            }
+        }
+    }
+
+    private Vector4? GetBlackPoint(IccRenderingIntent intent, bool hasTrcModel)
+    {
+        IccDeviceClass deviceClass = _iccProfile.Header.DeviceClass;
+        if (deviceClass == IccDeviceClass.DeviceLink
+            || deviceClass == IccDeviceClass.Abstract
+            || deviceClass == IccDeviceClass.NamedColor)
         {
             return null;
         }
 
-        string? deviceClass = _iccProfile.Header.DeviceClass;
-        if (deviceClass == "link" || deviceClass == "abst" || deviceClass == "nmcl")
-        {
-            return null;
-        }
+        IccProfileHeader header = _iccProfile.Header;
+        IColorTransform relativeDeviceToPcs = GetDeviceToPcsTransform(IccRenderingIntent.RelativeColorimetric);
+        IColorTransform? relativePcsToXyz = GetPcsToXyzTransform(IccRenderingIntent.RelativeColorimetric);
 
-        Vector4? blackPoint;
-        Version? version = _iccProfile.Header.Version;
-        bool isPerceptualOrSaturation = (intent == IccRenderingIntent.Perceptual) || (intent == IccRenderingIntent.Saturation);
+        Vector4? blackPoint = null;
+        switch (intent)
+        {
+            case IccRenderingIntent.Perceptual:
+            case IccRenderingIntent.Saturation:
+                {
+                    Version? version = header.Version;
+                    if (version == null || version.Major < 4)
+                    {
+                        if (hasTrcModel || _iccProfile.HasA2BLut(intent))
+                        {
+                            blackPoint = IccBlackPoint.GetDarkestColorantBlackPoint(header, GetDeviceToPcsTransform(intent), GetPcsToXyzTransform(intent));
+                        }
+                    }
+                    else if (hasTrcModel)
+                    {
+                        blackPoint = IccBlackPoint.GetDarkestColorantBlackPoint(header, relativeDeviceToPcs, relativePcsToXyz);
+                    }
+                    else
+                    {
+                        blackPoint = IccBlackPoint.PerceptualBlack;
+                    }
 
-        if (version != null && version.Major >= 4 && isPerceptualOrSaturation && HasTrcModel())
-        {
-            blackPoint = GetDarkestColorantBlackPoint(IccRenderingIntent.RelativeColorimetric);
-        }
-        else if (version != null && version.Major >= 4 && isPerceptualOrSaturation)
-        {
-            blackPoint = PerceptualBlack;
-        }
-        else if (intent == IccRenderingIntent.RelativeColorimetric && deviceClass == "prtr" && IsInkColorSpace())
-        {
-            blackPoint = GetPerceptualBlackPoint();
-        }
-        else
-        {
-            blackPoint = GetDarkestColorantBlackPoint(intent);
-        }
+                    break;
+                }
+            case IccRenderingIntent.RelativeColorimetric:
+                {
+                    IccLutPipeline? perceptualOutput = _iccProfile.B2ALut0;
+                    if (deviceClass == IccDeviceClass.Output && IccBlackPoint.IsInkColorSpace(header))
+                    {
+                        if (perceptualOutput != null && (hasTrcModel || _iccProfile.HasA2BLut(IccRenderingIntent.Perceptual)))
+                        {
+                            blackPoint = IccBlackPoint.GetPerceptualBlackPoint(header, perceptualOutput, relativeDeviceToPcs, relativePcsToXyz);
+                        }
+                    }
+                    else if (hasTrcModel || _iccProfile.HasA2BLut(intent))
+                    {
+                        blackPoint = IccBlackPoint.GetDarkestColorantBlackPoint(header, relativeDeviceToPcs, relativePcsToXyz);
+                    }
 
-        if (blackPoint == null)
-        {
-            return null;
-        }
-
-        if (blackPoint.Value.X == 0f
-            && blackPoint.Value.Y == 0f
-            && blackPoint.Value.Z == 0f)
-        {
-            return null;
+                    break;
+                }
         }
 
         return blackPoint;
-    }
-
-    private Vector4? GetDarkestColorantBlackPoint(IccRenderingIntent intent)
-    {
-        if (!IsIntentSupported(intent))
-        {
-            return null;
-        }
-
-        Vector4 darkestColorant;
-        switch (_iccProfile.Header.ColorSpace)
-        {
-            case IccColorSpace.Gray:
-            case IccColorSpace.Rgb:
-                {
-                    darkestColorant = Vector4.Zero;
-                    break;
-                }
-            case IccColorSpace.Lab:
-                {
-                    darkestColorant = new Vector4(0f, NeutralLabEncoded, NeutralLabEncoded, 0f);
-                    break;
-                }
-            case IccColorSpace.Cmyk:
-                {
-                    darkestColorant = Vector4.One;
-                    break;
-                }
-            case IccColorSpace.Cmy:
-                {
-                    darkestColorant = new Vector4(1f, 1f, 1f, 0f);
-                    break;
-                }
-            default:
-                {
-                    return null;
-                }
-        }
-
-        Vector3 lab = DeviceToLab(darkestColorant, intent);
-
-        // Non-compliant negative profiles report white as the darkest colorant.
-        if (lab.X > NegativeProfileMinLightness || lab.X < 0f)
-        {
-            lab.X = 0f;
-        }
-        else if (lab.X > BlackPointMaxLightness)
-        {
-            lab.X = BlackPointMaxLightness;
-        }
-
-        return LabToXyz(lab);
-    }
-
-    private Vector4? GetPerceptualBlackPoint()
-    {
-        IccLutPipeline? perceptualOutput = _iccProfile.B2ALut0;
-        if (!IsIntentSupported(IccRenderingIntent.Perceptual) || perceptualOutput == null)
-        {
-            return null;
-        }
-
-        Vector4 pcsBlack = Vector4.Zero;
-        if (_iccProfile.Header.Pcs == IccColorSpace.Lab)
-        {
-            pcsBlack = new Vector4(0f, NeutralLabEncoded, NeutralLabEncoded, 0f);
-        }
-
-        Vector4 device = perceptualOutput.Transform.Transform(pcsBlack);
-        Vector3 lab = DeviceToLab(device, IccRenderingIntent.RelativeColorimetric);
-
-        Vector3 neutralLab = new(Math.Min(lab.X, BlackPointMaxLightness), 0f, 0f);
-
-        return LabToXyz(neutralLab);
-    }
-
-    private Vector3 DeviceToLab(Vector4 color, IccRenderingIntent intent)
-    {
-        IccLutPipeline? lut = GetA2BLutByIntent(_iccProfile, intent);
-
-        Vector4 pcs;
-        if (_hasLut && lut != null)
-        {
-            pcs = lut.Transform.Transform(color);
-        }
-        else
-        {
-            pcs = _transform.Transform(color);
-        }
-
-        if (_iccProfile.Header.Pcs == IccColorSpace.Lab)
-        {
-            return new Vector3(pcs.X * 100f, (pcs.Y * 255f) - 128f, (pcs.Z * 255f) - 128f);
-        }
-
-        if (_pcsToXyzTransform != null)
-        {
-            pcs = _pcsToXyzTransform.Transform(pcs);
-        }
-
-        return XyzToLab(pcs);
-    }
-
-    private bool IsIntentSupported(IccRenderingIntent intent)
-    {
-        switch (intent)
-        {
-            case IccRenderingIntent.Perceptual:
-                {
-                    return _iccProfile.A2BLut0 != null || HasTrcModel();
-                }
-            case IccRenderingIntent.RelativeColorimetric:
-            case IccRenderingIntent.AbsoluteColorimetric:
-                {
-                    return _iccProfile.A2BLut1 != null || HasTrcModel();
-                }
-            case IccRenderingIntent.Saturation:
-                {
-                    return _iccProfile.A2BLut2 != null || HasTrcModel();
-                }
-            default:
-                {
-                    return false;
-                }
-        }
-    }
-
-    private bool HasTrcModel()
-    {
-        switch (_iccProfile.Header.ColorSpace)
-        {
-            case IccColorSpace.Gray:
-                {
-                    return _iccProfile.GrayTrc != null;
-                }
-            case IccColorSpace.Rgb:
-                {
-                    return _iccProfile.RedMatrix != null
-                        && _iccProfile.GreenMatrix != null
-                        && _iccProfile.BlueMatrix != null
-                        && _iccProfile.RedTrc != null
-                        && _iccProfile.GreenTrc != null
-                        && _iccProfile.BlueTrc != null;
-                }
-            default:
-                {
-                    return false;
-                }
-        }
-    }
-
-    private bool IsInkColorSpace()
-    {
-        IccColorSpace colorSpace = _iccProfile.Header.ColorSpace;
-        if (colorSpace == IccColorSpace.Cmyk || colorSpace == IccColorSpace.Cmy)
-        {
-            return true;
-        }
-
-        string? colorSpaceName = _iccProfile.Header.ColorSpaceName;
-        if (colorSpaceName == null)
-        {
-            return false;
-        }
-
-        return colorSpaceName.StartsWith("MCH", StringComparison.Ordinal)
-            || colorSpaceName.EndsWith("CLR", StringComparison.Ordinal);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static IccLutPipeline? GetA2BLutByIntent(IccProfile profile, IccRenderingIntent? intentOverride = default)
-    {
-        IccRenderingIntent intent = intentOverride ?? profile.Header.RenderingIntent;
-
-        switch (intent)
-        {
-            case IccRenderingIntent.Perceptual:
-                return profile.A2BLut0 ?? profile.A2BLut1 ?? profile.A2BLut2;
-
-            case IccRenderingIntent.RelativeColorimetric:
-                return profile.A2BLut1 ?? profile.A2BLut0 ?? profile.A2BLut2;
-
-            case IccRenderingIntent.Saturation:
-                return profile.A2BLut2 ?? profile.A2BLut0 ?? profile.A2BLut1;
-
-            case IccRenderingIntent.AbsoluteColorimetric:
-                return profile.A2BLut1 ?? profile.A2BLut0 ?? profile.A2BLut2;
-
-            default:
-                return profile.A2BLut0 ?? profile.A2BLut1 ?? profile.A2BLut2;
-        }
-    }
-
-    private static FunctionColorTransform CreateBlackPointCompensation(Vector4 blackPoint)
-    {
-        Vector4 white = IccTransforms.D50WhitePoint;
-        Vector4 scale = new(
-            white.X / (white.X - blackPoint.X),
-            white.Y / (white.Y - blackPoint.Y),
-            white.Z / (white.Z - blackPoint.Z),
-            1f);
-        Vector4 offset = new(
-            -blackPoint.X * scale.X,
-            -blackPoint.Y * scale.Y,
-            -blackPoint.Z * scale.Z,
-            0f);
-
-        return new FunctionColorTransform(x => (x * scale) + offset);
-    }
-
-    private static Vector3 XyzToLab(Vector4 xyz)
-    {
-        Vector4 white = IccTransforms.D50WhitePoint;
-        float fx = LabForward(xyz.X / white.X);
-        float fy = LabForward(xyz.Y / white.Y);
-        float fz = LabForward(xyz.Z / white.Z);
-
-        return new Vector3((116f * fy) - 16f, 500f * (fx - fy), 200f * (fy - fz));
-    }
-
-    private static Vector4 LabToXyz(Vector3 lab)
-    {
-        Vector4 white = IccTransforms.D50WhitePoint;
-        float fy = (lab.X + 16f) / 116f;
-        float fx = fy + (lab.Y / 500f);
-        float fz = fy - (lab.Z / 200f);
-
-        return new Vector4(LabInverse(fx) * white.X, LabInverse(fy) * white.Y, LabInverse(fz) * white.Z, 1f);
-    }
-
-    private static float LabForward(float ratio)
-    {
-        if (ratio > CieEpsilon)
-        {
-            return (float)Math.Pow(ratio, 1.0 / 3.0);
-        }
-
-        return ((CieKappa * ratio) + 16f) / 116f;
-    }
-
-    private static float LabInverse(float value)
-    {
-        float cube = value * value * value;
-        if (cube > CieEpsilon)
-        {
-            return cube;
-        }
-
-        return ((116f * value) - 16f) / CieKappa;
     }
 }

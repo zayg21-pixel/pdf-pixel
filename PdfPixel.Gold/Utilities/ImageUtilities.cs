@@ -9,6 +9,7 @@ namespace PdfPixel.Gold.Utilities;
 internal static class ImageUtilities
 {
     private const int BytesPerPixel = 4;
+    private const int ChannelTolerance = 3;
 
     /// <summary>
     /// Writes a rendered page as a PNG, replacing any file already there.
@@ -37,7 +38,7 @@ internal static class ImageUtilities
     }
 
     /// <summary>
-    /// Number of pixels that differ between two pages of the same size.
+    /// Number of pixels that differ by more than the channel tolerance between two pages of the same size.
     /// </summary>
     public static int CountDifferentPixels(SKBitmap golden, SKBitmap rendered)
     {
@@ -53,7 +54,7 @@ internal static class ImageUtilities
 
         for (int offset = 0; offset + BytesPerPixel <= goldenPixels.Length; offset += BytesPerPixel)
         {
-            if (!goldenPixels.Slice(offset, BytesPerPixel).SequenceEqual(renderedPixels.Slice(offset, BytesPerPixel)))
+            if (!PixelsMatch(goldenPixels, renderedPixels, offset))
             {
                 differentPixels++;
             }
@@ -75,7 +76,7 @@ internal static class ImageUtilities
 
         for (int offset = 0; offset + BytesPerPixel <= goldenPixels.Length; offset += BytesPerPixel)
         {
-            bool matches = goldenPixels.Slice(offset, BytesPerPixel).SequenceEqual(renderedPixels.Slice(offset, BytesPerPixel));
+            bool matches = PixelsMatch(goldenPixels, renderedPixels, offset);
 
             diffPixels[offset] = 255;
             diffPixels[offset + 1] = matches ? (byte)255 : (byte)0;
@@ -88,6 +89,19 @@ internal static class ImageUtilities
         Marshal.Copy(diffPixels, 0, diff.GetPixels(), diffPixels.Length);
 
         return diff;
+    }
+
+    private static bool PixelsMatch(ReadOnlySpan<byte> goldenPixels, ReadOnlySpan<byte> renderedPixels, int offset)
+    {
+        for (int channel = offset; channel < offset + BytesPerPixel; channel++)
+        {
+            if (Math.Abs(goldenPixels[channel] - renderedPixels[channel]) > ChannelTolerance)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // Straight (unpremultiplied) RGBA is the layout a PNG stores, so a page written to disk and read

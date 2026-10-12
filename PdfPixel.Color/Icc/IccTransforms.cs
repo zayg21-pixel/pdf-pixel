@@ -1,5 +1,6 @@
 ﻿using PdfPixel.Color.Icc.Model;
 using PdfPixel.Color.Transform;
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -10,6 +11,9 @@ namespace PdfPixel.Color.Icc;
 /// </summary>
 public static class IccTransforms
 {
+    private const float CieEpsilon = 216f / 24389f;
+    private const float CieKappa = 24389f / 27f;
+
     private static readonly Matrix4x4 XyzD65ToRgbLinearMatrix = new(
         3.2406255f,
         -1.5372080f,
@@ -202,5 +206,85 @@ public static class IccTransforms
 
 
         return new ChainedColorTransform(matrixTransform, cubeWhitePointTransform);
+    }
+
+    /// <summary>
+    /// Builds a black point compensation transform that maps the specified black point to zero in CIE XYZ (D50).
+    /// </summary>
+    /// <param name="blackPoint">The source black point in CIE XYZ (D50).</param>
+    /// <returns>An <see cref="IColorTransform"/> that applies black point compensation, or null when the black point is already zero.</returns>
+    public static IColorTransform? BuildBlackPointCompensationTransform(Vector4 blackPoint)
+    {
+        if (blackPoint.X == 0f
+            && blackPoint.Y == 0f
+            && blackPoint.Z == 0f)
+        {
+            return null;
+        }
+
+        Vector4 white = D50WhitePoint;
+        Vector4 scale = new(
+            white.X / (white.X - blackPoint.X),
+            white.Y / (white.Y - blackPoint.Y),
+            white.Z / (white.Z - blackPoint.Z),
+            1f);
+        Vector4 offset = new(
+            -blackPoint.X * scale.X,
+            -blackPoint.Y * scale.Y,
+            -blackPoint.Z * scale.Z,
+            0f);
+
+        return new FunctionColorTransform(x => (x * scale) + offset);
+    }
+
+    /// <summary>
+    /// Converts a color from CIE XYZ (D50) to CIE Lab (D50).
+    /// </summary>
+    /// <param name="xyz">The CIE XYZ (D50) color.</param>
+    /// <returns>The CIE Lab color.</returns>
+    public static Vector3 XyzToLab(Vector4 xyz)
+    {
+        Vector4 white = D50WhitePoint;
+        float fx = LabForward(xyz.X / white.X);
+        float fy = LabForward(xyz.Y / white.Y);
+        float fz = LabForward(xyz.Z / white.Z);
+
+        return new Vector3((116f * fy) - 16f, 500f * (fx - fy), 200f * (fy - fz));
+    }
+
+    /// <summary>
+    /// Converts a color from CIE Lab (D50) to CIE XYZ (D50).
+    /// </summary>
+    /// <param name="lab">The CIE Lab color.</param>
+    /// <returns>The CIE XYZ (D50) color.</returns>
+    public static Vector4 LabToXyz(Vector3 lab)
+    {
+        Vector4 white = D50WhitePoint;
+        float fy = (lab.X + 16f) / 116f;
+        float fx = fy + (lab.Y / 500f);
+        float fz = fy - (lab.Z / 200f);
+
+        return new Vector4(LabInverse(fx) * white.X, LabInverse(fy) * white.Y, LabInverse(fz) * white.Z, 1f);
+    }
+
+    private static float LabForward(float ratio)
+    {
+        if (ratio > CieEpsilon)
+        {
+            return (float)Math.Pow(ratio, 1.0 / 3.0);
+        }
+
+        return ((CieKappa * ratio) + 16f) / 116f;
+    }
+
+    private static float LabInverse(float value)
+    {
+        float cube = value * value * value;
+        if (cube > CieEpsilon)
+        {
+            return cube;
+        }
+
+        return ((116f * value) - 16f) / CieKappa;
     }
 }
