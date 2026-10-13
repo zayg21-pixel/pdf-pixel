@@ -15,6 +15,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <local:SearchStatusConverter x:Key="SearchStatusConverter" />
+        <local:PdfColorBrushConverter x:Key="PdfColorBrushConverter" />
         <Style x:Key="PageTextBoxStyle" TargetType="{x:Type local:PageTextBox}">
             <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}" />
             <Setter Property="BorderThickness" Value="1" />
@@ -68,10 +69,23 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition />
             </Grid.ColumnDefinitions>
-            <ComboBox ItemsSource="{Binding PdfFiles}"
-                      DisplayMemberPath="FileName"
-                      SelectedItem="{Binding SelectedPdfFile}"
-                      Visibility="{Binding HasFiles, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            <DockPanel>
+                <ToggleButton x:Name="SidePanelToggleButton"
+                              DockPanel.Dock="Left"
+                              IsChecked="True"
+                              ToolTip="Side Panel"
+                              Cursor="Hand"
+                              Margin="4 0"
+                              Checked="SidePanelToggleButton_Checked"
+                              Unchecked="SidePanelToggleButton_Unchecked">
+                    <TextBlock Text="&#xE700;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" />
+                </ToggleButton>
+
+                <ComboBox ItemsSource="{Binding PdfFiles}"
+                          DisplayMemberPath="FileName"
+                          SelectedItem="{Binding SelectedPdfFile}"
+                          Visibility="{Binding HasFiles, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            </DockPanel>
 
             <ToolBar Grid.Column="1" HorizontalAlignment="Center" ToolBarTray.IsLocked="True" Margin="8 0">
                 <Button Command="{Binding OpenFileCommand}" ToolTip="Zoom In" Cursor="Hand">
@@ -144,12 +158,45 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" MinWidth="120" />
+                <ColumnDefinition x:Name="SidePanelColumn" Width="220" MinWidth="120" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <TabControl Margin="4 0 0 4">
+            <TabControl Margin="4 0 0 4"
+                        TabStripPlacement="Left"
+                        Visibility="{Binding IsChecked, ElementName=SidePanelToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TabItem Header="Contents">
+                    <TreeView ItemsSource="{Binding Outlines.Items, ElementName=pdfPanel}">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.Resources>
+                            <HierarchicalDataTemplate DataType="{x:Type pdfPanelMvvm:PdfOutlineItemViewModel}" ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding Title, TargetNullValue='Untitled'}"
+                                           Foreground="{Binding Color, Converter={StaticResource PdfColorBrushConverter}}"
+                                           Cursor="Hand"
+                                           MouseLeftButtonUp="OutlineItem_MouseLeftButtonUp">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsBold}" Value="True">
+                                                    <Setter Property="FontWeight" Value="Bold" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsItalic}" Value="True">
+                                                    <Setter Property="FontStyle" Value="Italic" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </HierarchicalDataTemplate>
+                        </TreeView.Resources>
+                    </TreeView>
+                </TabItem>
+
                 <TabItem Header="Layers">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -208,7 +255,11 @@
                 </TabItem>
             </TabControl>
 
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+            <GridSplitter Grid.Column="1"
+                          Width="5"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Visibility="{Binding IsChecked, ElementName=SidePanelToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
             <Grid Grid.Column="2">
             <Grid.RowDefinitions>

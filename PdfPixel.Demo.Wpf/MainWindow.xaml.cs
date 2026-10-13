@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using PdfPixel.PdfPanel.Mvvm;
+using System.Windows;
+using System.Windows.Input;
 
 namespace PdfPixel.Demo.Wpf;
 
@@ -7,6 +9,9 @@ namespace PdfPixel.Demo.Wpf;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private GridLength _sidePanelWidth;
+    private double _sidePanelMinWidth;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -17,6 +22,28 @@ public partial class MainWindow : Window
     {
         var viewModel = DataContext as MainWindowsViewModel;
         viewModel?.LogMessages.CollectionChanged += LogMessages_CollectionChanged;
+    }
+
+    private void SidePanelToggleButton_Checked(object sender, RoutedEventArgs e)
+    {
+        SidePanelColumn.MinWidth = _sidePanelMinWidth;
+        SidePanelColumn.Width = _sidePanelWidth;
+    }
+
+    private void SidePanelToggleButton_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _sidePanelWidth = SidePanelColumn.Width;
+        _sidePanelMinWidth = SidePanelColumn.MinWidth;
+        SidePanelColumn.MinWidth = 0;
+        SidePanelColumn.Width = new GridLength(0);
+    }
+
+    private void OutlineItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is PdfOutlineItemViewModel item)
+        {
+            pdfPanel.Outlines?.Activate(item);
+        }
     }
 
     private void LogMessages_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

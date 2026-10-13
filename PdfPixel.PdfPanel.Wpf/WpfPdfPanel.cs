@@ -220,8 +220,11 @@ public partial class WpfPdfPanel : FrameworkElement
         SetValue(IsTextExtractedPropertyKey, _context.Text.IsTextExtracted);
         SetValue(ActionsPropertyKey, _context.Actions);
         PdfLayersViewModel layers = new(_context.Layers);
-        layers.Changed += OnLayersChanged;
+        layers.Changed += OnViewModelChanged;
         SetValue(LayersPropertyKey, layers);
+        PdfOutlinesViewModel outlines = new(Pages, _context.Actions);
+        outlines.Changed += OnViewModelChanged;
+        SetValue(OutlinesPropertyKey, outlines);
     }
 
     private void DisposeContext()
@@ -236,10 +239,16 @@ public partial class WpfPdfPanel : FrameworkElement
         SetValue(ActionsPropertyKey, null);
         if (Layers != null)
         {
-            Layers.Changed -= OnLayersChanged;
+            Layers.Changed -= OnViewModelChanged;
         }
 
         SetValue(LayersPropertyKey, null);
+        if (Outlines != null)
+        {
+            Outlines.Changed -= OnViewModelChanged;
+        }
+
+        SetValue(OutlinesPropertyKey, null);
         _context.Actions.UriRequested -= OnUriRequested;
         _context.Actions.RemoteDocumentRequested -= OnRemoteDocumentRequested;
         _context.Search.MatchesChanged -= OnSearchMatchesChanged;
@@ -249,7 +258,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void OnTextExtracted(object? sender, EventArgs e) => SetValue(IsTextExtractedPropertyKey, true);
 
-    private void OnLayersChanged(object? sender, EventArgs e) => InvalidateVisual();
+    private void OnViewModelChanged(object? sender, EventArgs e) => InvalidateVisual();
 
     private void SynchronizeContext()
     {

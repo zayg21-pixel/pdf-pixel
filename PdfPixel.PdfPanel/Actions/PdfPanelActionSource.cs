@@ -23,5 +23,10 @@ public enum PdfPanelActionSource
     /// <summary>
     /// A link annotation activated by the pointer.
     /// </summary>
-    Annotation
+    Annotation,
+
+    /// <summary>
+    /// An outline item (bookmark) activated by the user.
+    /// </summary>
+    Outline
 }

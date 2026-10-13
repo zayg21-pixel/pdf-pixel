@@ -10,9 +10,8 @@ using System;
 namespace PdfPixel.PdfPanel.Actions;
 
 /// <summary>
-/// Actions of the panel: the document's open action, the open and close actions of the current page and the
-/// actions of activated links. Go-to and named actions navigate the panel, set-OCG-state actions change its
-/// layers, and the actions the host performs are raised as events during <see cref="PdfPanelContext.Synchronize"/>.
+/// Actions of the panel. Go-to and named actions navigate the panel, set-OCG-state actions change its layers, and
+/// the actions the host performs are raised as events during <see cref="PdfPanelContext.Synchronize"/>.
 /// </summary>
 public sealed class PdfPanelActions
 {
@@ -23,6 +22,7 @@ public sealed class PdfPanelActions
     private bool _openActionPerformed;
     private int? _currentPageNumber;
     private PdfDestination? _requestedDestination;
+    private PdfOutlineItem? _requestedOutlineItem;
     private int? _targetPageNumber;
     private PdfPoint? _targetLocation;
 
@@ -38,21 +38,18 @@ public sealed class PdfPanelActions
     }
 
     /// <summary>
-    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a URI action is performed: by an activated
-    /// link, a chained action, a page's open or close action or the document's open action.
+    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a URI action is performed.
     /// </summary>
     public event EventHandler<PdfPanelActionEventArgs<PdfUriAction>>? UriRequested;
 
     /// <summary>
-    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a remote go-to action is performed: by an
-    /// activated link, a chained action, a page's open or close action or the document's open action.
+    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a remote go-to action is performed.
     /// </summary>
     public event EventHandler<PdfPanelActionEventArgs<PdfGoToRemoteAction>>? RemoteDocumentRequested;
 
     /// <summary>
     /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a named action not defined by ISO 32000, such
-    /// as a viewer's <c>Print</c>, is performed: by an activated link, a chained action, a page's open or close
-    /// action or the document's open action.
+    /// as a viewer's <c>Print</c>, is performed.
     /// </summary>
     public event EventHandler<PdfPanelActionEventArgs<PdfNamedAction>>? NamedActionRequested;
 
@@ -65,9 +62,15 @@ public sealed class PdfPanelActions
         => _requestedDestination = destination ?? throw new ArgumentNullException(nameof(destination));
 
     /// <summary>
-    /// Performs the document's open action the first time the panel has a size, then a requested destination and
-    /// the action or destination of the link activated by the pointer, then the close and open actions of the
-    /// pages when the current page has changed. Navigation sets the scale and records the target, which
+    /// Performs the action of an outline item of the panel's document, or navigates to its destination when it has
+    /// no action, on the next <see cref="PdfPanelContext.Synchronize"/> once the panel has a size.
+    /// </summary>
+    /// <param name="item">The activated outline item.</param>
+    public void ActivateOutlineItem(PdfOutlineItem item)
+        => _requestedOutlineItem = item ?? throw new ArgumentNullException(nameof(item));
+
+    /// <summary>
+    /// Performs the pending actions and navigation. Navigation sets the scale and records the target, which
     /// <see cref="ApplyNavigation"/> scrolls to when the panel lays out the pages at that scale.
     /// </summary>
     internal void Synchronize()
@@ -98,6 +101,20 @@ public sealed class PdfPanelActions
         {
             NavigateTo(_requestedDestination);
             _requestedDestination = null;
+        }
+
+        if (_requestedOutlineItem != null && hasSize)
+        {
+            if (_requestedOutlineItem.Action != null)
+            {
+                PerformAction(_requestedOutlineItem.Action, PdfPanelActionSource.Outline);
+            }
+            else if (_requestedOutlineItem.Destination != null)
+            {
+                NavigateTo(_requestedOutlineItem.Destination);
+            }
+
+            _requestedOutlineItem = null;
         }
 
         if (_annotations.ClickedAnnotation?.PageAnnotation?.Content is PdfLinkAnnotation link)

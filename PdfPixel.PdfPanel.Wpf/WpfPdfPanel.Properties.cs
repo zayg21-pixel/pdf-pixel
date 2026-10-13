@@ -215,6 +215,17 @@ public partial class WpfPdfPanel
     /// </summary>
     public static readonly DependencyProperty LayersProperty = LayersPropertyKey.DependencyProperty;
 
+    private static readonly DependencyPropertyKey OutlinesPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(Outlines),
+        typeof(PdfOutlinesViewModel),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="Outlines"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty OutlinesProperty = OutlinesPropertyKey.DependencyProperty;
+
     private static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(SearchResults),
         typeof(ObservableCollection<PdfPanelSearchMatch>),
@@ -493,6 +504,14 @@ public partial class WpfPdfPanel
     public PdfLayersViewModel? Layers
     {
         get => (PdfLayersViewModel?)GetValue(LayersProperty);
+    }
+
+    /// <summary>
+    /// Gets the outline (bookmarks) of the shown document, or null when no pages are shown.
+    /// </summary>
+    public PdfOutlinesViewModel? Outlines
+    {
+        get => (PdfOutlinesViewModel?)GetValue(OutlinesProperty);
     }
 
     /// <summary>
