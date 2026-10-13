@@ -4,6 +4,7 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Files;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Navigation.Model;
 using System;
 using System.Collections.Generic;
 
@@ -120,6 +121,11 @@ public interface IPdfPage
     /// Actions performed when the page is opened or closed (/AA), or <see langword="null"/> when absent.
     /// </summary>
     PdfPageAdditionalActions? AdditionalActions { get; }
+
+    /// <summary>
+    /// Article beads on the page (/B) in drawing order. Empty if the page has none.
+    /// </summary>
+    IReadOnlyList<PdfBead> Beads { get; }
 
     /// <summary>
     /// Render the page content via the command processor.

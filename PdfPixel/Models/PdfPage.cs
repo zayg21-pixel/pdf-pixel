@@ -4,6 +4,7 @@ using PdfPixel.Annotations;
 using PdfPixel.Annotations.Model;
 using PdfPixel.Files;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Navigation.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using PdfPixel.Text;
@@ -34,6 +35,7 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
     private readonly Lazy<PdfImage?> _thumbnail;
+    private readonly Lazy<IReadOnlyList<PdfBead>> _beads;
 
     /// <summary>
     /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
@@ -95,6 +97,7 @@ internal class PdfPage : IPdfPageInternal
 
         _transparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey);
         _thumbnail = new Lazy<PdfImage?>(() => PdfImage.GetImage(pageObject.Dictionary, PdfTokens.ThumbnailKey));
+        _beads = new Lazy<IReadOnlyList<PdfBead>>(() => PdfBead.FromPage(pageDictionary));
 
         UserUnit = pageDictionary.GetFloat(PdfTokens.UserUnitKey) ?? 1f;
         StructParents = pageDictionary.GetInteger(PdfTokens.StructParentsKey);
@@ -171,6 +174,9 @@ internal class PdfPage : IPdfPageInternal
 
     /// <inheritdoc/>
     public PdfPageAdditionalActions? AdditionalActions { get; }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<PdfBead> Beads => _beads.Value;
 
     PdfContentHostCache IPdfContentHost.Cache => _pageCache.Value;
 

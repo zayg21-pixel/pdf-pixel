@@ -199,6 +199,7 @@ public class PdfDocumentReader
         document.Metadata = PdfMetadata.FromDictionary(catalog);
         document.OpenAction = PdfOpenAction.FromCatalog(catalog, document.Destinations);
         document.Outlines = PdfOutlines.FromCatalog(catalog, document.Destinations, document.StructureTree);
+        document.Threads = PdfThread.FromCatalog(catalog);
 
         int? permissions = internalDocument.Decryptor?.Parameters.Permissions;
         if (permissions != null)

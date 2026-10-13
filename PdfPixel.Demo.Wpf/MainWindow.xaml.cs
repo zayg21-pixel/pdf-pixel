@@ -9,12 +9,14 @@ namespace PdfPixel.Demo.Wpf;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private GridLength _sidePanelWidth;
-    private double _sidePanelMinWidth;
+    private GridLength _sidePanelWidth = new(220);
+    private double _sidePanelMinWidth = 120;
 
     public MainWindow()
     {
         InitializeComponent();
+        SidePanelToggleButton.Checked += SidePanelToggleButton_Checked;
+        SidePanelToggleButton.Unchecked += SidePanelToggleButton_Unchecked;
         Loaded += MainWindow_Loaded;
     }
 

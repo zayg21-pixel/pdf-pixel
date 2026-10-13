@@ -1,40 +1,25 @@
 # 0.9.1 — Missing document and page level entries
 
-Entries the reader currently ignores, ordered by effort. Spec references are ISO 32000-2:2020 tables
-unless noted otherwise.
-
-## 1. Model additions
-
-New typed models on an existing owner. Catalog entries land on `IPdfDocument`; nested dictionaries keep the PDF object hierarchy as their own types.
-
-### Document
-
-| Entry | Location | Spec | Contents |
-|---|---|---|---|
-| `/ViewerPreferences` | Catalog | Table 147 | Window: HideToolbar, HideMenubar, HideWindowUI, FitWindow, CenterWindow, DisplayDocTitle. Presentation: NonFullScreenPageMode, Direction. Print: PrintScaling, Duplex, PickTrayByPDFSize, PrintPageRange, NumCopies. Deprecated (2.0): ViewArea, ViewClip, PrintArea, PrintClip. Other: Enforce |
-
-### Page
-
-| Entry | Location | Spec | Contents |
-|---|---|---|---|
-| `/Trans` | Page | Table 164 | Presentation transition effect (Split, Blinds, Box, Wipe, Dissolve, Glitter, Fly, Push, Cover, Uncover, Fade) |
-| `/BoxColorInfo` | Page | Tables 396, 397 | Display colors and styles for page boundaries |
-
-## 2. Complex
-
-Trees, cross-references between objects, or changes to rendering and text extraction.
+## 1. PdfPanel
 
 | Entry | Location | Spec | Work |
 |---|---|---|---|
-| `/Threads`, `/B` | Catalog, Page | Tables 162, 163 | Article threads and the beads on each page |
-| `/PresSteps` | Page | Table 165 | Sub-page navigation steps |
-
-### PdfPanel
-
-| Entry | Location | Spec | Work |
-|---|---|---|---|
+| Thumbnails | `PdfPixel.PdfPanel/Mvvm` | 12.3.4 | No page thumbnails: a view model with an image per page, the page's `/Thumb` (`IPdfPage.Thumbnail`) when present, otherwise a low-resolution render, and navigation to the page on click; shown as a Thumbnails tab in the WPF demo side panel. Using `/Thumb` depends on Image conversion |
+| `/PageMode` | `PdfPixel.Demo.Wpf` | Table 29 | Not honored: the side panel always starts hidden. The document's `IPdfDocument.PageMode` would open it on the matching tab when a document is loaded: Contents for `UseOutlines`, Layers for `UseOC`, Attachments for `UseAttachments`, Thumbnails for `UseThumbs` |
 | Content interaction layer | `PdfPixel.PdfPanel` | 14.9.3, 14.9.4 | No interaction with non-text content: a separate layer built from the content tree (`PdfContentTreeBuilder.Root`) would show `/ActualText` or `/Alt` of images and shadings in a popup on hover, and select an image on click so it can be copied (Ctrl+C) |
 | `/UserUnit` | `PdfPixel.PdfPanel/PdfPanelPageInfo.cs` | Table 31, 8.3.2.3 | Not supported: pages are laid out in their own units, so pages with different user units keep the wrong relative size. Supporting it adds a per-page scale on top of the global zoom, which layout, rendering and screen-to-page mapping must apply. Page content is unaffected; the value is already exposed as `IPdfPage.UserUnit` |
+
+## 2. File attachments
+
+One way to reach every file of a document, and the panel features built on it.
+
+| Item | Location | Spec | Work |
+|---|---|---|---|
+| File API | `Files` | 7.11, 14.13 | Partial: files are reachable as `PdfFileSpecification` with `PdfEmbeddedFile` from `IPdfDocument.EmbeddedFiles`, `/AF` of the document, pages, XObjects and structure elements, and `PdfFileAttachmentAnnotation.FileSpecification`, each in its own way. A single API exposes every file of the document the same way: name, description, MIME type, size, dates and content |
+| Attachments | `PdfPixel.PdfPanel/Mvvm` | 7.11.4, 12.5.6.15 | No view of attached files: a view model listing the files of the document and its pages through the file API, with name, description, size and dates, and saving or opening the file; shown as an Attachments tab in the WPF demo side panel |
+| Opening files | `PdfPixel.PdfPanel/Actions`, `PdfPixel.PdfPanel.Wpf` | 12.6.4.3 | Files the document asks to open are raised by `PdfPanelActions` as host events. `RemoteDocumentRequested` is already raised for GoToR, but `WpfPdfPanel` handles it with an empty handler; it needs to raise it as a WPF event for the host. Opening a file from the Attachments view model follows the same path |
+| GoToE, Launch | `Actions/Model` | 12.6.4.4, 12.6.4.6 | Not modeled (`PdfGenericAction`); needs investigation |
+| Portfolios | `Files` | 7.11.6, 12.3.5 | Not modeled: `/Collection` and collection items (`/CI`, see the TODO in `PdfFileSpecification`); needs investigation |
 
 ## 3. Public API
 

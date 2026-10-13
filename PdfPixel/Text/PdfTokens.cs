@@ -549,6 +549,17 @@ internal static class PdfTokens
     public static readonly PdfString OutlineFlagsKey = (PdfString)"F"u8;                 // Style flags of an outline item
     public static readonly PdfString StructureElementKey = (PdfString)"SE"u8;            // Structure element an outline item refers to
 
+    // Article thread keys
+    public static readonly PdfString ThreadsKey = (PdfString)"Threads"u8;                // Catalog article threads array
+    public static readonly PdfString ThreadFirstBeadKey = (PdfString)"F"u8;              // First bead of a thread
+    public static readonly PdfString ThreadInformationKey = (PdfString)"I"u8;            // Thread information dictionary
+    public static readonly PdfString BeadsKey = (PdfString)"B"u8;                        // Page article beads array
+    public static readonly PdfString BeadThreadKey = (PdfString)"T"u8;                   // Thread a bead belongs to
+    public static readonly PdfString BeadNextKey = (PdfString)"N"u8;                     // Next bead of a thread
+    public static readonly PdfString BeadPreviousKey = (PdfString)"V"u8;                 // Previous bead of a thread
+    public static readonly PdfString BeadPageKey = (PdfString)"P"u8;                     // Page a bead appears on
+    public static readonly PdfString BeadRectangleKey = (PdfString)"R"u8;                // Rectangle of a bead
+
     // Optional content keys
     public static readonly PdfString OptionalContentIntentKey = (PdfString)"Intent"u8;   // Optional content intent name or array
     public static readonly PdfString UsageKey = (PdfString)"Usage"u8;

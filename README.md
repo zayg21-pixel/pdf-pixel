@@ -76,7 +76,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ✅ Ink
 - ✅ Link
 - ✅ Popup
-- ⚠️ File Attachment *(icon only; the attached file is not exposed)*
+- ⚠️ File Attachment *(icon only; the attached file is exposed by the model, but not shown or opened by the panel)*
 - ✅ Stamp
 - ✅ Caret
 - ⚠️ FreeText *(no default appearance (DA) generation — requires an existing appearance stream)*
@@ -86,7 +86,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 
 ### Interactive & Scripting
 - ⚠️ Text Selection *(extracts all glyphs, but does not sort into reading order; markup-aware selection not fully supported)*
-- 🔲 Attachments *(no API for embedded files, including encrypted ones (`/EFF`), associated files or portfolios)*
+- ⚠️ Attachments *(embedded and associated files, including encrypted ones (`/EFF`), are exposed per owner; no single file API, GoToE or Launch actions, or portfolios)*
 - ❌ JavaScript *(not planned)*
 - ❌ XFA *(not planned)*
 
@@ -123,8 +123,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - Add AcroForm / Widget annotation support
 - Add digital signature reading and verification: signature fields and dictionaries (`/V`, `/Lock`, `/SV`), `/Perms` (DocMDP, UR3) and `/DSS` validation data
 - Add AESV4 crypt filter (ISO/TS 32003) and integrity protection (ISO/TS 32004)
-- Add embedded, remote and linked documents: attachments API, navigation to other documents (GoToR, GoToE, Launch)
-- Add page hierarchy display (StructureTree)
+- Add presentation mode, viewer preferences and page boundary display: page transitions (`/Trans`, transition actions), sub-page navigation (`/PresSteps`), automatic advance (`/Dur`), `/ViewerPreferences` and `/BoxColorInfo`
 - Add Avalonia and MAUI support
 - Unit tests with full test coverage
 
