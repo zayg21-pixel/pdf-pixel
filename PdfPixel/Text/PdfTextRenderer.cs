@@ -2,13 +2,13 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Model;
+using PdfPixel.Content.Model;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Rendering.Text;
-using PdfPixel.TextExtraction;
 using PdfPixel.Transparency.Utilities;
 using System;
 using System.Runtime.CompilerServices;
@@ -60,7 +60,8 @@ public class PdfTextRenderer : IPdfTextRenderer
             return PdfSize.Empty;
         }
 
-        if (!state.RenderingParameters.RenderText && !state.RenderingParameters.ExtractText)
+        if (!state.RenderingParameters.ProcessText
+            || (!state.RenderingParameters.RenderContent && !state.RenderingParameters.ExtractContent))
         {
             return PdfSize.Empty;
         }
@@ -94,7 +95,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ProcessType3(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphsSpan, PdfGraphicsState state, PdfType3Font type3Font)
     {
-        if (state.RenderingParameters.RenderText
+        if (state.RenderingParameters.RenderContent
             && state.TextRenderingMode != PdfTextRenderingMode.Invisible
             && state.TextRenderingMode != PdfTextRenderingMode.Clip)
         {
@@ -130,7 +131,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             softMaskScope.EndDrawContent();
         }
 
-        if (state.RenderingParameters.ExtractText)
+        if (state.RenderingParameters.ExtractContent)
         {
             var characters = new PdfCharacter[glyphsSpan.Length];
 
@@ -155,63 +156,51 @@ public class PdfTextRenderer : IPdfTextRenderer
             }
 
             PdfMatrix extractMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
-            EmitTextCharacters(processor, state, extractMatrix, characters);
+            EmitTextCharacters(processor, extractMatrix, characters);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawShapedText(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        if (state.RenderingParameters.RenderText)
+        if (state.RenderingParameters.RenderContent)
         {
             switch (state.TextRenderingMode)
             {
                 case PdfTextRenderingMode.Fill:
+                case PdfTextRenderingMode.FillAndClip:
                 {
                     DrawTextFill(processor, shapingResult, state);
                     break;
                 }
                 case PdfTextRenderingMode.Stroke:
+                case PdfTextRenderingMode.StrokeAndClip:
                 {
                     DrawTextStroke(processor, shapingResult, state);
                     break;
                 }
                 case PdfTextRenderingMode.FillAndStroke:
-                {
-                    DrawTextFillAndStroke(processor, shapingResult, state);
-                    break;
-                }
-                case PdfTextRenderingMode.Invisible:
-                {
-                    break;
-                }
-                case PdfTextRenderingMode.FillAndClip:
-                {
-                    DrawTextFill(processor, shapingResult, state);
-                    AppendTextClip(shapingResult, state);
-                    break;
-                }
-                case PdfTextRenderingMode.StrokeAndClip:
-                {
-                    DrawTextStroke(processor, shapingResult, state);
-                    AppendTextClip(shapingResult, state);
-                    break;
-                }
                 case PdfTextRenderingMode.FillAndStrokeAndClip:
                 {
                     DrawTextFillAndStroke(processor, shapingResult, state);
-                    AppendTextClip(shapingResult, state);
-                    break;
-                }
-                case PdfTextRenderingMode.Clip:
-                {
-                    AppendTextClip(shapingResult, state);
                     break;
                 }
             }
         }
 
-        if (state.RenderingParameters.ExtractText)
+        switch (state.TextRenderingMode)
+        {
+            case PdfTextRenderingMode.FillAndClip:
+            case PdfTextRenderingMode.StrokeAndClip:
+            case PdfTextRenderingMode.FillAndStrokeAndClip:
+            case PdfTextRenderingMode.Clip:
+            {
+                AppendTextClip(shapingResult, state);
+                break;
+            }
+        }
+
+        if (state.RenderingParameters.ExtractContent)
         {
             var characters = new PdfCharacter[CountCharacters(shapingResult)];
             int characterIndex = 0;
@@ -235,7 +224,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             }
 
             PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
-            EmitTextCharacters(processor, state, textMatrix, characters);
+            EmitTextCharacters(processor, textMatrix, characters);
         }
     }
 
@@ -295,22 +284,20 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
-    private static void EmitTextCharacters(IPdfCommandProcessor processor, PdfGraphicsState state, in PdfMatrix matrix, PdfCharacter[] characters)
+    private static void EmitTextCharacters(IPdfCommandProcessor processor, in PdfMatrix matrix, PdfCharacter[] characters)
     {
-        PdfTextMarkup? pendingMarkup = state.PendingTextMarkup;
-        if (pendingMarkup != null)
+        if (characters.Length == 0)
         {
-            PdfMarkedContent markedContent = new(PdfString.Empty) { TextMarkup = pendingMarkup };
-            processor.Process(new BeginMarkedContentCommand(markedContent));
-            state.PendingTextMarkup = null;
+            return;
         }
 
-        processor.Process(new TextCharactersCommand(matrix, characters));
-
-        if (pendingMarkup != null)
+        PdfRectangle bounds = characters[0].BoundingBox;
+        for (int i = 1; i < characters.Length; i++)
         {
-            processor.Process(new EndMarkedContentCommand());
+            bounds = PdfRectangle.Union(bounds, characters[i].BoundingBox);
         }
+
+        processor.Process(new PdfContentCommand<PdfCharacter[]>(PdfContentKind.Text, matrix, bounds, characters));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

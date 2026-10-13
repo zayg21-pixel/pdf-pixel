@@ -1,10 +1,14 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
+using PdfPixel.Content;
+using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.WorkQueue;
-using PdfPixel.TextExtraction;
+using PdfPixel.Skia;
+using SkiaSharp;
 using System;
 using System.Threading.Tasks;
 
@@ -17,17 +21,18 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
 {
     private static readonly PdfRenderingParameters TextExtractionParameters = new()
     {
-        RenderPaths = false,
-        RenderImages = false,
-        RenderShadings = false,
-        RenderText = false,
-        ExtractText = true
+        ProcessPaths = false,
+        ProcessImages = false,
+        ProcessShadings = false,
+        ProcessText = true,
+        RenderContent = false,
+        ExtractContent = true
     };
 
     private readonly IPdfDocument _document;
     private readonly object _documentLocker;
-    private readonly PdfTextBlockFlattener _textBlockFlattener;
-    private readonly PdfTextChunker _textChunker;
+    private readonly PdfTextExtractor _textExtractor;
+    private readonly PdfTextExtractionProperties _textExtractionProperties;
     private readonly IPdfCancellableExecutionObserver _observer;
     private readonly Action<int> _onCompleted;
 
@@ -39,16 +44,16 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         PdfPageCacheEntry cacheEntry,
         IPdfDocument document,
         object documentLocker,
-        PdfTextBlockFlattener textBlockFlattener,
-        PdfTextChunker textChunker,
+        PdfTextExtractor textExtractor,
+        PdfTextExtractionProperties textExtractionProperties,
         IPdfCancellableExecutionObserver observer,
         Action<int> onCompleted)
     {
         CacheEntry = cacheEntry ?? throw new ArgumentNullException(nameof(cacheEntry));
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _documentLocker = documentLocker ?? throw new ArgumentNullException(nameof(documentLocker));
-        _textBlockFlattener = textBlockFlattener ?? throw new ArgumentNullException(nameof(textBlockFlattener));
-        _textChunker = textChunker ?? throw new ArgumentNullException(nameof(textChunker));
+        _textExtractor = textExtractor ?? throw new ArgumentNullException(nameof(textExtractor));
+        _textExtractionProperties = textExtractionProperties ?? throw new ArgumentNullException(nameof(textExtractionProperties));
         _observer = observer ?? throw new ArgumentNullException(nameof(observer));
         _onCompleted = onCompleted ?? throw new ArgumentNullException(nameof(onCompleted));
     }
@@ -93,12 +98,13 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
                 null,
                 _observer);
 
-            PdfTextExtractionCommandProcessor processor = new(executionContext);
+            using SKNoDrawCanvas canvas = new((int)page.CropBox.Width, (int)page.CropBox.Height);
+            SkCanvasCommandProcessor processor = new(canvas, executionContext, _document.LoggerFactory.CreateLogger<SkCanvasCommandProcessor>());
             processor.ApplyPageTransformations(page.CropBox);
             page.Render(processor, TextExtractionParameters, _observer);
 
-            PdfCharacter[] characters = _textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), PdfMatrix.Identity);
-            CacheEntry.Content.UpdateWords(_textChunker.ChunkCharacters(characters));
+            PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, PdfMatrix.Identity, _textExtractionProperties);
+            CacheEntry.Content.UpdateWords(words);
         }
     }
 }

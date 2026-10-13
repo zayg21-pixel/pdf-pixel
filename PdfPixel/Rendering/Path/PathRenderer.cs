@@ -52,7 +52,21 @@ public class PathRenderer : IPathRenderer
             throw new ArgumentNullException(nameof(state));
         }
 
-        if (!state.RenderingParameters.RenderPaths)
+        if (!state.RenderingParameters.ProcessPaths)
+        {
+            return;
+        }
+
+        if (state.RenderingParameters.ExtractContent)
+        {
+            PdfRectangle contentBounds = (operation == PdfPaintOperation.Fill)
+                ? path.GetBounds()
+                : path.GetStrokeBounds(state.StrokePaint);
+
+            processor.Process(new PdfContentCommand<PdfPath>(PdfContentKind.Path, PdfMatrix.Identity, contentBounds, path));
+        }
+
+        if (!state.RenderingParameters.RenderContent)
         {
             return;
         }

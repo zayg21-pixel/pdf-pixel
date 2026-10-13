@@ -6,6 +6,7 @@ using PdfPixel.Encryption.Model;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
+using PdfPixel.Navigation.Model;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Tagging.Model;
@@ -197,6 +198,7 @@ public class PdfDocumentReader
         document.AssociatedFiles = PdfFileSpecification.GetFileSpecifications(catalog.GetArray(PdfTokens.AssociatedFilesKey));
         document.Metadata = PdfMetadata.FromDictionary(catalog);
         document.OpenAction = PdfOpenAction.FromCatalog(catalog, document.Destinations);
+        document.Outlines = PdfOutlines.FromCatalog(catalog, document.Destinations, document.StructureTree);
 
         int? permissions = internalDocument.Decryptor?.Parameters.Permissions;
         if (permissions != null)

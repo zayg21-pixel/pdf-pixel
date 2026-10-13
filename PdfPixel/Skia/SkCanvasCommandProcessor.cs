@@ -64,7 +64,7 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private void ExecuteCommand(IPdfCommand command)
     {
-        if (!_executionContext.MarkedContent.ShouldExecute(command))
+        if (!_executionContext.ContentTree.ShouldExecute(command))
         {
             return;
         }
@@ -97,7 +97,7 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
             return;
         }
 
-        if (!_executionContext.MarkedContent.ShouldExecute(command))
+        if (!_executionContext.ContentTree.ShouldExecute(command))
         {
             return;
         }
@@ -122,9 +122,9 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
     {
         switch (command.Kind)
         {
-            case PdfCommandKind.BeginMarkedContent:
+            case PdfCommandKind.BeginScope:
             {
-                _executionContext.MarkedContent.Push(((BeginMarkedContentCommand)command).MarkedContent);
+                _executionContext.ContentTree.Push(((BeginScopeCommand)command).Scope);
                 break;
             }
             case PdfCommandKind.ClipPath:
@@ -142,6 +142,11 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
                 var concatMatrixCommand = (ConcatMatrixCommand)command;
                 _canvas.Concat(concatMatrixCommand.Matrix.ToSkMatrix());
                 _executionContext.Frames.OnConcatMatrix(concatMatrixCommand.Matrix);
+                break;
+            }
+            case PdfCommandKind.Content:
+            {
+                _executionContext.ContentTree.AddContent((IPdfContentCommand)command, _executionContext.Frames);
                 break;
             }
             case PdfCommandKind.DrawImageTile:
@@ -174,9 +179,9 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
                 ExecuteDrawTiling((DrawTilingCommand)command);
                 break;
             }
-            case PdfCommandKind.EndMarkedContent:
+            case PdfCommandKind.EndScope:
             {
-                _executionContext.MarkedContent.Pop();
+                _executionContext.ContentTree.Pop();
                 break;
             }
             case PdfCommandKind.InitializeTileCache:
@@ -205,11 +210,6 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
             {
                 _canvas.Save();
                 _executionContext.Frames.OnSaveState();
-                break;
-            }
-            case PdfCommandKind.TextCharacters:
-            {
-                ExecuteTextCharacters((TextCharactersCommand)command);
                 break;
             }
         }

@@ -5,7 +5,6 @@ using PdfPixel.OptionalContent.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
-using PdfPixel.TextExtraction;
 using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Operators;
@@ -89,7 +88,8 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null, graphicsState);
+        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, propertiesOperand: null, isSequence: false, graphicsState)));
+        _processor.Process(new EndScopeCommand());
     }
 
     private void ProcessMarkedContentPointWithProperties(PdfGraphicsState graphicsState)
@@ -106,8 +106,8 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
-        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary, graphicsState);
+        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, operands[1], isSequence: false, graphicsState)));
+        _processor.Process(new EndScopeCommand());
     }
 
     private void ProcessBeginMarkedContent(PdfGraphicsState graphicsState)
@@ -124,12 +124,10 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfMarkedContent markedContent = new(tagName.Value) { TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary: null, graphicsState) };
-
-        _processor.Process(new BeginMarkedContentCommand(markedContent));
+        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, propertiesOperand: null, isSequence: true, graphicsState)));
     }
 
-    private void ProcessEndMarkedContent() => _processor.Process(new EndMarkedContentCommand());
+    private void ProcessEndMarkedContent() => _processor.Process(new EndScopeCommand());
 
     private void ProcessBeginMarkedContentWithProperties(PdfGraphicsState graphicsState)
     {
@@ -145,81 +143,78 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfMarkedContent markedContent = new(tagName.Value);
-
-        if (tagName.Value == PdfTokens.OptionalContentKey)
-        {
-            markedContent.OptionalContent = ResolveOptionalContent(operands[1]);
-        }
-        else if (tagName.Value == PdfTokens.AssociatedFilesKey)
-        {
-            markedContent.AssociatedFiles = ResolveAssociatedFiles(operands[1]);
-        }
-        else
-        {
-            PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
-            markedContent.TextMarkup = TryParseTextMarkup(tagName.Value, propertiesDictionary, graphicsState);
-        }
-
-        _processor.Process(new BeginMarkedContentCommand(markedContent));
+        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, operands[1], isSequence: true, graphicsState)));
     }
 
-    private PdfTextMarkup? TryParseTextMarkup(in PdfString tagName, PdfDictionary? propertiesDictionary, PdfGraphicsState graphicsState)
+    private PdfMarkedContentScope CreateMarkedContent(in PdfString tagName, IPdfValue? propertiesOperand, bool isSequence, PdfGraphicsState graphicsState)
     {
-        PdfTextTag tag = tagName.AsEnum<PdfTextTag>();
+        PdfMarkedContentTag tagType = tagName.AsEnum<PdfMarkedContentTag>();
 
-        PdfString? actualText = null;
-        PdfString? alt = null;
-        PdfString? expandedForm = null;
-        PdfString? lang = null;
-        int? mcid = null;
-
-        if (propertiesDictionary != null)
+        switch (tagType)
         {
-            actualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
-            alt = propertiesDictionary.GetString(PdfTokens.AltKey);
-            expandedForm = propertiesDictionary.GetString(PdfTokens.ExpandedFormKey);
-            lang = propertiesDictionary.GetString(PdfTokens.LangKey);
-            mcid = propertiesDictionary.GetInteger(PdfTokens.MCIDKey);
-        }
+            case PdfMarkedContentTag.OptionalContent:
+            {
+                PdfOptionalContentMembership? optionalContent = null;
+                if (propertiesOperand != null)
+                {
+                    optionalContent = ResolveOptionalContent(propertiesOperand);
+                }
 
-        if (tag == PdfTextTag.Custom
-            && actualText == null
-            && alt == null
-            && expandedForm == null
-            && lang == null
-            && mcid == null)
-        {
-            return null;
+                return new PdfMarkedContentScope(tagName, tagType, optionalContent, associatedFiles: null, structureElement: null);
+            }
+            case PdfMarkedContentTag.AssociatedFiles:
+            {
+                List<PdfFileSpecification>? associatedFiles = null;
+                if (propertiesOperand != null && isSequence)
+                {
+                    associatedFiles = ResolveAssociatedFiles(propertiesOperand);
+                }
+
+                return new PdfMarkedContentScope(tagName, tagType, optionalContent: null, associatedFiles, structureElement: null);
+            }
+            default:
+            {
+                PdfDictionary? propertiesDictionary = null;
+                if (propertiesOperand != null)
+                {
+                    propertiesDictionary = ResolvePropertiesDictionary(propertiesOperand);
+                }
+
+                return CreateTaggedContent(tagName, tagType, propertiesDictionary, graphicsState);
+            }
         }
+    }
+
+    private PdfMarkedContentScope CreateTaggedContent(in PdfString tagName, PdfMarkedContentTag tagType, PdfDictionary? propertiesDictionary, PdfGraphicsState graphicsState)
+    {
+        int? mcid = propertiesDictionary?.GetInteger(PdfTokens.MCIDKey);
 
         PdfStructureElement? structureElement = null;
-        if (mcid != null && graphicsState.RenderingParameters.ExtractText)
+        if (mcid != null && graphicsState.RenderingParameters.ExtractContent)
         {
             structureElement = FindStructureParent(mcid.Value);
         }
 
-        PdfTextMarkup markup = new(tag)
-        {
-            ActualText = actualText ?? structureElement?.ActualText,
-            Alt = alt ?? structureElement?.Alt,
-            ExpandedForm = expandedForm ?? structureElement?.ExpandedForm,
-            Lang = lang ?? structureElement?.Lang,
-            Mcid = mcid,
-            StructureElement = structureElement
-        };
+        PdfMarkedContentScope markedContent = new(tagName, tagType, optionalContent: null, associatedFiles: null, structureElement) { Mcid = mcid };
 
-        if (tag == PdfTextTag.Custom)
+        if (propertiesDictionary == null)
         {
-            markup.CustomTag = tagName;
+            return markedContent;
         }
 
-        if (tag == PdfTextTag.Artifact && propertiesDictionary != null)
+        if (tagType == PdfMarkedContentTag.Artifact)
         {
-            markup.Artifact = new PdfArtifactProperties(propertiesDictionary);
+            markedContent.Artifact = new PdfArtifactProperties(propertiesDictionary);
+        }
+        else if (tagType == PdfMarkedContentTag.Span)
+        {
+            markedContent.ActualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
+            markedContent.Alt = propertiesDictionary.GetString(PdfTokens.AltKey);
+            markedContent.ExpandedForm = propertiesDictionary.GetString(PdfTokens.ExpandedFormKey);
+            markedContent.Lang = propertiesDictionary.GetString(PdfTokens.LangKey);
         }
 
-        return markup;
+        return markedContent;
     }
 
     private PdfStructureElement? FindStructureParent(int mcid)

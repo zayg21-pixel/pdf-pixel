@@ -61,7 +61,8 @@ internal class InlineImageOperators : IOperatorProcessor
         IPdfValue value = _operandStack.Pop();
         _operandStack.Clear();
 
-        if (!graphicsState.RenderingParameters.RenderImages)
+        if (!graphicsState.RenderingParameters.ProcessImages
+            || (!graphicsState.RenderingParameters.RenderContent && !graphicsState.RenderingParameters.ExtractContent))
         {
             return;
         }

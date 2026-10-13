@@ -1,10 +1,9 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
 using System.Collections.Generic;
 
-namespace PdfPixel.TextExtraction;
+namespace PdfPixel.Tagging.Model;
 
 /// <summary>
 /// Property list of an artifact marked content scope (Artifact BDC).

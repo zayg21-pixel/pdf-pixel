@@ -1,6 +1,6 @@
 using PdfPixel.Geometry;
 
-namespace PdfPixel.TextExtraction;
+namespace PdfPixel.Content.Model;
 
 /// <summary>
 /// Represents a single extracted character with its Unicode text and bounding box.

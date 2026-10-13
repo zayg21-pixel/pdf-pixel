@@ -1,6 +1,6 @@
 using PdfPixel.Geometry;
 
-namespace PdfPixel.TextExtraction;
+namespace PdfPixel.Content.Model;
 
 /// <summary>
 /// The characters of a <see cref="PdfWord"/> on one text line.

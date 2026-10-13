@@ -77,7 +77,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         _shouldApplyMask = true;
 
-        if (_softMask == null)
+        if (_softMask == null || !_graphicsState.RenderingParameters.RenderContent)
         {
             _shouldApplyMask = false;
             return;

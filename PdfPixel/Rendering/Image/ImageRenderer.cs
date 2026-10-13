@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Model;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
@@ -55,7 +56,18 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        if (!state.RenderingParameters.RenderImages)
+        if (!state.RenderingParameters.ProcessImages)
+        {
+            return;
+        }
+
+        if (state.RenderingParameters.ExtractContent)
+        {
+            PdfRectangle unitSquare = new(0, 0, 1, 1);
+            processor.Process(new PdfContentCommand<PdfImage>(PdfContentKind.Image, PdfMatrix.Identity, unitSquare, pdfImage));
+        }
+
+        if (!state.RenderingParameters.RenderContent)
         {
             return;
         }

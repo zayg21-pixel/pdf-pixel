@@ -1,6 +1,6 @@
+using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Skia;
-using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 

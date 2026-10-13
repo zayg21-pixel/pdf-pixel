@@ -2,7 +2,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Typeface;
-using PdfPixel.Geometry;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -33,13 +32,6 @@ public sealed partial class SkCanvasCommandProcessor
         DrawShapedTextSpans(paint, antialias, glyphs);
 
         _canvas.Restore();
-    }
-
-    private void ExecuteTextCharacters(TextCharactersCommand command)
-    {
-        PdfMatrix matrix = _executionContext.Frames.TotalMatrix.PreConcat(command.Matrix);
-
-        _executionContext.MarkedContent.AppendCharacters(matrix, command.Characters);
     }
 
     private void DrawShapedTextSpans(SKPaint paint, bool antialias, in ReadOnlySpan<ShapedGlyph> glyphs)

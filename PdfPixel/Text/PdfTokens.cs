@@ -543,6 +543,12 @@ internal static class PdfTokens
     public static readonly PdfString NeedsRenderingKey = (PdfString)"NeedsRendering"u8;
     public static readonly PdfString SigFlagsKey = (PdfString)"SigFlags"u8;
 
+    // Document outline keys
+    public static readonly PdfString OutlinesKey = (PdfString)"Outlines"u8;              // Catalog document outline dictionary
+    public static readonly PdfString OutlineTitleKey = (PdfString)"Title"u8;             // Text displayed for an outline item
+    public static readonly PdfString OutlineFlagsKey = (PdfString)"F"u8;                 // Style flags of an outline item
+    public static readonly PdfString StructureElementKey = (PdfString)"SE"u8;            // Structure element an outline item refers to
+
     // Optional content keys
     public static readonly PdfString OptionalContentIntentKey = (PdfString)"Intent"u8;   // Optional content intent name or array
     public static readonly PdfString UsageKey = (PdfString)"Usage"u8;

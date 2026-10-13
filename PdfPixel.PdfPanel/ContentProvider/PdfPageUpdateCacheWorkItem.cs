@@ -1,13 +1,14 @@
 ﻿using PdfPixel.Commands;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
+using PdfPixel.Content;
+using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
-using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Threading.Tasks;
@@ -24,8 +25,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
 
     private readonly object _documentLocker = new();
     private readonly IPdfDocument _document;
-    private readonly PdfTextBlockFlattener _textBlockFlattener;
-    private readonly PdfTextChunker _textChunker;
+    private readonly PdfTextExtractor _textExtractor;
+    private readonly PdfTextExtractionProperties _textExtractionProperties;
     private readonly PagesDrawingRequest _request;
     private readonly PdfCommandExecutionParameters _executionParameters;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
@@ -43,8 +44,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         PdfPageCacheEntry cacheEntry,
         IPdfDocument document,
         object documentLocker,
-        PdfTextBlockFlattener textBlockFlattener,
-        PdfTextChunker textChunker,
+        PdfTextExtractor textExtractor,
+        PdfTextExtractionProperties textExtractionProperties,
         PagesDrawingRequest request,
         Action<PageUpdatedArgs>? onPageUpdated,
         Action<int> onPageTextExtracted)
@@ -57,8 +58,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         CacheEntry = cacheEntry;
         _documentLocker = documentLocker;
         _document = document;
-        _textBlockFlattener = textBlockFlattener;
-        _textChunker = textChunker;
+        _textExtractor = textExtractor;
+        _textExtractionProperties = textExtractionProperties;
         _request = request ?? throw new ArgumentNullException(nameof(request));
         _executionParameters = new PdfCommandExecutionParameters
         {
@@ -139,8 +140,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                 if (CacheEntry.Content.Words == null)
                 {
                     PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
-                    PdfCharacter[] characters = _textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), pictureToPage);
-                    CacheEntry.Content.UpdateWords(_textChunker.ChunkCharacters(characters));
+                    PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, pictureToPage, _textExtractionProperties);
+                    CacheEntry.Content.UpdateWords(words);
                     _onPageTextExtracted(CacheEntry.PageNumber);
                 }
 

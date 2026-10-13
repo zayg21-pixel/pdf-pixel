@@ -7,6 +7,7 @@ using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
+using PdfPixel.Tagging.Model;
 using PdfPixel.Transparency.Model;
 using System;
 using System.Collections.Generic;
@@ -54,11 +55,13 @@ internal static class SoftMaskUtilities
 
         maskState.CTM = worldToMaskForm;
 
-        // TODO: [MEDIUM] text shown by the mask form is extracted like page text, in both rendering and text extraction
         PdfCommandRecorder recorder = new();
         PdfContentStreamRenderer contentRenderer = new(renderer, maskHost);
         PdfParseContext parseContext = new(contentData);
+        PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.SoftMask);
+        recorder.Process(new BeginScopeCommand(contentStreamScope));
         contentRenderer.RenderContext(recorder, ref parseContext, maskState);
+        recorder.Process(new EndScopeCommand());
 
         sourceState.RecursionGuard.Remove(maskFormReference.ObjectNumber);
 

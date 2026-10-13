@@ -5,6 +5,7 @@ using PdfPixel.Commands.Cache;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Navigation;
+using PdfPixel.Navigation.Model;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Tagging.Model;
 using System;
@@ -101,6 +102,11 @@ public interface IPdfDocument : IDisposable
     /// or <see langword="null"/> for untagged documents.
     /// </summary>
     PdfStructureTree? StructureTree { get; }
+
+    /// <summary>
+    /// Gets the document outline (/Outlines), or <see langword="null"/> when absent.
+    /// </summary>
+    PdfOutlines? Outlines { get; }
 
     /// <summary>
     /// Gets the mark information dictionary (/MarkInfo), or <see langword="null"/> when absent.

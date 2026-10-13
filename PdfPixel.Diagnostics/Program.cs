@@ -13,7 +13,8 @@ using System.Diagnostics;
 using System.Linq;
 using PdfPixel.Commands.Model;
 using PdfPixel.Commands.Context;
-using PdfPixel.TextExtraction;
+using PdfPixel.Content;
+using PdfPixel.Content.Model;
 
 namespace PdfPixel.Diagnostics;
 
@@ -273,19 +274,20 @@ internal sealed class Program
 
         if (textOnly)
         {
-            renderingParameters.RenderPaths = false;
-            renderingParameters.RenderImages = false;
-            renderingParameters.RenderShadings = false;
-            renderingParameters.RenderText = false;
+            renderingParameters.ProcessPaths = false;
+            renderingParameters.ProcessImages = false;
+            renderingParameters.ProcessShadings = false;
+            renderingParameters.RenderContent = false;
         }
 
         double iterationDecodeMilliseconds = 0;
         double iterationRasterMilliseconds = 0;
         long iterationCharacterCount = 0;
 
-        // Every page's flattened characters stay alive until the whole range is read, the way a search keeps them.
-        List<PdfCharacter[]> pageCharacters = [];
-        PdfTextBlockFlattener textBlockFlattener = new();
+        // Every page's extracted words stay alive until the whole range is read, the way a search keeps them.
+        List<PdfWord[]> pageWords = [];
+        PdfTextExtractor textExtractor = new();
+        PdfTextExtractionProperties textExtractionProperties = new();
 
         for (int pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
         {
@@ -350,17 +352,18 @@ internal sealed class Program
                 null,
                 executionObserver);
 
-            // Text-only replays through the processor that collects characters and draws nothing.
-            IPdfCommandProcessor processor = textOnly
-                ? new PdfTextExtractionCommandProcessor(executionContext)
-                : new SkCanvasCommandProcessor(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+            // Text-only replays onto a canvas that draws nothing.
+            using SKNoDrawCanvas noDrawCanvas = new(imageInfo.Width, imageInfo.Height);
+            SKCanvas processorCanvas = textOnly ? noDrawCanvas : canvas;
+            SkCanvasCommandProcessor processor = new(processorCanvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
             contentRecorder.Replay(processor);
             annotationRecorder.Replay(processor);
 
             using SKPicture picture = pictureRecorder.EndRecording();
 
-            // Replay collected the page's characters; flatten them into reading order.
-            PdfCharacter[] characters = textBlockFlattener.Flatten(executionContext.GetRootTextBlock(), PdfMatrix.Identity);
+            // Replay built the page's content tree; extract its words in reading order.
+            PdfWord[] words = textExtractor.ExtractWords(executionContext.ContentTree.Root, PdfMatrix.Identity, textExtractionProperties);
+            int characterCount = CountCharacters(words);
 
             decodeStopwatch.Stop();
 
@@ -388,15 +391,15 @@ internal sealed class Program
             rasterMilliseconds[pageNumber - firstPage][iteration] = rasterStopwatch.Elapsed.TotalMilliseconds;
             iterationDecodeMilliseconds += decodeStopwatch.Elapsed.TotalMilliseconds;
             iterationRasterMilliseconds += rasterStopwatch.Elapsed.TotalMilliseconds;
-            iterationCharacterCount += characters.Length;
-            pageCharacters.Add(characters);
+            iterationCharacterCount += characterCount;
+            pageWords.Add(words);
 
             Console.WriteLine(
                 $"Iteration {iteration,-3} page {pageNumber,-5}"
                     + $" total {decodeStopwatch.Elapsed.TotalMilliseconds + rasterStopwatch.Elapsed.TotalMilliseconds,9:F1} ms"
                     + $" decode {decodeStopwatch.Elapsed.TotalMilliseconds,9:F1} ms"
                     + $" raster {rasterStopwatch.Elapsed.TotalMilliseconds,9:F1} ms"
-                    + $" characters {characters.Length,7}");
+                    + $" characters {characterCount,7}");
         }
 
         // Wall time from opening the document to the last page's characters being stored.
@@ -420,7 +423,7 @@ internal sealed class Program
                 + $" live {liveBytes / 1048576.0,8:F1} MB"
                 + $" private {currentProcess.PrivateMemorySize64 / 1048576.0,8:F1} MB");
 
-        GC.KeepAlive(pageCharacters);
+        GC.KeepAlive(pageWords);
     }
 
     private static void SavePageSnapshot(ILogger logger, SKSurface surface, string outputDirectory, int pageNumber)
@@ -442,6 +445,21 @@ internal sealed class Program
     {
         recorder.Process(SaveStateCommand.Instance);
         recorder.ApplyPageTransformations(page.CropBox, scale: scale, clipToBounds: false);
+    }
+
+    private static int CountCharacters(PdfWord[] words)
+    {
+        int count = 0;
+
+        foreach (PdfWord word in words)
+        {
+            foreach (PdfWordPart part in word.Parts)
+            {
+                count += part.Characters.Length;
+            }
+        }
+
+        return count;
     }
 
     // Prints every command in order; when a command is a DrawRecordingCommand, its nested

@@ -6,6 +6,7 @@ using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
+using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
@@ -148,7 +149,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
 
-        PdfGraphicsState charState = new(glyphHost, sourceState.ClipBounds, sourceState.RecursionGuard, default, sourceState.RenderingParameters);
+        PdfGraphicsState charState = new(glyphHost, sourceState.ClipBounds, sourceState.RecursionGuard, default, sourceState.RenderingParameters.ForType3Rendering());
 
         PdfRectangle? glyphBounds = boundingBox ?? FontBBox;
         if (glyphBounds != null)
@@ -156,7 +157,10 @@ public class PdfType3Font : PdfSingleByteFont
             charState.ClipBounds = charState.CTM.MapRect(glyphBounds.Value);
         }
 
+        PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.Type3Glyph);
+        recorder.Process(new BeginScopeCommand(contentStreamScope));
         contentRenderer.RenderContext(recorder, ref parseContext, charState);
+        recorder.Process(new EndScopeCommand());
 
         PdfType3CharacterInfo info = new(recorder, boundingBox, advancement);
         type3Cache[charCode] = info;

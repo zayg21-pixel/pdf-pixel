@@ -1,4 +1,4 @@
-namespace PdfPixel.TextExtraction;
+namespace PdfPixel.Content.Model;
 
 /// <summary>
 /// Classifies a <see cref="PdfWord"/> as a normal word or a punctuation token.

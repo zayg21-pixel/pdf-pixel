@@ -26,21 +26,14 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 
 | Entry | Location | Spec | Work |
 |---|---|---|---|
-| `/AF`, `/Metadata` | Image and form XObjects | Tables 87, 93, 14.13.7 | Associated files and XMP metadata of an XObject; XObjects are only created during rendering, so this needs a public access path |
-| `/Outlines` | Catalog | Tables 150, 151 | Bookmark tree |
 | `/Threads`, `/B` | Catalog, Page | Tables 162, 163 | Article threads and the beads on each page |
 | `/PresSteps` | Page | Table 165 | Sub-page navigation steps |
-
-### Marked content and text extraction
-
-| Entry | Location | Spec | Work |
-|---|---|---|---|
-| `/ActualText` over non-text content | `TextExtraction/PdfTextBlockFlattener.cs` | 14.9.4 | Replacement text of a block drawn with paths or images is dropped: its bounds come from characters only |
 
 ### PdfPanel
 
 | Entry | Location | Spec | Work |
 |---|---|---|---|
+| Content interaction layer | `PdfPixel.PdfPanel` | 14.9.3, 14.9.4 | No interaction with non-text content: a separate layer built from the content tree (`PdfContentTreeBuilder.Root`) would show `/ActualText` or `/Alt` of images and shadings in a popup on hover, and select an image on click so it can be copied (Ctrl+C) |
 | `/UserUnit` | `PdfPixel.PdfPanel/PdfPanelPageInfo.cs` | Table 31, 8.3.2.3 | Not supported: pages are laid out in their own units, so pages with different user units keep the wrong relative size. Supporting it adds a per-page scale on top of the global zoom, which layout, rendering and screen-to-page mapping must apply. Page content is unaffected; the value is already exposed as `IPdfPage.UserUnit` |
 
 ## 3. Public API
@@ -48,9 +41,3 @@ Trees, cross-references between objects, or changes to rendering and text extrac
 | Item | Location | Work |
 |---|---|---|
 | Image conversion | `Imaging/Model/PdfImage.cs` | No public way to get pixels from a `PdfImage` (`/Thumb`, file specification thumbnails, image XObjects): decoding needs an internal `ImageDecodingContext`, and `Skia/Converters/PdfImageConverter.cs` is internal |
-
-## 4. Bugs
-
-| Bug | Location | Spec | Wrong output |
-|---|---|---|---|
-| Soft mask text | `Transparency/Utilities/SoftMaskUtilities.cs` | | Text shown by the mask form is extracted like page text, in both rendering and text extraction |

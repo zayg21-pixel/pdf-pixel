@@ -1,9 +1,10 @@
+using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace PdfPixel.TextExtraction;
+namespace PdfPixel.Content;
 
 /// <summary>
 /// Groups a sequence of <see cref="PdfCharacter"/> instances into <see cref="PdfWord"/> tokens.
@@ -14,22 +15,14 @@ public sealed class PdfTextChunker
     private const string LineBreak = "\n";
     private const char SoftHyphen = '­';
 
-    /// <summary>
-    /// Horizontal gap between two characters on one line, as a fraction of character height, above which a space is generated.
-    /// </summary>
-    private const float WordGapRatio = 0.1f;
-
-    /// <summary>
-    /// Vertical distance between two character centers, as a fraction of character height, above which a line break is generated.
-    /// </summary>
-    private const float LineOffsetRatio = 0.5f;
-
     private readonly List<PdfWord> _words = [];
     private readonly List<PdfWordPart> _wordParts = [];
     private readonly List<PdfCharacter> _partCharacters = [];
     private PdfWordType _wordType;
     private int _lineIndex;
     private int _characterCount;
+    private float _wordGapRatio;
+    private float _lineOffsetRatio;
 
     /// <summary>
     /// Chunks a sequence of characters into words in reading order.
@@ -37,13 +30,22 @@ public sealed class PdfTextChunker
     /// between two words separated by a gap and as a line break at the end of a line when the characters have none.
     /// A word hyphenated at the end of a line continues in a new part on the next line.
     /// </summary>
-    public PdfWord[] ChunkCharacters(PdfCharacter[] characters)
+    /// <param name="characters">Characters in reading order.</param>
+    /// <param name="properties">Properties providing the word gap and line offset ratios.</param>
+    public PdfWord[] ChunkCharacters(PdfCharacter[] characters, PdfTextExtractionProperties properties)
     {
         if (characters == null)
         {
             throw new ArgumentNullException(nameof(characters));
         }
 
+        if (properties == null)
+        {
+            throw new ArgumentNullException(nameof(properties));
+        }
+
+        _wordGapRatio = properties.WordGapRatio;
+        _lineOffsetRatio = properties.LineOffsetRatio;
         _words.Clear();
         _wordParts.Clear();
         _partCharacters.Clear();
@@ -189,20 +191,20 @@ public sealed class PdfTextChunker
         return (IsWordBreakingPunctuation(text[0])) ? PdfWordType.Punctuation : PdfWordType.Normal;
     }
 
-    private static bool IsNewLine(in PdfRectangle previousBox, in PdfRectangle currentBox)
+    private bool IsNewLine(in PdfRectangle previousBox, in PdfRectangle currentBox)
     {
         float height = Math.Max(previousBox.Height, currentBox.Height);
 
         return height > 0
-            && Math.Abs(currentBox.MidY - previousBox.MidY) > height * LineOffsetRatio;
+            && Math.Abs(currentBox.MidY - previousBox.MidY) > height * _lineOffsetRatio;
     }
 
-    private static bool IsWordGap(in PdfRectangle previousBox, in PdfRectangle currentBox)
+    private bool IsWordGap(in PdfRectangle previousBox, in PdfRectangle currentBox)
     {
         float height = Math.Max(previousBox.Height, currentBox.Height);
 
         return height > 0
-            && (currentBox.Left - previousBox.Right > height * WordGapRatio || currentBox.Right < previousBox.Left);
+            && (currentBox.Left - previousBox.Right > height * _wordGapRatio || currentBox.Right < previousBox.Left);
     }
 
     private static PdfRectangle GetGapBox(in PdfRectangle previousBox, in PdfRectangle currentBox)

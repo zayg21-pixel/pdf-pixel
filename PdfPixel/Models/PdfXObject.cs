@@ -1,7 +1,9 @@
+using PdfPixel.Files;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Text;
+using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
@@ -19,6 +21,9 @@ public abstract class PdfXObject
         Reference = reference;
         Subtype = subtype;
         OptionalContent = PdfOptionalContentMembership.FromDictionary(xObject.Dictionary);
+        StructParent = xObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
+        AssociatedFiles = PdfFileSpecification.GetFileSpecifications(xObject.Dictionary.GetArray(PdfTokens.AssociatedFilesKey));
+        Metadata = PdfMetadata.FromDictionary(xObject.Dictionary);
     }
 
     /// <summary>
@@ -40,6 +45,21 @@ public abstract class PdfXObject
     /// Optional content membership controlling visibility of this XObject.
     /// </summary>
     public PdfOptionalContentMembership? OptionalContent { get; }
+
+    /// <summary>
+    /// Key of the XObject's entry in the structural parent tree (/StructParent), or <see langword="null"/> when absent.
+    /// </summary>
+    public int? StructParent { get; }
+
+    /// <summary>
+    /// Files associated with the entire XObject (/AF, PDF 2.0), or <see langword="null"/> when absent.
+    /// </summary>
+    public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
+
+    /// <summary>
+    /// XObject metadata stream (/Metadata), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfMetadata? Metadata { get; }
 
     /// <summary>
     /// Returns the XObject held by <paramref name="key"/> of <paramref name="dictionary"/>, using the document's cache if available.

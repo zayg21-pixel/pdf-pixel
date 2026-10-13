@@ -3,7 +3,6 @@ using PdfPixel.Commands.Cache;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.OptionalContent.Model;
-using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
 
@@ -46,7 +45,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
         }
 
         OptionalContentStates = optionalContentStates;
-        MarkedContent = new PdfMarkedContentState(optionalContentStates);
+        ContentTree = new PdfContentTreeBuilder(optionalContentStates);
         ExecutionObserver = executionObserver;
         PageRegionOfInterest = pageRegionOfInterest;
     }
@@ -95,20 +94,14 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public CommandCache Cache { get; } = new();
 
     /// <summary>
-    /// Tracks active marked content scopes and evaluates optional content visibility.
+    /// Tracks active scopes, evaluates optional content visibility and builds the content tree.
     /// </summary>
-    public PdfMarkedContentState MarkedContent { get; }
+    public PdfContentTreeBuilder ContentTree { get; }
 
     /// <summary>
     /// ON/OFF state of the optional content groups content visibility is evaluated under, keyed by group reference.
     /// </summary>
     public IReadOnlyDictionary<PdfReference, bool> OptionalContentStates { get; }
-
-    /// <summary>
-    /// Returns the root of the text block tree built during command execution.
-    /// Characters are grouped into blocks corresponding to marked content scopes.
-    /// </summary>
-    public PdfTextBlock GetRootTextBlock() => MarkedContent.GetRootTextBlock();
 
     /// <inheritdoc />
     public void Dispose() => Cache.Dispose();

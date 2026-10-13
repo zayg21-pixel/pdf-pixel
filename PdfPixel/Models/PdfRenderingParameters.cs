@@ -28,28 +28,49 @@ public class PdfRenderingParameters
     public int MaxTessellationVertices { get; set; } = 32;
 
     /// <summary>
-    /// When false, path drawing commands are suppressed.
+    /// When false, paths are neither rendered nor extracted.
     /// </summary>
-    public bool RenderPaths { get; set; } = true;
+    public bool ProcessPaths { get; set; } = true;
 
     /// <summary>
-    /// When false, image drawing commands are suppressed.
+    /// When false, images are neither rendered nor extracted.
     /// </summary>
-    public bool RenderImages { get; set; } = true;
+    public bool ProcessImages { get; set; } = true;
 
     /// <summary>
-    /// When false, shading drawing commands are suppressed.
+    /// When false, shadings are neither rendered nor extracted.
     /// </summary>
-    public bool RenderShadings { get; set; } = true;
+    public bool ProcessShadings { get; set; } = true;
 
     /// <summary>
-    /// When false, text drawing commands are suppressed.
+    /// When false, text is neither rendered nor extracted.
     /// </summary>
-    public bool RenderText { get; set; } = true;
+    public bool ProcessText { get; set; } = true;
 
     /// <summary>
-    /// When true, text character data is extracted and accumulated in the text block tree
-    /// accessible via <see cref="Commands.Context.PdfCommandExecutionContext.GetRootTextBlock"/> during command execution.
+    /// When false, drawing commands of every processed content group are suppressed.
     /// </summary>
-    public bool ExtractText { get; set; } = true;
+    public bool RenderContent { get; set; } = true;
+
+    /// <summary>
+    /// When true, an <see cref="Commands.Model.IPdfContentCommand"/> is emitted for every painting operation of a processed
+    /// content group and content scopes are resolved against the document structure tree.
+    /// </summary>
+    public bool ExtractContent { get; set; } = true;
+
+    /// <summary>
+    /// Returns a copy of these parameters with every content group, rendering and content extraction switched on.
+    /// </summary>
+    internal PdfRenderingParameters ForType3Rendering()
+    {
+        var parameters = (PdfRenderingParameters)MemberwiseClone();
+        parameters.ProcessPaths = true;
+        parameters.ProcessImages = true;
+        parameters.ProcessShadings = true;
+        parameters.ProcessText = true;
+        parameters.RenderContent = true;
+        parameters.ExtractContent = true;
+
+        return parameters;
+    }
 }

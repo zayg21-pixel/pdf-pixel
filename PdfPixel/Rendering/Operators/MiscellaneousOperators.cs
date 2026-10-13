@@ -3,9 +3,9 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
-using PdfPixel.OptionalContent.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
+using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
 using System.Collections.Generic;
 
@@ -106,22 +106,11 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfOptionalContentMembership? optionalContent = pageObject.OptionalContent;
-        if (optionalContent != null)
-        {
-            PdfMarkedContent markedContent = new(PdfTokens.OptionalContentKey) { OptionalContent = optionalContent };
-            _processor.Process(new BeginMarkedContentCommand(markedContent));
-        }
-
         switch (pageObject)
         {
             case PdfImage pdfImage:
             {
-                if (graphicsState.RenderingParameters.RenderImages)
-                {
-                    _renderer.DrawImage(_processor, pdfImage, graphicsState);
-                }
-
+                DrawImage(pdfImage, graphicsState);
                 break;
             }
             case PdfForm formXObject:
@@ -130,10 +119,27 @@ internal class MiscellaneousOperators : IOperatorProcessor
                 break;
             }
         }
+    }
 
-        if (optionalContent != null)
+    private void DrawImage(PdfImage pdfImage, PdfGraphicsState graphicsState)
+    {
+        PdfStructureTree? structureTree = null;
+        if (graphicsState.RenderingParameters.ExtractContent)
         {
-            _processor.Process(new EndMarkedContentCommand());
+            structureTree = _host.Document.StructureTree;
+        }
+
+        PdfXObjectScope? scope = PdfXObjectScope.FromXObject(pdfImage, structureTree);
+        if (scope != null)
+        {
+            _processor.Process(new BeginScopeCommand(scope));
+        }
+
+        _renderer.DrawImage(_processor, pdfImage, graphicsState);
+
+        if (scope != null)
+        {
+            _processor.Process(new EndScopeCommand());
         }
     }
 
@@ -161,7 +167,8 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        if (!graphicsState.RenderingParameters.RenderShadings)
+        if (!graphicsState.RenderingParameters.ProcessShadings
+            || (!graphicsState.RenderingParameters.RenderContent && !graphicsState.RenderingParameters.ExtractContent))
         {
             return;
         }

@@ -9,6 +9,7 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Navigation;
+using PdfPixel.Navigation.Model;
 using PdfPixel.OptionalContent.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
@@ -74,6 +75,9 @@ internal class PdfDocument : IPdfDocumentInternal
 
     /// <inheritdoc />
     public PdfStructureTree? StructureTree { get; internal set; }
+
+    /// <inheritdoc />
+    public PdfOutlines? Outlines { get; internal set; }
 
     /// <inheritdoc />
     public IReadOnlyDictionary<PdfString, PdfFileSpecification> EmbeddedFiles { get; internal set; } = new Dictionary<PdfString, PdfFileSpecification>();

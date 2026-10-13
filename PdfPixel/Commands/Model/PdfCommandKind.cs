@@ -9,9 +9,9 @@ namespace PdfPixel.Commands;
 public enum PdfCommandKind
 {
     /// <summary>
-    /// <see cref="BeginMarkedContentCommand"/>.
+    /// <see cref="BeginScopeCommand"/>.
     /// </summary>
-    BeginMarkedContent,
+    BeginScope,
 
     /// <summary>
     /// <see cref="ClipPathCommand"/>.
@@ -27,6 +27,11 @@ public enum PdfCommandKind
     /// <see cref="ConcatMatrixCommand"/>.
     /// </summary>
     ConcatMatrix,
+
+    /// <summary>
+    /// <see cref="PdfContentCommand{T}"/>.
+    /// </summary>
+    Content,
 
     /// <summary>
     /// <see cref="DrawImageTileCommand"/>.
@@ -59,9 +64,9 @@ public enum PdfCommandKind
     DrawTiling,
 
     /// <summary>
-    /// <see cref="EndMarkedContentCommand"/>.
+    /// <see cref="EndScopeCommand"/>.
     /// </summary>
-    EndMarkedContent,
+    EndScope,
 
     /// <summary>
     /// <see cref="InitializeTileCacheCommand"/>.
@@ -86,10 +91,5 @@ public enum PdfCommandKind
     /// <summary>
     /// <see cref="SaveStateCommand"/>.
     /// </summary>
-    SaveState,
-
-    /// <summary>
-    /// <see cref="TextCharactersCommand"/>.
-    /// </summary>
-    TextCharacters
+    SaveState
 }

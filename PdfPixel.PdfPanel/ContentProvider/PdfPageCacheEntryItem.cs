@@ -1,8 +1,8 @@
 using PdfPixel.Commands;
 using PdfPixel.Commands.Model;
+using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Requests;
-using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Linq;

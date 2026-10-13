@@ -1,10 +1,11 @@
+using PdfPixel.Content;
+using PdfPixel.Content.Model;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.WorkQueue;
-using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,8 +24,8 @@ internal sealed class PdfPageContentProvider : IDisposable
     private readonly IPdfExecutionObserverFactory _observerFactory;
     private readonly PdfPageCacheEntry[] _cache;
     private readonly HashSet<int> _visiblePageNumbers = [];
-    private readonly PdfTextBlockFlattener _textBlockFlattener = new();
-    private readonly PdfTextChunker _textChunker = new();
+    private readonly PdfTextExtractor _textExtractor = new();
+    private readonly PdfTextExtractionProperties _textExtractionProperties = new();
     private volatile bool _extractText;
     private volatile int _textExtractionStartPageNumber = 1;
     private int _textExtractionPending;
@@ -154,7 +155,7 @@ internal sealed class PdfPageContentProvider : IDisposable
 
             _visiblePageNumbers.Add(page.PageNumber);
             cacheEntry.InitializeForRendering(_observerFactory);
-            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textBlockFlattener, _textChunker, request, OnPageUpdated, OnPageTextExtracted));
+            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textExtractor, _textExtractionProperties, request, OnPageUpdated, OnPageTextExtracted));
         }
 
         if (request.VisiblePages.Length > 0)
@@ -193,7 +194,7 @@ internal sealed class PdfPageContentProvider : IDisposable
         }
 
         IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextEntry.PageNumber);
-        _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(nextEntry, _document, DocumentLocker, _textBlockFlattener, _textChunker, observer, OnTextExtractionCompleted));
+        _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(nextEntry, _document, DocumentLocker, _textExtractor, _textExtractionProperties, observer, OnTextExtractionCompleted));
     }
 
     private void OnPageTextExtracted(int pageNumber) => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber));

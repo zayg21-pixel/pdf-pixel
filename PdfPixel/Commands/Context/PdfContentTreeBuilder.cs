@@ -1,38 +1,36 @@
 using PdfPixel.Commands.Model;
-using PdfPixel.Geometry;
+using PdfPixel.Content.Model;
 using PdfPixel.Models;
 using PdfPixel.OptionalContent.Model;
-using PdfPixel.TextExtraction;
+using PdfPixel.Tagging.Model;
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands.Context;
 
 /// <summary>
-/// Tracks marked content scope during command execution and evaluates
-/// whether content should be rendered based on optional content group visibility.
+/// Tracks scopes during command execution, evaluates
+/// whether content should be rendered based on optional content group visibility
+/// and builds the content tree of the visible scopes and content commands.
 /// Visibility is recalculated on push/pop and cached for fast per-command checks.
-/// Also maintains a text block tree for structured text extraction.
 /// </summary>
-public sealed class PdfMarkedContentState
+public sealed class PdfContentTreeBuilder
 {
     private readonly IReadOnlyDictionary<PdfReference, bool> _groupStates;
-    private readonly Stack<PdfMarkedContent> _stack = [];
-    private readonly List<PdfCharacter> _characterBuffer = [];
-    private readonly PdfTextBlock _rootTextBlock;
+    private readonly Stack<PdfScope> _stack = [];
+    private readonly Stack<bool> _scopeOpenedNode = [];
+    private readonly Stack<PdfContentNode> _openNodes = [];
     private bool _isContentVisible = true;
-    private PdfTextBlock _currentTextBlock;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfMarkedContentState"/> with the ON/OFF states of the optional content
+    /// Initializes a new <see cref="PdfContentTreeBuilder"/> with the ON/OFF states of the optional content
     /// groups that take part in visibility; groups not listed have no effect.
     /// </summary>
-    public PdfMarkedContentState(IReadOnlyDictionary<PdfReference, bool> groupStates)
+    public PdfContentTreeBuilder(IReadOnlyDictionary<PdfReference, bool> groupStates)
     {
         _groupStates = groupStates;
-        _rootTextBlock = new PdfTextBlock();
-        _currentTextBlock = _rootTextBlock;
+        Root = new PdfContentNode(parent: null, scope: null);
+        _openNodes.Push(Root);
     }
 
     /// <summary>
@@ -42,114 +40,86 @@ public sealed class PdfMarkedContentState
     public bool IsContentVisible => _isContentVisible;
 
     /// <summary>
-    /// Returns the root of the text block tree with every character appended so far.
-    /// Child blocks are created on push, characters are appended to the current block via <see cref="AppendCharacters"/>.
+    /// Root of the content tree, holding the elements drawn outside of any scope.
     /// </summary>
-    public PdfTextBlock GetRootTextBlock()
-    {
-        FlushCharacters();
-
-        return _rootTextBlock;
-    }
+    public PdfContentNode Root { get; }
 
     /// <summary>
-    /// Pushes a marked content scope and recalculates visibility.
-    /// Opens a child text block only for scopes with text markup.
+    /// Pushes a scope and recalculates visibility.
+    /// Opens a child node of the content tree when the scope is visible.
     /// </summary>
-    public void Push(PdfMarkedContent markedContent)
+    public void Push(PdfScope scope)
     {
-        if (markedContent == null)
+        if (scope == null)
         {
-            throw new ArgumentNullException(nameof(markedContent));
+            throw new ArgumentNullException(nameof(scope));
         }
 
-        _stack.Push(markedContent);
+        _stack.Push(scope);
         RecalculateVisibility();
 
-        if (markedContent.TextMarkup != null)
-        {
-            FlushCharacters();
+        _scopeOpenedNode.Push(_isContentVisible);
 
-            PdfTextBlock childBlock = new(markedContent.TextMarkup, _currentTextBlock);
-            _currentTextBlock.Children.Add(childBlock);
-            _currentTextBlock = childBlock;
+        if (_isContentVisible)
+        {
+            PdfContentNode parent = _openNodes.Peek();
+            PdfContentNode node = new(parent, scope);
+            parent.Add(node);
+            _openNodes.Push(node);
         }
     }
 
     /// <summary>
-    /// Pops the most recent marked content scope and recalculates visibility.
-    /// Returns to the parent text block if the popped scope had text markup.
+    /// Pops the most recent scope and recalculates visibility.
+    /// Closes the node of the content tree the scope opened.
     /// </summary>
     public void Pop()
     {
         if (_stack.Count > 0)
         {
-            PdfMarkedContent popped = _stack.Pop();
+            _stack.Pop();
             RecalculateVisibility();
 
-            if (popped.TextMarkup != null && _currentTextBlock.Parent != null)
+            if (_scopeOpenedNode.Pop())
             {
-                FlushCharacters();
-
-                _currentTextBlock = _currentTextBlock.Parent;
+                _openNodes.Pop();
             }
         }
     }
 
     /// <summary>
-    /// Appends characters to the current text block, mapping each bounding box through <paramref name="matrix"/>.
-    /// Skipped when content is hidden by optional content visibility.
+    /// Appends <paramref name="command"/> to the current node of the content tree, placed under the total
+    /// transformation matrix and clip of <paramref name="frames"/>.
     /// </summary>
-#if !NETSTANDARD2_0
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-    public void AppendCharacters(in PdfMatrix matrix, PdfCharacter[] characters)
+    public void AddContent(IPdfContentCommand command, PdfCommandExecutionFrames frames)
     {
-        if (characters == null)
+        if (command == null)
         {
-            throw new ArgumentNullException(nameof(characters));
+            throw new ArgumentNullException(nameof(command));
         }
 
-        if (!_isContentVisible)
+        if (frames == null)
         {
-            return;
+            throw new ArgumentNullException(nameof(frames));
         }
 
-        foreach (PdfCharacter character in characters)
-        {
-            _characterBuffer.Add(new PdfCharacter(character.Text, matrix.MapRect(character.BoundingBox)));
-        }
+        PdfContentNode parent = _openNodes.Peek();
+        PdfContentItem item = new(parent, command, frames.TotalMatrix, frames.CurrentClip);
+        parent.Add(item);
     }
 
     /// <summary>
     /// Returns true if the given command should be executed.
-    /// Begin/end marked content commands always execute to maintain stack balance.
+    /// Begin/end scope commands always execute to maintain stack balance.
     /// </summary>
     public bool ShouldExecute(IPdfCommand command)
     {
-        if (command is BeginMarkedContentCommand || command is EndMarkedContentCommand)
+        if (command is BeginScopeCommand || command is EndScopeCommand)
         {
             return true;
         }
 
         return _isContentVisible;
-    }
-
-    private void FlushCharacters()
-    {
-        if (_characterBuffer.Count == 0)
-        {
-            return;
-        }
-
-        PdfCharacter[] existingCharacters = _currentTextBlock.Characters;
-        var combinedCharacters = new PdfCharacter[existingCharacters.Length + _characterBuffer.Count];
-
-        Array.Copy(existingCharacters, combinedCharacters, existingCharacters.Length);
-        _characterBuffer.CopyTo(combinedCharacters, existingCharacters.Length);
-
-        _currentTextBlock.Characters = combinedCharacters;
-        _characterBuffer.Clear();
     }
 
     private void RecalculateVisibility()
@@ -160,9 +130,11 @@ public sealed class PdfMarkedContentState
             return;
         }
 
-        foreach (PdfMarkedContent markedContent in _stack)
+        foreach (PdfScope scope in _stack)
         {
-            if (markedContent.OptionalContent != null && !IsOptionalContentVisible(markedContent.OptionalContent))
+            if (scope is PdfContentScope contentScope
+                && contentScope.OptionalContent != null
+                && !IsOptionalContentVisible(contentScope.OptionalContent))
             {
                 _isContentVisible = false;
                 return;

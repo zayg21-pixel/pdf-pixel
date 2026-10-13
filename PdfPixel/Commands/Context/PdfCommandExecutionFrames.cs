@@ -23,7 +23,8 @@ public sealed class PdfCommandExecutionFrames
     public PdfMatrix TotalMatrix => _totalMatrix;
 
     /// <summary>
-    /// Most recently applied clip operation, or null when no clip has been applied yet at the current save depth.
+    /// Most recently applied clip operation, linked through <see cref="PdfClipState.Parent"/> to every clip still in effect,
+    /// or null when no clip is in effect.
     /// </summary>
     public PdfClipState? CurrentClip => _currentClip;
 
@@ -90,12 +91,13 @@ public sealed class PdfCommandExecutionFrames
     /// <summary>
     /// Records a fill clip-path operation.
     /// </summary>
-    public void OnClipPath(PdfPath path, PdfClipOperation operation) => _currentClip = PdfClipState.ForPath(path, operation);
+    public void OnClipPath(PdfPath path, PdfClipOperation operation) => _currentClip = PdfClipState.ForPath(path, operation, _totalMatrix, _currentClip);
 
     /// <summary>
     /// Records a stroke clip-path operation, keeping the paint whose stroke outline was clipped to.
     /// </summary>
-    public void OnClipStrokePath(PdfPath path, PdfClipOperation operation, PdfPaint paint) => _currentClip = PdfClipState.ForStrokePath(path, operation, paint);
+    public void OnClipStrokePath(PdfPath path, PdfClipOperation operation, PdfPaint paint)
+        => _currentClip = PdfClipState.ForStrokePath(path, operation, paint, _totalMatrix, _currentClip);
 
     /// <summary>
     /// Records a clip-rectangle operation as an equivalent fill clip path.

@@ -1,7 +1,7 @@
 using PdfPixel.Geometry;
 using System;
 
-namespace PdfPixel.TextExtraction;
+namespace PdfPixel.Content.Model;
 
 /// <summary>
 /// Represents a word extracted from a PDF page, with its bounding box, type, and parts.

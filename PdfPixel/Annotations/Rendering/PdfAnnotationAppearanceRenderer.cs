@@ -3,10 +3,8 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using PdfPixel.OptionalContent.Model;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
-using PdfPixel.Text;
 using System.Collections.Generic;
 
 namespace PdfPixel.Annotations.Rendering;
@@ -43,23 +41,11 @@ internal static class PdfAnnotationAppearanceRenderer
             return false;
         }
 
-        PdfOptionalContentMembership? optionalContent = appearanceForm.OptionalContent;
-        if (optionalContent != null)
-        {
-            PdfMarkedContent markedContent = new(PdfTokens.OptionalContentKey) { OptionalContent = optionalContent };
-            processor.Process(new BeginMarkedContentCommand(markedContent));
-        }
-
         processor.Process(SaveStateCommand.Instance);
 
         RenderFormAppearance(processor, appearanceForm, annotation.Rectangle, page, renderer, renderingParameters, observer);
 
         processor.Process(RestoreStateCommand.Instance);
-
-        if (optionalContent != null)
-        {
-            processor.Process(new EndMarkedContentCommand());
-        }
 
         return true;
     }

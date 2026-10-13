@@ -6,6 +6,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
+using PdfPixel.Tagging.Model;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
 using System;
@@ -56,6 +57,36 @@ public class FormRenderer : IFormRenderer
 
         graphicsState.RecursionGuard.Add(objectNumber);
 
+        PdfStructureTree? structureTree = null;
+        if (graphicsState.RenderingParameters.ExtractContent)
+        {
+            structureTree = graphicsState.Host.Document.StructureTree;
+        }
+
+        PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.Form);
+        PdfXObjectScope? xObjectScope = PdfXObjectScope.FromXObject(formXObject, structureTree);
+
+        processor.Process(new BeginScopeCommand(contentStreamScope));
+
+        if (xObjectScope != null)
+        {
+            processor.Process(new BeginScopeCommand(xObjectScope));
+        }
+
+        DrawFormContent(processor, formXObject, graphicsState);
+
+        if (xObjectScope != null)
+        {
+            processor.Process(new EndScopeCommand());
+        }
+
+        processor.Process(new EndScopeCommand());
+
+        graphicsState.RecursionGuard.Remove(objectNumber);
+    }
+
+    private void DrawFormContent(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
+    {
         PdfRectangle contentBounds = formXObject.Matrix.MapRect(formXObject.BBox);
 
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, graphicsState, contentBounds);
@@ -69,7 +100,8 @@ public class FormRenderer : IFormRenderer
         // Clip to /BBox
         processor.Process(new ClipRectangleCommand(formXObject.BBox, PdfClipOperation.Intersect));
 
-        bool needsGroupLayer = formXObject.TransparencyGroup != null
+        bool needsGroupLayer = graphicsState.RenderingParameters.RenderContent
+            && formXObject.TransparencyGroup != null
             && (formXObject.TransparencyGroup.RequiresLayer
                 || graphicsState.FillPaint.RequiresComposition);
 
@@ -116,8 +148,5 @@ public class FormRenderer : IFormRenderer
         processor.Process(RestoreStateCommand.Instance);
 
         softMaskScope.EndDrawContent();
-
-
-        graphicsState.RecursionGuard.Remove(objectNumber);
     }
 }
