@@ -44,9 +44,9 @@ public sealed class ImageExecutionContext
             throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
         }
 
-        SoftMaskAlphaRowSource? alphaRowSource = CreateAlphaRowSource(pdfImage, context, loggerFactory);
-
         PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
+        MaskAlphaRowSource? alphaRowSource = CreateMaskAlphaRowSource(pdfImage, context, tileInfo, loggerFactory);
+
         return new ImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory, alphaRowSource), pdfImage.Interpolate);
     }
 
@@ -75,22 +75,23 @@ public sealed class ImageExecutionContext
     /// </summary>
     public PdfTileInfo TileInfo => TileCache.TileInfo;
 
-    private static SoftMaskAlphaRowSource? CreateAlphaRowSource(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
+    private static MaskAlphaRowSource? CreateMaskAlphaRowSource(PdfImage pdfImage, ImageDecodingContext context, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
     {
-        PdfImage? softMask = pdfImage.SoftMask;
-        if (softMask == null)
+        // The soft mask overrides the mask (ISO 32000-2, Table 87).
+        PdfImage? mask = pdfImage.SoftMask ?? pdfImage.Mask;
+        if (mask == null)
         {
             return null;
         }
 
-        ImageDecodingContext maskContext = new(context, softMask, context.FillPaint, isStencilMaskComposite: false);
-        PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(softMask, maskContext, loggerFactory);
+        ImageDecodingContext maskContext = new(context, mask, context.FillPaint, isStencilMaskComposite: false);
+        PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(mask, maskContext, loggerFactory);
 
         if (maskDecoder == null)
         {
-            throw new ArgumentException($"Mask decoder for image {softMask.Type} is not defined.");
+            throw new ArgumentException($"Mask decoder for image {mask.Type} is not defined.");
         }
 
-        return new SoftMaskAlphaRowSource(maskDecoder, loggerFactory);
+        return new MaskAlphaRowSource(maskDecoder, tileInfo, loggerFactory);
     }
 }

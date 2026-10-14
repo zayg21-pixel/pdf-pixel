@@ -473,14 +473,14 @@ internal sealed partial class PdfImageRowProcessor
             return default;
         }
 
-        ReadOnlySpan<byte> alphaRow = alphaSource.GetRow(target.CurrentOutputRow);
+        ReadOnlySpan<byte> alphaRow = alphaSource.GetRow(target);
 
-        if (alphaRow.Length < target.OutputStart + target.OutputWidth)
+        if (alphaRow.Length < target.OutputWidth)
         {
             return default;
         }
 
-        return alphaRow.Slice(target.OutputStart, target.OutputWidth);
+        return alphaRow.Slice(0, target.OutputWidth);
     }
 
     /// <summary>

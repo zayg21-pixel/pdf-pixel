@@ -9,8 +9,8 @@ namespace PdfPixel.Imaging.Processing;
 internal interface IAlphaRowSource
 {
     /// <summary>
-    /// Returns the alpha values for <paramref name="outputRowIndex"/> of the output grid, one byte
-    /// per pixel, or an empty span when the row cannot be served.
+    /// Returns the alpha values for the current output row of <paramref name="target"/>, one byte
+    /// per pixel of that row, or an empty span when the row cannot be served.
     /// </summary>
-    ReadOnlySpan<byte> GetRow(int outputRowIndex);
+    ReadOnlySpan<byte> GetRow(PdfImageRowTarget target);
 }

@@ -109,7 +109,7 @@ internal sealed class PdfImageTilingContext
                 PdfIntegerRectangle sourceRegion = new(columnRange.Start, rowRange.Start, columnRange.End, rowRange.End);
                 PdfIntegerRectangle outputRegion = new(columnOutputRange.Start, rowOutputRange.Start, columnOutputRange.End, rowOutputRange.End);
 
-                targets[column] = _rowProcessor.CreateTarget(sourceRegion, outputRegion);
+                targets[column] = _rowProcessor.CreateTarget(tileIndex, sourceRegion, outputRegion);
 
                 observer?.Notify();
             }

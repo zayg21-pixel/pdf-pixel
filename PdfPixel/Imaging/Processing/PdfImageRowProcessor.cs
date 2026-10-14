@@ -239,7 +239,7 @@ internal sealed partial class PdfImageRowProcessor
     /// <paramref name="outputRegion"/> of the output grid, resampling between the two in whichever
     /// direction they differ.
     /// </summary>
-    public PdfImageRowTarget CreateTarget(in PdfIntegerRectangle sourceRegion, in PdfIntegerRectangle outputRegion)
+    public PdfImageRowTarget CreateTarget(int tileIndex, in PdfIntegerRectangle sourceRegion, in PdfIntegerRectangle outputRegion)
     {
         int sourceWidth = sourceRegion.Width;
         int sourceHeight = sourceRegion.Height;
@@ -267,7 +267,7 @@ internal sealed partial class PdfImageRowProcessor
 
         PdfDecodedImage image = new(outputWidth, outputHeight, _colorFormat, _alphaType);
 
-        return new PdfImageRowTarget(sourceRegion.Left, sourceWidth, outputRegion.Left, outputRegion.Top, colorConverter, image);
+        return new PdfImageRowTarget(tileIndex, sourceRegion.Left, sourceWidth, outputRegion.Left, outputRegion.Top, colorConverter, image);
     }
 
     /// <summary>

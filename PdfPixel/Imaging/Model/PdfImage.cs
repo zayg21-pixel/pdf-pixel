@@ -49,7 +49,7 @@ public class PdfImage : PdfXObject
             // the base image unmasked.
             if (maskImage != null && maskImage.HasImageMask)
             {
-                StencilMask = maskImage;
+                Mask = maskImage;
             }
         }
 
@@ -177,7 +177,7 @@ public class PdfImage : PdfXObject
     /// Where the mask sample is 1 the corresponding image sample is painted; where 0 it is masked out.
     /// Null when /Mask is not an image XObject reference.
     /// </summary>
-    public PdfImage? StencilMask { get; }
+    public PdfImage? Mask { get; }
 
     /// <summary>
     /// The image held by <paramref name="key"/> of <paramref name="owner"/>, resolved from the

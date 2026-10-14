@@ -14,25 +14,18 @@ namespace PdfPixel.Commands.Image;
 public sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly SoftMaskAlphaRowSource? _alphaRowSource;
+    private readonly PdfImageTileDecodingPass _pass;
+    private readonly MaskAlphaRowSource? _alphaRowSource;
 
     private PdfIntegerSize? _outputSize;
-    private bool _decoderActive;
-
-    private PdfImageTilingContext? _tilingContext;
-    private PdfImageRowDecodingParameters? _imageParameters;
-    private byte[]? _rowBuffer;
-    private int _currentImageRow;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfImageTileCacheEntry"/> class.
     /// </summary>
-    internal PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory, SoftMaskAlphaRowSource? alphaRowSource = null)
+    internal PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory, MaskAlphaRowSource? alphaRowSource = null)
     {
-        Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
         TileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
-        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        _pass = new PdfImageTileDecodingPass(decoder, tileInfo, loggerFactory);
         _alphaRowSource = alphaRowSource;
 
         _tiles = new CachedTile[tileInfo.TotalTiles];
@@ -45,7 +38,7 @@ public sealed class PdfImageTileCacheEntry
     /// <summary>
     /// Decoder used to produce tiles for this cache entry.
     /// </summary>
-    public PdfImageDecoder Decoder { get; }
+    public PdfImageDecoder Decoder => _pass.Decoder;
 
     /// <summary>
     /// Gets the tiling layout shared by every tile in this cache.
@@ -78,11 +71,8 @@ public sealed class PdfImageTileCacheEntry
 
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
-            _imageParameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), ctm, observer);
-            _tilingContext = new PdfImageTilingContext(TileInfo, _imageParameters, outputSize, tileIndexesToDecode, _loggerFactory);
-            _rowBuffer = new byte[_imageParameters.RowBytes];
-            _alphaRowSource?.Initialize(outputSize, observer);
-            _decoderActive = true;
+            _pass.Begin(ctm, outputSize, tileIndexesToDecode, observer);
+            _alphaRowSource?.Initialize(outputSize, tileIndexesToDecode, observer);
         }
     }
 
@@ -98,7 +88,7 @@ public sealed class PdfImageTileCacheEntry
 
         CachedTile cachedTile = _tiles[tileIndex];
 
-        if (_decoderActive && cachedTile.IsPendingUpdate)
+        if (_pass.IsActive && cachedTile.IsPendingUpdate)
         {
             DecodeUntilProduced(tileIndex, observer);
         }
@@ -114,38 +104,7 @@ public sealed class PdfImageTileCacheEntry
     }
 
     /// <summary>
-    /// Reads decoded rows into the tiling context until a tile row completes, and returns the tiles
-    /// it produced. Returns null once the decoder stops before the grid is complete.
-    /// </summary>
-    private PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
-    {
-        if (_imageParameters == null || _tilingContext == null || _rowBuffer == null)
-        {
-            return null;
-        }
-
-        while (_currentImageRow < _imageParameters.Height)
-        {
-            if (!Decoder.TryReadNextRow(_rowBuffer, observer))
-            {
-                return null;
-            }
-
-            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _rowBuffer, _alphaRowSource, observer);
-            _currentImageRow++;
-            observer?.Notify();
-
-            if (tiles != null)
-            {
-                return tiles;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The grid the tiles are produced on: the samples the image and its soft mask carry between them,
+    /// The grid the tiles are produced on: the samples the image and its mask carry between them,
     /// reduced to the extent the image is placed at when the device shows fewer than they hold.
     /// </summary>
     private PdfIntegerSize ComputeOutputSize(in PdfMatrix ctm)
@@ -164,29 +123,13 @@ public sealed class PdfImageTileCacheEntry
         return PdfImageCommandUtilities.GetScaledSize(ctm, sampleSize) ?? sampleSize;
     }
 
-    private List<PdfIntegerRectangle>? ComputeRegionsOfInterest(HashSet<int>? tileIndexesToDecode)
-    {
-        if (tileIndexesToDecode == null)
-        {
-            return null;
-        }
-
-        List<PdfIntegerRectangle> regionsOfInterest = new(tileIndexesToDecode.Count);
-        foreach (int tileIndex in tileIndexesToDecode)
-        {
-            regionsOfInterest.Add(TileInfo.GetTilePosition(tileIndex));
-        }
-
-        return regionsOfInterest;
-    }
-
     private void DecodeUntilProduced(int tileIndex, IPdfExecutionObserver observer)
     {
-        while (_decoderActive)
+        while (_pass.IsActive)
         {
             observer?.Notify();
 
-            PdfImageTile[]? batch = DecodeNextTiles(observer);
+            PdfImageTile[]? batch = _pass.DecodeNextTiles(_alphaRowSource, observer);
             if (batch == null)
             {
                 throw new InvalidOperationException($"Decoder returned null before producing tile {tileIndex}.");
@@ -228,17 +171,8 @@ public sealed class PdfImageTileCacheEntry
     /// </summary>
     private void FinishDecoding()
     {
-        if (_decoderActive)
-        {
-            Decoder.Cleanup();
-            _alphaRowSource?.Cleanup();
-            _decoderActive = false;
-        }
-
-        _tilingContext = null;
-        _imageParameters = null;
-        _rowBuffer = null;
-        _currentImageRow = 0;
+        _pass.End();
+        _alphaRowSource?.Cleanup();
     }
 
     private bool HasPendingTiles()

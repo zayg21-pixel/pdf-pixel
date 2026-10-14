@@ -60,7 +60,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         float[]? matte = hasInterleavedAlpha ? null : ResolveSoftMaskMatte(_resolvedConverter);
         PdfImageAlphaType alphaType = hasInterleavedAlpha
             ? PdfImageAlphaType.Unpremultiplied
-            : ResolveSoftMaskAlphaType(matte);
+            : ResolveMaskAlphaType(matte);
 
         PdfIntegerSize decodedSize = new(_rowConverter.Width, _rowConverter.Height);
         PdfColorConversionParameters colorConversionParameters = new(Image.RenderingIntent, Context.TransferFunction, Context.UseBlackPointCompensation);

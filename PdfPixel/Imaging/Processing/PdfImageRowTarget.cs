@@ -14,6 +14,7 @@ internal sealed class PdfImageRowTarget
     private int _outputRowIndex;
 
     public PdfImageRowTarget(
+        int tileIndex,
         int sourceStart,
         int sourceWidth,
         int outputStart,
@@ -21,6 +22,7 @@ internal sealed class PdfImageRowTarget
         IRowConverter? colorConverter,
         PdfDecodedImage image)
     {
+        TileIndex = tileIndex;
         SourceStart = sourceStart;
         SourceWidth = sourceWidth;
         OutputStart = outputStart;
@@ -28,6 +30,11 @@ internal sealed class PdfImageRowTarget
         ColorConverter = colorConverter;
         Image = image;
     }
+
+    /// <summary>
+    /// Index of the tile this target produces.
+    /// </summary>
+    public int TileIndex { get; }
 
     /// <summary>
     /// Index of the first source pixel this target reads from each row.

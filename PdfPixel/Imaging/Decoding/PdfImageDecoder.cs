@@ -150,7 +150,7 @@ public abstract class PdfImageDecoder
             Image.MaskArray,
             Image.Decode,
             downscaledSize,
-            ResolveSoftMaskAlphaType(matte),
+            ResolveMaskAlphaType(matte),
             isAlphaInterleaved: false,
             matte: matte);
     }
@@ -242,12 +242,12 @@ public abstract class PdfImageDecoder
     protected static int Descale(int sampleCount, int descaleFactor) => Math.Max(1, (sampleCount + descaleFactor - 1) / descaleFactor);
 
     /// <summary>
-    /// Returns the alpha type contributed by the image's soft mask, or Opaque when it has none.
+    /// Returns the alpha type contributed by the image's mask, or Opaque when it has none.
     /// </summary>
     /// <param name="matte">Matte components returned by <see cref="ResolveSoftMaskMatte"/>.</param>
-    protected PdfImageAlphaType ResolveSoftMaskAlphaType(float[]? matte)
+    protected PdfImageAlphaType ResolveMaskAlphaType(float[]? matte)
     {
-        if (Image.SoftMask == null)
+        if (Image.SoftMask == null && Image.Mask == null)
         {
             return PdfImageAlphaType.Opaque;
         }

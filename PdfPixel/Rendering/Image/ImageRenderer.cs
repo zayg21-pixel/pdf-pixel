@@ -89,7 +89,7 @@ public class ImageRenderer : IImageRenderer
     private static bool HasOwnMask(PdfImage pdfImage)
     {
         return pdfImage.SoftMask != null
-            || pdfImage.StencilMask != null
+            || pdfImage.Mask != null
             || pdfImage.MaskArray != null;
     }
 }
