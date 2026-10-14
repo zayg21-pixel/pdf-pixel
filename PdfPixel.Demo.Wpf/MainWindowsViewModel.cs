@@ -45,9 +45,6 @@ public class MainWindowsViewModel : ObservableObject
     private bool _hasFiles;
     private string _searchQuery;
     private PdfPanelSearchMatch? _currentSearchResult;
-    private bool _searchMatchCase;
-    private bool _searchWholeWord;
-    private bool _searchMatchDiacritics;
 
     public MainWindowsViewModel()
     {
@@ -141,35 +138,17 @@ public class MainWindowsViewModel : ObservableObject
         {
             if (SetProperty(ref _searchQuery, value))
             {
-                OnPropertyChanged(nameof(ExtractText));
+                PanelConfiguration.ExtractAllText = !string.IsNullOrEmpty(value);
             }
         }
     }
 
-    public bool ExtractText => !string.IsNullOrEmpty(SearchQuery);
+    public PdfPanelConfiguration PanelConfiguration { get; } = new() { PageCornerRadius = 4 };
 
     public PdfPanelSearchMatch? CurrentSearchResult
     {
         get => _currentSearchResult;
         set => SetProperty(ref _currentSearchResult, value);
-    }
-
-    public bool SearchMatchCase
-    {
-        get => _searchMatchCase;
-        set => SetProperty(ref _searchMatchCase, value);
-    }
-
-    public bool SearchWholeWord
-    {
-        get => _searchWholeWord;
-        set => SetProperty(ref _searchWholeWord, value);
-    }
-
-    public bool SearchMatchDiacritics
-    {
-        get => _searchMatchDiacritics;
-        set => SetProperty(ref _searchMatchDiacritics, value);
     }
 
     private void OnAfterDraw(SKCanvas canvas, PdfPanelFrame frame)

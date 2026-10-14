@@ -1,5 +1,6 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Mvvm;
 using System;
 using System.Windows;
 using System.Windows.Controls;
@@ -116,7 +117,7 @@ public partial class WpfPdfPanel : IScrollInfo
     }
 
     /// <summary>
-    /// Increases the zoom level by <see cref="ZoomStep"/>.
+    /// Increases the zoom level by <see cref="PdfPanelConfiguration.ZoomStep"/>.
     /// </summary>
     public void ZoomIn()
     {
@@ -132,7 +133,7 @@ public partial class WpfPdfPanel : IScrollInfo
     }
 
     /// <summary>
-    /// Decreases the zoom level by <see cref="ZoomStep"/>.
+    /// Decreases the zoom level by <see cref="PdfPanelConfiguration.ZoomStep"/>.
     /// </summary>
     public void ZoomOut()
     {

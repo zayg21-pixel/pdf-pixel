@@ -2,6 +2,7 @@
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using System;

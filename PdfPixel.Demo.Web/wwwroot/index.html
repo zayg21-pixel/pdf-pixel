@@ -382,12 +382,8 @@
         const containerId = container.id;
 
         await pdfPixel.registerPanel(containerId, container, {
-            settings: {
-                renderer: {
-                    backgroundColor: '#D3D3D3',
-                    showPageLoadingAnimation: false
-                }
-            }
+            panelBackgroundColor: '#D3D3D3',
+            showPageLoadingAnimation: false
         });
 
         const loadPdfBtn = document.getElementById('loadPdfBtn');
@@ -437,7 +433,7 @@
         searchInput.addEventListener('input', () => {
             clearTimeout(searchInputTimer);
             searchInputTimer = setTimeout(() => {
-                pdfPixel.updateConfiguration(containerId, { settings: { text: { extractText: searchInput.value.length > 0 } } });
+                pdfPixel.updateConfiguration(containerId, { extractAllText: searchInput.value.length > 0 });
                 pdfPixel.setCurrentSearchResult(containerId, null);
                 pdfPixel.setSearchQuery(containerId, searchInput.value);
             }, 300);
@@ -447,11 +443,11 @@
         nextSearchResultButton.addEventListener('click', () => pdfPixel.nextSearchResult(containerId));
 
         searchMatchCaseInput.addEventListener('change', () =>
-            pdfPixel.updateConfiguration(containerId, { settings: { search: { matchCase: searchMatchCaseInput.checked } } }));
+            pdfPixel.updateConfiguration(containerId, { searchMatchCase: searchMatchCaseInput.checked }));
         searchWholeWordInput.addEventListener('change', () =>
-            pdfPixel.updateConfiguration(containerId, { settings: { search: { wholeWord: searchWholeWordInput.checked } } }));
+            pdfPixel.updateConfiguration(containerId, { searchMatchWholeWord: searchWholeWordInput.checked }));
         searchMatchDiacriticsInput.addEventListener('change', () =>
-            pdfPixel.updateConfiguration(containerId, { settings: { search: { matchDiacritics: searchMatchDiacriticsInput.checked } } }));
+            pdfPixel.updateConfiguration(containerId, { searchMatchDiacritics: searchMatchDiacriticsInput.checked }));
 
         function updatePointerPopup(state) {
             const popup = state.annotationPopup;

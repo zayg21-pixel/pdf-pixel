@@ -107,8 +107,7 @@ class PdfPanelView {
         const defaults = {
             useWebGL: true,
             scrollStep: 20,
-            yieldInterval: 16,
-            settings: {}
+            yieldInterval: 16
         };
         this.configuration = mergeConfiguration(defaults, configuration);
 
@@ -475,7 +474,7 @@ class PdfPanelView {
     /**
      * Updates the configuration keys that are set in `configuration`; keys that are not set keep their current values.
      * `useWebGL` and `yieldInterval` apply only to the initial configuration.
-     * @param {object} configuration `scrollStep` and `settings`, which mirrors `PdfPanelContext` in camelCase.
+     * @param {object} configuration `scrollStep` and the properties of `PdfPanelConfiguration` in camelCase.
      */
     updateConfiguration(configuration) {
         if (configuration.scrollStep !== undefined) {
@@ -488,11 +487,11 @@ class PdfPanelView {
     }
 
     /**
-     * Paints the container with `settings.renderer.backgroundColor` when the configuration sets it.
+     * Paints the container with `panelBackgroundColor` when the configuration sets it.
      * @param {object} configuration The configuration.
      */
     applyBackgroundColor(configuration) {
-        const backgroundColor = configuration.settings?.renderer?.backgroundColor;
+        const backgroundColor = configuration.panelBackgroundColor;
 
         if (backgroundColor) {
             this.container.style.backgroundColor = backgroundColor;
@@ -589,7 +588,7 @@ export async function initialize(setModuleImports, getAssemblyExports) {
  * Register a PDF panel view bound to a container element.
  * @param {string} id Unique view id.
  * @param {HTMLElement} containerElement The container element with the id `id`; the panel adds its canvases and scroll host to it.
- * @param {object} [configuration] `useWebGL`, `scrollStep`, `yieldInterval` (ms) and `settings`, which mirrors `PdfPanelContext` in camelCase.
+ * @param {object} [configuration] `useWebGL`, `scrollStep`, `yieldInterval` (ms) and the properties of `PdfPanelConfiguration` in camelCase.
  * @returns {Promise<boolean>} True if registration succeeded.
  */
 export function registerPanel(id, containerElement, configuration) {
@@ -698,7 +697,7 @@ export function setOnStateChanged(id, callback) {
  * Set the text to search for in the specified view, or `null` to stop searching.
  * The results arrive in the view state as `searchResults` (`{ pageNumber, startIndex, length, bounds }`, ordered by page),
  * with `isTextExtracted` set once the words of every page are extracted. Every page is searched only while
- * `settings.text.extractText` is set through `updateConfiguration`.
+ * `extractAllText` is set through `updateConfiguration`.
  * @param {string} id View id.
  * @param {string | null} query Text to search for.
  * @returns {boolean} True if the view was found and the query was set.
@@ -769,7 +768,7 @@ export function previousSearchResult(id) {
  * Update the configuration of the specified view. Only the keys that are set change; the others keep their current values.
  * `useWebGL` and `yieldInterval` apply only to the configuration passed to `registerPanel`.
  * @param {string} id View id.
- * @param {object} configuration `scrollStep` and `settings`, which mirrors `PdfPanelContext` in camelCase.
+ * @param {object} configuration `scrollStep` and the properties of `PdfPanelConfiguration` in camelCase.
  * @returns {boolean} True if the view was found and the configuration was updated.
  */
 export function updateConfiguration(id, configuration) {

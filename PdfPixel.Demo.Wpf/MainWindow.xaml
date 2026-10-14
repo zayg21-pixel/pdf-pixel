@@ -269,12 +269,8 @@
                                          AutoScaleMode="{Binding AutoScaleMode}"
                                          SearchQuery="{Binding SearchQuery}"
                                          CurrentSearchResult="{Binding CurrentSearchResult}"
-                                         ExtractText="{Binding ExtractText}"
-                                         SearchMatchCase="{Binding SearchMatchCase}"
-                                         SearchWholeWord="{Binding SearchWholeWord}"
-                                         SearchMatchDiacritics="{Binding SearchMatchDiacritics}"
-                                         PanelInterface="{Binding PanelInterface}"
-                                         PageCornerRadius="4">
+                                         Configuration="{Binding PanelConfiguration}"
+                                         PanelInterface="{Binding PanelInterface}">
                     <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                         <ToolTip>
                             <ToolTip.Resources>
@@ -353,9 +349,9 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <CheckBox Content="Match case" IsChecked="{Binding SearchMatchCase}" VerticalAlignment="Center" Margin="4 0 0 0" />
-                    <CheckBox Content="Whole word" IsChecked="{Binding SearchWholeWord}" VerticalAlignment="Center" Margin="4 0 0 0" />
-                    <CheckBox Content="Match diacritics" IsChecked="{Binding SearchMatchDiacritics}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                    <CheckBox Content="Match case" IsChecked="{Binding PanelConfiguration.SearchMatchCase}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                    <CheckBox Content="Whole word" IsChecked="{Binding PanelConfiguration.SearchMatchWholeWord}" VerticalAlignment="Center" Margin="4 0 0 0" />
+                    <CheckBox Content="Match diacritics" IsChecked="{Binding PanelConfiguration.SearchMatchDiacritics}" VerticalAlignment="Center" Margin="4 0 0 0" />
                 </StackPanel>
             </Grid>
             </Grid>

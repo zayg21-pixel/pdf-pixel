@@ -69,15 +69,27 @@ pdfPixel.registerPanel(container.id, container, {
     useWebGL: true,
     scrollStep: 20,
     yieldInterval: 16,
-    settings: {
-        minScale: 0.1,
-        maxScale: 10,
-        zoomStep: 0.1,
-        layout: { pageGap: 10, padding: { left: 10, top: 10, right: 10, bottom: 10 } },
-        renderer: { backgroundColor: '#D3D3D3', pageCornerRadius: 0, showPageLoadingAnimation: true },
-        text: { extractText: false, selectionColor: '#3264DC50' },
-        search: { matchCase: false, wholeWord: false, matchDiacritics: false, matchColor: '#FFC80064', currentMatchColor: '#FF78008C' }
-    }
+    minScale: 0.1,
+    maxScale: 10,
+    zoomStep: 0.1,
+    pageGap: 10,
+    layoutPadding: { left: 10, top: 10, right: 10, bottom: 10 },
+    panelBackgroundColor: '#D3D3D3',
+    pageCornerRadius: 0,
+    showPageLoadingAnimation: true,
+    extractAllText: false,
+    textSelectionColor: '#3264DC50',
+    searchMatchCase: false,
+    searchMatchWholeWord: false,
+    searchMatchDiacritics: false,
+    searchMatchColor: '#FFC80064',
+    searchCurrentMatchColor: '#FF78008C',
+    contentSelectionBorderThickness: 2,
+    contentSelectionBorderColor: '#000000',
+    allowTextSelection: true,
+    allowPageContentHover: true,
+    allowImageSelection: true,
+    showSearchHighlights: true
 });
 ```
 
@@ -88,13 +100,22 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `useWebGL` | Render with WebGL instead of the CPU. Initial configuration only. |
 | `yieldInterval` | Minimum time in milliseconds between two yields of page decoding to the browser. Initial configuration only. |
 | `scrollStep` | Pixels scrolled per mouse wheel line. |
-| `settings.minScale`, `settings.maxScale` | Zoom limits. |
-| `settings.zoomStep` | Proportional scale change of one zoom step. |
-| `settings.layout` | Gap between pages, in unscaled page space, and padding around them, in device pixels. |
-| `settings.renderer` | Background color, page corner radius and the loading animation of pages not decoded yet. |
-| `settings.text.extractText` | Extract the text of every page, not only of the rendered pages. Search covers every page only while this is set. |
-| `settings.text.selectionColor` | Color of the text selection. |
-| `settings.search` | Match options and highlight colors of the text search. |
+| `minScale`, `maxScale` | Zoom limits. |
+| `zoomStep` | Proportional scale change of one zoom step. |
+| `pageGap` | Gap between pages, in unscaled page space. |
+| `layoutPadding` | Padding around the pages, in device pixels. |
+| `panelBackgroundColor` | Background color of the panel behind the pages. |
+| `pageCornerRadius` | Corner radius of the pages, in unscaled page space. |
+| `showPageLoadingAnimation` | Animate pages that are not decoded yet. |
+| `extractAllText` | Extract the text of every page, not only of the rendered pages. Search covers every page only while this is set. |
+| `textSelectionColor` | Color of the text selection. |
+| `searchMatchCase`, `searchMatchWholeWord`, `searchMatchDiacritics` | Match options of the text search. |
+| `searchMatchColor`, `searchCurrentMatchColor` | Highlight colors of the search matches. |
+| `contentSelectionBorderThickness`, `contentSelectionBorderColor` | Border of the selected image; thickness in device pixels. |
+| `allowTextSelection` | Whether text can be selected with the pointer. |
+| `allowPageContentHover` | Whether the page content under the pointer is tracked. |
+| `allowImageSelection` | Whether images can be selected with the pointer. |
+| `showSearchHighlights` | Whether the search matches are highlighted. |
 
 `updateConfiguration(id, configuration)` changes the configuration of a registered panel. Only the keys that are set change.
 
@@ -127,6 +148,7 @@ The state passed to `setOnStateChanged` includes:
 | `currentSearchResult` | Result highlighted as current, or `null`. |
 | `isTextExtracted` | Whether the text of every page has been extracted, so `searchResults` is final. |
 | `annotationPopup` | Messages of the annotation under the pointer, or `null`. |
+| `activeContentName` | Alternate description (`/Alt`) of the page content under the pointer, or `null`. |
 
 ## Features
 

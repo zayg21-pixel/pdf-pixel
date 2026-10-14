@@ -50,6 +50,7 @@ public partial class WpfPdfPanel : FrameworkElement
         children = new VisualCollection(this);
         SetValue(SearchResultsPropertyKey, new ObservableCollection<PdfPanelSearchMatch>());
         Layout = new PdfPanelVerticalLayout();
+        Configuration = new PdfPanelConfiguration();
         Focusable = true;
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, OnCopyExecuted, OnCopyCanExecute));
         Loaded += OnLoaded;
@@ -150,7 +151,7 @@ public partial class WpfPdfPanel : FrameworkElement
             throw new ArgumentNullException(nameof(drawingContext));
         }
 
-        SolidColorBrush brush = new(BackgroundColor);
+        SolidColorBrush brush = new(ToMediaColor((Configuration ?? PdfPanelConfiguration.Default).PanelBackgroundColor));
         brush.Freeze();
 
         Size size = new(ActualWidth, ActualHeight);
@@ -272,23 +273,9 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.PanelWidth = (float)PanelSize.Width;
         _context.PanelHeight = (float)PanelSize.Height;
         _context.Layout = Layout;
-        _context.MinScale = (float)MinScale;
-        _context.MaxScale = (float)MaxScale;
-        _context.ZoomStep = (float)ZoomStep;
-        _context.Renderer.BackgroundColor = ToPdfColor(BackgroundColor);
-        _context.Renderer.PageCornerRadius = (float)PageCornerRadius;
-        _context.Renderer.ShowPageLoadingAnimation = ShowPageLoadingAnimation;
-        _context.Text.ExtractText = ExtractText;
-        _context.Text.SelectionColor = ToPdfColor(SelectionColor);
-        _context.Content.SelectionBorderThickness = (float)ContentSelectionBorderThickness;
-        _context.Content.SelectionBorderColor = ToPdfColor(ContentSelectionBorderColor);
+        (Configuration ?? PdfPanelConfiguration.Default).ApplyConfiguration(_context);
         _context.Search.Query = SearchQuery;
         _context.Search.CurrentMatch = CurrentSearchResult;
-        _context.Search.MatchColor = ToPdfColor(SearchMatchColor);
-        _context.Search.CurrentMatchColor = ToPdfColor(SearchCurrentMatchColor);
-        _context.Search.MatchCase = SearchMatchCase;
-        _context.Search.WholeWord = SearchWholeWord;
-        _context.Search.MatchDiacritics = SearchMatchDiacritics;
 
         UpdatePointerState();
 
@@ -471,6 +458,14 @@ public partial class WpfPdfPanel : FrameworkElement
 #endif
     }
 
-    private static PdfPixel.Color.PdfColor ToPdfColor(System.Windows.Media.Color color)
-        => new(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
+    private static System.Windows.Media.Color ToMediaColor(in PdfPixel.Color.PdfColor color)
+    {
+        return System.Windows.Media.Color.FromArgb(
+            ToColorByte(color.Alpha),
+            ToColorByte(color.Red),
+            ToColorByte(color.Green),
+            ToColorByte(color.Blue));
+    }
+
+    private static byte ToColorByte(float component) => (byte)Math.Round(Math.Max(0f, Math.Min(1f, component)) * 255f);
 }

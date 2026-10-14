@@ -7,6 +7,7 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Web.Emscripten;
@@ -104,7 +105,7 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Updates the panel values set in the <c>settings</c> object of <paramref name="configuration"/>,
+    /// Updates the panel values set in <paramref name="configuration"/>,
     /// and applies them to the context of the loaded document.
     /// </summary>
     [JSExport]
@@ -126,7 +127,7 @@ public partial class PdfPanelInterop
 
             if (resources.Context != null)
             {
-                resources.Configuration.Apply(resources.Context);
+                resources.Configuration.ApplyConfiguration(resources.Context);
             }
         }
         catch (Exception ex)
@@ -200,7 +201,7 @@ public partial class PdfPanelInterop
 
             DisposeContext(resources);
             resources.Context = new PdfPanelContext(resources.Pages, resources.SkSurfaceFactory, resources.RenderTargetFactory, SynchronizationContext.Current);
-            resources.Configuration.Apply(resources.Context);
+            resources.Configuration.ApplyConfiguration(resources.Context);
             resources.Context.Actions.UriRequested += resources.OnUriRequested;
             resources.Context.Actions.RemoteDocumentRequested += resources.OnRemoteDocumentRequested;
             resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;
@@ -432,79 +433,55 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Reads the <c>settings</c> object of the JS configuration into <paramref name="panelConfiguration"/>.
-    /// Groups and properties absent from it keep their current values.
+    /// Reads the JS configuration into <paramref name="panelConfiguration"/>.
+    /// Properties absent from it keep their current values.
     /// </summary>
     private static void ReadConfiguration(JSObject configuration, PdfPanelConfiguration panelConfiguration)
     {
-        using JSObject settingsObject = configuration.GetPropertyAsJSObject("settings");
+        panelConfiguration.MinScale = ReadFloat(configuration, "minScale", panelConfiguration.MinScale);
+        panelConfiguration.MaxScale = ReadFloat(configuration, "maxScale", panelConfiguration.MaxScale);
+        panelConfiguration.ZoomStep = ReadFloat(configuration, "zoomStep", panelConfiguration.ZoomStep);
+        panelConfiguration.PageGap = ReadFloat(configuration, "pageGap", panelConfiguration.PageGap);
+        panelConfiguration.PanelBackgroundColor = ReadColor(configuration, "panelBackgroundColor", panelConfiguration.PanelBackgroundColor);
+        panelConfiguration.PageCornerRadius = ReadFloat(configuration, "pageCornerRadius", panelConfiguration.PageCornerRadius);
+        panelConfiguration.ShowPageLoadingAnimation = ReadBoolean(configuration, "showPageLoadingAnimation", panelConfiguration.ShowPageLoadingAnimation);
+        panelConfiguration.ExtractAllText = ReadBoolean(configuration, "extractAllText", panelConfiguration.ExtractAllText);
+        panelConfiguration.TextSelectionColor = ReadColor(configuration, "textSelectionColor", panelConfiguration.TextSelectionColor);
+        panelConfiguration.SearchMatchCase = ReadBoolean(configuration, "searchMatchCase", panelConfiguration.SearchMatchCase);
+        panelConfiguration.SearchMatchWholeWord = ReadBoolean(configuration, "searchMatchWholeWord", panelConfiguration.SearchMatchWholeWord);
+        panelConfiguration.SearchMatchDiacritics = ReadBoolean(configuration, "searchMatchDiacritics", panelConfiguration.SearchMatchDiacritics);
+        panelConfiguration.SearchMatchColor = ReadColor(configuration, "searchMatchColor", panelConfiguration.SearchMatchColor);
+        panelConfiguration.SearchCurrentMatchColor = ReadColor(configuration, "searchCurrentMatchColor", panelConfiguration.SearchCurrentMatchColor);
+        panelConfiguration.ContentSelectionBorderThickness = ReadFloat(
+            configuration,
+            "contentSelectionBorderThickness",
+            panelConfiguration.ContentSelectionBorderThickness);
+        panelConfiguration.ContentSelectionBorderColor = ReadColor(configuration, "contentSelectionBorderColor", panelConfiguration.ContentSelectionBorderColor);
+        panelConfiguration.AllowTextSelection = ReadBoolean(configuration, "allowTextSelection", panelConfiguration.AllowTextSelection);
+        panelConfiguration.AllowPageContentHover = ReadBoolean(configuration, "allowPageContentHover", panelConfiguration.AllowPageContentHover);
+        panelConfiguration.AllowImageSelection = ReadBoolean(configuration, "allowImageSelection", panelConfiguration.AllowImageSelection);
+        panelConfiguration.ShowSearchHighlights = ReadBoolean(configuration, "showSearchHighlights", panelConfiguration.ShowSearchHighlights);
 
-        if (settingsObject == null)
+        using JSObject layoutPadding = configuration.GetPropertyAsJSObject("layoutPadding");
+
+        if (layoutPadding != null)
         {
-            return;
-        }
-
-        panelConfiguration.MinScale = ReadFloat(settingsObject, "minScale", panelConfiguration.MinScale);
-        panelConfiguration.MaxScale = ReadFloat(settingsObject, "maxScale", panelConfiguration.MaxScale);
-        panelConfiguration.ZoomStep = ReadFloat(settingsObject, "zoomStep", panelConfiguration.ZoomStep);
-
-        using (JSObject renderer = settingsObject.GetPropertyAsJSObject("renderer"))
-        {
-            if (renderer != null)
-            {
-                panelConfiguration.BackgroundColor = ReadColor(renderer, "backgroundColor", panelConfiguration.BackgroundColor);
-                panelConfiguration.PageCornerRadius = ReadFloat(renderer, "pageCornerRadius", panelConfiguration.PageCornerRadius);
-                panelConfiguration.ShowPageLoadingAnimation = ReadBoolean(renderer, "showPageLoadingAnimation", panelConfiguration.ShowPageLoadingAnimation);
-            }
-        }
-
-        using (JSObject layout = settingsObject.GetPropertyAsJSObject("layout"))
-        {
-            if (layout != null)
-            {
-                panelConfiguration.PageGap = ReadFloat(layout, "pageGap", panelConfiguration.PageGap);
-
-                using JSObject padding = layout.GetPropertyAsJSObject("padding");
-
-                if (padding != null)
-                {
-                    panelConfiguration.PaddingLeft = ReadFloat(padding, "left", panelConfiguration.PaddingLeft);
-                    panelConfiguration.PaddingTop = ReadFloat(padding, "top", panelConfiguration.PaddingTop);
-                    panelConfiguration.PaddingRight = ReadFloat(padding, "right", panelConfiguration.PaddingRight);
-                    panelConfiguration.PaddingBottom = ReadFloat(padding, "bottom", panelConfiguration.PaddingBottom);
-                }
-            }
-        }
-
-        using (JSObject text = settingsObject.GetPropertyAsJSObject("text"))
-        {
-            if (text != null)
-            {
-                panelConfiguration.ExtractText = ReadBoolean(text, "extractText", panelConfiguration.ExtractText);
-                panelConfiguration.SelectionColor = ReadColor(text, "selectionColor", panelConfiguration.SelectionColor);
-            }
-        }
-
-        using (JSObject search = settingsObject.GetPropertyAsJSObject("search"))
-        {
-            if (search != null)
-            {
-                panelConfiguration.MatchCase = ReadBoolean(search, "matchCase", panelConfiguration.MatchCase);
-                panelConfiguration.WholeWord = ReadBoolean(search, "wholeWord", panelConfiguration.WholeWord);
-                panelConfiguration.MatchDiacritics = ReadBoolean(search, "matchDiacritics", panelConfiguration.MatchDiacritics);
-                panelConfiguration.MatchColor = ReadColor(search, "matchColor", panelConfiguration.MatchColor);
-                panelConfiguration.CurrentMatchColor = ReadColor(search, "currentMatchColor", panelConfiguration.CurrentMatchColor);
-            }
+            PdfRectangle padding = panelConfiguration.LayoutPadding;
+            panelConfiguration.LayoutPadding = new PdfRectangle(
+                ReadFloat(layoutPadding, "left", padding.Left),
+                ReadFloat(layoutPadding, "top", padding.Top),
+                ReadFloat(layoutPadding, "right", padding.Right),
+                ReadFloat(layoutPadding, "bottom", padding.Bottom));
         }
     }
 
-    private static float? ReadFloat(JSObject source, string name, float? currentValue)
+    private static float ReadFloat(JSObject source, string name, float currentValue)
         => source.HasProperty(name) ? (float)source.GetPropertyAsDouble(name) : currentValue;
 
-    private static bool? ReadBoolean(JSObject source, string name, bool? currentValue)
+    private static bool ReadBoolean(JSObject source, string name, bool currentValue)
         => source.HasProperty(name) ? source.GetPropertyAsBoolean(name) : currentValue;
 
-    private static PdfColor? ReadColor(JSObject source, string name, PdfColor? currentValue)
+    private static PdfColor ReadColor(JSObject source, string name, PdfColor currentValue)
         => source.HasProperty(name) ? PdfColor.ParseHexColor(source.GetPropertyAsString(name)) : currentValue;
 
     private static string GetCursorStyle(PdfPanelCursor cursor)

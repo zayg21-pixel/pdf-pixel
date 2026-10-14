@@ -49,130 +49,13 @@ public partial class WpfPdfPanel
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>
-    /// Identifies the <see cref="MinScale"/> dependency property.
+    /// Identifies the <see cref="Configuration"/> dependency property.
     /// </summary>
-    public static readonly DependencyProperty MinScaleProperty = DependencyProperty.Register(
-        nameof(MinScale),
-        typeof(double),
+    public static readonly DependencyProperty ConfigurationProperty = DependencyProperty.Register(
+        nameof(Configuration),
+        typeof(PdfPanelConfiguration),
         typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="MaxScale"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty MaxScaleProperty = DependencyProperty.Register(
-        nameof(MaxScale),
-        typeof(double),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(10d, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="ZoomStep"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty ZoomStepProperty = DependencyProperty.Register(
-        nameof(ZoomStep),
-        typeof(double),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.None));
-
-    /// <summary>
-    /// Identifies the <see cref="BackgroundColor"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(
-        nameof(BackgroundColor),
-        typeof(System.Windows.Media.Color),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromRgb(211, 211, 211), FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="PageCornerRadius"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty PageCornerRadiusProperty = DependencyProperty.Register(
-        nameof(PageCornerRadius),
-        typeof(double),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="ShowPageLoadingAnimation"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty ShowPageLoadingAnimationProperty = DependencyProperty.Register(
-        nameof(ShowPageLoadingAnimation),
-        typeof(bool),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="SelectionColor"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty SelectionColorProperty = DependencyProperty.Register(
-        nameof(SelectionColor),
-        typeof(System.Windows.Media.Color),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(80, 50, 100, 220), FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="ContentSelectionBorderThickness"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty ContentSelectionBorderThicknessProperty = DependencyProperty.Register(
-        nameof(ContentSelectionBorderThickness),
-        typeof(double),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(2d, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="ContentSelectionBorderColor"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty ContentSelectionBorderColorProperty = DependencyProperty.Register(
-        nameof(ContentSelectionBorderColor),
-        typeof(System.Windows.Media.Color),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(System.Windows.Media.Colors.Black, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="SearchMatchColor"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty SearchMatchColorProperty = DependencyProperty.Register(
-        nameof(SearchMatchColor),
-        typeof(System.Windows.Media.Color),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(100, 255, 200, 0), FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="SearchCurrentMatchColor"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty SearchCurrentMatchColorProperty = DependencyProperty.Register(
-        nameof(SearchCurrentMatchColor),
-        typeof(System.Windows.Media.Color),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(140, 255, 120, 0), FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="SearchMatchCase"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty SearchMatchCaseProperty = DependencyProperty.Register(
-        nameof(SearchMatchCase),
-        typeof(bool),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="SearchWholeWord"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty SearchWholeWordProperty = DependencyProperty.Register(
-        nameof(SearchWholeWord),
-        typeof(bool),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
-
-    /// <summary>
-    /// Identifies the <see cref="SearchMatchDiacritics"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty SearchMatchDiacriticsProperty = DependencyProperty.Register(
-        nameof(SearchMatchDiacritics),
-        typeof(bool),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, ConfigurationProperty_Changed));
 
     /// <summary>
     /// Identifies the <see cref="CurrentPage"/> dependency property.
@@ -263,15 +146,6 @@ public partial class WpfPdfPanel
         typeof(PdfPanelSearchMatch?),
         typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentSearchResultProperty_Changed));
-
-    /// <summary>
-    /// Identifies the <see cref="ExtractText"/> dependency property.
-    /// </summary>
-    public static readonly DependencyProperty ExtractTextProperty = DependencyProperty.Register(
-        nameof(ExtractText),
-        typeof(bool),
-        typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
     private static readonly DependencyPropertyKey IsTextExtractedPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(IsTextExtracted),
@@ -379,84 +253,12 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets or sets the minimum allowed zoom scale factor.
+    /// Gets or sets the settings of the panel.
     /// </summary>
-    public double MinScale
+    public PdfPanelConfiguration? Configuration
     {
-        get => (double)GetValue(MinScaleProperty);
-        set => SetValue(MinScaleProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the maximum allowed zoom scale factor.
-    /// </summary>
-    public double MaxScale
-    {
-        get => (double)GetValue(MaxScaleProperty);
-        set => SetValue(MaxScaleProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the proportional scale change of a single zoom step (e.g. 0.1 for 10%).
-    /// </summary>
-    public double ZoomStep
-    {
-        get => (double)GetValue(ZoomStepProperty);
-        set => SetValue(ZoomStepProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the background color drawn behind the pages.
-    /// </summary>
-    public System.Windows.Media.Color BackgroundColor
-    {
-        get => (System.Windows.Media.Color)GetValue(BackgroundColorProperty);
-        set => SetValue(BackgroundColorProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the corner radius for page rendering in unscaled page space.
-    /// </summary>
-    public double PageCornerRadius
-    {
-        get => (double)GetValue(PageCornerRadiusProperty);
-        set => SetValue(PageCornerRadiusProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether an animated placeholder is drawn over pages that have no decoded content yet.
-    /// </summary>
-    public bool ShowPageLoadingAnimation
-    {
-        get => (bool)GetValue(ShowPageLoadingAnimationProperty);
-        set => SetValue(ShowPageLoadingAnimationProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the color the selected text is highlighted with.
-    /// </summary>
-    public System.Windows.Media.Color SelectionColor
-    {
-        get => (System.Windows.Media.Color)GetValue(SelectionColorProperty);
-        set => SetValue(SelectionColorProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the width of the border drawn around the selected content, in device pixels.
-    /// </summary>
-    public double ContentSelectionBorderThickness
-    {
-        get => (double)GetValue(ContentSelectionBorderThicknessProperty);
-        set => SetValue(ContentSelectionBorderThicknessProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the color of the border drawn around the selected content.
-    /// </summary>
-    public System.Windows.Media.Color ContentSelectionBorderColor
-    {
-        get => (System.Windows.Media.Color)GetValue(ContentSelectionBorderColorProperty);
-        set => SetValue(ContentSelectionBorderColorProperty, value);
+        get => (PdfPanelConfiguration?)GetValue(ConfigurationProperty);
+        set => SetValue(ConfigurationProperty, value);
     }
 
     /// <summary>
@@ -465,51 +267,6 @@ public partial class WpfPdfPanel
     public string? ActiveContentName
     {
         get => (string?)GetValue(ActiveContentNameProperty);
-    }
-
-    /// <summary>
-    /// Gets or sets the color the search matches are highlighted with.
-    /// </summary>
-    public System.Windows.Media.Color SearchMatchColor
-    {
-        get => (System.Windows.Media.Color)GetValue(SearchMatchColorProperty);
-        set => SetValue(SearchMatchColorProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the color the current search match is highlighted with.
-    /// </summary>
-    public System.Windows.Media.Color SearchCurrentMatchColor
-    {
-        get => (System.Windows.Media.Color)GetValue(SearchCurrentMatchColorProperty);
-        set => SetValue(SearchCurrentMatchColorProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether letter case must match.
-    /// </summary>
-    public bool SearchMatchCase
-    {
-        get => (bool)GetValue(SearchMatchCaseProperty);
-        set => SetValue(SearchMatchCaseProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether a match must start and end on word boundaries.
-    /// </summary>
-    public bool SearchWholeWord
-    {
-        get => (bool)GetValue(SearchWholeWordProperty);
-        set => SetValue(SearchWholeWordProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether diacritics must match.
-    /// </summary>
-    public bool SearchMatchDiacritics
-    {
-        get => (bool)GetValue(SearchMatchDiacriticsProperty);
-        set => SetValue(SearchMatchDiacriticsProperty, value);
     }
 
     /// <summary>
@@ -577,14 +334,6 @@ public partial class WpfPdfPanel
         get => (ObservableCollection<PdfPanelSearchMatch>)GetValue(SearchResultsProperty);
     }
 
-    /// <summary>
-    /// Gets or sets whether the words of every page are extracted, not only of the pages that are rendered.
-    /// </summary>
-    public bool ExtractText
-    {
-        get => (bool)GetValue(ExtractTextProperty);
-        set => SetValue(ExtractTextProperty, value);
-    }
 
     /// <summary>
     /// Gets whether the words of every page of the current document have been extracted.
@@ -735,6 +484,21 @@ public partial class WpfPdfPanel
         if (e.NewValue is PdfPanelInterface newInterface)
         {
             newInterface.Requested += source.HandleInterfaceRequest;
+        }
+    }
+
+    private static void ConfigurationProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var source = (WpfPdfPanel)d;
+
+        if (e.OldValue is PdfPanelConfiguration oldConfiguration)
+        {
+            oldConfiguration.PropertyChanged -= source.OnViewModelChanged;
+        }
+
+        if (e.NewValue is PdfPanelConfiguration newConfiguration)
+        {
+            newConfiguration.PropertyChanged += source.OnViewModelChanged;
         }
     }
 }

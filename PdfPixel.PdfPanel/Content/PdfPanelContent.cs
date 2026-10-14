@@ -55,6 +55,16 @@ public sealed class PdfPanelContent
     public PdfColor SelectionBorderColor { get; set; } = new(0f, 0f, 0f, 1f);
 
     /// <summary>
+    /// Whether the content under the pointer is tracked.
+    /// </summary>
+    public bool AllowHover { get; set; } = true;
+
+    /// <summary>
+    /// Whether images can be selected with the pointer.
+    /// </summary>
+    public bool AllowImageSelection { get; set; } = true;
+
+    /// <summary>
     /// Content item under the pointer, or <see langword="null"/> if there is none.
     /// </summary>
     public PdfPanelContentItem? ActiveContent { get; private set; }
@@ -74,6 +84,16 @@ public sealed class PdfPanelContent
     /// </summary>
     internal void Synchronize(float scale)
     {
+        if (!AllowHover)
+        {
+            ClearActiveContent();
+        }
+
+        if (!AllowImageSelection)
+        {
+            SelectedImage = null;
+        }
+
         if (SelectedImage == _drawnSelection
             && SelectionBorderColor.Equals(_drawnBorderColor)
             && SelectionBorderThickness == _drawnBorderThickness
@@ -139,7 +159,7 @@ public sealed class PdfPanelContent
 
     private void OnPointerClicked(object? sender, PdfPanelPointerEventArgs args)
     {
-        if (args.IsHandled)
+        if (args.IsHandled || !AllowImageSelection)
         {
             return;
         }
@@ -161,7 +181,7 @@ public sealed class PdfPanelContent
 
     private void UpdateActiveContent(PdfPanelPointerEventArgs args)
     {
-        if (args.IsHandled)
+        if (args.IsHandled || !AllowHover)
         {
             ClearActiveContent();
             return;

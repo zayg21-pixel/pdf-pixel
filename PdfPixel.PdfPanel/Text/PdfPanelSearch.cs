@@ -37,6 +37,7 @@ public sealed class PdfPanelSearch
     private PdfColor _drawnMatchColor;
     private PdfColor _drawnCurrentMatchColor;
     private float _drawnLineMergeThreshold;
+    private bool _drawnShowHighlights = true;
 
     /// <summary>
     /// Initializes the search of the text of <paramref name="text"/> across the pages of <paramref name="contentProvider"/>.
@@ -85,6 +86,11 @@ public sealed class PdfPanelSearch
     public PdfColor CurrentMatchColor { get; set; } = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
 
     /// <summary>
+    /// Whether the search matches are highlighted.
+    /// </summary>
+    public bool ShowHighlights { get; set; } = true;
+
+    /// <summary>
     /// The match highlighted as current, or <see langword="null"/> when there is none.
     /// </summary>
     public PdfPanelSearchMatch? CurrentMatch { get; set; }
@@ -119,7 +125,8 @@ public sealed class PdfPanelSearch
 
         bool appearanceChanged = !MatchColor.Equals(_drawnMatchColor)
             || !CurrentMatchColor.Equals(_drawnCurrentMatchColor)
-            || _text.LineMergeThreshold != _drawnLineMergeThreshold;
+            || _text.LineMergeThreshold != _drawnLineMergeThreshold
+            || ShowHighlights != _drawnShowHighlights;
 
         if (queryChanged)
         {
@@ -132,6 +139,7 @@ public sealed class PdfPanelSearch
             _drawnMatchColor = MatchColor;
             _drawnCurrentMatchColor = CurrentMatchColor;
             _drawnLineMergeThreshold = _text.LineMergeThreshold;
+            _drawnShowHighlights = ShowHighlights;
 
             foreach (int pageNumber in _pageMatches.Keys)
             {
@@ -233,7 +241,7 @@ public sealed class PdfPanelSearch
 
     private SKPicture? CreateMatchesPicture(int pageNumber)
     {
-        if (!_pageMatches.TryGetValue(pageNumber, out List<PdfPanelSearchMatch>? pageMatches))
+        if (!_drawnShowHighlights || !_pageMatches.TryGetValue(pageNumber, out List<PdfPanelSearchMatch>? pageMatches))
         {
             return null;
         }

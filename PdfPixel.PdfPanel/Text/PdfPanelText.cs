@@ -95,6 +95,11 @@ public sealed class PdfPanelText
     public PdfColor SelectionColor { get; set; } = new(50f / 255f, 100f / 255f, 220f / 255f, 80f / 255f);
 
     /// <summary>
+    /// Whether text can be selected with the pointer.
+    /// </summary>
+    public bool AllowSelection { get; set; } = true;
+
+    /// <summary>
     /// 1-based number of the page the selection is on, or <see langword="null"/> when nothing is selected.
     /// </summary>
     public int? SelectionPageNumber { get; set; }
@@ -198,6 +203,11 @@ public sealed class PdfPanelText
     /// </summary>
     internal void Synchronize()
     {
+        if (!AllowSelection)
+        {
+            ClearSelection();
+        }
+
         ClampSelection();
 
         PdfPanelTextRange? selection = GetSelection();
@@ -324,7 +334,7 @@ public sealed class PdfPanelText
 
     private void OnPointerMoved(object? sender, PdfPanelPointerEventArgs args)
     {
-        if (args.IsHandled)
+        if (args.IsHandled || !AllowSelection)
         {
             _isPointerOverText = false;
             return;
@@ -343,7 +353,7 @@ public sealed class PdfPanelText
     {
         ClearSelection();
 
-        if (!args.IsHandled && HitTestCharacter(args.Position, CharacterHitRadius) != null)
+        if (!args.IsHandled && AllowSelection && HitTestCharacter(args.Position, CharacterHitRadius) != null)
         {
             args.IsHandled = true;
         }
@@ -357,7 +367,7 @@ public sealed class PdfPanelText
 
         PdfPanelPagePoint? anchorPoint = args.StartPosition.PagePoint;
 
-        if (anchorPoint == null)
+        if (!AllowSelection || anchorPoint == null)
         {
             return;
         }
