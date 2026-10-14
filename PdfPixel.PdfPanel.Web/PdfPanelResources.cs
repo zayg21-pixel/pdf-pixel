@@ -66,6 +66,11 @@ internal class PdfPanelResources
     public PdfAnnotationPopup AnnotationPopup { get; set; }
 
     /// <summary>
+    /// Gets or sets the name of the content under the pointer last sent to JS, or null when none is shown.
+    /// </summary>
+    public string ActiveContentName { get; set; }
+
+    /// <summary>
     /// Gets or sets whether the search matches changed since they were last sent to JS.
     /// </summary>
     public bool SearchResultsChanged { get; set; }

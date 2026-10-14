@@ -356,7 +356,7 @@
     </header>
 
     <div id="canvasContainer">
-        <div id="annotationPopup" class="annotation-popup"></div>
+        <div id="pointerPopup" class="annotation-popup"></div>
     </div>
 
     <footer id="footer">
@@ -400,7 +400,7 @@
         const zoomOutButton = document.getElementById('zoomOut');
         const zoomInButton = document.getElementById('zoomIn');
         const resetZoomButton = document.getElementById('resetZoom');
-        const annotationPopupEl = document.getElementById('annotationPopup');
+        const pointerPopupEl = document.getElementById('pointerPopup');
         const searchInput = document.getElementById('searchInput');
         const searchStatus = document.getElementById('searchStatus');
         const previousSearchResultButton = document.getElementById('previousSearchResult');
@@ -453,16 +453,19 @@
         searchMatchDiacriticsInput.addEventListener('change', () =>
             pdfPixel.updateConfiguration(containerId, { settings: { search: { matchDiacritics: searchMatchDiacriticsInput.checked } } }));
 
-        function updateAnnotationPopup(state) {
+        function updatePointerPopup(state) {
             const popup = state.annotationPopup;
             const hasMessages = popup && popup.messages && popup.messages.length > 0;
+            const contentName = state.activeContentName;
 
-            if (!hasMessages || state.mouseX == null || state.mouseY == null) {
-                annotationPopupEl.classList.remove('visible');
+            if ((!hasMessages && !contentName) || state.mouseX == null || state.mouseY == null) {
+                pointerPopupEl.classList.remove('visible');
                 return;
             }
 
-            annotationPopupEl.innerHTML = renderAnnotationMessages(popup.messages);
+            pointerPopupEl.innerHTML = hasMessages
+                ? renderAnnotationMessages(popup.messages)
+                : `<div class="annotation-popup-content">${escapeHtml(contentName)}</div>`;
 
             // Position below and to the right of the cursor
             const containerRect = container.getBoundingClientRect();
@@ -472,18 +475,18 @@
             let top = state.mouseY + offsetY;
 
             // Clamp so popup stays within the container
-            const maxLeft = containerRect.width - annotationPopupEl.offsetWidth - 4;
-            const maxTop = containerRect.height - annotationPopupEl.offsetHeight - 4;
+            const maxLeft = containerRect.width - pointerPopupEl.offsetWidth - 4;
+            const maxTop = containerRect.height - pointerPopupEl.offsetHeight - 4;
             if (left > maxLeft) {
-                left = state.mouseX - annotationPopupEl.offsetWidth - offsetX;
+                left = state.mouseX - pointerPopupEl.offsetWidth - offsetX;
             }
             if (top > maxTop) {
-                top = state.mouseY - annotationPopupEl.offsetHeight - offsetY;
+                top = state.mouseY - pointerPopupEl.offsetHeight - offsetY;
             }
 
-            annotationPopupEl.style.left = Math.max(0, left) + 'px';
-            annotationPopupEl.style.top = Math.max(0, top) + 'px';
-            annotationPopupEl.classList.add('visible');
+            pointerPopupEl.style.left = Math.max(0, left) + 'px';
+            pointerPopupEl.style.top = Math.max(0, top) + 'px';
+            pointerPopupEl.classList.add('visible');
         }
 
         function renderAnnotationMessages(messages) {
@@ -525,7 +528,7 @@
             nextPageButton.disabled = !hasDocument || state.currentPage >= state.pageCount;
             zoomLevelLabel.textContent = `${Math.round(state.scale * 100)}%`;
 
-            updateAnnotationPopup(state);
+            updatePointerPopup(state);
             updateSearchStatus(state);
         });
 

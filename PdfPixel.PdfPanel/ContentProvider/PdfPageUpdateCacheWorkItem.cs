@@ -27,6 +27,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
     private readonly IPdfDocument _document;
     private readonly PdfTextExtractor _textExtractor;
     private readonly PdfTextExtractionProperties _textExtractionProperties;
+    private readonly PdfContentExtractor _contentExtractor;
+    private readonly PdfContentExtractionParameters _contentExtractionParameters;
     private readonly PagesDrawingRequest _request;
     private readonly PdfCommandExecutionParameters _executionParameters;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
@@ -46,6 +48,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         object documentLocker,
         PdfTextExtractor textExtractor,
         PdfTextExtractionProperties textExtractionProperties,
+        PdfContentExtractor contentExtractor,
+        PdfContentExtractionParameters contentExtractionParameters,
         PagesDrawingRequest request,
         Action<PageUpdatedArgs>? onPageUpdated,
         Action<int> onPageTextExtracted)
@@ -60,6 +64,8 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         _document = document;
         _textExtractor = textExtractor;
         _textExtractionProperties = textExtractionProperties;
+        _contentExtractor = contentExtractor;
+        _contentExtractionParameters = contentExtractionParameters;
         _request = request ?? throw new ArgumentNullException(nameof(request));
         _executionParameters = new PdfCommandExecutionParameters
         {
@@ -137,12 +143,19 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                 SKPicture? contentPicture = recorder.EndRecording();
                 CacheEntry.Content.UpdateContent(contentPicture, _request);
 
+                PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
+
                 if (CacheEntry.Content.Words == null)
                 {
-                    PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
                     PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, pictureToPage, _textExtractionProperties);
                     CacheEntry.Content.UpdateWords(words);
                     _onPageTextExtracted(CacheEntry.PageNumber);
+                }
+
+                if (CacheEntry.Content.ContentItems == null)
+                {
+                    PdfContentEntry[] entries = _contentExtractor.ExtractContent(executionContext.ContentTree.Root, _contentExtractionParameters);
+                    CacheEntry.Content.UpdateContentItems(PdfDocumentContentExtensions.CreateContentItems(CacheEntry.PageNumber, entries, pictureToPage));
                 }
 
                 contentUpdated = true;

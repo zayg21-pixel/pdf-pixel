@@ -1,7 +1,9 @@
+using PdfPixel.Commands.Model;
 using PdfPixel.Content;
 using PdfPixel.Content.Model;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
@@ -19,6 +21,8 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 internal sealed class PdfPageContentProvider : IDisposable
 {
+    private static readonly PdfContentKind[] ExtractedContentKinds = [PdfContentKind.Path, PdfContentKind.Image, PdfContentKind.Shading, PdfContentKind.Form];
+
     private readonly IPdfDocument _document;
     private readonly IWorkQueue _processingQueue;
     private readonly IPdfExecutionObserverFactory _observerFactory;
@@ -26,6 +30,8 @@ internal sealed class PdfPageContentProvider : IDisposable
     private readonly HashSet<int> _visiblePageNumbers = [];
     private readonly PdfTextExtractor _textExtractor = new();
     private readonly PdfTextExtractionProperties _textExtractionProperties = new();
+    private readonly PdfContentExtractor _contentExtractor = new();
+    private readonly PdfContentExtractionParameters _contentExtractionParameters = new() { ContentKinds = ExtractedContentKinds };
     private volatile bool _extractText;
     private volatile int _textExtractionStartPageNumber = 1;
     private int _textExtractionPending;
@@ -97,6 +103,12 @@ internal sealed class PdfPageContentProvider : IDisposable
     public PdfWord[]? GetWords(int pageNumber) => _cache[pageNumber - 1].Content.Words;
 
     /// <summary>
+    /// Returns the extracted content items of the specified 1-based page number in drawing order,
+    /// or <see langword="null"/> if they have not been extracted yet.
+    /// </summary>
+    public PdfPanelContentItem[]? GetContent(int pageNumber) => _cache[pageNumber - 1].Content.ContentItems;
+
+    /// <summary>
     /// Returns the information about the rendered content of the specified 1-based page number,
     /// or <see langword="null"/> if it has not been rendered yet.
     /// </summary>
@@ -155,7 +167,17 @@ internal sealed class PdfPageContentProvider : IDisposable
 
             _visiblePageNumbers.Add(page.PageNumber);
             cacheEntry.InitializeForRendering(_observerFactory);
-            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, _textExtractor, _textExtractionProperties, request, OnPageUpdated, OnPageTextExtracted));
+            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(
+                cacheEntry,
+                _document,
+                DocumentLocker,
+                _textExtractor,
+                _textExtractionProperties,
+                _contentExtractor,
+                _contentExtractionParameters,
+                request,
+                OnPageUpdated,
+                OnPageTextExtracted));
         }
 
         if (request.VisiblePages.Length > 0)

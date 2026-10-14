@@ -112,6 +112,24 @@ public partial class WpfPdfPanel
         new FrameworkPropertyMetadata(System.Windows.Media.Color.FromArgb(80, 50, 100, 220), FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>
+    /// Identifies the <see cref="ContentSelectionBorderThickness"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ContentSelectionBorderThicknessProperty = DependencyProperty.Register(
+        nameof(ContentSelectionBorderThickness),
+        typeof(double),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(2d, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>
+    /// Identifies the <see cref="ContentSelectionBorderColor"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ContentSelectionBorderColorProperty = DependencyProperty.Register(
+        nameof(ContentSelectionBorderColor),
+        typeof(System.Windows.Media.Color),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(System.Windows.Media.Colors.Black, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>
     /// Identifies the <see cref="SearchMatchColor"/> dependency property.
     /// </summary>
     public static readonly DependencyProperty SearchMatchColorProperty = DependencyProperty.Register(
@@ -288,6 +306,17 @@ public partial class WpfPdfPanel
     /// </summary>
     public static readonly DependencyProperty ActionsProperty = ActionsPropertyKey.DependencyProperty;
 
+    private static readonly DependencyPropertyKey ActiveContentNamePropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(ActiveContentName),
+        typeof(string),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="ActiveContentName"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ActiveContentNameProperty = ActiveContentNamePropertyKey.DependencyProperty;
+
     private static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(PageLabel),
         typeof(string),
@@ -410,6 +439,32 @@ public partial class WpfPdfPanel
     {
         get => (System.Windows.Media.Color)GetValue(SelectionColorProperty);
         set => SetValue(SelectionColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the width of the border drawn around the selected content, in device pixels.
+    /// </summary>
+    public double ContentSelectionBorderThickness
+    {
+        get => (double)GetValue(ContentSelectionBorderThicknessProperty);
+        set => SetValue(ContentSelectionBorderThicknessProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the color of the border drawn around the selected content.
+    /// </summary>
+    public System.Windows.Media.Color ContentSelectionBorderColor
+    {
+        get => (System.Windows.Media.Color)GetValue(ContentSelectionBorderColorProperty);
+        set => SetValue(ContentSelectionBorderColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets the alternate description (/Alt) of the content under the mouse cursor, or <see langword="null"/> if there is none.
+    /// </summary>
+    public string? ActiveContentName
+    {
+        get => (string?)GetValue(ActiveContentNameProperty);
     }
 
     /// <summary>

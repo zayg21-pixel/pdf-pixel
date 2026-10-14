@@ -1,6 +1,7 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
@@ -45,9 +46,10 @@ public sealed class PdfPanelContext : IDisposable
         _graphics = new PdfPanelGraphics(_contentProvider);
 
         Input = new PdfPanelInput();
+        Annotations = new PdfPanelAnnotations(pages, Input);
         Text = new PdfPanelText(_contentProvider, Input, _graphics);
         Search = new PdfPanelSearch(this, Text, _contentProvider, _graphics);
-        Annotations = new PdfPanelAnnotations(pages, Input);
+        Content = new PdfPanelContent(_contentProvider, Input, _graphics);
         Layers = new PdfPanelLayers(_contentProvider.Document);
         Actions = new PdfPanelActions(this, _contentProvider.Document, Annotations, Layers);
         Renderer = new PdfPanelRenderer(surfaceFactory, _contentProvider, _graphics, synchronizationContext);
@@ -148,6 +150,11 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelAnnotations Annotations { get; }
 
     /// <summary>
+    /// Content item under the pointer and image selection.
+    /// </summary>
+    public PdfPanelContent Content { get; }
+
+    /// <summary>
     /// Layers (optional content) configuration content is rendered with.
     /// </summary>
     public PdfPanelLayers Layers { get; }
@@ -192,6 +199,7 @@ public sealed class PdfPanelContext : IDisposable
 
         Text.Synchronize();
         Search.Synchronize();
+        Content.Synchronize(Scale);
         Renderer.Synchronize();
         _contentProvider.UpdateTextExtraction(Text.ExtractText);
     }
@@ -416,6 +424,7 @@ public sealed class PdfPanelContext : IDisposable
 
         Annotations.Dispose();
         Text.Dispose();
+        Content.Dispose();
         Renderer.Dispose();
         _graphics.Dispose();
     }

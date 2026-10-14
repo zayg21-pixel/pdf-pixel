@@ -9,6 +9,9 @@ using System;
 using System.Threading.Tasks;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
+using PdfPixel.Content.Model;
+using PdfPixel.Imaging.Model;
+using PdfPixel.PdfPanel.Content;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -128,5 +131,31 @@ internal static class PdfDocumentContentExtensions
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
         string label = document.Pages[pageNumber - 1].PageLabel.DecodePdfString();
         return new PdfPanelPageInfo(label, pdfPage.CropBox, pdfPage.Rotation);
+    }
+
+    /// <summary>
+    /// Creates the content items of <paramref name="entries"/> on the given 1-based page number,
+    /// with bounding boxes mapped through <paramref name="pictureToPage"/>.
+    /// </summary>
+    public static PdfPanelContentItem[] CreateContentItems(int pageNumber, PdfContentEntry[] entries, in PdfMatrix pictureToPage)
+    {
+        var contentItems = new PdfPanelContentItem[entries.Length];
+
+        for (int entryIndex = 0; entryIndex < entries.Length; entryIndex++)
+        {
+            PdfContentEntry entry = entries[entryIndex];
+            PdfRectangle boundingBox = pictureToPage.MapRect(entry.GetBounds());
+
+            if (entry.Item.Command is PdfContentCommand<PdfImage> imageCommand)
+            {
+                contentItems[entryIndex] = new PdfPanelImageContentItem(pageNumber, entry, boundingBox, imageCommand.Content);
+            }
+            else
+            {
+                contentItems[entryIndex] = new PdfPanelContentItem(pageNumber, entry, boundingBox);
+            }
+        }
+
+        return contentItems;
     }
 }

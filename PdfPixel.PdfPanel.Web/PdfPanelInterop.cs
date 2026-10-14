@@ -282,6 +282,15 @@ public partial class PdfPanelInterop
                 SetAnnotationPopup(state, activeAnnotation);
             }
 
+            string activeContentName = resources.Context.Content.ActiveContentName;
+
+            if (activeContentName != resources.ActiveContentName)
+            {
+                resources.ActiveContentName = activeContentName;
+                state.SetProperty("activeContentNameChanged", true);
+                state.SetProperty("activeContentName", activeContentName);
+            }
+
             PdfPanelSearch search = resources.Context.Search;
             state.SetProperty("isTextExtracted", resources.Context.Text.IsTextExtracted);
 

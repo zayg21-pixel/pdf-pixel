@@ -209,7 +209,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         else if (tagType == PdfMarkedContentTag.Span)
         {
             markedContent.ActualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
-            markedContent.Alt = propertiesDictionary.GetString(PdfTokens.AltKey);
+            markedContent.AlternateDescription = propertiesDictionary.GetString(PdfTokens.AltKey);
             markedContent.ExpandedForm = propertiesDictionary.GetString(PdfTokens.ExpandedFormKey);
             markedContent.Lang = propertiesDictionary.GetString(PdfTokens.LangKey);
         }

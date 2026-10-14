@@ -2,6 +2,7 @@ using PdfPixel.Commands;
 using PdfPixel.Commands.Model;
 using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
@@ -54,6 +55,12 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
     public PdfWord[]? Words { get; private set; }
 
     /// <summary>
+    /// Content items of the page in drawing order, or <see langword="null"/> if they have not been extracted yet.
+    /// Kept when the content is cleared.
+    /// </summary>
+    public PdfPanelContentItem[]? ContentItems { get; private set; }
+
+    /// <summary>
     /// Replace page content with a new command recording. Disposes the previous recording if present.
     /// </summary>
     /// <param name="commandRecording">New command recording. May be null.</param>
@@ -89,6 +96,15 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
     {
         ThrowIfDisposed();
         Words = words ?? throw new ArgumentNullException(nameof(words));
+    }
+
+    /// <summary>
+    /// Replace the extracted content items of the page.
+    /// </summary>
+    public void UpdateContentItems(PdfPanelContentItem[] contentItems)
+    {
+        ThrowIfDisposed();
+        ContentItems = contentItems ?? throw new ArgumentNullException(nameof(contentItems));
     }
 
     /// <summary>

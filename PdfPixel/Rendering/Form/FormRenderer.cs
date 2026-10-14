@@ -66,21 +66,26 @@ public class FormRenderer : IFormRenderer
         PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.Form);
         PdfXObjectScope? xObjectScope = PdfXObjectScope.FromXObject(formXObject, structureTree);
 
-        processor.Process(new BeginScopeCommand(contentStreamScope));
-
         if (xObjectScope != null)
         {
             processor.Process(new BeginScopeCommand(xObjectScope));
         }
 
+        if (graphicsState.RenderingParameters.ExtractContent)
+        {
+            processor.Process(new PdfContentCommand<PdfForm>(PdfContentKind.Form, formXObject.Matrix, formXObject.BBox, formXObject));
+        }
+
+        processor.Process(new BeginScopeCommand(contentStreamScope));
+
         DrawFormContent(processor, formXObject, graphicsState);
+
+        processor.Process(new EndScopeCommand());
 
         if (xObjectScope != null)
         {
             processor.Process(new EndScopeCommand());
         }
-
-        processor.Process(new EndScopeCommand());
 
         graphicsState.RecursionGuard.Remove(objectNumber);
     }

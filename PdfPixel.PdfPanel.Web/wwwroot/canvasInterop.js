@@ -130,6 +130,7 @@ class PdfPanelView {
             forcePageSet: 0,
             pointerPressed: false,
             annotationPopup: null,
+            activeContentName: null,
             cursorStyle: 'default',
             searchQuery: null,
             currentSearchResult: null,
@@ -248,6 +249,10 @@ class PdfPanelView {
         // Annotation handling: cursor, popup, and URI open
         if (redrawState.annotationPopupChanged) {
             this.state.annotationPopup = redrawState.annotationPopup || null;
+        }
+
+        if (redrawState.activeContentNameChanged) {
+            this.state.activeContentName = redrawState.activeContentName || null;
         }
 
         this.state.cursorStyle = redrawState.cursorStyle || 'default';

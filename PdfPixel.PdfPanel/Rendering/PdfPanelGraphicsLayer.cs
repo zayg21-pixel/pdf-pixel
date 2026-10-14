@@ -13,5 +13,10 @@ internal enum PdfPanelGraphicsLayer
     /// <summary>
     /// Highlight of the text selection.
     /// </summary>
-    Selection
+    Selection,
+
+    /// <summary>
+    /// Border of the selected content.
+    /// </summary>
+    ContentSelection
 }

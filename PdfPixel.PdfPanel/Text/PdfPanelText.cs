@@ -334,18 +334,19 @@ public sealed class PdfPanelText
 
         if (_isPointerOverText)
         {
+            args.IsHandled = true;
             args.Cursor = PdfPanelCursor.IBeam;
         }
     }
 
     private void OnPointerClicked(object? sender, PdfPanelPointerEventArgs args)
     {
-        if (args.IsHandled)
-        {
-            return;
-        }
-
         ClearSelection();
+
+        if (!args.IsHandled && HitTestCharacter(args.Position, CharacterHitRadius) != null)
+        {
+            args.IsHandled = true;
+        }
     }
 
     private void OnPointerExited(object? sender, EventArgs args) => _isPointerOverText = false;

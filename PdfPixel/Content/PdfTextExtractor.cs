@@ -14,6 +14,8 @@ namespace PdfPixel.Content;
 /// </summary>
 public sealed class PdfTextExtractor
 {
+    private static readonly PdfContentExtractionParameters ContentParameters = new();
+
     private readonly List<PdfCharacter> _characters = [];
     private readonly PdfTextChunker _chunker = new();
 
@@ -43,7 +45,7 @@ public sealed class PdfTextExtractor
 
     private void CollectCharacters(PdfContentNode node, in PdfMatrix matrix, PdfTextExtractionProperties properties)
     {
-        if (IsExcludedContentStream(node.Scope))
+        if (PdfContentExtractionUtilities.IsExcludedContentStream(node.Scope, ContentParameters))
         {
             return;
         }
@@ -113,7 +115,7 @@ public sealed class PdfTextExtractor
 
     private static void CollectBounds(PdfContentNode node, in PdfMatrix matrix, ref PdfRectangle? bounds)
     {
-        if (IsExcludedContentStream(node.Scope))
+        if (PdfContentExtractionUtilities.IsExcludedContentStream(node.Scope, ContentParameters))
         {
             return;
         }
@@ -144,11 +146,5 @@ public sealed class PdfTextExtractor
                     : PdfRectangle.Union(bounds.Value, characterBounds);
             }
         }
-    }
-
-    private static bool IsExcludedContentStream(PdfScope? scope)
-    {
-        return scope is PdfContentStreamScope contentStream
-            && (contentStream.StreamType == PdfContentStreamType.SoftMask || contentStream.StreamType == PdfContentStreamType.Type3Glyph);
     }
 }

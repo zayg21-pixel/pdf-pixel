@@ -60,7 +60,7 @@ public sealed class PdfMarkedContentScope : PdfContentScope
     /// <summary>
     /// Alternate description (/Alt) of a Span sequence, or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString? Alt { get; internal set; }
+    public PdfString? AlternateDescription { get; internal set; }
 
     /// <summary>
     /// Expansion of an abbreviation or acronym (/E) of a Span sequence, or <see langword="null"/> when absent.

@@ -23,5 +23,10 @@ public enum PdfContentKind
     /// <summary>
     /// Shading painted by the sh operator.
     /// </summary>
-    Shading
+    Shading,
+
+    /// <summary>
+    /// Form XObject.
+    /// </summary>
+    Form
 }

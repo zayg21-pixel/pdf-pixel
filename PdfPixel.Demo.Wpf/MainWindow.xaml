@@ -15,8 +15,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <local:SearchStatusConverter x:Key="SearchStatusConverter" />
-        <local:PdfColorBrushConverter x:Key="PdfColorBrushConverter" />
-        <Style x:Key="PageTextBoxStyle" TargetType="{x:Type local:PageTextBox}">
+        <local:PdfColorBrushConverter x:Key="PdfColorBrushConverter" />        <Style x:Key="PageTextBoxStyle" TargetType="{x:Type local:PageTextBox}">
             <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Background" Value="White" />
@@ -297,6 +296,28 @@
                     </wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                 </wpfPdfPanel:WpfPdfPanel>
             </ScrollViewer>
+
+            <Popup PlacementTarget="{Binding ElementName=pdfPanel}" Placement="MousePoint" VerticalOffset="20" AllowsTransparency="True">
+                <Popup.Style>
+                    <Style TargetType="{x:Type Popup}">
+                        <Setter Property="IsOpen" Value="True" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ActiveContentName, ElementName=pdfPanel}" Value="{x:Null}">
+                                <Setter Property="IsOpen" Value="False" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Popup.Style>
+                <Border Background="{DynamicResource {x:Static SystemColors.InfoBrushKey}}"
+                        BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
+                        BorderThickness="1"
+                        MaxWidth="360">
+                    <TextBlock Text="{Binding ActiveContentName, ElementName=pdfPanel}"
+                               Margin="4"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                </Border>
+            </Popup>
 
             <Grid Grid.Row="1" Margin="8 4">
                 <Grid.ColumnDefinitions>

@@ -28,7 +28,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
         Id = dictionary.GetString(PdfTokens.IdKey);
         Lang = dictionary.GetString(PdfTokens.LangKey);
         ActualText = dictionary.GetString(PdfTokens.ActualTextKey);
-        Alt = dictionary.GetString(PdfTokens.AltKey);
+        AlternateDescription = dictionary.GetString(PdfTokens.AltKey);
         ExpandedForm = dictionary.GetString(PdfTokens.ExpandedFormKey);
         Title = dictionary.GetString(PdfTokens.TitleKey);
         Revision = dictionary.GetInteger(PdfTokens.RKey);
@@ -90,7 +90,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
     /// <summary>
     /// Alternative description (/Alt), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString? Alt { get; }
+    public PdfString? AlternateDescription { get; }
 
     /// <summary>
     /// Expanded form of an abbreviation (/E), or <see langword="null"/> when absent.

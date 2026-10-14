@@ -280,6 +280,8 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.Renderer.ShowPageLoadingAnimation = ShowPageLoadingAnimation;
         _context.Text.ExtractText = ExtractText;
         _context.Text.SelectionColor = ToPdfColor(SelectionColor);
+        _context.Content.SelectionBorderThickness = (float)ContentSelectionBorderThickness;
+        _context.Content.SelectionBorderColor = ToPdfColor(ContentSelectionBorderColor);
         _context.Search.Query = SearchQuery;
         _context.Search.CurrentMatch = CurrentSearchResult;
         _context.Search.MatchColor = ToPdfColor(SearchMatchColor);
@@ -294,6 +296,12 @@ public partial class WpfPdfPanel : FrameworkElement
         Layers?.Synchronize();
 
         UpdateAnnotationPopup(_context.Annotations.ActiveAnnotation);
+
+        if (ActiveContentName != _context.Content.ActiveContentName)
+        {
+            SetValue(ActiveContentNamePropertyKey, _context.Content.ActiveContentName);
+        }
+
         UpdateCursor();
 
         ExtentHeight = _context.ExtentHeight;
