@@ -90,6 +90,31 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ❌ JavaScript *(not planned)*
 - ❌ XFA *(not planned)*
 
+### Viewer (PdfPanel)
+
+| Feature | Core (`PdfPanel`) | WPF | Web | WinForms | Avalonia | MAUI |
+|---|---|---|---|---|---|---|
+| Content rendering | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Annotation rendering | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| User graphics | ✅ | ✅ | ✅ *(overlay canvas)* | ❌ | ❌ | ❌ |
+| GPU rendering | — | ✅ OpenGL | ✅ WebGL | ❌ | ❌ | ❌ |
+| View manipulation (zoom, scroll, rotation) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Page layout (`/PageLayout`) | ❌ *(vertical only)* | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Presentation mode | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Thumbnails | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Page labels | ✅ | ✅ | ⚠️ *(frame page info, not document data)* | ❌ | ❌ | ❌ |
+| Text selection | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Content extraction | ⚠️ *(text only)* | ⚠️ *(text only)* | ⚠️ *(`getSelectedText`, text only)* | ❌ | ❌ | ❌ |
+| Text search | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Content interaction (hover, image selection) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Annotation interaction (popups, hover) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Same-document navigation (links, destinations) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Cross-document navigation (URI, GoToR) | ⚠️ *(events only)* | ⚠️ *(URI opens http/https; GoToR handler empty)* | ⚠️ *(URI via `openUri` state; GoToR has a TODO)* | ❌ | ❌ | ❌ |
+| Interactive forms | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Optional content / layers | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Outlines / bookmarks | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| File attachments | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
 ---
 
 ## Release Plan
@@ -124,7 +149,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - Add digital signature reading and verification: signature fields and dictionaries (`/V`, `/Lock`, `/SV`), `/Perms` (DocMDP, UR3) and `/DSS` validation data
 - Add AESV4 crypt filter (ISO/TS 32003) and integrity protection (ISO/TS 32004)
 - Add presentation mode, viewer preferences and page boundary display: page transitions (`/Trans`, transition actions), sub-page navigation (`/PresSteps`), automatic advance (`/Dur`), `/ViewerPreferences` and `/BoxColorInfo`
-- Add Avalonia and MAUI support
+- Add WinForms, Avalonia and MAUI support
 - Unit tests with full test coverage
 
 ---

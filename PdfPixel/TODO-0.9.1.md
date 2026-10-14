@@ -27,10 +27,11 @@ Static document data is returned by `setDocument`; dynamic data arrives through 
 
 | Item | Location | Work |
 |---|---|---|
-| Document data | `PdfPixel.PdfPanel.Web` | `setDocument` returns only `{ ok, pageCount }` on success. It returns the document data instead: page count and per-page info (label, crop box, rotation), the same shape as the `info` of a frame page, which is built by the same converter. `pageCount` leaves the view state |
+| Document data | `PdfPixel.PdfPanel.Web` | `setDocument` returns only `{ ok, pageCount }` on success. It returns the document data instead: page count and static per-page info (label, crop box). Page labels leave the `info` of a frame page, which keeps only what places the page (page number, position, current rotation); `pageCount` leaves the view state |
 | Permissions | `PdfPixel.PdfPanel.Web` | `IPdfDocument.Permissions` is not reachable from JS; part of the document data |
 | `/PageMode` | `PdfPixel.PdfPanel.Web` | `IPdfDocument.PageMode` is not reachable from JS; part of the document data |
 | Outlines | `PdfPixel.PdfPanel.Web` | No outline tree in JS: the tree is part of the document data, and activating an item goes through `PdfPanelActions.ActivateOutlineItem` |
+| Selected content | `PdfPixel.PdfPanel.Web` | `getSelectedText` returns only the selected text. It becomes `getSelectedContent`, which returns the selected text or the selected image (`PdfPanelContent.SelectedImage`), so the host can copy either. The image part depends on Image conversion |
 | Optional content | `PdfPixel.PdfPanel.Web` | No layers in JS: the layer tree is part of the document data, and layer visibility is dynamic data with its own setter |
 
 ## 4. Public API
