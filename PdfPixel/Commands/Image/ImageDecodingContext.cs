@@ -38,6 +38,33 @@ public sealed class ImageDecodingContext
         TransferFunction = state.TransferFunction;
         UseBlackPointCompensation = state.UseBlackPointCompensation;
         FillPaint = state.FillPaint;
+        ApplyMask = true;
+    }
+
+    /// <summary>
+    /// Creates a context for decoding <paramref name="image"/> on its own, as a single tile, resolving its
+    /// color space against <paramref name="host"/> with the values of <paramref name="parameters"/>.
+    /// </summary>
+    internal ImageDecodingContext(PdfImage image, IPdfContentHost host, PdfImageDecodingParameters parameters)
+    {
+        if (image == null)
+        {
+            throw new ArgumentNullException(nameof(image));
+        }
+
+        if (parameters == null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
+        Host = host ?? throw new ArgumentNullException(nameof(host));
+        ColorSpaceConverter = ResolveColorSpaceConverter(image);
+        DefaultTileSize = Math.Max(image.Width, image.Height);
+        CacheDecodedTiles = false;
+        TransferFunction = null;
+        UseBlackPointCompensation = parameters.UseBlackPointCompensation;
+        FillPaint = PdfPaint.Solid(parameters.FillColor, PdfPaintStyle.Fill);
+        ApplyMask = parameters.ApplyMask;
     }
 
     /// <summary>
@@ -72,6 +99,7 @@ public sealed class ImageDecodingContext
         UseBlackPointCompensation = source.UseBlackPointCompensation;
         FillPaint = fillPaint ?? throw new ArgumentNullException(nameof(fillPaint));
         IsStencilMaskComposite = isStencilMaskComposite;
+        ApplyMask = source.ApplyMask;
     }
 
     /// <summary>
@@ -117,6 +145,11 @@ public sealed class ImageDecodingContext
     /// via destination-in (Porter-Duff) regardless of <see cref="FillPaint"/>'s blend mode.
     /// </summary>
     public bool IsStencilMaskComposite { get; }
+
+    /// <summary>
+    /// Whether the image's mask (/SMask, /SMaskInData or /Mask) is applied as alpha.
+    /// </summary>
+    public bool ApplyMask { get; }
 
     private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Host.Cache.ColorSpace.Resolve(image.ColorSpaceReference, defaultComponents: -1);
 }

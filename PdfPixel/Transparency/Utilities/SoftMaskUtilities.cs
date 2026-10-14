@@ -31,7 +31,7 @@ internal static class SoftMaskUtilities
         PdfGraphicsState sourceState,
         in PdfMatrix worldToMaskForm)
     {
-        ReadOnlyMemory<byte> contentData = maskForm.XObject.Stream.DecodeAsMemory();
+        ReadOnlyMemory<byte> contentData = maskForm.Stream.DecodeAsMemory();
 
         if (contentData.IsEmpty)
         {

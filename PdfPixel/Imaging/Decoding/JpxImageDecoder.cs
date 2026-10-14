@@ -47,7 +47,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (Reference={Image.Reference}).");
         }
 
-        bool includeOpacityComponent = Image.SoftMaskInData != PdfImageSoftMaskInData.None;
+        bool includeOpacityComponent = Context.ApplyMask && Image.SoftMaskInData != PdfImageSoftMaskInData.None;
         JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, regionsOfInterest, _resolvedConverter, includeOpacityComponent);
         JpxTileProvider tileProvider = new(
             jpxHeader,
@@ -73,7 +73,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             colorConversionParameters,
             _resolvedConverter,
             Image.HasImageMask,
-            Image.MaskArray,
+            AppliedMaskArray,
             Image.Decode,
             PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize),
             alphaType,

@@ -45,7 +45,7 @@ public sealed class ImageExecutionContext
         }
 
         PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
-        MaskAlphaRowSource? alphaRowSource = CreateMaskAlphaRowSource(pdfImage, context, tileInfo, loggerFactory);
+        MaskAlphaRowSource? alphaRowSource = CreateMaskAlphaRowSource(decoder, tileInfo, loggerFactory);
 
         return new ImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory, alphaRowSource), pdfImage.Interpolate);
     }
@@ -75,15 +75,15 @@ public sealed class ImageExecutionContext
     /// </summary>
     public PdfTileInfo TileInfo => TileCache.TileInfo;
 
-    private static MaskAlphaRowSource? CreateMaskAlphaRowSource(PdfImage pdfImage, ImageDecodingContext context, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
+    private static MaskAlphaRowSource? CreateMaskAlphaRowSource(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
     {
-        // The soft mask overrides the mask (ISO 32000-2, Table 87).
-        PdfImage? mask = pdfImage.SoftMask ?? pdfImage.Mask;
+        PdfImage? mask = decoder.AppliedMask;
         if (mask == null)
         {
             return null;
         }
 
+        ImageDecodingContext context = decoder.Context;
         ImageDecodingContext maskContext = new(context, mask, context.FillPaint, isStencilMaskComposite: false);
         PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(mask, maskContext, loggerFactory);
 

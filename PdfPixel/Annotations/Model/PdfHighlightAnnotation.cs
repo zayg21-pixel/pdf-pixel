@@ -50,7 +50,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         IPdfExecutionObserver observer)
     {
         PdfForm? appearanceForm = Appearance?.GetStream(visualStateKind);
-        PdfDictionary? resources = appearanceForm?.XObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+        PdfDictionary? resources = appearanceForm?.Resources;
 
         if (resources == null || !resources.HasKey(PdfTokens.ExtGStateKey))
         {

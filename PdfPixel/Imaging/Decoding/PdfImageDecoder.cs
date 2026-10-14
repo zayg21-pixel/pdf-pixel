@@ -48,6 +48,29 @@ public abstract class PdfImageDecoder
     public ImageDecodingContext Context { get; }
 
     /// <summary>
+    /// Image applied to <see cref="Image"/> as alpha: its soft mask when it has one, otherwise its mask;
+    /// null when it has neither or <see cref="Context"/> applies no mask.
+    /// </summary>
+    internal PdfImage? AppliedMask
+    {
+        get
+        {
+            if (!Context.ApplyMask)
+            {
+                return null;
+            }
+
+            // The soft mask overrides the mask (ISO 32000-2, Table 87).
+            return Image.SoftMask ?? Image.Mask;
+        }
+    }
+
+    /// <summary>
+    /// Color key mask ranges (/Mask array) applied to <see cref="Image"/>, or null when none applies.
+    /// </summary>
+    protected int[]? AppliedMaskArray => (Context.ApplyMask) ? Image.MaskArray : null;
+
+    /// <summary>
     /// Logger instance for this decoder.
     /// </summary>
     protected ILogger Logger { get; }
@@ -147,7 +170,7 @@ public abstract class PdfImageDecoder
             colorConversionParameters,
             colorSpaceConverter,
             Image.HasImageMask,
-            Image.MaskArray,
+            AppliedMaskArray,
             Image.Decode,
             downscaledSize,
             ResolveMaskAlphaType(matte),
@@ -247,7 +270,7 @@ public abstract class PdfImageDecoder
     /// <param name="matte">Matte components returned by <see cref="ResolveSoftMaskMatte"/>.</param>
     protected PdfImageAlphaType ResolveMaskAlphaType(float[]? matte)
     {
-        if (Image.SoftMask == null && Image.Mask == null)
+        if (AppliedMask == null)
         {
             return PdfImageAlphaType.Opaque;
         }
@@ -269,7 +292,7 @@ public abstract class PdfImageDecoder
             throw new ArgumentNullException(nameof(colorSpaceConverter));
         }
 
-        float[]? matteArray = Image.SoftMask?.MatteArray;
+        float[]? matteArray = (Context.ApplyMask) ? Image.SoftMask?.MatteArray : null;
 
         if (matteArray == null || matteArray.Length != colorSpaceConverter.Components)
         {

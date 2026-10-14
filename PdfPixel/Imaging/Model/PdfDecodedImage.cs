@@ -58,7 +58,17 @@ public sealed class PdfDecodedImage
     /// <summary>
     /// Gets the number of bytes occupied by a single row of the pixel buffer.
     /// </summary>
-    internal int RowBytes => _rowBytes;
+    public int RowBytes => _rowBytes;
+
+    /// <summary>
+    /// Gets a read-only view over the full packed pixel buffer, row-major from the top row with no padding between rows.
+    /// </summary>
+    public ReadOnlySpan<byte> GetPixels() => GetRawBuffer();
+
+    /// <summary>
+    /// Gets a read-only view over a single row of the pixel buffer.
+    /// </summary>
+    public ReadOnlySpan<byte> GetPixelRow(int row) => GetRow(row);
 
     /// <summary>
     /// Gets a writable view over the full packed pixel buffer, row-major with no padding between rows.

@@ -33,6 +33,7 @@ internal class PdfDocument : IPdfDocumentInternal
     private readonly BufferedStream _stream;
     private readonly PdfDestinationResolver _destinationResolver;
     private readonly PdfTreeReader _treeReader;
+    private PdfContentHost? _contentHost;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfDocument"/> class.
@@ -148,6 +149,19 @@ internal class PdfDocument : IPdfDocumentInternal
     PdfCredentialRequestedCallback? IPdfDocumentInternal.OnCredentialRequested { get; set; }
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;
+
+    IPdfContentHost IPdfDocumentInternal.ContentHost
+    {
+        get
+        {
+            if (_contentHost == null)
+            {
+                _contentHost = new PdfContentHost(this, new PdfDictionary(this), structParents: null);
+            }
+
+            return _contentHost;
+        }
+    }
 
     CMapCache IPdfDocumentInternal.CMapCache => _cMapCache;
 

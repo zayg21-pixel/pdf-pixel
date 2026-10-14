@@ -13,11 +13,11 @@ namespace PdfPixel.Models;
 public abstract class PdfXObject
 {
     /// <summary>
-    /// Initializes a new <see cref="PdfXObject"/> wrapping the given source object.
+    /// Initializes a new <see cref="PdfXObject"/> from the given source object.
     /// </summary>
     private protected PdfXObject(PdfObject xObject, in PdfReference reference, PdfXObjectSubtype subtype)
     {
-        XObject = xObject;
+        Document = xObject.Document;
         Reference = reference;
         Subtype = subtype;
         OptionalContent = PdfOptionalContentMembership.FromDictionary(xObject.Dictionary);
@@ -27,9 +27,9 @@ public abstract class PdfXObject
     }
 
     /// <summary>
-    /// Source PDF object representing the XObject.
+    /// Document the XObject belongs to.
     /// </summary>
-    public PdfObject XObject { get; }
+    internal IPdfDocumentInternal Document { get; }
 
     /// <summary>
     /// Reference of the XObject stream.

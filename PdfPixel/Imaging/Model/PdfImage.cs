@@ -1,4 +1,7 @@
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Commands.Image;
+using PdfPixel.Geometry;
+using PdfPixel.Imaging.Processing;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
@@ -180,6 +183,34 @@ public class PdfImage : PdfXObject
     public PdfImage? Mask { get; }
 
     /// <summary>
+    /// Decodes the image to pixels, with device color spaces resolved through the document's output intent.
+    /// </summary>
+    /// <param name="parameters">Masks to apply and the size to fit within.</param>
+    /// <param name="observer">Observer notified as decoding progresses, which can cancel it.</param>
+    public PdfDecodedImage DecodePixels(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
+    {
+        if (observer == null)
+        {
+            throw new ArgumentNullException(nameof(observer));
+        }
+
+        ImageDecodingContext context = new(this, Document.ContentHost, parameters);
+        ImageExecutionContext executionContext = ImageExecutionContext.Create(this, context, Document.LoggerFactory);
+        PdfImageTileCacheEntry tileCache = executionContext.TileCache;
+
+        PdfImage? mask = tileCache.Decoder.AppliedMask;
+        PdfIntegerSize sampleSize = new(
+            Math.Max(Width, mask?.Width ?? 0),
+            Math.Max(Height, mask?.Height ?? 0));
+
+        tileCache.Initialize(GetDecodingMatrix(sampleSize, parameters.MaximumSize), new PdfIntegerRectangle(0, 0, Width, Height), observer);
+
+        PdfImageTile tile = tileCache.GetTile(0, observer);
+
+        return tile.Image ?? throw new InvalidOperationException($"Image {Reference} produced no pixels.");
+    }
+
+    /// <summary>
     /// The image held by <paramref name="key"/> of <paramref name="owner"/>, resolved from the
     /// document's XObject cache when available, or <see langword="null"/> when absent or not an image.
     /// An entry without /Subtype is taken as an image.
@@ -223,5 +254,28 @@ public class PdfImage : PdfXObject
             PdfFilterType.JBIG2Decode => PdfImageType.JBIG2,
             _ => PdfImageType.Raw
         };
+    }
+
+    /// <summary>
+    /// Maps the unit square onto <paramref name="sampleSize"/>, reduced to fit within <paramref name="maximumSize"/>
+    /// at its aspect ratio.
+    /// </summary>
+    private static PdfMatrix GetDecodingMatrix(in PdfIntegerSize sampleSize, PdfIntegerSize? maximumSize)
+    {
+        if (maximumSize != null)
+        {
+            float scale = Math.Min(
+                (float)maximumSize.Value.Width / sampleSize.Width,
+                (float)maximumSize.Value.Height / sampleSize.Height);
+
+            if (scale < 1)
+            {
+                return PdfMatrix.CreateScale(
+                    Math.Max(1, (int)(sampleSize.Width * scale)),
+                    Math.Max(1, (int)(sampleSize.Height * scale)));
+            }
+        }
+
+        return PdfMatrix.CreateScale(sampleSize.Width, sampleSize.Height);
     }
 }

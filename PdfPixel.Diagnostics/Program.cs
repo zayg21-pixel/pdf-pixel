@@ -83,6 +83,11 @@ internal sealed class Program
             Description = "Extracts text from every page in range without rendering, timing the whole range as one run."
         };
 
+        Option<int?> viewportOption = new("--viewport")
+        {
+            Description = "Renders only a centered square of this many pixels of the scaled page, the way a viewer draws its visible area."
+        };
+
         RootCommand rootCommand = new("Records and replays a PDF page, reporting decode and rasterization timings.")
         {
             pdfArgument,
@@ -95,7 +100,8 @@ internal sealed class Program
             dumpCommandsOption,
             passwordOption,
             profileOption,
-            textOnlyOption
+            textOnlyOption,
+            viewportOption
         };
 
         rootCommand.SetAction(parseResult =>
@@ -111,7 +117,8 @@ internal sealed class Program
                 parseResult.GetValue(dumpCommandsOption),
                 parseResult.GetValue(passwordOption),
                 parseResult.GetValue(profileOption),
-                parseResult.GetValue(textOnlyOption));
+                parseResult.GetValue(textOnlyOption),
+                parseResult.GetValue(viewportOption));
 
             return 0;
         });
@@ -130,7 +137,8 @@ internal sealed class Program
         bool dumpCommands,
         string? password,
         ProfileMode profile,
-        bool textOnly)
+        bool textOnly,
+        int? viewport)
     {
         if (pdfFile == null)
         {
@@ -194,6 +202,7 @@ internal sealed class Program
                     password,
                     profile,
                     textOnly,
+                    viewport,
                     decodeMilliseconds,
                     rasterMilliseconds);
             }
@@ -252,6 +261,7 @@ internal sealed class Program
         string? password,
         ProfileMode profile,
         bool textOnly,
+        int? viewport,
         double[][] decodeMilliseconds,
         double[][] rasterMilliseconds)
     {
@@ -339,9 +349,25 @@ internal sealed class Program
             // happens here; recording defers the drawing itself to the rasterization pass below,
             // which keeps the two costs separately measurable.
             // CropBox is the visible page area in PDF units; scale it to get the output image size.
-            SKImageInfo imageInfo = new((int)(page.CropBox.Width * scale), (int)(page.CropBox.Height * scale));
+            SKImageInfo pageInfo = new((int)(page.CropBox.Width * scale), (int)(page.CropBox.Height * scale));
             using SKPictureRecorder pictureRecorder = new();
-            SKCanvas canvas = pictureRecorder.BeginRecording(new SKRect(0, 0, imageInfo.Width, imageInfo.Height));
+            SKCanvas canvas = pictureRecorder.BeginRecording(new SKRect(0, 0, pageInfo.Width, pageInfo.Height));
+
+            // The visible area: the whole page, or a centered viewport square of it.
+            SKImageInfo imageInfo = pageInfo;
+            PdfRectangle? regionOfInterest = null;
+            int viewportLeft = 0;
+            int viewportTop = 0;
+
+            if (viewport != null)
+            {
+                int viewportWidth = Math.Min(viewport.Value, pageInfo.Width);
+                int viewportHeight = Math.Min(viewport.Value, pageInfo.Height);
+                viewportLeft = (pageInfo.Width - viewportWidth) / 2;
+                viewportTop = (pageInfo.Height - viewportHeight) / 2;
+                imageInfo = new SKImageInfo(viewportWidth, viewportHeight);
+                regionOfInterest = new PdfRectangle(viewportLeft, viewportTop, viewportLeft + viewportWidth, viewportTop + viewportHeight);
+            }
 
             // Bundles the canvas, rendering options, and the objects above into the state every
             // drawing command reads from while the recordings are replayed.
@@ -350,10 +376,11 @@ internal sealed class Program
                 new PdfCommandExecutionParameters(),
                 contentLocker,
                 null,
-                executionObserver);
+                executionObserver,
+                regionOfInterest);
 
             // Text-only replays onto a canvas that draws nothing.
-            using SKNoDrawCanvas noDrawCanvas = new(imageInfo.Width, imageInfo.Height);
+            using SKNoDrawCanvas noDrawCanvas = new(pageInfo.Width, pageInfo.Height);
             SKCanvas processorCanvas = textOnly ? noDrawCanvas : canvas;
             SkCanvasCommandProcessor processor = new(processorCanvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
             contentRecorder.Replay(processor);
@@ -376,6 +403,7 @@ internal sealed class Program
                 using SKSurface surface = SKSurface.Create(imageInfo);
                 SKCanvas surfaceCanvas = surface.Canvas;
                 surfaceCanvas.Clear(SKColors.White);
+                surfaceCanvas.Translate(-viewportLeft, -viewportTop);
                 surfaceCanvas.DrawPicture(picture);
                 surfaceCanvas.Flush();
 
@@ -421,7 +449,8 @@ internal sealed class Program
                 + $" raster {iterationRasterMilliseconds,9:F1} ms"
                 + $" characters {iterationCharacterCount,7}"
                 + $" live {liveBytes / 1048576.0,8:F1} MB"
-                + $" private {currentProcess.PrivateMemorySize64 / 1048576.0,8:F1} MB");
+                + $" private {currentProcess.PrivateMemorySize64 / 1048576.0,8:F1} MB"
+                + $" peak private {currentProcess.PeakPagedMemorySize64 / 1048576.0,8:F1} MB");
 
         GC.KeepAlive(pageWords);
     }

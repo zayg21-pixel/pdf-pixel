@@ -1,13 +1,14 @@
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
 
 namespace PdfPixel.Forms;
 
 /// <summary>
-/// Represents a parsed PDF Form XObject with geometry, resources, transparency group, and original object.
+/// Represents a parsed PDF Form XObject with geometry, resources, transparency group, and content stream.
 /// </summary>
 public sealed class PdfForm : PdfXObject
 {
@@ -18,6 +19,9 @@ public sealed class PdfForm : PdfXObject
         Matrix = PdfMatrix.FromArray(dictionary.GetArray(PdfTokens.MatrixKey)) ?? PdfMatrix.Identity;
         BBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey)) ?? PdfRectangle.Empty;
         TransparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(dictionary, PdfTokens.GroupKey);
+        Resources = dictionary.GetDictionary(PdfTokens.ResourcesKey);
+        StructParents = dictionary.GetInteger(PdfTokens.StructParentsKey);
+        Stream = xObject.Stream;
     }
 
     /// <summary>
@@ -36,17 +40,28 @@ public sealed class PdfForm : PdfXObject
     public PdfTransparencyGroup? TransparencyGroup { get; }
 
     /// <summary>
+    /// The form's resource dictionary (/Resources), or <see langword="null"/> when absent.
+    /// </summary>
+    internal PdfDictionary? Resources { get; }
+
+    /// <summary>
+    /// Key of the form's content in the structural parent tree (/StructParents), or <see langword="null"/> when absent.
+    /// </summary>
+    internal int? StructParents { get; }
+
+    /// <summary>
+    /// The form's content stream.
+    /// </summary>
+    internal PdfObjectStream Stream { get; }
+
+    /// <summary>
     /// Creates a <see cref="PdfContentHost"/> for this form's content stream, resolving against the form's own
     /// /Resources or, when absent, the parent content host's resources.
     /// </summary>
     /// <param name="state">Graphics state the form is drawn in.</param>
     /// <returns>A <see cref="PdfContentHost"/> instance.</returns>
     internal PdfContentHost GetFormHost(PdfGraphicsState state)
-    {
-        PdfDictionary resources = XObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? state.Host.ResourceDictionary;
-        int? structParents = XObject.Dictionary.GetInteger(PdfTokens.StructParentsKey);
-        return new PdfContentHost(XObject.Document, resources, structParents);
-    }
+        => new(Document, Resources ?? state.Host.ResourceDictionary, StructParents);
 
     /// <summary>
     /// Gets the bounding rectangle of the object after applying the current transformation matrix.

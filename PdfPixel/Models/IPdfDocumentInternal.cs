@@ -46,6 +46,11 @@ internal interface IPdfDocumentInternal : IPdfDocument
     PdfDocumentObjectCache ObjectCache { get; }
 
     /// <summary>
+    /// Gets the content host of the document itself, with no resources.
+    /// </summary>
+    IPdfContentHost ContentHost { get; }
+
+    /// <summary>
     /// Gets the CMap cache manager for the document.
     /// </summary>
     CMapCache CMapCache { get; }

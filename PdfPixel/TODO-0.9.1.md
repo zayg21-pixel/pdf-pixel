@@ -4,7 +4,7 @@
 
 | Entry | Location | Spec | Work |
 |---|---|---|---|
-| Thumbnails | `PdfPixel.PdfPanel/Mvvm` | 12.3.4 | No page thumbnails: a view model with an image per page, the page's `/Thumb` (`IPdfPage.Thumbnail`) when present, otherwise a low-resolution render, and navigation to the page on click; shown as a Thumbnails tab in the WPF demo side panel. Using `/Thumb` depends on Image conversion |
+| Thumbnails | `PdfPixel.PdfPanel/Mvvm` | 12.3.4 | No page thumbnails: a view model with an image per page, the page's `/Thumb` (`IPdfPage.Thumbnail`) when present, otherwise a low-resolution render, and navigation to the page on click; shown as a Thumbnails tab in the WPF demo side panel |
 | `/PageMode` | `PdfPixel.Demo.Wpf` | Table 29 | Not honored: the side panel always starts hidden. The document's `IPdfDocument.PageMode` would open it on the matching tab when a document is loaded: Contents for `UseOutlines`, Layers for `UseOC`, Attachments for `UseAttachments`, Thumbnails for `UseThumbs` |
 | Content interaction layer | `PdfPixel.PdfPanel` | 14.9.3, 14.9.4, 14.13 | No interaction with non-text content: a separate layer built from the content tree (`PdfContentTreeBuilder.Root`) would show `/ActualText` or `/Alt` of images and shadings in a popup on hover, and select an image on click so it can be copied (Ctrl+C). Files associated with content (`PdfContentScope.AssociatedFiles`: marked content and XObject `/AF`) are parsed but not shown: the layer would place an attachment icon over the content's bounds that saves or opens the file through the file API |
 | `/UserUnit` | `PdfPixel.PdfPanel/PdfPanelPageInfo.cs` | Table 31, 8.3.2.3 | Not supported: pages are laid out in their own units, so pages with different user units keep the wrong relative size. Supporting it adds a per-page scale on top of the global zoom, which layout, rendering and screen-to-page mapping must apply. Page content is unaffected; the value is already exposed as `IPdfPage.UserUnit` |
@@ -31,11 +31,12 @@ Static document data is returned by `setDocument`; dynamic data arrives through 
 | Permissions | `PdfPixel.PdfPanel.Web` | `IPdfDocument.Permissions` is not reachable from JS; part of the document data |
 | `/PageMode` | `PdfPixel.PdfPanel.Web` | `IPdfDocument.PageMode` is not reachable from JS; part of the document data |
 | Outlines | `PdfPixel.PdfPanel.Web` | No outline tree in JS: the tree is part of the document data, and activating an item goes through `PdfPanelActions.ActivateOutlineItem` |
-| Selected content | `PdfPixel.PdfPanel.Web` | `getSelectedText` returns only the selected text. It becomes `getSelectedContent`, which returns the selected text or the selected image (`PdfPanelContent.SelectedImage`), so the host can copy either. The image part depends on Image conversion |
+| Selected content | `PdfPixel.PdfPanel.Web` | `getSelectedText` returns only the selected text. It becomes `getSelectedContent`, which returns the selected text or the selected image (`PdfPanelContent.SelectedImage`), so the host can copy either. The image part depends on Png |
 | Optional content | `PdfPixel.PdfPanel.Web` | No layers in JS: the layer tree is part of the document data, and layer visibility is dynamic data with its own setter |
 
 ## 4. Public API
 
 | Item | Location | Work |
 |---|---|---|
-| Image conversion | `Imaging/Model/PdfImage.cs` | No public way to get pixels from a `PdfImage` (`/Thumb`, file specification thumbnails, image XObjects): decoding needs an internal `ImageDecodingContext`, and `Skia/Converters/PdfImageConverter.cs` is internal |
+| Png | `PdfPixel.Png` (new) | No PNG package: the PNG row filters (`PngFilterUndo`, predictors 10–15) live in `PdfPixel.Tiff`, and the only PNG writer is the internal `PngWriter` of `PdfPixel.Examples`. A `PdfPixel.Png` package holds the PNG row filters and decodes and encodes PNG images, the way `PdfPixel.Tiff` holds the TIFF predictor and decodes TIFF images. `PredictorDecodeStream` moves from `PdfPixel.Tiff` to `PdfPixel`, taking the TIFF predictor from `PdfPixel.Tiff` and the PNG filters from `PdfPixel.Png` |
+| Examples | `PdfPixel.Examples` | No examples of content extraction or image decoding: extracting the text (`PdfTextExtractor`) and the images (`PdfContentExtractor`) of a page, and decoding an image to pixels (`PdfImage.DecodePixels`) |
