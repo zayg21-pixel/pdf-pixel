@@ -30,7 +30,7 @@ npm install pdf-pixel@next
     pdfPixel.registerPanel(container.id, container);
 
     const response = await fetch('document.pdf');
-    pdfPixel.setDocument(container.id, new Uint8Array(await response.arrayBuffer()));
+    const result = pdfPixel.setDocument(container.id, new Uint8Array(await response.arrayBuffer()));
     pdfPixel.requestRedraw(container.id);
 </script>
 ```
@@ -42,7 +42,8 @@ The panel id must be the id of its container element. The panel adds its canvase
 `index.js`, `canvasInterop.js` and the `_framework/` folder must be served together as static files, with `_framework/` next to `index.js`. The runtime loads `_framework/` relative to its own URL, which bundlers do not follow — copy the package files to a static folder rather than bundling them.
 
 - Serve `.wasm` files with the `application/wasm` MIME type.
-- The package ships uncompressed files. Enable brotli or gzip compression for `.wasm` and `.js` on the server or CDN; the WebAssembly code compresses to roughly a quarter of its size.
+- Enable brotli or gzip compression for `.wasm` and `.js` on the server or CDN; the WebAssembly code compresses to roughly a quarter of its size.
+- `_framework/` also contains a gzip-compressed copy (`.gz`) of every file. Hosts that cannot compress responses, such as plain blob storage, can load those copies with `loadGzipResource` (see below).
 
 ## Custom runtime
 
@@ -57,6 +58,15 @@ await pdfPixel.initialize(runtime);
 ```
 
 The runtime must be created with the `dotnet` builder of this package. The builder is the .NET WebAssembly host builder; its options may change between .NET versions.
+
+To load the gzip-compressed runtime files and decompress them in the browser, pass `loadGzipResource` as the resource loader:
+
+```js
+const runtime = await pdfPixel.dotnet.withResourceLoader(pdfPixel.loadGzipResource).create();
+await pdfPixel.initialize(runtime);
+```
+
+JavaScript modules, and every file in browsers without `DecompressionStream`, load uncompressed.
 
 The panel logs warnings and errors to the browser console.
 
@@ -127,10 +137,14 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `dotnet` | The .NET runtime builder, for a custom runtime configuration. |
 | `registerPanel(id, container, configuration?)` | Creates a panel in the container element with the id `id`. |
 | `unregisterPanel(id)` | Disposes the panel. |
-| `setDocument(id, bytes)` | Loads a PDF document from a `Uint8Array`. |
+| `loadGzipResource` | Resource loader for `dotnet.withResourceLoader` that loads the gzip-compressed runtime files. |
+| `setDocument(id, bytes)` | Loads a PDF document from a `Uint8Array` and returns `{ ok: true, pageCount }` or `{ ok: false, reason, message }`, with `reason` one of `empty`, `encrypted`, `unsupported`, `invalid` and `error`. The shown document is kept when loading fails. |
 | `requestRedraw(id)` | Renders the panel. |
 | `setPage(id, pageNumber)` | Scrolls to a 1-based page. |
 | `setScale(id, scale)` | Zooms to a scale (`1.0` = 100%) around the panel center. |
+| `setAutoScaleMode(id, mode)` | Fits the pages to the panel: `scaleToWidth`, `scaleToHeight` or `noAutoScale`. The mode applies to documents loaded afterwards and returns to `noAutoScale` when the user zooms. |
+| `scrollToDestination(id, destination)` | Scrolls to `{ pageNumber, fitType, left?, top?, right?, bottom?, zoom? }` in the page's PDF user space, with a fit type of ISO 32000 Table 149 (`XYZ`, `Fit`, `FitH`, `FitV`, `FitR`, `FitB`, `FitBH`, `FitBV`). Works for pages not shown yet. |
+| `setPageRotation(id, pageNumber, degrees)`, `setRotation(id, degrees)` | Rotates one page or every page by a multiple of 90 degrees on top of the document's rotation, keeping the current page in view. |
 | `setSearchQuery(id, query)` | Searches the document text, or stops searching with `null`. |
 | `setCurrentSearchResult(id, result)` | Highlights a result from `searchResults` as current and scrolls to it. |
 | `nextSearchResult(id)`, `previousSearchResult(id)` | Selects the next or previous result, wrapping around; with no current result, selects the first result on or after the current page. |
@@ -144,6 +158,8 @@ The state passed to `setOnStateChanged` includes:
 | --- | --- |
 | `currentPage`, `pageCount` | Page shown in the panel center and number of pages. |
 | `scale` | Current zoom scale. |
+| `autoScaleMode` | Current automatic scaling mode. |
+| `cursorStyle` | Cursor the panel sets on its scroll host, or `null` when it leaves the cursor to the host page. |
 | `searchResults` | Results of the search query, `{ pageNumber, startIndex, length, bounds }`, ordered by page. |
 | `currentSearchResult` | Result highlighted as current, or `null`. |
 | `isTextExtracted` | Whether the text of every page has been extracted, so `searchResults` is final. |

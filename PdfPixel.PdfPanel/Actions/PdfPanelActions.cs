@@ -62,6 +62,16 @@ public sealed class PdfPanelActions
         => _requestedDestination = destination ?? throw new ArgumentNullException(nameof(destination));
 
     /// <summary>
+    /// Scrolls the panel to a page on the next <see cref="PdfPanelContext.Synchronize"/>, once the pages are laid out.
+    /// </summary>
+    /// <param name="pageNumber">1-based number of the page to scroll to.</param>
+    public void ScrollToPage(int pageNumber)
+    {
+        _targetPageNumber = pageNumber;
+        _targetLocation = null;
+    }
+
+    /// <summary>
     /// Performs the action of an outline item of the panel's document, or navigates to its destination when it has
     /// no action, on the next <see cref="PdfPanelContext.Synchronize"/> once the panel has a size.
     /// </summary>

@@ -36,8 +36,9 @@ jobs:
         run: |
           mkdir -p package/licenses
           cp -r publish/wwwroot/_framework package/
-          find package/_framework -type f \( -name '*.br' -o -name '*.gz' \) -delete
+          find package/_framework -type f -name '*.br' -delete
           cp publish/wwwroot/index.js publish/wwwroot/canvasInterop.js package/
+          cp PdfPixel.PdfPanel.Web/npm/index.d.ts package/
           cp PdfPixel.PdfPanel.Web/npm/package.json PdfPixel.PdfPanel.Web/npm/README.md package/
           cp LICENSE package/
           cp PdfPixel/NOTICE.txt package/licenses/PdfPixel.NOTICE.txt

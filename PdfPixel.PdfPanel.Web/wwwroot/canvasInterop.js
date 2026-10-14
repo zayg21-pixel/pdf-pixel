@@ -130,7 +130,8 @@ class PdfPanelView {
             pointerPressed: false,
             annotationPopup: null,
             activeContentName: null,
-            cursorStyle: 'default',
+            autoScaleMode: 'noAutoScale',
+            cursorStyle: null,
             searchQuery: null,
             currentSearchResult: null,
             searchResults: [],
@@ -211,6 +212,7 @@ class PdfPanelView {
             verticalOffset: this.state.verticalOffset,
             horizontalOffset: this.state.horizontalOffset,
             scale: this.state.scale,
+            autoScaleMode: this.state.autoScaleMode,
             zoomRequest: this.state.zoomRequest,
             scrollWidth: 0,
             scrollHeight: 0,
@@ -237,6 +239,8 @@ class PdfPanelView {
         this.state.verticalOffset = redrawState.verticalOffset;
         this.state.horizontalOffset = redrawState.horizontalOffset;
         this.state.scale = redrawState.scale;
+
+        this.state.autoScaleMode = redrawState.autoScaleMode;
         this.state.currentPage = redrawState.currentPage;
         this.state.pageCount = redrawState.pageCount;
         this.state.isTextExtracted = redrawState.isTextExtracted;
@@ -254,8 +258,8 @@ class PdfPanelView {
             this.state.activeContentName = redrawState.activeContentName || null;
         }
 
-        this.state.cursorStyle = redrawState.cursorStyle || 'default';
-        this.scrollHost.style.cursor = this.state.cursorStyle;
+        this.state.cursorStyle = redrawState.cursorStyle || null;
+        this.scrollHost.style.cursor = this.state.cursorStyle || '';
 
         if (redrawState.openUri) {
             window.open(redrawState.openUri, '_blank', 'noopener,noreferrer');
@@ -635,12 +639,87 @@ export function unregisterPanel(id) {
 }
 
 /**
- * Set the PDF document for the specified view.
+ * Set the PDF document for the specified view. The shown document is kept when loading fails.
  * @param {string} id View id.
  * @param {Uint8Array} documentData PDF file bytes.
+ * @returns {{ ok: true, pageCount: number } | { ok: false, reason: 'empty' | 'encrypted' | 'unsupported' | 'invalid' | 'error', message: string }}
+ * The result of loading the document.
  */
 export function setDocument(id, documentData) {
-    interop.SetDocument(id, documentData);
+    return interop.SetDocument(id, documentData);
+}
+
+/**
+ * Scroll the specified view to a page and view given in the page's PDF user space, on the next render.
+ * Works for pages that have not been shown yet.
+ * @param {string} id View id.
+ * @param {{ pageNumber: number, fitType: string, left?: number, top?: number, right?: number, bottom?: number, zoom?: number }} destination
+ * 1-based page number, a fit type of ISO 32000 Table 149 (`XYZ`, `Fit`, `FitH`, `FitV`, `FitR`, `FitB`, `FitBH`, `FitBV`),
+ * the coordinates that fit type uses and, for `XYZ`, the zoom (`1` = 100%).
+ * @returns {boolean} True if the view has a document and the destination was accepted.
+ */
+export function scrollToDestination(id, destination) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    const accepted = interop.ScrollToDestination(id, destination);
+    view.requestRender();
+    return accepted;
+}
+
+/**
+ * Set the rotation of one page of the specified view, keeping the current page in view.
+ * @param {string} id View id.
+ * @param {number} pageNumber 1-based page number.
+ * @param {number} degrees Rotation in degrees, a multiple of 90, on top of the page's own rotation.
+ * @returns {boolean} True if the view has a document and the rotation was set.
+ */
+export function setPageRotation(id, pageNumber, degrees) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    const applied = interop.SetPageRotation(id, pageNumber, degrees);
+    view.requestRender();
+    return applied;
+}
+
+/**
+ * Set the rotation of every page of the specified view, keeping the current page in view.
+ * @param {string} id View id.
+ * @param {number} degrees Rotation in degrees, a multiple of 90, on top of each page's own rotation.
+ * @returns {boolean} True if the view has a document and the rotation was set.
+ */
+export function setRotation(id, degrees) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    const applied = interop.SetRotation(id, degrees);
+    view.requestRender();
+    return applied;
+}
+
+/**
+ * Set the automatic scaling mode of the specified view. The mode applies to every document loaded afterwards and
+ * returns to `noAutoScale` when the user zooms; the current mode is reported as `autoScaleMode` in the view state.
+ * @param {string} id View id.
+ * @param {'noAutoScale' | 'scaleToWidth' | 'scaleToHeight'} mode The automatic scaling mode.
+ * @returns {boolean} True if the view was found and the mode was set.
+ */
+export function setAutoScaleMode(id, mode) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.state.autoScaleMode = mode;
+    view.requestRender();
+    return true;
 }
 
 /**
@@ -864,33 +943,6 @@ export function framePresented(id, frame) {
 }
 
 /**
- * Creates an empty search results array.
- * Called from C# via JSImport.
- * @returns {object[]} The results array.
- */
-export function createSearchResults() {
-    return [];
-}
-
-/**
- * Appends a search result to a results array.
- * Called from C# via JSImport.
- * @param {object[]} results The results array.
- * @param {number} pageNumber 1-based page number.
- * @param {number} startIndex Index of the first matched character on the page.
- * @param {number} length Number of matched characters.
- * @param {number[]} bounds Area the matched characters cover in unscaled page space as `[left, top, right, bottom]`.
- */
-export function addSearchResult(results, pageNumber, startIndex, length, bounds) {
-    results.push({
-        pageNumber: pageNumber,
-        startIndex: startIndex,
-        length: length,
-        bounds: { left: bounds[0], top: bounds[1], right: bounds[2], bottom: bounds[3] }
-    });
-}
-
-/**
  * Requests a render of the specified view on the next animation frame.
  * Called from C# via JSImport.
  * @param {string} id View id.
@@ -903,51 +955,19 @@ export function scheduleRedraw(id) {
 }
 
 /**
- * Creates an annotation popup object without messages.
+ * Creates an empty object.
  * Called from C# via JSImport.
- * @param {boolean} isInteractive Whether the annotation is interactive.
- * @returns {{ isInteractive: boolean, messages: object[] }} The popup object.
+ * @returns {object} The object.
  */
-export function createAnnotationPopup(isInteractive) {
-    return {
-        isInteractive: isInteractive,
-        messages: []
-    };
+export function createObject() {
+    return {};
 }
 
 /**
- * Creates an annotation message object without replies.
+ * Creates an empty array.
  * Called from C# via JSImport.
- * @param {string | null} title Message author/title.
- * @param {string | null} contents Message text content.
- * @param {string | null} creationDate ISO 8601 creation date.
- * @returns {{ title: string | null, contents: string | null, creationDate: string | null, replies: object[] }} The message object.
+ * @returns {Array} The array.
  */
-export function createAnnotationMessage(title, contents, creationDate) {
-    return {
-        title: title,
-        contents: contents,
-        creationDate: creationDate,
-        replies: []
-    };
-}
-
-/**
- * Appends a message to a popup's messages.
- * Called from C# via JSImport.
- * @param {object} popup The popup object.
- * @param {object} message The message object.
- */
-export function addAnnotationMessage(popup, message) {
-    popup.messages.push(message);
-}
-
-/**
- * Appends a reply to a message's replies.
- * Called from C# via JSImport.
- * @param {object} message The message object.
- * @param {object} reply The reply message object.
- */
-export function addAnnotationReply(message, reply) {
-    message.replies.push(reply);
+export function createArray() {
+    return [];
 }

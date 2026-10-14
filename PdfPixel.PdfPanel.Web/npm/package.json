@@ -17,11 +17,16 @@
     "skia"
   ],
   "type": "module",
+  "types": "./index.d.ts",
   "exports": {
-    ".": "./index.js"
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
   },
   "files": [
     "index.js",
+    "index.d.ts",
     "canvasInterop.js",
     "_framework/",
     "licenses/"
