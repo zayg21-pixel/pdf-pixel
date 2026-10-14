@@ -339,6 +339,12 @@
             <span class="material-symbols-outlined">zoom_in_map</span>
         </button>
 
+        <div class="header-sep"></div>
+
+        <button id="rotateAllPages" class="hdr-icon-btn" title="Rotate all pages">
+            <span class="material-symbols-outlined">rotate_right</span>
+        </button>
+
         <div class="hdr-spacer"></div>
 
         <a id="githubBtn" class="hdr-icon-btn" href="https://github.com/zayg21-pixel/pdf-pixel" target="_blank" rel="noopener" title="View on GitHub">
@@ -396,6 +402,8 @@
         const zoomOutButton = document.getElementById('zoomOut');
         const zoomInButton = document.getElementById('zoomIn');
         const resetZoomButton = document.getElementById('resetZoom');
+        const rotateAllPagesButton = document.getElementById('rotateAllPages');
+        let allPagesRotation = 0;
         const pointerPopupEl = document.getElementById('pointerPopup');
         const searchInput = document.getElementById('searchInput');
         const searchStatus = document.getElementById('searchStatus');
@@ -594,6 +602,11 @@
             pdfPixel.setScale(containerId, 1.0);
         });
 
+        rotateAllPagesButton.addEventListener('click', () => {
+            allPagesRotation = (allPagesRotation + 90) % 360;
+            pdfPixel.setRotation(containerId, allPagesRotation);
+        });
+
         loadPdfBtn.addEventListener('click', () => {
             pdfFileInput.value = '';
             pdfFileInput.click();
@@ -605,7 +618,10 @@
                 return;
             }
             const arrayBuffer = await file.arrayBuffer();
-            await pdfPixel.setDocument(containerId, new Uint8Array(arrayBuffer));
+            const result = pdfPixel.setDocument(containerId, new Uint8Array(arrayBuffer));
+            if (result.ok) {
+                allPagesRotation = 0;
+            }
             pdfPixel.requestRedraw(containerId);
         });
     </script>

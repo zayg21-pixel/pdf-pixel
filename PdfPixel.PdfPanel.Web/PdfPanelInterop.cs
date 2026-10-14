@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color;
-using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -9,7 +7,6 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
-using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Web.Emscripten;
@@ -97,7 +94,7 @@ public partial class PdfPanelInterop
             }
 
             resources.YieldInterval = TimeSpan.FromMilliseconds(configuration.GetPropertyAsDouble("yieldInterval"));
-            ReadConfiguration(configuration, resources.Configuration);
+            PdfPanelJsConverter.ReadConfiguration(configuration, resources.Configuration);
 
             ResourcesMap[containerId] = resources;
         }
@@ -126,7 +123,7 @@ public partial class PdfPanelInterop
 
         try
         {
-            ReadConfiguration(configuration, resources.Configuration);
+            PdfPanelJsConverter.ReadConfiguration(configuration, resources.Configuration);
 
             if (resources.Context != null)
             {
@@ -179,20 +176,25 @@ public partial class PdfPanelInterop
     [JSExport]
     internal static JSObject SetDocument(string containerId, byte[] document)
     {
+        JSObject result = CreateObject();
+
         if (!_isInitialized)
         {
-            return CreateDocumentResult(false, 0, "error", "The runtime is not initialized.");
+            PdfPanelJsConverter.WriteDocumentResult(result, "error", "The runtime is not initialized.");
+            return result;
         }
 
         if (!ResourcesMap.TryGetValue(containerId, out var resources))
         {
             Logger.LogWarning("Received document data for unknown container id '{Id}'", containerId);
-            return CreateDocumentResult(false, 0, "error", $"No panel is registered with id '{containerId}'.");
+            PdfPanelJsConverter.WriteDocumentResult(result, "error", $"No panel is registered with id '{containerId}'.");
+            return result;
         }
 
         if (document == null || document.Length == 0)
         {
-            return CreateDocumentResult(false, 0, "empty", "The document data is empty.");
+            PdfPanelJsConverter.WriteDocumentResult(result, "empty", "The document data is empty.");
+            return result;
         }
 
         IPdfDocument loadedDocument;
@@ -205,7 +207,8 @@ public partial class PdfPanelInterop
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading PDF document for container '{Id}'", containerId);
-            return CreateDocumentResult(false, 0, GetDocumentErrorReason(ex), ex.Message);
+            PdfPanelJsConverter.WriteDocumentResult(result, PdfPanelJsConverter.GetDocumentErrorReason(ex), ex.Message);
+            return result;
         }
 
         try
@@ -232,13 +235,15 @@ public partial class PdfPanelInterop
             resources.SearchResultsChanged = true;
             resources.CurrentSearchRange = null;
 
-            return CreateDocumentResult(true, resources.Pages.Count, null, null);
+            PdfPanelJsConverter.WriteDocumentResult(result, resources.Pages.Count);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error showing PDF document for container '{Id}'", containerId);
-            return CreateDocumentResult(false, 0, "error", ex.Message);
+            PdfPanelJsConverter.WriteDocumentResult(result, "error", ex.Message);
         }
+
+        return result;
     }
 
     /// <summary>
@@ -253,22 +258,13 @@ public partial class PdfPanelInterop
             return false;
         }
 
-        PdfDestinationFitType? fitType = ParseFitType(destination.GetPropertyAsString("fitType"));
+        PdfPageNumberDestination pageDestination = PdfPanelJsConverter.ReadDestination(destination);
 
-        if (fitType == null)
+        if (pageDestination == null)
         {
             Logger.LogWarning("Unknown destination fit type '{FitType}'", destination.GetPropertyAsString("fitType"));
             return false;
         }
-
-        PdfPageNumberDestination pageDestination = new(
-            destination.GetPropertyAsInt32("pageNumber") - 1,
-            fitType.Value,
-            ReadOptionalFloat(destination, "zoom"),
-            ReadOptionalFloat(destination, "left"),
-            ReadOptionalFloat(destination, "bottom"),
-            ReadOptionalFloat(destination, "right"),
-            ReadOptionalFloat(destination, "top"));
 
         context.Actions.ScrollToDestination(pageDestination);
         return true;
@@ -343,7 +339,7 @@ public partial class PdfPanelInterop
             resources.Context.VerticalOffset = verticalOffset;
             resources.Context.HorizontalOffset = horizontalOffset;
             resources.Context.Scale = scale;
-            resources.Context.AutoScaleMode = ParseAutoScaleMode(state.GetPropertyAsString("autoScaleMode")) ?? PdfPanelAutoScaleMode.NoAutoScale;
+            resources.Context.AutoScaleMode = PdfPanelJsConverter.ReadAutoScaleMode(state.GetPropertyAsString("autoScaleMode")) ?? PdfPanelAutoScaleMode.NoAutoScale;
             resources.Context.PanelWidth = width;
             resources.Context.PanelHeight = height;
 
@@ -375,7 +371,7 @@ public partial class PdfPanelInterop
 
             resources.Context.Synchronize();
 
-            state.SetProperty("cursorStyle", GetCursorStyle(resources.Context.Input.Cursor));
+            state.SetProperty("cursorStyle", PdfPanelJsConverter.ToCursorStyle(resources.Context.Input.Cursor));
             state.SetProperty("openUri", resources.OpenUri);
             resources.OpenUri = string.Empty;
 
@@ -410,7 +406,7 @@ public partial class PdfPanelInterop
             state.SetProperty("verticalOffset", resources.Context.VerticalOffset);
             state.SetProperty("horizontalOffset", resources.Context.HorizontalOffset);
             state.SetProperty("scale", resources.Context.Scale);
-            state.SetProperty("autoScaleMode", GetAutoScaleModeName(resources.Context.AutoScaleMode));
+            state.SetProperty("autoScaleMode", PdfPanelJsConverter.ToString(resources.Context.AutoScaleMode));
             state.SetProperty("currentPage", resources.Context.GetCurrentPage());
             state.SetProperty("pageCount", resources.Context.Pages.Count);
 
@@ -475,17 +471,11 @@ public partial class PdfPanelInterop
     /// </summary>
     private static void ApplyCurrentSearchResult(PdfPanelResources resources, JSObject state)
     {
-        PdfPanelTextRange? range = null;
+        PdfPanelTextRange? range;
 
         using (JSObject result = state.GetPropertyAsJSObject("currentSearchResult"))
         {
-            if (result != null)
-            {
-                range = new PdfPanelTextRange(
-                    result.GetPropertyAsInt32("pageNumber"),
-                    result.GetPropertyAsInt32("startIndex"),
-                    result.GetPropertyAsInt32("length"));
-            }
+            range = PdfPanelJsConverter.ReadTextRange(result);
         }
 
         PdfPanelSearchMatch? currentMatch = null;
@@ -532,13 +522,8 @@ public partial class PdfPanelInterop
 
             using JSObject result = CreateObject();
             using JSObject bounds = CreateObject();
-            bounds.SetProperty("left", match.Bounds.Left);
-            bounds.SetProperty("top", match.Bounds.Top);
-            bounds.SetProperty("right", match.Bounds.Right);
-            bounds.SetProperty("bottom", match.Bounds.Bottom);
-            result.SetProperty("pageNumber", match.Range.PageNumber);
-            result.SetProperty("startIndex", match.Range.StartIndex);
-            result.SetProperty("length", match.Range.Length);
+            PdfPanelJsConverter.WriteSearchMatch(result, match);
+            PdfPanelJsConverter.WriteRectangle(bounds, match.Bounds);
             result.SetProperty("bounds", bounds);
 
             results.SetProperty(matchIndex.ToString(CultureInfo.InvariantCulture), result);
@@ -546,83 +531,6 @@ public partial class PdfPanelInterop
 
         state.SetProperty("searchResults", results);
     }
-
-    /// <summary>
-    /// Reads the JS configuration into <paramref name="panelConfiguration"/>.
-    /// Properties absent from it keep their current values.
-    /// </summary>
-    private static void ReadConfiguration(JSObject configuration, PdfPanelConfiguration panelConfiguration)
-    {
-        panelConfiguration.MinScale = ReadFloat(configuration, "minScale", panelConfiguration.MinScale);
-        panelConfiguration.MaxScale = ReadFloat(configuration, "maxScale", panelConfiguration.MaxScale);
-        panelConfiguration.ZoomStep = ReadFloat(configuration, "zoomStep", panelConfiguration.ZoomStep);
-        panelConfiguration.PageGap = ReadFloat(configuration, "pageGap", panelConfiguration.PageGap);
-        panelConfiguration.PanelBackgroundColor = ReadColor(configuration, "panelBackgroundColor", panelConfiguration.PanelBackgroundColor);
-        panelConfiguration.PageCornerRadius = ReadFloat(configuration, "pageCornerRadius", panelConfiguration.PageCornerRadius);
-        panelConfiguration.ShowPageLoadingAnimation = ReadBoolean(configuration, "showPageLoadingAnimation", panelConfiguration.ShowPageLoadingAnimation);
-        panelConfiguration.ExtractAllText = ReadBoolean(configuration, "extractAllText", panelConfiguration.ExtractAllText);
-        panelConfiguration.TextSelectionColor = ReadColor(configuration, "textSelectionColor", panelConfiguration.TextSelectionColor);
-        panelConfiguration.SearchMatchCase = ReadBoolean(configuration, "searchMatchCase", panelConfiguration.SearchMatchCase);
-        panelConfiguration.SearchMatchWholeWord = ReadBoolean(configuration, "searchMatchWholeWord", panelConfiguration.SearchMatchWholeWord);
-        panelConfiguration.SearchMatchDiacritics = ReadBoolean(configuration, "searchMatchDiacritics", panelConfiguration.SearchMatchDiacritics);
-        panelConfiguration.SearchMatchColor = ReadColor(configuration, "searchMatchColor", panelConfiguration.SearchMatchColor);
-        panelConfiguration.SearchCurrentMatchColor = ReadColor(configuration, "searchCurrentMatchColor", panelConfiguration.SearchCurrentMatchColor);
-        panelConfiguration.ContentSelectionBorderThickness = ReadFloat(
-            configuration,
-            "contentSelectionBorderThickness",
-            panelConfiguration.ContentSelectionBorderThickness);
-        panelConfiguration.ContentSelectionBorderColor = ReadColor(configuration, "contentSelectionBorderColor", panelConfiguration.ContentSelectionBorderColor);
-        panelConfiguration.AllowTextSelection = ReadBoolean(configuration, "allowTextSelection", panelConfiguration.AllowTextSelection);
-        panelConfiguration.AllowPageContentHover = ReadBoolean(configuration, "allowPageContentHover", panelConfiguration.AllowPageContentHover);
-        panelConfiguration.AllowImageSelection = ReadBoolean(configuration, "allowImageSelection", panelConfiguration.AllowImageSelection);
-        panelConfiguration.ShowSearchHighlights = ReadBoolean(configuration, "showSearchHighlights", panelConfiguration.ShowSearchHighlights);
-
-        using JSObject layoutPadding = configuration.GetPropertyAsJSObject("layoutPadding");
-
-        if (layoutPadding != null)
-        {
-            PdfRectangle padding = panelConfiguration.LayoutPadding;
-            panelConfiguration.LayoutPadding = new PdfRectangle(
-                ReadFloat(layoutPadding, "left", padding.Left),
-                ReadFloat(layoutPadding, "top", padding.Top),
-                ReadFloat(layoutPadding, "right", padding.Right),
-                ReadFloat(layoutPadding, "bottom", padding.Bottom));
-        }
-    }
-
-    private static float ReadFloat(JSObject source, string name, float currentValue)
-        => source.HasProperty(name) ? (float)source.GetPropertyAsDouble(name) : currentValue;
-
-    private static bool ReadBoolean(JSObject source, string name, bool currentValue)
-        => source.HasProperty(name) ? source.GetPropertyAsBoolean(name) : currentValue;
-
-    private static PdfColor ReadColor(JSObject source, string name, PdfColor currentValue)
-        => source.HasProperty(name) ? PdfColor.ParseHexColor(source.GetPropertyAsString(name)) : currentValue;
-
-    /// <summary>
-    /// Builds the JS result object of <see cref="SetDocument"/>: <c>{ ok, pageCount }</c> when the document loaded,
-    /// <c>{ ok, reason, message }</c> otherwise.
-    /// </summary>
-    private static JSObject CreateDocumentResult(bool ok, int pageCount, string reason, string message)
-    {
-        JSObject result = CreateObject();
-        result.SetProperty("ok", ok);
-
-        if (ok)
-        {
-            result.SetProperty("pageCount", pageCount);
-        }
-        else
-        {
-            result.SetProperty("reason", reason);
-            result.SetProperty("message", message);
-        }
-
-        return result;
-    }
-
-    private static float? ReadOptionalFloat(JSObject source, string name)
-        => (source.GetTypeOfProperty(name) == "number") ? (float)source.GetPropertyAsDouble(name) : null;
 
     private static bool TryGetContext(string containerId, out PdfPanelContext context)
     {
@@ -635,75 +543,6 @@ public partial class PdfPanelInterop
 
         context = resources.Context;
         return true;
-    }
-
-    private static PdfDestinationFitType? ParseFitType(string fitType)
-    {
-        return fitType switch
-        {
-            "XYZ" => PdfDestinationFitType.XYZ,
-            "Fit" => PdfDestinationFitType.Fit,
-            "FitH" => PdfDestinationFitType.FitH,
-            "FitV" => PdfDestinationFitType.FitV,
-            "FitR" => PdfDestinationFitType.FitR,
-            "FitB" => PdfDestinationFitType.FitB,
-            "FitBH" => PdfDestinationFitType.FitBH,
-            "FitBV" => PdfDestinationFitType.FitBV,
-            _ => null
-        };
-    }
-
-    private static PdfPanelAutoScaleMode? ParseAutoScaleMode(string mode)
-    {
-        return mode switch
-        {
-            "noAutoScale" => PdfPanelAutoScaleMode.NoAutoScale,
-            "scaleToWidth" => PdfPanelAutoScaleMode.ScaleToWidth,
-            "scaleToHeight" => PdfPanelAutoScaleMode.ScaleToHeight,
-            _ => null
-        };
-    }
-
-    private static string GetAutoScaleModeName(PdfPanelAutoScaleMode mode)
-    {
-        return mode switch
-        {
-            PdfPanelAutoScaleMode.ScaleToWidth => "scaleToWidth",
-            PdfPanelAutoScaleMode.ScaleToHeight => "scaleToHeight",
-            _ => "noAutoScale"
-        };
-    }
-
-    /// <summary>
-    /// Returns the reason reported to JS for an exception thrown while reading a document:
-    /// <c>encrypted</c>, <c>unsupported</c>, <c>invalid</c> or <c>error</c>.
-    /// </summary>
-    private static string GetDocumentErrorReason(Exception exception)
-    {
-        if (exception is PdfAuthenticationException)
-        {
-            return "encrypted";
-        }
-
-        for (Exception current = exception; current != null; current = current.InnerException)
-        {
-            if (current is NotSupportedException)
-            {
-                return "unsupported";
-            }
-        }
-
-        return (exception is PdfInvalidDocumentException) ? "invalid" : "error";
-    }
-
-    private static string GetCursorStyle(PdfPanelCursor cursor)
-    {
-        return cursor switch
-        {
-            PdfPanelCursor.Hand => "pointer",
-            PdfPanelCursor.IBeam => "text",
-            _ => null
-        };
     }
 
     /// <summary>
@@ -741,9 +580,7 @@ public partial class PdfPanelInterop
 
             using JSObject messageObject = CreateObject();
             using JSObject repliesArray = CreateMessagesArray(message.Replies);
-            messageObject.SetProperty("title", message.Title);
-            messageObject.SetProperty("contents", message.Contents);
-            messageObject.SetProperty("creationDate", message.CreationDate?.ToString("o"));
+            PdfPanelJsConverter.WriteAnnotationMessage(messageObject, message);
             messageObject.SetProperty("replies", repliesArray);
 
             messagesArray.SetProperty(messageIndex.ToString(CultureInfo.InvariantCulture), messageObject);
