@@ -48,6 +48,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ThumbnailItem_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is PdfThumbnailViewModel item)
+        {
+            item.IsRequested = true;
+        }
+    }
+
+    private void ThumbnailItem_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is PdfThumbnailViewModel item)
+        {
+            item.IsRequested = false;
+        }
+    }
+
     private void ThumbnailItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (((FrameworkElement)sender).DataContext is PdfThumbnailViewModel item)

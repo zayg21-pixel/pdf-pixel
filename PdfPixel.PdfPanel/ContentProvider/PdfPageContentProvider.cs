@@ -1,6 +1,8 @@
 using PdfPixel.Commands.Model;
 using PdfPixel.Content;
 using PdfPixel.Content.Model;
+using PdfPixel.Geometry;
+using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
@@ -58,6 +60,11 @@ internal sealed class PdfPageContentProvider : IDisposable
     /// Raised from a work item when a page's characters have been extracted, by text extraction or by rendering.
     /// </summary>
     public event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
+
+    /// <summary>
+    /// Raised from a work item when the thumbnail of a page requested with <see cref="RequestThumbnail"/> was produced.
+    /// </summary>
+    public event EventHandler<PageThumbnailRenderedEventArgs>? PageThumbnailRendered;
 
     /// <summary>
     /// Synchronisation object used to serialise access to the underlying PDF document.
@@ -196,6 +203,37 @@ internal sealed class PdfPageContentProvider : IDisposable
     }
 
     /// <summary>
+    /// Starts producing the thumbnail of the specified 1-based page number: <paramref name="pageThumbnail"/> fitted within
+    /// <paramref name="maximumSize"/> when given, otherwise the page content rendered at <paramref name="renderScale"/>
+    /// into <paramref name="renderSize"/> pixels.
+    /// Returns the observer that cancels the request and identifies it in <see cref="PageThumbnailRendered"/>.
+    /// </summary>
+    public IPdfCancellableExecutionObserver RequestThumbnail(
+        int pageNumber,
+        PdfImage? pageThumbnail,
+        in PdfIntegerSize maximumSize,
+        in PdfIntegerSize renderSize,
+        float renderScale,
+        IReadOnlyDictionary<PdfReference, bool>? optionalContentStates)
+    {
+        IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(pageNumber);
+
+        _processingQueue.Enqueue(new PdfPageThumbnailWorkItem(
+            _cache[pageNumber - 1],
+            _document,
+            DocumentLocker,
+            pageThumbnail,
+            maximumSize,
+            renderSize,
+            renderScale,
+            optionalContentStates,
+            observer,
+            OnPageThumbnailRendered));
+
+        return observer;
+    }
+
+    /// <summary>
     /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.
     /// </summary>
     public PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
@@ -220,6 +258,8 @@ internal sealed class PdfPageContentProvider : IDisposable
     }
 
     private void OnPageTextExtracted(int pageNumber) => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber));
+
+    private void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args) => PageThumbnailRendered?.Invoke(this, args);
 
     private void OnTextExtractionCompleted(int pageNumber)
     {

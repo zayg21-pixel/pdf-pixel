@@ -1,27 +1,26 @@
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
-using System.Threading;
+using PdfPixel.PdfPanel.Thumbnails;
+using System.ComponentModel;
 
 namespace PdfPixel.PdfPanel.Mvvm;
 
 /// <summary>
-/// Bindable thumbnail of a page: the page's thumbnail image (/Thumb) as a PNG file.
+/// Bindable thumbnail of a page as a PNG file, produced while it is requested.
 /// </summary>
-public sealed class PdfThumbnailViewModel
+public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
 {
-    private readonly IPdfPage _page;
-    private readonly object _documentLocker;
-    private byte[]? _png;
-    private bool _isPngDecoded;
+    private readonly PdfPanelThumbnails _thumbnails;
+    private bool _isRequested;
 
-    internal PdfThumbnailViewModel(IPdfPage page, int pageNumber, in PdfPanelPageInfo info, object documentLocker)
+    internal PdfThumbnailViewModel(PdfPanelThumbnails thumbnails, int pageNumber, in PdfPanelPageInfo info)
     {
-        _page = page;
-        _documentLocker = documentLocker;
+        _thumbnails = thumbnails;
         PageNumber = pageNumber;
         Info = info;
     }
+
+    /// <inheritdoc />
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
     /// 1-based number of the page.
@@ -34,56 +33,60 @@ public sealed class PdfThumbnailViewModel
     public PdfPanelPageInfo Info { get; }
 
     /// <summary>
-    /// Size of the thumbnail image in pixels, or <see langword="null"/> when the page has no thumbnail.
+    /// Size of the thumbnail in pixels, or <see langword="null"/> when the page has none.
     /// </summary>
-    public PdfSize? Size
-    {
-        get
-        {
-            lock (_documentLocker)
-            {
-                PdfImage? thumbnail = _page.Thumbnail;
-                if (thumbnail == null)
-                {
-                    return null;
-                }
+    public PdfSize? Size => _thumbnails.GetSize(PageNumber);
 
-                return new PdfSize(thumbnail.Width, thumbnail.Height);
+    /// <summary>
+    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not ready.
+    /// </summary>
+    public byte[]? Png => _thumbnails.GetPng(PageNumber);
+
+    /// <summary>
+    /// Whether the thumbnail is requested: setting it starts producing the thumbnail, clearing it cancels producing.
+    /// </summary>
+    public bool IsRequested
+    {
+        get => _isRequested;
+
+        set
+        {
+            if (_isRequested == value)
+            {
+                return;
             }
+
+            _isRequested = value;
+
+            if (value)
+            {
+                _thumbnails.Request(PageNumber);
+            }
+            else
+            {
+                _thumbnails.Cancel(PageNumber);
+            }
+
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRequested)));
         }
     }
 
     /// <summary>
-    /// Thumbnail image as a PNG file, decoded the first time it is requested, or <see langword="null"/> when
-    /// the page has no thumbnail.
+    /// Reports the thumbnail that became ready.
     /// </summary>
-    public byte[]? Png
+    internal void OnThumbnailReady() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
+
+    /// <summary>
+    /// Reports the dropped thumbnail and requests it again while it is requested.
+    /// </summary>
+    internal void OnCleared()
     {
-        get
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Size)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
+
+        if (_isRequested)
         {
-            if (!_isPngDecoded)
-            {
-                _png = DecodePng();
-                _isPngDecoded = true;
-            }
-
-            return _png;
-        }
-    }
-
-    private byte[]? DecodePng()
-    {
-        lock (_documentLocker)
-        {
-            PdfImage? thumbnail = _page.Thumbnail;
-            if (thumbnail == null)
-            {
-                return null;
-            }
-
-            PdfCancellationExecutionObserver observer = new(CancellationToken.None);
-
-            return thumbnail.DecodePng(PdfImageDecodingParameters.Default, observer);
+            _thumbnails.Request(PageNumber);
         }
     }
 }

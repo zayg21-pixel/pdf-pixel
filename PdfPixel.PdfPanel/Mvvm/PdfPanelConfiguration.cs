@@ -32,6 +32,9 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private bool _allowPageContentHover = true;
     private bool _allowImageSelection = true;
     private bool _showSearchHighlights = true;
+    private bool _usePageThumbnails = true;
+    private bool _renderPageThumbnails = true;
+    private PdfIntegerSize _thumbnailRenderMaximumSize = new(200, 200);
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -231,6 +234,33 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Whether the page's thumbnail image (/Thumb) is used as its thumbnail when present.
+    /// </summary>
+    public bool UsePageThumbnails
+    {
+        get => _usePageThumbnails;
+        set => SetProperty(ref _usePageThumbnails, value, nameof(UsePageThumbnails));
+    }
+
+    /// <summary>
+    /// Whether pages without a used thumbnail image are rendered as their thumbnail.
+    /// </summary>
+    public bool RenderPageThumbnails
+    {
+        get => _renderPageThumbnails;
+        set => SetProperty(ref _renderPageThumbnails, value, nameof(RenderPageThumbnails));
+    }
+
+    /// <summary>
+    /// Size in pixels a rendered page thumbnail is fitted within, keeping its aspect ratio.
+    /// </summary>
+    public PdfIntegerSize ThumbnailRenderMaximumSize
+    {
+        get => _thumbnailRenderMaximumSize;
+        set => SetProperty(ref _thumbnailRenderMaximumSize, value, nameof(ThumbnailRenderMaximumSize));
+    }
+
+    /// <summary>
     /// Sets the settings on <paramref name="context"/>.
     /// </summary>
     public void ApplyConfiguration(PdfPanelContext context)
@@ -261,6 +291,9 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Content.SelectionBorderColor = ContentSelectionBorderColor;
         context.Content.AllowHover = AllowPageContentHover;
         context.Content.AllowImageSelection = AllowImageSelection;
+        context.Thumbnails.UsePageThumbnails = UsePageThumbnails;
+        context.Thumbnails.RenderPages = RenderPageThumbnails;
+        context.Thumbnails.RenderMaximumSize = ThumbnailRenderMaximumSize;
     }
 
     private void SetProperty<T>(ref T field, T value, string propertyName)

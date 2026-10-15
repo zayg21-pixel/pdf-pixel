@@ -226,7 +226,7 @@ public partial class WpfPdfPanel : FrameworkElement
         PdfOutlinesViewModel outlines = new(Pages, _context.Actions);
         outlines.Changed += OnViewModelChanged;
         SetValue(OutlinesPropertyKey, outlines);
-        PdfThumbnailsViewModel thumbnails = new(Pages, _context.Actions);
+        PdfThumbnailsViewModel thumbnails = new(_context.Thumbnails, Pages, _context.Actions);
         thumbnails.Changed += OnViewModelChanged;
         SetValue(ThumbnailsPropertyKey, thumbnails);
     }

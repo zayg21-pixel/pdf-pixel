@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
@@ -9,6 +10,7 @@ using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Thumbnails;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,6 +30,7 @@ public sealed class PdfPanelContext : IDisposable
     private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelGraphics _graphics;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
+    private IReadOnlyDictionary<PdfReference, bool>? _optionalContentStates;
 
     /// <summary>
     /// Initializes the context with the given page collection, surface factory and render target factory.
@@ -51,10 +54,13 @@ public sealed class PdfPanelContext : IDisposable
         Search = new PdfPanelSearch(this, Text, _contentProvider, _graphics);
         Content = new PdfPanelContent(_contentProvider, Input, _graphics);
         Layers = new PdfPanelLayers(_contentProvider.Document);
+        Thumbnails = new PdfPanelThumbnails(_contentProvider, Layers);
         Actions = new PdfPanelActions(this, _contentProvider.Document, Annotations, Layers);
         Renderer = new PdfPanelRenderer(surfaceFactory, _contentProvider, _graphics, synchronizationContext);
+        _optionalContentStates = Layers.Configuration?.ToStates();
 
         _contentProvider.PageTextExtracted += OnPageTextExtracted;
+        _contentProvider.PageThumbnailRendered += OnPageThumbnailRendered;
     }
 
     /// <summary>
@@ -160,6 +166,11 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelLayers Layers { get; }
 
     /// <summary>
+    /// Page thumbnails of the panel, cleared when the visibility of a layer changes.
+    /// </summary>
+    public PdfPanelThumbnails Thumbnails { get; }
+
+    /// <summary>
     /// Actions of the document's open action, of the current page's open and close actions and of activated links,
     /// and navigation to destinations.
     /// </summary>
@@ -210,7 +221,16 @@ public sealed class PdfPanelContext : IDisposable
     public void Render()
     {
         Renderer.RedrawGraphics(_graphics.Update());
-        Renderer.Submit(BuildRequest());
+
+        PagesDrawingRequest request = BuildRequest();
+
+        if (!PagesDrawingRequest.AreOptionalContentStatesEqual(_optionalContentStates, request.OptionalContentStates))
+        {
+            _optionalContentStates = request.OptionalContentStates;
+            Thumbnails.Clear();
+        }
+
+        Renderer.Submit(request);
     }
 
     /// <summary>
@@ -414,6 +434,18 @@ public sealed class PdfPanelContext : IDisposable
         Renderer.RedrawGraphics(_graphics.Update());
     }
 
+    private void OnPageThumbnailRendered(object? sender, PageThumbnailRenderedEventArgs args)
+    {
+        if (_synchronizationContext != null)
+        {
+            _synchronizationContext.Post(_ => Thumbnails.OnPageThumbnailRendered(args), null);
+        }
+        else
+        {
+            Thumbnails.OnPageThumbnailRendered(args);
+        }
+    }
+
     private static float Clamp(float value, float min, float max)
         => Math.Max(min, Math.Min(max, value));
 
@@ -421,6 +453,7 @@ public sealed class PdfPanelContext : IDisposable
     public void Dispose()
     {
         _contentProvider.PageTextExtracted -= OnPageTextExtracted;
+        _contentProvider.PageThumbnailRendered -= OnPageThumbnailRendered;
 
         Annotations.Dispose();
         Text.Dispose();

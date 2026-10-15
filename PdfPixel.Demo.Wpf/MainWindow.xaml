@@ -257,6 +257,8 @@
                                 <StackPanel Margin="0 4"
                                             Background="Transparent"
                                             Cursor="Hand"
+                                            Loaded="ThumbnailItem_Loaded"
+                                            Unloaded="ThumbnailItem_Unloaded"
                                             MouseLeftButtonUp="ThumbnailItem_MouseLeftButtonUp">
                                     <Image Source="{Binding Png}" Stretch="None" />
                                     <TextBlock Text="{Binding Info.Label}" HorizontalAlignment="Center" />
