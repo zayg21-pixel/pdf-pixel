@@ -1,6 +1,7 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Encoding;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Models;
 using PdfPixel.Streams;
@@ -183,12 +184,25 @@ public class PdfImage : PdfXObject
     public PdfImage? Mask { get; }
 
     /// <summary>
-    /// Decodes the image to pixels, with device color spaces resolved through the document's output intent.
+    /// Decodes the whole image to 8-bit pixels at its stored size, or reduced to fit within
+    /// <see cref="PdfImageDecodingParameters.MaximumSize"/>, with device color spaces resolved through the
+    /// document's output intent.
     /// </summary>
-    /// <param name="parameters">Masks to apply and the size to fit within.</param>
+    /// <param name="parameters">Masks to apply, color conversion options and the size to fit within.</param>
     /// <param name="observer">Observer notified as decoding progresses, which can cancel it.</param>
+    /// <returns>
+    /// The decoded pixels, laid out as <see cref="PdfDecodedImage.ColorFormat"/> and
+    /// <see cref="PdfDecodedImage.AlphaType"/> describe.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="parameters"/> or <paramref name="observer"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The image data produced no pixels.</exception>
     public PdfDecodedImage DecodePixels(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
     {
+        if (parameters == null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
         if (observer == null)
         {
             throw new ArgumentNullException(nameof(observer));
@@ -208,6 +222,22 @@ public class PdfImage : PdfXObject
         PdfImageTile tile = tileCache.GetTile(0, observer);
 
         return tile.Image ?? throw new InvalidOperationException($"Image {Reference} produced no pixels.");
+    }
+
+    /// <summary>
+    /// Decodes the whole image as <see cref="DecodePixels"/> does and encodes the pixels as an 8-bit PNG file
+    /// with unpremultiplied alpha.
+    /// </summary>
+    /// <param name="parameters">Masks to apply, color conversion options and the size to fit within.</param>
+    /// <param name="observer">Observer notified as decoding progresses, which can cancel it.</param>
+    /// <returns>The complete PNG file.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="parameters"/> or <paramref name="observer"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The image data produced no pixels.</exception>
+    public byte[] DecodePng(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
+    {
+        PdfDecodedImage decoded = DecodePixels(parameters, observer);
+
+        return PdfDecodedImagePngEncoder.Encode(decoded);
     }
 
     /// <summary>

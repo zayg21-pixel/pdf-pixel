@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>PNG image decoder and encoder for .NET, covering every color type and bit depth, Adam7 interlacing and the chunks of the PNG specification, including the PNG row filters. A standalone managed codec with no rendering dependencies.</Description>
+    <PackageTags>png;deflate;image;decoder;encoder</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>PdfPixel.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

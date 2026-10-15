@@ -104,7 +104,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 | Thumbnails | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Page labels | ✅ | ✅ | ⚠️ *(frame page info, not document data)* | ❌ | ❌ | ❌ |
 | Text selection | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Content extraction | ⚠️ *(text only)* | ⚠️ *(text only)* | ⚠️ *(`getSelectedText`, text only)* | ❌ | ❌ | ❌ |
+| Content extraction | ⚠️ *(text only)* | ✅ *(selected text or image, Ctrl+C)* | ✅ *(selected text or image, Ctrl+C)* | ❌ | ❌ | ❌ |
 | Text search | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Content interaction (hover, image selection) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Annotation interaction (popups, hover) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |

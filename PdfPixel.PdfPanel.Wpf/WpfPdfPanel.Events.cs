@@ -1,11 +1,22 @@
+using PdfPixel.Imaging.Model;
+using PdfPixel.Models;
+using PdfPixel.PdfPanel.Content;
 using System;
+using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 
 namespace PdfPixel.PdfPanel.Wpf;
 
 public partial class WpfPdfPanel
 {
+    /// <summary>
+    /// Clipboard format name applications read PNG data under.
+    /// </summary>
+    private const string PngClipboardFormat = "PNG";
+
     /// <inheritdoc />
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
@@ -40,20 +51,47 @@ public partial class WpfPdfPanel
 
     private void OnCopyCanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = _context?.Text.SelectedText.Length > 0;
+        e.CanExecute = _context != null
+            && (_context.Content.SelectedImage != null || _context.Text.SelectedText.Length > 0);
         e.Handled = true;
     }
 
     private void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e)
     {
-        string text = _context?.Text.SelectedText ?? string.Empty;
+        PdfPanelImageContentItem? selectedImage = _context?.Content.SelectedImage;
 
-        if (text.Length > 0)
+        if (selectedImage != null)
         {
-            Clipboard.SetText(text);
+            CopyImage(selectedImage.Image);
+        }
+        else
+        {
+            string text = _context?.Text.SelectedText ?? string.Empty;
+
+            if (text.Length > 0)
+            {
+                Clipboard.SetText(text);
+            }
         }
 
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Puts <paramref name="image"/> on the clipboard as PNG data and as a bitmap.
+    /// </summary>
+    private static void CopyImage(PdfImage image)
+    {
+        PdfCancellationExecutionObserver observer = new(CancellationToken.None);
+        byte[] png = image.DecodePng(PdfImageDecodingParameters.Default, observer);
+
+        BitmapFrame bitmap = BitmapFrame.Create(new MemoryStream(png), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+
+        DataObject data = new();
+        data.SetData(PngClipboardFormat, new MemoryStream(png));
+        data.SetImage(bitmap);
+
+        Clipboard.SetDataObject(data, copy: true);
     }
 
     /// <inheritdoc />

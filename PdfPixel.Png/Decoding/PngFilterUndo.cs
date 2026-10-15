@@ -1,21 +1,21 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Tiff.Streams;
+namespace PdfPixel.Png.Decoding;
 
 /// <summary>
-/// Undoes the PNG predictor filters (types 0..4).
+/// Undoes the PNG row filters of filter method 0 (filter types 0..4).
 /// </summary>
 public static class PngFilterUndo
 {
     /// <summary>
-    /// Undo a PNG predictor filter in-place on the current row buffer.
+    /// Undo a PNG row filter in-place on the current row buffer.
     /// </summary>
-    /// <param name="filterType">PNG filter byte (0..4).</param>
+    /// <param name="filterType">PNG filter type (0..4).</param>
     /// <param name="currentRow">Current encoded row buffer; modified in-place to decoded row values.</param>
     /// <param name="previousRow">Previously decoded row buffer (same layout) or zeros for first row.</param>
     /// <param name="bytesPerPixel">Bytes per pixel (components * bitsPerComponent rounded up to whole bytes).</param>
-    /// <param name="rowDataOffset">Offset to the first pixel data byte (after margin + filter byte).</param>
+    /// <param name="rowDataOffset">Offset to the first pixel data byte (after margin + filter type byte).</param>
     /// <param name="rowDataLength">Number of pixel data bytes in the row.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void UndoPngFilter(byte filterType, byte[] currentRow, byte[] previousRow, int bytesPerPixel, int rowDataOffset, int rowDataLength)
@@ -112,7 +112,7 @@ public static class PngFilterUndo
     /// Paeth predictor per PNG specification: choose closest of a, b, c to p = a + b - c.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int Paeth(int a, int b, int c)
+    internal static int Paeth(int a, int b, int c)
     {
         int p = a + b - c;
         int pa = p - a;

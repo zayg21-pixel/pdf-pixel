@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
@@ -63,7 +64,7 @@ public sealed class ImageDecodingContext
         CacheDecodedTiles = false;
         TransferFunction = null;
         UseBlackPointCompensation = parameters.UseBlackPointCompensation;
-        FillPaint = PdfPaint.Solid(parameters.FillColor, PdfPaintStyle.Fill);
+        FillPaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Fill);
         ApplyMask = parameters.ApplyMask;
     }
 

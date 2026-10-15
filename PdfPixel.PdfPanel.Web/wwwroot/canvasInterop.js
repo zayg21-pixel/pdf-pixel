@@ -420,13 +420,18 @@ class PdfPanelView {
             return;
         }
 
-        const text = interop.GetSelectedText(this.id);
-        if (!text) {
+        const content = interop.GetSelectedContent(this.id);
+        if (!content) {
             return;
         }
 
         e.preventDefault();
-        navigator.clipboard.writeText(text).catch(err => console.warn(`Failed to write clipboard for view '${this.id}':`, err));
+
+        const written = (content.type === 'image')
+            ? navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([content.png], { type: 'image/png' }) })])
+            : navigator.clipboard.writeText(content.text);
+
+        written.catch(err => console.warn(`Failed to write clipboard for view '${this.id}':`, err));
     }
 
     onResizeRequested() {

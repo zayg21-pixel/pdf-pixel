@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>TIFF image decoder for .NET, covering strips and tiles, chunky and planar layouts, and LZW, Deflate, PackBits, CCITT, JPEG and JPEG 2000 compression. A standalone managed decoder with no rendering dependencies, including standalone LZW, Deflate, run-length and predictor streams.</Description>
+    <Description>TIFF image decoder for .NET, covering strips and tiles, chunky and planar layouts, and LZW, Deflate, PackBits, CCITT, JPEG and JPEG 2000 compression. A standalone managed decoder with no rendering dependencies, including standalone LZW, Deflate and run-length streams.</Description>
     <PackageTags>tiff;tif;lzw;deflate;packbits;image;decoder</PackageTags>
   </PropertyGroup>
 

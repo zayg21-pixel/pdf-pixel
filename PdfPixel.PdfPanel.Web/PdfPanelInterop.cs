@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Navigation.Model;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
@@ -137,17 +139,43 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Returns the currently selected text for the given container, or an empty string if nothing is selected.
+    /// Returns the selected content of the given container: <c>{ type: 'image', png }</c> for a selected image,
+    /// <c>{ type: 'text', text }</c> for selected text, or null when nothing is selected.
     /// </summary>
     [JSExport]
-    public static string GetSelectedText(string containerId)
+    public static JSObject GetSelectedContent(string containerId)
     {
         if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
         {
-            return string.Empty;
+            return null;
         }
 
-        return resources.Context.Text.SelectedText;
+        PdfPanelImageContentItem selectedImage = resources.Context.Content.SelectedImage;
+
+        if (selectedImage != null)
+        {
+            PdfCancellationExecutionObserver observer = new(CancellationToken.None);
+            byte[] png = selectedImage.Image.DecodePng(PdfImageDecodingParameters.Default, observer);
+
+            JSObject image = CreateObject();
+            image.SetProperty("type", "image");
+            image.SetProperty("png", png);
+
+            return image;
+        }
+
+        string text = resources.Context.Text.SelectedText;
+
+        if (text.Length == 0)
+        {
+            return null;
+        }
+
+        JSObject content = CreateObject();
+        content.SetProperty("type", "text");
+        content.SetProperty("text", text);
+
+        return content;
     }
 
     [JSExport]

@@ -1,4 +1,3 @@
-using PdfPixel.Color;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Imaging.Model;
@@ -9,6 +8,11 @@ namespace PdfPixel.Imaging.Model;
 public sealed class PdfImageDecodingParameters
 {
     /// <summary>
+    /// Gets a new instance holding the default values.
+    /// </summary>
+    public static PdfImageDecodingParameters Default => new();
+
+    /// <summary>
     /// When true, the image's mask (/SMask, /SMaskInData or /Mask) is applied as alpha. Defaults to true.
     /// </summary>
     public bool ApplyMask { get; set; } = true;
@@ -17,11 +21,6 @@ public sealed class PdfImageDecodingParameters
     /// Whether black point compensation is applied in color conversions. Defaults to true.
     /// </summary>
     public bool UseBlackPointCompensation { get; set; } = true;
-
-    /// <summary>
-    /// Color an image mask (/ImageMask) paints with. Defaults to black.
-    /// </summary>
-    public PdfColor FillColor { get; set; } = PdfColors.Black;
 
     /// <summary>
     /// Size the decoded image is reduced to fit within, keeping its aspect ratio, or <see langword="null"/>
