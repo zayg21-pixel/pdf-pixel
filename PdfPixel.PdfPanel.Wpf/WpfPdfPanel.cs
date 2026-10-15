@@ -229,6 +229,8 @@ public partial class WpfPdfPanel : FrameworkElement
         PdfThumbnailsViewModel thumbnails = new(_context.Thumbnails, Pages, _context.Actions);
         thumbnails.Changed += OnViewModelChanged;
         SetValue(ThumbnailsPropertyKey, thumbnails);
+        PdfAttachmentsViewModel attachments = new(Pages);
+        SetValue(AttachmentsPropertyKey, attachments);
     }
 
     private void DisposeContext()
@@ -259,6 +261,7 @@ public partial class WpfPdfPanel : FrameworkElement
         }
 
         SetValue(ThumbnailsPropertyKey, null);
+        SetValue(AttachmentsPropertyKey, null);
         _context.Actions.UriRequested -= OnUriRequested;
         _context.Actions.RemoteDocumentRequested -= OnRemoteDocumentRequested;
         _context.Search.MatchesChanged -= OnSearchMatchesChanged;

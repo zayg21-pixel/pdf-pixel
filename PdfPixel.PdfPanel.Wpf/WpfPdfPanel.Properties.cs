@@ -138,6 +138,17 @@ public partial class WpfPdfPanel
     /// </summary>
     public static readonly DependencyProperty ThumbnailsProperty = ThumbnailsPropertyKey.DependencyProperty;
 
+    private static readonly DependencyPropertyKey AttachmentsPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(Attachments),
+        typeof(PdfAttachmentsViewModel),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="Attachments"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty AttachmentsProperty = AttachmentsPropertyKey.DependencyProperty;
+
     private static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(SearchResults),
         typeof(ObservableCollection<PdfPanelSearchMatch>),
@@ -343,6 +354,14 @@ public partial class WpfPdfPanel
     public PdfThumbnailsViewModel? Thumbnails
     {
         get => (PdfThumbnailsViewModel?)GetValue(ThumbnailsProperty);
+    }
+
+    /// <summary>
+    /// Gets the attached files of the shown document, or null when no pages are shown.
+    /// </summary>
+    public PdfAttachmentsViewModel? Attachments
+    {
+        get => (PdfAttachmentsViewModel?)GetValue(AttachmentsProperty);
     }
 
     /// <summary>

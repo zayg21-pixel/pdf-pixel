@@ -267,6 +267,19 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </TabItem>
+
+                <TabItem Header="Attachments">
+                    <ListBox ItemsSource="{Binding Attachments.Items, ElementName=pdfPanel}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfAttachmentViewModel}">
+                                <StackPanel Margin="0 2" ToolTip="{Binding Description}">
+                                    <TextBlock Text="{Binding Name, TargetNullValue='Unnamed file'}" />
+                                    <TextBlock Text="{Binding PageNumber, StringFormat='Page {0}', TargetNullValue='Document'}" Opacity="0.6" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </TabItem>
             </TabControl>
 
             <GridSplitter Grid.Column="1"
