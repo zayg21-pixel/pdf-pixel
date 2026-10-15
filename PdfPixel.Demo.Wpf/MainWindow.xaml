@@ -248,6 +248,23 @@
                         </TreeView>
                     </Grid>
                 </TabItem>
+
+                <TabItem Header="Thumbnails">
+                    <ListBox ItemsSource="{Binding Thumbnails.Items, ElementName=pdfPanel}"
+                             HorizontalContentAlignment="Center">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfThumbnailViewModel}">
+                                <StackPanel Margin="0 4"
+                                            Background="Transparent"
+                                            Cursor="Hand"
+                                            MouseLeftButtonUp="ThumbnailItem_MouseLeftButtonUp">
+                                    <Image Source="{Binding Png}" Stretch="None" />
+                                    <TextBlock Text="{Binding Info.Label}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </TabItem>
             </TabControl>
 
             <GridSplitter Grid.Column="1"

@@ -48,6 +48,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ThumbnailItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is PdfThumbnailViewModel item)
+        {
+            pdfPanel.Thumbnails?.Activate(item);
+        }
+    }
+
     private void LogMessages_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         Dispatcher.BeginInvoke(() =>

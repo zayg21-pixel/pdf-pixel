@@ -127,6 +127,17 @@ public partial class WpfPdfPanel
     /// </summary>
     public static readonly DependencyProperty OutlinesProperty = OutlinesPropertyKey.DependencyProperty;
 
+    private static readonly DependencyPropertyKey ThumbnailsPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(Thumbnails),
+        typeof(PdfThumbnailsViewModel),
+        typeof(WpfPdfPanel),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+
+    /// <summary>
+    /// Identifies the <see cref="Thumbnails"/> dependency property.
+    /// </summary>
+    public static readonly DependencyProperty ThumbnailsProperty = ThumbnailsPropertyKey.DependencyProperty;
+
     private static readonly DependencyPropertyKey SearchResultsPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(SearchResults),
         typeof(ObservableCollection<PdfPanelSearchMatch>),
@@ -324,6 +335,14 @@ public partial class WpfPdfPanel
     public PdfOutlinesViewModel? Outlines
     {
         get => (PdfOutlinesViewModel?)GetValue(OutlinesProperty);
+    }
+
+    /// <summary>
+    /// Gets the page thumbnails of the shown document, or null when no pages are shown.
+    /// </summary>
+    public PdfThumbnailsViewModel? Thumbnails
+    {
+        get => (PdfThumbnailsViewModel?)GetValue(ThumbnailsProperty);
     }
 
     /// <summary>

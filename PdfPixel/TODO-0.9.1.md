@@ -32,3 +32,4 @@ Static document data is returned by `setDocument`; dynamic data arrives through 
 | `/PageMode` | `PdfPixel.PdfPanel.Web` | `IPdfDocument.PageMode` is not reachable from JS; part of the document data |
 | Outlines | `PdfPixel.PdfPanel.Web` | No outline tree in JS: the tree is part of the document data, and activating an item goes through `PdfPanelActions.ActivateOutlineItem` |
 | Optional content | `PdfPixel.PdfPanel.Web` | No layers in JS: the layer tree is part of the document data, and layer visibility is dynamic data with its own setter |
+| Code analysis | `PdfPixel.PdfPanel.Web` | Not analyzed: the project is not a package, so `Directory.Build.props` gives it none of the package settings. It needs the same `Nullable`, `AnalysisMode`, `EnforceCodeStyleInBuild` and Roslynator analyzers as the packages, with the resulting warnings fixed |
