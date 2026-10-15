@@ -4,7 +4,7 @@ namespace PdfPixel.Geometry;
 /// Identifies the kind of a <see cref="PdfPathSegment"/>. The numeric value doubles as the tag byte
 /// written into <see cref="PdfPath"/>'s internal binary buffer ahead of each segment's points.
 /// </summary>
-public enum PdfPathSegmentType
+public enum PdfPathSegmentType : byte
 {
     /// <summary>
     /// Starts a new subpath at a point.

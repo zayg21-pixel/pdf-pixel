@@ -4,7 +4,7 @@ namespace PdfPixel.Fonts.Model;
 /// Tag byte written into a <see cref="PdfFontPathBuilder"/>'s encoded buffer ahead of each
 /// segment's points.
 /// </summary>
-internal enum PdfFontPathSegmentType
+internal enum PdfFontPathSegmentType : byte
 {
     /// <summary>
     /// Starts a new subpath at a point.

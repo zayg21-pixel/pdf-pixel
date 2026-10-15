@@ -10,6 +10,7 @@ dotnet_diagnostic.CS1591.severity = warning  # Missing XML comment for publicly 
 # CA suppressions
 
 dotnet_diagnostic.CA1002.severity = none   # Do not expose generic lists
+dotnet_diagnostic.CA1028.severity = none   # Enum storage should be Int32
 dotnet_diagnostic.CA1056.severity = none   # URI properties should not be strings
 dotnet_diagnostic.CA1307.severity = none   # Specify StringComparison for clarity [not in .NET Standard]
 dotnet_diagnostic.CA1310.severity = none   # Specify StringComparison for correctness [not in .NET Standard]
