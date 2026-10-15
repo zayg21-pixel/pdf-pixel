@@ -54,57 +54,23 @@ internal class PdfOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
     }
 
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public void ProcessOperator(in PdfString token, ref PdfGraphicsState graphicsState)
     {
-        var handled = false;
+        PdfOperator op = token.AsOperator();
 
-        if (!handled && _graphicsStateOperators.CanProcess(op))
-        {
-            _graphicsStateOperators.ProcessOperator(op, ref graphicsState);
-            handled = true;
-        }
-
-        if (!handled && _textOperators.CanProcess(op))
-        {
-            _textOperators.ProcessOperator(op, ref graphicsState);
-            handled = true;
-        }
-
-        if (!handled && _pathOperators.CanProcess(op))
-        {
-            _pathOperators.ProcessOperator(op, ref graphicsState);
-            handled = true;
-        }
-
-        if (!handled && _colorOperators.CanProcess(op))
-        {
-            _colorOperators.ProcessOperator(op, ref graphicsState);
-            handled = true;
-        }
-
-        if (!handled && _inlineImageOperators.CanProcess(op))
-        {
-            _inlineImageOperators.ProcessOperator(op, ref graphicsState);
-            handled = true;
-        }
-
-        if (!handled && _markedContentOperators.CanProcess(op))
-        {
-            _markedContentOperators.ProcessOperator(op, ref graphicsState);
-            handled = true;
-        }
-
-        if (!handled && _miscOperators.CanProcess(op))
-        {
-            _miscOperators.ProcessOperator(op, ref graphicsState);
-            handled = true;
-        }
+        bool handled = _pathOperators.ProcessOperator(op, ref graphicsState)
+            || _graphicsStateOperators.ProcessOperator(op, ref graphicsState)
+            || _colorOperators.ProcessOperator(op, ref graphicsState)
+            || _textOperators.ProcessOperator(op, ref graphicsState)
+            || _markedContentOperators.ProcessOperator(op, ref graphicsState)
+            || _inlineImageOperators.ProcessOperator(op, ref graphicsState)
+            || _miscOperators.ProcessOperator(op, ref graphicsState);
 
         if (!handled)
         {
-            ProcessUnknownOperator(op);
+            ProcessUnknownOperator(token);
         }
     }
 
-    private void ProcessUnknownOperator(string op) => _logger.LogWarning("Unknown PDF operator {Op}' with {Count} operands on stack", op, _operandStack.Count);
+    private void ProcessUnknownOperator(in PdfString token) => _logger.LogWarning("Unknown PDF operator {Op}' with {Count} operands on stack", token.ToString(), _operandStack.Count);
 }

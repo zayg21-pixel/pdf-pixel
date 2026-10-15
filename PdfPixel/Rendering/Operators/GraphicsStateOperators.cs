@@ -14,10 +14,6 @@ namespace PdfPixel.Rendering.Operators;
 
 internal class GraphicsStateOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = [
-        "q","Q","cm","w","J","j","M","d","gs","ri","i"
-    ];
-
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfOperandStack _operandStack;
@@ -33,79 +29,83 @@ internal class GraphicsStateOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<GraphicsStateOperators>();
     }
 
-    public bool CanProcess(string op) => SupportedOperators.Contains(op);
-
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
-            case "q":
+            case PdfOperator.SaveState:
             {
                 // Save graphics state
                 ProcessSaveGraphicsState(graphicsState);
                 break;
             }
-            case "Q":
+            case PdfOperator.RestoreState:
             {
                 // Restore graphics state
                 ProcessRestoreGraphicsState(ref graphicsState);
                 break;
             }
-            case "cm":
+            case PdfOperator.ConcatMatrix:
             {
                 // Concatenate matrix
                 ProcessConcatenateMatrix(graphicsState);
                 break;
             }
-            case "w":
+            case PdfOperator.LineWidth:
             {
                 // Set line width
                 ProcessSetLineWidth(graphicsState);
                 break;
             }
-            case "J":
+            case PdfOperator.LineCap:
             {
                 // Set line cap style
                 ProcessSetLineCap(graphicsState);
                 break;
             }
-            case "j":
+            case PdfOperator.LineJoin:
             {
                 // Set line join style
                 ProcessSetLineJoin(graphicsState);
                 break;
             }
-            case "M":
+            case PdfOperator.MiterLimit:
             {
                 // Set miter limit
                 ProcessSetMiterLimit(graphicsState);
                 break;
             }
-            case "d":
+            case PdfOperator.DashPattern:
             {
                 // Set dash pattern
                 ProcessSetDashPattern(graphicsState);
                 break;
             }
-            case "gs":
+            case PdfOperator.GraphicsStateParameters:
             {
                 // Set graphics state parameters from ExtGState
                 ProcessSetGraphicsStateParameters(graphicsState);
                 break;
             }
-            case "ri":
+            case PdfOperator.RenderingIntent:
             {
                 // Set rendering intent
                 ProcessSetRenderingIntent(graphicsState);
                 break;
             }
-            case "i":
+            case PdfOperator.Flatness:
             {
                 // Set flatness tolerance
                 ProcessSetFlatnessTolerance(graphicsState);
                 break;
             }
+            default:
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     private void ProcessSetRenderingIntent(PdfGraphicsState graphicsState)

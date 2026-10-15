@@ -98,11 +98,9 @@ internal class PdfContentStreamRenderer
 
             if (operatorName != null)
             {
-                string op = operatorName.Value.ToString();
-
                 try
                 {
-                    operatorProcessor.ProcessOperator(op, ref graphicsState);
+                    operatorProcessor.ProcessOperator(operatorName.Value, ref graphicsState);
                 }
                 catch (OperationCanceledException)
                 {
@@ -111,7 +109,7 @@ internal class PdfContentStreamRenderer
 #pragma warning disable CA1031
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, op);
+                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, operatorName.Value.ToString());
                 }
 #pragma warning restore CA1031
 

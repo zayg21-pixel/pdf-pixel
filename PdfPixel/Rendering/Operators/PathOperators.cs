@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -16,31 +15,6 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class PathOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = [
-        // Path construction
-        "m",
-        "l",
-        "c",
-        "v",
-        "y",
-        "h",
-        "re",
-        // Clipping
-        "W",
-        "W*",
-        // Painting
-        "S",
-        "s",
-        "f",
-        "F",
-        "f*",
-        "B",
-        "B*",
-        "b",
-        "b*",
-        "n"
-    ];
-
     private readonly IPdfRenderer _renderer;
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
@@ -61,46 +35,44 @@ internal class PathOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<PathOperators>();
     }
 
-    public bool CanProcess(string op) => SupportedOperators.Contains(op);
-
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
             // -----------------------------------------------------------------
             // Path construction operators
             // -----------------------------------------------------------------
-            case "m":
+            case PdfOperator.MoveTo:
             {
                 ProcessMoveTo();
                 break;
             }
-            case "l":
+            case PdfOperator.LineTo:
             {
                 ProcessLineTo();
                 break;
             }
-            case "c":
+            case PdfOperator.CurveTo:
             {
                 ProcessCurveTo();
                 break;
             }
-            case "v":
+            case PdfOperator.CurveToV:
             {
                 ProcessCurveToV();
                 break;
             }
-            case "y":
+            case PdfOperator.CurveToY:
             {
                 ProcessCurveToY();
                 break;
             }
-            case "h":
+            case PdfOperator.ClosePath:
             {
                 ProcessClosePath();
                 break;
             }
-            case "re":
+            case PdfOperator.Rectangle:
             {
                 ProcessRectangle();
                 break;
@@ -108,12 +80,12 @@ internal class PathOperators : IOperatorProcessor
             // -----------------------------------------------------------------
             // Clipping path operators (establish clipping path from current path)
             // -----------------------------------------------------------------
-            case "W":
+            case PdfOperator.Clip:
             {
                 ProcessSetClippingPath(PdfPathFillType.Winding);
                 break;
             }
-            case "W*":
+            case PdfOperator.ClipEvenOdd:
             {
                 ProcessSetClippingPath(PdfPathFillType.EvenOdd);
                 break;
@@ -121,53 +93,59 @@ internal class PathOperators : IOperatorProcessor
             // -----------------------------------------------------------------
             // Path painting operators
             // -----------------------------------------------------------------
-            case "S":
+            case PdfOperator.Stroke:
             {
                 ProcessStrokePath(graphicsState);
                 break;
             }
-            case "s":
+            case PdfOperator.CloseAndStroke:
             {
                 ProcessCloseAndStrokePath(graphicsState);
                 break;
             }
-            case "f":
-            case "F":
+            case PdfOperator.Fill:
+            case PdfOperator.FillObsolete:
             {
                 ProcessFillPath(graphicsState, PdfPathFillType.Winding);
                 break;
             }
-            case "f*":
+            case PdfOperator.FillEvenOdd:
             {
                 ProcessFillPath(graphicsState, PdfPathFillType.EvenOdd);
                 break;
             }
-            case "B":
+            case PdfOperator.FillAndStroke:
             {
                 ProcessFillAndStrokePath(graphicsState, PdfPathFillType.Winding);
                 break;
             }
-            case "B*":
+            case PdfOperator.FillAndStrokeEvenOdd:
             {
                 ProcessFillAndStrokePath(graphicsState, PdfPathFillType.EvenOdd);
                 break;
             }
-            case "b":
+            case PdfOperator.CloseFillAndStroke:
             {
                 ProcessCloseFillAndStrokePath(graphicsState, PdfPathFillType.Winding);
                 break;
             }
-            case "b*":
+            case PdfOperator.CloseFillAndStrokeEvenOdd:
             {
                 ProcessCloseFillAndStrokePath(graphicsState, PdfPathFillType.EvenOdd);
                 break;
             }
-            case "n":
+            case PdfOperator.EndPath:
             {
                 ProcessEndPath(graphicsState);
                 break;
             }
+            default:
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     // ---------------------- Helper Implementations --------------------------

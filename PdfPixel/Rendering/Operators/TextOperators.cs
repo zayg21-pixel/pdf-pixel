@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
@@ -18,30 +17,6 @@ internal class TextOperators : IOperatorProcessor
 {
     private readonly ShapedGlyphBuffer _glyphBuffer = new();
 
-    private static readonly HashSet<string> SupportedOperators = [
-        // Text object operators
-        "BT",
-        "ET",
-        // Text state operators
-        "Tf",
-        "Tc",
-        "Tw",
-        "Tz",
-        "TL",
-        "Ts",
-        "Tr",
-        // Text positioning operators
-        "Td",
-        "TD",
-        "T*",
-        "Tm",
-        // Text showing operators
-        "Tj",
-        "TJ",
-        "'",
-        "\""
-    ];
-
     private readonly IPdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
@@ -57,98 +32,102 @@ internal class TextOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<TextOperators>();
     }
 
-    public bool CanProcess(string op) => SupportedOperators.Contains(op);
-
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
-            case "BT":
+            case PdfOperator.BeginText:
                 {
                     ProcessBeginText(graphicsState);
                     break;
                 }
-            case "ET":
+            case PdfOperator.EndText:
                 {
                     ProcessEndText(graphicsState);
                     break;
                 }
-            case "Tf":
+            case PdfOperator.TextFont:
                 {
                     ProcessSetFont(graphicsState);
                     break;
                 }
-            case "Tc":
+            case PdfOperator.CharacterSpacing:
                 {
                     ProcessSetCharacterSpacing(graphicsState);
                     break;
                 }
-            case "Tw":
+            case PdfOperator.WordSpacing:
                 {
                     ProcessSetWordSpacing(graphicsState);
                     break;
                 }
-            case "Tz":
+            case PdfOperator.HorizontalScaling:
                 {
                     ProcessSetHorizontalScaling(graphicsState);
                     break;
                 }
-            case "TL":
+            case PdfOperator.TextLeading:
                 {
                     ProcessSetTextLeading(graphicsState);
                     break;
                 }
-            case "Ts":
+            case PdfOperator.TextRise:
                 {
                     ProcessSetTextRise(graphicsState);
                     break;
                 }
-            case "Tr":
+            case PdfOperator.TextRenderingMode:
                 {
                     ProcessSetTextRenderingMode(graphicsState);
                     break;
                 }
-            case "Td":
+            case PdfOperator.MoveTextPosition:
                 {
                     ProcessMoveTextPosition(graphicsState);
                     break;
                 }
-            case "TD":
+            case PdfOperator.MoveTextPositionAndSetLeading:
                 {
                     ProcessMoveTextPositionAndSetLeading(graphicsState);
                     break;
                 }
-            case "T*":
+            case PdfOperator.NextLine:
                 {
                     ProcessNextLine(graphicsState);
                     break;
                 }
-            case "Tm":
+            case PdfOperator.TextMatrix:
                 {
                     ProcessSetTextMatrix(graphicsState);
                     break;
                 }
-            case "Tj":
+            case PdfOperator.ShowText:
                 {
                     ProcessShowText(graphicsState);
                     break;
                 }
-            case "'":
+            case PdfOperator.ShowTextNextLine:
                 {
                     ProcessShowTextNextLine(graphicsState);
                     break;
                 }
-            case "TJ":
+            case PdfOperator.ShowTextWithPositioning:
                 {
                     ProcessShowTextWithPositioning(graphicsState);
                     break;
                 }
-            case "\"":
+            case PdfOperator.SetSpacingAndShowText:
                 {
                     ProcessSetSpacingAndShowText(graphicsState);
                     break;
                 }
+            default:
+                {
+                    return false;
+                }
         }
+
+        return true;
     }
 
     private void ProcessBeginText(PdfGraphicsState graphicsState)

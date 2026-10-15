@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using PdfPixel.Models;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
@@ -16,26 +15,6 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class ColorOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = [
-        // Device color setting (non-stroking)
-        "g",
-        "rg",
-        "k",
-        // Device color setting (stroking)
-        "G",
-        "RG",
-        "K",
-        // Color space selection
-        "cs",
-        "CS",
-        // Generic color setting in current color space
-        "sc",
-        "SC",
-        // Extended color setting allowing patterns (Name operand allowed)
-        "scn",
-        "SCN"
-    ];
-
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
 
@@ -45,78 +24,82 @@ internal class ColorOperators : IOperatorProcessor
         _host = host;
     }
 
-    public bool CanProcess(string op) => SupportedOperators.Contains(op);
-
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
-            case "g":
-            case "rg":
-            case "k":
+            case PdfOperator.FillGray:
+            case PdfOperator.FillRgb:
+            case PdfOperator.FillCmyk:
             {
                 ProcessDeviceFillColor(op, graphicsState);
                 break;
             }
-            case "G":
-            case "RG":
-            case "K":
+            case PdfOperator.StrokeGray:
+            case PdfOperator.StrokeRgb:
+            case PdfOperator.StrokeCmyk:
             {
                 ProcessDeviceStrokeColor(op, graphicsState);
                 break;
             }
-            case "cs":
+            case PdfOperator.FillColorSpace:
             {
                 ProcessSetFillColorSpace(graphicsState);
                 break;
             }
-            case "CS":
+            case PdfOperator.StrokeColorSpace:
             {
                 ProcessSetStrokeColorSpace(graphicsState);
                 break;
             }
-            case "sc":
+            case PdfOperator.FillColor:
             {
                 ProcessSetFillColor(graphicsState);
                 break;
             }
-            case "SC":
+            case PdfOperator.StrokeColor:
             {
                 ProcessSetStrokeColor(graphicsState);
                 break;
             }
-            case "scn":
+            case PdfOperator.FillColorN:
             {
                 ProcessSetFillColorN(graphicsState);
                 break;
             }
-            case "SCN":
+            case PdfOperator.StrokeColorN:
             {
                 ProcessSetStrokeColorN(graphicsState);
                 break;
             }
+            default:
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
-    private void ProcessDeviceFillColor(string op, PdfGraphicsState state)
+    private void ProcessDeviceFillColor(PdfOperator op, PdfGraphicsState state)
     {
         int expected;
         PdfColorSpaceType space;
         switch (op)
         {
-            case "g":
+            case PdfOperator.FillGray:
             {
                 expected = 1;
                 space = PdfColorSpaceType.DeviceGray;
                 break;
             }
-            case "rg":
+            case PdfOperator.FillRgb:
             {
                 expected = 3;
                 space = PdfColorSpaceType.DeviceRGB;
                 break;
             }
-            case "k":
+            case PdfOperator.FillCmyk:
             {
                 expected = 4;
                 space = PdfColorSpaceType.DeviceCMYK;
@@ -147,25 +130,25 @@ internal class ColorOperators : IOperatorProcessor
         state.FillPaint = state.FillPaint.WithSolidColor(color);
     }
 
-    private void ProcessDeviceStrokeColor(string op, PdfGraphicsState state)
+    private void ProcessDeviceStrokeColor(PdfOperator op, PdfGraphicsState state)
     {
         int expected;
         PdfColorSpaceType space;
         switch (op)
         {
-            case "G":
+            case PdfOperator.StrokeGray:
             {
                 expected = 1;
                 space = PdfColorSpaceType.DeviceGray;
                 break;
             }
-            case "RG":
+            case PdfOperator.StrokeRgb:
             {
                 expected = 3;
                 space = PdfColorSpaceType.DeviceRGB;
                 break;
             }
-            case "K":
+            case PdfOperator.StrokeCmyk:
             {
                 expected = 4;
                 space = PdfColorSpaceType.DeviceCMYK;

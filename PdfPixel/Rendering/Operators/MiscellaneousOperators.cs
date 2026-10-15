@@ -9,7 +9,6 @@ using PdfPixel.Shading.Model;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Operators;
 
@@ -19,19 +18,6 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class MiscellaneousOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = [
-        // XObject invocation
-        "Do",
-        // Compatibility
-        "BX",
-        "EX",
-        // Type 3 font metrics
-        "d0",
-        "d1",
-        // Shading
-        "sh"
-    ];
-
     private readonly IPdfRenderer _renderer;
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
@@ -47,43 +33,47 @@ internal class MiscellaneousOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
     }
 
-    public bool CanProcess(string op) => SupportedOperators.Contains(op);
-
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
-            case "Do":
+            case PdfOperator.InvokeXObject:
             {
                 ProcessInvokeXObject(graphicsState);
                 break;
             }
-            case "BX":
+            case PdfOperator.BeginCompatibility:
             {
                 ProcessBeginCompatibility();
                 break;
             }
-            case "EX":
+            case PdfOperator.EndCompatibility:
             {
                 ProcessEndCompatibility();
                 break;
             }
-            case "d0":
+            case PdfOperator.GlyphWidth:
             {
                 // handled by type 3 font.
                 break;
             }
-            case "d1":
+            case PdfOperator.GlyphWidthAndBoundingBox:
             {
                 // handled by type 3 font.
                 break;
             }
-            case "sh":
+            case PdfOperator.Shading:
             {
                 ProcessShading(graphicsState);
                 break;
             }
+            default:
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     private void ProcessInvokeXObject(PdfGraphicsState graphicsState)

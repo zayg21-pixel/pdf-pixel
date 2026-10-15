@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Model;
 using PdfPixel.Imaging.Model;
@@ -16,10 +15,6 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class InlineImageOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = [
-        "BI", "ID", "EI"
-    ];
-
     private readonly IPdfRenderer _renderer;
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
@@ -33,28 +28,32 @@ internal class InlineImageOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<InlineImageOperators>();
     }
 
-    public bool CanProcess(string op) => SupportedOperators.Contains(op);
-
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
-            case "BI":
+            case PdfOperator.BeginInlineImage:
             {
                 // Begin Inline Image - no action needed, parameters will be collected on stack
                 break;
             }
-            case "ID":
+            case PdfOperator.InlineImageData:
             {
                 // Inline Image - comsumed by EI operator, so no action needed here
                 break;
             }
-            case "EI":
+            case PdfOperator.EndInlineImage:
             {
                 ProcessEndInlineImage(ref graphicsState);
                 break;
             }
+            default:
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     private void ProcessEndInlineImage(ref PdfGraphicsState graphicsState)

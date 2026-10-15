@@ -16,7 +16,7 @@ namespace PdfPixel.Diagnostics;
 /// </summary>
 internal static class Profiler
 {
-    private const int TopCount = 25;
+    private const int TopCount = 60;
 
     private const int CircularBufferMegabytes = 256;
 

@@ -5,6 +5,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
+using PdfPixel.Rendering.Operators;
 using PdfPixel.Rendering.State;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
@@ -184,11 +185,9 @@ public class PdfType3Font : PdfSingleByteFont
 
             if (operatorName != null)
             {
-                string op = operatorName.Value.ToString();
-
-                switch (op)
+                switch (operatorName.Value.AsOperator())
                 {
-                    case "d0":
+                    case PdfOperator.GlyphWidth:
                     {
                             ReadOnlySpan<IPdfValue> operands = operandStack.Pop(6);
 
@@ -208,7 +207,7 @@ public class PdfType3Font : PdfSingleByteFont
                         type3Advancement = new PdfSize(wx.Value, wy.Value);
                         return (type3Advancement, type3BoundingBox);
                     }
-                    case "d1":
+                    case PdfOperator.GlyphWidthAndBoundingBox:
                     {
                             ReadOnlySpan<IPdfValue> operands = operandStack.Pop(6);
 

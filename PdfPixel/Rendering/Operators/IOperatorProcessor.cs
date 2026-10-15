@@ -9,17 +9,10 @@ namespace PdfPixel.Rendering.Operators;
 internal interface IOperatorProcessor
 {
     /// <summary>
-    /// Determines whether this processor can handle the specified operator token.
+    /// Processes an operator when it belongs to this processor's subset.
     /// </summary>
-    /// <param name="op">The operator token (e.g. "q", "BT", "Tj").</param>
-    /// <returns>True if this processor supports the operator; otherwise false.</returns>
-    bool CanProcess(string op);
-
-    /// <summary>
-    /// Processes an operator assuming <see cref="CanProcess"/> returned true.
-    /// Implementations must not throw for unknown operators; caller ensures eligibility.
-    /// </summary>
-    /// <param name="op">The operator token.</param>
+    /// <param name="op">The operator.</param>
     /// <param name="graphicsState">The current graphics state (may be mutated or replaced).</param>
-    void ProcessOperator(string op, ref PdfGraphicsState graphicsState);
+    /// <returns>True if this processor processed the operator; otherwise false.</returns>
+    bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState);
 }

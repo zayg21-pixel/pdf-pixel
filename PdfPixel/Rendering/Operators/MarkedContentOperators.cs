@@ -16,14 +16,6 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class MarkedContentOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = [
-        "MP",
-        "DP",
-        "BMC",
-        "BDC",
-        "EMC"
-    ];
-
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
@@ -37,43 +29,47 @@ internal class MarkedContentOperators : IOperatorProcessor
         _structureTree = host.Document.StructureTree;
     }
 
-    public bool CanProcess(string op) => SupportedOperators.Contains(op);
-
-    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
-            case "MP":
+            case PdfOperator.MarkedContentPoint:
             {
                 // Marked content point
                 ProcessMarkedContentPoint(graphicsState);
                 break;
             }
-            case "DP":
+            case PdfOperator.MarkedContentPointWithProperties:
             {
                 // Marked content point with properties
                 ProcessMarkedContentPointWithProperties(graphicsState);
                 break;
             }
-            case "BMC":
+            case PdfOperator.BeginMarkedContent:
             {
                 // Begin marked content
                 ProcessBeginMarkedContent(graphicsState);
                 break;
             }
-            case "BDC":
+            case PdfOperator.BeginMarkedContentWithProperties:
             {
                 // Begin marked content with properties
                 ProcessBeginMarkedContentWithProperties(graphicsState);
                 break;
             }
-            case "EMC":
+            case PdfOperator.EndMarkedContent:
             {
                 // End marked content
                 ProcessEndMarkedContent();
                 break;
             }
+            default:
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     private void ProcessMarkedContentPoint(PdfGraphicsState graphicsState)
