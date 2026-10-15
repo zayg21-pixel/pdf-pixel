@@ -10,7 +10,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 
 ## Documentation
 
-- [PdfPixel.Examples](PdfPixel.Examples) — a console project with runnable examples: rendering a PDF page, applying ICC transforms, decoding JPEG, JPEG 2000, JBIG2, CCITT and TIFF
+- [PdfPixel.Examples](PdfPixel.Examples) — a console project with runnable examples: rendering a PDF page, extracting its text and images, applying ICC transforms, decoding JPEG, JPEG 2000, JBIG2, CCITT and TIFF, and decoding and encoding PNG
 
 ---
 

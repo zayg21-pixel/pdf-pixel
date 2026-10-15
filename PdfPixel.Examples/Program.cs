@@ -16,11 +16,13 @@ internal static class Program
         Console.WriteLine();
 
         PdfExamples.Run();
+        ContentExamples.Run();
         JpgExamples.Run();
         JpxExamples.Run();
         Jbig2Examples.Run();
         CcittExamples.Run();
         TiffExamples.Run();
+        PngExamples.Run();
 
         Console.WriteLine();
         Console.WriteLine("Done.");

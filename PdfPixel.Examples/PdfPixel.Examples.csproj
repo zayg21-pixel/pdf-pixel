@@ -15,13 +15,13 @@
     <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
     <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" />
     <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
+    <ProjectReference Include="..\PdfPixel.Png\PdfPixel.Png.csproj" />
     <ProjectReference Include="..\PdfPixel.Tiff\PdfPixel.Tiff.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageReference Include="SkiaSharp" Version="4.150.1" />
-    <PackageReference Include="System.IO.Hashing" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>

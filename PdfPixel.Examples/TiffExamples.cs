@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using PdfPixel.Color.Icc;
@@ -8,6 +9,8 @@ using PdfPixel.Color.Icc.Model;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
+using PdfPixel.Png.Encoding;
+using PdfPixel.Png.Model;
 using PdfPixel.Tiff.Decoding;
 using PdfPixel.Tiff.Model;
 using PdfPixel.Tiff.Parsing;
@@ -83,8 +86,10 @@ internal static class TiffExamples
         // RgbPacked is three tightly-packed bytes, so the buffer reinterprets as 24-bit PNG rows.
         ReadOnlySpan<byte> rows = MemoryMarshal.AsBytes<RgbPacked>(pixels);
 
+        PngImageInfo pngInfo = new() { Width = decoder.Width, Height = decoder.Height, BitDepth = 8, ColorType = PngColorType.Truecolor };
         string outputPath = ExamplePaths.Output(Format, "baboon-cmyk-srgb.png");
-        PngWriter.Write(outputPath, decoder.Width, decoder.Height, bitDepth: 8, PngColorType.Truecolor, decoder.Width * 3, rows);
+        using FileStream output = File.Create(outputPath);
+        PngWriter.Write(output, pngInfo, rows, decoder.Width * 3, adaptiveFiltering: true, CompressionLevel.Optimal);
 
         Console.WriteLine(
             $"[Tiff]   {profile.Header.ColorSpace} profile, {decoder.Width}x{decoder.Height} -> {ExamplePaths.Relative(outputPath)}");

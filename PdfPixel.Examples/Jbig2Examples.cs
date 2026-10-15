@@ -1,7 +1,10 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Jbig2.Model;
+using PdfPixel.Png.Encoding;
+using PdfPixel.Png.Model;
 
 namespace PdfPixel.Examples;
 
@@ -41,8 +44,10 @@ internal static class Jbig2Examples
             rows[index] = (byte)~bitmapData[index];
         }
 
+        PngImageInfo pngInfo = new() { Width = bitmap.Width, Height = bitmap.Height, BitDepth = 1, ColorType = PngColorType.Grayscale };
         string outputPath = ExamplePaths.Output(Format, "baboon.png");
-        PngWriter.Write(outputPath, bitmap.Width, bitmap.Height, bitDepth: 1, PngColorType.Gray, bitmap.Stride, rows);
+        using FileStream output = File.Create(outputPath);
+        PngWriter.Write(output, pngInfo, rows, bitmap.Stride, adaptiveFiltering: true, CompressionLevel.Optimal);
 
         Console.WriteLine($"[Jbig2]   {bitmap.Width}x{bitmap.Height} -> {ExamplePaths.Relative(outputPath)}");
     }

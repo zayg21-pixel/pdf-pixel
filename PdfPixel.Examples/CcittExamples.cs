@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using PdfPixel.Ccitt;
+using PdfPixel.Png.Encoding;
+using PdfPixel.Png.Model;
 
 namespace PdfPixel.Examples;
 
@@ -47,8 +50,10 @@ internal static class CcittExamples
         }
 
         // With BlackIs1 off a clear bit is black, which is what PNG reads too.
+        PngImageInfo pngInfo = new() { Width = Width, Height = Height, BitDepth = 1, ColorType = PngColorType.Grayscale };
         string outputPath = ExamplePaths.Output(Format, "baboon-g4.png");
-        PngWriter.Write(outputPath, Width, Height, bitDepth: 1, PngColorType.Gray, decoder.RowStride, rows);
+        using FileStream output = File.Create(outputPath);
+        PngWriter.Write(output, pngInfo, rows, decoder.RowStride, adaptiveFiltering: true, CompressionLevel.Optimal);
 
         Console.WriteLine($"[Ccitt]   {Width}x{Height}, {decoder.RowsDecoded} row(s) -> {ExamplePaths.Relative(outputPath)}");
     }

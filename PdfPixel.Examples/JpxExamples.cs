@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using PdfPixel.Jpx.Decoding;
 using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
+using PdfPixel.Png.Encoding;
+using PdfPixel.Png.Model;
 
 namespace PdfPixel.Examples;
 
@@ -85,8 +88,10 @@ internal static class JpxExamples
 
         // A cdef box can declare an opacity component, which the converter appends to the colors.
         PngColorType colorType = (converter.ComponentCount == 4) ? PngColorType.TruecolorAlpha : PngColorType.Truecolor;
+        PngImageInfo pngInfo = new() { Width = converter.Width, Height = converter.Height, BitDepth = 8, ColorType = colorType };
         string outputPath = ExamplePaths.Output(Format, outputFileName);
-        PngWriter.Write(outputPath, converter.Width, converter.Height, bitDepth: 8, colorType, rowBytes, samples);
+        using FileStream output = File.Create(outputPath);
+        PngWriter.Write(output, pngInfo, samples, rowBytes, adaptiveFiltering: true, CompressionLevel.Optimal);
 
         Console.WriteLine($"[Jpx]   {converter.Width}x{converter.Height} -> {ExamplePaths.Relative(outputPath)}");
     }

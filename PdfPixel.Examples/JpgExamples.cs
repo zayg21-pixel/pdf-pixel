@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using PdfPixel.Color.Icc;
@@ -12,6 +13,8 @@ using PdfPixel.Jpg.Color;
 using PdfPixel.Jpg.Decoding;
 using PdfPixel.Jpg.Model;
 using PdfPixel.Jpg.Readers;
+using PdfPixel.Png.Encoding;
+using PdfPixel.Png.Model;
 
 namespace PdfPixel.Examples;
 
@@ -93,9 +96,11 @@ internal static class JpgExamples
         }
 
         // A single-component JPEG is gray, three are RGB. OutputStride is one row of samples.
-        PngColorType colorType = (header.ComponentCount == 1) ? PngColorType.Gray : PngColorType.Truecolor;
+        PngColorType colorType = (header.ComponentCount == 1) ? PngColorType.Grayscale : PngColorType.Truecolor;
+        PngImageInfo pngInfo = new() { Width = decodingParameters.OutputWidth, Height = decodingParameters.OutputHeight, BitDepth = 8, ColorType = colorType };
         string outputPath = ExamplePaths.Output(Format, outputFileName);
-        PngWriter.Write(outputPath, decodingParameters.OutputWidth, decodingParameters.OutputHeight, bitDepth: 8, colorType, decodingParameters.OutputStride, samples);
+        using FileStream output = File.Create(outputPath);
+        PngWriter.Write(output, pngInfo, samples, decodingParameters.OutputStride, adaptiveFiltering: true, CompressionLevel.Optimal);
 
         Console.WriteLine($"[Jpg]   {decodingParameters.OutputWidth}x{decodingParameters.OutputHeight} -> {ExamplePaths.Relative(outputPath)}");
     }
@@ -155,8 +160,11 @@ internal static class JpgExamples
         // RgbPacked is three tightly-packed bytes, so the buffer reinterprets as 24-bit PNG rows.
         ReadOnlySpan<byte> rows = MemoryMarshal.AsBytes<RgbPacked>(pixels);
 
+        PngImageInfo pngInfo = new() { Width = decodingParameters.OutputWidth, Height = decodingParameters.OutputHeight, BitDepth = 8, ColorType = PngColorType.Truecolor };
+
         string outputPath = ExamplePaths.Output(Format, "baboon-cmyk-srgb.png");
-        PngWriter.Write(outputPath, decodingParameters.OutputWidth, decodingParameters.OutputHeight, bitDepth: 8, PngColorType.Truecolor, decodingParameters.OutputWidth * 3, rows);
+        using FileStream output = File.Create(outputPath);
+        PngWriter.Write(output, pngInfo, rows, decodingParameters.OutputWidth * 3, adaptiveFiltering: true, CompressionLevel.Optimal);
 
         Console.WriteLine(
             $"[Jpg]   {profile.Header.ColorSpace} profile, {decodingParameters.OutputWidth}x{decodingParameters.OutputHeight} -> {ExamplePaths.Relative(outputPath)}");

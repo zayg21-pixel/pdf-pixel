@@ -35,9 +35,10 @@ internal static class PdfExamples
         RenderPage("the whole page at scale 3", "page-scale-3.png", scale: 3f, userRotation: 0, region: null);
 
         // A region is given in PDF units measured from the bottom-left corner of the page, as the
-        // two corners (minimum x, minimum y, maximum x, maximum y). This one covers the shape row.
-        PdfRectangle shapeRow = new(40f, 450f, 555f, 640f);
-        RenderPage("one region of the page at scale 2", "page-region.png", scale: 2f, userRotation: 0, shapeRow);
+        // two corners (minimum x, minimum y, maximum x, maximum y). This one covers the swatch strip
+        // and the top half of the photo: only the image tiles inside the region are decoded.
+        PdfRectangle swatchesAndPhoto = new(40f, 148f, 555f, 340f);
+        RenderPage("one region of the page at scale 2", "page-region.png", scale: 2f, userRotation: 0, swatchesAndPhoto);
 
         // Rotation is clockwise and must be a multiple of 90; it adds to the page's own /Rotate.
         RenderPage("the whole page turned 90 degrees", "page-rotated-90.png", scale: 1f, userRotation: 90, region: null);
