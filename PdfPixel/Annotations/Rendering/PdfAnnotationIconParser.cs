@@ -5,7 +5,7 @@ using PdfPixel.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Xml.Linq;
+using System.Xml;
 
 namespace PdfPixel.Annotations.Rendering;
 
@@ -30,27 +30,31 @@ internal static class PdfAnnotationIconParser
     /// <summary>
     /// Parses a single <c>&lt;Icon&gt;</c> XML element into a <see cref="PdfAnnotationIconDefinition"/>.
     /// </summary>
-    /// <param name="iconElement">The <c>&lt;Icon&gt;</c> element to parse.</param>
-    public static PdfAnnotationIconDefinition Parse(XElement iconElement)
+    /// <param name="reader">The reader positioned on the <c>&lt;Icon&gt;</c> start element.</param>
+    public static PdfAnnotationIconDefinition Parse(XmlReader reader)
     {
-        string name = RequireAttribute(iconElement, "name");
-        float width = ParseFloat(iconElement, "width");
-        float height = ParseFloat(iconElement, "height");
-        string stateValue = iconElement.Attribute("state")?.Value ?? "Normal";
+        string name = RequireAttribute(reader, "name");
+        float width = ParseFloat(reader, "width");
+        float height = ParseFloat(reader, "height");
+        string stateValue = reader.GetAttribute("state") ?? "Normal";
         PdfAnnotationVisualStateKind visualState = ParseVisualState(stateValue);
 
         PdfMatrix viewportMatrix;
-        XAttribute? viewBoxAttribute = iconElement.Attribute("viewBox");
+        string? viewBoxValue = reader.GetAttribute("viewBox");
 
-        viewportMatrix = (viewBoxAttribute != null)
-            ? ParseViewBox(viewBoxAttribute.Value, width, height)
+        viewportMatrix = (viewBoxValue != null)
+            ? ParseViewBox(viewBoxValue, width, height)
             : PdfMatrix.CreateScaleTranslation(1, -1, 0, height);
 
         List<PdfAnnotationIconPath> paths = [];
 
-        foreach (XElement pathElement in iconElement.Elements("path"))
+        if (reader.ReadToDescendant("path"))
         {
-            paths.Add(ParsePath(pathElement));
+            do
+            {
+                paths.Add(ParsePath(reader));
+            }
+            while (reader.ReadToNextSibling("path"));
         }
 
         return new PdfAnnotationIconDefinition(name, width, height, visualState, viewportMatrix, paths.ToArray());
@@ -67,20 +71,20 @@ internal static class PdfAnnotationIconParser
         };
     }
 
-    private static PdfAnnotationIconPath ParsePath(XElement pathElement)
+    private static PdfAnnotationIconPath ParsePath(XmlReader reader)
     {
-        string pathData = RequireAttribute(pathElement, "d");
-        PdfPathFillType fillType = ParseFillType(pathElement.Attribute("fill-rule")?.Value ?? "nonzero");
+        string pathData = RequireAttribute(reader, "d");
+        PdfPathFillType fillType = ParseFillType(reader.GetAttribute("fill-rule") ?? "nonzero");
         PdfPath path = PdfAnnotationSvgPathParser.Parse(pathData, fillType);
 
-        (PdfAnnotationIconColorType fillColorType, PdfColor fillColor) = ParseColorValue(pathElement.Attribute("fill")?.Value);
-        (PdfAnnotationIconColorType strokeColorType, PdfColor strokeColor) = ParseColorValue(pathElement.Attribute("stroke")?.Value);
+        (PdfAnnotationIconColorType fillColorType, PdfColor fillColor) = ParseColorValue(reader.GetAttribute("fill"));
+        (PdfAnnotationIconColorType strokeColorType, PdfColor strokeColor) = ParseColorValue(reader.GetAttribute("stroke"));
 
-        float strokeWidth = ParseFloatValue(pathElement.Attribute("stroke-width")?.Value ?? "1");
-        PdfStrokeCap strokeCap = ParseStrokeCap(pathElement.Attribute("stroke-linecap")?.Value ?? "butt");
-        PdfStrokeJoin strokeJoin = ParseStrokeJoin(pathElement.Attribute("stroke-linejoin")?.Value ?? "miter");
-        float fillOpacity = ParseFloatValue(pathElement.Attribute("fill-opacity")?.Value ?? "1");
-        float strokeOpacity = ParseFloatValue(pathElement.Attribute("stroke-opacity")?.Value ?? "1");
+        float strokeWidth = ParseFloatValue(reader.GetAttribute("stroke-width") ?? "1");
+        PdfStrokeCap strokeCap = ParseStrokeCap(reader.GetAttribute("stroke-linecap") ?? "butt");
+        PdfStrokeJoin strokeJoin = ParseStrokeJoin(reader.GetAttribute("stroke-linejoin") ?? "miter");
+        float fillOpacity = ParseFloatValue(reader.GetAttribute("fill-opacity") ?? "1");
+        float strokeOpacity = ParseFloatValue(reader.GetAttribute("stroke-opacity") ?? "1");
 
         return new PdfAnnotationIconPath(path, fillColorType, fillColor, strokeColorType, strokeColor, strokeWidth, strokeCap, strokeJoin, fillOpacity, strokeOpacity);
     }
@@ -149,21 +153,21 @@ internal static class PdfAnnotationIconParser
         };
     }
 
-    private static float ParseFloat(XElement element, string attributeName)
-        => ParseFloatValue(RequireAttribute(element, attributeName));
+    private static float ParseFloat(XmlReader reader, string attributeName)
+        => ParseFloatValue(RequireAttribute(reader, attributeName));
 
     private static float ParseFloatValue(string value)
         => float.Parse(value, CultureInfo.InvariantCulture);
 
-    private static string RequireAttribute(XElement element, string attributeName)
+    private static string RequireAttribute(XmlReader reader, string attributeName)
     {
-        XAttribute? attribute = element.Attribute(attributeName);
+        string? value = reader.GetAttribute(attributeName);
 
-        if (attribute == null)
+        if (value == null)
         {
-            throw new InvalidOperationException($"Missing required attribute '{attributeName}' on <{element.Name}>.");
+            throw new InvalidOperationException($"Missing required attribute '{attributeName}' on <{reader.Name}>.");
         }
 
-        return attribute.Value;
+        return value;
     }
 }

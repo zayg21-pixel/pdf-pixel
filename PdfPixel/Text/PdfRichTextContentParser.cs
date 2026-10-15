@@ -1,7 +1,8 @@
 using PdfPixel.Models;
 using System;
+using System.IO;
 using System.Text;
-using System.Xml.Linq;
+using System.Xml;
 
 namespace PdfPixel.Text;
 
@@ -23,41 +24,48 @@ internal static class PdfRichTextContentParser
             return null;
         }
 
+        XmlReaderSettings settings = new()
+        {
+            IgnoreWhitespace = true,
+            DtdProcessing = DtdProcessing.Parse,
+            MaxCharactersFromEntities = 10_000_000
+        };
+
         try
         {
-            var document = XDocument.Parse(richText.Value.ToString(), LoadOptions.None);
+            using StringReader textReader = new(richText.Value.ToString());
+            using XmlReader reader = XmlReader.Create(textReader, settings);
             StringBuilder builder = new();
-            AppendText(document.Root, builder);
-            return (PdfString)builder.ToString().Trim();
-        }
-        catch (Exception exception) when (exception is System.Xml.XmlException or ArgumentException)
-        {
-            return null;
-        }
-    }
 
-    private static void AppendText(XElement? element, StringBuilder builder)
-    {
-        if (element == null)
-        {
-            return;
-        }
-
-        foreach (XNode node in element.Nodes())
-        {
-            if (node is XText textNode)
+            while (reader.Read())
             {
-                builder.Append(textNode.Value);
-            }
-            else if (node is XElement childElement)
-            {
-                AppendText(childElement, builder);
-
-                if (childElement.Name.LocalName is "br" or "p" or "div")
+                switch (reader.NodeType)
                 {
-                    builder.Append('\n');
+                    case XmlNodeType.Text:
+                    case XmlNodeType.CDATA:
+                    case XmlNodeType.SignificantWhitespace:
+                    {
+                        builder.Append(reader.Value);
+                        break;
+                    }
+                    case XmlNodeType.Element when reader.IsEmptyElement:
+                    case XmlNodeType.EndElement:
+                    {
+                        if (reader.Depth > 0 && reader.LocalName is "br" or "p" or "div")
+                        {
+                            builder.Append('\n');
+                        }
+
+                        break;
+                    }
                 }
             }
+
+            return (PdfString)builder.ToString().Trim();
+        }
+        catch (Exception exception) when (exception is XmlException or ArgumentException)
+        {
+            return null;
         }
     }
 }

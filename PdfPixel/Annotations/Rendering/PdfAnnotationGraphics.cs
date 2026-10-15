@@ -6,8 +6,8 @@ using PdfPixel.Geometry;
 using PdfPixel.Resources;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml.Linq;
+using System.IO;
+using System.Xml;
 
 namespace PdfPixel.Annotations.Rendering;
 
@@ -38,17 +38,13 @@ internal static class PdfAnnotationGraphics
     static PdfAnnotationGraphics()
     {
         byte[] resourceBytes = PdfResourceLoader.GetResource("AnnotationIcons.xml");
-        string xmlContent = Encoding.UTF8.GetString(resourceBytes);
-        var document = XDocument.Parse(xmlContent);
-        XElement? rootElement = document.Root;
+        using MemoryStream stream = new(resourceBytes);
+        using XmlReader reader = XmlReader.Create(stream);
 
-        if (rootElement != null)
+        while (reader.ReadToFollowing("Icon"))
         {
-            foreach (XElement iconElement in rootElement.Elements("Icon"))
-            {
-                PdfAnnotationIconDefinition definition = PdfAnnotationIconParser.Parse(iconElement);
-                Icons[(definition.Name, definition.VisualState)] = definition;
-            }
+            PdfAnnotationIconDefinition definition = PdfAnnotationIconParser.Parse(reader);
+            Icons[(definition.Name, definition.VisualState)] = definition;
         }
     }
 

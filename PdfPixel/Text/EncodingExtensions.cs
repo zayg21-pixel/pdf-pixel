@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Text;
-using System.Text.RegularExpressions;
 using PdfPixel.Models;
 
 namespace PdfPixel.Text;
@@ -108,7 +107,31 @@ public static class EncodingExtensions
             return result;
         }
 
-        return Regex.Replace(result, @"\x1b[^\x1b]*(?:\x1b|$)", string.Empty);
+        StringBuilder builder = new(result.Length);
+        int index = 0;
+
+        while (index < result.Length)
+        {
+            int escapeStart = result.IndexOf('\x1b', index);
+
+            if (escapeStart < 0)
+            {
+                builder.Append(result, index, result.Length - index);
+                break;
+            }
+
+            builder.Append(result, index, escapeStart - index);
+            int escapeEnd = result.IndexOf('\x1b', escapeStart + 1);
+
+            if (escapeEnd < 0)
+            {
+                break;
+            }
+
+            index = escapeEnd + 1;
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>
