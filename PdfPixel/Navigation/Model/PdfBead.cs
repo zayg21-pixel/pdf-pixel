@@ -30,6 +30,11 @@ public sealed class PdfBead
     public PdfRectangle? Rectangle { get; }
 
     /// <summary>
+    /// Thread whose bead chain reaches the bead, or <see langword="null"/> when no thread of the document does.
+    /// </summary>
+    public PdfThread? Thread { get; private set; }
+
+    /// <summary>
     /// The bead held by <paramref name="key"/> of <paramref name="owner"/>, or <see langword="null"/> when absent.
     /// </summary>
     internal static PdfBead? GetBead(PdfDictionary owner, in PdfString key)
@@ -66,35 +71,23 @@ public sealed class PdfBead
     }
 
     /// <summary>
-    /// Next bead of the thread (/N), or <see langword="null"/> when absent.
+    /// Beads of <paramref name="thread"/> (/F, then /N) in reading order, each bound to the thread. A bead reached
+    /// a second time through the chain ends it.
     /// </summary>
-    public PdfBead? GetNext() => GetBead(_dictionary, PdfTokens.BeadNextKey);
-
-    /// <summary>
-    /// Previous bead of the thread (/V), or <see langword="null"/> when absent.
-    /// </summary>
-    public PdfBead? GetPrevious() => GetBead(_dictionary, PdfTokens.BeadPreviousKey);
-
-    /// <summary>
-    /// Thread the bead belongs to (/T), or <see langword="null"/> when no bead before it names one.
-    /// </summary>
-    public PdfThread? GetThread()
+    internal static List<PdfBead> FromThread(PdfDictionary threadDictionary, PdfThread thread)
     {
+        List<PdfBead> result = [];
         HashSet<PdfBead> visitedBeads = [];
-        var bead = this;
+        PdfBead? bead = GetBead(threadDictionary, PdfTokens.ThreadFirstBeadKey);
 
         while (bead != null && visitedBeads.Add(bead))
         {
-            PdfThread? thread = PdfThread.GetThread(bead._dictionary, PdfTokens.BeadThreadKey);
-            if (thread != null)
-            {
-                return thread;
-            }
-
-            bead = bead.GetPrevious();
+            bead.Thread = thread;
+            result.Add(bead);
+            bead = GetBead(bead._dictionary, PdfTokens.BeadNextKey);
         }
 
-        return null;
+        return result;
     }
 
     private static PdfBead? FromObject(PdfObject beadObject)

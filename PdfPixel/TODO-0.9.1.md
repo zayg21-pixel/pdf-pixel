@@ -4,7 +4,6 @@
 
 | Entry | Location | Spec | Work |
 |---|---|---|---|
-| Thumbnails | `PdfPixel.PdfPanel/Mvvm` | 12.3.4 | No page thumbnails: a view model with an image per page, the page's `/Thumb` (`IPdfPage.Thumbnail`) when present, otherwise a low-resolution render, and navigation to the page on click; shown as a Thumbnails tab in the WPF demo side panel |
 | `/PageMode` | `PdfPixel.Demo.Wpf` | Table 29 | Not honored: the side panel always starts hidden. The document's `IPdfDocument.PageMode` would open it on the matching tab when a document is loaded: Contents for `UseOutlines`, Layers for `UseOC`, Attachments for `UseAttachments`, Thumbnails for `UseThumbs` |
 | Content interaction layer | `PdfPixel.PdfPanel` | 14.9.3, 14.9.4, 14.13 | No interaction with non-text content: a separate layer built from the content tree (`PdfContentTreeBuilder.Root`) would show `/ActualText` or `/Alt` of images and shadings in a popup on hover, and select an image on click so it can be copied (Ctrl+C). Files associated with content (`PdfContentScope.AssociatedFiles`: marked content and XObject `/AF`) are parsed but not shown: the layer would place an attachment icon over the content's bounds that saves or opens the file through the file API |
 | `/UserUnit` | `PdfPixel.PdfPanel/PdfPanelPageInfo.cs` | Table 31, 8.3.2.3 | Not supported: pages are laid out in their own units, so pages with different user units keep the wrong relative size. Supporting it adds a per-page scale on top of the global zoom, which layout, rendering and screen-to-page mapping must apply. Page content is unaffected; the value is already exposed as `IPdfPage.UserUnit` |
@@ -32,4 +31,13 @@ Static document data is returned by `setDocument`; dynamic data arrives through 
 | `/PageMode` | `PdfPixel.PdfPanel.Web` | `IPdfDocument.PageMode` is not reachable from JS; part of the document data |
 | Outlines | `PdfPixel.PdfPanel.Web` | No outline tree in JS: the tree is part of the document data, and activating an item goes through `PdfPanelActions.ActivateOutlineItem` |
 | Optional content | `PdfPixel.PdfPanel.Web` | No layers in JS: the layer tree is part of the document data, and layer visibility is dynamic data with its own setter |
+| Thumbnails | `PdfPixel.PdfPanel.Web` | No thumbnails in JS: `PdfPanelThumbnails` is not reachable. JS requests and cancels the thumbnail of a page, receives the PNG when it is ready, and activating a thumbnail navigates to its page |
 | Code analysis | `PdfPixel.PdfPanel.Web` | Not analyzed: the project is not a package, so `Directory.Build.props` gives it none of the package settings. It needs the same `Nullable`, `AnalysisMode`, `EnforceCodeStyleInBuild` and Roslynator analyzers as the packages, with the resulting warnings fixed |
+
+## 4. Performance and stability
+
+| Item | Location | Work |
+|---|---|---|
+| Document reading | `Models`, `PdfDocumentReader` | `IPdfDocument` and `IPdfPage` resolve part of their model on demand from the shared document stream, so the model is not thread-safe and the panel locks `DocumentLocker` around reads, even for values resolved when the document is read (`OpenAction`, `AdditionalActions`). Resolved on demand: `IPdfPage.Annotations`, `Thumbnail` and `Beads`; `Destinations.Resolve` (named destinations and the page index, cached on first use); `PdfOutlines` items; `PdfThread` and `PdfBead` chains; the structure tree's elements. Lazy loading becomes the exception, kept for large models such as the structure tree; everything else is resolved when the document is read |
+| Slow page render | CRH_2021 | A page of CRH_2021 renders slowly; needs profiling to find the cause |
+| Crash on fast scroll | `PdfPixel.PdfPanel.Wpf` | The WPF demo crashes in Release builds when scrolling fast; the source of the crash is not found yet |

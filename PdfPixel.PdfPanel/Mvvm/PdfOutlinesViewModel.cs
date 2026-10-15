@@ -33,7 +33,7 @@ public sealed class PdfOutlinesViewModel
             return;
         }
 
-        Items = PdfOutlineItemViewModel.CreateItems(outlines.EnumerateItems(), pages.DocumentLocker);
+        Items = PdfOutlineItemViewModel.CreateItems(outlines.Items);
     }
 
     /// <summary>

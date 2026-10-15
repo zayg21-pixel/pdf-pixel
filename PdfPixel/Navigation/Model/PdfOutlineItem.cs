@@ -12,23 +12,30 @@ namespace PdfPixel.Navigation.Model;
 /// </summary>
 public sealed class PdfOutlineItem
 {
-    private readonly PdfDictionary _dictionary;
-    private readonly PdfOutlines _outlines;
-
-    internal PdfOutlineItem(PdfDictionary dictionary, PdfOutlines outlines)
+    private PdfOutlineItem(
+        PdfDictionary dictionary,
+        PdfOutlineItem? parent,
+        PdfDestinationResolver destinations,
+        PdfStructureTree? structureTree,
+        HashSet<PdfReference> visitedItems)
     {
-        _dictionary = dictionary;
-        _outlines = outlines;
+        Parent = parent;
         Title = dictionary.GetString(PdfTokens.OutlineTitleKey);
         Count = dictionary.GetInteger(PdfTokens.CountKey);
-        Destination = outlines.Destinations.Parse(dictionary, PdfTokens.DestKey);
+        Destination = destinations.Parse(dictionary, PdfTokens.DestKey);
         Action = PdfAction.FromDictionary(dictionary.GetDictionary(PdfTokens.AKey));
-        StructureElement = ReadStructureElement(dictionary, outlines.StructureTree);
+        StructureElement = ReadStructureElement(dictionary, structureTree);
         Color = ReadColor(dictionary.GetArray(PdfTokens.ColorKey));
 
         int flags = dictionary.GetInteger(PdfTokens.OutlineFlagsKey) ?? 0;
         Flags = (PdfOutlineItemFlags)flags & (PdfOutlineItemFlags.Italic | PdfOutlineItemFlags.Bold);
+        Items = ReadItems(dictionary, this, destinations, structureTree, visitedItems);
     }
+
+    /// <summary>
+    /// Parent outline item, or <see langword="null"/> for a top-level item.
+    /// </summary>
+    public PdfOutlineItem? Parent { get; }
 
     /// <summary>
     /// Text displayed for the item (/Title), or <see langword="null"/> when absent.
@@ -73,22 +80,39 @@ public sealed class PdfOutlineItem
     public PdfOutlineItemFlags Flags { get; }
 
     /// <summary>
-    /// Child outline items (/First, then /Next) in order.
+    /// Child outline items (/First, then /Next) in order. Empty if the item has none.
     /// </summary>
-    public IEnumerable<PdfOutlineItem> EnumerateItems() => _outlines.EnumerateItems(_dictionary);
+    public IReadOnlyList<PdfOutlineItem> Items { get; }
 
     /// <summary>
-    /// Parent outline item (/Parent), or <see langword="null"/> when the parent is the outline dictionary.
+    /// Outline items under <paramref name="parentDictionary"/> (/First, then /Next) in order. An item reached
+    /// a second time anywhere in the outline ends its chain.
     /// </summary>
-    public PdfOutlineItem? GetParent()
+    internal static List<PdfOutlineItem> ReadItems(
+        PdfDictionary parentDictionary,
+        PdfOutlineItem? parent,
+        PdfDestinationResolver destinations,
+        PdfStructureTree? structureTree,
+        HashSet<PdfReference> visitedItems)
     {
-        PdfDictionary? parent = _dictionary.GetDictionary(PdfTokens.ParentKey);
-        if (parent == null || _dictionary.GetReference(PdfTokens.ParentKey) == _outlines.Reference)
+        List<PdfOutlineItem> items = [];
+        PdfDictionary? item = parentDictionary.GetDictionary(PdfTokens.FirstKey);
+        PdfReference? reference = parentDictionary.GetReference(PdfTokens.FirstKey);
+
+        while (item != null)
         {
-            return null;
+            if (reference != null && !visitedItems.Add(reference.Value))
+            {
+                break;
+            }
+
+            items.Add(new PdfOutlineItem(item, parent, destinations, structureTree, visitedItems));
+
+            reference = item.GetReference(PdfTokens.NextKey);
+            item = item.GetDictionary(PdfTokens.NextKey);
         }
 
-        return new PdfOutlineItem(parent, _outlines);
+        return items;
     }
 
     private static PdfStructureElement? ReadStructureElement(PdfDictionary dictionary, PdfStructureTree? structureTree)

@@ -9,11 +9,8 @@ namespace PdfPixel.Navigation.Model;
 /// </summary>
 public sealed class PdfThread
 {
-    private readonly PdfDictionary _dictionary;
-
     private PdfThread(PdfDictionary dictionary)
     {
-        _dictionary = dictionary;
         Metadata = PdfMetadata.FromDictionary(dictionary);
 
         PdfDictionary? information = dictionary.GetDictionary(PdfTokens.ThreadInformationKey);
@@ -21,6 +18,8 @@ public sealed class PdfThread
         {
             Information = new PdfDocumentInformation(information);
         }
+
+        Beads = PdfBead.FromThread(dictionary, this);
     }
 
     /// <summary>
@@ -34,10 +33,9 @@ public sealed class PdfThread
     public PdfMetadata? Metadata { get; }
 
     /// <summary>
-    /// The thread held by <paramref name="key"/> of <paramref name="owner"/>, or <see langword="null"/> when absent.
+    /// Beads of the thread (/F, then /N) in reading order. A bead reached a second time through the chain ends it.
     /// </summary>
-    internal static PdfThread? GetThread(PdfDictionary owner, in PdfString key)
-        => owner.Document.ObjectCache.GetOrCreate(owner, key, FromObject);
+    public IReadOnlyList<PdfBead> Beads { get; }
 
     /// <summary>
     /// The thread at <paramref name="index"/> of <paramref name="array"/>, or <see langword="null"/> when absent.
@@ -67,21 +65,6 @@ public sealed class PdfThread
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Beads of the thread (/F, then /N) in reading order. A bead reached a second time through the chain ends it.
-    /// </summary>
-    public IEnumerable<PdfBead> EnumerateBeads()
-    {
-        HashSet<PdfBead> visitedBeads = [];
-        PdfBead? bead = PdfBead.GetBead(_dictionary, PdfTokens.ThreadFirstBeadKey);
-
-        while (bead != null && visitedBeads.Add(bead))
-        {
-            yield return bead;
-            bead = bead.GetNext();
-        }
     }
 
     private static PdfThread? FromObject(PdfObject threadObject)

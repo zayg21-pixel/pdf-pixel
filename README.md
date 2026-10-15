@@ -101,7 +101,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 | View manipulation (zoom, scroll, rotation) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Page layout (`/PageLayout`) | ❌ *(vertical only)* | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Presentation mode | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Thumbnails | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Thumbnails | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Page labels | ✅ | ✅ | ⚠️ *(frame page info, not document data)* | ❌ | ❌ | ❌ |
 | Text selection | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Content extraction | ⚠️ *(text only)* | ✅ *(selected text or image, Ctrl+C)* | ✅ *(selected text or image, Ctrl+C)* | ❌ | ❌ | ❌ |

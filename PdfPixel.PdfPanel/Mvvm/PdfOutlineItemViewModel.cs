@@ -11,14 +11,12 @@ namespace PdfPixel.PdfPanel.Mvvm;
 /// </summary>
 public sealed class PdfOutlineItemViewModel : INotifyPropertyChanged
 {
-    private readonly object _documentLocker;
     private List<PdfOutlineItemViewModel>? _children;
     private bool _isExpanded;
 
-    private PdfOutlineItemViewModel(PdfOutlineItem item, object documentLocker)
+    private PdfOutlineItemViewModel(PdfOutlineItem item)
     {
         Item = item;
-        _documentLocker = documentLocker;
         _isExpanded = item.IsOpen;
         Title = item.Title?.DecodePdfString();
         IsBold = (item.Flags & PdfOutlineItemFlags.Bold) != 0;
@@ -67,7 +65,7 @@ public sealed class PdfOutlineItemViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Child items, read from the document the first time they are requested.
+    /// Child items, created the first time they are requested.
     /// </summary>
     public IReadOnlyList<PdfOutlineItemViewModel> Children
     {
@@ -75,7 +73,7 @@ public sealed class PdfOutlineItemViewModel : INotifyPropertyChanged
         {
             if (_children == null)
             {
-                _children = CreateItems(Item.EnumerateItems(), _documentLocker);
+                _children = CreateItems(Item.Items);
             }
 
             return _children;
@@ -85,18 +83,15 @@ public sealed class PdfOutlineItemViewModel : INotifyPropertyChanged
     internal PdfOutlineItem Item { get; }
 
     /// <summary>
-    /// Creates the view models of <paramref name="items"/>, reading the document under <paramref name="documentLocker"/>.
+    /// Creates the view models of <paramref name="items"/>.
     /// </summary>
-    internal static List<PdfOutlineItemViewModel> CreateItems(IEnumerable<PdfOutlineItem> items, object documentLocker)
+    internal static List<PdfOutlineItemViewModel> CreateItems(IReadOnlyList<PdfOutlineItem> items)
     {
-        List<PdfOutlineItemViewModel> result = [];
+        List<PdfOutlineItemViewModel> result = new(items.Count);
 
-        lock (documentLocker)
+        foreach (PdfOutlineItem item in items)
         {
-            foreach (PdfOutlineItem item in items)
-            {
-                result.Add(new PdfOutlineItemViewModel(item, documentLocker));
-            }
+            result.Add(new PdfOutlineItemViewModel(item));
         }
 
         return result;
