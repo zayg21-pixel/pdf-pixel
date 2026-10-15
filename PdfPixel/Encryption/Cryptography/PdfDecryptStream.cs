@@ -1,3 +1,4 @@
+using PdfPixel.Streams;
 using System;
 using System.IO;
 
@@ -9,12 +10,10 @@ namespace PdfPixel.Encryption.Cryptography;
 /// </summary>
 internal sealed class PdfDecryptStream : Stream
 {
-    private const int ChunkSize = 2048;
-
     private readonly Stream _source;
     private readonly IDecryptionCipher _cipher;
     private readonly int _blockSize;
-    private readonly byte[] _ciphertext = new byte[ChunkSize];
+    private readonly byte[] _ciphertext = new byte[PdfStreamDecoder.StreamChunkSize];
     private readonly byte[] _plaintext;
     private int _plaintextStart;
     private int _plaintextEnd;
@@ -30,7 +29,7 @@ internal sealed class PdfDecryptStream : Stream
         _source = source ?? throw new ArgumentNullException(nameof(source));
         _cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
         _blockSize = cipher.BlockSize;
-        _plaintext = new byte[ChunkSize + _blockSize];
+        _plaintext = new byte[PdfStreamDecoder.StreamChunkSize + _blockSize];
     }
 
     /// <inheritdoc />
@@ -123,12 +122,12 @@ internal sealed class PdfDecryptStream : Stream
         _plaintextStart = 0;
         _plaintextEnd = heldCount;
 
-        int read = ReadFully(_ciphertext, ChunkSize);
+        int read = ReadFully(_ciphertext, PdfStreamDecoder.StreamChunkSize);
         int wholeBlocksLength = read - (read % _blockSize);
         _cipher.Decrypt(_ciphertext.AsSpan(0, wholeBlocksLength), _plaintext.AsSpan(_plaintextEnd));
         _plaintextEnd += wholeBlocksLength;
 
-        if (read < ChunkSize)
+        if (read < PdfStreamDecoder.StreamChunkSize)
         {
             _sourceEnded = true;
             if (_plaintextEnd >= _blockSize)

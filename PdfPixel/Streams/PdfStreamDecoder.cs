@@ -16,7 +16,7 @@ namespace PdfPixel.Streams;
 /// </summary>
 public sealed class PdfStreamDecoder
 {
-    private const int DecodeChunkSize = 2048;
+    internal const int StreamChunkSize = 4096;
 
     private readonly ILogger<PdfStreamDecoder> _logger;
 
@@ -42,7 +42,7 @@ public sealed class PdfStreamDecoder
         using Stream final = DecodeContentAsStream(rawStream, filters, decodeParameters);
 
         using MemoryStream memoryStream = new();
-        var buffer = new byte[DecodeChunkSize];
+        var buffer = new byte[StreamChunkSize];
         int read;
         while ((read = final.Read(buffer, 0, buffer.Length)) > 0)
         {

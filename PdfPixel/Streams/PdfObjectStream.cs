@@ -155,7 +155,7 @@ public sealed class PdfObjectStream
             return Stream.Null;
         }
 
-        return _streamDecoder.DecodeContentAsStream(GetRawStream(), Filters, DecodeParameters);
+        return new BufferedStream(_streamDecoder.DecodeContentAsStream(GetRawStream(), Filters, DecodeParameters), PdfStreamDecoder.StreamChunkSize);
     }
 
     /// <summary>
