@@ -12,14 +12,20 @@ namespace PdfPixel.Annotations;
 /// concrete annotation class instance. If the subtype is not recognized,
 /// it returns a generic annotation wrapper.
 /// </remarks>
-public static class PdfAnnotationFactory
+internal static class PdfAnnotationFactory
 {
+    /// <summary>
+    /// The annotation at <paramref name="index"/> of <paramref name="array"/>, or <see langword="null"/> when absent.
+    /// </summary>
+    public static PdfAnnotationBase? GetAnnotation(PdfArray array, int index)
+        => array.Document.ObjectCache.GetOrCreate(array, index, CreateAnnotation);
+
     /// <summary>
     /// Creates an annotation instance from a PDF object.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing an annotation.</param>
     /// <returns>A concrete annotation instance, or null if the object is not a valid annotation.</returns>
-    public static PdfAnnotationBase? CreateAnnotation(PdfObject annotationObject)
+    private static PdfAnnotationBase? CreateAnnotation(PdfObject annotationObject)
     {
         if (annotationObject == null)
         {
@@ -52,28 +58,5 @@ public static class PdfAnnotationFactory
             PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // TODO: [LOW] Widget is not fully implemented yet
             _ => new PdfGenericAnnotation(annotationObject, subtype)
         };
-    }
-
-    /// <summary>
-    /// Checks if a PDF object represents a valid annotation.
-    /// </summary>
-    /// <param name="pdfObject">The PDF object to check.</param>
-    /// <returns>True if the object is a valid annotation, false otherwise.</returns>
-    public static bool IsAnnotation(PdfObject pdfObject)
-    {
-        if (pdfObject == null)
-        {
-            return false;
-        }
-
-        // Check if the Type is /Annot
-        if (pdfObject.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.AnnotationKey)
-        {
-            return true;
-        }
-
-        // Some annotations might not have the Type field set, so check for Subtype
-        PdfAnnotationSubType subtype = pdfObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfAnnotationSubType>();
-        return subtype != PdfAnnotationSubType.Unknown;
     }
 }

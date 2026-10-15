@@ -61,12 +61,6 @@ public interface IPdfPage
     PdfRectangle ArtBox { get; }
 
     /// <summary>
-    /// Gets the annotations for this page, each bound to their containing page.
-    /// Resolved during page construction from the /Annots array and inheritable annotations.
-    /// </summary>
-    IReadOnlyList<PdfPageAnnotation> Annotations { get; }
-
-    /// <summary>
     /// Thumbnail image of the page (/Thumb), or <see langword="null"/> when absent.
     /// </summary>
     PdfImage? Thumbnail { get; }
@@ -126,6 +120,11 @@ public interface IPdfPage
     /// Article beads on the page (/B) in drawing order. Empty if the page has none.
     /// </summary>
     IReadOnlyList<PdfBead> Beads { get; }
+
+    /// <summary>
+    /// Returns the annotations of the page (/Annots) in array order, each bound to the page.
+    /// </summary>
+    IReadOnlyList<PdfPageAnnotation> GetAnnotations();
 
     /// <summary>
     /// Render the page content via the command processor.

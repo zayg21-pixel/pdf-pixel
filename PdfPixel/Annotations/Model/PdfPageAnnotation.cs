@@ -6,8 +6,7 @@ using PdfPixel.Rendering;
 namespace PdfPixel.Annotations.Model;
 
 /// <summary>
-/// Binds a <see cref="PdfAnnotationBase"/> to the page it belongs to, providing page-aware
-/// rendering and hit-testing without exposing the internal page reference to callers.
+/// An annotation of a page.
 /// </summary>
 public sealed class PdfPageAnnotation
 {

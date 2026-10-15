@@ -6,6 +6,7 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using PdfPixel.Commands.Context;
 using PdfPixel.Commands.Model;
@@ -26,8 +27,9 @@ internal static class PdfDocumentContentExtensions
         IPdfExecutionObserver observer)
     {
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
+        IReadOnlyList<PdfPageAnnotation> pageAnnotations = pdfPage.GetAnnotations();
 
-        if (pdfPage.Annotations.Count == 0)
+        if (pageAnnotations.Count == 0)
         {
             return null;
         }
@@ -36,7 +38,7 @@ internal static class PdfDocumentContentExtensions
 
         recorder.ApplyPageTransformations(pdfPage.CropBox);
 
-        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
+        foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
             if ((pageAnnotation.Content.Flags & PdfAnnotationFlags.Invisible) != 0
                 || (pageAnnotation.Content.Flags & PdfAnnotationFlags.Hidden) != 0

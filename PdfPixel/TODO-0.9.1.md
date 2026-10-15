@@ -38,6 +38,5 @@ Static document data is returned by `setDocument`; dynamic data arrives through 
 
 | Item | Location | Work |
 |---|---|---|
-| Document reading | `Models`, `PdfDocumentReader` | `IPdfDocument` and `IPdfPage` resolve part of their model on demand from the shared document stream, so the model is not thread-safe and the panel locks `DocumentLocker` around reads, even for values resolved when the document is read (`OpenAction`, `AdditionalActions`). Resolved on demand: `IPdfPage.Annotations`, `Thumbnail` and `Beads`; `Destinations.Resolve` (named destinations and the page index, cached on first use); `PdfOutlines` items; `PdfThread` and `PdfBead` chains; the structure tree's elements. Lazy loading becomes the exception, kept for large models such as the structure tree; everything else is resolved when the document is read |
 | Slow page render | CRH_2021 | A page of CRH_2021 renders slowly; needs profiling to find the cause |
 | Crash on fast scroll | `PdfPixel.PdfPanel.Wpf` | The WPF demo crashes in Release builds when scrolling fast; the source of the crash is not found yet |

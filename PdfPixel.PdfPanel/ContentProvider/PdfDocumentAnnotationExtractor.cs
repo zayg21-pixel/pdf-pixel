@@ -31,18 +31,18 @@ internal static class PdfDocumentAnnotationExtractor
             return Array.Empty<PdfAnnotationPopup>();
         }
 
-        IPdfPage pdfPage = document.Pages[pageNumber - 1];
-        if (pdfPage.Annotations.Count == 0)
+        IReadOnlyList<PdfPageAnnotation> pageAnnotations = document.Pages[pageNumber - 1].GetAnnotations();
+        if (pageAnnotations.Count == 0)
         {
             return Array.Empty<PdfAnnotationPopup>();
         }
 
-        HashSet<PdfReference> pageReferences = BuildPageReferences(pdfPage);
-        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = BuildRepliesByParent(pdfPage);
+        HashSet<PdfReference> pageReferences = BuildPageReferences(pageAnnotations);
+        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = BuildRepliesByParent(pageAnnotations);
         List<PdfAnnotationPopup> popups = [];
         HashSet<PdfAnnotationBase> processedAnnotations = [];
 
-        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
+        foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
             PdfAnnotationBase annotation = pageAnnotation.Content;
 
@@ -106,11 +106,11 @@ internal static class PdfDocumentAnnotationExtractor
     /// <summary>
     /// Collects the references of every annotation on the page.
     /// </summary>
-    private static HashSet<PdfReference> BuildPageReferences(IPdfPage pdfPage)
+    private static HashSet<PdfReference> BuildPageReferences(IReadOnlyList<PdfPageAnnotation> pageAnnotations)
     {
         HashSet<PdfReference> pageReferences = [];
 
-        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
+        foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
             PdfAnnotationBase annotation = pageAnnotation.Content;
 
@@ -127,11 +127,11 @@ internal static class PdfDocumentAnnotationExtractor
     /// Groups the page's annotations by the annotation they reply to, so that the replies of a given
     /// annotation are found by a single lookup instead of a scan over every annotation on the page.
     /// </summary>
-    private static Dictionary<PdfReference, List<PdfAnnotationBase>> BuildRepliesByParent(IPdfPage pdfPage)
+    private static Dictionary<PdfReference, List<PdfAnnotationBase>> BuildRepliesByParent(IReadOnlyList<PdfPageAnnotation> pageAnnotations)
     {
         Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = [];
 
-        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
+        foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
             PdfAnnotationBase annotation = pageAnnotation.Content;
 

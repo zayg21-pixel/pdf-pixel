@@ -147,7 +147,7 @@ internal static class PdfUtilities
         page.Render(processor, new PdfRenderingParameters(), executionObserver);
 
         // Annotations (comments, stamps, links, etc.) are rendered separately from page content.
-        foreach (PdfPageAnnotation annotation in page.Annotations)
+        foreach (PdfPageAnnotation annotation in page.GetAnnotations())
         {
             // Skip annotations excluded from on-screen and print rendering.
             if ((annotation.Content.Flags & (PdfAnnotationFlags.Hidden | PdfAnnotationFlags.NoView)) != 0)

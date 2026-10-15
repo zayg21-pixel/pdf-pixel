@@ -322,7 +322,7 @@ internal sealed class Program
             // Text-only reads page content alone, so annotation text never mixes into the page's characters.
             if (!textOnly)
             {
-                foreach (PdfPageAnnotation annotation in page.Annotations)
+                foreach (PdfPageAnnotation annotation in page.GetAnnotations())
                 {
                     // Skip annotations excluded from on-screen and print rendering.
                     if ((annotation.Content.Flags & (PdfAnnotationFlags.Hidden | PdfAnnotationFlags.NoView)) != 0)

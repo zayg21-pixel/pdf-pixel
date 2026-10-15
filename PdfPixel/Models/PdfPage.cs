@@ -9,7 +9,6 @@ using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
-using PdfPixel.Transparency.Utilities;
 using System;
 using System.Collections.Generic;
 using PdfPixel.Geometry;
@@ -27,13 +26,14 @@ internal class PdfPage : IPdfPageInternal
     private static readonly PdfRectangle DefaultMediaBox = new(0, 0, 612, 792);
 
     private readonly Lazy<PdfContentHostCache> _pageCache;
-    private readonly Lazy<IReadOnlyList<PdfPageAnnotation>> _annotations;
     private readonly IPdfDocumentInternal _document;
+    private readonly PdfDictionary _pageDictionary;
     private readonly PdfReference? _pageReference;
     private readonly List<PdfObjectStream> _contentStreams;
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfTransparencyGroup? _transparencyGroup;
+    private PdfPageAnnotation[]? _annotations;
 
     /// <summary>
     /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
@@ -90,8 +90,7 @@ internal class PdfPage : IPdfPageInternal
         _resourceDictionary = resourceDictionary;
         PageLabel = pageLabel;
         _pageCache = new Lazy<PdfContentHostCache>(() => new PdfContentHostCache(document, resourceDictionary));
-
-        _annotations = new Lazy<IReadOnlyList<PdfPageAnnotation>>(() => CreateAnnotations(pageDictionary));
+        _pageDictionary = pageDictionary;
 
         _transparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey);
         Thumbnail = PdfImage.GetImage(pageDictionary, PdfTokens.ThumbnailKey);
@@ -121,9 +120,6 @@ internal class PdfPage : IPdfPageInternal
 
     /// <inheritdoc/>
     public int Rotation { get; }
-
-    /// <inheritdoc/>
-    public IReadOnlyList<PdfPageAnnotation> Annotations => _annotations.Value;
 
     /// <inheritdoc/>
     public PdfString PageLabel { get; }
@@ -193,6 +189,17 @@ internal class PdfPage : IPdfPageInternal
     PdfTransparencyGroup? IPdfPageInternal.TransparencyGroup => _transparencyGroup;
 
     /// <inheritdoc/>
+    public IReadOnlyList<PdfPageAnnotation> GetAnnotations()
+    {
+        if (_annotations == null)
+        {
+            _annotations = CreateAnnotations();
+        }
+
+        return _annotations;
+    }
+
+    /// <inheritdoc/>
     public void Render(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, IPdfExecutionObserver observer)
     {
         if (processor == null)
@@ -231,27 +238,27 @@ internal class PdfPage : IPdfPageInternal
     /// <summary>
     /// Parses the page's /Annots entries and binds each annotation to the page itself.
     /// </summary>
-    private List<PdfPageAnnotation> CreateAnnotations(PdfDictionary pageDictionary)
+    private PdfPageAnnotation[] CreateAnnotations()
     {
-        List<PdfObject>? annotationObjects = pageDictionary.GetObjects(PdfTokens.AnnotsKey);
+        PdfArray? annotationArray = _pageDictionary.GetArray(PdfTokens.AnnotsKey);
 
-        if (annotationObjects == null)
+        if (annotationArray == null)
         {
-            return new List<PdfPageAnnotation>();
+            return Array.Empty<PdfPageAnnotation>();
         }
 
-        List<PdfPageAnnotation> annotations = new(annotationObjects.Count);
+        List<PdfPageAnnotation> annotations = new(annotationArray.Count);
 
-        foreach (PdfObject annotationObject in annotationObjects)
+        for (int index = 0; index < annotationArray.Count; index++)
         {
-            PdfAnnotationBase? annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
+            PdfAnnotationBase? annotation = PdfAnnotationFactory.GetAnnotation(annotationArray, index);
             if (annotation != null)
             {
                 annotations.Add(new PdfPageAnnotation(this, annotation));
             }
         }
 
-        return annotations;
+        return annotations.ToArray();
     }
 
     /// <summary>
