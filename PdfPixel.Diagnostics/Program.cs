@@ -30,7 +30,7 @@ internal sealed class Program
         Option<float> scaleOption = new("--scale", "-s")
         {
             Description = "Multiplies the page size before rendering; above 1 gives a sharper image.",
-            DefaultValueFactory = _ => 4f
+            DefaultValueFactory = _ => 1f
         };
 
         Option<int> iterationsOption = new("--iterations", "-n")

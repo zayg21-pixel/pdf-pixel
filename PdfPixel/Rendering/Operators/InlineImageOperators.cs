@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Model;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 
@@ -20,11 +21,11 @@ internal class InlineImageOperators : IOperatorProcessor
     ];
 
     private readonly IPdfRenderer _renderer;
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
 
-    public InlineImageOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public InlineImageOperators(IPdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;

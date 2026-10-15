@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Rendering.State;
 
@@ -17,7 +18,7 @@ internal class PdfOperatorProcessor
     private readonly IPdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly PdfPathBuilder _currentPath;
     private readonly GraphicsStateOperators _graphicsStateOperators;
@@ -33,7 +34,7 @@ internal class PdfOperatorProcessor
         IPdfRenderer renderer,
         IPdfContentHost host,
         IPdfCommandProcessor processor,
-        Stack<IPdfValue> operandStack,
+        PdfOperandStack operandStack,
         Stack<PdfGraphicsState> graphicsStack,
         PdfPathBuilder currentPath)
     {
@@ -51,17 +52,6 @@ internal class PdfOperatorProcessor
         _markedContentOperators = new MarkedContentOperators(operandStack, host, processor);
         _miscOperators = new MiscellaneousOperators(renderer, operandStack, host, processor);
         _logger = host.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
-    }
-
-    internal static List<IPdfValue> GetOperands(int count, Stack<IPdfValue> operandStack)
-    {
-        List<IPdfValue> operands = new(count);
-        for (int index = 0; index < count && operandStack.Count > 0; index++)
-        {
-            operands.Insert(0, operandStack.Pop());
-        }
-
-        return operands;
     }
 
     public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)

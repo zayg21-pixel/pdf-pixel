@@ -90,7 +90,7 @@ internal ref partial struct PdfParser
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public IPdfValue? ReadNextValue(Stack<IPdfValue>? operandStack = null)
+    public IPdfValue? ReadNextValue(PdfOperandStack? operandStack = null)
     {
         List<IPdfValue> values = _values;
         Stack<CollectionFrame> frames = _frames;

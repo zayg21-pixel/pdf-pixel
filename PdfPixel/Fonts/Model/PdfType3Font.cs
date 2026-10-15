@@ -174,7 +174,7 @@ public class PdfType3Font : PdfSingleByteFont
     {
         PdfParser parser = new(parseContext, Document, allowReferences: false, decrypt: false);
         IPdfValue? value;
-        Stack<IPdfValue> operandStack = [];
+        PdfOperandStack operandStack = new();
 
         PdfSize type3Advancement = new(0, 0);
         PdfRectangle? type3BoundingBox = null;
@@ -190,9 +190,9 @@ public class PdfType3Font : PdfSingleByteFont
                 {
                     case "d0":
                     {
-                            List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, operandStack);
+                            ReadOnlySpan<IPdfValue> operands = operandStack.Pop(6);
 
-                        if (operands.Count < 2)
+                        if (operands.Length < 2)
                         {
                             break;
                         }
@@ -210,9 +210,9 @@ public class PdfType3Font : PdfSingleByteFont
                     }
                     case "d1":
                     {
-                            List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, operandStack);
+                            ReadOnlySpan<IPdfValue> operands = operandStack.Pop(6);
 
-                        if (operands.Count < 6)
+                        if (operands.Length < 6)
                         {
                             break;
                         }

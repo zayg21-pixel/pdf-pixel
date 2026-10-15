@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using PdfPixel.Models;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Parsing;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Color.Transform;
@@ -35,10 +36,10 @@ internal class ColorOperators : IOperatorProcessor
         "SCN"
     ];
 
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
 
-    public ColorOperators(Stack<IPdfValue> operandStack, IPdfContentHost host)
+    public ColorOperators(PdfOperandStack operandStack, IPdfContentHost host)
     {
         _operandStack = operandStack;
         _host = host;
@@ -127,8 +128,8 @@ internal class ColorOperators : IOperatorProcessor
             }
         }
 
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(expected, _operandStack);
-        if (operands.Count < expected && expected > 1)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(expected);
+        if (operands.Length < expected && expected > 1)
         {
             return;
         }
@@ -137,7 +138,7 @@ internal class ColorOperators : IOperatorProcessor
         state.FillColorConverter = converter;
 
         var components = new float[converter.Components];
-        for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
+        for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
         {
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
@@ -176,8 +177,8 @@ internal class ColorOperators : IOperatorProcessor
             }
         }
 
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(expected, _operandStack);
-        if (operands.Count < expected && expected > 1)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(expected);
+        if (operands.Length < expected && expected > 1)
         {
             return;
         }
@@ -186,7 +187,7 @@ internal class ColorOperators : IOperatorProcessor
         state.StrokeColorConverter = converter;
 
         var components = new float[converter.Components];
-        for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
+        for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
         {
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
@@ -197,7 +198,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetFillColor(PdfGraphicsState state)
     {
-        IPdfValue[] operands = PopAllOperands();
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -214,7 +215,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetStrokeColor(PdfGraphicsState state)
     {
-        IPdfValue[] operands = PopAllOperands();
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -232,7 +233,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetFillColorN(PdfGraphicsState state)
     {
-        IPdfValue[] operands = PopAllOperands();
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -278,7 +279,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetStrokeColorN(PdfGraphicsState state)
     {
-        IPdfValue[] operands = PopAllOperands();
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -323,7 +324,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetFillColorSpace(PdfGraphicsState state)
     {
-        IPdfValue[] operands = PopAllOperands();
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -336,7 +337,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetStrokeColorSpace(PdfGraphicsState state)
     {
-        IPdfValue[] operands = PopAllOperands();
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -347,24 +348,7 @@ internal class ColorOperators : IOperatorProcessor
         state.StrokePaint = state.StrokePaint.WithSolidColor(PdfColors.Black);
     }
 
-    private IPdfValue[] PopAllOperands()
-    {
-        int count = _operandStack.Count;
-        if (count == 0)
-        {
-            return Array.Empty<IPdfValue>();
-        }
-
-        var array = new IPdfValue[count];
-        for (int i = count - 1; i >= 0; i--)
-        {
-            array[i] = _operandStack.Pop();
-        }
-
-        return array;
-    }
-
-    private ReadOnlySpan<float> ExtractTintComponents(IPdfValue[] operands)
+    private ReadOnlySpan<float> ExtractTintComponents(in ReadOnlySpan<IPdfValue> operands)
     {
         if (operands.Length <= 1)
         {

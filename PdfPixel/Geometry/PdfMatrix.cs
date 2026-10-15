@@ -105,18 +105,12 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     }
 
     /// <summary>
-    /// Creates a <see cref="PdfMatrix"/> from PDF transformation matrix operands (legacy list form).
-    /// Returns null if the operand list has insufficient elements or any operand is not numeric.
+    /// Creates a <see cref="PdfMatrix"/> from PDF transformation matrix operands.
+    /// Returns null if the operands have insufficient elements or any operand is not numeric.
     /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="operands"/> is null.</exception>
-    public static PdfMatrix? FromOperands(List<IPdfValue> operands)
+    public static PdfMatrix? FromOperands(in ReadOnlySpan<IPdfValue> operands)
     {
-        if (operands == null)
-        {
-            throw new ArgumentNullException(nameof(operands));
-        }
-
-        if (operands.Count < 6)
+        if (operands.Length < 6)
         {
             return null;
         }

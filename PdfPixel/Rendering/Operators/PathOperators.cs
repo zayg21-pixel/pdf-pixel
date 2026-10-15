@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Commands.Model;
 
@@ -40,7 +42,7 @@ internal class PathOperators : IOperatorProcessor
     ];
 
     private readonly IPdfRenderer _renderer;
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfPathBuilder _currentPath;
     private readonly IPdfContentHost _host;
@@ -49,7 +51,7 @@ internal class PathOperators : IOperatorProcessor
     private PdfPoint _lastPoint;
     private PdfPoint _subPathStart;
 
-    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfContentHost host)
+    public PathOperators(IPdfRenderer renderer, PdfOperandStack operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfContentHost host)
     {
         _renderer = renderer;
         _operandStack = operandStack;
@@ -171,8 +173,8 @@ internal class PathOperators : IOperatorProcessor
     // ---------------------- Helper Implementations --------------------------
     private void ProcessMoveTo()
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }
@@ -193,8 +195,8 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessLineTo()
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }
@@ -214,8 +216,8 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveTo()
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
-        if (operands.Count < 6)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(6);
+        if (operands.Length < 6)
         {
             return;
         }
@@ -244,8 +246,8 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToV()
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
-        if (operands.Count < 4)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(4);
+        if (operands.Length < 4)
         {
             return;
         }
@@ -267,8 +269,8 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToY()
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
-        if (operands.Count < 4)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(4);
+        if (operands.Length < 4)
         {
             return;
         }
@@ -296,8 +298,8 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessRectangle()
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
-        if (operands.Count < 4)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(4);
+        if (operands.Length < 4)
         {
             return;
         }

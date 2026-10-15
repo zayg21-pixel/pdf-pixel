@@ -3,6 +3,7 @@ using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Streams;
 using PdfPixel.Text;
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -11,7 +12,7 @@ namespace PdfPixel.Parsing;
 internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue? ReadInlineStream(Stack<IPdfValue>? operandStack)
+    private IPdfValue? ReadInlineStream(PdfOperandStack? operandStack)
     {
         // Skip single whitespace after ID per PDF spec.
         int beginPosition = Position;
@@ -60,18 +61,16 @@ internal partial struct PdfParser
     /// <paramref name="operandStack"/>, applying default values for /BitsPerComponent and /ColorSpace.
     /// The stack is consumed and cleared since the pairs are not needed again once the dictionary is built.
     /// </summary>
-    private PdfDictionary BuildImageDictionary(Stack<IPdfValue>? operandStack)
+    private PdfDictionary BuildImageDictionary(PdfOperandStack? operandStack)
     {
         PdfDictionary imageDictionary = new(_document);
         imageDictionary.Set(PdfTokens.SubtypeKey, PdfValueFactory.Name(PdfTokens.ImageSubtype));
 
         if (operandStack != null && operandStack.Count > 0)
         {
-            List<IPdfValue> parameters = new(operandStack);
-            parameters.Reverse();
-            operandStack.Clear();
+            ReadOnlySpan<IPdfValue> parameters = operandStack.Pop(operandStack.Count);
 
-            for (int parameterIndex = 0; parameterIndex + 1 < parameters.Count; parameterIndex += 2)
+            for (int parameterIndex = 0; parameterIndex + 1 < parameters.Length; parameterIndex += 2)
             {
                 IPdfValue keyValue = parameters[parameterIndex];
                 PdfString? rawKey = keyValue.AsName();

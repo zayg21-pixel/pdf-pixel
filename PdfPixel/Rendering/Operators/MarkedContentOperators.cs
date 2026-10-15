@@ -2,9 +2,11 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.OptionalContent.Model;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Operators;
@@ -22,12 +24,12 @@ internal class MarkedContentOperators : IOperatorProcessor
         "EMC"
     ];
 
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfStructureTree? _structureTree;
 
-    public MarkedContentOperators(Stack<IPdfValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public MarkedContentOperators(PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _operandStack = operandStack;
         _host = host;
@@ -76,8 +78,8 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessMarkedContentPoint(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -94,8 +96,8 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessMarkedContentPointWithProperties(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }
@@ -112,8 +114,8 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessBeginMarkedContent(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -131,8 +133,8 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessBeginMarkedContentWithProperties(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }

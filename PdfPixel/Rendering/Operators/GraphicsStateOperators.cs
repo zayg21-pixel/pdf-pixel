@@ -4,6 +4,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using System;
@@ -19,11 +20,11 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly ILogger<GraphicsStateOperators> _logger;
 
-    public GraphicsStateOperators(IPdfContentHost host, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack)
+    public GraphicsStateOperators(IPdfContentHost host, IPdfCommandProcessor processor, PdfOperandStack operandStack, Stack<PdfGraphicsState> graphicsStack)
     {
         _host = host;
         _processor = processor;
@@ -109,8 +110,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetRenderingIntent(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -143,8 +144,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessConcatenateMatrix(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
-        if (operands.Count < 6)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(6);
+        if (operands.Length < 6)
         {
             return;
         }
@@ -158,8 +159,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineWidth(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -177,8 +178,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineCap(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -204,8 +205,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineJoin(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -231,8 +232,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetMiterLimit(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -250,8 +251,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetDashPattern(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }
@@ -274,8 +275,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetGraphicsStateParameters(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -291,8 +292,8 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }

@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 
@@ -43,10 +45,10 @@ internal class TextOperators : IOperatorProcessor
     private readonly IPdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly ILogger<TextOperators> _logger;
 
-    public TextOperators(IPdfRenderer renderer, IPdfContentHost host, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack)
+    public TextOperators(IPdfRenderer renderer, IPdfContentHost host, IPdfCommandProcessor processor, PdfOperandStack operandStack)
     {
         _renderer = renderer;
         _host = host;
@@ -173,8 +175,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetFont(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }
@@ -193,8 +195,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetCharacterSpacing(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -211,8 +213,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetWordSpacing(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -229,8 +231,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetHorizontalScaling(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -247,8 +249,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextLeading(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -265,8 +267,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRise(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -283,8 +285,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRenderingMode(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -308,8 +310,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessMoveTextPosition(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }
@@ -330,8 +332,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessMoveTextPositionAndSetLeading(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        if (operands.Length < 2)
         {
             return;
         }
@@ -353,8 +355,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowText(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -371,8 +373,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowTextWithPositioning(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -390,8 +392,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextMatrix(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
-        if (operands.Count < 6)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(6);
+        if (operands.Length < 6)
         {
             return;
         }
@@ -405,8 +407,8 @@ internal class TextOperators : IOperatorProcessor
     {
         ProcessNextLine(graphicsState);
 
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(3, _operandStack);
-        if (operands.Count < 3)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(3);
+        if (operands.Length < 3)
         {
             return;
         }

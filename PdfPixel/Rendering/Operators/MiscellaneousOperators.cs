@@ -3,10 +3,12 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using PdfPixel.Tagging.Model;
 using PdfPixel.Text;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Operators;
@@ -31,12 +33,12 @@ internal class MiscellaneousOperators : IOperatorProcessor
     ];
 
     private readonly IPdfRenderer _renderer;
-    private readonly Stack<IPdfValue> _operandStack;
+    private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public MiscellaneousOperators(IPdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;
@@ -86,8 +88,8 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessInvokeXObject(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
@@ -155,8 +157,8 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessShading(PdfGraphicsState graphicsState)
     {
-        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-        if (operands.Count == 0)
+        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        if (operands.Length == 0)
         {
             return;
         }
