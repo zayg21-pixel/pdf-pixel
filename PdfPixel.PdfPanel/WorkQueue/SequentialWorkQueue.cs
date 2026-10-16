@@ -28,7 +28,15 @@ public sealed class SequentialWorkQueue : IWorkQueue
     public void Enqueue(IWorkItem item)
     {
         _workItems.Enqueue(item);
-        _semaphore.Release();
+
+        try
+        {
+            _semaphore.Release();
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
     }
 
     private async void ProcessingLoop()
