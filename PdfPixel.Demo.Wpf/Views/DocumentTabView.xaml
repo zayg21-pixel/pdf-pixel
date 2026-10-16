@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:behaviors="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:converters="clr-namespace:PdfPixel.Demo.Wpf.Converters"
              xmlns:viewModels="clr-namespace:PdfPixel.Demo.Wpf.ViewModels"
              xmlns:pdfPanelAnnotations="clr-namespace:PdfPixel.PdfPanel.Annotations;assembly=PdfPixel.PdfPanel"
@@ -355,7 +356,12 @@
                     <ListBox ItemsSource="{Binding Attachments.Items, ElementName=pdfPanel}" Background="Transparent">
                         <ListBox.ItemTemplate>
                             <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfAttachmentViewModel}">
-                                <StackPanel Margin="0 2" ToolTip="{Binding Description}">
+                                <StackPanel Margin="0 2" ToolTip="{Binding Description}" Background="Transparent" Cursor="Hand">
+                                    <StackPanel.InputBindings>
+                                        <MouseBinding Gesture="LeftDoubleClick"
+                                                      Command="{Binding DataContext.OpenAttachmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                      CommandParameter="{Binding}" />
+                                    </StackPanel.InputBindings>
                                     <TextBlock Text="{Binding Name, TargetNullValue='Unnamed file'}" />
                                     <TextBlock Text="{Binding PageNumber, StringFormat='Page {0}', TargetNullValue='Document'}"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -385,6 +391,11 @@
                                              CurrentSearchResult="{Binding CurrentSearchResult}"
                                              Configuration="{Binding PanelConfiguration}"
                                              PanelInterface="{Binding PanelInterface}">
+                        <behaviors:Interaction.Triggers>
+                            <behaviors:EventTrigger EventName="ActionRequested">
+                                <behaviors:InvokeCommandAction Command="{Binding ActionRequestedCommand}" PassEventArgsToCommand="True" />
+                            </behaviors:EventTrigger>
+                        </behaviors:Interaction.Triggers>
                         <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                             <ToolTip>
                                 <ToolTip.Resources>

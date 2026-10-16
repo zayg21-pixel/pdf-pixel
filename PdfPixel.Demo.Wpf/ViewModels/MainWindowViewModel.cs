@@ -70,7 +70,7 @@ public class MainWindowViewModel : ObservableObject
 
     private DocumentTabViewModel AddTab()
     {
-        DocumentTabViewModel tab = new();
+        DocumentTabViewModel tab = new(OpenTab);
         Tabs.Add(tab);
         SelectedTab = tab;
 

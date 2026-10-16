@@ -5,7 +5,7 @@ namespace PdfPixel.Demo.Wpf.Views;
 /// <summary>
 /// Interaction logic for PasswordPromptWindow.xaml.
 /// </summary>
-public partial class PasswordPromptWindow : Window
+public partial class PasswordPromptWindow : DemoWindow
 {
     public PasswordPromptWindow(string errorMessage)
     {
