@@ -11,7 +11,7 @@ namespace PdfPixel.Tagging.Model;
 /// <summary>
 /// A structure element (/StructElem) in the document structure tree.
 /// </summary>
-public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStructureElement>
+public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFilesHost, IEquatable<PdfStructureElement>
 {
     private readonly PdfDictionary _dictionary;
 
@@ -34,6 +34,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
         Revision = dictionary.GetInteger(PdfTokens.RKey);
         Phoneme = dictionary.GetString(PdfTokens.PhonemeKey);
         PhoneticAlphabet = dictionary.GetName(PdfTokens.PhoneticAlphabetKey);
+        AssociatedFiles = PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.AssociatedFilesKey));
     }
 
     /// <summary>
@@ -71,6 +72,9 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
     /// Page (/Pg) the element's content appears on, or <see langword="null"/> when absent.
     /// </summary>
     public PdfReference? PageReference { get; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
     /// Element identifier (/ID), or <see langword="null"/> when absent.
@@ -254,27 +258,6 @@ public sealed class PdfStructureElement : IPdfStructureNode, IEquatable<PdfStruc
             if (className != null)
             {
                 yield return className.Value;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Associated files (/AF, PDF 2.0) in array order.
-    /// </summary>
-    public IEnumerable<PdfFileSpecification> EnumerateAssociatedFiles()
-    {
-        PdfArray? associatedFiles = _dictionary.GetArray(PdfTokens.AssociatedFilesKey);
-        if (associatedFiles == null)
-        {
-            yield break;
-        }
-
-        for (int index = 0; index < associatedFiles.Count; index++)
-        {
-            PdfFileSpecification? specification = PdfFileSpecification.GetFileSpecification(associatedFiles, index);
-            if (specification != null)
-            {
-                yield return specification;
             }
         }
     }

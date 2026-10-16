@@ -13,7 +13,7 @@ namespace PdfPixel.Models;
 /// <summary>
 /// Represents a single PDF page, exposing its geometry, metadata, and rendering operations.
 /// </summary>
-public interface IPdfPage
+public interface IPdfPage : IPdfAssociatedFilesHost
 {
     /// <summary>
     /// 1-based index of this page within the document.
@@ -70,10 +70,6 @@ public interface IPdfPage
     /// </summary>
     PdfMetadata? Metadata { get; }
 
-    /// <summary>
-    /// Files associated with the page (/AF), or <see langword="null"/> when absent.
-    /// </summary>
-    IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
     /// Date the page contents were most recently modified (/LastModified), or <see langword="null"/> when absent.

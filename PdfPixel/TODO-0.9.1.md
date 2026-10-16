@@ -1,8 +1,10 @@
 # 0.9.1 — Missing document and page level entries
 
-## 1. File attachments
+## 1. WPF demo
 
-See [PLAN-actions.md](PLAN-actions.md).
+| Item | Location | Work |
+|---|---|---|
+| Demo refactor | `PdfPixel.Demo.Wpf` | Refactor the demo, including action support: handle `ActionRequested` (open URIs, open the files of GoToR and Launch actions, follow GoToE paths with `PdfEmbeddedFiles.ResolveFile` and navigate to the destination in the opened document) and open files from the Attachments tab |
 
 ## 2. Web panel
 

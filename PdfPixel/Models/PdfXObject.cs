@@ -10,7 +10,7 @@ namespace PdfPixel.Models;
 /// <summary>
 /// Represents a PDF XObject.
 /// </summary>
-public abstract class PdfXObject
+public abstract class PdfXObject : IPdfAssociatedFilesHost
 {
     /// <summary>
     /// Initializes a new <see cref="PdfXObject"/> from the given source object.
@@ -51,9 +51,7 @@ public abstract class PdfXObject
     /// </summary>
     public int? StructParent { get; }
 
-    /// <summary>
-    /// Files associated with the entire XObject (/AF, PDF 2.0), or <see langword="null"/> when absent.
-    /// </summary>
+    /// <inheritdoc />
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>

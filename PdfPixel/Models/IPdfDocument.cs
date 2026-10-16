@@ -16,7 +16,7 @@ namespace PdfPixel.Models;
 /// <summary>
 /// Represents a parsed PDF document.
 /// </summary>
-public interface IPdfDocument : IDisposable
+public interface IPdfDocument : IPdfAssociatedFilesHost, IDisposable
 {
     /// <summary>
     /// Gets the list of pages in the PDF document.
@@ -76,15 +76,10 @@ public interface IPdfDocument : IDisposable
     PdfString? Lang { get; }
 
     /// <summary>
-    /// Gets the document-level attachments (/Names /EmbeddedFiles), keyed by their name.
-    /// Empty if the document has none.
+    /// Gets the document-level embedded files (/Names /EmbeddedFiles), or <see langword="null"/> when absent.
     /// </summary>
-    IReadOnlyDictionary<PdfString, PdfFileSpecification> EmbeddedFiles { get; }
+    PdfEmbeddedFiles? EmbeddedFiles { get; }
 
-    /// <summary>
-    /// Gets the files associated with the document as a whole (/AF), or <see langword="null"/> when absent.
-    /// </summary>
-    IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
     /// Gets the output intents of the document (/OutputIntents), or <see langword="null"/> when absent.

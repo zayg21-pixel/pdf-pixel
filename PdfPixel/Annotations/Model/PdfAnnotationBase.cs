@@ -1,3 +1,4 @@
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.Parsing;
@@ -5,6 +6,7 @@ using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using System;
+using System.Collections.Generic;
 using PdfPixel.Geometry;
 using PdfPixel.Commands.Model;
 
@@ -18,7 +20,7 @@ namespace PdfPixel.Annotations.Model;
 /// the PDF specification. All annotations share a common set of properties including
 /// position, appearance, and metadata.
 /// </remarks>
-public abstract class PdfAnnotationBase
+public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfAnnotationBase"/> class.
@@ -51,7 +53,7 @@ public abstract class PdfAnnotationBase
             Contents = contents;
         }
 
-        Name = annotationObject.Dictionary.GetString(PdfTokens.NameKey);
+        Name = annotationObject.Dictionary.GetString(PdfTokens.AnnotationNameKey);
         ModificationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.ModificationDateKey));
 
         // Parse additional annotation metadata
@@ -76,6 +78,7 @@ public abstract class PdfAnnotationBase
         Popup = annotationObject.Dictionary.GetReference(PdfTokens.PopupKey);
         InReplyTo = annotationObject.Dictionary.GetReference(PdfTokens.InReplyToKey);
         ReplyType = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
+        AssociatedFiles = PdfFileSpecification.GetFileSpecifications(annotationObject.Dictionary.GetArray(PdfTokens.AssociatedFilesKey));
     }
 
     /// <summary>
@@ -293,6 +296,9 @@ public abstract class PdfAnnotationBase
     /// Returns None if not specified or if this annotation is not a reply.
     /// </remarks>
     public PdfAnnotationReplyType ReplyType { get; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
     /// Gets the hover rectangle for interaction purposes (hit testing, popups, etc.).

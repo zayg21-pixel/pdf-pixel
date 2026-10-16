@@ -158,21 +158,6 @@ public sealed class PdfFileSpecification
         => array.Document.ObjectCache.GetOrCreate(array, index, FromObject);
 
     /// <summary>
-    /// The document-level embedded files (/Names /EmbeddedFiles) of <paramref name="catalog"/>, keyed by name.
-    /// Empty when the catalog has none.
-    /// </summary>
-    internal static Dictionary<PdfString, PdfFileSpecification> GetFileSpecifications(PdfDictionary catalog, PdfTreeReader treeReader)
-    {
-        PdfDictionary? embeddedFiles = catalog.GetDictionary(PdfTokens.NamesKey)?.GetDictionary(PdfTokens.EmbeddedFilesKey);
-        if (embeddedFiles == null)
-        {
-            return new Dictionary<PdfString, PdfFileSpecification>();
-        }
-
-        return treeReader.ReadNameTree(embeddedFiles, GetFileSpecification);
-    }
-
-    /// <summary>
     /// The file specifications in <paramref name="array"/>, or <see langword="null"/> when it is absent.
     /// </summary>
     internal static List<PdfFileSpecification>? GetFileSpecifications(PdfArray? array)

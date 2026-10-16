@@ -8,7 +8,7 @@ namespace PdfPixel.Content.Model;
 /// <summary>
 /// A content item extracted from a content tree, with the /Alt, /ActualText and /AF of the item or of the content enclosing it.
 /// </summary>
-public readonly struct PdfContentEntry
+public readonly struct PdfContentEntry : IPdfAssociatedFilesHost
 {
     /// <summary>
     /// Initializes a <see cref="PdfContentEntry"/> with the item and the /Alt, /ActualText and /AF that apply to it.
@@ -40,9 +40,7 @@ public readonly struct PdfContentEntry
     /// </summary>
     public PdfString? ActualText { get; }
 
-    /// <summary>
-    /// Associated files (/AF), or <see langword="null"/> when absent.
-    /// </summary>
+    /// <inheritdoc />
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>

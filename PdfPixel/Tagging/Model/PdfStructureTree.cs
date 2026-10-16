@@ -9,7 +9,7 @@ namespace PdfPixel.Tagging.Model;
 /// <summary>
 /// The document structure tree (/StructTreeRoot).
 /// </summary>
-public sealed class PdfStructureTree
+public sealed class PdfStructureTree : IPdfAssociatedFilesHost
 {
     private const int MaxNamespaceRoleMappingSteps = 32;
 
@@ -58,9 +58,7 @@ public sealed class PdfStructureTree
     /// </summary>
     public IReadOnlyList<PdfFileSpecification>? PronunciationLexicon { get; }
 
-    /// <summary>
-    /// Associated files of the structure tree (/AF, PDF 2.0), or <see langword="null"/> when absent.
-    /// </summary>
+    /// <inheritdoc />
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>

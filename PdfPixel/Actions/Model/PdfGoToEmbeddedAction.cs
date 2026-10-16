@@ -39,12 +39,6 @@ public class PdfGoToEmbeddedAction : PdfFileAction
     /// </summary>
     public IReadOnlyList<PdfEmbeddedPathStep> Path { get; }
 
-    /// <summary>
-    /// Returns a string representation of this GoToEmbedded action.
-    /// </summary>
-    /// <returns>A string describing the action.</returns>
-    public override string ToString() => "GoToEmbedded Action";
-
     private static List<PdfEmbeddedPathStep> ReadPath(PdfDictionary actionDictionary)
     {
         List<PdfEmbeddedPathStep> path = [];
@@ -69,4 +63,10 @@ public class PdfGoToEmbeddedAction : PdfFileAction
             currentDictionary = targetDictionary;
         }
     }
+
+    /// <summary>
+    /// Returns a string representation of this GoToEmbedded action.
+    /// </summary>
+    /// <returns>A string describing the action.</returns>
+    public override string ToString() => "GoToEmbedded Action";
 }

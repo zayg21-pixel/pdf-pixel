@@ -26,12 +26,10 @@ internal class PdfDocument : IPdfDocumentInternal
 {
     private readonly ILogger<PdfDocument> _logger;
     private readonly List<IPdfPageInternal> _pages = [];
-    private readonly FontProvider _fontProvider;
     private readonly PdfDocumentObjectCache _objectCache;
     private readonly CMapCache _cMapCache;
     private readonly PdfStreamDecoder _streamDecoder;
     private readonly BufferedStream _stream;
-    private readonly PdfDestinationResolver _destinationResolver;
     private readonly PdfTreeReader _treeReader;
     private PdfContentHost? _contentHost;
 
@@ -46,19 +44,19 @@ internal class PdfDocument : IPdfDocumentInternal
         LoggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<PdfDocument>();
         _streamDecoder = new PdfStreamDecoder(loggerFactory);
-        _fontProvider = new FontProvider(fontSubstitutor, loggerFactory);
+        FontProvider = new FontProvider(fontSubstitutor, loggerFactory);
         _objectCache = new PdfDocumentObjectCache(this, new PdfObjectParser(this));
         _stream = new BufferedStream(fileStream, PdfStreamDecoder.StreamChunkSize);
         _cMapCache = new CMapCache(_logger);
         _treeReader = new PdfTreeReader(loggerFactory.CreateLogger<PdfTreeReader>());
-        _destinationResolver = new PdfDestinationResolver(this);
+        Destinations = new PdfDestinationResolver(this);
     }
 
     /// <inheritdoc/>
     public ILoggerFactory LoggerFactory { get; }
 
     /// <inheritdoc />
-    public FontProvider FontProvider => _fontProvider;
+    public FontProvider FontProvider { get; }
 
     /// <inheritdoc />
     public CommandCache CommandCache { get; } = new();
@@ -66,7 +64,7 @@ internal class PdfDocument : IPdfDocumentInternal
     IReadOnlyList<IPdfPage> IPdfDocument.Pages => _pages;
 
     /// <inheritdoc />
-    public PdfDestinationResolver Destinations => _destinationResolver;
+    public PdfDestinationResolver Destinations { get; }
 
     /// <inheritdoc />
     public PdfOpenAction? OpenAction { get; internal set; }
@@ -84,7 +82,7 @@ internal class PdfDocument : IPdfDocumentInternal
     public PdfThreads? Threads { get; internal set; }
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<PdfString, PdfFileSpecification> EmbeddedFiles { get; internal set; } = new Dictionary<PdfString, PdfFileSpecification>();
+    public PdfEmbeddedFiles? EmbeddedFiles { get; internal set; }
 
     /// <inheritdoc />
     public PdfVersion? HeaderVersion { get; internal set; }
@@ -174,7 +172,7 @@ internal class PdfDocument : IPdfDocumentInternal
     {
         CommandCache.Dispose();
         _objectCache.Dispose();
-        _fontProvider.Dispose();
+        FontProvider.Dispose();
         _stream.Dispose();
     }
 }

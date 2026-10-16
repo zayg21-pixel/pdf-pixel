@@ -125,7 +125,7 @@ public class PdfDocumentReader
             }
 
             ((PdfDocument)document).StructureTree = PdfStructureTree.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
-            ((PdfDocument)document).EmbeddedFiles = PdfFileSpecification.GetFileSpecifications(document.RootObject.Dictionary, document.TreeReader);
+            ((PdfDocument)document).EmbeddedFiles = PdfEmbeddedFiles.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
             ReadDocumentEntries((PdfDocument)document, document.RootObject.Dictionary);
 
             _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);

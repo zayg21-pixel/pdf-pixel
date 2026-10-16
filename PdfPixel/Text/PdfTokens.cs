@@ -369,6 +369,7 @@ internal static class PdfTokens
 
     // Annotation popup and metadata keys
     public static readonly PdfString TitleKey = (PdfString)"T"u8;                     // Annotation title/author
+    public static readonly PdfString AnnotationNameKey = (PdfString)"NM"u8;           // Annotation name, unique on its page
     public static readonly PdfString SubjectKey = (PdfString)"Subj"u8;               // Annotation subject
     public static readonly PdfString RichContentsKey = (PdfString)"RC"u8;            // Annotation rich text contents
     public static readonly PdfString CreationDateKey = (PdfString)"CreationDate"u8;  // Annotation creation date

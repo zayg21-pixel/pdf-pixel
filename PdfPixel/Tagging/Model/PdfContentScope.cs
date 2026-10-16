@@ -7,7 +7,7 @@ namespace PdfPixel.Tagging.Model;
 /// <summary>
 /// A scope carrying optional content, associated files and the structure element of the enclosed content.
 /// </summary>
-public abstract class PdfContentScope : PdfScope
+public abstract class PdfContentScope : PdfScope, IPdfAssociatedFilesHost
 {
     /// <summary>
     /// Initializes a new <see cref="PdfContentScope"/> with the optional content membership, associated files and
@@ -28,9 +28,7 @@ public abstract class PdfContentScope : PdfScope
     /// </summary>
     public PdfOptionalContentMembership? OptionalContent { get; }
 
-    /// <summary>
-    /// Files associated with the enclosed content, or <see langword="null"/> when absent.
-    /// </summary>
+    /// <inheritdoc />
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>

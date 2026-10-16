@@ -26,7 +26,7 @@ public sealed class PdfAttachmentsViewModel
         List<PdfAttachmentViewModel> items = [];
         HashSet<PdfReference> documentReferences = [];
 
-        AddDocumentItems(items, documentReferences, document.EmbeddedFiles.Values);
+        AddDocumentItems(items, documentReferences, document.EmbeddedFiles?.Items.Values);
         AddDocumentItems(items, documentReferences, document.AssociatedFiles);
 
         foreach (IPdfPage page in document.Pages)
