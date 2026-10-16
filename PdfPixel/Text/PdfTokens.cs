@@ -411,6 +411,15 @@ internal static class PdfTokens
     public static readonly PdfString OptionalContentStateKey = (PdfString)"State"u8;  // Set-OCG-state action array, unlike the annotation /State text string
     public static readonly PdfString PreserveRBKey = (PdfString)"PreserveRB"u8;       // Set-OCG-state action radio-button flag
     public static readonly PdfString OpenActionKey = (PdfString)"OpenAction"u8;       // Catalog destination or action performed on open
+    public static readonly PdfString EmbeddedTargetKey = (PdfString)"T"u8;            // Target dictionary of an embedded go-to action, and the next one inside it
+    public static readonly PdfString TargetRelationshipKey = (PdfString)"R"u8;        // Target dictionary relationship (P or C)
+    public static readonly PdfString TargetFileNameKey = (PdfString)"N"u8;            // Target dictionary EmbeddedFiles name
+    public static readonly PdfString TargetPageKey = (PdfString)"P"u8;                // Target dictionary page index or named destination
+    public static readonly PdfString TargetAnnotationKey = (PdfString)"A"u8;          // Target dictionary annotation index or /NM
+    public static readonly PdfString WindowsLaunchKey = (PdfString)"Win"u8;           // Launch action Windows parameters
+    public static readonly PdfString LaunchDirectoryKey = (PdfString)"D"u8;           // Windows launch default directory
+    public static readonly PdfString LaunchOperationKey = (PdfString)"O"u8;           // Windows launch operation (open or print)
+    public static readonly PdfString LaunchParametersKey = (PdfString)"P"u8;          // Windows launch application parameters
 
     // Form field and widget annotation keys
     public static readonly PdfString AcroFormKey = (PdfString)"AcroForm"u8;           // Catalog AcroForm dictionary

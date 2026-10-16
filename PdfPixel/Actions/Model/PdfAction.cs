@@ -52,6 +52,8 @@ public abstract class PdfAction
         {
             PdfActionType.GoTo => new PdfGoToAction(actionDictionary),
             PdfActionType.GoToRemote => new PdfGoToRemoteAction(actionDictionary),
+            PdfActionType.GoToEmbedded => new PdfGoToEmbeddedAction(actionDictionary),
+            PdfActionType.Launch => new PdfLaunchAction(actionDictionary),
             PdfActionType.Uri => new PdfUriAction(actionDictionary),
             PdfActionType.Named => new PdfNamedAction(actionDictionary),
             PdfActionType.SetOcgState => new PdfSetOcgStateAction(actionDictionary),
