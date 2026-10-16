@@ -30,7 +30,13 @@ public abstract class PdfFontBase
         Type = Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
         BaseFont = Dictionary.GetString(PdfTokens.BaseFontKey);
         ToUnicodeCMap = PdfCMap.GetCMap(Dictionary, PdfTokens.ToUnicodeKey);
-        FontDescriptor = PdfFontDescriptor.FromDictionary(Dictionary.GetDictionary(PdfTokens.FontDescriptorKey));
+        PdfDictionary? fontDescriptor = Dictionary.GetDictionary(PdfTokens.FontDescriptorKey);
+        if (fontDescriptor != null)
+        {
+            FontDescriptor = new PdfFontDescriptor(fontDescriptor);
+        }
+
+
         SubstitutionInfo = PdfSubstitutionInfo.Parse(BaseFont, FontDescriptor);
     }
 

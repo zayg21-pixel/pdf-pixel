@@ -236,7 +236,7 @@ internal sealed class PdfContentHostCache
 
         if (!_graphicsStateParametersByName.TryGetValue(graphicsStateName, out PdfGraphicsStateParameters? parameters))
         {
-            parameters = PdfGraphicsStateParser.GetGraphicsStateParameters(_extGStateDictionary, graphicsStateName);
+            parameters = PdfGraphicsStateParameters.GetGraphicsStateParameters(_extGStateDictionary, graphicsStateName);
             if (parameters == null)
             {
                 _logger.LogWarning("ExtGState '{GraphicsStateName}' is not present in the page's /ExtGState resources.", graphicsStateName);

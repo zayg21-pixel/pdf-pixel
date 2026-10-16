@@ -193,26 +193,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             structureElement = FindStructureParent(mcid.Value);
         }
 
-        PdfMarkedContentScope markedContent = new(tagName, tagType, optionalContent: null, associatedFiles: null, structureElement) { Mcid = mcid };
-
-        if (propertiesDictionary == null)
-        {
-            return markedContent;
-        }
-
-        if (tagType == PdfMarkedContentTag.Artifact)
-        {
-            markedContent.Artifact = new PdfArtifactProperties(propertiesDictionary);
-        }
-        else if (tagType == PdfMarkedContentTag.Span)
-        {
-            markedContent.ActualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
-            markedContent.AlternateDescription = propertiesDictionary.GetString(PdfTokens.AltKey);
-            markedContent.ExpandedForm = propertiesDictionary.GetString(PdfTokens.ExpandedFormKey);
-            markedContent.Lang = propertiesDictionary.GetString(PdfTokens.LangKey);
-        }
-
-        return markedContent;
+        return new PdfMarkedContentScope(tagName, tagType, mcid, propertiesDictionary, structureElement);
     }
 
     private PdfStructureElement? FindStructureParent(int mcid)

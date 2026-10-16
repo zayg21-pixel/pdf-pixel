@@ -85,7 +85,7 @@ internal partial struct PdfParser
             return null;
         }
 
-        PdfObject pdfObject = new(reference, _document, value);
+        PdfObjectStreamReference? streamInfo = null;
 
         int preStreamPos = Position;
         IPdfValue? possibleStreamOp = ReadNextValue();
@@ -99,7 +99,7 @@ internal partial struct PdfParser
             }
             else
             {
-                pdfObject.StreamInfo = ReadRawStreamReference(dict, reference);
+                streamInfo = ReadRawStreamReference(dict, reference);
             }
         }
         else
@@ -107,7 +107,7 @@ internal partial struct PdfParser
             Position = preStreamPos;
         }
 
-        return pdfObject;
+        return new PdfObject(reference, _document, value, streamInfo);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

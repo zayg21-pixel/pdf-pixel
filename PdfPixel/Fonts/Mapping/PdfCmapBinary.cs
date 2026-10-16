@@ -78,19 +78,17 @@ public static class PdfCmapBinary
                 }
                 case CMapBinaryBlockId.CidSystemInfo:
                 {
-                    PdfCidSystemInfo info = new();
                     uint regLen = ReadVarUInt(span, ref offset);
-                    info.Registry = data.Slice(offset, (int)regLen);
+                    PdfString registry = data.Slice(offset, (int)regLen);
                     offset += (int)regLen;
 
                     uint ordLen = ReadVarUInt(span, ref offset);
-                    info.Ordering = data.Slice(offset, (int)ordLen);
+                    PdfString ordering = data.Slice(offset, (int)ordLen);
                     offset += (int)ordLen;
 
                     uint supplement = ReadVarUInt(span, ref offset);
-                    info.Supplement = (int)supplement;
 
-                    cmap.CidSystemInfo = info;
+                    cmap.CidSystemInfo = new PdfCidSystemInfo(registry, ordering, (int)supplement);
                     break;
                 }
                 case CMapBinaryBlockId.WMode:

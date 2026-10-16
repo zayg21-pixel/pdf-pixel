@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Actions.Model;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Intent;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption.Decryption;
@@ -33,6 +34,7 @@ internal class PdfDocument : IPdfDocumentInternal
     private readonly PdfStreamDecoder _streamDecoder;
     private readonly BufferedStream _stream;
     private readonly PdfTreeReader _treeReader;
+    private readonly PdfIccColorSpaceConverter? _outputIntentConverter;
     private PdfContentHost? _contentHost;
 
     /// <summary>
@@ -69,7 +71,7 @@ internal class PdfDocument : IPdfDocumentInternal
 
         List<PdfOutputIntent>? outputIntents = PdfOutputIntent.FromArray(catalog.GetArray(PdfTokens.OutputIntentsKey));
         OutputIntents = outputIntents;
-        _objectCache.OutputIntentConverter = PdfOutputIntent.CreateConverter(outputIntents);
+        _outputIntentConverter = PdfOutputIntent.CreateConverter(outputIntents);
 
         new PdfPageExtractor(this).ExtractPages();
         internalDocument.Decryptor?.AuthenticateOnOpen();
@@ -204,6 +206,8 @@ internal class PdfDocument : IPdfDocumentInternal
     PdfCredentialRequestedCallback? IPdfDocumentInternal.OnCredentialRequested { get; set; }
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;
+
+    PdfIccColorSpaceConverter? IPdfDocumentInternal.OutputIntentConverter => _outputIntentConverter;
 
     IPdfContentHost IPdfDocumentInternal.ContentHost
     {

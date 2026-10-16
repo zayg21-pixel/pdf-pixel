@@ -3,7 +3,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
-using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Model;
@@ -20,167 +19,15 @@ public class PdfFontDescriptor
     private const float GlyphSpaceUnitsPerEm = 1000f;
 
     /// <summary>
-    /// The font name as specified in the PDF dictionary (/FontName).
-    /// </summary>
-    public PdfString? FontName { get; set; }
-
-    /// <summary>
-    /// Flags describing font characteristics (see PDF spec Table 5.19).
-    /// </summary>
-    public PdfFontFlags Flags { get; set; }
-
-    /// <summary>
-    /// The font bounding box (/FontBBox) in glyph design units.
-    /// </summary>
-    public PdfRectangle FontBBox { get; set; }
-
-    /// <summary>
-    /// Italic angle of the font (/ItalicAngle).
-    /// </summary>
-    public float ItalicAngle { get; set; }
-
-    /// <summary>
-    /// Maximum height above baseline for glyphs in font (/Ascent).
-    /// </summary>
-    public float Ascent { get; set; }
-
-    /// <summary>
-    /// Maximum depth below baseline for glyphs in font (/Descent).
-    /// </summary>
-    public float Descent { get; set; }
-
-    /// <summary>
-    /// Height of uppercase glyphs (/CapHeight).
-    /// </summary>
-    public float CapHeight { get; set; }
-
-    /// <summary>
-    /// Height of lowercase x glyph (/XHeight).
-    /// </summary>
-    public float XHeight { get; set; }
-
-    /// <summary>
-    /// Vertical stem thickness (/StemV).
-    /// </summary>
-    public float StemV { get; set; }
-
-    /// <summary>
-    /// Horizontal stem thickness (/StemH).
-    /// </summary>
-    public float StemH { get; set; }
-
-    /// <summary>
-    /// Average glyph width (/AvgWidth).
-    /// </summary>
-    public float AvgWidth { get; set; }
-
-    /// <summary>
-    /// Maximum glyph width (/MaxWidth).
-    /// </summary>
-    public float MaxWidth { get; set; }
-
-    /// <summary>
-    /// Width to use for missing glyphs (/MissingWidth).
-    /// </summary>
-    public float MissingWidth { get; set; }
-
-    /// <summary>
-    /// Font family name (PDF 1.5+, /FontFamily).
-    /// </summary>
-    public PdfString? FontFamily { get; set; }
-
-    /// <summary>
-    /// Font stretch value (PDF 1.5+, /FontStretch).
-    /// </summary>
-    public PdfString? FontStretch { get; set; }
-
-    /// <summary>
-    /// Font weight (PDF 1.5+, /FontWeight).
-    /// </summary>
-    public int? FontWeight { get; set; }
-
-    /// <summary>
-    /// Leading value (PDF 1.5+, /Leading).
-    /// </summary>
-    public float Leading { get; set; }
-
-    /// <summary>
-    /// Character set description (PDF 1.5+, /CharSet).
-    /// </summary>
-    public PdfString? CharSet { get; set; }
-
-    /// <summary>
-    /// Array of horizontal stem thicknesses (PDF 1.5+, /StemSnapH).
-    /// </summary>
-    public IReadOnlyList<float>? StemSnapH { get; set; }
-
-    /// <summary>
-    /// Array of vertical stem thicknesses (PDF 1.5+, /StemSnapV).
-    /// </summary>
-    public IReadOnlyList<float>? StemSnapV { get; set; }
-
-    /// <summary>
-    /// PANOSE classification bytes (PDF 1.5+, /Panose).
-    /// </summary>
-    public byte[]? Panose { get; set; }
-
-    /// <summary>
-    /// The embedded font file stream (only one exists at a time).
-    /// </summary>
-    public PdfObjectStream? FontFileStream { get; set; }
-
-    /// <summary>
-    /// Reference of the object holding <see cref="FontFileStream"/>, which several descriptors may
-    /// share. <see langword="null"/> when this descriptor embeds no font program.
-    /// </summary>
-    public PdfReference? FontFileReference { get; set; }
-
-    /// <summary>
-    /// Format of the embedded font file.
-    /// </summary>
-    public PdfFontFileFormat FontFileFormat { get; set; }
-
-    /// <summary>
-    /// Type1 font stream segment length for the clear-text portion (/Length1).
-    /// </summary>
-    public int FontFileLength1 { get; set; }
-
-    /// <summary>
-    /// Type1 font stream segment length for the binary portion (/Length2).
-    /// </summary>
-    public int FontFileLength2 { get; set; }
-
-    /// <summary>
-    /// Type1 font stream segment length for the fixed-content trailer (/Length3).
-    /// </summary>
-    public int FontFileLength3 { get; set; }
-
-    /// <summary>
-    /// Object cache of the document this descriptor was created from, used to share one parsed typeface
-    /// between every descriptor embedding the same font program.
-    /// </summary>
-    internal PdfDocumentObjectCache? ObjectCache { get; private set; }
-
-    /// <summary>
-    /// Gets a value indicating whether this font descriptor has any embedded font stream.
-    /// </summary>
-    public bool HasEmbeddedFont => FontFileStream != null;
-
-    /// <summary>
-    /// Creates a <see cref="PdfFontDescriptor"/> from a typeface's own metrics, for a font whose
-    /// dictionary states no descriptor of its own - which the specification allows a Standard 14 font
-    /// to omit. Metrics arrive as fractions of the em square and are stated here in glyph space units
-    /// (1/1000 em), as a descriptor read from a dictionary would be.
+    /// Initializes a descriptor from a typeface's own metrics, for a font whose dictionary states no
+    /// descriptor of its own - which the specification allows a Standard 14 font to omit. Metrics arrive
+    /// as fractions of the em square and are stated here in glyph space units (1/1000 em), as a
+    /// descriptor read from a dictionary would be.
     /// </summary>
     /// <param name="metrics">The typeface's metrics.</param>
     /// <param name="isSymbolic">Whether the typeface addresses its glyphs through a built-in symbol encoding.</param>
-    public static PdfFontDescriptor FromMetrics(PdfFontMetrics metrics, bool isSymbolic)
+    internal PdfFontDescriptor(PdfFontMetrics metrics, bool isSymbolic)
     {
-        if (metrics == null)
-        {
-            throw new ArgumentNullException(nameof(metrics));
-        }
-
         PdfFontFlags flags = isSymbolic ? PdfFontFlags.Symbolic : PdfFontFlags.Nonsymbolic;
 
         if (metrics.IsItalic)
@@ -193,88 +40,217 @@ public class PdfFontDescriptor
             flags |= PdfFontFlags.ForceBold;
         }
 
-        return new PdfFontDescriptor
-        {
-            FontName = metrics.FontName.ToPdfString(),
-            FontFamily = metrics.FamilyName.ToPdfString(),
-            Flags = flags,
-            ItalicAngle = metrics.ItalicAngle,
-            Ascent = metrics.Ascent * GlyphSpaceUnitsPerEm,
-            Descent = metrics.Descent * GlyphSpaceUnitsPerEm,
-            CapHeight = metrics.CapHeight * GlyphSpaceUnitsPerEm,
-            XHeight = metrics.XHeight * GlyphSpaceUnitsPerEm,
-            AvgWidth = metrics.AvgWidth * GlyphSpaceUnitsPerEm,
-            FontWeight = metrics.Weight,
-            Panose = metrics.Panose,
-            FontBBox = new PdfRectangle(
-                metrics.BoundingBoxLeft * GlyphSpaceUnitsPerEm,
-                metrics.BoundingBoxBottom * GlyphSpaceUnitsPerEm,
-                metrics.BoundingBoxRight * GlyphSpaceUnitsPerEm,
-                metrics.BoundingBoxTop * GlyphSpaceUnitsPerEm)
-        };
+        FontName = metrics.FontName.ToPdfString();
+        FontFamily = metrics.FamilyName.ToPdfString();
+        Flags = flags;
+        ItalicAngle = metrics.ItalicAngle;
+        Ascent = metrics.Ascent * GlyphSpaceUnitsPerEm;
+        Descent = metrics.Descent * GlyphSpaceUnitsPerEm;
+        CapHeight = metrics.CapHeight * GlyphSpaceUnitsPerEm;
+        XHeight = metrics.XHeight * GlyphSpaceUnitsPerEm;
+        AvgWidth = metrics.AvgWidth * GlyphSpaceUnitsPerEm;
+        FontWeight = metrics.Weight;
+        Panose = metrics.Panose;
+        FontBBox = new PdfRectangle(
+            metrics.BoundingBoxLeft * GlyphSpaceUnitsPerEm,
+            metrics.BoundingBoxBottom * GlyphSpaceUnitsPerEm,
+            metrics.BoundingBoxRight * GlyphSpaceUnitsPerEm,
+            metrics.BoundingBoxTop * GlyphSpaceUnitsPerEm);
     }
 
     /// <summary>
-    /// Creates a <see cref="PdfFontDescriptor"/> from a PDF font descriptor dictionary.
+    /// Reads the font descriptor <paramref name="dictionary"/>.
     /// </summary>
-    /// <param name="dict">The PDF dictionary containing font descriptor properties.</param>
-    /// <returns>A populated <see cref="PdfFontDescriptor"/> instance, or null if <paramref name="dict"/> is null.</returns>
-    public static PdfFontDescriptor? FromDictionary(PdfDictionary? dict)
+    /// <param name="dictionary">The font descriptor dictionary.</param>
+    internal PdfFontDescriptor(PdfDictionary dictionary)
     {
-        if (dict == null)
-        {
-            return null;
-        }
-
-        PdfFontDescriptor descriptor = new()
-        {
-            ObjectCache = dict.Document.ObjectCache,
-            FontName = dict.GetString(PdfTokens.FontNameKey),
-            Flags = (PdfFontFlags)dict.GetIntegerOrDefault(PdfTokens.FlagsKey),
-            ItalicAngle = dict.GetFloatOrDefault(PdfTokens.ItalicAngleKey),
-            Ascent = dict.GetFloatOrDefault(PdfTokens.AscentKey),
-            Descent = dict.GetFloatOrDefault(PdfTokens.DescentKey),
-            CapHeight = dict.GetFloatOrDefault(PdfTokens.CapHeightKey),
-            XHeight = dict.GetFloatOrDefault(PdfTokens.XHeightKey),
-            StemV = dict.GetFloatOrDefault(PdfTokens.StemVKey),
-            StemH = dict.GetFloatOrDefault(PdfTokens.StemHKey),
-            AvgWidth = dict.GetFloatOrDefault(PdfTokens.AvgWidthKey),
-            MaxWidth = dict.GetFloatOrDefault(PdfTokens.MaxWidthKey),
-            MissingWidth = dict.GetFloatOrDefault(PdfTokens.MissingWidthKey),
-            FontFamily = dict.GetString(PdfTokens.FontFamilyKey),
-            FontStretch = dict.GetString(PdfTokens.FontStretchKey),
-            FontWeight = dict.GetInteger(PdfTokens.FontWeightKey),
-            Leading = dict.GetFloatOrDefault(PdfTokens.LeadingKey),
-            CharSet = dict.GetString(PdfTokens.CharSetKey)
-        };
+        ObjectCache = dictionary.Document.ObjectCache;
+        FontName = dictionary.GetString(PdfTokens.FontNameKey);
+        Flags = (PdfFontFlags)dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
+        ItalicAngle = dictionary.GetFloatOrDefault(PdfTokens.ItalicAngleKey);
+        Ascent = dictionary.GetFloatOrDefault(PdfTokens.AscentKey);
+        Descent = dictionary.GetFloatOrDefault(PdfTokens.DescentKey);
+        CapHeight = dictionary.GetFloatOrDefault(PdfTokens.CapHeightKey);
+        XHeight = dictionary.GetFloatOrDefault(PdfTokens.XHeightKey);
+        StemV = dictionary.GetFloatOrDefault(PdfTokens.StemVKey);
+        StemH = dictionary.GetFloatOrDefault(PdfTokens.StemHKey);
+        AvgWidth = dictionary.GetFloatOrDefault(PdfTokens.AvgWidthKey);
+        MaxWidth = dictionary.GetFloatOrDefault(PdfTokens.MaxWidthKey);
+        MissingWidth = dictionary.GetFloatOrDefault(PdfTokens.MissingWidthKey);
+        FontFamily = dictionary.GetString(PdfTokens.FontFamilyKey);
+        FontStretch = dictionary.GetString(PdfTokens.FontStretchKey);
+        FontWeight = dictionary.GetInteger(PdfTokens.FontWeightKey);
+        Leading = dictionary.GetFloatOrDefault(PdfTokens.LeadingKey);
+        CharSet = dictionary.GetString(PdfTokens.CharSetKey);
 
         // Optional arrays
-        descriptor.StemSnapH = dict.GetArray(PdfTokens.StemSnapHKey)?.GetFloatArray();
-        descriptor.StemSnapV = dict.GetArray(PdfTokens.StemSnapVKey)?.GetFloatArray();
+        StemSnapH = dictionary.GetArray(PdfTokens.StemSnapHKey)?.GetFloatArray();
+        StemSnapV = dictionary.GetArray(PdfTokens.StemSnapVKey)?.GetFloatArray();
 
         // PANOSE (string or hex string)
-        PdfString? panoseValue = dict.GetValue(PdfTokens.PanoseKey).AsString();
-        if (panoseValue != null)
-        {
-            descriptor.Panose = panoseValue.Value.Value.ToArray();
-        }
+        Panose = dictionary.GetValue(PdfTokens.PanoseKey).AsString()?.Value.ToArray();
 
-        (PdfObject? fontFileObject, PdfFontFileFormat format) = GetFileObjectAndFormat(dict);
-        descriptor.FontFileFormat = format;
+        (PdfObject? fontFileObject, PdfFontFileFormat format) = GetFileObjectAndFormat(dictionary);
+        FontFileFormat = format;
         if (fontFileObject != null)
         {
-            descriptor.FontFileStream = fontFileObject.Stream;
-            descriptor.FontFileReference = fontFileObject.Reference;
-            descriptor.FontFileLength1 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
-            descriptor.FontFileLength2 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
-            descriptor.FontFileLength3 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
+            FontFileStream = fontFileObject.Stream;
+            FontFileReference = fontFileObject.Reference;
+            FontFileLength1 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
+            FontFileLength2 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
+            FontFileLength3 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
         }
 
         // Parse FontBBox array
-        descriptor.FontBBox = PdfRectangle.FromArray(dict.GetArray(PdfTokens.FontBBoxKey)) ?? PdfRectangle.Empty;
-
-        return descriptor;
+        FontBBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.FontBBoxKey)) ?? PdfRectangle.Empty;
     }
+
+    /// <summary>
+    /// The font name as specified in the PDF dictionary (/FontName).
+    /// </summary>
+    public PdfString? FontName { get; }
+
+    /// <summary>
+    /// Flags describing font characteristics (see PDF spec Table 5.19).
+    /// </summary>
+    public PdfFontFlags Flags { get; }
+
+    /// <summary>
+    /// The font bounding box (/FontBBox) in glyph design units.
+    /// </summary>
+    public PdfRectangle FontBBox { get; }
+
+    /// <summary>
+    /// Italic angle of the font (/ItalicAngle).
+    /// </summary>
+    public float ItalicAngle { get; }
+
+    /// <summary>
+    /// Maximum height above baseline for glyphs in font (/Ascent).
+    /// </summary>
+    public float Ascent { get; }
+
+    /// <summary>
+    /// Maximum depth below baseline for glyphs in font (/Descent).
+    /// </summary>
+    public float Descent { get; }
+
+    /// <summary>
+    /// Height of uppercase glyphs (/CapHeight).
+    /// </summary>
+    public float CapHeight { get; }
+
+    /// <summary>
+    /// Height of lowercase x glyph (/XHeight).
+    /// </summary>
+    public float XHeight { get; }
+
+    /// <summary>
+    /// Vertical stem thickness (/StemV).
+    /// </summary>
+    public float StemV { get; }
+
+    /// <summary>
+    /// Horizontal stem thickness (/StemH).
+    /// </summary>
+    public float StemH { get; }
+
+    /// <summary>
+    /// Average glyph width (/AvgWidth).
+    /// </summary>
+    public float AvgWidth { get; }
+
+    /// <summary>
+    /// Maximum glyph width (/MaxWidth).
+    /// </summary>
+    public float MaxWidth { get; }
+
+    /// <summary>
+    /// Width to use for missing glyphs (/MissingWidth).
+    /// </summary>
+    public float MissingWidth { get; }
+
+    /// <summary>
+    /// Font family name (PDF 1.5+, /FontFamily).
+    /// </summary>
+    public PdfString? FontFamily { get; }
+
+    /// <summary>
+    /// Font stretch value (PDF 1.5+, /FontStretch).
+    /// </summary>
+    public PdfString? FontStretch { get; }
+
+    /// <summary>
+    /// Font weight (PDF 1.5+, /FontWeight).
+    /// </summary>
+    public int? FontWeight { get; }
+
+    /// <summary>
+    /// Leading value (PDF 1.5+, /Leading).
+    /// </summary>
+    public float Leading { get; }
+
+    /// <summary>
+    /// Character set description (PDF 1.5+, /CharSet).
+    /// </summary>
+    public PdfString? CharSet { get; }
+
+    /// <summary>
+    /// Array of horizontal stem thicknesses (PDF 1.5+, /StemSnapH).
+    /// </summary>
+    public IReadOnlyList<float>? StemSnapH { get; }
+
+    /// <summary>
+    /// Array of vertical stem thicknesses (PDF 1.5+, /StemSnapV).
+    /// </summary>
+    public IReadOnlyList<float>? StemSnapV { get; }
+
+    /// <summary>
+    /// PANOSE classification bytes (PDF 1.5+, /Panose).
+    /// </summary>
+    public byte[]? Panose { get; }
+
+    /// <summary>
+    /// The embedded font file stream (only one exists at a time).
+    /// </summary>
+    public PdfObjectStream? FontFileStream { get; }
+
+    /// <summary>
+    /// Reference of the object holding <see cref="FontFileStream"/>, which several descriptors may
+    /// share. <see langword="null"/> when this descriptor embeds no font program.
+    /// </summary>
+    public PdfReference? FontFileReference { get; }
+
+    /// <summary>
+    /// Format of the embedded font file.
+    /// </summary>
+    public PdfFontFileFormat FontFileFormat { get; }
+
+    /// <summary>
+    /// Type1 font stream segment length for the clear-text portion (/Length1).
+    /// </summary>
+    public int FontFileLength1 { get; }
+
+    /// <summary>
+    /// Type1 font stream segment length for the binary portion (/Length2).
+    /// </summary>
+    public int FontFileLength2 { get; }
+
+    /// <summary>
+    /// Type1 font stream segment length for the fixed-content trailer (/Length3).
+    /// </summary>
+    public int FontFileLength3 { get; }
+
+    /// <summary>
+    /// Object cache of the document this descriptor was created from, used to share one parsed typeface
+    /// between every descriptor embedding the same font program.
+    /// </summary>
+    internal PdfDocumentObjectCache? ObjectCache { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether this font descriptor has any embedded font stream.
+    /// </summary>
+    public bool HasEmbeddedFont => FontFileStream != null;
 
     /// <summary>
     /// Gets the embedded font file object and its format from the font descriptor dictionary.

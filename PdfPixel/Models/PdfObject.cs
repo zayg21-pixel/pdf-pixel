@@ -26,6 +26,31 @@ public class PdfObject
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="PdfObject"/> class with a stream stored in the file.
+    /// </summary>
+    /// <param name="reference">The PDF reference for this object, or <see langword="null"/> for a direct object.</param>
+    /// <param name="document">The owning PDF document.</param>
+    /// <param name="value">The value of the PDF object.</param>
+    /// <param name="streamInfo">The location of the object's stream data, or <see langword="null"/> when it has none.</param>
+    internal PdfObject(PdfReference? reference, IPdfDocumentInternal document, IPdfValue value, PdfObjectStreamReference? streamInfo)
+        : this(reference, document, value)
+    {
+        StreamInfo = streamInfo;
+    }
+
+    /// <summary>
+    /// Initializes a new direct instance of the <see cref="PdfObject"/> class with embedded stream data.
+    /// </summary>
+    /// <param name="document">The owning PDF document.</param>
+    /// <param name="value">The value of the PDF object.</param>
+    /// <param name="embeddedStream">The stream data.</param>
+    internal PdfObject(IPdfDocumentInternal document, IPdfValue value, in ReadOnlyMemory<byte> embeddedStream)
+        : this(null, document, value)
+    {
+        EmbaddedStream = embeddedStream;
+    }
+
+    /// <summary>
     /// Gets the PDF reference for this object, or <see langword="null"/> when it is a direct object.
     /// </summary>
     public PdfReference? Reference { get; }
@@ -46,9 +71,9 @@ public class PdfObject
     public PdfDictionary Dictionary { get; }
 
     /// <summary>
-    /// Gets or sets the stream reference information for this object, if it has an associated stream.
+    /// Gets the stream reference information for this object, if it has an associated stream.
     /// </summary>
-    public PdfObjectStreamReference? StreamInfo { get; internal set; }
+    public PdfObjectStreamReference? StreamInfo { get; }
 
     /// <summary>
     /// Gets a value indicating whether this object has an associated stream.
@@ -58,7 +83,7 @@ public class PdfObject
     /// <summary>
     /// Embedded stream data, if available.
     /// </summary>
-    internal ReadOnlyMemory<byte> EmbaddedStream { get; set; }
+    internal ReadOnlyMemory<byte> EmbaddedStream { get; }
 
     /// <summary>
     /// Gets the self-contained stream source for this object, created lazily on first access.

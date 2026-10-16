@@ -51,7 +51,7 @@ internal partial struct PdfParser
             return null;
         }
 
-        PdfObject inlineObject = new(null, _document, PdfValueFactory.Dictionary(imageDictionary)) { EmbaddedStream = new PdfString([.. _localBuffer]).Value };
+        PdfObject inlineObject = new(_document, PdfValueFactory.Dictionary(imageDictionary), new PdfString([.. _localBuffer]).Value);
 
         return PdfValueFactory.InlineImage(inlineObject);
     }

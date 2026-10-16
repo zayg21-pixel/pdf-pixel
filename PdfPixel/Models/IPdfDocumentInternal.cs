@@ -1,3 +1,4 @@
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Encryption.Decryption;
 using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Mapping;
@@ -44,6 +45,12 @@ internal interface IPdfDocumentInternal : IPdfDocument
     /// Gets the object cache for PDF objects in the document.
     /// </summary>
     PdfDocumentObjectCache ObjectCache { get; }
+
+    /// <summary>
+    /// Converter of the catalog output intent profile used for device colors. Null when no catalog output
+    /// intent has a usable profile.
+    /// </summary>
+    PdfIccColorSpaceConverter? OutputIntentConverter { get; }
 
     /// <summary>
     /// Gets the content host of the document itself, with no resources.

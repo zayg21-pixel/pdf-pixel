@@ -159,9 +159,9 @@ internal sealed partial class PdfColorSpaceResolver
             }
         }
 
-        if (_document.ObjectCache.OutputIntentConverter != null && _document.ObjectCache.OutputIntentConverter.N == n)
+        if (_document.OutputIntentConverter != null && _document.OutputIntentConverter.N == n)
         {
-            return _document.ObjectCache.OutputIntentConverter;
+            return _document.OutputIntentConverter;
         }
 
         return null;

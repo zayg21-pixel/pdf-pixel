@@ -176,7 +176,12 @@ public class PdfCidFont : PdfFontBase
     private PdfCidSystemInfo? LoadCidSystemInfo()
     {
         PdfDictionary? cidSystemInfoDict = Dictionary.GetDictionary(PdfTokens.CidSystemInfoKey);
-        return PdfCidSystemInfo.FromDictionary(cidSystemInfoDict);
+        if (cidSystemInfoDict == null)
+        {
+            return null;
+        }
+
+        return new PdfCidSystemInfo(cidSystemInfoDict);
     }
 
     private PdfCidToGidMap? LoadCidToGidMap()

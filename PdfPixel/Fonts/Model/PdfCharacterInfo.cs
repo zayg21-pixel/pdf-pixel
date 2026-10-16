@@ -41,7 +41,7 @@ public struct PdfCharacterInfo
     /// <summary>
     /// Typeface used to shape this character.
     /// </summary>
-    public IPdfTypeface Typeface { get; set; }
+    public IPdfTypeface Typeface { get; }
 
     /// <summary>
     /// The Unicode string for this character code.

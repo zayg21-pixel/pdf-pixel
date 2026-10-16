@@ -60,6 +60,9 @@ public static class PdfCMapScanner
         int lastNameStart = 0;
         int lastNameLength = 0;
         var inCidSystemInfo = false;
+        PdfString? registry = null;
+        PdfString? ordering = null;
+        int? supplement = null;
 
         while (position < data.Length)
         {
@@ -103,7 +106,7 @@ public static class PdfCMapScanner
                 }
                 else if (inCidSystemInfo)
                 {
-                    ReadCidSystemInfoEntry(data, ref position, name, cmap);
+                    ReadCidSystemInfoEntry(data, ref position, name, ref registry, ref ordering, ref supplement);
                 }
 
                 continue;
@@ -155,16 +158,27 @@ public static class PdfCMapScanner
             }
         }
 
+        if (registry != null || ordering != null || supplement != null)
+        {
+            cmap.CidSystemInfo = new PdfCidSystemInfo(registry, ordering, supplement ?? 0);
+        }
+
         return cmap;
     }
 
-    private static void ReadCidSystemInfoEntry(in ReadOnlySpan<byte> data, ref int position, in ReadOnlySpan<byte> name, PdfCMap cmap)
+    private static void ReadCidSystemInfoEntry(
+        in ReadOnlySpan<byte> data,
+        ref int position,
+        in ReadOnlySpan<byte> name,
+        ref PdfString? registry,
+        ref PdfString? ordering,
+        ref int? supplement)
     {
         if (name.SequenceEqual(RegistryEntry))
         {
-            if (TryReadLiteralString(data, ref position, out ReadOnlySpan<byte> registry))
+            if (TryReadLiteralString(data, ref position, out ReadOnlySpan<byte> registryValue))
             {
-                GetCidSystemInfo(cmap).Registry = (PdfString)registry;
+                registry = (PdfString)registryValue;
             }
 
             return;
@@ -172,9 +186,9 @@ public static class PdfCMapScanner
 
         if (name.SequenceEqual(OrderingEntry))
         {
-            if (TryReadLiteralString(data, ref position, out ReadOnlySpan<byte> ordering))
+            if (TryReadLiteralString(data, ref position, out ReadOnlySpan<byte> orderingValue))
             {
-                GetCidSystemInfo(cmap).Ordering = (PdfString)ordering;
+                ordering = (PdfString)orderingValue;
             }
 
             return;
@@ -182,21 +196,11 @@ public static class PdfCMapScanner
 
         if (name.SequenceEqual(SupplementEntry))
         {
-            if (TryReadInteger(data, ref position, out int supplement))
+            if (TryReadInteger(data, ref position, out int supplementValue))
             {
-                GetCidSystemInfo(cmap).Supplement = supplement;
+                supplement = supplementValue;
             }
         }
-    }
-
-    private static PdfCidSystemInfo GetCidSystemInfo(PdfCMap cmap)
-    {
-        if (cmap.CidSystemInfo == null)
-        {
-            cmap.CidSystemInfo = new PdfCidSystemInfo();
-        }
-
-        return cmap.CidSystemInfo;
     }
 
     private static void ReadCodespaceRanges(in ReadOnlySpan<byte> data, ref int position, PdfCMap cmap)

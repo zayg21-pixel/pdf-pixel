@@ -28,12 +28,6 @@ internal class PdfDocumentObjectCache : IDisposable
     }
 
     /// <summary>
-    /// Converter of the catalog output intent profile used for device colors. Null when no catalog output
-    /// intent has a usable profile.
-    /// </summary>
-    public PdfIccColorSpaceConverter? OutputIntentConverter { get; set; }
-
-    /// <summary>
     /// Document object index collection.
     /// </summary>
     public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = [];

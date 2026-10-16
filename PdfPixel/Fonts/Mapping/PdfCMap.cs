@@ -497,9 +497,10 @@ public class PdfCMap
             Name = cmapName;
         }
 
-        if (CidSystemInfo == null)
+        PdfDictionary? cidSystemInfo = cmapDictionary.GetDictionary(PdfTokens.CidSystemInfoKey);
+        if (CidSystemInfo == null && cidSystemInfo != null)
         {
-            CidSystemInfo = PdfCidSystemInfo.FromDictionary(cmapDictionary.GetDictionary(PdfTokens.CidSystemInfoKey));
+            CidSystemInfo = new PdfCidSystemInfo(cidSystemInfo);
         }
 
         if (WMode == CMapWMode.Horizontal)

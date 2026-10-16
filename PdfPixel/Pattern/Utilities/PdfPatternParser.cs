@@ -83,7 +83,7 @@ internal static class PdfPatternParser
             return null; // Invalid shading pattern without /Shading
         }
 
-        PdfGraphicsStateParameters? extGState = PdfGraphicsStateParser.GetGraphicsStateParameters(dictionary, PdfTokens.ExtGStateKey);
+        PdfGraphicsStateParameters? extGState = PdfGraphicsStateParameters.GetGraphicsStateParameters(dictionary, PdfTokens.ExtGStateKey);
 
         return new PdfShadingPattern(shading, matrix, extGState);
     }

@@ -182,7 +182,7 @@ public class PdfSimpleFont : PdfSingleByteFont
             Encoding.UpdateEncoding(familyEncoding.Value.ToPdfEncoding());
         }
 
-        PdfFontDescriptor descriptor = PdfFontDescriptor.FromMetrics(typeface.Metrics, typeface.IsSymbolEncoded);
+        PdfFontDescriptor descriptor = new(typeface.Metrics, typeface.IsSymbolEncoded);
         CffTypeface? cffTypeface = typeface.SfntFont.CffTypeface;
 
         if (cffTypeface == null)
