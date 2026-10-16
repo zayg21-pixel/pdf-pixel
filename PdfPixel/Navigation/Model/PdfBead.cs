@@ -12,12 +12,18 @@ public sealed class PdfBead
 {
     private readonly PdfDictionary _dictionary;
 
-    private PdfBead(PdfDictionary dictionary)
+    private PdfBead(PdfDictionary dictionary, in PdfReference reference)
     {
         _dictionary = dictionary;
+        Reference = reference;
         PageReference = dictionary.GetReference(PdfTokens.BeadPageKey);
         Rectangle = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BeadRectangleKey));
     }
+
+    /// <summary>
+    /// Reference of the bead dictionary.
+    /// </summary>
+    public PdfReference Reference { get; }
 
     /// <summary>
     /// Page the bead appears on (/P), or <see langword="null"/> when absent.
@@ -93,11 +99,11 @@ public sealed class PdfBead
     private static PdfBead? FromObject(PdfObject beadObject)
     {
         PdfDictionary? dictionary = beadObject.Value.AsDictionary();
-        if (dictionary == null)
+        if (dictionary == null || beadObject.Reference == null)
         {
             return null;
         }
 
-        return new PdfBead(dictionary);
+        return new PdfBead(dictionary, beadObject.Reference.Value);
     }
 }

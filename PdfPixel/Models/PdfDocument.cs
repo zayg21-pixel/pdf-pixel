@@ -81,7 +81,7 @@ internal class PdfDocument : IPdfDocumentInternal
     public PdfOutlines? Outlines { get; internal set; }
 
     /// <inheritdoc />
-    public IReadOnlyList<PdfThread> Threads { get; internal set; } = new List<PdfThread>();
+    public PdfThreads? Threads { get; internal set; }
 
     /// <inheritdoc />
     public IReadOnlyDictionary<PdfString, PdfFileSpecification> EmbeddedFiles { get; internal set; } = new Dictionary<PdfString, PdfFileSpecification>();

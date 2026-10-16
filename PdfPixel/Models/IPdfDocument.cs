@@ -109,9 +109,9 @@ public interface IPdfDocument : IDisposable
     PdfOutlines? Outlines { get; }
 
     /// <summary>
-    /// Gets the article threads of the document (/Threads). Empty if the document has none.
+    /// Gets the article threads of the document (/Threads), or <see langword="null"/> when absent.
     /// </summary>
-    IReadOnlyList<PdfThread> Threads { get; }
+    PdfThreads? Threads { get; }
 
     /// <summary>
     /// Gets the mark information dictionary (/MarkInfo), or <see langword="null"/> when absent.

@@ -9,8 +9,9 @@ namespace PdfPixel.Navigation.Model;
 /// </summary>
 public sealed class PdfThread
 {
-    private PdfThread(PdfDictionary dictionary)
+    private PdfThread(PdfDictionary dictionary, in PdfReference reference)
     {
+        Reference = reference;
         Metadata = PdfMetadata.FromDictionary(dictionary);
 
         PdfDictionary? information = dictionary.GetDictionary(PdfTokens.ThreadInformationKey);
@@ -21,6 +22,11 @@ public sealed class PdfThread
 
         Beads = PdfBead.FromThread(dictionary, this);
     }
+
+    /// <summary>
+    /// Reference of the thread dictionary.
+    /// </summary>
+    public PdfReference Reference { get; }
 
     /// <summary>
     /// Thread information dictionary (/I), or <see langword="null"/> when absent.
@@ -43,38 +49,14 @@ public sealed class PdfThread
     internal static PdfThread? GetThread(PdfArray array, int index)
         => array.Document.ObjectCache.GetOrCreate(array, index, FromObject);
 
-    /// <summary>
-    /// Article threads of the catalog (/Threads) in order; empty when absent.
-    /// </summary>
-    internal static List<PdfThread> FromCatalog(PdfDictionary catalog)
-    {
-        List<PdfThread> result = [];
-        PdfArray? threads = catalog.GetArray(PdfTokens.ThreadsKey);
-        if (threads == null)
-        {
-            return result;
-        }
-
-        for (int index = 0; index < threads.Count; index++)
-        {
-            PdfThread? thread = GetThread(threads, index);
-            if (thread != null)
-            {
-                result.Add(thread);
-            }
-        }
-
-        return result;
-    }
-
     private static PdfThread? FromObject(PdfObject threadObject)
     {
         PdfDictionary? dictionary = threadObject.Value.AsDictionary();
-        if (dictionary == null)
+        if (dictionary == null || threadObject.Reference == null)
         {
             return null;
         }
 
-        return new PdfThread(dictionary);
+        return new PdfThread(dictionary, threadObject.Reference.Value);
     }
 }
