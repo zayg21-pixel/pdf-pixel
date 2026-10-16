@@ -5,13 +5,14 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace PdfPixel.Demo.Wpf;
+namespace PdfPixel.PdfPanel.Wpf.Converters;
 
 /// <summary>
-/// Converts a <see cref="PdfColor"/> into a brush, or leaves the target unset when there is no color.
+/// Converts a <see cref="PdfColor"/> into a frozen <see cref="SolidColorBrush"/>, or leaves the target unset when there is no color.
 /// </summary>
-public class PdfColorBrushConverter : IValueConverter
+public sealed class PdfColorBrushConverter : IValueConverter
 {
+    /// <inheritdoc />
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is not PdfColor color)
@@ -20,10 +21,10 @@ public class PdfColorBrushConverter : IValueConverter
         }
 
         System.Windows.Media.Color brushColor = System.Windows.Media.Color.FromArgb(
-            (byte)Math.Round(Math.Clamp(color.Alpha, 0f, 1f) * 255),
-            (byte)Math.Round(Math.Clamp(color.Red, 0f, 1f) * 255),
-            (byte)Math.Round(Math.Clamp(color.Green, 0f, 1f) * 255),
-            (byte)Math.Round(Math.Clamp(color.Blue, 0f, 1f) * 255));
+            ToByte(color.Alpha),
+            ToByte(color.Red),
+            ToByte(color.Green),
+            ToByte(color.Blue));
 
         SolidColorBrush brush = new(brushColor);
         brush.Freeze();
@@ -31,6 +32,22 @@ public class PdfColorBrushConverter : IValueConverter
         return brush;
     }
 
+    /// <inheritdoc />
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
+
+    private static byte ToByte(float component)
+    {
+        if (component <= 0f)
+        {
+            return 0;
+        }
+
+        if (component >= 1f)
+        {
+            return 255;
+        }
+
+        return (byte)Math.Round(component * 255f);
+    }
 }

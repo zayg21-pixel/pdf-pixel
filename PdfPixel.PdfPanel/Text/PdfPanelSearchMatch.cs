@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using System;
 
 namespace PdfPixel.PdfPanel.Text;
 
@@ -7,11 +8,14 @@ namespace PdfPixel.PdfPanel.Text;
 /// </summary>
 public readonly struct PdfPanelSearchMatch
 {
+    private readonly PdfPanelText _text;
+
     /// <summary>
-    /// Initializes a match covering <paramref name="range"/>, whose characters span <paramref name="bounds"/>.
+    /// Initializes a match covering <paramref name="range"/> of <paramref name="text"/>, whose characters span <paramref name="bounds"/>.
     /// </summary>
-    public PdfPanelSearchMatch(in PdfPanelTextRange range, in PdfRectangle bounds)
+    public PdfPanelSearchMatch(PdfPanelText text, in PdfPanelTextRange range, in PdfRectangle bounds)
     {
+        _text = text ?? throw new ArgumentNullException(nameof(text));
         Range = range;
         Bounds = bounds;
     }
@@ -25,4 +29,9 @@ public readonly struct PdfPanelSearchMatch
     /// Area the matched characters cover, in unscaled page space.
     /// </summary>
     public PdfRectangle Bounds { get; }
+
+    /// <summary>
+    /// Text of the matched characters.
+    /// </summary>
+    public string Text => _text.GetText(Range);
 }

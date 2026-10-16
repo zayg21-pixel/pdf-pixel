@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Windows.Data;
 
-namespace PdfPixel.Demo.Wpf;
+namespace PdfPixel.Demo.Wpf.Converters;
 
 /// <summary>
 /// Formats the search status: "Searching..." until every page's text is extracted, then "Not found",

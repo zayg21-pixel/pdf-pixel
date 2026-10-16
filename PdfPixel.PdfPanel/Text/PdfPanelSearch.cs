@@ -342,7 +342,7 @@ public sealed class PdfPanelSearch
 
                 if (bounds != null && _matchedRanges.Add(range))
                 {
-                    pageMatches.Add(new PdfPanelSearchMatch(range, bounds.Value));
+                    pageMatches.Add(new PdfPanelSearchMatch(_text, range, bounds.Value));
                 }
             }
 

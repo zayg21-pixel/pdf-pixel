@@ -1,0 +1,569 @@
+<UserControl x:Class="PdfPixel.Demo.Wpf.Views.DocumentTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:converters="clr-namespace:PdfPixel.Demo.Wpf.Converters"
+             xmlns:viewModels="clr-namespace:PdfPixel.Demo.Wpf.ViewModels"
+             xmlns:pdfPanelAnnotations="clr-namespace:PdfPixel.PdfPanel.Annotations;assembly=PdfPixel.PdfPanel"
+             xmlns:pdfPanelMvvm="clr-namespace:PdfPixel.PdfPanel.Mvvm;assembly=PdfPixel.PdfPanel"
+             xmlns:pdfPanelText="clr-namespace:PdfPixel.PdfPanel.Text;assembly=PdfPixel.PdfPanel"
+             xmlns:wpfPdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
+             xmlns:wpfPdfPanelConverters="clr-namespace:PdfPixel.PdfPanel.Wpf.Converters;assembly=PdfPixel.PdfPanel.Wpf"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=viewModels:DocumentTabViewModel}"
+             d:DesignWidth="900" d:DesignHeight="600">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:SearchStatusConverter x:Key="SearchStatusConverter" />
+        <wpfPdfPanelConverters:PdfColorBrushConverter x:Key="PdfColorBrushConverter" />
+        <converters:SidePanelConverter x:Key="SidePanelConverter" />
+
+        <Style x:Key="BarToggleButtonStyle" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style x:Key="BarButtonStyle" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Appearance" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Margin" Value="2 0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style x:Key="SidePanelHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="12 10 12 6" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="{Binding LogsHeight, Mode=TwoWay}" />
+        </Grid.RowDefinitions>
+
+        <!-- Top bar -->
+        <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0 0 0 1">
+            <Grid Margin="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <ui:Button Style="{StaticResource BarButtonStyle}"
+                               Command="{Binding OpenFileCommand}"
+                               Icon="{ui:SymbolIcon FolderOpen20}"
+                               ToolTip="Open File" />
+
+                    <ComboBox ItemsSource="{Binding PdfFiles}"
+                              DisplayMemberPath="FileName"
+                              SelectedItem="{Binding SelectedPdfFile}"
+                              MinWidth="200"
+                              MaxWidth="320"
+                              Margin="4 0"
+                              Visibility="{Binding HasFiles, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Visibility="{Binding HasDocument, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ui:Button Style="{StaticResource BarButtonStyle}" Command="{Binding ZoomOutCommand}" Icon="{ui:SymbolIcon ZoomOut20}" ToolTip="Zoom Out" />
+                    <ui:Button Style="{StaticResource BarButtonStyle}" Command="{Binding ZoomInCommand}" Icon="{ui:SymbolIcon ZoomIn20}" ToolTip="Zoom In" />
+
+                    <Separator Margin="6 0" />
+
+                    <TextBlock Text="{Binding PageLabel, ElementName=pdfPanel}" VerticalAlignment="Center" Margin="4 0" />
+
+                    <ui:NumberBox Value="{Binding PageNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  Minimum="1"
+                                  Maximum="{Binding Pages.Count}"
+                                  MaxDecimalPlaces="0"
+                                  SmallChange="-1"
+                                  SpinButtonPlacementMode="Hidden"
+                                  ClearButtonEnabled="False"
+                                  HorizontalContentAlignment="Center"
+                                  VerticalContentAlignment="Center"
+                                  MinWidth="0"
+                                  Padding="0 0 -20 0"
+                                  Width="52"
+                                  Margin="4" />
+                    <TextBlock Text="of" VerticalAlignment="Center" Margin="6 0" />
+                    <TextBlock Text="{Binding Pages.Count}" VerticalAlignment="Center" />
+
+                    <Separator Margin="6 0" />
+
+                    <ui:Button Style="{StaticResource BarButtonStyle}" Command="{Binding RotateAllPagesCommand}" Icon="{ui:SymbolIcon ArrowRotateClockwise20}" ToolTip="Rotate All Pages" />
+
+                    <ui:Button Style="{StaticResource BarButtonStyle}" Command="{Binding RotatePageCommand}" ToolTip="Rotate Current Page">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="ArrowRotateClockwise20" />
+                            <TextBlock Text="₁" Margin="1 0 0 0" />
+                        </StackPanel>
+                    </ui:Button>
+
+                    <ui:Button Command="{Binding ToggleAutoScaleCommand}" ToolTip="Change Pages Fit Mode">
+                        <ui:Button.Style>
+                            <Style TargetType="ui:Button" BasedOn="{StaticResource BarButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AutoScaleMode}" Value="ScaleToWidth">
+                                        <Setter Property="Icon" Value="{ui:SymbolIcon ArrowAutofitWidth20}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding AutoScaleMode}" Value="ScaleToHeight">
+                                        <Setter Property="Icon" Value="{ui:SymbolIcon ArrowAutofitHeight20}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding AutoScaleMode}" Value="NoAutoScale">
+                                        <Setter Property="Icon" Value="{ui:SymbolIcon ArrowMaximize20}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ui:Button.Style>
+                    </ui:Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <ToggleButton Style="{StaticResource BarToggleButtonStyle}"
+                                  IsChecked="{Binding IsSearchOpen}"
+                                  IsEnabled="{Binding HasDocument}"
+                                  ToolTip="Search">
+                        <ui:SymbolIcon Symbol="Search20" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource BarToggleButtonStyle}"
+                                  IsChecked="{Binding IsLogsOpen}"
+                                  ToolTip="Logs">
+                        <ui:SymbolIcon Symbol="WindowConsole20" />
+                    </ToggleButton>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main area -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="{Binding SidePanelWidth, Mode=TwoWay}" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left bar -->
+            <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0 0 1 0"
+                    Visibility="{Binding HasDocument, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Margin="2 4">
+                    <ToggleButton Style="{StaticResource BarToggleButtonStyle}"
+                                  IsChecked="{Binding SidePanel, Converter={StaticResource SidePanelConverter}, ConverterParameter={x:Static viewModels:DocumentSidePanel.Thumbnails}}"
+                                  ToolTip="Thumbnails">
+                        <ui:SymbolIcon Symbol="SlideMultiple20" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource BarToggleButtonStyle}"
+                                  IsChecked="{Binding SidePanel, Converter={StaticResource SidePanelConverter}, ConverterParameter={x:Static viewModels:DocumentSidePanel.Outlines}}"
+                                  Visibility="{Binding Outlines.HasItems, ElementName=pdfPanel, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
+                                  ToolTip="Contents">
+                        <ui:SymbolIcon Symbol="TextBulletListTree20" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource BarToggleButtonStyle}"
+                                  IsChecked="{Binding SidePanel, Converter={StaticResource SidePanelConverter}, ConverterParameter={x:Static viewModels:DocumentSidePanel.Layers}}"
+                                  Visibility="{Binding Layers.HasLayers, ElementName=pdfPanel, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
+                                  ToolTip="Layers">
+                        <ui:SymbolIcon Symbol="Layer20" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource BarToggleButtonStyle}"
+                                  IsChecked="{Binding SidePanel, Converter={StaticResource SidePanelConverter}, ConverterParameter={x:Static viewModels:DocumentSidePanel.Attachments}}"
+                                  Visibility="{Binding Attachments.HasItems, ElementName=pdfPanel, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
+                                  ToolTip="Attachments">
+                        <ui:SymbolIcon Symbol="Attach20" />
+                    </ToggleButton>
+                </StackPanel>
+            </Border>
+
+            <!-- Side panel blocks -->
+            <Grid Grid.Column="1" Background="{DynamicResource LayerFillColorDefaultBrush}">
+                <DockPanel>
+                    <DockPanel.Style>
+                        <Style TargetType="DockPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SidePanel}" Value="Thumbnails">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DockPanel.Style>
+                    <TextBlock DockPanel.Dock="Top" Text="Thumbnails" Style="{StaticResource SidePanelHeaderStyle}" />
+                    <ListBox ItemsSource="{Binding Thumbnails.Items, ElementName=pdfPanel}"
+                             HorizontalContentAlignment="Center"
+                             UseLayoutRounding="True"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfThumbnailViewModel}">
+                                <StackPanel Margin="0 4"
+                                            Background="Transparent"
+                                            Cursor="Hand"
+                                            Loaded="ThumbnailItem_Loaded"
+                                            Unloaded="ThumbnailItem_Unloaded"
+                                            MouseLeftButtonUp="ThumbnailItem_MouseLeftButtonUp">
+                                    <Image Source="{Binding Png}"
+                                           Width="{Binding Size.Width}"
+                                           Height="{Binding Size.Height}"
+                                           Stretch="Fill"
+                                           RenderOptions.BitmapScalingMode="NearestNeighbor">
+                                        <Image.LayoutTransform>
+                                            <TransformGroup>
+                                                <ScaleTransform ScaleX="{Binding DataContext.ThumbnailDisplayScale, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                ScaleY="{Binding DataContext.ThumbnailDisplayScale, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                                <RotateTransform Angle="{Binding Info.Rotation}" />
+                                            </TransformGroup>
+                                        </Image.LayoutTransform>
+                                    </Image>
+                                    <TextBlock Text="{Binding Info.Label}" HorizontalAlignment="Center" Margin="0 2 0 0" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+
+                <DockPanel>
+                    <DockPanel.Style>
+                        <Style TargetType="DockPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SidePanel}" Value="Outlines">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DockPanel.Style>
+                    <TextBlock DockPanel.Dock="Top" Text="Contents" Style="{StaticResource SidePanelHeaderStyle}" />
+                    <TreeView ItemsSource="{Binding Outlines.Items, ElementName=pdfPanel}" Background="Transparent">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.Resources>
+                            <HierarchicalDataTemplate DataType="{x:Type pdfPanelMvvm:PdfOutlineItemViewModel}" ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding Title, TargetNullValue='Untitled'}"
+                                           Foreground="{Binding Color, Converter={StaticResource PdfColorBrushConverter}}"
+                                           Cursor="Hand"
+                                           MouseLeftButtonUp="OutlineItem_MouseLeftButtonUp">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsBold}" Value="True">
+                                                    <Setter Property="FontWeight" Value="Bold" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsItalic}" Value="True">
+                                                    <Setter Property="FontStyle" Value="Italic" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </HierarchicalDataTemplate>
+                        </TreeView.Resources>
+                    </TreeView>
+                </DockPanel>
+
+                <DockPanel>
+                    <DockPanel.Style>
+                        <Style TargetType="DockPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SidePanel}" Value="Layers">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DockPanel.Style>
+                    <TextBlock DockPanel.Dock="Top" Text="Layers" Style="{StaticResource SidePanelHeaderStyle}" />
+                    <ComboBox DockPanel.Dock="Top"
+                              ItemsSource="{Binding Layers.Configurations, ElementName=pdfPanel}"
+                              SelectedItem="{Binding Layers.Configuration, ElementName=pdfPanel}"
+                              Margin="8 0 8 4">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfLayerConfigurationViewModel}">
+                                <TextBlock Text="{Binding Name, TargetNullValue='Unnamed configuration'}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TreeView ItemsSource="{Binding Layers.Configuration.Layers, ElementName=pdfPanel}" Background="Transparent">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                                <Setter Property="IsExpanded" Value="True" />
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.Resources>
+                            <HierarchicalDataTemplate DataType="{x:Type pdfPanelMvvm:PdfLayerViewModel}" ItemsSource="{Binding Children}">
+                                <Grid>
+                                    <CheckBox Content="{Binding Name, TargetNullValue='Unnamed layer'}"
+                                              IsChecked="{Binding IsVisible}"
+                                              Visibility="{Binding IsLayer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <CheckBox.Style>
+                                            <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsLocked}" Value="True">
+                                                        <Setter Property="IsEnabled" Value="False" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </CheckBox.Style>
+                                    </CheckBox>
+                                    <TextBlock Text="{Binding Name, TargetNullValue='Unnamed'}" FontWeight="SemiBold" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsLayer}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </HierarchicalDataTemplate>
+                        </TreeView.Resources>
+                    </TreeView>
+                </DockPanel>
+
+                <DockPanel>
+                    <DockPanel.Style>
+                        <Style TargetType="DockPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SidePanel}" Value="Attachments">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DockPanel.Style>
+                    <TextBlock DockPanel.Dock="Top" Text="Attachments" Style="{StaticResource SidePanelHeaderStyle}" />
+                    <ListBox ItemsSource="{Binding Attachments.Items, ElementName=pdfPanel}" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfAttachmentViewModel}">
+                                <StackPanel Margin="0 2" ToolTip="{Binding Description}">
+                                    <TextBlock Text="{Binding Name, TargetNullValue='Unnamed file'}" />
+                                    <TextBlock Text="{Binding PageNumber, StringFormat='Page {0}', TargetNullValue='Document'}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Grid>
+
+            <GridSplitter Grid.Column="2"
+                          Width="5"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          ResizeBehavior="PreviousAndNext"
+                          Background="{DynamicResource DividerStrokeColorDefaultBrush}"
+                          Visibility="{Binding IsSidePanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <!-- Document -->
+            <Grid Grid.Column="3">
+                <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
+                    <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
+                                             CurrentPage="{Binding PageNumber}"
+                                             Pages="{Binding Pages}"
+                                             AutoScaleMode="{Binding AutoScaleMode}"
+                                             SearchQuery="{Binding SearchQuery}"
+                                             CurrentSearchResult="{Binding CurrentSearchResult}"
+                                             Configuration="{Binding PanelConfiguration}"
+                                             PanelInterface="{Binding PanelInterface}">
+                        <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
+                            <ToolTip>
+                                <ToolTip.Resources>
+                                    <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationMessage}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" Margin="4" FontSize="14" FontWeight="Bold" />
+                                            <TextBlock Text="{Binding Contents}" Margin="4" FontSize="12" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding CreationDate}" Margin="4" FontSize="10" />
+                                            <ItemsControl ItemsSource="{Binding Replies}" Margin="12,0,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ToolTip.Resources>
+                                <ToolTip.ContentTemplate>
+                                    <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationPopup}">
+                                        <ItemsControl ItemsSource="{Binding Messages}" MaxWidth="360" />
+                                    </DataTemplate>
+                                </ToolTip.ContentTemplate>
+                            </ToolTip>
+                        </wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
+                    </wpfPdfPanel:WpfPdfPanel>
+                </ScrollViewer>
+
+                <Popup PlacementTarget="{Binding ElementName=pdfPanel}" Placement="MousePoint" VerticalOffset="20" AllowsTransparency="True">
+                    <Popup.Style>
+                        <Style TargetType="{x:Type Popup}">
+                            <Setter Property="IsOpen" Value="True" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ActiveContentName, ElementName=pdfPanel}" Value="{x:Null}">
+                                    <Setter Property="IsOpen" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Popup.Style>
+                    <Border Background="{DynamicResource FlyoutBackground}"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            MaxWidth="360">
+                        <TextBlock Text="{Binding ActiveContentName, ElementName=pdfPanel}"
+                                   Margin="6 4"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Popup>
+            </Grid>
+        </Grid>
+
+        <!-- Bottom bar -->
+        <Border Grid.Row="2"
+                BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0 1 0 0"
+                Visibility="{Binding IsSearchOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid Margin="8 6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Grid x:Name="SearchBox" Width="300">
+                    <ui:TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Delay=300}"
+                                PlaceholderText="Search"
+                                Icon="{ui:SymbolIcon Search20}"
+                                ClearButtonEnabled="False"
+                                Padding="10 6 40 6" />
+                    <ToggleButton x:Name="SearchResultsToggleButton"
+                                  HorizontalAlignment="Right"
+                                  Width="32"
+                                  Height="28"
+                                  Margin="0 0 4 0"
+                                  Padding="0"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  Cursor="Hand"
+                                  ToolTip="Search Results"
+                                  IsEnabled="{Binding HasItems, ElementName=SearchResultsListBox}">
+                        <ui:SymbolIcon Symbol="ChevronDown16" />
+                    </ToggleButton>
+                    <Popup PlacementTarget="{Binding ElementName=SearchBox}"
+                           Placement="Top"
+                           VerticalOffset="-4"
+                           StaysOpen="False"
+                           AllowsTransparency="True"
+                           IsOpen="{Binding IsChecked, ElementName=SearchResultsToggleButton}">
+                        <Border Background="{DynamicResource FlyoutBackground}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="4"
+                                Width="{Binding ActualWidth, ElementName=SearchBox}">
+                            <ListBox x:Name="SearchResultsListBox"
+                                     ItemsSource="{Binding SearchResults, ElementName=pdfPanel}"
+                                     SelectedItem="{Binding CurrentSearchResult}"
+                                     MaxHeight="360"
+                                     Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type pdfPanelText:PdfPanelSearchMatch}">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right"
+                                                       Text="{Binding Range.PageNumber, StringFormat='Page {0}'}"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                       Margin="12 0 0 0" />
+                                            <TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Popup>
+                </Grid>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4 0 0 0">
+                    <ui:Button Style="{StaticResource BarButtonStyle}" Command="{Binding PreviousSearchResultCommand}" Icon="{ui:SymbolIcon ChevronUp20}" ToolTip="Previous Result" />
+                    <ui:Button Style="{StaticResource BarButtonStyle}" Command="{Binding NextSearchResultCommand}" Icon="{ui:SymbolIcon ChevronDown20}" ToolTip="Next Result" />
+
+                    <TextBlock VerticalAlignment="Center" Margin="8 0 0 0" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                        <TextBlock.Text>
+                            <MultiBinding Converter="{StaticResource SearchStatusConverter}">
+                                <Binding Path="SearchResults" ElementName="pdfPanel" />
+                                <Binding Path="CurrentSearchResult" />
+                                <Binding Path="SearchResults.Count" ElementName="pdfPanel" />
+                                <Binding Path="IsTextExtracted" ElementName="pdfPanel" />
+                                <Binding Path="SearchQuery" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                    <CheckBox Content="Match case" IsChecked="{Binding PanelConfiguration.SearchMatchCase}" Margin="8 0 0 0" />
+                    <CheckBox Content="Whole word" IsChecked="{Binding PanelConfiguration.SearchMatchWholeWord}" Margin="8 0 0 0" />
+                    <CheckBox Content="Match diacritics" IsChecked="{Binding PanelConfiguration.SearchMatchDiacritics}" Margin="8 0 0 0" />
+                </StackPanel>
+
+                <ui:Button Grid.Column="4"
+                           Style="{StaticResource BarButtonStyle}"
+                           Command="{Binding CloseSearchCommand}"
+                           Icon="{ui:SymbolIcon Dismiss20}"
+                           ToolTip="Close Search"
+                           Margin="8 0 0 0" />
+            </Grid>
+        </Border>
+
+        <!-- Logs -->
+        <GridSplitter Grid.Row="3"
+                      Height="5"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Center"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="{DynamicResource DividerStrokeColorDefaultBrush}"
+                      Visibility="{Binding IsLogsOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+        <DataGrid x:Name="LogDataGrid"
+                  Grid.Row="4"
+                  ItemsSource="{Binding LogMessages}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Extended"
+                  SelectionUnit="FullRow"
+                  ClipboardCopyMode="ExcludeHeader"
+                  HeadersVisibility="Column"
+                  Visibility="{Binding IsLogsOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Command="ApplicationCommands.Copy"
+                              CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              Icon="{ui:SymbolIcon Copy20}" />
+                    <MenuItem Command="ApplicationCommands.SelectAll"
+                              CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Time" Binding="{Binding DateTime, StringFormat=G}" Width="140" />
+                <DataGridTextColumn Header="Level" Binding="{Binding LogLevel}" Width="90" />
+                <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="180" />
+                <DataGridTextColumn Header="Message" Binding="{Binding FormattedMessage}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

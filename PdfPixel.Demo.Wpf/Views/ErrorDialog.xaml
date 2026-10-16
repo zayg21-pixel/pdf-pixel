@@ -1,0 +1,54 @@
+<views:DemoWindow x:Class="PdfPixel.Demo.Wpf.Views.ErrorDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:views="clr-namespace:PdfPixel.Demo.Wpf.Views"
+                 Title="Unhandled Exception"
+                 Width="720"
+                 Height="480"
+                 MinWidth="400"
+                 MinHeight="300"
+                 WindowStartupLocation="CenterOwner"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 ShowInTaskbar="False">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Title="Unhandled Exception" ShowMinimize="False" ShowMaximize="False" />
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="16 8 16 8">
+            <ui:SymbolIcon Symbol="ErrorCircle24" FontSize="24" Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+            <TextBlock x:Name="MessageTextBlock"
+                       Margin="10 0 0 0"
+                       VerticalAlignment="Center"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <TextBox x:Name="DetailsTextBox"
+                 Grid.Row="2"
+                 Margin="16 0"
+                 IsReadOnly="True"
+                 IsReadOnlyCaretVisible="True"
+                 TextWrapping="NoWrap"
+                 AcceptsReturn="True"
+                 VerticalContentAlignment="Top"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 FontFamily="Consolas"
+                 FontSize="12" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16">
+            <Button Content="Copy" Click="CopyButton_Click" MinWidth="88" Margin="0 0 8 0" />
+            <Button Content="Exit" Click="ExitButton_Click" MinWidth="88" Margin="0 0 8 0" />
+            <Button Content="Continue" IsDefault="True" Click="ContinueButton_Click" MinWidth="88" />
+        </StackPanel>
+    </Grid>
+</views:DemoWindow>

@@ -53,6 +53,11 @@ public sealed class PdfAttachmentsViewModel
     /// </summary>
     public IReadOnlyList<PdfAttachmentViewModel> Items { get; }
 
+    /// <summary>
+    /// Whether the document has attached files.
+    /// </summary>
+    public bool HasItems => Items.Count > 0;
+
     private static void AddDocumentItems(
         List<PdfAttachmentViewModel> items,
         HashSet<PdfReference> documentReferences,

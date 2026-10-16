@@ -50,6 +50,11 @@ public sealed class PdfLayersViewModel : INotifyPropertyChanged
     public IReadOnlyList<PdfLayerConfigurationViewModel> Configurations { get; }
 
     /// <summary>
+    /// Whether the document has layer configurations.
+    /// </summary>
+    public bool HasLayers => Configurations.Count > 0;
+
+    /// <summary>
     /// Configuration content is rendered with, one of <see cref="Configurations"/>.
     /// </summary>
     public PdfLayerConfigurationViewModel? Configuration

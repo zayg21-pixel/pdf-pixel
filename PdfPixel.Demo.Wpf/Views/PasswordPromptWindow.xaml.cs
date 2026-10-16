@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace PdfPixel.Demo.Wpf;
+namespace PdfPixel.Demo.Wpf.Views;
 
 /// <summary>
 /// Interaction logic for PasswordPromptWindow.xaml.

@@ -47,6 +47,11 @@ public sealed class PdfOutlinesViewModel
     public IReadOnlyList<PdfOutlineItemViewModel> Items { get; }
 
     /// <summary>
+    /// Whether the document has outline items.
+    /// </summary>
+    public bool HasItems => Items.Count > 0;
+
+    /// <summary>
     /// Performs the action of <paramref name="item"/>, or navigates to its destination when it has no action.
     /// </summary>
     /// <param name="item">The activated item.</param>
