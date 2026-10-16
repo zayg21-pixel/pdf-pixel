@@ -223,6 +223,7 @@ public sealed class PdfPanelContext : IDisposable
         Renderer.RedrawGraphics(_graphics.Update());
 
         PagesDrawingRequest request = BuildRequest();
+        Actions.ClearAnnotationUpdate();
 
         if (!PagesDrawingRequest.AreOptionalContentStatesEqual(_optionalContentStates, request.OptionalContentStates))
         {
@@ -348,7 +349,8 @@ public sealed class PdfPanelContext : IDisposable
             BackgroundColor = Renderer.BackgroundColor,
             PageCornerRadius = Renderer.PageCornerRadius,
             ShowPageLoadingAnimation = Renderer.ShowPageLoadingAnimation,
-            OptionalContentStates = Layers.Configuration?.ToStates()
+            OptionalContentStates = Layers.Configuration?.ToStates(),
+            ForceAnnotationUpdate = Actions.IsAnnotationUpdateRequested
         };
     }
 

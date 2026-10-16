@@ -164,7 +164,8 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
 
     /// <summary>
     /// Returns <see langword="true"/> when the cached annotation recording must be regenerated for <paramref name="request"/>:
-    /// no recording is cached yet, no request was recorded, or the active annotation or its state changed.
+    /// no recording is cached yet, no request was recorded, the active annotation or its state changed, or the
+    /// request forces an annotation update.
     /// </summary>
     public bool NeedsAnnotationRecordingUpdate(PagesDrawingRequest request)
     {
@@ -176,7 +177,8 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
         return !ContentCommandRecording.HasContent
             || LastRequest == null
             || LastRequest.ActiveAnnotation != request.ActiveAnnotation
-            || LastRequest.ActiveAnnotationState != request.ActiveAnnotationState;
+            || LastRequest.ActiveAnnotationState != request.ActiveAnnotationState
+            || request.ForceAnnotationUpdate;
     }
 
     /// <summary>

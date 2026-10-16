@@ -422,6 +422,8 @@ internal static class PdfTokens
     public static readonly PdfString LaunchParametersKey = (PdfString)"P"u8;          // Windows launch application parameters
     public static readonly PdfString ThreadActionThreadKey = (PdfString)"D"u8;        // Thread action thread (reference, index or title)
     public static readonly PdfString ThreadActionBeadKey = (PdfString)"B"u8;          // Thread action bead (reference or index)
+    public static readonly PdfString HideTargetKey = (PdfString)"T"u8;                // Hide action targets (annotation, field name or array)
+    public static readonly PdfString HideKey = (PdfString)"H"u8;                      // Hide action flag (hide or show)
 
     // Form field and widget annotation keys
     public static readonly PdfString AcroFormKey = (PdfString)"AcroForm"u8;           // Catalog AcroForm dictionary

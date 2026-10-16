@@ -47,6 +47,16 @@ internal abstract class DrawingRequest
     public VisiblePageInfo[] VisiblePages { get; set; } = [];
 
     /// <summary>
+    /// Whether the annotations of the visible pages are recorded again even when the request is otherwise unchanged.
+    /// </summary>
+    public bool ForceAnnotationUpdate { get; set; }
+
+    /// <summary>
+    /// Whether the request is drawn even when it is otherwise unchanged.
+    /// </summary>
+    public bool Force => ForceAnnotationUpdate;
+
+    /// <summary>
     /// Returns the visible page with the given page number.
     /// </summary>
     public VisiblePageInfo GetPage(int pageNumber) => VisiblePages.First(page => page.PageNumber == pageNumber);

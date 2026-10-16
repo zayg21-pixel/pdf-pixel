@@ -21,6 +21,12 @@ internal static class PdfAnnotationFactory
         => array.Document.ObjectCache.GetOrCreate(array, index, CreateAnnotation);
 
     /// <summary>
+    /// The annotation at <paramref name="reference"/> of <paramref name="document"/>, or <see langword="null"/> when absent.
+    /// </summary>
+    public static PdfAnnotationBase? GetAnnotation(IPdfDocumentInternal document, in PdfReference reference)
+        => document.ObjectCache.GetOrCreate(reference, CreateAnnotation);
+
+    /// <summary>
     /// Creates an annotation instance from a PDF object.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing an annotation.</param>

@@ -21,6 +21,7 @@ internal static class PdfDocumentAnnotationExtractor
 
         return page.Popups.FirstOrDefault(x =>
             x.IsInteractive
+                && x.PageAnnotation?.Content.IsHidden != true
                 && page.FromPdfRect(x.HoverRectangle).Contains(pagePosition));
     }
 

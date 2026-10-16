@@ -68,7 +68,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
             throw new ArgumentNullException(nameof(request));
         }
 
-        if (request.Equals(_lastRequest))
+        if (!request.Force && request.Equals(_lastRequest))
         {
             return;
         }

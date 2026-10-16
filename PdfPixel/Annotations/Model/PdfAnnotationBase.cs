@@ -60,6 +60,7 @@ public abstract class PdfAnnotationBase
         CreationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey));
 
         Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FKey);
+        IsHidden = (Flags & PdfAnnotationFlags.Hidden) != 0;
         AppearanceState = annotationObject.Dictionary.GetString(PdfTokens.AppearanceStateKey);
         Appearance = PdfAnnotationAppearance.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey), AppearanceState);
 
@@ -206,6 +207,12 @@ public abstract class PdfAnnotationBase
     /// Flags include: Invisible, Hidden, Print, NoZoom, NoRotate, NoView, ReadOnly, etc.
     /// </remarks>
     public PdfAnnotationFlags Flags { get; }
+
+    /// <summary>
+    /// Gets or sets whether the annotation is hidden; initially whether <see cref="Flags"/> has
+    /// <see cref="PdfAnnotationFlags.Hidden"/>.
+    /// </summary>
+    public bool IsHidden { get; set; }
 
     /// <summary>
     /// Gets the parsed appearance that specifies how the annotation is presented visually on the page,

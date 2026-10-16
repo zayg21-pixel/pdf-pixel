@@ -55,6 +55,7 @@ public abstract class PdfAction
             PdfActionType.GoToEmbedded => new PdfGoToEmbeddedAction(actionDictionary),
             PdfActionType.Launch => new PdfLaunchAction(actionDictionary),
             PdfActionType.Thread => new PdfThreadAction(actionDictionary),
+            PdfActionType.Hide => new PdfHideAction(actionDictionary),
             PdfActionType.Uri => new PdfUriAction(actionDictionary),
             PdfActionType.Named => new PdfNamedAction(actionDictionary),
             PdfActionType.SetOcgState => new PdfSetOcgStateAction(actionDictionary),

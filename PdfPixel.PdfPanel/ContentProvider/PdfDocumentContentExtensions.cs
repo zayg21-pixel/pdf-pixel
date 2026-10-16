@@ -41,7 +41,7 @@ internal static class PdfDocumentContentExtensions
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
             if ((pageAnnotation.Content.Flags & PdfAnnotationFlags.Invisible) != 0
-                || (pageAnnotation.Content.Flags & PdfAnnotationFlags.Hidden) != 0
+                || pageAnnotation.Content.IsHidden
                 || (pageAnnotation.Content.Flags & PdfAnnotationFlags.NoView) != 0)
             {
                 continue;
