@@ -22,7 +22,7 @@ internal static class SkCanvasExtensions
         PageDrawFlags flags,
         in AnimationState animation)
     {
-        float cornerRadius = request.PageCornerRadius;
+        float cornerRadius = request.PageCornerRadius / page.Info.UserUnit;
         int savedCount = canvas.Save();
         PdfMatrix deviceMatrix = page.GetContentToPanelMatrix(request.Scale);
 
@@ -33,7 +33,7 @@ internal static class SkCanvasExtensions
 
         if ((flags & PageDrawFlags.Shadow) != 0)
         {
-            DrawPageShadow(canvas, pageRect, cornerRadius);
+            DrawPageShadow(canvas, pageRect, cornerRadius, page.Info.UserUnit);
         }
 
         ClipToPage(canvas, pageRect, cornerRadius);
@@ -50,7 +50,7 @@ internal static class SkCanvasExtensions
 
         if ((flags & PageDrawFlags.Content) != 0)
         {
-            tiler.DrawTiles(canvas, in page, request.Scale, deviceMatrix);
+            tiler.DrawTiles(canvas, in page, request.Scale * page.Info.UserUnit, deviceMatrix);
             DrawPagePicture(canvas, pictures?.Annotations, page.Info);
             DrawGraphicsPicture(canvas, graphics, page);
         }
@@ -131,7 +131,7 @@ internal static class SkCanvasExtensions
         canvas.ClipRoundRect(roundRect, SKClipOperation.Intersect, antialias: true);
     }
 
-    private static void DrawPageShadow(SKCanvas canvas, SKRect pageRect, float cornerRadius)
+    private static void DrawPageShadow(SKCanvas canvas, SKRect pageRect, float cornerRadius, float userUnit)
     {
         if (pageRect.Contains(canvas.LocalClipBounds))
         {
@@ -143,7 +143,7 @@ internal static class SkCanvasExtensions
             Style = SKPaintStyle.Fill,
             IsAntialias = cornerRadius > 0,
             Color = SKColors.Gray.WithAlpha(160),
-            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f)
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f / userUnit)
         };
 
         DrawPageRect(canvas, pageRect, cornerRadius, shadowPaint);

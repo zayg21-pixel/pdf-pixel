@@ -70,7 +70,7 @@ public sealed class PdfPanelContent
     public PdfPanelContentItem? ActiveContent { get; private set; }
 
     /// <summary>
-    /// Alternate description (/Alt) of the content under the pointer, or <see langword="null"/> if there is none.
+    /// Alternate description of the content under the pointer, or <see langword="null"/> if there is none.
     /// </summary>
     public string? ActiveContentName { get; private set; }
 
@@ -133,7 +133,7 @@ public sealed class PdfPanelContent
         using SKPaint borderPaint = new()
         {
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = SelectionBorderThickness / scale,
+            StrokeWidth = SelectionBorderThickness / (scale * pageInfo.UserUnit),
             Color = SelectionBorderColor.ToSkiaColor(),
             IsAntialias = true
         };

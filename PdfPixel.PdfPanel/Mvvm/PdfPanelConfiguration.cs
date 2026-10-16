@@ -72,7 +72,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Gap between pages, in unscaled page space.
+    /// Gap between pages, in unscaled panel space.
     /// </summary>
     public float PageGap
     {
@@ -99,7 +99,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Corner radius of the pages, in unscaled page space.
+    /// Corner radius of the pages, in unscaled panel space.
     /// </summary>
     public float PageCornerRadius
     {
@@ -234,7 +234,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Whether the page's thumbnail image (/Thumb) is used as its thumbnail when present.
+    /// Whether the page's embedded thumbnail image is used as its thumbnail when present.
     /// </summary>
     public bool UsePageThumbnails
     {

@@ -284,7 +284,7 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets the alternate description (/Alt) of the content under the mouse cursor, or <see langword="null"/> if there is none.
+    /// Gets the alternate description of the content under the mouse cursor, or <see langword="null"/> if there is none.
     /// </summary>
     public string? ActiveContentName
     {

@@ -8,13 +8,14 @@ namespace PdfPixel.PdfPanel;
 public readonly struct PdfPanelPageInfo
 {
     /// <summary>
-    /// Initializes page info with the given label, crop box, and PDF rotation.
+    /// Initializes page info with the given label, crop box, PDF rotation, and user unit.
     /// </summary>
-    public PdfPanelPageInfo(string label, in PdfRectangle cropBox, int rotation)
+    public PdfPanelPageInfo(string label, in PdfRectangle cropBox, int rotation, float userUnit)
     {
         Label = label;
         CropBox = cropBox;
         Rotation = rotation;
+        UserUnit = userUnit;
     }
 
     /// <summary>
@@ -31,4 +32,9 @@ public readonly struct PdfPanelPageInfo
     /// Page rotation in degrees.
     /// </summary>
     public int Rotation { get; }
+
+    /// <summary>
+    /// Scale from the page's units to panel units.
+    /// </summary>
+    public float UserUnit { get; }
 }

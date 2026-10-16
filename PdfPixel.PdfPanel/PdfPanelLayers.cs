@@ -34,8 +34,8 @@ public sealed class PdfPanelLayers
     }
 
     /// <summary>
-    /// The document's configurations resolved for the user to switch: the default configuration (/D) first,
-    /// then the alternate configurations (/Configs). Empty when the document has no optional content.
+    /// The document's configurations resolved for the user to switch: the default configuration first,
+    /// then the alternate configurations. Empty when the document has no optional content.
     /// </summary>
     public IReadOnlyList<PdfUserOptionalContentConfiguration> Configurations { get; }
 

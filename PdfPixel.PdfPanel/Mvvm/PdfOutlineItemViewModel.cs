@@ -28,7 +28,7 @@ public sealed class PdfOutlineItemViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
-    /// Text displayed for the item (/Title), or <see langword="null"/> when the document defines none.
+    /// Text displayed for the item, or <see langword="null"/> when the document defines none.
     /// </summary>
     public string? Title { get; }
 

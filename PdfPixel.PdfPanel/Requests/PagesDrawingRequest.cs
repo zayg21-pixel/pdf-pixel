@@ -26,7 +26,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     public PdfColor BackgroundColor { get; set; }
 
     /// <summary>
-    /// Corner radius for page rendering in unscaled page space.
+    /// Corner radius for page rendering in unscaled panel space.
     /// </summary>
     public float PageCornerRadius { get; set; }
 

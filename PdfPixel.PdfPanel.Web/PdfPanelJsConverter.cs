@@ -60,7 +60,7 @@ internal static class PdfPanelJsConverter
 
     /// <summary>
     /// Reads a destination <c>{ pageNumber, fitType, left, top, right, bottom, zoom }</c>, or returns <see langword="null"/>
-    /// when the fit type is not one of ISO 32000-2 Table 149.
+    /// when the fit type is not one of <see cref="PdfDestinationFitType"/>.
     /// </summary>
     public static PdfPageNumberDestination ReadDestination(JSObject source)
     {

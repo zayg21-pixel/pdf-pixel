@@ -29,7 +29,7 @@ public sealed class PdfLayerConfigurationViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
-    /// Name of the configuration (/Name), or <see langword="null"/> when the document defines none.
+    /// Name of the configuration, or <see langword="null"/> when the document defines none.
     /// </summary>
     public string? Name
     {

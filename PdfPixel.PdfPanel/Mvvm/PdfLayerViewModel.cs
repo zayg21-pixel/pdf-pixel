@@ -38,7 +38,7 @@ public sealed class PdfLayerViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
-    /// Name of the layer (/Name) or label of the list, or <see langword="null"/> when the document defines none.
+    /// Name of the layer or label of the list, or <see langword="null"/> when the document defines none.
     /// </summary>
     public string? Name
     {

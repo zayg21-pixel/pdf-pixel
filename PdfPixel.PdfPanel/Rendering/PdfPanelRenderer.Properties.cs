@@ -11,7 +11,7 @@ public sealed partial class PdfPanelRenderer
     public PdfColor BackgroundColor { get; set; } = PdfColors.LightGray;
 
     /// <summary>
-    /// Corner radius for page rendering in unscaled page space.
+    /// Corner radius for page rendering in unscaled panel space.
     /// A value of 0 renders pages with sharp corners.
     /// </summary>
     public float PageCornerRadius { get; set; }

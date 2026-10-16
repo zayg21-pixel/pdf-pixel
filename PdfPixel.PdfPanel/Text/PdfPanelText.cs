@@ -79,7 +79,7 @@ public sealed class PdfPanelText
     public bool IsTextExtracted => _extractedPageCount == _extractedPages.Length;
 
     /// <summary>
-    /// Distance from a character within which the pointer counts as being over it, in unscaled page space.
+    /// Distance from a character within which the pointer counts as being over it, in unscaled panel space.
     /// </summary>
     public float CharacterHitRadius { get; set; } = 10f;
 
@@ -467,7 +467,9 @@ public sealed class PdfPanelText
             return null;
         }
 
-        return HitTestCharacterNearest(words, pagePoint.Value.Position, maxDistance);
+        float? pageDistance = maxDistance / _contentProvider.GetPageInfo(pagePoint.Value.PageNumber).UserUnit;
+
+        return HitTestCharacterNearest(words, pagePoint.Value.Position, pageDistance);
     }
 
     /// <summary>

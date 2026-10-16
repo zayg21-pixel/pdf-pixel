@@ -27,12 +27,12 @@ public sealed class PdfAttachmentViewModel
     public int? PageNumber { get; }
 
     /// <summary>
-    /// File name (/UF or /F), or <see langword="null"/> when the document defines none.
+    /// File name, or <see langword="null"/> when the document defines none.
     /// </summary>
     public string? Name { get; }
 
     /// <summary>
-    /// Description of the file (/Desc), or <see langword="null"/> when the document defines none.
+    /// Description of the file, or <see langword="null"/> when the document defines none.
     /// </summary>
     public string? Description { get; }
 

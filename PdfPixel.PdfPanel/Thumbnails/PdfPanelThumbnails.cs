@@ -7,7 +7,7 @@ using System;
 namespace PdfPixel.PdfPanel.Thumbnails;
 
 /// <summary>
-/// Page thumbnails of the panel: the page's thumbnail image (/Thumb) or a rendering of the page, as PNG files.
+/// Page thumbnails of the panel: the page's embedded thumbnail image or a rendering of the page, as PNG files.
 /// </summary>
 public sealed class PdfPanelThumbnails
 {
@@ -40,7 +40,7 @@ public sealed class PdfPanelThumbnails
     public event EventHandler? Cleared;
 
     /// <summary>
-    /// Whether the page's thumbnail image (/Thumb) is used when present. Changing it clears the thumbnails.
+    /// Whether the page's embedded thumbnail image is used when present. Changing it clears the thumbnails.
     /// </summary>
     public bool UsePageThumbnails
     {

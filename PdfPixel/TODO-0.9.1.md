@@ -1,16 +1,10 @@
 # 0.9.1 — Missing document and page level entries
 
-## 1. PdfPanel
-
-| Entry | Location | Spec | Work |
-|---|---|---|---|
-| `/UserUnit` | `PdfPixel.PdfPanel/PdfPanelPageInfo.cs` | Table 31, 8.3.2.3 | Not supported: pages are laid out in their own units, so pages with different user units keep the wrong relative size. Supporting it adds a per-page scale on top of the global zoom, which layout, rendering and screen-to-page mapping must apply. Page content is unaffected; the value is already exposed as `IPdfPage.UserUnit` |
-
-## 2. File attachments
+## 1. File attachments
 
 See [PLAN-actions.md](PLAN-actions.md).
 
-## 3. Web panel
+## 2. Web panel
 
 Static document data is returned by `setDocument`; dynamic data arrives through the `setOnStateChanged` callback.
 

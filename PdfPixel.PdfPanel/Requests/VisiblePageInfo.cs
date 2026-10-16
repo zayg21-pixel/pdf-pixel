@@ -40,7 +40,7 @@ internal readonly struct VisiblePageInfo
         PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.CropBox.Width, pageInfo.CropBox.Height);
 
         RegionOfInterest = PdfRectangle.Intersect(
-            PdfPageContentTiler.SnapToTileGrid(visibleContent, scale, tileSize),
+            PdfPageContentTiler.SnapToTileGrid(visibleContent, scale * pageInfo.UserUnit, tileSize),
             pageBounds);
     }
 
@@ -92,8 +92,10 @@ internal readonly struct VisiblePageInfo
         float rotationOffsetX = rotation switch { 90 or 180 => rotatedSize.Width, _ => 0f };
         float rotationOffsetY = rotation switch { 180 or 270 => rotatedSize.Height, _ => 0f };
 
+        float pageScale = scale * Info.UserUnit;
+
         return PdfMatrix.CreateRotationDegrees(rotation)
-            .PostConcat(PdfMatrix.CreateScale(scale, scale))
+            .PostConcat(PdfMatrix.CreateScale(pageScale, pageScale))
             .PostConcat(PdfMatrix.CreateTranslation(
                 PdfCommandProcessingUtilities.SnapToWholePixel((Offset.X + rotationOffsetX) * scale),
                 PdfCommandProcessingUtilities.SnapToWholePixel((Offset.Y + rotationOffsetY) * scale)));

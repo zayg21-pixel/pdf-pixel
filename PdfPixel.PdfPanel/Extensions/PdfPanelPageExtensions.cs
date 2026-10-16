@@ -28,7 +28,7 @@ public static class PdfPanelPageExtensions
     }
 
     /// <summary>
-    /// Gets the size of the page after applying rotation.
+    /// Gets the size of the page after applying rotation and the user unit.
     /// </summary>
     /// <param name="pageInfo">The page information.</param>
     /// <param name="userRotation">User-applied rotation in degrees.</param>
@@ -36,13 +36,15 @@ public static class PdfPanelPageExtensions
     public static PdfSize GetRotatedSize(this in PdfPanelPageInfo pageInfo, int userRotation)
     {
         int totalRotation = pageInfo.GetTotalRotation(userRotation);
+        float width = pageInfo.CropBox.Width * pageInfo.UserUnit;
+        float height = pageInfo.CropBox.Height * pageInfo.UserUnit;
 
         if (totalRotation % 180 != 0)
         {
-            return new PdfSize(pageInfo.CropBox.Height, pageInfo.CropBox.Width);
+            return new PdfSize(height, width);
         }
 
-        return new PdfSize(pageInfo.CropBox.Width, pageInfo.CropBox.Height);
+        return new PdfSize(width, height);
     }
 
     /// <summary>
@@ -189,8 +191,9 @@ public static class PdfPanelPageExtensions
         // Step 2: Subtract page offset (in scaled space) to get to page origin
         matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(-page.Offset.X, -page.Offset.Y));
 
-        // Step 3: Apply inverse scale to get to unscaled page space
-        matrix = matrix.PostConcat(PdfMatrix.CreateScale(1f / scale, 1f / scale));
+        // Step 3: Apply inverse scale and user unit to get to unscaled page space
+        float pageScale = scale * page.Info.UserUnit;
+        matrix = matrix.PostConcat(PdfMatrix.CreateScale(1f / pageScale, 1f / pageScale));
 
         // Step 4: Apply inverse rotation to get to unrotated page space
         int totalRotation = page.GetTotalRotation();

@@ -14,7 +14,7 @@ public interface IPdfPanelLayout
     PdfRectangle Padding { get; set; }
 
     /// <summary>
-    /// Spacing between pages in unscaled page space.
+    /// Spacing between pages in unscaled panel space.
     /// </summary>
     float PageGap { get; set; }
 

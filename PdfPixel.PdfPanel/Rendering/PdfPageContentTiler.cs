@@ -65,20 +65,22 @@ internal sealed class PdfPageContentTiler : IDisposable
             _pageCache[pageInfo.PageNumber] = pageCache;
         }
 
-        if (pageCache.Scale != request.Scale)
+        float pageScale = request.Scale * pageInfo.Info.UserUnit;
+
+        if (pageCache.Scale != pageScale)
         {
             pageCache.Clear();
-            pageCache.Scale = request.Scale;
+            pageCache.Scale = pageScale;
         }
 
         PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.CropBox.Width, pageInfo.Info.CropBox.Height);
 
-        PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.RegionOfInterest, request.Scale);
-        PdfIntegerRectangle pagePixels = ToPixels(pageBounds, request.Scale);
+        PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.RegionOfInterest, pageScale);
+        PdfIntegerRectangle pagePixels = ToPixels(pageBounds, pageScale);
         PdfIntegerRectangle visibleTileRange = ToTileRange(visiblePixels);
 
         EvictTilesOutside(pageCache, visibleTileRange);
-        RasterizeTiles(pageCache, contentLocker, request.Scale, visibleTileRange, pagePixels, forceClearVisible);
+        RasterizeTiles(pageCache, contentLocker, pageScale, visibleTileRange, pagePixels, forceClearVisible);
     }
 
     /// <summary>

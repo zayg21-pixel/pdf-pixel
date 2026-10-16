@@ -48,7 +48,7 @@ public sealed class PdfPanelActions
     public event EventHandler<PdfPanelActionEventArgs<PdfGoToRemoteAction>>? RemoteDocumentRequested;
 
     /// <summary>
-    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a named action not defined by ISO 32000, such
+    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a named action the panel does not perform, such
     /// as a viewer's <c>Print</c>, is performed.
     /// </summary>
     public event EventHandler<PdfPanelActionEventArgs<PdfNamedAction>>? NamedActionRequested;
@@ -239,7 +239,7 @@ public sealed class PdfPanelActions
     }
 
     /// <summary>
-    /// Performs an action and the actions chained after it (/Next), in order.
+    /// Performs an action and the actions chained after it, in order.
     /// </summary>
     private void PerformAction(PdfAction action, PdfPanelActionSource source)
     {
@@ -382,7 +382,7 @@ public sealed class PdfPanelActions
 
     /// <summary>
     /// Point of the target page, in PDF coordinates, that the destination scrolls to the panel's top-left corner.
-    /// A coordinate the destination leaves null retains its current value (ISO 32000-2 Table 149); Fit and FitB
+    /// A coordinate the destination leaves null retains its current value; Fit and FitB
     /// scroll to the page itself.
     /// </summary>
     /// <param name="target">The resolved destination.</param>
