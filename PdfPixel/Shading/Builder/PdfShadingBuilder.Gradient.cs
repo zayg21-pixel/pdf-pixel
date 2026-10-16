@@ -84,7 +84,7 @@ internal partial class PdfShadingBuilder
         PdfColor[] colors;
         float[] positions;
 
-        if (shading.Functions.Count > 0)
+        if (shading.Functions.Length > 0)
         {
             PdfFunction primaryFunction = shading.Functions[0];
 

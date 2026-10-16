@@ -33,7 +33,7 @@ public sealed class PdfTableAttribute : PdfStructureAttributeBase
     /// <summary>
     /// Identifiers (/ID) of the header cells of the cell (Headers), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString[]? Headers { get; }
+    public IReadOnlyList<PdfString>? Headers { get; }
 
     /// <summary>
     /// Cells a header cell applies to (Scope), or <see langword="null"/> when absent.

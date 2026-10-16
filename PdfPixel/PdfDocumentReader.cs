@@ -1,18 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Actions.Model;
-using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Intent;
 using PdfPixel.Encryption.Model;
-using PdfPixel.Files;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
-using PdfPixel.Navigation.Model;
-using PdfPixel.OptionalContent.Model;
-using PdfPixel.Parsing;
-using PdfPixel.Tagging.Model;
-using PdfPixel.Text;
 using System;
-using System.Collections.Generic;
 using System.IO;
 
 namespace PdfPixel;
@@ -45,8 +35,7 @@ public class PdfDocumentReader
     /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable.</param>
     /// <param name="onCredentialRequested">Called when the empty user password does not decrypt the document, at open or on
     /// first access to encrypted embedded files. When <see langword="null"/>, only the empty user password is tried.</param>
-    /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF content. If the stream is empty, an empty <see
-    /// cref="PdfDocument"/> is returned.</returns>
+    /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF content.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="stream"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">Thrown if <paramref name="stream"/> is not readable or does not support seeking.</exception>
     /// <exception cref="PdfInvalidDocumentException">Thrown if the PDF structure cannot be parsed.</exception>
@@ -69,68 +58,17 @@ public class PdfDocumentReader
             throw new InvalidOperationException("Stream must support seeking (required for parsing).");
         }
 
-        long length = stream.Length;
-        if (length <= 0)
-        {
-            _logger.LogWarning("Empty stream encountered when attempting to read PDF.");
-            return new PdfDocument(_loggerFactory, _fontSubstitutor, stream);
-        }
-
-        IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _fontSubstitutor, stream);
-        document.OnCredentialRequested = onCredentialRequested;
-        document.HeaderOffset = PdfByteScanner.LocateHeader(document.Stream);
-
-        if (document.HeaderOffset != 0)
-        {
-            _logger.LogWarning("PDF header found at offset {Offset}; declared offsets are relative to it.", document.HeaderOffset);
-        }
-
-        PdfXrefLoader xrefLoader = new(document);
+        PdfDocument document;
 
         try
         {
-            xrefLoader.LoadXref();
-        }
-        catch (PdfInvalidDocumentException ex)
-        {
-            _logger.LogWarning(ex, "Xref loading failed; attempting recovery scan.");
-        }
-
-        if (document.RootObject == null)
-        {
-            _logger.LogInformation("Xref incomplete (no catalog root); starting recovery scan.");
-            document.ObjectCache.RunRecoveryScan();
-        }
-
-        if (document.RootObject == null)
-        {
-            throw new PdfInvalidDocumentException("Failed to parse PDF document: catalog root not found.");
-        }
-
-        PdfPageExtractor pageExtractor = new(document);
-
-        try
-        {
-            List<PdfOutputIntent>? outputIntents = PdfOutputIntent.FromArray(document.RootObject.Dictionary.GetArray(PdfTokens.OutputIntentsKey));
-            ((PdfDocument)document).OutputIntents = outputIntents;
-            document.ObjectCache.OutputIntentConverter = PdfOutputIntent.CreateConverter(outputIntents);
-
-            pageExtractor.ExtractPages();
-            document.Decryptor?.AuthenticateOnOpen();
-
-            PdfDictionary? optionalContentProperties = document.RootObject.Dictionary.GetDictionary(PdfTokens.OCPropertiesKey);
-            if (optionalContentProperties != null)
-            {
-                ((PdfDocument)document).OptionalContentProperties = new PdfOptionalContentProperties(optionalContentProperties, document.RootObject.Dictionary.GetString(PdfTokens.LangKey));
-            }
-
-            ((PdfDocument)document).StructureTree = PdfStructureTree.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
-            ((PdfDocument)document).EmbeddedFiles = PdfEmbeddedFiles.FromCatalog(document.RootObject.Dictionary, document.TreeReader);
-            ReadDocumentEntries((PdfDocument)document, document.RootObject.Dictionary);
-
-            _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);
+            document = new PdfDocument(_loggerFactory, _fontSubstitutor, stream, onCredentialRequested);
         }
         catch (PdfAuthenticationException)
+        {
+            throw;
+        }
+        catch (PdfInvalidDocumentException)
         {
             throw;
         }
@@ -139,10 +77,13 @@ public class PdfDocumentReader
             throw new PdfInvalidDocumentException("Failed to parse PDF document.", ex);
         }
 
-        if (document.Pages.Count == 0)
+        IPdfDocument publicDocument = document;
+        if (publicDocument.Pages.Count == 0)
         {
             throw new PdfInvalidDocumentException("Failed to parse PDF document: no pages found.");
         }
+
+        _logger.LogInformation("Parsed PDF with {PageCount} page(s).", publicDocument.Pages.Count);
 
         return document;
     }
@@ -157,82 +98,4 @@ public class PdfDocumentReader
     [Obsolete("Use Read(Stream, PdfCredentialRequestedCallback?) and supply the password from the callback instead.")]
     public IPdfDocument Read(Stream stream, string? password)
         => Read(stream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
-
-    private static void ReadDocumentEntries(PdfDocument document, PdfDictionary catalog)
-    {
-        IPdfDocumentInternal internalDocument = document;
-        PdfDictionary? trailer = internalDocument.Trailer;
-
-        PdfVersion? headerVersion = ReadHeaderVersion(internalDocument);
-        PdfString? catalogVersionName = catalog.GetName(PdfTokens.CatalogVersionKey);
-        PdfVersion? catalogVersion = (catalogVersionName == null) ? null : PdfVersion.Parse(catalogVersionName.Value.Value.Span);
-
-        document.HeaderVersion = headerVersion;
-        document.Version = headerVersion;
-        if (catalogVersion != null && (headerVersion == null || catalogVersion.Value.IsLaterThan(headerVersion.Value)))
-        {
-            document.Version = catalogVersion;
-        }
-
-        document.Extensions = PdfDeveloperExtension.FromExtensions(catalog.GetDictionary(PdfTokens.ExtensionsKey));
-
-        PdfDictionary? information = trailer?.GetDictionary(PdfTokens.InfoKey);
-        if (information != null)
-        {
-            document.Information = new PdfDocumentInformation(information);
-        }
-
-        document.Id = PdfFileIdentifier.FromArray(trailer?.GetArray(PdfTokens.IdKey));
-        document.Lang = catalog.GetString(PdfTokens.LangKey);
-
-        PdfDictionary? markInformation = catalog.GetDictionary(PdfTokens.MarkInfoKey);
-        if (markInformation != null)
-        {
-            document.MarkInformation = new PdfMarkInformation(markInformation);
-        }
-
-        document.BaseUri = catalog.GetDictionary(PdfTokens.UriDictionaryKey)?.GetString(PdfTokens.BaseKey);
-        document.PageMode = catalog.GetName(PdfTokens.PageModeKey)?.AsEnum<PdfPageMode>();
-        document.PageLayout = catalog.GetName(PdfTokens.PageLayoutKey)?.AsEnum<PdfPageLayout>();
-        document.NeedsRendering = catalog.GetBoolean(PdfTokens.NeedsRenderingKey);
-        document.AssociatedFiles = PdfFileSpecification.GetFileSpecifications(catalog.GetArray(PdfTokens.AssociatedFilesKey));
-        document.Metadata = PdfMetadata.FromDictionary(catalog);
-        document.OpenAction = PdfOpenAction.FromCatalog(catalog, document.Destinations);
-        document.Outlines = PdfOutlines.FromCatalog(catalog, document.Destinations, document.StructureTree);
-        document.Threads = PdfThreads.FromCatalog(catalog);
-
-        int? permissions = internalDocument.Decryptor?.Parameters.Permissions;
-        if (permissions != null)
-        {
-            PdfPermissions definedPermissions = PdfPermissions.Print
-                | PdfPermissions.Modify
-                | PdfPermissions.Copy
-                | PdfPermissions.Annotate
-                | PdfPermissions.FillForms
-                | PdfPermissions.Assemble
-                | PdfPermissions.HighQualityPrint;
-            document.Permissions = (PdfPermissions)permissions.Value & definedPermissions;
-        }
-
-        int signatureFlags = catalog.GetDictionary(PdfTokens.AcroFormKey)?.GetInteger(PdfTokens.SigFlagsKey) ?? 0;
-        document.SignatureFlags = (PdfSignatureFlags)signatureFlags & (PdfSignatureFlags.SignaturesExist | PdfSignatureFlags.AppendOnly);
-    }
-
-    private static PdfVersion? ReadHeaderVersion(IPdfDocumentInternal document)
-    {
-        Stream stream = document.Stream;
-        long versionPosition = document.HeaderOffset + PdfTokens.Header.Length;
-        if (versionPosition >= stream.Length)
-        {
-            return null;
-        }
-
-        var versionBytes = new byte[8];
-        long previousPosition = stream.Position;
-        stream.Position = versionPosition;
-        int bytesRead = stream.Read(versionBytes, 0, versionBytes.Length);
-        stream.Position = previousPosition;
-
-        return PdfVersion.Parse(versionBytes.AsSpan(0, bytesRead));
-    }
 }

@@ -56,12 +56,12 @@ public sealed class PdfObjectStream
     /// <summary>
     /// Gets the filter chain for this stream.
     /// </summary>
-    public List<PdfFilterType> Filters { get; }
+    public IReadOnlyList<PdfFilterType> Filters { get; }
 
     /// <summary>
     /// Gets the decode parameters for this stream.
     /// </summary>
-    public List<PdfDecodeParameters?> DecodeParameters { get; }
+    public IReadOnlyList<PdfDecodeParameters?> DecodeParameters { get; }
 
     /// <summary>
     /// Creates a <see cref="PdfObjectStream"/> from a <see cref="PdfObject"/>.

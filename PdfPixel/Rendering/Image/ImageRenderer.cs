@@ -90,6 +90,6 @@ public class ImageRenderer : IImageRenderer
     {
         return pdfImage.SoftMask != null
             || pdfImage.Mask != null
-            || pdfImage.MaskArray != null;
+            || pdfImage.ColorKeyMask != null;
     }
 }

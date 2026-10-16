@@ -33,5 +33,10 @@ public enum PdfPanelInterfaceAction
     /// <summary>
     /// Requests <see cref="PdfPanelInterface.OnAfterDraw"/> without full page rendering.
     /// </summary>
-    RequestPresent
+    RequestPresent,
+
+    /// <summary>
+    /// Scroll to a <see cref="Navigation.Model.PdfDestination"/>.
+    /// </summary>
+    ScrollToDestination
 }

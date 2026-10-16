@@ -12,13 +12,16 @@ public sealed class PdfPanelLayers
     internal PdfPanelLayers(IPdfDocument document)
     {
         List<PdfUserOptionalContentConfiguration> configurations = [];
-        PdfOptionalContentProperties? properties = document.OptionalContentProperties;
+        PdfOptionalContentProperties properties = document.OptionalContentProperties;
 
-        if (properties != null)
+        if (properties.DefaultConfiguration != null)
         {
             DefaultSource = properties.DefaultConfiguration;
             configurations.Add(properties.DefaultConfiguration.ToUserConfiguration());
+        }
 
+        if (properties.Configurations != null)
+        {
             foreach (PdfOptionalContentConfiguration configuration in properties.Configurations)
             {
                 configurations.Add(configuration.ToUserConfiguration());

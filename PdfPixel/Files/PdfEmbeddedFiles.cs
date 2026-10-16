@@ -16,16 +16,16 @@ public sealed class PdfEmbeddedFiles
 {
     private readonly IPdfDocument _document;
 
-    private PdfEmbeddedFiles(IPdfDocument document, Dictionary<PdfString, PdfFileSpecification> items)
+    internal PdfEmbeddedFiles(IPdfDocument document, Dictionary<PdfString, PdfFileSpecification>? items)
     {
         _document = document;
         Items = items;
     }
 
     /// <summary>
-    /// Embedded files keyed by their name. Empty if the name tree has none.
+    /// Embedded files keyed by their name, or <see langword="null"/> when the document has no /EmbeddedFiles name tree.
     /// </summary>
-    public IReadOnlyDictionary<PdfString, PdfFileSpecification> Items { get; }
+    public IReadOnlyDictionary<PdfString, PdfFileSpecification>? Items { get; }
 
     /// <summary>
     /// Returns the file of a child step of an embedded go-to path in this document: the embedded file with its name,
@@ -47,6 +47,11 @@ public sealed class PdfEmbeddedFiles
 
         if (step.EmbeddedFileName != null)
         {
+            if (Items == null)
+            {
+                return null;
+            }
+
             return (Items.TryGetValue(step.EmbeddedFileName.Value, out PdfFileSpecification? file)) ? file : null;
         }
 
@@ -62,14 +67,14 @@ public sealed class PdfEmbeddedFiles
     }
 
     /// <summary>
-    /// The embedded files of the catalog's /Names /EmbeddedFiles entry, or <see langword="null"/> when the catalog has none.
+    /// The embedded files of the catalog's /Names /EmbeddedFiles entry, without items when the catalog has none.
     /// </summary>
-    internal static PdfEmbeddedFiles? FromCatalog(PdfDictionary catalog, PdfTreeReader treeReader)
+    internal static PdfEmbeddedFiles FromCatalog(PdfDictionary catalog, PdfTreeReader treeReader)
     {
         PdfDictionary? embeddedFiles = catalog.GetDictionary(PdfTokens.NamesKey)?.GetDictionary(PdfTokens.EmbeddedFilesKey);
         if (embeddedFiles == null)
         {
-            return null;
+            return new PdfEmbeddedFiles(catalog.Document, null);
         }
 
         return new PdfEmbeddedFiles(catalog.Document, treeReader.ReadNameTree(embeddedFiles, PdfFileSpecification.GetFileSpecification));

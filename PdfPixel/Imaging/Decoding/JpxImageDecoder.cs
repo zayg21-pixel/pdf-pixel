@@ -73,7 +73,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             colorConversionParameters,
             _resolvedConverter,
             Image.HasImageMask,
-            AppliedMaskArray,
+            AppliedColorKeyMask,
             Image.Decode,
             PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize),
             alphaType,

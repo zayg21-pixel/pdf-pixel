@@ -12,12 +12,12 @@ namespace PdfPixel.Navigation.Model;
 /// </summary>
 public sealed class PdfThreads
 {
-    private PdfThreads(List<PdfThread> items) => Items = items;
+    internal PdfThreads(List<PdfThread>? items) => Items = items;
 
     /// <summary>
-    /// Threads in order. Empty if the array has none.
+    /// Threads in order, or <see langword="null"/> when the document has no /Threads.
     /// </summary>
-    public IReadOnlyList<PdfThread> Items { get; }
+    public IReadOnlyList<PdfThread>? Items { get; }
 
     /// <summary>
     /// Returns the thread of <paramref name="action"/>: the thread with its reference, the thread at its index, or
@@ -29,6 +29,11 @@ public sealed class PdfThreads
         if (action == null)
         {
             throw new ArgumentNullException(nameof(action));
+        }
+
+        if (Items == null)
+        {
+            return null;
         }
 
         if (action.ThreadReference != null)
@@ -78,14 +83,14 @@ public sealed class PdfThreads
     }
 
     /// <summary>
-    /// The threads of the catalog's /Threads entry, or <see langword="null"/> when the catalog has none.
+    /// The threads of the catalog's /Threads entry, without items when the catalog has none.
     /// </summary>
-    internal static PdfThreads? FromCatalog(PdfDictionary catalog)
+    internal static PdfThreads FromCatalog(PdfDictionary catalog)
     {
         PdfArray? threads = catalog.GetArray(PdfTokens.ThreadsKey);
         if (threads == null)
         {
-            return null;
+            return new PdfThreads(null);
         }
 
         List<PdfThread> items = [];

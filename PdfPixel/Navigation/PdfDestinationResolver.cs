@@ -244,20 +244,19 @@ public sealed class PdfDestinationResolver
             }
             case PdfStructureDestination structureDestination:
             {
-                PdfStructureTree? structureTree = _document.StructureTree;
                 PdfObject? elementObject = _document.ObjectCache.GetObject(structureDestination.ElementReference);
-                if (structureTree == null || elementObject == null)
+                if (elementObject == null)
                 {
                     return null;
                 }
 
-                PdfStructureElement element = new(elementObject.Dictionary, structureDestination.ElementReference, structureTree);
+                PdfStructureElement element = new(elementObject.Dictionary, structureDestination.ElementReference, _document.StructureTree);
 
                 return GetStructureElementPageIndex(element);
             }
             case PdfStructureIdDestination structureIdDestination:
             {
-                PdfStructureElement? element = _document.StructureTree?.FindById(structureIdDestination.ElementId);
+                PdfStructureElement? element = _document.StructureTree.FindById(structureIdDestination.ElementId);
                 if (element == null)
                 {
                     return null;

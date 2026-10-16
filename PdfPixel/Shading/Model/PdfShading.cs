@@ -28,7 +28,7 @@ public sealed class PdfShading
         if (rawDictionary == null)
         {
             ShadingType = PdfShadingType.Unknown;
-            Functions = new List<PdfFunction>();
+            Functions = Array.Empty<PdfFunction>();
             return;
         }
 
@@ -45,7 +45,7 @@ public sealed class PdfShading
         }
 
         ColorSpaceReference = PdfColorSpaceReference.FromDictionary(rawDictionary, PdfTokens.ColorSpaceKey);
-        Functions = new List<PdfFunction>();
+        List<PdfFunction> functions = [];
 
         PdfArray? functionArray = rawDictionary.GetArray(PdfTokens.FunctionKey);
         if (functionArray != null)
@@ -55,7 +55,7 @@ public sealed class PdfShading
                 PdfFunction? function = PdfFunctions.GetFunction(functionArray, index);
                 if (function != null)
                 {
-                    Functions.Add(function);
+                    functions.Add(function);
                 }
             }
         }
@@ -64,9 +64,11 @@ public sealed class PdfShading
             PdfFunction? function = PdfFunctions.GetFunction(rawDictionary, PdfTokens.FunctionKey);
             if (function != null)
             {
-                Functions.Add(function);
+                functions.Add(function);
             }
         }
+
+        Functions = functions.ToArray();
 
         BBox = PdfRectangle.FromArray(rawDictionary.GetArray(PdfTokens.BBoxKey));
         Background = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
@@ -184,7 +186,7 @@ public sealed class PdfShading
     /// <summary>
     /// List of resolved PdfFunction(s) for function-based color evaluation.
     /// </summary>
-    public List<PdfFunction> Functions { get; }
+    public PdfFunction[] Functions { get; }
 
     /// <summary>
     /// Shading background color (/Background), if defined.

@@ -39,7 +39,7 @@ internal sealed class MeshColorResolver
     {
         _sampler = sampler;
 
-        if (shading.Functions.Count == 0)
+        if (shading.Functions.Length == 0)
         {
             _parametricColors = Array.Empty<Vector4>();
             return;

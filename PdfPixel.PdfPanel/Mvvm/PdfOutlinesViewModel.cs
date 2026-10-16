@@ -26,14 +26,14 @@ public sealed class PdfOutlinesViewModel
 
         _actions = actions ?? throw new ArgumentNullException(nameof(actions));
 
-        PdfOutlines? outlines = pages.ContentProvider.Document.Outlines;
-        if (outlines == null)
+        IReadOnlyList<PdfOutlineItem>? outlineItems = pages.ContentProvider.Document.Outlines.Items;
+        if (outlineItems == null)
         {
             Items = Array.Empty<PdfOutlineItemViewModel>();
             return;
         }
 
-        Items = PdfOutlineItemViewModel.CreateItems(outlines.Items);
+        Items = PdfOutlineItemViewModel.CreateItems(outlineItems);
     }
 
     /// <summary>

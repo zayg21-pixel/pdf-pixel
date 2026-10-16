@@ -1,4 +1,5 @@
 using PdfPixel.Commands.Model;
+using System.Collections.Generic;
 
 namespace PdfPixel.Content;
 
@@ -10,7 +11,7 @@ public sealed class PdfContentExtractionParameters
     /// <summary>
     /// Kinds of content to extract, or <see langword="null"/> to extract every kind.
     /// </summary>
-    public PdfContentKind[]? ContentKinds { get; set; }
+    public IReadOnlyList<PdfContentKind>? ContentKinds { get; set; }
 
     /// <summary>
     /// When true, content of Type 3 glyph descriptions is extracted as well.

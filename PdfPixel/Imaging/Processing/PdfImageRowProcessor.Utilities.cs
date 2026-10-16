@@ -88,8 +88,8 @@ internal sealed partial class PdfImageRowProcessor
 
         if (applyMask)
         {
-            maskMinCode = (uint)_maskArray[0];
-            maskMaxCode = (uint)_maskArray[1];
+            maskMinCode = (uint)_colorKeyMask[0];
+            maskMaxCode = (uint)_colorKeyMask[1];
         }
 
         var maxPaletteIndex = (uint)(palette.Length - 1);
@@ -170,7 +170,7 @@ internal sealed partial class PdfImageRowProcessor
             stages |= RowStages.Decode;
         }
 
-        if (parameters.MaskArray != null && parameters.MaskArray.Length == converter.Components * 2)
+        if (parameters.ColorKeyMask != null && parameters.ColorKeyMask.Length == converter.Components * 2)
         {
             stages |= RowStages.ColorKeyMask;
         }

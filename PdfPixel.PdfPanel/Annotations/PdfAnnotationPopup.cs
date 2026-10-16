@@ -1,6 +1,7 @@
 using PdfPixel.Annotations.Model;
 using PdfPixel.Geometry;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Annotations;
 
@@ -51,5 +52,5 @@ public class PdfAnnotationPopup
     /// Thread of annotation messages (from oldest to newest).
     /// First message is the root annotation, subsequent messages are replies in chronological order.
     /// </summary>
-    public PdfAnnotationMessage[] Messages { get; }
+    public IReadOnlyList<PdfAnnotationMessage> Messages { get; }
 }

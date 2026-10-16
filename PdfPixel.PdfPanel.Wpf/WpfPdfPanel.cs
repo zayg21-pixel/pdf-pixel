@@ -9,6 +9,7 @@ using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
 using PdfPixel.Geometry;
+using PdfPixel.Navigation.Model;
 using SkiaSharp;
 using System;
 using System.Collections.ObjectModel;
@@ -44,6 +45,7 @@ public partial class WpfPdfPanel : FrameworkElement
     private ISkSurfaceFactory? _surfaceFactory;
     private bool _updatingScale;
     private bool _updatingPages;
+    private PdfDestination? _pendingDestination;
 
     /// <summary>
     /// Initializes a new <see cref="WpfPdfPanel"/>.
@@ -244,6 +246,12 @@ public partial class WpfPdfPanel : FrameworkElement
         SetValue(ThumbnailsPropertyKey, thumbnails);
         PdfAttachmentsViewModel attachments = new(Pages);
         SetValue(AttachmentsPropertyKey, attachments);
+
+        if (_pendingDestination != null)
+        {
+            _context.Actions.ScrollToDestination(_pendingDestination);
+            _pendingDestination = null;
+        }
     }
 
     private void DisposeContext()
@@ -284,6 +292,21 @@ public partial class WpfPdfPanel : FrameworkElement
     private void OnTextExtracted(object? sender, EventArgs e) => SetValue(IsTextExtractedPropertyKey, true);
 
     private void OnViewModelChanged(object? sender, EventArgs e) => InvalidateVisual();
+
+    /// <summary>
+    /// Scrolls to <paramref name="destination"/> through the context of the current pages, or once that context is created.
+    /// </summary>
+    private void ScrollToDestination(PdfDestination destination)
+    {
+        if (_context == null || _context.Pages != Pages)
+        {
+            _pendingDestination = destination;
+            return;
+        }
+
+        _context.Actions.ScrollToDestination(destination);
+        InvalidateVisual();
+    }
 
     private void SynchronizeContext()
     {
@@ -373,6 +396,11 @@ public partial class WpfPdfPanel : FrameworkElement
                     _context?.Present();
                     break;
                 }
+            case PdfPanelInterfaceAction.ScrollToDestination when e.Destination != null:
+                {
+                    ScrollToDestination(e.Destination);
+                    break;
+                }
         }
     }
 
@@ -430,7 +458,7 @@ public partial class WpfPdfPanel : FrameworkElement
                 AnnotationToolTip.Content = AnnotationPopup;
             }
 
-            AnnotationToolTip.IsOpen = AnnotationPopup != null && AnnotationPopup.Messages.Length > 0;
+            AnnotationToolTip.IsOpen = AnnotationPopup != null && AnnotationPopup.Messages.Count > 0;
         }
     }
 

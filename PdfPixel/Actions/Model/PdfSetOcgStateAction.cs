@@ -21,10 +21,9 @@ public class PdfSetOcgStateAction : PdfAction
     }
 
     /// <summary>
-    /// Groups and the states applied to them (/State), in the order they are applied, or
-    /// <see langword="null"/> when absent.
+    /// Groups and the states applied to them (/State), in the order they are applied; empty when absent.
     /// </summary>
-    public IReadOnlyList<PdfOptionalContentStateChange>? State { get; }
+    public IReadOnlyList<PdfOptionalContentStateChange> State { get; }
 
     /// <summary>
     /// Whether turning a group ON turns OFF the other groups of its radio-button sets (/PreserveRB).
@@ -38,11 +37,11 @@ public class PdfSetOcgStateAction : PdfAction
     /// <returns>A string describing the action.</returns>
     public override string ToString() => "SetOCGState Action";
 
-    private static List<PdfOptionalContentStateChange>? ReadState(PdfArray? stateArray)
+    private static List<PdfOptionalContentStateChange> ReadState(PdfArray? stateArray)
     {
         if (stateArray == null)
         {
-            return null;
+            return new List<PdfOptionalContentStateChange>();
         }
 
         List<PdfOptionalContentStateChange> changes = new(stateArray.Count);

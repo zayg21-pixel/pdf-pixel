@@ -16,7 +16,7 @@ public sealed class PdfOutlineItem
         PdfDictionary dictionary,
         PdfOutlineItem? parent,
         PdfDestinationResolver destinations,
-        PdfStructureTree? structureTree,
+        PdfStructureTree structureTree,
         HashSet<PdfReference> visitedItems)
     {
         Parent = parent;
@@ -92,7 +92,7 @@ public sealed class PdfOutlineItem
         PdfDictionary parentDictionary,
         PdfOutlineItem? parent,
         PdfDestinationResolver destinations,
-        PdfStructureTree? structureTree,
+        PdfStructureTree structureTree,
         HashSet<PdfReference> visitedItems)
     {
         List<PdfOutlineItem> items = [];
@@ -115,10 +115,10 @@ public sealed class PdfOutlineItem
         return items;
     }
 
-    private static PdfStructureElement? ReadStructureElement(PdfDictionary dictionary, PdfStructureTree? structureTree)
+    private static PdfStructureElement? ReadStructureElement(PdfDictionary dictionary, PdfStructureTree structureTree)
     {
         PdfDictionary? element = dictionary.GetDictionary(PdfTokens.StructureElementKey);
-        if (element == null || structureTree == null)
+        if (element == null)
         {
             return null;
         }

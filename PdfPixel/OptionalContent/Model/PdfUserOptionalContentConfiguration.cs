@@ -29,14 +29,17 @@ public sealed class PdfUserOptionalContentConfiguration
         Dictionary<PdfReference, bool> resolvedStates = PdfOptionalContentEvaluator.Evaluate(properties, source, contextEvent, zoom, language, user);
         _statesByReference = new Dictionary<PdfReference, PdfOptionalContentGroupState>(resolvedStates.Count);
 
-        foreach (PdfOptionalContentGroup group in properties.Groups.Values)
+        if (properties.Groups != null)
         {
-            if (resolvedStates.TryGetValue(group.Reference, out bool isDefaultOn))
+            foreach (PdfOptionalContentGroup group in properties.Groups.Values)
             {
-                PdfOptionalContentGroupState state = new(group, source.Locked.Contains(group.Reference));
-                state.ResetState(isDefaultOn);
-                _groups.Add(state);
-                _statesByReference[group.Reference] = state;
+                if (resolvedStates.TryGetValue(group.Reference, out bool isDefaultOn))
+                {
+                    PdfOptionalContentGroupState state = new(group, source.Locked.Contains(group.Reference));
+                    state.ResetState(isDefaultOn);
+                    _groups.Add(state);
+                    _statesByReference[group.Reference] = state;
+                }
             }
         }
 
@@ -85,11 +88,6 @@ public sealed class PdfUserOptionalContentConfiguration
         if (action == null)
         {
             throw new ArgumentNullException(nameof(action));
-        }
-
-        if (action.State == null)
-        {
-            return;
         }
 
         foreach (PdfOptionalContentStateChange change in action.State)

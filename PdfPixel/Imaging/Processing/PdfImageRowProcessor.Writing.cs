@@ -310,8 +310,8 @@ internal sealed partial class PdfImageRowProcessor
 
                 if (applyMask && maskMatch)
                 {
-                    int minCode = _maskArray[c * 2];
-                    int maxCodeRange = _maskArray[(c * 2) + 1];
+                    int minCode = _colorKeyMask[c * 2];
+                    int maxCodeRange = _colorKeyMask[(c * 2) + 1];
 
                     if (sample < minCode || sample > maxCodeRange)
                     {

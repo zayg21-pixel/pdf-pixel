@@ -2,6 +2,7 @@ using PdfPixel.Color;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
+using System.Collections.Generic;
 
 namespace PdfPixel.Tagging.Model.Attributes;
 
@@ -211,13 +212,13 @@ public sealed class PdfLayoutAttribute : PdfStructureAttributeBase
     /// Space between adjacent columns (ColumnGap), or <see langword="null"/> when absent.
     /// A single number is returned as a one-element array.
     /// </summary>
-    public float[]? ColumnGap { get; }
+    public IReadOnlyList<float>? ColumnGap { get; }
 
     /// <summary>
     /// Width of each column (ColumnWidths), or <see langword="null"/> when absent.
     /// A single number is returned as a one-element array.
     /// </summary>
-    public float[]? ColumnWidths { get; }
+    public IReadOnlyList<float>? ColumnWidths { get; }
 
     private static PdfColor? ReadColor(PdfArray? components)
     {

@@ -9,9 +9,15 @@ namespace PdfPixel.OptionalContent.Model;
 /// </summary>
 public sealed class PdfOptionalContentProperties
 {
-    internal PdfOptionalContentProperties(PdfDictionary dictionary, PdfString? documentLanguage)
+    internal PdfOptionalContentProperties(PdfDictionary? dictionary, PdfString? documentLanguage)
     {
         DocumentLanguage = documentLanguage;
+
+        if (dictionary == null)
+        {
+            return;
+        }
+
         Dictionary<PdfReference, PdfOptionalContentGroup> groups = [];
         List<PdfObject>? groupObjects = dictionary.GetObjects(PdfTokens.OptionalContentGroupsKey);
 
@@ -32,18 +38,19 @@ public sealed class PdfOptionalContentProperties
         PdfDictionary? defaultConfiguration = dictionary.GetDictionary(PdfTokens.DefaultConfigKey);
         DefaultConfiguration = new PdfOptionalContentConfiguration(defaultConfiguration ?? new PdfDictionary(dictionary.Document), this, null);
 
-        List<PdfOptionalContentConfiguration> configurations = [];
         PdfArray? configurationArray = dictionary.GetArray(PdfTokens.ConfigsKey);
-
-        if (configurationArray != null)
+        if (configurationArray == null)
         {
-            for (int index = 0; index < configurationArray.Count; index++)
+            return;
+        }
+
+        List<PdfOptionalContentConfiguration> configurations = [];
+        for (int index = 0; index < configurationArray.Count; index++)
+        {
+            PdfDictionary? configuration = configurationArray.GetDictionary(index);
+            if (configuration != null)
             {
-                PdfDictionary? configuration = configurationArray.GetDictionary(index);
-                if (configuration != null)
-                {
-                    configurations.Add(new PdfOptionalContentConfiguration(configuration, this, DefaultConfiguration));
-                }
+                configurations.Add(new PdfOptionalContentConfiguration(configuration, this, DefaultConfiguration));
             }
         }
 
@@ -51,19 +58,21 @@ public sealed class PdfOptionalContentProperties
     }
 
     /// <summary>
-    /// Optional content groups of the document (/OCGs), keyed by their indirect reference.
+    /// Optional content groups of the document (/OCGs), keyed by their indirect reference,
+    /// or <see langword="null"/> when the document has no /OCProperties.
     /// </summary>
-    public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> Groups { get; }
+    public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup>? Groups { get; }
 
     /// <summary>
-    /// Configuration applied when the document is opened (/D).
+    /// Configuration applied when the document is opened (/D), or <see langword="null"/> when the document has
+    /// no /OCProperties.
     /// </summary>
-    public PdfOptionalContentConfiguration DefaultConfiguration { get; }
+    public PdfOptionalContentConfiguration? DefaultConfiguration { get; }
 
     /// <summary>
-    /// Alternate configurations (/Configs).
+    /// Alternate configurations (/Configs), or <see langword="null"/> when absent.
     /// </summary>
-    public IReadOnlyList<PdfOptionalContentConfiguration> Configurations { get; }
+    public IReadOnlyList<PdfOptionalContentConfiguration>? Configurations { get; }
 
     /// <summary>
     /// Document /Lang, the language resolution falls back to when none is given.

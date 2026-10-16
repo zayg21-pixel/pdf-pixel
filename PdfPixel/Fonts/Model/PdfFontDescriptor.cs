@@ -4,6 +4,7 @@ using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -111,12 +112,12 @@ public class PdfFontDescriptor
     /// <summary>
     /// Array of horizontal stem thicknesses (PDF 1.5+, /StemSnapH).
     /// </summary>
-    public float[]? StemSnapH { get; set; }
+    public IReadOnlyList<float>? StemSnapH { get; set; }
 
     /// <summary>
     /// Array of vertical stem thicknesses (PDF 1.5+, /StemSnapV).
     /// </summary>
-    public float[]? StemSnapV { get; set; }
+    public IReadOnlyList<float>? StemSnapV { get; set; }
 
     /// <summary>
     /// PANOSE classification bytes (PDF 1.5+, /Panose).

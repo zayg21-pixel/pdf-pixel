@@ -10,6 +10,8 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public class PdfFontEncodingInfo
 {
+    private readonly Dictionary<int, PdfString> _differences;
+
     /// <summary>
     /// Initializes a new <see cref="PdfFontEncodingInfo"/> instance with the specified base encoding, optional custom encoding name, and optional differences.
     /// </summary>
@@ -22,7 +24,7 @@ public class PdfFontEncodingInfo
     {
         BaseEncoding = encoding;
         CustomEncoding = customEncoding;
-        Differences = differences ?? new Dictionary<int, PdfString>();
+        _differences = differences ?? new Dictionary<int, PdfString>();
     }
 
     /// <summary>
@@ -39,7 +41,7 @@ public class PdfFontEncodingInfo
     /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.
     /// Empty for name-based encodings or when not present. Empty otherwise.
     /// </summary>
-    public Dictionary<int, PdfString> Differences { get; }
+    public IReadOnlyDictionary<int, PdfString> Differences => _differences;
 
     /// <summary>
     /// Updates the base encoding without modifying differences.
@@ -122,7 +124,7 @@ public class PdfFontEncodingInfo
             PdfFontString glyphName = encodingVector[code];
             if (!glyphName.IsEmpty && glyphName != SingleByteEncodings.UndefinedCharacter)
             {
-                Differences[code] = glyphName.ToPdfString();
+                _differences[code] = glyphName.ToPdfString();
             }
         }
     }

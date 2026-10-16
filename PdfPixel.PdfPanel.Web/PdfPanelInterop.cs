@@ -596,11 +596,11 @@ public partial class PdfPanelInterop
     /// <summary>
     /// Builds the JS array of <paramref name="messages"/>, each with its replies nested.
     /// </summary>
-    private static JSObject CreateMessagesArray(PdfAnnotationMessage[] messages)
+    private static JSObject CreateMessagesArray(IReadOnlyList<PdfAnnotationMessage> messages)
     {
         JSObject messagesArray = CreateArray();
 
-        for (int messageIndex = 0; messageIndex < messages.Length; messageIndex++)
+        for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
         {
             PdfAnnotationMessage message = messages[messageIndex];
 

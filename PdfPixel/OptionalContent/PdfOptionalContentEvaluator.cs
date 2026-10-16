@@ -31,14 +31,21 @@ internal static class PdfOptionalContentEvaluator
         PdfString? language,
         PdfString? user)
     {
-        Dictionary<PdfReference, bool> states = new(properties.Groups.Count);
+        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup>? groups = properties.Groups;
+        PdfOptionalContentConfiguration? defaultConfiguration = properties.DefaultConfiguration;
+        if (groups == null || defaultConfiguration == null)
+        {
+            return new Dictionary<PdfReference, bool>();
+        }
 
-        foreach (PdfReference group in properties.Groups.Keys)
+        Dictionary<PdfReference, bool> states = new(groups.Count);
+
+        foreach (PdfReference group in groups.Keys)
         {
             bool initialState = configuration.BaseState switch
             {
                 PdfOptionalContentBaseState.Off => false,
-                PdfOptionalContentBaseState.Unchanged => GetState(properties.DefaultConfiguration, group, true),
+                PdfOptionalContentBaseState.Unchanged => GetState(defaultConfiguration, group, true),
                 _ => true
             };
 
@@ -53,11 +60,11 @@ internal static class PdfOptionalContentEvaluator
         {
             if (application.Event == currentEvent)
             {
-                ApplyUsageApplication(properties, application, currentZoom, currentLanguage, user, states);
+                ApplyUsageApplication(groups, application, currentZoom, currentLanguage, user, states);
             }
         }
 
-        RemoveUnmatchedIntents(properties, configuration, states);
+        RemoveUnmatchedIntents(groups, configuration, states);
 
         return states;
     }
@@ -83,18 +90,18 @@ internal static class PdfOptionalContentEvaluator
     /// Sets each managed group ON when every consulted category recommends ON, OFF otherwise (Table 101).
     /// </summary>
     private static void ApplyUsageApplication(
-        PdfOptionalContentProperties properties,
+        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> groups,
         PdfOptionalContentUsageApplication application,
         float zoom,
         in PdfString language,
         PdfString? user,
         Dictionary<PdfReference, bool> states)
     {
-        HashSet<PdfReference> languageMatches = FindLanguageMatches(properties, application, language);
+        HashSet<PdfReference> languageMatches = FindLanguageMatches(groups, application, language);
 
         foreach (PdfReference group in application.Groups)
         {
-            if (!properties.Groups.TryGetValue(group, out PdfOptionalContentGroup? optionalContentGroup) || !states.ContainsKey(group))
+            if (!groups.TryGetValue(group, out PdfOptionalContentGroup? optionalContentGroup) || !states.ContainsKey(group))
             {
                 continue;
             }
@@ -194,7 +201,7 @@ internal static class PdfOptionalContentEvaluator
     /// are none, the partial matches marked as preferred (Table 101).
     /// </summary>
     private static HashSet<PdfReference> FindLanguageMatches(
-        PdfOptionalContentProperties properties,
+        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> groups,
         PdfOptionalContentUsageApplication application,
         in PdfString language)
     {
@@ -205,7 +212,7 @@ internal static class PdfOptionalContentEvaluator
 
         foreach (PdfReference group in application.Groups)
         {
-            if (!properties.Groups.TryGetValue(group, out PdfOptionalContentGroup? optionalContentGroup) || optionalContentGroup.Usage?.Lang == null)
+            if (!groups.TryGetValue(group, out PdfOptionalContentGroup? optionalContentGroup) || optionalContentGroup.Usage?.Lang == null)
             {
                 continue;
             }
@@ -232,7 +239,7 @@ internal static class PdfOptionalContentEvaluator
     }
 
     private static void RemoveUnmatchedIntents(
-        PdfOptionalContentProperties properties,
+        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> groups,
         PdfOptionalContentConfiguration configuration,
         Dictionary<PdfReference, bool> states)
     {
@@ -254,7 +261,7 @@ internal static class PdfOptionalContentEvaluator
 
         PdfOptionalContentIntent viewIntent = new(PdfOptionalContentIntentType.View);
 
-        foreach (PdfOptionalContentGroup group in properties.Groups.Values)
+        foreach (PdfOptionalContentGroup group in groups.Values)
         {
             IReadOnlyList<PdfOptionalContentIntent> groupIntents = group.Intent ?? [viewIntent];
             if (!MatchesAny(groupIntents, configurationIntents))

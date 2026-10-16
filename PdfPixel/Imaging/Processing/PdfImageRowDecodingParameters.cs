@@ -26,7 +26,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="colorConversionParameters">Parameters applied during color conversion.</param>
     /// <param name="colorSpaceConverter">Converter that maps raw sample values to output colors.</param>
     /// <param name="hasImageMask">True when the image is a stencil mask (PDF /ImageMask).</param>
-    /// <param name="maskArray">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
+    /// <param name="colorKeyMask">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
     /// <param name="decode">Sample remapping table from the PDF /Decode entry, or null for the default.</param>
     /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
     /// <param name="alphaType">How the alpha accompanying the color samples relates to them, or Opaque when there is none.</param>
@@ -40,7 +40,7 @@ public sealed class PdfImageRowDecodingParameters
         in PdfColorConversionParameters colorConversionParameters,
         PdfColorSpaceConverter colorSpaceConverter,
         bool hasImageMask,
-        int[]? maskArray,
+        int[]? colorKeyMask,
         PdfRange[]? decode,
         PdfIntegerSize? downscaledSize,
         PdfImageAlphaType alphaType = PdfImageAlphaType.Opaque,
@@ -84,7 +84,7 @@ public sealed class PdfImageRowDecodingParameters
         ColorSpaceConverter = colorSpaceConverter;
         Context = context;
         HasImageMask = hasImageMask;
-        MaskArray = maskArray;
+        ColorKeyMask = colorKeyMask;
         Decode = decode;
         DownscaledSize = downscaledSize;
         AlphaType = alphaType;
@@ -125,7 +125,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <summary>
     /// Color-key masking range pairs from the PDF /Mask entry, or null when not specified.
     /// </summary>
-    public int[]? MaskArray { get; }
+    public int[]? ColorKeyMask { get; }
 
     /// <summary>
     /// Sample remapping table from the PDF /Decode entry, or null for the default mapping.

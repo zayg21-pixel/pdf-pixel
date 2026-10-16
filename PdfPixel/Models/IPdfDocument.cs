@@ -76,9 +76,9 @@ public interface IPdfDocument : IPdfAssociatedFilesHost, IDisposable
     PdfString? Lang { get; }
 
     /// <summary>
-    /// Gets the document-level embedded files (/Names /EmbeddedFiles), or <see langword="null"/> when absent.
+    /// Gets the document-level embedded files (/Names /EmbeddedFiles).
     /// </summary>
-    PdfEmbeddedFiles? EmbeddedFiles { get; }
+    PdfEmbeddedFiles EmbeddedFiles { get; }
 
 
     /// <summary>
@@ -87,26 +87,24 @@ public interface IPdfDocument : IPdfAssociatedFilesHost, IDisposable
     IReadOnlyList<PdfOutputIntent>? OutputIntents { get; }
 
     /// <summary>
-    /// Gets the optional content (layers) properties (/OCProperties), or <see langword="null"/> when the
-    /// document has no optional content.
+    /// Gets the optional content (layers) properties (/OCProperties).
     /// </summary>
-    PdfOptionalContentProperties? OptionalContentProperties { get; }
+    PdfOptionalContentProperties OptionalContentProperties { get; }
 
     /// <summary>
-    /// Gets the document structure tree providing per-page MCID reading order,
-    /// or <see langword="null"/> for untagged documents.
+    /// Gets the document structure tree providing per-page MCID reading order.
     /// </summary>
-    PdfStructureTree? StructureTree { get; }
+    PdfStructureTree StructureTree { get; }
 
     /// <summary>
-    /// Gets the document outline (/Outlines), or <see langword="null"/> when absent.
+    /// Gets the document outline (/Outlines).
     /// </summary>
-    PdfOutlines? Outlines { get; }
+    PdfOutlines Outlines { get; }
 
     /// <summary>
-    /// Gets the article threads of the document (/Threads), or <see langword="null"/> when absent.
+    /// Gets the article threads of the document (/Threads).
     /// </summary>
-    PdfThreads? Threads { get; }
+    PdfThreads Threads { get; }
 
     /// <summary>
     /// Gets the mark information dictionary (/MarkInfo), or <see langword="null"/> when absent.

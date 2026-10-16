@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Annotations;
 
@@ -36,5 +37,5 @@ public sealed class PdfAnnotationMessage
     /// <summary>
     /// Messages replying to this one, in document order.
     /// </summary>
-    public PdfAnnotationMessage[] Replies { get; }
+    public IReadOnlyList<PdfAnnotationMessage> Replies { get; }
 }

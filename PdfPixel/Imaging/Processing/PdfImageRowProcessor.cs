@@ -74,7 +74,7 @@ internal sealed partial class PdfImageRowProcessor
     private readonly byte[]? _convertedRowBuffer;
 
     private readonly PdfRange[] _decodeRanges;
-    private readonly int[] _maskArray;
+    private readonly int[] _colorKeyMask;
     private readonly int _indexedBitsPerComponent;
     private readonly float _scale;
 
@@ -106,7 +106,7 @@ internal sealed partial class PdfImageRowProcessor
         _components = _converter.Components;
         _sourceBitsPerPixel = parameters.ComponentCount * bitsPerComponent;
         _decodeRanges = parameters.Decode ?? Array.Empty<PdfRange>();
-        _maskArray = parameters.MaskArray ?? Array.Empty<int>();
+        _colorKeyMask = parameters.ColorKeyMask ?? Array.Empty<int>();
         _stages = GetRowStages(parameters);
 
         // Anything that has to reach a colour space converter rules out the direct routes, which do

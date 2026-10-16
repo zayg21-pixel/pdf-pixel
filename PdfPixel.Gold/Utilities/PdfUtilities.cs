@@ -73,7 +73,7 @@ internal static class PdfUtilities
 
             // Optional content groups are the PDF's layers; passing the document's default configuration
             // renders every layer in its default visibility state.
-            yield return (page.PageNumber, RenderPage(document, page, document.OptionalContentProperties?.DefaultConfiguration.ToUserConfiguration()));
+            yield return (page.PageNumber, RenderPage(document, page, document.OptionalContentProperties.DefaultConfiguration?.ToUserConfiguration()));
         }
     }
 

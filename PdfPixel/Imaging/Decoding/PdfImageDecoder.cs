@@ -68,7 +68,7 @@ public abstract class PdfImageDecoder
     /// <summary>
     /// Color key mask ranges (/Mask array) applied to <see cref="Image"/>, or null when none applies.
     /// </summary>
-    protected int[]? AppliedMaskArray => (Context.ApplyMask) ? Image.MaskArray : null;
+    protected int[]? AppliedColorKeyMask => (Context.ApplyMask) ? Image.ColorKeyMask : null;
 
     /// <summary>
     /// Logger instance for this decoder.
@@ -170,7 +170,7 @@ public abstract class PdfImageDecoder
             colorConversionParameters,
             colorSpaceConverter,
             Image.HasImageMask,
-            AppliedMaskArray,
+            AppliedColorKeyMask,
             Image.Decode,
             downscaledSize,
             ResolveMaskAlphaType(matte),
@@ -292,14 +292,14 @@ public abstract class PdfImageDecoder
             throw new ArgumentNullException(nameof(colorSpaceConverter));
         }
 
-        float[]? matteArray = (Context.ApplyMask) ? Image.SoftMask?.MatteArray : null;
+        float[]? matte = (Context.ApplyMask) ? Image.SoftMask?.Matte : null;
 
-        if (matteArray == null || matteArray.Length != colorSpaceConverter.Components)
+        if (matte == null || matte.Length != colorSpaceConverter.Components)
         {
             return null;
         }
 
-        return matteArray;
+        return matte;
     }
 
     /// <summary>

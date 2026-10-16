@@ -43,7 +43,7 @@ public class PdfImage : PdfXObject
         PdfArray? maskArray = dictionary.GetArray(PdfTokens.MaskKey);
         if (maskArray != null)
         {
-            MaskArray = maskArray.GetIntegerArray();
+            ColorKeyMask = maskArray.GetIntegerArray();
         }
         else
         {
@@ -57,12 +57,12 @@ public class PdfImage : PdfXObject
             }
         }
 
-        MatteArray = dictionary.GetArray(PdfTokens.MatteKey)?.GetFloatArray();
+        Matte = dictionary.GetArray(PdfTokens.MatteKey)?.GetFloatArray();
         SoftMaskInData = MapSoftMaskInData(dictionary.GetIntegerOrDefault(PdfTokens.SoftMaskInDataKey));
         RenderingIntent = dictionary.GetNameOrDefault(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
         var type = PdfImageType.Raw;
-        List<PdfFilterType> filters = imageXObject.Stream.Filters;
+        IReadOnlyList<PdfFilterType> filters = imageXObject.Stream.Filters;
         if (filters.Count > 0)
         {
             type = MapImageType(filters[filters.Count - 1]);
@@ -143,7 +143,7 @@ public class PdfImage : PdfXObject
     /// Color key mask array (/Mask array) flattened to integer sample codes. Null when /Mask is not an array.
     /// Values are in the raw sample value domain for each component prior to any /Decode mapping.
     /// </summary>
-    public int[]? MaskArray { get; }
+    public int[]? ColorKeyMask { get; }
 
     /// <summary>
     /// Per-component decode mapping (/Decode), one entry per component.
@@ -163,7 +163,7 @@ public class PdfImage : PdfXObject
     /// <summary>
     /// Raw /Matte array from the image dictionary, if present.
     /// </summary>
-    public float[]? MatteArray { get; }
+    public float[]? Matte { get; }
 
     /// <summary>
     /// Where a JPEG 2000 image's opacity comes from (/SMaskInData). Defaults to

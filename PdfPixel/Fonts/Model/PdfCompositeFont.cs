@@ -56,7 +56,7 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// Descendant CID fonts that contain the actual font data.
     /// </summary>
-    public List<PdfCidFont> DescendantFonts { get; }
+    public IReadOnlyList<PdfCidFont> DescendantFonts { get; }
 
     /// <summary>
     /// Primary descendant font (first in array, handles most characters)

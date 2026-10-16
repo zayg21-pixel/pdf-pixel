@@ -4,6 +4,7 @@ using PdfPixel.Models;
 using PdfPixel.Tagging.Model;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfPixel.Content;
 
@@ -58,7 +59,7 @@ public sealed class PdfContentExtractor
                 {
                     var item = (PdfContentItem)element;
 
-                    if (parameters.ContentKinds == null || Array.IndexOf(parameters.ContentKinds, item.Command.ContentKind) >= 0)
+                    if (parameters.ContentKinds == null || parameters.ContentKinds.Contains(item.Command.ContentKind))
                     {
                         _entries.Add(new PdfContentEntry(item, alternateDescription, actualText, associatedFiles));
                     }

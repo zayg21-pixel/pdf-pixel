@@ -1,3 +1,4 @@
+using PdfPixel.Navigation.Model;
 using SkiaSharp;
 using System;
 
@@ -46,9 +47,23 @@ public class PdfPanelInterface
     public void RequestPresent() => Request(PdfPanelInterfaceAction.RequestPresent);
 
     /// <summary>
+    /// Scrolls the panel to a destination of the panel's document.
+    /// </summary>
+    /// <param name="destination">The destination to navigate to.</param>
+    public void ScrollToDestination(PdfDestination destination)
+    {
+        if (destination == null)
+        {
+            throw new ArgumentNullException(nameof(destination));
+        }
+
+        Requested?.Invoke(this, new PdfPanelInterfaceActionEventArgs(PdfPanelInterfaceAction.ScrollToDestination, destination));
+    }
+
+    /// <summary>
     /// Gets or sets the action invoked after each present with the canvas in panel pixels and the presented <see cref="PdfPanelFrame"/>.
     /// </summary>
     public Action<SKCanvas, PdfPanelFrame>? OnAfterDraw { get; set; }
 
-    private void Request(PdfPanelInterfaceAction action) => Requested?.Invoke(this, new PdfPanelInterfaceActionEventArgs(action));
+    private void Request(PdfPanelInterfaceAction action) => Requested?.Invoke(this, new PdfPanelInterfaceActionEventArgs(action, null));
 }

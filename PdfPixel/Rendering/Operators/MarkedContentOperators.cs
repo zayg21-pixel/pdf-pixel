@@ -19,7 +19,7 @@ internal class MarkedContentOperators : IOperatorProcessor
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
-    private readonly PdfStructureTree? _structureTree;
+    private readonly PdfStructureTree _structureTree;
 
     public MarkedContentOperators(PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
@@ -218,7 +218,7 @@ internal class MarkedContentOperators : IOperatorProcessor
     private PdfStructureElement? FindStructureParent(int mcid)
     {
         int? structParents = _host.StructParents;
-        if (_structureTree == null || structParents == null)
+        if (structParents == null)
         {
             return null;
         }

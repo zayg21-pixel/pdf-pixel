@@ -21,19 +21,19 @@ internal static class PdfFunctions
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    public static ReadOnlySpan<float> EvaluateColorFunctions(List<PdfFunction> functions, float input)
+    public static ReadOnlySpan<float> EvaluateColorFunctions(PdfFunction[] functions, float input)
     {
-        if (functions == null || functions.Count == 0)
+        if (functions == null || functions.Length == 0)
         {
             return new ReadOnlySpan<float>();
         }
 
-        if (functions.Count == 1)
+        if (functions.Length == 1)
         {
             return functions[0].Evaluate(input);
         }
 
-        List<float> aggregate = new(functions.Count);
+        List<float> aggregate = new(functions.Length);
 
         foreach (PdfFunction function in functions)
         {
@@ -65,19 +65,19 @@ internal static class PdfFunctions
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    public static ReadOnlySpan<float> EvaluateColorFunctions(List<PdfFunction> functions, in ReadOnlySpan<float> input)
+    public static ReadOnlySpan<float> EvaluateColorFunctions(PdfFunction[] functions, in ReadOnlySpan<float> input)
     {
-        if (functions == null || functions.Count == 0)
+        if (functions == null || functions.Length == 0)
         {
             return new ReadOnlySpan<float>();
         }
 
-        if (functions.Count == 1)
+        if (functions.Length == 1)
         {
             return functions[0].Evaluate(input);
         }
 
-        List<float> aggregate = new(functions.Count);
+        List<float> aggregate = new(functions.Length);
         foreach (PdfFunction function in functions)
         {
             ReadOnlySpan<float> part = function.Evaluate(input);

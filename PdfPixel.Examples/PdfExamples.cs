@@ -94,7 +94,7 @@ internal static class PdfExamples
 
         // Optional content groups are the PDF's layers (e.g. "Notes", "Watermark"). Passing the
         // document's default configuration renders every layer in its default visibility state.
-        PdfUserOptionalContentConfiguration? optionalContentConfiguration = document.OptionalContentProperties?.DefaultConfiguration.ToUserConfiguration();
+        PdfUserOptionalContentConfiguration? optionalContentConfiguration = document.OptionalContentProperties.DefaultConfiguration?.ToUserConfiguration();
 
         // Bundles the canvas, rendering options, and the objects above into the state every
         // drawing command reads from while the page is replayed.

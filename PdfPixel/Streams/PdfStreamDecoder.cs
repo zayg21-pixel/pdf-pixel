@@ -30,8 +30,8 @@ public sealed class PdfStreamDecoder
     /// </summary>
     public ReadOnlyMemory<byte> DecodeContentStream(
         Stream rawStream,
-        List<PdfFilterType> filters,
-        List<PdfDecodeParameters?> decodeParameters,
+        IReadOnlyList<PdfFilterType> filters,
+        IReadOnlyList<PdfDecodeParameters?> decodeParameters,
         IPdfExecutionObserver? observer)
     {
         if (rawStream == null)
@@ -58,8 +58,8 @@ public sealed class PdfStreamDecoder
     /// </summary>
     public Stream DecodeContentAsStream(
         Stream current,
-        List<PdfFilterType> filters,
-        List<PdfDecodeParameters?> decodeParameters)
+        IReadOnlyList<PdfFilterType> filters,
+        IReadOnlyList<PdfDecodeParameters?> decodeParameters)
     {
         if (filters == null)
         {
@@ -227,7 +227,7 @@ public sealed class PdfStreamDecoder
         return list;
     }
 
-    private static PdfDecodeParameters? GetDecodeParmsForIndex(int filterIndex, List<PdfDecodeParameters?> decodeParameters)
+    private static PdfDecodeParameters? GetDecodeParmsForIndex(int filterIndex, IReadOnlyList<PdfDecodeParameters?> decodeParameters)
     {
         if (decodeParameters.Count == 0)
         {

@@ -13,16 +13,24 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
 {
     private const int MaxNamespaceRoleMappingSteps = 32;
 
-    private readonly PdfDictionary _dictionary;
+    private readonly IPdfDocumentInternal _document;
+    private readonly PdfDictionary? _dictionary;
     private readonly PdfDictionary? _roleMap;
     private readonly Dictionary<int, ParentTreeEntry> _parentTree = [];
     private readonly Dictionary<PdfReference, PdfStructureNamespace> _namespacesByReference = [];
     private readonly Dictionary<PdfString, PdfDictionary[]> _classMap = [];
     private readonly Dictionary<PdfString, PdfReference?> _elementsById = [];
 
-    internal PdfStructureTree(PdfDictionary dictionary, PdfTreeReader treeReader)
+    internal PdfStructureTree(IPdfDocumentInternal document, PdfDictionary? dictionary, PdfTreeReader treeReader)
     {
+        _document = document;
         _dictionary = dictionary;
+
+        if (dictionary == null)
+        {
+            return;
+        }
+
         _roleMap = dictionary.GetDictionary(PdfTokens.RoleMapKey);
         ParentTreeNextKey = dictionary.GetInteger(PdfTokens.ParentTreeNextKeyKey);
         Namespaces = ReadNamespaces(dictionary.GetArray(PdfTokens.NamespacesKey));
@@ -49,9 +57,9 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
     public int? ParentTreeNextKey { get; }
 
     /// <summary>
-    /// Namespaces used in the structure tree (/Namespaces, PDF 2.0).
+    /// Namespaces used in the structure tree (/Namespaces, PDF 2.0), or <see langword="null"/> when absent.
     /// </summary>
-    public IReadOnlyList<PdfStructureNamespace> Namespaces { get; }
+    public IReadOnlyList<PdfStructureNamespace>? Namespaces { get; }
 
     /// <summary>
     /// Pronunciation lexicons (/PronunciationLexicon, PDF 2.0), or <see langword="null"/> when absent.
@@ -62,20 +70,21 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
-    /// A tree over the catalog's /StructTreeRoot entry, or <see langword="null"/> when the
-    /// catalog has none.
+    /// A tree over the catalog's /StructTreeRoot entry, without elements when the catalog has none.
     /// </summary>
-    internal static PdfStructureTree? FromCatalog(PdfDictionary? catalog, PdfTreeReader treeReader)
-    {
-        PdfDictionary? structTreeRoot = catalog?.GetDictionary(PdfTokens.StructTreeRootKey);
-        return (structTreeRoot != null) ? new PdfStructureTree(structTreeRoot, treeReader) : null;
-    }
+    internal static PdfStructureTree FromCatalog(PdfDictionary catalog, PdfTreeReader treeReader)
+        => new(catalog.Document, catalog.GetDictionary(PdfTokens.StructTreeRootKey), treeReader);
 
     /// <summary>
     /// Root structure elements (/K) in document order.
     /// </summary>
     public IEnumerable<PdfStructureElement> EnumerateRootElements()
     {
+        if (_dictionary == null)
+        {
+            yield break;
+        }
+
         IPdfValue? children = _dictionary.GetValue(PdfTokens.KKey);
         PdfArray? childArray = children.AsArray();
 
@@ -230,7 +239,7 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
             return listed;
         }
 
-        PdfDictionary? dictionary = _dictionary.Document.ObjectCache.GetObject(reference.Value)?.Value.AsDictionary();
+        PdfDictionary? dictionary = _document.ObjectCache.GetObject(reference.Value)?.Value.AsDictionary();
         return PdfStructureNamespace.FromDictionary(dictionary, reference);
     }
 
@@ -240,13 +249,14 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
     internal PdfDictionary[]? GetClassAttributes(in PdfString className)
         => (_classMap.TryGetValue(className, out PdfDictionary[]? attributes)) ? attributes : null;
 
-    private List<PdfStructureNamespace> ReadNamespaces(PdfArray? namespaces)
+    private List<PdfStructureNamespace>? ReadNamespaces(PdfArray? namespaces)
     {
-        List<PdfStructureNamespace> result = [];
         if (namespaces == null)
         {
-            return result;
+            return null;
         }
+
+        List<PdfStructureNamespace> result = [];
 
         for (int index = 0; index < namespaces.Count; index++)
         {
@@ -309,7 +319,7 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
             return null;
         }
 
-        PdfDictionary? element = _dictionary.Document.ObjectCache.GetObject(reference.Value)?.Value.AsDictionary();
+        PdfDictionary? element = _document.ObjectCache.GetObject(reference.Value)?.Value.AsDictionary();
         if (element == null)
         {
             return null;

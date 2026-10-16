@@ -10,7 +10,11 @@ namespace PdfPixel.Navigation.Model;
 /// </summary>
 public sealed class PdfOutlines
 {
-    private PdfOutlines(PdfDictionary dictionary, PdfDestinationResolver destinations, PdfStructureTree? structureTree)
+    internal PdfOutlines()
+    {
+    }
+
+    private PdfOutlines(PdfDictionary dictionary, PdfDestinationResolver destinations, PdfStructureTree structureTree)
     {
         Count = dictionary.GetInteger(PdfTokens.CountKey);
         Items = PdfOutlineItem.ReadItems(dictionary, null, destinations, structureTree, []);
@@ -22,19 +26,19 @@ public sealed class PdfOutlines
     public int? Count { get; }
 
     /// <summary>
-    /// Top-level outline items (/First, then /Next) in order. Empty if the outline has none.
+    /// Top-level outline items (/First, then /Next) in order, or <see langword="null"/> when the document has no outline.
     /// </summary>
-    public IReadOnlyList<PdfOutlineItem> Items { get; }
+    public IReadOnlyList<PdfOutlineItem>? Items { get; }
 
     /// <summary>
-    /// An outline over the catalog's /Outlines entry, or <see langword="null"/> when the catalog has none.
+    /// An outline over the catalog's /Outlines entry, without items when the catalog has none.
     /// </summary>
-    internal static PdfOutlines? FromCatalog(PdfDictionary catalog, PdfDestinationResolver destinations, PdfStructureTree? structureTree)
+    internal static PdfOutlines FromCatalog(PdfDictionary catalog, PdfDestinationResolver destinations, PdfStructureTree structureTree)
     {
         PdfDictionary? outlines = catalog.GetDictionary(PdfTokens.OutlinesKey);
         if (outlines == null)
         {
-            return null;
+            return new PdfOutlines();
         }
 
         return new PdfOutlines(outlines, destinations, structureTree);

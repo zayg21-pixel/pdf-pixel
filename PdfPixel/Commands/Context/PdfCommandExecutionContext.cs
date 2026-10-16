@@ -33,14 +33,14 @@ public sealed class PdfCommandExecutionContext : IDisposable
 
         if (optionalContentStates == null)
         {
-            PdfOptionalContentProperties? optionalContentProperties = document.OptionalContentProperties;
-            if (optionalContentProperties == null)
+            PdfOptionalContentConfiguration? defaultConfiguration = document.OptionalContentProperties.DefaultConfiguration;
+            if (defaultConfiguration == null)
             {
                 optionalContentStates = new Dictionary<PdfReference, bool>();
             }
             else
             {
-                optionalContentStates = optionalContentProperties.DefaultConfiguration.ToUserConfiguration().ToStates();
+                optionalContentStates = defaultConfiguration.ToUserConfiguration().ToStates();
             }
         }
 
