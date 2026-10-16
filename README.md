@@ -86,9 +86,32 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 
 ### Interactive & Scripting
 - ⚠️ Text Selection *(extracts all glyphs, but does not sort into reading order; markup-aware selection not fully supported)*
-- ⚠️ Attachments *(embedded and associated files, including encrypted ones (`/EFF`), are exposed per owner; no single file API, GoToE or Launch actions, or portfolios)*
-- ❌ JavaScript *(not planned)*
+- ✅ Outlines (bookmarks) *(item titles, styles, colors, destinations and actions)*
+- ✅ Optional content (layers) *(configurations, layer order, radio-button groups, locked layers, set-OCG-state actions)*
+- ✅ Article threads *(threads and beads, resolution of thread actions to a thread and bead)*
+- ✅ Attachments *(embedded files, file attachment annotations and associated files, including encrypted ones (`/EFF`))*
+- 🔲 Portable collections (PDF Portfolios) *(planned)*
+- 🔲 Presentation mode *(planned; page transitions, automatic advance and sub-page navigation)*
+- 🔲 JavaScript *(planned with an external handler)*
 - ❌ XFA *(not planned)*
+
+### Actions
+- ✅ GoTo, GoToR *(local and remote destinations, including structure destinations)*
+- ✅ GoToE *(embedded go-to: the path through parent and child documents, by embedded file name or file attachment annotation)*
+- ✅ URI
+- ✅ Launch *(file specification and Windows launch parameters)*
+- ✅ Named *(NextPage, PrevPage, FirstPage, LastPage; other names are exposed as written)*
+- ✅ SetOCGState
+- ✅ Thread
+- ⚠️ Hide *(annotation targets; form field targets planned with AcroForm)*
+- ✅ Action chains (`/Next`)
+- ✅ Triggers: document open, page open and close, outline items, link annotations
+- 🔲 Widget annotation triggers *(planned with AcroForm)*
+- 🔲 SubmitForm, ResetForm, ImportData *(planned with AcroForm)*
+- 🔲 GoToDp *(planned with document parts)*
+- 🔲 Trans *(planned with presentation mode)*
+- 🔲 JavaScript *(planned with an external handler)*
+- ❌ Sound, Movie, Rendition, GoTo3DView, RichMediaExecute
 
 ### Viewer (PdfPanel)
 
@@ -99,21 +122,21 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 | User graphics | ✅ | ✅ | ✅ *(overlay canvas)* | ❌ | ❌ | ❌ |
 | GPU rendering | — | ✅ OpenGL | ✅ WebGL | ❌ | ❌ | ❌ |
 | View manipulation (zoom, scroll, rotation) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Page layout (`/PageLayout`) | ❌ *(vertical only)* | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Page layout | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Presentation mode | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Thumbnails | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Page labels | ✅ | ✅ | ⚠️ *(frame page info, not document data)* | ❌ | ❌ | ❌ |
 | Text selection | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Content extraction | ⚠️ *(text only)* | ✅ *(selected text or image, Ctrl+C)* | ✅ *(selected text or image, Ctrl+C)* | ❌ | ❌ | ❌ |
+| Content extraction | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Text search | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Content interaction (hover, image selection) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Annotation interaction (popups, hover) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Same-document navigation (links, destinations) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Cross-document navigation (URI, GoToR) | ⚠️ *(events only)* | ⚠️ *(URI opens http/https; GoToR handler empty)* | ⚠️ *(URI via `openUri` state; GoToR has a TODO)* | ❌ | ❌ | ❌ |
+| Host-handled actions (URI, GoToR, …) | ✅ | ✅ | ⚠️ *(URI only)* | ❌ | ❌ | ❌ |
 | Interactive forms | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Optional content / layers | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Outlines / bookmarks | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| File attachments | ✅ | ⚠️ *(list only, no save or open)* | ❌ | ❌ | ❌ | ❌ |
+| File attachments | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 

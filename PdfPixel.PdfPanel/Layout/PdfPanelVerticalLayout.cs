@@ -16,6 +16,27 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
     public float PageGap { get; set; } = 10;
 
     /// <inheritdoc />
+    public PdfSize CalculateFitSize(PdfPanelPageCollection pages)
+    {
+        if (pages == null)
+        {
+            throw new ArgumentNullException(nameof(pages));
+        }
+
+        float maxPageWidth = 0f;
+        float maxPageHeight = 0f;
+
+        foreach (PdfPanelPage page in pages)
+        {
+            PdfSize rotatedSize = page.GetRotatedSize();
+            maxPageWidth = Math.Max(maxPageWidth, rotatedSize.Width);
+            maxPageHeight = Math.Max(maxPageHeight, rotatedSize.Height);
+        }
+
+        return new PdfSize(maxPageWidth, maxPageHeight);
+    }
+
+    /// <inheritdoc />
     public PdfSize CalculateDimensions(
         PdfPanelPageCollection pages,
         float scale,

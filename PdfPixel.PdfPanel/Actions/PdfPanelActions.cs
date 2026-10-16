@@ -38,20 +38,9 @@ public sealed class PdfPanelActions
     }
 
     /// <summary>
-    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a URI action is performed.
+    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when an action the panel does not perform is performed.
     /// </summary>
-    public event EventHandler<PdfPanelActionEventArgs<PdfUriAction>>? UriRequested;
-
-    /// <summary>
-    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a remote go-to action is performed.
-    /// </summary>
-    public event EventHandler<PdfPanelActionEventArgs<PdfGoToRemoteAction>>? RemoteDocumentRequested;
-
-    /// <summary>
-    /// Raised during <see cref="PdfPanelContext.Synchronize"/> when a named action the panel does not perform, such
-    /// as a viewer's <c>Print</c>, is performed.
-    /// </summary>
-    public event EventHandler<PdfPanelActionEventArgs<PdfNamedAction>>? NamedActionRequested;
+    public event EventHandler<PdfPanelActionEventArgs>? ActionRequested;
 
     /// <summary>
     /// Whether a performed action changed how annotations are drawn since <see cref="ClearAnnotationUpdate"/>.
@@ -95,76 +84,18 @@ public sealed class PdfPanelActions
     /// </summary>
     internal void Synchronize()
     {
-        bool hasSize = _context.PanelWidth > 0 && _context.PanelHeight > 0;
-
-        if (!_openActionPerformed && hasSize)
-        {
-            _openActionPerformed = true;
-            PdfOpenAction? openAction;
-
-            lock (_context.Pages.DocumentLocker)
-            {
-                openAction = _document.OpenAction;
-            }
-
-            if (openAction?.Destination != null)
-            {
-                NavigateTo(openAction.Destination);
-            }
-            else if (openAction?.Action != null)
-            {
-                PerformAction(openAction.Action, PdfPanelActionSource.DocumentOpen);
-            }
-        }
-
-        if (_requestedDestination != null && hasSize)
-        {
-            NavigateTo(_requestedDestination);
-            _requestedDestination = null;
-        }
-
-        if (_requestedOutlineItem != null && hasSize)
-        {
-            if (_requestedOutlineItem.Action != null)
-            {
-                PerformAction(_requestedOutlineItem.Action, PdfPanelActionSource.Outline);
-            }
-            else if (_requestedOutlineItem.Destination != null)
-            {
-                NavigateTo(_requestedOutlineItem.Destination);
-            }
-
-            _requestedOutlineItem = null;
-        }
-
-        if (_annotations.ClickedAnnotation?.PageAnnotation?.Content is PdfLinkAnnotation link)
-        {
-            if (link.Action != null)
-            {
-                PerformAction(link.Action, PdfPanelActionSource.Annotation);
-            }
-            else if (link.Destination != null)
-            {
-                NavigateTo(link.Destination);
-            }
-        }
-
-        if (_targetPageNumber != null)
-        {
-            _context.UpdateLayout();
-        }
-
-        if (!hasSize)
+        bool isInitialized = _context.PanelWidth > 0 && _context.PanelHeight > 0;
+        if (!isInitialized)
         {
             return;
         }
 
-        SynchronizeCurrentPage();
+        SynchronizeDocument();
+        SynchronizeAnnotation();
+        UpdateNavigationLayout();
 
-        if (_targetPageNumber != null)
-        {
-            _context.UpdateLayout();
-        }
+        SynchronizePage();
+        UpdateNavigationLayout();
     }
 
     /// <summary>
@@ -202,10 +133,47 @@ public sealed class PdfPanelActions
     }
 
     /// <summary>
+    /// Performs the document's open action once, then the requested destination and outline item.
+    /// </summary>
+    private void SynchronizeDocument()
+    {
+        if (!_openActionPerformed)
+        {
+            _openActionPerformed = true;
+            PerformAction(_document.OpenAction?.Destination, _document.OpenAction?.Action, PdfPanelActionSource.DocumentOpen, _document);
+        }
+
+        if (_requestedDestination != null)
+        {
+            NavigateTo(_requestedDestination);
+            _requestedDestination = null;
+        }
+
+        if (_requestedOutlineItem != null)
+        {
+            PerformAction(_requestedOutlineItem.Destination, _requestedOutlineItem.Action, PdfPanelActionSource.Outline, _requestedOutlineItem);
+            _requestedOutlineItem = null;
+        }
+    }
+
+    /// <summary>
+    /// Performs the action of the clicked link annotation, or navigates to its destination.
+    /// </summary>
+    private void SynchronizeAnnotation()
+    {
+        PdfPageAnnotation? clickedAnnotation = _annotations.ClickedAnnotation?.PageAnnotation;
+
+        if (clickedAnnotation?.Content is PdfLinkAnnotation link)
+        {
+            PerformAction(link.Destination, link.Action, PdfPanelActionSource.LinkAnnotationClick, clickedAnnotation);
+        }
+    }
+
+    /// <summary>
     /// Performs the close action of the previous current page and the open action of the new one when the current
     /// page has changed since the last call.
     /// </summary>
-    private void SynchronizeCurrentPage()
+    private void SynchronizePage()
     {
         if (_context.Pages.Count == 0)
         {
@@ -220,39 +188,43 @@ public sealed class PdfPanelActions
 
         if (_currentPageNumber != null)
         {
-            PdfAction? pageClose;
-
-            lock (_context.Pages.DocumentLocker)
-            {
-                pageClose = _document.Pages[_currentPageNumber.Value - 1].AdditionalActions?.PageClose;
-            }
-
-            if (pageClose != null)
-            {
-                PerformAction(pageClose, PdfPanelActionSource.PageClose);
-            }
+            IPdfPage closedPage = _document.Pages[_currentPageNumber.Value - 1];
+            PerformAction(null, closedPage.AdditionalActions?.PageClose, PdfPanelActionSource.PageClose, closedPage);
         }
 
         _currentPageNumber = currentPageNumber;
 
-        PdfAction? pageOpen;
+        IPdfPage openedPage = _document.Pages[currentPageNumber - 1];
+        PerformAction(null, openedPage.AdditionalActions?.PageOpen, PdfPanelActionSource.PageOpen, openedPage);
+    }
 
-        lock (_context.Pages.DocumentLocker)
+    /// <summary>
+    /// Lays out the pages when a navigation target is pending, which scrolls to it.
+    /// </summary>
+    private void UpdateNavigationLayout()
+    {
+        if (_targetPageNumber != null)
         {
-            pageOpen = _document.Pages[currentPageNumber - 1].AdditionalActions?.PageOpen;
-        }
-
-        if (pageOpen != null)
-        {
-            PerformAction(pageOpen, PdfPanelActionSource.PageOpen);
+            _context.UpdateLayout();
         }
     }
 
     /// <summary>
-    /// Performs an action and the actions chained after it, in order.
+    /// Performs an action and the actions chained after it, in order, or navigates to the destination when there is
+    /// no action.
     /// </summary>
-    private void PerformAction(PdfAction action, PdfPanelActionSource source)
+    private void PerformAction(PdfDestination? destination, PdfAction? action, PdfPanelActionSource source, object sourceObject)
     {
+        if (action == null)
+        {
+            if (destination != null)
+            {
+                NavigateTo(destination);
+            }
+
+            return;
+        }
+
         switch (action)
         {
             case PdfGoToAction goToAction:
@@ -266,7 +238,7 @@ public sealed class PdfPanelActions
             }
             case PdfNamedAction namedAction:
             {
-                PerformNamedAction(namedAction, source);
+                PerformNamedAction(namedAction, source, sourceObject);
                 break;
             }
             case PdfSetOcgStateAction setOcgStateAction:
@@ -279,14 +251,9 @@ public sealed class PdfPanelActions
                 PerformHideAction(hideAction);
                 break;
             }
-            case PdfUriAction uriAction:
+            default:
             {
-                UriRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfUriAction>(uriAction, source));
-                break;
-            }
-            case PdfGoToRemoteAction goToRemoteAction:
-            {
-                RemoteDocumentRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfGoToRemoteAction>(goToRemoteAction, source));
+                RaiseActionRequested(action, source, sourceObject);
                 break;
             }
         }
@@ -298,7 +265,7 @@ public sealed class PdfPanelActions
 
         foreach (PdfAction nextAction in action.Next)
         {
-            PerformAction(nextAction, source);
+            PerformAction(null, nextAction, source, sourceObject);
         }
     }
 
@@ -315,11 +282,14 @@ public sealed class PdfPanelActions
         IsAnnotationUpdateRequested = true;
     }
 
-    private void PerformNamedAction(PdfNamedAction action, PdfPanelActionSource source)
+    private void RaiseActionRequested(PdfAction action, PdfPanelActionSource source, object sourceObject)
+        => ActionRequested?.Invoke(this, new PdfPanelActionEventArgs(action, source, sourceObject, _context.Pages.DocumentLocker));
+
+    private void PerformNamedAction(PdfNamedAction action, PdfPanelActionSource source, object sourceObject)
     {
         if (action.Name == PdfNamedActionName.Raw)
         {
-            NamedActionRequested?.Invoke(this, new PdfPanelActionEventArgs<PdfNamedAction>(action, source));
+            RaiseActionRequested(action, source, sourceObject);
             return;
         }
 

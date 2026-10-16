@@ -59,7 +59,7 @@ public abstract class PdfAction
             PdfActionType.Uri => new PdfUriAction(actionDictionary),
             PdfActionType.Named => new PdfNamedAction(actionDictionary),
             PdfActionType.SetOcgState => new PdfSetOcgStateAction(actionDictionary),
-            _ => new PdfGenericAction(actionType)
+            _ => new PdfGenericAction(actionType, actionDictionary)
         };
 
         action.Next = ReadNext(actionDictionary, visitedActions);

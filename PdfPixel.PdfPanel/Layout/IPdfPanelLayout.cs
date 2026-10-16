@@ -19,6 +19,14 @@ public interface IPdfPanelLayout
     float PageGap { get; set; }
 
     /// <summary>
+    /// Calculates the size the panel's width or height is fitted to, in unscaled panel space: the widest and the
+    /// tallest group of pages the layout shows side by side.
+    /// </summary>
+    /// <param name="pages">The collection of pages to layout.</param>
+    /// <returns>The size to fit, in unscaled panel space.</returns>
+    PdfSize CalculateFitSize(PdfPanelPageCollection pages);
+
+    /// <summary>
     /// Calculates the total extent (width and height) required to display all pages with the given layout.
     /// </summary>
     /// <param name="pages">The collection of pages to layout.</param>

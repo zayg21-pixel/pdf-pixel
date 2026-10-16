@@ -46,7 +46,7 @@ public sealed class PdfLayerConfigurationViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Whether this is the document's default configuration (/D).
+    /// Whether this is the document's default configuration.
     /// </summary>
     public bool IsDefault { get; }
 

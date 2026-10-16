@@ -46,7 +46,7 @@ public sealed class PdfPanelLayers
     public PdfUserOptionalContentConfiguration? Configuration { get; set; }
 
     /// <summary>
-    /// The document's default configuration (/D), or null when the document has no optional content.
+    /// The document's default configuration, or null when the document has no optional content.
     /// </summary>
     internal PdfOptionalContentConfiguration? DefaultSource { get; }
 }

@@ -385,26 +385,17 @@ public sealed class PdfPanelContext : IDisposable
             return;
         }
 
-        float maxPageWidth = 0;
-        float maxPageHeight = 0;
-
-        foreach (PdfPanelPage page in Pages)
-        {
-            PdfSize rotatedSize = page.GetRotatedSize();
-            maxPageWidth = Math.Max(maxPageWidth, rotatedSize.Width);
-            maxPageHeight = Math.Max(maxPageHeight, rotatedSize.Height);
-        }
-
+        PdfSize fitSize = Layout.CalculateFitSize(Pages);
         float fitScale;
 
         if (AutoScaleMode == PdfPanelAutoScaleMode.ScaleToWidth)
         {
             float padding = Layout.Padding.Left + Layout.Padding.Right;
-            fitScale = (PanelWidth - padding) / maxPageWidth;
+            fitScale = (PanelWidth - padding) / fitSize.Width;
         }
         else
         {
-            fitScale = (PanelHeight - Layout.PageGap) / maxPageHeight;
+            fitScale = (PanelHeight - Layout.PageGap) / fitSize.Height;
         }
 
         float scale = Clamp(fitScale, MinScale, MaxScale);

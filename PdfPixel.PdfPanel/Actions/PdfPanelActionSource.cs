@@ -6,24 +6,24 @@ namespace PdfPixel.PdfPanel.Actions;
 public enum PdfPanelActionSource
 {
     /// <summary>
-    /// The document's open action (catalog /OpenAction).
+    /// The document was opened.
     /// </summary>
     DocumentOpen,
 
     /// <summary>
-    /// The page became the current page (page /AA /O).
+    /// The page became the current page.
     /// </summary>
     PageOpen,
 
     /// <summary>
-    /// The page stopped being the current page (page /AA /C).
+    /// The page stopped being the current page.
     /// </summary>
     PageClose,
 
     /// <summary>
     /// A link annotation activated by the pointer.
     /// </summary>
-    Annotation,
+    LinkAnnotationClick,
 
     /// <summary>
     /// An outline item (bookmark) activated by the user.

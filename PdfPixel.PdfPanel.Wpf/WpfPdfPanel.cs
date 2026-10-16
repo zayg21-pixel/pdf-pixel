@@ -1,5 +1,4 @@
-﻿using PdfPixel.Actions.Model;
-using PdfPixel.PdfPanel.Actions;
+﻿using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
@@ -13,11 +12,8 @@ using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -32,6 +28,15 @@ namespace PdfPixel.PdfPanel.Wpf;
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable")]
 public partial class WpfPdfPanel : FrameworkElement
 {
+    /// <summary>
+    /// Identifies the <see cref="ActionRequested"/> routed event.
+    /// </summary>
+    public static readonly RoutedEvent ActionRequestedEvent = EventManager.RegisterRoutedEvent(
+        nameof(ActionRequested),
+        RoutingStrategy.Bubble,
+        typeof(EventHandler<WpfPdfPanelActionEventArgs>),
+        typeof(WpfPdfPanel));
+
     private readonly VisualCollection children;
 
     private PdfPanelContext? _context;
@@ -55,6 +60,15 @@ public partial class WpfPdfPanel : FrameworkElement
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, OnCopyExecuted, OnCopyCanExecute));
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+    }
+
+    /// <summary>
+    /// Raised after the panel's layout pass for an action the panel does not perform.
+    /// </summary>
+    public event EventHandler<WpfPdfPanelActionEventArgs> ActionRequested
+    {
+        add => AddHandler(ActionRequestedEvent, value);
+        remove => RemoveHandler(ActionRequestedEvent, value);
     }
 
     /// <inheritdoc />
@@ -213,8 +227,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context = new PdfPanelContext(Pages, _surfaceFactory, _renderTargetFactory, SynchronizationContext.Current);
         _context.AutoScaleMode = AutoScaleMode;
-        _context.Actions.UriRequested += OnUriRequested;
-        _context.Actions.RemoteDocumentRequested += OnRemoteDocumentRequested;
+        _context.Actions.ActionRequested += OnActionRequested;
         _context.Search.MatchesChanged += OnSearchMatchesChanged;
         _context.Text.TextExtracted += OnTextExtracted;
         SetValue(TextPropertyKey, _context.Text);
@@ -262,8 +275,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         SetValue(ThumbnailsPropertyKey, null);
         SetValue(AttachmentsPropertyKey, null);
-        _context.Actions.UriRequested -= OnUriRequested;
-        _context.Actions.RemoteDocumentRequested -= OnRemoteDocumentRequested;
+        _context.Actions.ActionRequested -= OnActionRequested;
         _context.Search.MatchesChanged -= OnSearchMatchesChanged;
         _context.Text.TextExtracted -= OnTextExtracted;
         _context.Dispose();
@@ -422,53 +434,10 @@ public partial class WpfPdfPanel : FrameworkElement
         }
     }
 
-    private void OnRemoteDocumentRequested(object? sender, PdfPanelActionEventArgs<PdfGoToRemoteAction> e)
-    {
-        // TODO: handle remote file loading
-    }
+    private void OnActionRequested(object? sender, PdfPanelActionEventArgs e)
+        => Dispatcher.BeginInvoke(new Action<PdfPanelActionEventArgs>(RaiseActionRequested), e);
 
-    private void OnUriRequested(object? sender, PdfPanelActionEventArgs<PdfUriAction> e)
-    {
-        if (e.Action.Uri == null)
-        {
-            return;
-        }
-
-        if (!Uri.TryCreate(e.Action.Uri.Value.ToString(), UriKind.Absolute, out Uri? uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-        {
-            return;
-        }
-
-        Task.Run(() => LaunchUri(uri));
-    }
-
-    private void LaunchUri(Uri uri)
-    {
-        try
-        {
-            ProcessStartInfo startInfo = new()
-            {
-                FileName = uri.AbsoluteUri,
-                UseShellExecute = true
-            };
-
-            Process.Start(startInfo);
-        }
-#if DEBUG
-        catch (Win32Exception ex)
-        {
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                MessageBox.Show($"Failed to open URI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }));
-        }
-#else
-        catch (Win32Exception)
-        {
-        }
-#endif
-    }
+    private void RaiseActionRequested(PdfPanelActionEventArgs e) => RaiseEvent(new WpfPdfPanelActionEventArgs(ActionRequestedEvent, e));
 
     private static System.Windows.Media.Color ToMediaColor(in PdfPixel.Color.PdfColor color)
     {

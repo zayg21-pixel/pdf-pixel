@@ -43,7 +43,7 @@ public sealed class PdfOutlineItemViewModel : INotifyPropertyChanged
     public bool IsItalic { get; }
 
     /// <summary>
-    /// Color of the item's text (/C), or <see langword="null"/> when the document defines none.
+    /// Color of the item's text, or <see langword="null"/> when the document defines none.
     /// </summary>
     public PdfColor? Color { get; }
 

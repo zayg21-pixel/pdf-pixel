@@ -87,22 +87,28 @@ internal class PdfPanelResources
     public string OpenUri { get; set; } = string.Empty;
 
     /// <summary>
-    /// Keeps the first URI requested during a synchronization for JS to open.
+    /// Handles an action the panel does not perform: keeps the first URI requested during a synchronization for JS
+    /// to open.
     /// </summary>
-    public void OnUriRequested(object sender, PdfPanelActionEventArgs<PdfUriAction> args)
+    public void OnActionRequested(object sender, PdfPanelActionEventArgs args)
     {
-        if (args.Action.Uri != null && OpenUri.Length == 0)
+        switch (args.Action)
         {
-            OpenUri = args.Action.Uri.Value.ToString();
-        }
-    }
+            case PdfUriAction uriAction:
+            {
+                if (uriAction.Uri != null && OpenUri.Length == 0)
+                {
+                    OpenUri = uriAction.Uri.Value.ToString();
+                }
 
-    /// <summary>
-    /// Handles a request to open the document of a remote go-to action.
-    /// </summary>
-    public void OnRemoteDocumentRequested(object sender, PdfPanelActionEventArgs<PdfGoToRemoteAction> args)
-    {
-        // TODO: handle remote file loading
+                break;
+            }
+            case PdfGoToRemoteAction:
+            {
+                // TODO: handle remote file loading
+                break;
+            }
+        }
     }
 
     /// <summary>

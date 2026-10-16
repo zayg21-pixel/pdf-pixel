@@ -256,8 +256,7 @@ public partial class PdfPanelInterop
             DisposeContext(resources);
             resources.Context = new PdfPanelContext(resources.Pages, resources.SkSurfaceFactory, resources.RenderTargetFactory, SynchronizationContext.Current);
             resources.Configuration.ApplyConfiguration(resources.Context);
-            resources.Context.Actions.UriRequested += resources.OnUriRequested;
-            resources.Context.Actions.RemoteDocumentRequested += resources.OnRemoteDocumentRequested;
+            resources.Context.Actions.ActionRequested += resources.OnActionRequested;
             resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;
             resources.Context.Text.TextExtracted += resources.OnTextExtracted;
             resources.SearchResultsChanged = true;
@@ -486,8 +485,7 @@ public partial class PdfPanelInterop
             return;
         }
 
-        resources.Context.Actions.UriRequested -= resources.OnUriRequested;
-        resources.Context.Actions.RemoteDocumentRequested -= resources.OnRemoteDocumentRequested;
+        resources.Context.Actions.ActionRequested -= resources.OnActionRequested;
         resources.Context.Search.MatchesChanged -= resources.OnSearchMatchesChanged;
         resources.Context.Text.TextExtracted -= resources.OnTextExtracted;
         resources.Context.Dispose();

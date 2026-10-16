@@ -4,25 +4,35 @@ using System;
 namespace PdfPixel.PdfPanel.Actions;
 
 /// <summary>
-/// Arguments of a <see cref="PdfPanelActions"/> event raised for an action the host is asked to perform.
+/// Arguments of <see cref="PdfPanelActions.ActionRequested"/>, raised for an action the host is asked to perform.
 /// </summary>
-/// <typeparam name="TAction">Type of the action.</typeparam>
-public sealed class PdfPanelActionEventArgs<TAction> : EventArgs
-    where TAction : PdfAction
+public sealed class PdfPanelActionEventArgs : EventArgs
 {
-    internal PdfPanelActionEventArgs(TAction action, PdfPanelActionSource source)
+    internal PdfPanelActionEventArgs(PdfAction action, PdfPanelActionSource source, object sourceObject, object documentLocker)
     {
         Action = action;
         Source = source;
+        SourceObject = sourceObject;
+        DocumentLocker = documentLocker;
     }
 
     /// <summary>
     /// The action performed.
     /// </summary>
-    public TAction Action { get; }
+    public PdfAction Action { get; }
 
     /// <summary>
-    /// What triggered the action, or the action it is chained after.
+    /// What triggered the action.
     /// </summary>
     public PdfPanelActionSource Source { get; }
+
+    /// <summary>
+    /// Object that triggered the action.
+    /// </summary>
+    public object SourceObject { get; }
+
+    /// <summary>
+    /// Object to lock while reading the document from the handler.
+    /// </summary>
+    public object DocumentLocker { get; }
 }

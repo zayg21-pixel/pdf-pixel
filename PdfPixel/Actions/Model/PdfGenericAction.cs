@@ -1,3 +1,5 @@
+using PdfPixel.Models;
+
 namespace PdfPixel.Actions.Model;
 
 /// <summary>
@@ -9,10 +11,17 @@ public class PdfGenericAction : PdfAction
     /// Initializes a new instance of the <see cref="PdfGenericAction"/> class.
     /// </summary>
     /// <param name="actionType">The type of action.</param>
-    internal PdfGenericAction(PdfActionType actionType)
+    /// <param name="actionDictionary">The PDF dictionary representing the action.</param>
+    internal PdfGenericAction(PdfActionType actionType, PdfDictionary actionDictionary)
         : base(actionType)
     {
+        ActionDictionary = actionDictionary;
     }
+
+    /// <summary>
+    /// The action dictionary as written.
+    /// </summary>
+    public PdfDictionary ActionDictionary { get; }
 
     /// <summary>
     /// Returns a string representation of this generic action.
