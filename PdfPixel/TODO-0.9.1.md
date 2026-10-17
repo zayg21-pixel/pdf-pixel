@@ -20,4 +20,5 @@ Static document data is returned by `setDocument`; dynamic data arrives through 
 | Item | Location | Work |
 |---|---|---|
 | Cancellation | All projects | Audit cancellation usage: where cancellation tokens are accepted, passed on, checked and honored |
+| Document init sequence | `PdfDocument`, `PdfXrefLoader`, `PdfXrefRecoveryScanner` | Clean up the loading sequence: header, xref chain, `/Root` resolution and the recovery fallback. The recovery scanner sets the root on its own, so every caller re-checks the root after a lookup to let the scanner win. Decide where and when the root is resolved and whether the scan applied, in one place |
 | WPF demo crash | `PdfPixel.Demo.Wpf` | The demo occasionally terminates without the error dialog, which points to a native crash (likely an access violation in Skia) rather than a managed exception; find the cause |

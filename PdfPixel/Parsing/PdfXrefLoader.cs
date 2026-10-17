@@ -36,6 +36,18 @@ internal sealed class PdfXrefLoader
     /// </summary>
     public void LoadXref()
     {
+        LoadSections();
+
+        // Resolving /Root may run the recovery scan, which selects its own root.
+        PdfObject? rootObject = _document.Trailer?.GetObject(PdfTokens.RootKey);
+        if (_document.RootObject == null)
+        {
+            _document.RootObject = rootObject;
+        }
+    }
+
+    private void LoadSections()
+    {
         long startxrefPos = LocateLastStartXref();
         if (startxrefPos < 0)
         {
@@ -489,16 +501,6 @@ internal sealed class PdfXrefLoader
         if (_document.Trailer == null)
         {
             _document.Trailer = dict;
-        }
-
-        if (_document.RootObject == null)
-        {
-            // Resolving /Root may run the recovery scan, which selects its own root.
-            PdfObject? rootObject = dict.GetObject(PdfTokens.RootKey);
-            if (_document.RootObject == null)
-            {
-                _document.RootObject = rootObject;
-            }
         }
     }
 
