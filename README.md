@@ -76,7 +76,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ✅ Ink
 - ✅ Link
 - ✅ Popup
-- ⚠️ File Attachment *(icon only; the attached file is exposed by the model, but not shown or opened by the panel)*
+- ✅ File Attachment
 - ✅ Stamp
 - ✅ Caret
 - ⚠️ FreeText *(no default appearance (DA) generation — requires an existing appearance stream)*
@@ -85,15 +85,15 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ❌ Sound, Movie, Screen, 3D
 
 ### Interactive & Scripting
-- ⚠️ Text Selection *(extracts all glyphs, but does not sort into reading order; markup-aware selection not fully supported)*
-- ✅ Outlines (bookmarks) *(item titles, styles, colors, destinations and actions)*
-- ✅ Optional content (layers) *(configurations, layer order, radio-button groups, locked layers, set-OCG-state actions)*
-- ✅ Article threads *(threads and beads, resolution of thread actions to a thread and bead)*
-- ✅ Attachments *(embedded files, file attachment annotations and associated files, including encrypted ones (`/EFF`))*
-- 🔲 Portable collections (PDF Portfolios) *(planned)*
-- 🔲 Presentation mode *(planned; page transitions, automatic advance and sub-page navigation)*
-- 🔲 JavaScript *(planned with an external handler)*
-- ❌ XFA *(not planned)*
+- ✅ Text Extraction
+- ✅ Outlines (bookmarks)
+- ✅ Optional content (layers)
+- ✅ Article threads
+- ✅ Attachments
+- 🔲 Portable collections (PDF Portfolios)
+- 🔲 Presentation mode *(page transitions, automatic advance and sub-page navigation)*
+- 🔲 JavaScript *(through an external handler)*
+- ❌ XFA
 
 ### Actions
 - ✅ GoTo, GoToR *(local and remote destinations, including structure destinations)*
