@@ -379,9 +379,28 @@ public class PdfGraphicsState
     /// </summary>
     /// <param name="stateHost">The content host the copy resolves resources against.</param>
     /// <returns>The copied graphics state.</returns>
-    internal PdfGraphicsState CloneForHost(IPdfContentHost stateHost)
+    internal PdfGraphicsState CloneForHost(IPdfContentHost stateHost) => Copy(stateHost, RenderingParameters);
+
+    /// <summary>
+    /// Create a copy for the glyph description of a Type 3 character shown in this state. The glyph inherits the
+    /// graphics state aside from the CTM, which starts in glyph space; the soft mask is left out because it applies
+    /// to the shown text as a whole.
+    /// </summary>
+    /// <param name="glyphHost">The content host the glyph description resolves resources against.</param>
+    /// <returns>The graphics state the glyph description starts in.</returns>
+    internal PdfGraphicsState CloneForType3Glyph(IPdfContentHost glyphHost)
     {
-        return new(stateHost, ClipBounds, this)
+        PdfGraphicsState glyphState = Copy(glyphHost, RenderingParameters.ForType3Rendering());
+        glyphState.CTM = PdfMatrix.Identity;
+        glyphState.SoftMask = null;
+        glyphState.SoftMaskCTM = PdfMatrix.Identity;
+
+        return glyphState;
+    }
+
+    private PdfGraphicsState Copy(IPdfContentHost stateHost, PdfRenderingParameters renderingParameters)
+    {
+        return new(stateHost, ClipBounds, RecursionGuard, ExecutionObserver, renderingParameters)
         {
             StrokePaint = StrokePaint,
             FillPaint = FillPaint,

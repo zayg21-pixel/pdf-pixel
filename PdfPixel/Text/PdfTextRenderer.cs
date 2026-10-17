@@ -101,7 +101,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             PdfMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
 
-            PdfRectangle contentBounds = TextRenderUtilities.GetType3Bounds(_renderer, glyphsSpan, state, type3Font, fullTextMatrix) ?? state.GetUserSpaceClipBounds();
+            PdfRectangle contentBounds = TextRenderUtilities.GetType3Bounds(glyphsSpan, type3Font, fullTextMatrix) ?? state.GetUserSpaceClipBounds();
 
             using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
             softMaskScope.BeginDrawContent();
@@ -113,8 +113,10 @@ public class PdfTextRenderer : IPdfTextRenderer
             for (int i = 0; i < glyphsSpan.Length; i++)
             {
                 ShapedGlyph glyph = glyphsSpan[i];
-                PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
-                if (charInfo.IsDefined && charInfo.Recording != null)
+                PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode);
+                PdfCommandRecorder? recording = type3Font.RecordCharacter(charInfo, _renderer, state);
+
+                if (recording != null)
                 {
                     PdfColor? tintColor = (charInfo.IsColored)
                         ? null
@@ -122,7 +124,7 @@ public class PdfTextRenderer : IPdfTextRenderer
 
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).
                     PdfMatrix glyphMatrix = PdfMatrix.CreateTranslation(glyph.X, glyph.Y).PreConcat(type3Font.FontMatrix);
-                    processor.Process(new DrawRecordingCommand(charInfo.Recording, glyphMatrix, tintColor));
+                    processor.Process(new DrawRecordingCommand(recording, glyphMatrix, tintColor));
                 }
             }
 
@@ -138,7 +140,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             for (int i = 0; i < glyphsSpan.Length; i++)
             {
                 ShapedGlyph glyph = glyphsSpan[i];
-                PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
+                PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode);
                 PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
                 PdfRectangle bounds;
 

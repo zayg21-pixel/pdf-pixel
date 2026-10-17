@@ -111,7 +111,7 @@ internal static class TextRenderUtilities
     /// through d1, or the font's own box when it declared none, and a glyph with neither yields
     /// <see langword="null"/>.
     /// </summary>
-    public static PdfRectangle? GetType3Bounds(IPdfRenderer renderer, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font, in PdfMatrix fullTextMatrix)
+    public static PdfRectangle? GetType3Bounds(in ReadOnlySpan<ShapedGlyph> glyphs, PdfType3Font type3Font, in PdfMatrix fullTextMatrix)
     {
         if (glyphs.Length == 0)
         {
@@ -127,9 +127,9 @@ internal static class TextRenderUtilities
         for (int i = 0; i < glyphs.Length; i++)
         {
             ShapedGlyph glyph = glyphs[i];
-            PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, renderer, state);
+            PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode);
 
-            if (!charInfo.IsDefined || charInfo.Recording == null)
+            if (!charInfo.IsDefined)
             {
                 continue;
             }

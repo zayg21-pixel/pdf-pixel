@@ -1,41 +1,39 @@
-using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
+using System;
 
 namespace PdfPixel.Fonts.Model;
 
 /// <summary>
-/// Holds rendering result and metrics for a Type 3 character after executing its CharProc stream.
-/// Extracted from the graphics state (d0/d1 operators) after glyph content is rendered.
+/// Holds the character procedure and metrics of a Type 3 character. The metrics come from the d0/d1
+/// operator of its CharProc stream; the glyph itself is recorded for each use, in the graphics state it
+/// inherits from the text-showing operator.
 /// </summary>
 public sealed class PdfType3CharacterInfo
 {
     /// <summary>
-    /// Gets a singleton instance representing an undefined character (no recording/metrics available).
+    /// Gets a singleton instance representing an undefined character (no character procedure/metrics available).
     /// </summary>
-    public static PdfType3CharacterInfo Undefined { get; } = new(null, null, PdfSize.Empty);
+    public static PdfType3CharacterInfo Undefined { get; } = new(ReadOnlyMemory<byte>.Empty, 0, null, PdfSize.Empty);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfType3CharacterInfo"/> class.
     /// </summary>
-    /// <param name="recording">Recorded drawing commands for the glyph; null when not defined.</param>
+    /// <param name="content">Decoded CharProc content stream; empty when not defined.</param>
+    /// <param name="objectNumber">Object number of the CharProc stream, guarding against recursive glyphs.</param>
     /// <param name="bbox">Bounding box parsed by d1 (llx, lly, urx, ury). Null when not provided.</param>
     /// <param name="advancement">Glyph advancement vector parsed by d0/d1 (wx, wy). If not provided, use <see cref="PdfSize.Empty"/>.</param>
-    public PdfType3CharacterInfo(PdfCommandRecorder? recording, PdfRectangle? bbox, in PdfSize advancement)
+    internal PdfType3CharacterInfo(in ReadOnlyMemory<byte> content, uint objectNumber, PdfRectangle? bbox, in PdfSize advancement)
     {
-        Recording = recording;
+        Content = content;
+        ObjectNumber = objectNumber;
         BBox = bbox;
         Advancement = advancement;
     }
 
     /// <summary>
-    /// True when the character procedure was found and rendered (i.e., recording is not null).
+    /// True when the character procedure was found and has content.
     /// </summary>
-    public bool IsDefined => Recording != null;
-
-    /// <summary>
-    /// Gets the recorded commands that draw the glyph in glyph space.
-    /// </summary>
-    public PdfCommandRecorder? Recording { get; }
+    public bool IsDefined => !Content.IsEmpty;
 
     /// <summary>
     /// Gets the character bounding box from d1 if provided; otherwise null.
@@ -51,4 +49,14 @@ public sealed class PdfType3CharacterInfo
     /// Gets a value indicating whether the character is colored. Defined as BBox being provided.
     /// </summary>
     public bool IsColored => !BBox.HasValue;
+
+    /// <summary>
+    /// Gets the decoded CharProc content stream.
+    /// </summary>
+    internal ReadOnlyMemory<byte> Content { get; }
+
+    /// <summary>
+    /// Gets the object number of the CharProc stream.
+    /// </summary>
+    internal uint ObjectNumber { get; }
 }

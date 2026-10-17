@@ -22,7 +22,8 @@ namespace PdfPixel.Fonts.Model;
 /// </summary>
 public class PdfType3Font : PdfSingleByteFont
 {
-    private readonly Dictionary<PdfCharacterCode, PdfType3CharacterInfo> type3Cache = [];
+    private readonly Dictionary<PdfCharacterCode, PdfType3CharacterInfo> _characterInfos = [];
+    private readonly PdfResourceNode? _resources;
 
     /// <summary>
     /// Constructor for Type3 fonts - lightweight operations only
@@ -37,6 +38,12 @@ public class PdfType3Font : PdfSingleByteFont
         }
 
         CharProcs = Dictionary.GetDictionary(PdfTokens.CharProcsKey);
+
+        PdfResourceDictionary? resources = PdfResourceDictionary.GetResourceDictionary(Dictionary, PdfTokens.ResourcesKey);
+        if (resources != null)
+        {
+            _resources = new PdfResourceNode(Document, resources, null);
+        }
 
         FontMatrix = PdfMatrix.FromArray(Dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? PdfMatrix.CreateScale(0.001f, 0.001f);
 
@@ -82,34 +89,72 @@ public class PdfType3Font : PdfSingleByteFont
     public PdfRectangle? FontBBox { get; }
 
     /// <summary>
-    /// Renders a Type 3 character CharProc to a recorded picture and extracts d0/d1 metrics from the glyph graphics state.
-    /// Results are cached per character code for reuse.
+    /// Gets the character procedure and the d0/d1 metrics of a Type 3 character. They do not depend on the
+    /// graphics state, so they are read once per character code.
     /// </summary>
-    public PdfType3CharacterInfo GetCharacterInfo(PdfCharacterCode charCode, IPdfRenderer renderer, PdfGraphicsState sourceState)
+    public PdfType3CharacterInfo GetCharacterInfo(PdfCharacterCode charCode)
     {
         if (charCode == null)
         {
             throw new ArgumentNullException(nameof(charCode));
         }
 
-        if (renderer == null)
+        if (_characterInfos.TryGetValue(charCode, out PdfType3CharacterInfo? cached))
         {
-            throw new ArgumentNullException(nameof(renderer));
+            return cached;
         }
 
-        if (sourceState == null)
+        PdfType3CharacterInfo info = ReadCharacterInfo(charCode);
+        _characterInfos[charCode] = info;
+
+        return info;
+    }
+
+    /// <summary>
+    /// Records the glyph description of a Type 3 character shown in <paramref name="sourceState"/>. The glyph inherits
+    /// the graphics state of the text-showing operator aside from the CTM, so it is recorded for each use.
+    /// </summary>
+    /// <param name="info">The character, from <see cref="GetCharacterInfo"/>.</param>
+    /// <param name="renderer">Renderer executing the glyph description.</param>
+    /// <param name="sourceState">Graphics state of the text-showing operator.</param>
+    /// <returns>The glyph recorded in glyph space, or null when the character is undefined or recursive.</returns>
+    internal PdfCommandRecorder? RecordCharacter(PdfType3CharacterInfo info, IPdfRenderer renderer, PdfGraphicsState sourceState)
+    {
+        if (!info.IsDefined || sourceState.RecursionGuard.Contains(info.ObjectNumber))
         {
-            throw new ArgumentNullException(nameof(sourceState));
+            return null;
         }
 
+        sourceState.RecursionGuard.Add(info.ObjectNumber);
+
+        IPdfContentHost sourceHost = sourceState.Host;
+        PdfContentHost glyphHost = new(sourceHost.Document, _resources ?? sourceHost.Resources, null);
+        PdfContentStreamRenderer contentRenderer = new(renderer, glyphHost);
+        PdfParseContext parseContext = new(info.Content);
+        PdfGraphicsState charState = sourceState.CloneForType3Glyph(glyphHost);
+
+        PdfRectangle? glyphBounds = info.BBox ?? FontBBox;
+        if (glyphBounds != null)
+        {
+            charState.ClipBounds = glyphBounds.Value;
+        }
+
+        PdfCommandRecorder recorder = new();
+        PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.Type3Glyph);
+        recorder.Process(new BeginScopeCommand(contentStreamScope));
+        contentRenderer.RenderContext(recorder, ref parseContext, charState);
+        recorder.Process(new EndScopeCommand());
+
+        sourceState.RecursionGuard.Remove(info.ObjectNumber);
+
+        return recorder;
+    }
+
+    private PdfType3CharacterInfo ReadCharacterInfo(PdfCharacterCode charCode)
+    {
         if (CharProcs == null)
         {
             return PdfType3CharacterInfo.Undefined;
-        }
-
-        if (type3Cache.TryGetValue(charCode, out PdfType3CharacterInfo? cached))
-        {
-            return cached;
         }
 
         PdfString charName = GetCharacterName(charCode);
@@ -124,55 +169,15 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        uint charObjectNumber = charObject.Reference.Value.ObjectNumber;
-
         ReadOnlyMemory<byte> streamData = charObject.Stream.DecodeAsMemory();
-
         if (streamData.IsEmpty)
         {
             return PdfType3CharacterInfo.Undefined;
         }
 
-        if (sourceState.RecursionGuard.Contains(charObjectNumber))
-        {
-            return PdfType3CharacterInfo.Undefined;
-        }
+        (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(new PdfParseContext(streamData));
 
-        sourceState.RecursionGuard.Add(charObjectNumber);
-
-        PdfCommandRecorder recorder = new();
-
-        IPdfContentHost sourceHost = sourceState.Host;
-        PdfResourceDictionary? fontResources = PdfResourceDictionary.GetResourceDictionary(FontObject.Dictionary, PdfTokens.ResourcesKey);
-        PdfResourceNode glyphResources = (fontResources == null) ? sourceHost.Resources : new PdfResourceNode(sourceHost.Document, fontResources, null);
-        PdfContentHost glyphHost = new(sourceHost.Document, glyphResources, null);
-        PdfContentStreamRenderer contentRenderer = new(renderer, glyphHost);
-        PdfParseContext parseContext = new(streamData);
-
-        (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
-
-        // TODO: [MEDIUM] glyphs record in a fresh graphics state, but ISO 32000-2 9.6.4 requires them to inherit the state of the
-        // text-showing operator (aside from the CTM). Colored (d0) glyphs therefore ignore the caller's transfer function and
-        // rendering intent, and type3Cache holds one recording per character code; key colored glyphs by the conversion parameters.
-        PdfGraphicsState charState = new(glyphHost, sourceState.ClipBounds, sourceState.RecursionGuard, default, sourceState.RenderingParameters.ForType3Rendering());
-
-        PdfRectangle? glyphBounds = boundingBox ?? FontBBox;
-        if (glyphBounds != null)
-        {
-            charState.ClipBounds = charState.CTM.MapRect(glyphBounds.Value);
-        }
-
-        PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.Type3Glyph);
-        recorder.Process(new BeginScopeCommand(contentStreamScope));
-        contentRenderer.RenderContext(recorder, ref parseContext, charState);
-        recorder.Process(new EndScopeCommand());
-
-        PdfType3CharacterInfo info = new(recorder, boundingBox, advancement);
-        type3Cache[charCode] = info;
-
-        sourceState.RecursionGuard.Remove(charObjectNumber);
-
-        return info;
+        return new PdfType3CharacterInfo(streamData, charObject.Reference.Value.ObjectNumber, boundingBox, advancement);
     }
 
     private (PdfSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)

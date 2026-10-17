@@ -32,32 +32,8 @@ internal class PdfObjectParser
     /// <param name="reference">Reference the index holds this entry under.</param>
     /// <param name="info">Indexed object metadata.</param>
     /// <returns>Parsed PdfObject or null on failure / unsupported cases.</returns>
-    public static System.Collections.Generic.Dictionary<PdfReference, int> ProbeParseCounts = [];
-    public static System.Collections.Generic.Dictionary<string, int> ProbeRepeatCallers = [];
-
     public PdfObject? ParseSingleIndexedObject(in PdfReference reference, PdfObjectInfo info)
     {
-        ProbeParseCounts.TryGetValue(reference, out int probeCount);
-        ProbeParseCounts[reference] = probeCount + 1;
-        if (probeCount > 0)
-        {
-            string probeCaller = "?";
-            foreach (System.Diagnostics.StackFrame probeFrame in new System.Diagnostics.StackTrace(1, false).GetFrames())
-            {
-                System.Type? probeType = probeFrame.GetMethod()?.DeclaringType;
-                if (probeType == null || probeType == typeof(PdfObjectParser) || probeType == typeof(PdfDocumentObjectCache) || probeType == typeof(IPdfValueExtension) || probeType == typeof(PdfDictionary) || probeType == typeof(PdfArray))
-                {
-                    continue;
-                }
-
-                probeCaller = $"{probeType.Name}.{probeFrame.GetMethod()?.Name}";
-                break;
-            }
-
-            ProbeRepeatCallers.TryGetValue(probeCaller, out int probeCallerCount);
-            ProbeRepeatCallers[probeCaller] = probeCallerCount + 1;
-        }
-
         if (info == null)
         {
             return null;
