@@ -10,6 +10,10 @@
     <!-- <RunAOTCompilationAfterBuild>true</RunAOTCompilationAfterBuild> -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <LangVersion>13</LangVersion>
+    <Nullable>enable</Nullable>
+    <AnalysisMode>All</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -33,6 +37,14 @@
 
   <ItemGroup>
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="4.150.1" />
+    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
 
   </ItemGroup>
 
