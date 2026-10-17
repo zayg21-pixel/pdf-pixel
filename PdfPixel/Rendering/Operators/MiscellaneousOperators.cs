@@ -90,7 +90,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfXObject? pageObject = _host.Cache.GetXObject(xObjectName.Value);
+        PdfXObject? pageObject = _host.Resources.GetXObject(xObjectName.Value);
 
         if (pageObject == null)
         {
@@ -165,7 +165,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfShading? shading = _host.Cache.GetShading(shadingName.Value);
+        PdfShading? shading = _host.Resources.GetShading(shadingName.Value);
 
         if (shading == null)
         {

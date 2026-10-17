@@ -239,8 +239,8 @@ internal sealed class Program
 
     private static int GetPageCount(PdfDocumentReader reader, string pdfPath, string? password)
     {
-        using FileStream fileStream = File.OpenRead(pdfPath);
-        using IPdfDocument document = reader.Read(fileStream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
+        using MemoryStream documentStream = new(File.ReadAllBytes(pdfPath));
+        using IPdfDocument document = reader.Read(documentStream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
         return document.Pages.Count;
     }
 
@@ -268,9 +268,10 @@ internal sealed class Program
         // Re-open and re-parse the document every iteration so no per-document decode cache
         // (e.g. PdfDocumentObjectCache.Images) can mask real decode cost on later iterations.
         // Pages within one iteration share the document, the same way a viewer reads it.
+        // The file is read into memory before the clock starts, so disk access stays out of the timings.
+        using MemoryStream documentStream = new(File.ReadAllBytes(pdfPath));
         Stopwatch iterationStopwatch = Stopwatch.StartNew();
-        using FileStream fileStream = File.OpenRead(pdfPath);
-        using IPdfDocument document = reader.Read(fileStream, request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
+        using IPdfDocument document = reader.Read(documentStream,request => (request.Reason == PdfCredentialRequestReason.CredentialRequired && password != null) ? new PdfPasswordCredential(password) : null);
 
         // Guards the page's lazily-parsed content stream against concurrent access; use a private
         // object per concurrent render of the same page.

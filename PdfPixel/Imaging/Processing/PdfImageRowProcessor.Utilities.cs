@@ -189,7 +189,7 @@ internal sealed partial class PdfImageRowProcessor
             return false;
         }
 
-        PdfColorSpaceConverter converter = parameters.ColorSpaceConverter;
+        PdfColorSpaceConverter converter = parameters.ColorConversionParameters.DeviceColorMapping.Map(parameters.ColorSpaceConverter);
 
         return !converter.IsDevice
             || (converter.Components != 1 && converter.Components != 3)

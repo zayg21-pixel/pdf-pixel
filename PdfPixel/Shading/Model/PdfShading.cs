@@ -134,8 +134,8 @@ public sealed class PdfShading
     /// <returns>Shading content, resolved from cache or newly built.</returns>
     internal PdfShadingContent GetContent(PdfGraphicsState state)
     {
-        PdfColorSpaceConverter converter = state.Host.Cache.ColorSpace.Resolve(ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
-        ColorTransformSampler sampler = converter.GetRgbaSampler(new PdfColorConversionParameters(state));
+        PdfColorSpaceConverter converter = state.Host.Resources.ResolveColorSpace(ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
+        ColorTransformSampler sampler = converter.GetRgbaSampler(new PdfColorConversionParameters(state, state.Host.Resources.DeviceColorMapping));
 
         if (_contentBySampler.TryGetValue(sampler, out PdfShadingContent? cachedContent))
         {

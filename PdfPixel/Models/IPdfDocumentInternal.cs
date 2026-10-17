@@ -53,6 +53,11 @@ internal interface IPdfDocumentInternal : IPdfDocument
     PdfIccColorSpaceConverter? OutputIntentConverter { get; }
 
     /// <summary>
+    /// Gets the resolver of the document's color spaces.
+    /// </summary>
+    PdfColorSpaceResolver ColorSpaceResolver { get; }
+
+    /// <summary>
     /// Gets the content host of the document itself, with no resources.
     /// </summary>
     IPdfContentHost ContentHost { get; }

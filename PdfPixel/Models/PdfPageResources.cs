@@ -12,9 +12,9 @@ namespace PdfPixel.Models;
 internal sealed class PdfPageResources
 {
     /// <summary>
-    /// Current effective resource dictionary (/Resources).
+    /// Current effective resources (/Resources), with the resources inherited from ancestors.
     /// </summary>
-    public PdfDictionary? Resources { get; private set; }
+    public PdfResourceNode? Resources { get; private set; }
 
     /// <summary>
     /// Current effective /MediaBox rectangle (may be null if not yet defined or malformed array shorter than4 entries).
@@ -63,9 +63,10 @@ internal sealed class PdfPageResources
             return;
         }
 
-        if (dict.HasKey(PdfTokens.ResourcesKey))
+        PdfResourceDictionary? resources = PdfResourceDictionary.GetResourceDictionary(dict, PdfTokens.ResourcesKey);
+        if (resources != null)
         {
-            Resources = MergeResources(Resources, dict.GetDictionary(PdfTokens.ResourcesKey));
+            Resources = new PdfResourceNode(dict.Document, resources, Resources);
         }
 
         if (dict.HasKey(PdfTokens.MediaBoxKey))
@@ -85,24 +86,4 @@ internal sealed class PdfPageResources
     }
 
     private static int NormalizeRotation(int rotation) => ((rotation % 360) + 360) % 360;
-
-    /// <summary>
-    /// Merges a /Resources dictionary encountered further down the page tree with the resources
-    /// accumulated from its ancestors, so a resource category missing at one level (e.g. /Font
-    /// defined only on a /Pages node) is still found via the other.
-    /// </summary>
-    private static PdfDictionary? MergeResources(PdfDictionary? inherited, PdfDictionary? current)
-    {
-        if (inherited == null || inherited.Count == 0)
-        {
-            return current;
-        }
-
-        if (current == null || current.Count == 0)
-        {
-            return inherited;
-        }
-
-        return inherited.MergeWith(current);
-    }
 }

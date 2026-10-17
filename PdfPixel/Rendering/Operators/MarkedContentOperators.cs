@@ -221,7 +221,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             return null;
         }
 
-        return _host.Cache.GetProperties(propertiesName.Value);
+        return _host.Resources.GetProperties(propertiesName.Value);
     }
 
     private List<PdfFileSpecification>? ResolveAssociatedFiles(IPdfValue propertiesOperand)
@@ -238,7 +238,7 @@ internal class MarkedContentOperators : IOperatorProcessor
             return null;
         }
 
-        return _host.Cache.GetAssociatedFiles(propertiesName.Value);
+        return _host.Resources.GetAssociatedFiles(propertiesName.Value);
     }
 
     private PdfOptionalContentMembership? ResolveOptionalContent(IPdfValue propertiesOperand)
@@ -258,6 +258,6 @@ internal class MarkedContentOperators : IOperatorProcessor
             return null;
         }
 
-        return _host.Cache.GetOptionalContent(propertiesName.Value);
+        return _host.Resources.GetOptionalContent(propertiesName.Value);
     }
 }

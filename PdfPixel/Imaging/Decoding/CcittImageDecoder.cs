@@ -22,7 +22,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         : base(image, context, loggerFactory)
     {
         _colorSpaceConverter = context.ColorSpaceConverter
-            ?? context.Host.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+            ?? PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
 
     public override PdfImageRowDecodingParameters Initialize(

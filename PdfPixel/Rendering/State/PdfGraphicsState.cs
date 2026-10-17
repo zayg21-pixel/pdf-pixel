@@ -21,9 +21,11 @@ public class PdfGraphicsState
     private PdfRenderingIntent _renderingIntent = PdfRenderingIntent.RelativeColorimetric;
 
     private PdfColorSpaceConverter _strokeColorConverter;
+    private PdfDeviceColorMapping _strokeDeviceColorMapping;
     private ColorTransformSampler? _strokeRgbaSampler;
 
     private PdfColorSpaceConverter _fillColorConverter;
+    private PdfDeviceColorMapping _fillDeviceColorMapping;
     private ColorTransformSampler? _fillRgbaSampler;
 
     private TransferFunctionTransform? _transferFunction;
@@ -44,9 +46,17 @@ public class PdfGraphicsState
         RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
         ExecutionObserver = observer;
         RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
-        _fillColorConverter = stateHost.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
-        _strokeColorConverter = stateHost.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        _fillColorConverter = PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        _fillDeviceColorMapping = stateHost.Resources.DeviceColorMapping;
+        _strokeColorConverter = PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        _strokeDeviceColorMapping = stateHost.Resources.DeviceColorMapping;
         ClipBounds = clipBounds;
+
+        if (stateHost.Resources.DeviceColorMapping.Gray != null)
+        {
+            FillPaint = FillPaint.WithSolidColor(FillRgbaSampler.Sample(_fillColorConverter.GetInitialComponents()).ToPdfColor());
+            StrokePaint = StrokePaint.WithSolidColor(StrokeRgbaSampler.Sample(_strokeColorConverter.GetInitialComponents()).ToPdfColor());
+        }
     }
 
     internal PdfGraphicsState(IPdfContentHost stateHost, in PdfRectangle clipBounds, PdfGraphicsState sourceState)
@@ -91,7 +101,7 @@ public class PdfGraphicsState
     {
         get
         {
-            _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this));
+            _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this, FillDeviceColorMapping));
 
             return _fillRgbaSampler;
         }
@@ -104,7 +114,7 @@ public class PdfGraphicsState
     {
         get
         {
-            _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this));
+            _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this, StrokeDeviceColorMapping));
             return _strokeRgbaSampler;
         }
     }
@@ -144,6 +154,24 @@ public class PdfGraphicsState
     }
 
     /// <summary>
+    /// Color spaces device color values of the stroking color space are interpreted in, taken from the
+    /// resources the stroking color space was selected with.
+    /// </summary>
+    internal PdfDeviceColorMapping StrokeDeviceColorMapping
+    {
+        get => _strokeDeviceColorMapping;
+
+        set
+        {
+            if (!_strokeDeviceColorMapping.Equals(value))
+            {
+                _strokeDeviceColorMapping = value;
+                _strokeRgbaSampler = null;
+            }
+        }
+    }
+
+    /// <summary>
     /// Current color space converter for non-stroking (fill) operations.
     /// </summary>
     public PdfColorSpaceConverter FillColorConverter
@@ -155,6 +183,24 @@ public class PdfGraphicsState
             if (_fillColorConverter != value)
             {
                 _fillColorConverter = value;
+                _fillRgbaSampler = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Color spaces device color values of the non-stroking (fill) color space are interpreted in, taken from the
+    /// resources the fill color space was selected with.
+    /// </summary>
+    internal PdfDeviceColorMapping FillDeviceColorMapping
+    {
+        get => _fillDeviceColorMapping;
+
+        set
+        {
+            if (!_fillDeviceColorMapping.Equals(value))
+            {
+                _fillDeviceColorMapping = value;
                 _fillRgbaSampler = null;
             }
         }
@@ -341,7 +387,9 @@ public class PdfGraphicsState
             FillPaint = FillPaint,
             FlatnessTolerance = FlatnessTolerance,
             StrokeColorConverter = StrokeColorConverter,
+            StrokeDeviceColorMapping = StrokeDeviceColorMapping,
             FillColorConverter = FillColorConverter,
+            FillDeviceColorMapping = FillDeviceColorMapping,
             RenderingIntent = RenderingIntent,
             SoftMask = SoftMask,
             SoftMaskCTM = SoftMaskCTM,

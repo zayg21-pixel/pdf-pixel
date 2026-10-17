@@ -35,6 +35,9 @@ public sealed class PdfSeparationColorSpaceConverter : PdfColorSpaceConverter
     public override bool IsDevice => false;
 
     /// <inheritdoc />
+    internal override float[] GetInitialComponents() => [1f];
+
+    /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
     {
         ColorTransformSampler alternateSampler = _alternate.GetRgbaSampler(parameters, normalize: true);

@@ -24,12 +24,12 @@ internal static class PdfAnnotationColorResolver
             return defaultColor ?? PdfColors.Transparent;
         }
 
-        PdfColorConversionParameters parameters = new(PdfRenderingIntent.RelativeColorimetric, null, true);
+        PdfColorConversionParameters parameters = new(PdfRenderingIntent.RelativeColorimetric, null, true, page.Document.ContentHost.Resources.DeviceColorMapping);
 
-        PdfColorSpaceConverter? converter = page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents.Length);
+        PdfColorSpaceConverter? converter = PdfColorSpaceResolver.ResolveDeviceConverter(colorComponents.Length);
         if (converter == null)
         {
-            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3) ?? PdfDeviceRgbColorSpaceConverter.Instance;
+            converter = PdfColorSpaceResolver.ResolveDeviceConverter(3) ?? PdfDeviceRgbColorSpaceConverter.Instance;
             float[] paddedColor = colorComponents;
             Array.Resize(ref paddedColor, 3);
             return converter.ToSrgb(paddedColor, parameters);

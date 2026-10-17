@@ -25,13 +25,12 @@ internal class PdfPage : IPdfPageInternal
 {
     private static readonly PdfRectangle DefaultMediaBox = new(0, 0, 612, 792);
 
-    private readonly Lazy<PdfContentHostCache> _pageCache;
     private readonly IPdfDocumentInternal _document;
     private readonly PdfDictionary _pageDictionary;
     private readonly PdfReference? _pageReference;
     private readonly List<PdfObjectStream> _contentStreams;
     private readonly PdfPageResources _pageResources;
-    private readonly PdfDictionary _resourceDictionary;
+    private readonly PdfResourceNode _resources;
     private readonly PdfTransparencyGroup? _transparencyGroup;
     private PdfPageAnnotation[]? _annotations;
 
@@ -59,7 +58,6 @@ internal class PdfPage : IPdfPageInternal
         _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
         _pageReference = pageObject.Reference;
         _contentStreams = ExtractContentStreams(pageObject);
-        PdfDictionary resourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
 
         PageNumber = pageNumber;
         PdfRectangle media = DefaultMediaBox;
@@ -87,9 +85,8 @@ internal class PdfPage : IPdfPageInternal
         TrimBox = ResolveBoundary(PdfRectangle.FromArray(pageDictionary.GetArray(PdfTokens.TrimBoxKey)), media, crop);
         ArtBox = ResolveBoundary(PdfRectangle.FromArray(pageDictionary.GetArray(PdfTokens.ArtBoxKey)), media, crop);
         Rotation = pageResources.Rotate ?? 0;
-        _resourceDictionary = resourceDictionary;
+        _resources = pageResources.Resources ?? PdfResourceNode.CreateEmpty(document);
         PageLabel = pageLabel;
-        _pageCache = new Lazy<PdfContentHostCache>(() => new PdfContentHostCache(document, resourceDictionary));
         _pageDictionary = pageDictionary;
 
         _transparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey);
@@ -172,7 +169,7 @@ internal class PdfPage : IPdfPageInternal
     /// <inheritdoc/>
     public IReadOnlyList<PdfBead> Beads { get; }
 
-    PdfContentHostCache IPdfContentHost.Cache => _pageCache.Value;
+    PdfResourceNode IPdfContentHost.Resources => _resources;
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
@@ -181,8 +178,6 @@ internal class PdfPage : IPdfPageInternal
     int? IPdfContentHost.StructParents => StructParents;
 
     IReadOnlyList<PdfObjectStream> IPdfPageInternal.ContentStreams => _contentStreams;
-
-    PdfDictionary IPdfContentHost.ResourceDictionary => _resourceDictionary;
 
     IPdfDocumentInternal IPdfContentHost.Document => _document;
 

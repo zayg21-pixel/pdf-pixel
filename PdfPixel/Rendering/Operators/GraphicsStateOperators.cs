@@ -287,7 +287,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        _host.Cache.ApplyGraphicsStateParameters(gsName.Value, _processor, graphicsState);
+        _host.Resources.ApplyGraphicsStateParameters(gsName.Value, _processor, graphicsState);
     }
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)

@@ -26,7 +26,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         : base(image, context, loggerFactory)
     {
         _colorSpaceConverter = context.ColorSpaceConverter
-            ?? context.Host.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
+            ?? PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
     }
 
     public override PdfImageRowDecodingParameters Initialize(
@@ -44,7 +44,8 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         }
 
         PdfColorSpaceConverter resolvedConverter = _colorSpaceConverter;
-        if ((Context.ColorSpaceConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
+        if ((Context.ColorSpaceConverter == null || Context.Host.Resources.DeviceColorMapping.Map(resolvedConverter).IsDevice)
+            && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
         {
             resolvedConverter = new PdfIccColorSpaceConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }

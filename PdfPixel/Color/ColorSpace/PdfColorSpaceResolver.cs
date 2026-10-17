@@ -4,27 +4,15 @@ using PdfPixel.Text;
 namespace PdfPixel.Color.ColorSpace;
 
 /// <summary>
-/// Instance color space resolver bound to a single <see cref="IPdfContentHost"/> providing
-/// resolution, caching (by indirect object reference and by resource name), and default device space substitution.
+/// Document color space resolver providing resolution and caching by indirect object reference. It knows no
+/// resources: names of /ColorSpace resources are looked up by <see cref="PdfResourceNode"/>. Device color spaces
+/// resolve as is; how their values are interpreted is decided by <see cref="PdfDeviceColorMapping"/> at conversion.
 /// </summary>
 internal sealed partial class PdfColorSpaceResolver
 {
     private readonly IPdfDocumentInternal _document;
-    private readonly PdfDictionary? _colorSpaceDictionary;
 
-    private readonly PdfColorSpaceConverter _defaultGray;
-    private readonly PdfColorSpaceConverter _defaultRgb;
-    private readonly PdfColorSpaceConverter _defaultCmyk;
-
-    public PdfColorSpaceResolver(IPdfDocumentInternal document, PdfDictionary resources)
-    {
-        _document = document;
-        _colorSpaceDictionary = resources.GetDictionary(PdfTokens.ColorSpaceKey);
-
-        _defaultGray = ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey, 1) ?? PdfDeviceGrayColorSpaceConverter.Instance;
-        _defaultRgb = ResolveDefaultDeviceSpace(PdfTokens.DefaultRGBKey, 3) ?? PdfDeviceRgbColorSpaceConverter.Instance;
-        _defaultCmyk = ResolveDefaultDeviceSpace(PdfTokens.DefaultCMYKKey, 4) ?? PdfDeviceCmykColorSpaceConverter.Instance;
-    }
+    public PdfColorSpaceResolver(IPdfDocumentInternal document) => _document = document;
 
     /// <summary>
     /// Resolves the appropriate <see cref="PdfColorSpaceConverter"/> for the specified <paramref name="pdfObject"/>.
@@ -76,10 +64,10 @@ internal sealed partial class PdfColorSpaceResolver
 
     /// <summary>
     /// Resolve a color space converter from a generic value which may be:
-    ///1) A name (device or resource key)
+    ///1) A color space family name
     ///2) A parameter array (e.g. [/ICCBased obj])
     ///3) Null (default device fallback).
-    /// Results are cached by indirect reference (document-level) and by resource name (host-level) when applicable.
+    /// Results are cached by indirect reference (document-level) when applicable.
     /// </summary>
     public PdfColorSpaceConverter? ResolveByValue(IPdfValue? value, int defaultComponents = 3)
     {
@@ -99,7 +87,7 @@ internal sealed partial class PdfColorSpaceResolver
     /// <summary>
     /// Resolve a device converter given component count (1 = Gray,3 = RGB,4 = CMYK).
     /// </summary>
-    public PdfColorSpaceConverter? ResolveDeviceConverter(int components)
+    public static PdfColorSpaceConverter? ResolveDeviceConverter(int components)
     {
         switch (components)
         {
@@ -118,53 +106,27 @@ internal sealed partial class PdfColorSpaceResolver
     }
 
     /// <summary>
-    /// Resolve a specific device color space considering Default* resource overrides and OutputIntent profile.
-    /// Uses name cache only (no dedicated fields).
+    /// Resolve a specific device color space.
     /// </summary>
-    public PdfColorSpaceConverter ResolveDeviceConverter(PdfColorSpaceType colorSpace)
+    public static PdfColorSpaceConverter ResolveDeviceConverter(PdfColorSpaceType colorSpace)
     {
         switch (colorSpace)
         {
             case PdfColorSpaceType.DeviceGray:
             {
-                return _defaultGray;
+                return PdfDeviceGrayColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.DeviceRGB:
             {
-                return _defaultRgb;
+                return PdfDeviceRgbColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.DeviceCMYK:
             {
-                return _defaultCmyk;
+                return PdfDeviceCmykColorSpaceConverter.Instance;
             }
         }
 
-        return _defaultRgb;
-    }
-
-    private PdfColorSpaceConverter? ResolveDefaultDeviceSpace(in PdfString defaultKey, int n)
-    {
-        IPdfValue? defaultVal = _colorSpaceDictionary?.GetValue(defaultKey);
-        if (defaultVal != null)
-        {
-            PdfColorSpaceConverter? conv = ResolveByValue(defaultVal, -1); // Recursive parse; do not override components.
-            if (conv is PdfIccColorSpaceConverter icc && icc.N == n)
-            {
-                return icc;
-            }
-
-            if (conv != null && conv.Components == n)
-            {
-                return conv;
-            }
-        }
-
-        if (_document.OutputIntentConverter != null && _document.OutputIntentConverter.N == n)
-        {
-            return _document.OutputIntentConverter;
-        }
-
-        return null;
+        return PdfDeviceRgbColorSpaceConverter.Instance;
     }
 
     private PdfColorSpaceConverter ResolveByNameAndValue(in PdfString name, IPdfValue originalValue)
@@ -228,17 +190,6 @@ internal sealed partial class PdfColorSpaceResolver
             }
             default:
             {
-                // Resource name lookup path.
-                if (_colorSpaceDictionary != null)
-                {
-                    PdfColorSpaceConverter? resolved = Resolve(PdfColorSpaceReference.FromDictionary(_colorSpaceDictionary, name));
-
-                    if (resolved != null)
-                    {
-                        return resolved;
-                    }
-                }
-
                 return PdfDeviceRgbColorSpaceConverter.Instance;
             }
         }
@@ -277,7 +228,7 @@ internal sealed partial class PdfColorSpaceResolver
 
     private PdfColorSpaceConverter? ResolveByReference(in PdfReference reference, int defaultComponents)
     {
-        PdfColorSpaceConverter? converter = _document.ObjectCache.GetOrCreate(reference, colorSpaceObject => ResolveByValue(colorSpaceObject.Value, defaultComponents));
+        PdfColorSpaceConverter? converter = _document.ObjectCache.GetOrCreate(reference, colorSpaceObject => ResolveByValue(colorSpaceObject.Value, -1));
 
         return converter ?? ResolveDeviceConverter(defaultComponents);
     }

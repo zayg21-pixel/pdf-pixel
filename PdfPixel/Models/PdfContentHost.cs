@@ -10,24 +10,20 @@ internal sealed class PdfContentHost : IPdfContentHost
     /// Initializes a new instance for a nested content stream.
     /// </summary>
     /// <param name="document">Owning document.</param>
-    /// <param name="resourceDictionary">Resource dictionary the stream's names resolve against.</param>
+    /// <param name="resources">Resources the stream's names resolve against.</param>
     /// <param name="structParents">Structural parent key (/StructParents) of the stream, or null when absent.</param>
-    public PdfContentHost(IPdfDocumentInternal document, PdfDictionary resourceDictionary, int? structParents)
+    public PdfContentHost(IPdfDocumentInternal document, PdfResourceNode resources, int? structParents)
     {
         Document = document;
-        ResourceDictionary = resourceDictionary;
+        Resources = resources;
         StructParents = structParents;
-        Cache = new PdfContentHostCache(document, resourceDictionary);
     }
 
     /// <inheritdoc/>
-    public PdfContentHostCache Cache { get; }
+    public PdfResourceNode Resources { get; }
 
     /// <inheritdoc/>
     public int? StructParents { get; }
-
-    /// <inheritdoc/>
-    public PdfDictionary ResourceDictionary { get; }
 
     /// <inheritdoc/>
     public IPdfDocumentInternal Document { get; }

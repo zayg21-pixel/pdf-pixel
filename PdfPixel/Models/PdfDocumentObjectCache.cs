@@ -100,13 +100,18 @@ internal class PdfDocumentObjectCache : IDisposable
     /// An indirect entry is cached by its reference; a direct entry is created with <paramref name="factory"/> and not cached.
     /// </summary>
     /// <typeparam name="T">Type created from the object.</typeparam>
-    /// <param name="dictionary">Dictionary holding the entry.</param>
+    /// <param name="dictionary">Dictionary holding the entry, or null when there is none.</param>
     /// <param name="key">Key of the entry.</param>
     /// <param name="factory">Creates the <typeparamref name="T"/> from the resolved object, or returns null when it cannot.</param>
     /// <param name="requiresStream">When true, an object without a stream yields null without invoking <paramref name="factory"/>.</param>
-    /// <returns>Cached or created <typeparamref name="T"/>, or null if the entry is absent or the factory returned null.</returns>
-    public T? GetOrCreate<T>(PdfDictionary dictionary, in PdfString key, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
+    /// <returns>Cached or created <typeparamref name="T"/>, or null if the dictionary or the entry is absent or the factory returned null.</returns>
+    public T? GetOrCreate<T>(PdfDictionary? dictionary, in PdfString key, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
     {
+        if (dictionary == null)
+        {
+            return null;
+        }
+
         PdfReference? reference = dictionary.GetReference(key);
         if (reference != null)
         {
@@ -127,13 +132,18 @@ internal class PdfDocumentObjectCache : IDisposable
     /// An indirect entry is cached by its reference; a direct entry is created with <paramref name="factory"/> and not cached.
     /// </summary>
     /// <typeparam name="T">Type created from the object.</typeparam>
-    /// <param name="array">Array holding the entry.</param>
+    /// <param name="array">Array holding the entry, or null when there is none.</param>
     /// <param name="index">Index of the entry.</param>
     /// <param name="factory">Creates the <typeparamref name="T"/> from the resolved object, or returns null when it cannot.</param>
     /// <param name="requiresStream">When true, an object without a stream yields null without invoking <paramref name="factory"/>.</param>
-    /// <returns>Cached or created <typeparamref name="T"/>, or null if the entry is absent or the factory returned null.</returns>
-    public T? GetOrCreate<T>(PdfArray array, int index, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
+    /// <returns>Cached or created <typeparamref name="T"/>, or null if the array or the entry is absent or the factory returned null.</returns>
+    public T? GetOrCreate<T>(PdfArray? array, int index, Func<PdfObject, T?> factory, bool requiresStream = false) where T : class
     {
+        if (array == null)
+        {
+            return null;
+        }
+
         PdfReference? reference = array.GetReference(index);
         if (reference != null)
         {

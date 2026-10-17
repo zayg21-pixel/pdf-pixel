@@ -168,7 +168,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.CurrentFont = _host.Cache.GetFont(fontName.Value);
+        graphicsState.CurrentFont = _host.Resources.GetFont(fontName.Value);
         graphicsState.FontSize = fontSize.Value;
     }
 

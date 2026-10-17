@@ -7,19 +7,14 @@ namespace PdfPixel.Models;
 internal interface IPdfContentHost
 {
     /// <summary>
-    /// Resource cache providing name-based lookups.
+    /// Resources providing name-based lookups (never null).
     /// </summary>
-    PdfContentHostCache Cache { get; }
+    PdfResourceNode Resources { get; }
 
     /// <summary>
     /// Structural parent key (/StructParents) of the content streams, or null when absent.
     /// </summary>
     int? StructParents { get; }
-
-    /// <summary>
-    /// Resolved resource dictionary (never null).
-    /// </summary>
-    PdfDictionary ResourceDictionary { get; }
 
     /// <summary>
     /// Owning document instance.

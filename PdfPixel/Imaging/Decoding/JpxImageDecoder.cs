@@ -19,17 +19,9 @@ internal class JpxImageDecoder : PdfImageDecoder
     private PdfColorSpaceConverter? _resolvedConverter;
     private JpxTileToRowConverter? _rowConverter;
 
-    private readonly PdfColorSpaceConverter? _deviceGray;
-    private readonly PdfColorSpaceConverter? _deviceRgb;
-    private readonly PdfColorSpaceConverter? _deviceCmyk;
-
     public JpxImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
     {
-        PdfColorSpaceResolver colorSpace = context.Host.Cache.ColorSpace;
-        _deviceGray = colorSpace.ResolveDeviceConverter(1);
-        _deviceRgb = colorSpace.ResolveDeviceConverter(3);
-        _deviceCmyk = colorSpace.ResolveDeviceConverter(4);
     }
 
     public override PdfImageRowDecodingParameters Initialize(
@@ -63,7 +55,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             : ResolveMaskAlphaType(matte);
 
         PdfIntegerSize decodedSize = new(_rowConverter.Width, _rowConverter.Height);
-        PdfColorConversionParameters colorConversionParameters = new(Image.RenderingIntent, Context.TransferFunction, Context.UseBlackPointCompensation);
+        PdfColorConversionParameters colorConversionParameters = new(Image.RenderingIntent, Context.TransferFunction, Context.UseBlackPointCompensation, Context.Host.Resources.DeviceColorMapping);
 
         PdfImageRowDecodingParameters parameters = new(
             Context,
@@ -124,13 +116,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             return converter;
         }
 
-        return colorComponents switch
-        {
-            1 => _deviceGray,
-            3 => _deviceRgb,
-            4 => _deviceCmyk,
-            _ => null
-        };
+        return PdfColorSpaceResolver.ResolveDeviceConverter(colorComponents);
     }
 
     private JpxDecodingParameters ComputeDecodingParameters(

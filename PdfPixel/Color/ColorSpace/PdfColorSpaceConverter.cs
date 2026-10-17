@@ -31,6 +31,11 @@ public abstract class PdfColorSpaceConverter
     public virtual IColorTransform? NormalizeTransform => null;
 
     /// <summary>
+    /// Returns the component values of the initial color the CS and cs operators set for this color space.
+    /// </summary>
+    internal virtual float[] GetInitialComponents() => new float[Components];
+
+    /// <summary>
     /// Converts normalized (0..1) component values to sRGB using the derived converter implementation.
     /// </summary>
     /// <param name="comps01">Component values in the range 0..1.</param>
@@ -52,6 +57,14 @@ public abstract class PdfColorSpaceConverter
     /// <returns>Sampler value.</returns>
     public ColorTransformSampler GetRgbaSampler(in PdfColorConversionParameters parameters, bool normalize = true)
     {
+        // A mapped color space converts with device color spaces as is, so its own device fallbacks do not map back to it.
+        PdfColorSpaceConverter mapped = parameters.DeviceColorMapping.Map(this);
+        if (mapped != this)
+        {
+            PdfColorConversionParameters unmappedParameters = new(parameters.RenderingIntent, parameters.TransferFunction, parameters.UseBlackPointCompensation);
+            return mapped.GetRgbaSampler(unmappedParameters, normalize);
+        }
+
         SamplerCacheKey key = new(parameters, normalize);
         if (_samplers.TryGetValue(key, out ColorTransformSampler? cachedSampler))
         {

@@ -143,13 +143,17 @@ public class PdfType3Font : PdfSingleByteFont
         PdfCommandRecorder recorder = new();
 
         IPdfContentHost sourceHost = sourceState.Host;
-        PdfDictionary glyphResources = FontObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? sourceHost.ResourceDictionary;
+        PdfResourceDictionary? fontResources = PdfResourceDictionary.GetResourceDictionary(FontObject.Dictionary, PdfTokens.ResourcesKey);
+        PdfResourceNode glyphResources = (fontResources == null) ? sourceHost.Resources : new PdfResourceNode(sourceHost.Document, fontResources, null);
         PdfContentHost glyphHost = new(sourceHost.Document, glyphResources, null);
         PdfContentStreamRenderer contentRenderer = new(renderer, glyphHost);
         PdfParseContext parseContext = new(streamData);
 
         (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
 
+        // TODO: [MEDIUM] glyphs record in a fresh graphics state, but ISO 32000-2 9.6.4 requires them to inherit the state of the
+        // text-showing operator (aside from the CTM). Colored (d0) glyphs therefore ignore the caller's transfer function and
+        // rendering intent, and type3Cache holds one recording per character code; key colored glyphs by the conversion parameters.
         PdfGraphicsState charState = new(glyphHost, sourceState.ClipBounds, sourceState.RecursionGuard, default, sourceState.RenderingParameters.ForType3Rendering());
 
         PdfRectangle? glyphBounds = boundingBox ?? FontBBox;

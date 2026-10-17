@@ -35,6 +35,7 @@ internal class PdfDocument : IPdfDocumentInternal
     private readonly BufferedStream _stream;
     private readonly PdfTreeReader _treeReader;
     private readonly PdfIccColorSpaceConverter? _outputIntentConverter;
+    private readonly PdfColorSpaceResolver _colorSpaceResolver;
     private PdfContentHost? _contentHost;
 
     /// <summary>
@@ -58,6 +59,7 @@ internal class PdfDocument : IPdfDocumentInternal
         _streamDecoder = new PdfStreamDecoder(loggerFactory);
         FontProvider = new FontProvider(fontSubstitutor, loggerFactory);
         _objectCache = new PdfDocumentObjectCache(this, new PdfObjectParser(this));
+        _colorSpaceResolver = new PdfColorSpaceResolver(this);
         _stream = new BufferedStream(fileStream, PdfStreamDecoder.StreamChunkSize);
         _cMapCache = new CMapCache(_logger);
         _treeReader = new PdfTreeReader(loggerFactory.CreateLogger<PdfTreeReader>());
@@ -209,13 +211,15 @@ internal class PdfDocument : IPdfDocumentInternal
 
     PdfIccColorSpaceConverter? IPdfDocumentInternal.OutputIntentConverter => _outputIntentConverter;
 
+    PdfColorSpaceResolver IPdfDocumentInternal.ColorSpaceResolver => _colorSpaceResolver;
+
     IPdfContentHost IPdfDocumentInternal.ContentHost
     {
         get
         {
             if (_contentHost == null)
             {
-                _contentHost = new PdfContentHost(this, new PdfDictionary(this), structParents: null);
+                _contentHost = new PdfContentHost(this, PdfResourceNode.CreateEmpty(this), structParents: null);
             }
 
             return _contentHost;
@@ -325,6 +329,19 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <inheritdoc/>
     public void Dispose()
     {
+        //foreach (System.Collections.Generic.KeyValuePair<PdfReference, int> probeEntry in System.Linq.Enumerable.Take(System.Linq.Enumerable.OrderByDescending(PdfPixel.Parsing.PdfObjectParser.ProbeParseCounts, entry => entry.Value), 8))
+        //{
+        //    System.Console.WriteLine($"PROBE {probeEntry.Key} parsed {probeEntry.Value}x");
+        //}
+
+        //foreach (System.Collections.Generic.KeyValuePair<string, int> probeEntry in System.Linq.Enumerable.OrderByDescending(PdfPixel.Parsing.PdfObjectParser.ProbeRepeatCallers, entry => entry.Value))
+        //{
+        //    System.Console.WriteLine($"PROBE repeat caller {probeEntry.Key} {probeEntry.Value}x");
+        //}
+
+        //System.Console.WriteLine($"PROBE distinct {PdfPixel.Parsing.PdfObjectParser.ProbeParseCounts.Count}, total {System.Linq.Enumerable.Sum(PdfPixel.Parsing.PdfObjectParser.ProbeParseCounts.Values)}");
+        PdfPixel.Parsing.PdfObjectParser.ProbeParseCounts.Clear();
+        PdfPixel.Parsing.PdfObjectParser.ProbeRepeatCallers.Clear();
         CommandCache.Dispose();
         _objectCache.Dispose();
         FontProvider.Dispose();

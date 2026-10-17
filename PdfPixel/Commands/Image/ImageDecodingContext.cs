@@ -152,5 +152,5 @@ public sealed class ImageDecodingContext
     /// </summary>
     public bool ApplyMask { get; }
 
-    private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Host.Cache.ColorSpace.Resolve(image.ColorSpaceReference, defaultComponents: -1);
+    private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Host.Resources.ResolveColorSpace(image.ColorSpaceReference, defaultComponents: -1);
 }

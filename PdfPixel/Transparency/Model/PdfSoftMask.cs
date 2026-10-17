@@ -85,8 +85,8 @@ public class PdfSoftMask
             return PdfColors.Black;
         }
 
-        PdfColorSpaceConverter? converter = state.Host.Cache.ColorSpace.Resolve(MaskForm.TransparencyGroup.ColorSpaceReference);
+        PdfColorSpaceConverter? converter = state.Host.Resources.ResolveColorSpace(MaskForm.TransparencyGroup.ColorSpaceReference);
 
-        return converter?.ToSrgb(BackgroundColorComponents, new PdfColorConversionParameters(state)) ?? PdfColors.Black;
+        return converter?.ToSrgb(BackgroundColorComponents, new PdfColorConversionParameters(state, state.Host.Resources.DeviceColorMapping)) ?? PdfColors.Black;
     }
 }

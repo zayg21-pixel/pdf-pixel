@@ -10,24 +10,33 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public readonly struct PdfColorConversionParameters : IEquatable<PdfColorConversionParameters>
 {
+    private readonly PdfDeviceColorMapping? _deviceColorMapping;
+
     /// <summary>
     /// Initializes a new <see cref="PdfColorConversionParameters"/> from its parameters.
     /// </summary>
     public PdfColorConversionParameters(PdfRenderingIntent renderingIntent, TransferFunctionTransform? transferFunction, bool useBlackPointCompensation)
+        : this(renderingIntent, transferFunction, useBlackPointCompensation, PdfDeviceColorMapping.None)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new <see cref="PdfColorConversionParameters"/> from its parameters and the mapping of device color spaces.
+    /// </summary>
+    internal PdfColorConversionParameters(PdfRenderingIntent renderingIntent, TransferFunctionTransform? transferFunction, bool useBlackPointCompensation, PdfDeviceColorMapping deviceColorMapping)
     {
         RenderingIntent = renderingIntent;
         TransferFunction = transferFunction;
         UseBlackPointCompensation = useBlackPointCompensation;
+        _deviceColorMapping = deviceColorMapping;
     }
 
     /// <summary>
-    /// Initializes a new <see cref="PdfColorConversionParameters"/> from a graphics state.
+    /// Initializes a new <see cref="PdfColorConversionParameters"/> from a graphics state and the mapping of device color spaces.
     /// </summary>
-    internal PdfColorConversionParameters(PdfGraphicsState state)
+    internal PdfColorConversionParameters(PdfGraphicsState state, PdfDeviceColorMapping deviceColorMapping)
+        : this(state.RenderingIntent, state.TransferFunction, state.UseBlackPointCompensation, deviceColorMapping)
     {
-        RenderingIntent = state.RenderingIntent;
-        TransferFunction = state.TransferFunction;
-        UseBlackPointCompensation = state.UseBlackPointCompensation;
     }
 
     /// <summary>
@@ -45,19 +54,25 @@ public readonly struct PdfColorConversionParameters : IEquatable<PdfColorConvers
     /// </summary>
     public bool UseBlackPointCompensation { get; }
 
+    /// <summary>
+    /// Color spaces device color values are interpreted in.
+    /// </summary>
+    internal PdfDeviceColorMapping DeviceColorMapping => _deviceColorMapping ?? PdfDeviceColorMapping.None;
+
     /// <inheritdoc/>
     public bool Equals(PdfColorConversionParameters other)
     {
         return RenderingIntent == other.RenderingIntent
             && ReferenceEquals(TransferFunction, other.TransferFunction)
-            && UseBlackPointCompensation == other.UseBlackPointCompensation;
+            && UseBlackPointCompensation == other.UseBlackPointCompensation
+            && DeviceColorMapping.Equals(other.DeviceColorMapping);
     }
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is PdfColorConversionParameters other && Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(RenderingIntent, RuntimeHelpers.GetHashCode(TransferFunction), UseBlackPointCompensation);
+    public override int GetHashCode() => HashCode.Combine(RenderingIntent, RuntimeHelpers.GetHashCode(TransferFunction), UseBlackPointCompensation, DeviceColorMapping);
 
     /// <summary>
     /// Determines whether two parameter sets are equal.

@@ -42,7 +42,8 @@ internal sealed class TilingPatternShaderBuilder
 
         // Render pattern cell without tint or color filter
         IPdfDocumentInternal document = sourceState.Host.Document;
-        PdfContentHost patternHost = new(document, pattern.CellResources ?? new PdfDictionary(document), null);
+        PdfResourceNode cellResources = (pattern.CellResources == null) ? PdfResourceNode.CreateEmpty(document) : new PdfResourceNode(document, new PdfResourceDictionary(pattern.CellResources), null);
+        PdfContentHost patternHost = new(document, cellResources, null);
         PdfGraphicsState cellState = new(patternHost, pattern.BBox, sourceState);
         PdfRenderer cellRenderer = new(document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(cellRenderer, patternHost);
