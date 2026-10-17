@@ -26,6 +26,11 @@ public enum PdfPanelActionSource
     LinkAnnotationClick,
 
     /// <summary>
+    /// A file attachment annotation activated by the pointer.
+    /// </summary>
+    FileAttachmentAnnotationClick,
+
+    /// <summary>
     /// An outline item (bookmark) activated by the user.
     /// </summary>
     Outline

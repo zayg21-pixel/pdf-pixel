@@ -1,3 +1,4 @@
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -16,6 +17,15 @@ public class PdfLaunchAction : PdfFileAction
         : base(PdfActionType.Launch, actionDictionary)
     {
         Windows = PdfWindowsLaunchParameters.FromDictionary(actionDictionary.GetDictionary(PdfTokens.WindowsLaunchKey));
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfLaunchAction"/> class that opens <paramref name="fileSpecification"/>.
+    /// </summary>
+    /// <param name="fileSpecification">The file to open.</param>
+    internal PdfLaunchAction(PdfFileSpecification fileSpecification)
+        : base(PdfActionType.Launch, fileSpecification)
+    {
     }
 
     /// <summary>

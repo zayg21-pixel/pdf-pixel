@@ -1,3 +1,4 @@
+using PdfPixel.Actions.Model;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Commands.Model;
@@ -26,6 +27,11 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     {
         FileSpecification = PdfFileSpecification.GetFileSpecification(annotationObject.Dictionary, PdfTokens.FSKey);
         Icon = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfFileAttachmentIcon>();
+
+        if (FileSpecification != null)
+        {
+            Action = new PdfLaunchAction(FileSpecification);
+        }
     }
 
     /// <inheritdoc/>
@@ -38,6 +44,11 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     /// File specification of the attached file (FS), or <see langword="null"/> when absent.
     /// </summary>
     public PdfFileSpecification? FileSpecification { get; }
+
+    /// <summary>
+    /// Launch action that opens <see cref="FileSpecification"/>, or <see langword="null"/> when the annotation has no file.
+    /// </summary>
+    public PdfLaunchAction? Action { get; }
 
     /// <summary>
     /// The icon type that should be used to display this file attachment.

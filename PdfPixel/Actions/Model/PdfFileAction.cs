@@ -16,6 +16,12 @@ public abstract class PdfFileAction : PdfAction
         NewWindow = actionDictionary.GetBoolean(PdfTokens.NewWindowKey);
     }
 
+    private protected PdfFileAction(PdfActionType actionType, PdfFileSpecification fileSpecification)
+        : base(actionType)
+    {
+        FileSpecification = fileSpecification;
+    }
+
     /// <summary>
     /// File the action refers to (/F), or <see langword="null"/> when absent.
     /// </summary>

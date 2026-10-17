@@ -157,15 +157,25 @@ public sealed class PdfPanelActions
     }
 
     /// <summary>
-    /// Performs the action of the clicked link annotation, or navigates to its destination.
+    /// Performs the action of the clicked link annotation, or navigates to its destination, or performs the action of
+    /// the clicked file attachment annotation.
     /// </summary>
     private void SynchronizeAnnotation()
     {
         PdfPageAnnotation? clickedAnnotation = _annotations.ClickedAnnotation?.PageAnnotation;
 
-        if (clickedAnnotation?.Content is PdfLinkAnnotation link)
+        switch (clickedAnnotation?.Content)
         {
-            PerformAction(link.Destination, link.Action, PdfPanelActionSource.LinkAnnotationClick, clickedAnnotation);
+            case PdfLinkAnnotation link:
+            {
+                PerformAction(link.Destination, link.Action, PdfPanelActionSource.LinkAnnotationClick, clickedAnnotation);
+                break;
+            }
+            case PdfFileAttachmentAnnotation fileAttachment:
+            {
+                PerformAction(null, fileAttachment.Action, PdfPanelActionSource.FileAttachmentAnnotationClick, clickedAnnotation);
+                break;
+            }
         }
     }
 
