@@ -23,8 +23,8 @@ public sealed class PdfOutlineItem
         Title = dictionary.GetString(PdfTokens.OutlineTitleKey);
         Count = dictionary.GetInteger(PdfTokens.CountKey);
         Destination = destinations.Parse(dictionary, PdfTokens.DestKey);
-        Action = PdfAction.FromDictionary(dictionary.GetDictionary(PdfTokens.AKey));
-        StructureElement = ReadStructureElement(dictionary, structureTree);
+        Action = PdfAction.GetAction(dictionary, PdfTokens.AKey);
+        StructureElement = PdfStructureElement.GetStructureElement(dictionary, PdfTokens.StructureElementKey, structureTree);
         Color = ReadColor(dictionary.GetArray(PdfTokens.ColorKey));
 
         int flags = dictionary.GetInteger(PdfTokens.OutlineFlagsKey) ?? 0;
@@ -115,16 +115,6 @@ public sealed class PdfOutlineItem
         return items;
     }
 
-    private static PdfStructureElement? ReadStructureElement(PdfDictionary dictionary, PdfStructureTree structureTree)
-    {
-        PdfDictionary? element = dictionary.GetDictionary(PdfTokens.StructureElementKey);
-        if (element == null)
-        {
-            return null;
-        }
-
-        return new PdfStructureElement(element, dictionary.GetReference(PdfTokens.StructureElementKey), structureTree);
-    }
 
     private static PdfColor? ReadColor(PdfArray? components)
     {

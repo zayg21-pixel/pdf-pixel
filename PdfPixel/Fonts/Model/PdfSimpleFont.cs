@@ -110,14 +110,14 @@ public class PdfSimpleFont : PdfSingleByteFont
     {
         try
         {
-            PdfFontDescriptor? fontDescriptor = FontDescriptor;
+            PdfFontFile? fontFile = FontDescriptor?.FontFile;
 
-            if (fontDescriptor?.FontFileStream != null)
+            if (fontFile != null)
             {
-                PdfTypefaceLoader loader = new(fontDescriptor, Type, Document.LoggerFactory);
+                PdfTypefaceLoader loader = new(fontFile, Type, Document.LoggerFactory);
                 IPdfTypeface typeface = loader.GetTypeface();
 
-                if (fontDescriptor.FontFileFormat == PdfFontFileFormat.Type1 && typeface is CffPdfTypeface type1Typeface)
+                if (fontFile.Format == PdfFontFileFormat.Type1 && typeface is CffPdfTypeface type1Typeface)
                 {
                     if (Encoding.BaseEncoding == PdfEncoding.Unknown)
                     {

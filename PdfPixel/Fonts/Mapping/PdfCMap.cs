@@ -441,13 +441,19 @@ public class PdfCMap
     /// <param name="useCMapDepth">The number of /UseCMap entries followed to reach this entry.</param>
     internal static PdfCMap? GetCMap(PdfDictionary dictionary, in PdfString key, int useCMapDepth = 0)
     {
-        PdfString? predefinedName = dictionary.GetName(key);
-        if (predefinedName != null)
+        PdfCMap? embeddedCMap = dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, cmapObject => FromObject(cmapObject, useCMapDepth), requiresStream: true);
+        if (embeddedCMap != null)
         {
-            return dictionary.Document.CMapCache.GetCmap(predefinedName.Value);
+            return embeddedCMap;
         }
 
-        return dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, cmapObject => FromObject(cmapObject, useCMapDepth), requiresStream: true);
+        PdfString? predefinedName = dictionary.GetName(key);
+        if (predefinedName == null)
+        {
+            return null;
+        }
+
+        return dictionary.Document.CMapCache.GetCmap(predefinedName.Value);
     }
 
     /// <summary>

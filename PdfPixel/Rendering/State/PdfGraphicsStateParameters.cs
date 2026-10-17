@@ -123,14 +123,14 @@ namespace PdfPixel.Rendering.State
             // Soft Mask (/SMask)
             if (dictionary.HasKey(PdfTokens.SoftMaskKey))
             {
-                if (dictionary.GetName(PdfTokens.SoftMaskKey) == PdfTokens.NoneValue)
+                PdfDictionary? softMaskDict = dictionary.GetDictionary(PdfTokens.SoftMaskKey);
+                if (softMaskDict != null)
+                {
+                    SoftMask = PdfSoftMask.FromDictionary(softMaskDict);
+                }
+                else if (dictionary.GetName(PdfTokens.SoftMaskKey) == PdfTokens.NoneValue)
                 {
                     ShouldUnsetSoftMask = true;
-                }
-                else
-                {
-                    PdfDictionary? softMaskDict = dictionary.GetDictionary(PdfTokens.SoftMaskKey);
-                    SoftMask = PdfSoftMask.FromDictionary(softMaskDict);
                 }
             }
 
@@ -138,24 +138,18 @@ namespace PdfPixel.Rendering.State
             // /Default for TR2) clears any inherited transfer function.
             if (dictionary.HasKey(PdfTokens.TransferFunction2Key))
             {
-                if (dictionary.GetName(PdfTokens.TransferFunction2Key) == PdfTokens.DefaultValue)
+                TransferFunction = TransferFunctionTransform.GetTransferFunction(dictionary, PdfTokens.TransferFunction2Key);
+                if (TransferFunction == null && dictionary.GetName(PdfTokens.TransferFunction2Key) == PdfTokens.DefaultValue)
                 {
                     ShouldUnsetTransferFunction = true;
-                }
-                else
-                {
-                    TransferFunction = TransferFunctionTransform.GetTransferFunction(dictionary, PdfTokens.TransferFunction2Key);
                 }
             }
             else if (dictionary.HasKey(PdfTokens.TransferFunctionKey))
             {
-                if (dictionary.GetName(PdfTokens.TransferFunctionKey) == PdfTokens.IdentityKey)
+                TransferFunction = TransferFunctionTransform.GetTransferFunction(dictionary, PdfTokens.TransferFunctionKey);
+                if (TransferFunction == null && dictionary.GetName(PdfTokens.TransferFunctionKey) == PdfTokens.IdentityKey)
                 {
                     ShouldUnsetTransferFunction = true;
-                }
-                else
-                {
-                    TransferFunction = TransferFunctionTransform.GetTransferFunction(dictionary, PdfTokens.TransferFunctionKey);
                 }
             }
 

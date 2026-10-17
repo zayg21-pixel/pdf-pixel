@@ -1,6 +1,5 @@
 using PdfPixel.Models;
 using PdfPixel.Text;
-using System.Collections.Generic;
 
 namespace PdfPixel.Navigation.Model;
 
@@ -9,8 +8,11 @@ namespace PdfPixel.Navigation.Model;
 /// </summary>
 public sealed class PdfThread
 {
+    private readonly PdfDictionary _dictionary;
+
     private PdfThread(PdfDictionary dictionary, in PdfReference reference)
     {
+        _dictionary = dictionary;
         Reference = reference;
         Metadata = PdfMetadata.FromDictionary(dictionary);
 
@@ -19,8 +21,6 @@ public sealed class PdfThread
         {
             Information = new PdfDocumentInformation(information);
         }
-
-        Beads = PdfBead.FromThread(dictionary, this);
     }
 
     /// <summary>
@@ -39,9 +39,15 @@ public sealed class PdfThread
     public PdfMetadata? Metadata { get; }
 
     /// <summary>
-    /// Beads of the thread (/F, then /N) in reading order. A bead reached a second time through the chain ends it.
+    /// Returns the first bead of the thread (/F), or <see langword="null"/> when absent.
     /// </summary>
-    public IReadOnlyList<PdfBead> Beads { get; }
+    public PdfBead? GetFirstBead() => PdfBead.GetBead(_dictionary, PdfTokens.ThreadFirstBeadKey);
+
+    /// <summary>
+    /// The thread held by <paramref name="key"/> of <paramref name="owner"/>, or <see langword="null"/> when absent.
+    /// </summary>
+    internal static PdfThread? GetThread(PdfDictionary owner, in PdfString key)
+        => owner.Document.ObjectCache.GetOrCreate(owner, key, FromObject);
 
     /// <summary>
     /// The thread at <paramref name="index"/> of <paramref name="array"/>, or <see langword="null"/> when absent.

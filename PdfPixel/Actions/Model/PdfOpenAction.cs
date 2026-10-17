@@ -33,7 +33,7 @@ public sealed class PdfOpenAction
     /// </summary>
     internal static PdfOpenAction? FromCatalog(PdfDictionary catalog, PdfDestinationResolver destinations)
     {
-        PdfAction? action = PdfAction.FromDictionary(catalog.GetDictionary(PdfTokens.OpenActionKey));
+        PdfAction? action = PdfAction.GetAction(catalog, PdfTokens.OpenActionKey);
         if (action != null)
         {
             return new PdfOpenAction(null, action);

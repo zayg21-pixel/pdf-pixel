@@ -16,6 +16,7 @@ public sealed class PdfBead
     {
         _dictionary = dictionary;
         Reference = reference;
+        Thread = PdfThread.GetThread(dictionary, PdfTokens.BeadThreadKey);
         PageReference = dictionary.GetReference(PdfTokens.BeadPageKey);
         Rectangle = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BeadRectangleKey));
     }
@@ -36,9 +37,19 @@ public sealed class PdfBead
     public PdfRectangle? Rectangle { get; }
 
     /// <summary>
-    /// Thread whose bead chain reaches the bead, or <see langword="null"/> when no thread of the document does.
+    /// Thread the bead belongs to (/T), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfThread? Thread { get; private set; }
+    public PdfThread? Thread { get; }
+
+    /// <summary>
+    /// Returns the next bead of the thread (/N), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfBead? GetNext() => GetBead(_dictionary, PdfTokens.BeadNextKey);
+
+    /// <summary>
+    /// Returns the previous bead of the thread (/V), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfBead? GetPrevious() => GetBead(_dictionary, PdfTokens.BeadPreviousKey);
 
     /// <summary>
     /// The bead held by <paramref name="key"/> of <paramref name="owner"/>, or <see langword="null"/> when absent.
@@ -71,26 +82,6 @@ public sealed class PdfBead
             {
                 result.Add(bead);
             }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Beads of <paramref name="thread"/> (/F, then /N) in reading order, each bound to the thread. A bead reached
-    /// a second time through the chain ends it.
-    /// </summary>
-    internal static List<PdfBead> FromThread(PdfDictionary threadDictionary, PdfThread thread)
-    {
-        List<PdfBead> result = [];
-        HashSet<PdfBead> visitedBeads = [];
-        PdfBead? bead = GetBead(threadDictionary, PdfTokens.ThreadFirstBeadKey);
-
-        while (bead != null && visitedBeads.Add(bead))
-        {
-            bead.Thread = thread;
-            result.Add(bead);
-            bead = GetBead(bead._dictionary, PdfTokens.BeadNextKey);
         }
 
         return result;

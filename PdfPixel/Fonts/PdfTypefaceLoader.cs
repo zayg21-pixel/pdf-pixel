@@ -4,7 +4,6 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Sfnt;
 using PdfPixel.Fonts.Type1;
 using PdfPixel.Fonts.Typeface;
-using PdfPixel.Models;
 using System;
 using System.Buffers.Binary;
 using System.IO;
@@ -31,24 +30,23 @@ public sealed class PdfTypefaceLoader
         PdfFontProgramLayout.Cff
     ];
 
-    private readonly PdfFontDescriptor _fontDescriptor;
+    private readonly PdfFontFile _fontFile;
     private readonly bool _isComposite;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<PdfTypefaceLoader> _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PdfTypefaceLoader"/> class for the font program
-    /// <paramref name="fontDescriptor"/> embeds, loaded on behalf of a font of the given PDF font
-    /// subtype.
+    /// Initializes a new instance of the <see cref="PdfTypefaceLoader"/> class for the embedded font program
+    /// <paramref name="fontFile"/>, loaded on behalf of a font of the given PDF font subtype.
     /// </summary>
-    /// <param name="fontDescriptor">The font descriptor holding the embedded font program.</param>
+    /// <param name="fontFile">The embedded font program.</param>
     /// <param name="fontSubType">The PDF font dictionary's /Subtype.</param>
     /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
-    public PdfTypefaceLoader(PdfFontDescriptor fontDescriptor, PdfFontSubType fontSubType, ILoggerFactory loggerFactory)
+    public PdfTypefaceLoader(PdfFontFile fontFile, PdfFontSubType fontSubType, ILoggerFactory loggerFactory)
     {
-        if (fontDescriptor == null)
+        if (fontFile == null)
         {
-            throw new ArgumentNullException(nameof(fontDescriptor));
+            throw new ArgumentNullException(nameof(fontFile));
         }
 
         if (loggerFactory == null)
@@ -56,29 +54,26 @@ public sealed class PdfTypefaceLoader
             throw new ArgumentNullException(nameof(loggerFactory));
         }
 
-        _fontDescriptor = fontDescriptor;
+        _fontFile = fontFile;
         _isComposite = fontSubType is PdfFontSubType.CidFontType0 or PdfFontSubType.CidFontType2;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<PdfTypefaceLoader>();
     }
 
     /// <summary>
-    /// Returns the typeface this loader's font descriptor embeds. The result is cached on the document
-    /// by the font program object's reference, and parsed only on the first call for that object.
+    /// Returns the typeface this loader's font program is loaded as. The typeface is attached to the font program,
+    /// and parsed only on the first call for it.
     /// </summary>
     /// <returns>The typeface the font program parses as.</returns>
     /// <exception cref="InvalidDataException">The font program does not parse as any known layout.</exception>
     public IPdfTypeface GetTypeface()
     {
-        PdfDocumentObjectCache? objectCache = _fontDescriptor.ObjectCache;
-        PdfReference? fontFileReference = _fontDescriptor.FontFileReference;
-
-        if (objectCache == null || fontFileReference == null)
+        if (_fontFile.Typeface == null)
         {
-            return LoadTypeface();
+            _fontFile.Typeface = LoadTypeface();
         }
 
-        return objectCache.GetOrCreate<IPdfTypeface>(fontFileReference, _ => LoadTypeface()) ?? LoadTypeface();
+        return _fontFile.Typeface;
     }
 
     /// <summary>
@@ -87,12 +82,7 @@ public sealed class PdfTypefaceLoader
     /// </summary>
     private IPdfTypeface LoadTypeface()
     {
-        Stream? decodedStream = _fontDescriptor.FontFileStream?.DecodeAsStream();
-        if (decodedStream == null)
-        {
-            throw new InvalidDataException("The font descriptor embeds no font program.");
-        }
-
+        Stream decodedStream = _fontFile.Stream.DecodeAsStream();
         ReadOnlyFontStream fontStream = ReadOnlyFontStream.Create(decodedStream, leaveOpen: false);
 
         PdfFontProgramLayout detectedLayout = DetectLayout(fontStream);
@@ -116,7 +106,7 @@ public sealed class PdfTypefaceLoader
             {
                 _logger.LogWarning(
                     "Embedded font program declared /{DeclaredFormat} and detected as {DetectedLayout} parsed as {ActualLayout}.",
-                    _fontDescriptor.FontFileFormat,
+                    _fontFile.Format,
                     detectedLayout,
                     fallbackLayout);
 
@@ -204,9 +194,9 @@ public sealed class PdfTypefaceLoader
 
         Type1RawFontProgram rawProgram = new(
             fontProgram,
-            _fontDescriptor.FontFileLength1,
-            _fontDescriptor.FontFileLength2,
-            _fontDescriptor.FontFileLength3);
+            _fontFile.Length1,
+            _fontFile.Length2,
+            _fontFile.Length3);
 
         CffTypeface? cffTypeface = Type1ToCffConverter.GetCffFont(rawProgram, _loggerFactory);
 

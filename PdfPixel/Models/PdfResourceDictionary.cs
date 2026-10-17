@@ -27,6 +27,8 @@ internal sealed class PdfResourceDictionary
     private readonly Dictionary<PdfString, PdfXObject?> _xObjectsByName = [];
     private readonly Dictionary<PdfString, PdfShading?> _shadingsByName = [];
     private readonly Dictionary<PdfString, PdfOptionalContentMembership?> _optionalContentByName = [];
+    private readonly Dictionary<PdfString, PdfDictionary?> _propertiesByName = [];
+    private readonly Dictionary<PdfString, List<PdfFileSpecification>?> _associatedFilesByName = [];
     private readonly PdfDictionary? _fontDictionary;
     private readonly PdfDictionary? _patternDictionary;
     private readonly PdfDictionary? _extGStateDictionary;
@@ -146,13 +148,33 @@ internal sealed class PdfResourceDictionary
     /// Get the dictionary a /Properties resource name refers to. Returns null if not found.
     /// </summary>
     public PdfDictionary? GetProperties(in PdfString propertiesName)
-        => _propertiesDictionary?.GetDictionary(propertiesName);
+    {
+        if (_propertiesByName.TryGetValue(propertiesName, out PdfDictionary? cachedProperties))
+        {
+            return cachedProperties;
+        }
+
+        PdfDictionary? properties = _propertiesDictionary?.GetDictionary(propertiesName);
+        _propertiesByName[propertiesName] = properties;
+
+        return properties;
+    }
 
     /// <summary>
     /// Get the associated files a /Properties resource name refers to. Returns null if not found.
     /// </summary>
     public List<PdfFileSpecification>? GetAssociatedFiles(in PdfString propertiesName)
-        => PdfFileSpecification.GetFileSpecifications(_propertiesDictionary?.GetArray(propertiesName));
+    {
+        if (_associatedFilesByName.TryGetValue(propertiesName, out List<PdfFileSpecification>? cachedAssociatedFiles))
+        {
+            return cachedAssociatedFiles;
+        }
+
+        List<PdfFileSpecification>? associatedFiles = PdfFileSpecification.GetFileSpecifications(_propertiesDictionary?.GetArray(propertiesName));
+        _associatedFilesByName[propertiesName] = associatedFiles;
+
+        return associatedFiles;
+    }
 
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.

@@ -6,6 +6,7 @@ using PdfPixel.Navigation.Model;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Actions;
 
@@ -235,6 +236,20 @@ public sealed class PdfPanelActions
             return;
         }
 
+        PerformAction(action, source, sourceObject, []);
+    }
+
+    /// <summary>
+    /// Performs an action and the actions chained after it, in order. An action already performed in the chain is not
+    /// performed again.
+    /// </summary>
+    private void PerformAction(PdfAction action, PdfPanelActionSource source, object sourceObject, HashSet<PdfAction> performedActions)
+    {
+        if (!performedActions.Add(action))
+        {
+            return;
+        }
+
         switch (action)
         {
             case PdfGoToAction goToAction:
@@ -268,14 +283,20 @@ public sealed class PdfPanelActions
             }
         }
 
-        if (action.Next == null)
+        IReadOnlyList<PdfAction>? nextActions;
+        lock (_context.Pages.DocumentLocker)
+        {
+            nextActions = action.GetNext();
+        }
+
+        if (nextActions == null)
         {
             return;
         }
 
-        foreach (PdfAction nextAction in action.Next)
+        foreach (PdfAction nextAction in nextActions)
         {
-            PerformAction(null, nextAction, source, sourceObject);
+            PerformAction(nextAction, source, sourceObject, performedActions);
         }
     }
 

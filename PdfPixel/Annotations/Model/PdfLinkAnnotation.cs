@@ -30,8 +30,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     {
         Destination = annotationObject.Dictionary.Document.Destinations.Parse(annotationObject.Dictionary, PdfTokens.DestKey);
 
-        PdfDictionary? actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
-        Action = PdfAction.FromDictionary(actionDict);
+        Action = PdfAction.GetAction(annotationObject.Dictionary, PdfTokens.AKey);
 
         HighlightMode = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
     }

@@ -90,10 +90,10 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
 
         if (childArray == null)
         {
-            PdfDictionary? single = children.AsDictionary();
+            PdfStructureElement? single = PdfStructureElement.GetStructureElement(_dictionary, PdfTokens.KKey, this);
             if (single != null)
             {
-                yield return new PdfStructureElement(single, _dictionary.GetReference(PdfTokens.KKey), this);
+                yield return single;
             }
 
             yield break;
@@ -101,10 +101,10 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
 
         for (int index = 0; index < childArray.Count; index++)
         {
-            PdfDictionary? element = childArray.GetDictionary(index);
+            PdfStructureElement? element = PdfStructureElement.GetStructureElement(childArray, index, this);
             if (element != null)
             {
-                yield return new PdfStructureElement(element, childArray.GetReference(index), this);
+                yield return element;
             }
         }
     }
@@ -126,7 +126,7 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
             return null;
         }
 
-        return LoadElement(parents[mcid]);
+        return PdfStructureElement.GetStructureElement(_document, parents[mcid], this);
     }
 
     /// <summary>
@@ -140,7 +140,7 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
             return null;
         }
 
-        return LoadElement(entry.ObjectParent);
+        return PdfStructureElement.GetStructureElement(_document, entry.ObjectParent, this);
     }
 
     /// <summary>
@@ -154,7 +154,7 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
             return null;
         }
 
-        return LoadElement(element);
+        return PdfStructureElement.GetStructureElement(_document, element, this);
     }
 
     /// <summary>
@@ -312,25 +312,15 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
         }
     }
 
-    private PdfStructureElement? LoadElement(PdfReference? reference)
-    {
-        if (reference == null)
-        {
-            return null;
-        }
-
-        PdfDictionary? element = _document.ObjectCache.GetObject(reference.Value)?.Value.AsDictionary();
-        if (element == null)
-        {
-            return null;
-        }
-
-        return new PdfStructureElement(element, reference, this);
-    }
-
     private static ParentTreeEntry? ReadParentTreeEntry(PdfArray numbers, int index)
     {
-        PdfArray? parents = numbers.GetArray(index);
+        PdfObject? entry = numbers.GetObject(index);
+        if (entry == null)
+        {
+            return null;
+        }
+
+        PdfArray? parents = entry.Value.AsArray();
         if (parents != null)
         {
             var references = new PdfReference?[parents.Count];
@@ -342,13 +332,12 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
             return new ParentTreeEntry(references, null);
         }
 
-        PdfReference? parent = numbers.GetReference(index);
-        if (parent == null)
+        if (entry.Reference == null)
         {
             return null;
         }
 
-        return new ParentTreeEntry(null, parent);
+        return new ParentTreeEntry(null, entry.Reference);
     }
 
     private static PdfReference? ReadIdTreeEntry(PdfArray names, int index) => names.GetReference(index);

@@ -68,18 +68,24 @@ public sealed class PdfThreads
             return null;
         }
 
-        if (action.BeadReference != null)
+        HashSet<PdfBead> visitedBeads = [];
+        int beadIndex = 0;
+
+        for (PdfBead? bead = thread.GetFirstBead(); bead != null && visitedBeads.Add(bead); bead = bead.GetNext())
         {
-            return thread.Beads.FirstOrDefault(bead => bead.Reference.Equals(action.BeadReference.Value));
+            bool isRequestedBead = (action.BeadReference != null)
+                ? bead.Reference.Equals(action.BeadReference.Value)
+                : beadIndex == (action.BeadIndex ?? 0);
+
+            if (isRequestedBead)
+            {
+                return bead;
+            }
+
+            beadIndex++;
         }
 
-        if (action.BeadIndex != null)
-        {
-            int index = action.BeadIndex.Value;
-            return (index >= 0 && index < thread.Beads.Count) ? thread.Beads[index] : null;
-        }
-
-        return (thread.Beads.Count > 0) ? thread.Beads[0] : null;
+        return null;
     }
 
     /// <summary>

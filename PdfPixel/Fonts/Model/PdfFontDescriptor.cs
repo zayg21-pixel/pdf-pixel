@@ -1,7 +1,5 @@
-using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using PdfPixel.Streams;
 using PdfPixel.Text;
 using System.Collections.Generic;
 
@@ -64,7 +62,6 @@ public class PdfFontDescriptor
     /// <param name="dictionary">The font descriptor dictionary.</param>
     internal PdfFontDescriptor(PdfDictionary dictionary)
     {
-        ObjectCache = dictionary.Document.ObjectCache;
         FontName = dictionary.GetString(PdfTokens.FontNameKey);
         Flags = (PdfFontFlags)dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
         ItalicAngle = dictionary.GetFloatOrDefault(PdfTokens.ItalicAngleKey);
@@ -90,16 +87,7 @@ public class PdfFontDescriptor
         // PANOSE (string or hex string)
         Panose = dictionary.GetValue(PdfTokens.PanoseKey).AsString()?.Value.ToArray();
 
-        (PdfObject? fontFileObject, PdfFontFileFormat format) = GetFileObjectAndFormat(dictionary);
-        FontFileFormat = format;
-        if (fontFileObject != null)
-        {
-            FontFileStream = fontFileObject.Stream;
-            FontFileReference = fontFileObject.Reference;
-            FontFileLength1 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
-            FontFileLength2 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
-            FontFileLength3 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
-        }
+        FontFile = PdfFontFile.GetFontFile(dictionary);
 
         // Parse FontBBox array
         FontBBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.FontBBoxKey)) ?? PdfRectangle.Empty;
@@ -211,76 +199,32 @@ public class PdfFontDescriptor
     public byte[]? Panose { get; }
 
     /// <summary>
-    /// The embedded font file stream (only one exists at a time).
+    /// The embedded font program (/FontFile, /FontFile2 or /FontFile3), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfObjectStream? FontFileStream { get; }
-
-    /// <summary>
-    /// Reference of the object holding <see cref="FontFileStream"/>, which several descriptors may
-    /// share. <see langword="null"/> when this descriptor embeds no font program.
-    /// </summary>
-    public PdfReference? FontFileReference { get; }
-
-    /// <summary>
-    /// Format of the embedded font file.
-    /// </summary>
-    public PdfFontFileFormat FontFileFormat { get; }
-
-    /// <summary>
-    /// Type1 font stream segment length for the clear-text portion (/Length1).
-    /// </summary>
-    public int FontFileLength1 { get; }
-
-    /// <summary>
-    /// Type1 font stream segment length for the binary portion (/Length2).
-    /// </summary>
-    public int FontFileLength2 { get; }
-
-    /// <summary>
-    /// Type1 font stream segment length for the fixed-content trailer (/Length3).
-    /// </summary>
-    public int FontFileLength3 { get; }
-
-    /// <summary>
-    /// Object cache of the document this descriptor was created from, used to share one parsed typeface
-    /// between every descriptor embedding the same font program.
-    /// </summary>
-    internal PdfDocumentObjectCache? ObjectCache { get; }
+    public PdfFontFile? FontFile { get; }
 
     /// <summary>
     /// Gets a value indicating whether this font descriptor has any embedded font stream.
     /// </summary>
-    public bool HasEmbeddedFont => FontFileStream != null;
+    public bool HasEmbeddedFont => FontFile != null;
 
     /// <summary>
-    /// Gets the embedded font file object and its format from the font descriptor dictionary.
+    /// Returns the font descriptor held by <paramref name="key"/> of <paramref name="owner"/>, using the document's cache if available.
     /// </summary>
-    /// <param name="dict">The PDF font descriptor dictionary.</param>
-    /// <returns>A tuple containing the font file object and its format.</returns>
-    private static (PdfObject Object, PdfFontFileFormat Format) GetFileObjectAndFormat(PdfDictionary dict)
+    /// <param name="owner">Dictionary holding the font descriptor entry.</param>
+    /// <param name="key">Key of the font descriptor entry.</param>
+    /// <returns>The font descriptor, or <see langword="null"/> when absent or not a dictionary.</returns>
+    internal static PdfFontDescriptor? GetFontDescriptor(PdfDictionary owner, in PdfString key)
+        => owner.Document.ObjectCache.GetOrCreate(owner, key, FromObject);
+
+    private static PdfFontDescriptor? FromObject(PdfObject descriptorObject)
     {
-        // Get font file object and determine format (only one exists at a time)
-        // Priority order: FontFile2 (TrueType), FontFile3 (check /Subtype), FontFile (Type1)
-        PdfObject? fontFile2Obj = dict.GetObject(PdfTokens.FontFile2Key);
-        if (fontFile2Obj != null)
+        PdfDictionary? dictionary = descriptorObject.Value.AsDictionary();
+        if (dictionary == null)
         {
-            return (fontFile2Obj, PdfFontFileFormat.TrueType);
+            return null;
         }
 
-        PdfObject? fontFile3Obj = dict.GetObject(PdfTokens.FontFile3Key);
-        if (fontFile3Obj != null)
-        {
-            // For FontFile3 the actual program type is specified by the stream dictionary /Subtype
-            PdfFontFileFormat subType = fontFile3Obj.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontFileFormat>();
-            return (fontFile3Obj, subType);
-        }
-
-        PdfObject? fontFileObj = dict.GetObject(PdfTokens.FontFileKey);
-        if (fontFileObj != null)
-        {
-            return (fontFileObj, PdfFontFileFormat.Type1);
-        }
-
-        return default;
+        return new PdfFontDescriptor(dictionary);
     }
 }

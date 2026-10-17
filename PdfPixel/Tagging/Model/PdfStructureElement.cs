@@ -126,16 +126,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
     /// Parent structure element (/P), or <see langword="null"/> when the parent is the
     /// structure tree root.
     /// </summary>
-    public PdfStructureElement? GetParent()
-    {
-        PdfDictionary? parent = _dictionary.GetDictionary(PdfTokens.StructureParentKey);
-        if (parent == null || parent.GetName(PdfTokens.TypeKey) == PdfTokens.StructTreeRootKey)
-        {
-            return null;
-        }
-
-        return new PdfStructureElement(parent, _dictionary.GetReference(PdfTokens.StructureParentKey), Tree);
-    }
+    public PdfStructureElement? GetParent() => GetStructureElement(_dictionary, PdfTokens.StructureParentKey, Tree);
 
     /// <summary>
     /// Structure elements this element references (/Ref).
@@ -150,10 +141,10 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
 
         for (int index = 0; index < referenced.Count; index++)
         {
-            PdfDictionary? element = referenced.GetDictionary(index);
+            PdfStructureElement? element = GetStructureElement(referenced, index, Tree);
             if (element != null)
             {
-                yield return new PdfStructureElement(element, referenced.GetReference(index), Tree);
+                yield return element;
             }
         }
     }
@@ -289,6 +280,47 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
         }
     }
 
+    /// <summary>
+    /// Returns the structure element held by <paramref name="key"/> of <paramref name="owner"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="owner">Dictionary holding the structure element entry.</param>
+    /// <param name="key">Key of the structure element entry.</param>
+    /// <param name="tree">Structure tree the element belongs to.</param>
+    /// <returns>The structure element, or <see langword="null"/> when absent, not a dictionary or the structure tree root.</returns>
+    internal static PdfStructureElement? GetStructureElement(PdfDictionary owner, in PdfString key, PdfStructureTree tree)
+        => owner.Document.ObjectCache.GetOrCreate(owner, key, elementObject => FromObject(elementObject, tree));
+
+    /// <summary>
+    /// Returns the structure element at <paramref name="index"/> of <paramref name="array"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="array">Array holding the structure element entry.</param>
+    /// <param name="index">Index of the structure element entry.</param>
+    /// <param name="tree">Structure tree the element belongs to.</param>
+    /// <returns>The structure element, or <see langword="null"/> when absent, not a dictionary or the structure tree root.</returns>
+    internal static PdfStructureElement? GetStructureElement(PdfArray array, int index, PdfStructureTree tree)
+        => array.Document.ObjectCache.GetOrCreate(array, index, elementObject => FromObject(elementObject, tree));
+
+    /// <summary>
+    /// Returns the structure element <paramref name="reference"/> refers to, using the document's cache if available.
+    /// </summary>
+    /// <param name="document">Document holding the structure element.</param>
+    /// <param name="reference">Reference of the structure element.</param>
+    /// <param name="tree">Structure tree the element belongs to.</param>
+    /// <returns>The structure element, or <see langword="null"/> when absent, not a dictionary or the structure tree root.</returns>
+    internal static PdfStructureElement? GetStructureElement(IPdfDocumentInternal document, PdfReference? reference, PdfStructureTree tree)
+        => document.ObjectCache.GetOrCreate(reference, elementObject => FromObject(elementObject, tree));
+
+    private static PdfStructureElement? FromObject(PdfObject elementObject, PdfStructureTree tree)
+    {
+        PdfDictionary? dictionary = elementObject.Value.AsDictionary();
+        if (dictionary == null || dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.StructTreeRootKey)
+        {
+            return null;
+        }
+
+        return new PdfStructureElement(dictionary, elementObject.Reference, tree);
+    }
+
     private IEnumerable<PdfStructureAttributeBase> CreateClassAttributes(PdfString className, int? revision)
     {
         PdfDictionary[]? attributes = Tree.GetClassAttributes(className);
@@ -349,7 +381,12 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
                 childDictionary.GetReference(PdfTokens.StreamOwnerKey));
         }
 
-        return new PdfStructureElement(childDictionary, reference, Tree);
+        if (reference == null)
+        {
+            return new PdfStructureElement(childDictionary, null, Tree);
+        }
+
+        return GetStructureElement(_dictionary.Document, reference, Tree);
     }
 
     /// <summary>

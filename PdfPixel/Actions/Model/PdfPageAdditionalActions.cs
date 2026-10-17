@@ -37,8 +37,8 @@ public sealed class PdfPageAdditionalActions
             return null;
         }
 
-        PdfAction? pageOpen = PdfAction.FromDictionary(additionalActions.GetDictionary(PdfTokens.PageOpenKey));
-        PdfAction? pageClose = PdfAction.FromDictionary(additionalActions.GetDictionary(PdfTokens.PageCloseKey));
+        PdfAction? pageOpen = PdfAction.GetAction(additionalActions, PdfTokens.PageOpenKey);
+        PdfAction? pageClose = PdfAction.GetAction(additionalActions, PdfTokens.PageCloseKey);
 
         return new PdfPageAdditionalActions(pageOpen, pageClose);
     }

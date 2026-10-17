@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Fonts.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Text;
 using System;
@@ -197,15 +196,15 @@ internal class PdfDocumentObjectCache : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (!_objectsByType.TryGetValue(typeof(IPdfTypeface), out Dictionary<PdfReference, object?>? typefaces))
+        foreach (Dictionary<PdfReference, object?> objects in _objectsByType.Values)
         {
-            return;
-        }
-
-        foreach (object? value in typefaces.Values)
-        {
-            var typeface = (IPdfTypeface?)value;
-            typeface?.Dispose();
+            foreach (object? value in objects.Values)
+            {
+                if (value is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
         }
     }
 }

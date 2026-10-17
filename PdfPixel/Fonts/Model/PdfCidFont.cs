@@ -126,16 +126,16 @@ public class PdfCidFont : PdfFontBase
 
     private IPdfTypeface? GetTypeface()
     {
-        PdfFontDescriptor? fontDescriptor = FontDescriptor;
+        PdfFontFile? fontFile = FontDescriptor?.FontFile;
 
-        if (fontDescriptor?.FontFileStream == null)
+        if (fontFile == null)
         {
             return null;
         }
 
         try
         {
-            PdfTypefaceLoader loader = new(fontDescriptor, Type, Document.LoggerFactory);
+            PdfTypefaceLoader loader = new(fontFile, Type, Document.LoggerFactory);
             return loader.GetTypeface();
         }
 #pragma warning disable CA1031

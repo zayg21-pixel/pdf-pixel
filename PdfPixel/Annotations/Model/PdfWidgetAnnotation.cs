@@ -27,7 +27,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
 
         HighlightMode = dictionary.GetName(PdfTokens.HighlightModeKey);
         AppearanceCharacteristics = dictionary.GetDictionary(PdfTokens.AppearanceCharacteristicsKey);
-        Action = PdfAction.FromDictionary(dictionary.GetDictionary(PdfTokens.AKey));
+        Action = PdfAction.GetAction(dictionary, PdfTokens.AKey);
 
         Field = ResolveField(annotationObject);
     }

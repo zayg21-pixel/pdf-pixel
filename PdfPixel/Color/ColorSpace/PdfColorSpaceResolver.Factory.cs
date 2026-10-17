@@ -176,13 +176,17 @@ internal partial class PdfColorSpaceResolver
 
     private PdfIccColorSpaceConverter? CreateIccColorSpace(IPdfValue colorSpaceValue)
     {
-        PdfObject? pdfObject = GetObjectValue(colorSpaceValue);
-
-        if (pdfObject == null)
+        PdfArray? parametersArray = colorSpaceValue.AsArray();
+        if (parametersArray == null || parametersArray.Count < 2)
         {
             return null;
         }
 
+        return _document.ObjectCache.GetOrCreate(parametersArray, 1, CreateIccColorSpaceFromProfile);
+    }
+
+    private PdfIccColorSpaceConverter? CreateIccColorSpaceFromProfile(PdfObject pdfObject)
+    {
         PdfDictionary dictionary = pdfObject.Dictionary;
         int componentCount = dictionary.GetIntegerOrDefault(PdfTokens.NKey);
         PdfColorSpaceConverter? alternateConverter = ResolveByObject(dictionary.GetObject(PdfTokens.AlternateKey), componentCount);
@@ -252,21 +256,5 @@ internal partial class PdfColorSpaceResolver
         }
 
         return parametersArray.GetDictionary(1);
-    }
-
-    private static PdfObject? GetObjectValue(IPdfValue? value)
-    {
-        if (value == null)
-        {
-            return null;
-        }
-
-        PdfArray? parametersArray = value.AsArray();
-        if (parametersArray == null || parametersArray.Count < 2)
-        {
-            return null;
-        }
-
-        return parametersArray.GetObject(1);
     }
 }
