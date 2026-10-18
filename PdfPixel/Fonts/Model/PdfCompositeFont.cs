@@ -141,21 +141,24 @@ public class PdfCompositeFont : PdfFontBase
     {
         List<PdfCidFont> descendants = [];
 
-        List<PdfObject>? descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
-        if (descendantObjects == null || descendantObjects.Count == 0)
+        if (PdfFontFactory.GetFont(Dictionary, PdfTokens.DescendantFontsKey) is PdfCidFont singleDescendant)
+        {
+            descendants.Add(singleDescendant);
+            return descendants;
+        }
+
+        PdfArray? descendantArray = Dictionary.GetArray(PdfTokens.DescendantFontsKey);
+        if (descendantArray == null)
         {
             return descendants;
         }
 
-        foreach (PdfObject descendantObj in descendantObjects)
+        for (int index = 0; index < descendantArray.Count; index++)
         {
-            PdfFontBase? descendant = PdfFontFactory.CreateFont(descendantObj);
-
-            if (descendant is PdfCidFont cidFont)
+            if (PdfFontFactory.GetFont(descendantArray, index) is PdfCidFont cidFont)
             {
                 descendants.Add(cidFont);
             }
-
         }
 
         return descendants;

@@ -8,7 +8,6 @@ namespace PdfPixel.Models;
 /// <typeparam name="T">The underlying value type.</typeparam>
 public class PdfValue<T> : IPdfValue, IPdfValue<T>
 {
-
     /// <inheritdoc/>
     public PdfValueType Type { get; }
 

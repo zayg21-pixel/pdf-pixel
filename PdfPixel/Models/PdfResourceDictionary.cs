@@ -187,7 +187,12 @@ internal sealed class PdfResourceDictionary
             return cachedFont;
         }
 
-        PdfFontBase? font = _document.ObjectCache.GetOrCreate(_fontDictionary, fontName, PdfFontFactory.CreateFont);
+        if (_fontDictionary == null)
+        {
+            return null;
+        }
+
+        PdfFontBase? font = PdfFontFactory.GetFont(_fontDictionary, fontName);
         _fontsByName[fontName] = font;
 
         return font;

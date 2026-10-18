@@ -164,7 +164,7 @@ namespace PdfPixel.Rendering.State
             {
                 float fontSize = fontArray.GetFloatOrDefault(1);
 
-                Font = dictionary.Document.ObjectCache.GetOrCreate(fontArray, 0, PdfFontFactory.CreateFont);
+                Font = PdfFontFactory.GetFont(fontArray, 0);
                 FontSize = fontSize;
             }
 

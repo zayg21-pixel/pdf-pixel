@@ -30,6 +30,24 @@ public static class PdfFontFactory
     }
 
     /// <summary>
+    /// Returns the font held by <paramref name="key"/> of <paramref name="owner"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="owner">Dictionary holding the font entry.</param>
+    /// <param name="key">Key of the font entry.</param>
+    /// <returns>The font, or <see langword="null"/> when absent or not a supported font.</returns>
+    internal static PdfFontBase? GetFont(PdfDictionary owner, in PdfString key)
+        => owner.Document.ObjectCache.GetOrCreate(owner, key, CreateFont);
+
+    /// <summary>
+    /// Returns the font at <paramref name="index"/> of <paramref name="array"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="array">Array holding the font entry.</param>
+    /// <param name="index">Index of the font entry.</param>
+    /// <returns>The font, or <see langword="null"/> when absent or not a supported font.</returns>
+    internal static PdfFontBase? GetFont(PdfArray array, int index)
+        => array.Document.ObjectCache.GetOrCreate(array, index, CreateFont);
+
+    /// <summary>
     /// Creates a font object based on the specified PDF object.
     /// </summary>
     /// <remarks>The method determines the font subtype from the dictionary and returns an appropriate
@@ -37,7 +55,7 @@ public static class PdfFontFactory
     /// Type3, and MMType1.</remarks>
     /// <param name="fontObject">The PDF object containing font metadata and properties. Must represent a valid font
     /// object.</param>
-    internal static PdfFontBase? CreateFont(PdfObject? fontObject)
+    private static PdfFontBase? CreateFont(PdfObject? fontObject)
     {
         if (fontObject == null)
         {
