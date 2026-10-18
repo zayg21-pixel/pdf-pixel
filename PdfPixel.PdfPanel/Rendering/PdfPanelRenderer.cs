@@ -206,7 +206,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
 
-            surface.Canvas.DrawPage(page, request, pictures, _tiler, _graphics, PageDrawFlags.AllContent, animation);
+            surface.Canvas.DrawPage(page, request, pictures, _tiler, _graphics, GetPageDrawFlags(PageDrawFlags.AllContent, pictures, request), animation);
         }
 
         Present(surface, request);
@@ -241,7 +241,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
-            if (pictures.Content?.HasContent == true || pictures.Thumbnail?.HasContent == true)
+            if (!IsPageLoading(pictures, _lastRequest))
             {
                 continue;
             }
@@ -264,9 +264,10 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
     private void UpdateClockSubscription()
     {
-        bool anyLoading = _lastRequest != null
-            && _lastRequest.ShowPageLoadingAnimation
-            && _lastRequest.VisiblePages.Any(IsPageLoading);
+        PagesDrawingRequest? request = _lastRequest;
+        bool anyLoading = request != null
+            && request.ShowPageLoadingAnimation
+            && request.VisiblePages.Any(page => IsPageLoading(_contentProvider.GetExistingContentPictures(page.PageNumber), request));
 
         if (anyLoading)
         {
@@ -279,12 +280,27 @@ public sealed partial class PdfPanelRenderer : IDisposable
         }
     }
 
-    private bool IsPageLoading(VisiblePageInfo page)
+    /// <summary>
+    /// Returns whether the page of <paramref name="pictures"/> has no decoded content and no thumbnail drawn in its place.
+    /// </summary>
+    private static bool IsPageLoading(PdfContentPictures pictures, PagesDrawingRequest request)
     {
-        PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
-
         return pictures.Content?.HasContent != true
-            && pictures.Thumbnail?.HasContent != true;
+            && (!request.UseThumbnailsAsPlaceholders || pictures.Thumbnail?.HasContent != true);
+    }
+
+    /// <summary>
+    /// Returns <paramref name="flags"/> without <see cref="PageDrawFlags.Thumbnail"/> when the page has no decoded content
+    /// and <paramref name="request"/> does not use thumbnails as placeholders.
+    /// </summary>
+    private static PageDrawFlags GetPageDrawFlags(PageDrawFlags flags, PdfContentPictures pictures, PagesDrawingRequest request)
+    {
+        if (pictures.Content?.HasContent == true || request.UseThumbnailsAsPlaceholders)
+        {
+            return flags;
+        }
+
+        return flags & ~PageDrawFlags.Thumbnail;
     }
 
     private bool NeedsImmediateContentUpdate(PagesDrawingRequest? previousRequest, PagesDrawingRequest request)
@@ -372,7 +388,8 @@ public sealed partial class PdfPanelRenderer : IDisposable
         _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 
         SKSurface surface = GetSurface(_lastRequest);
-        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, default);
+        PageDrawFlags flags = GetPageDrawFlags(PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, args.ContentPictures, _lastRequest);
+        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, _graphics, flags, default);
         Present(surface, _lastRequest);
     }
 
@@ -384,7 +401,8 @@ public sealed partial class PdfPanelRenderer : IDisposable
         }
 
         PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
-        surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, default);
+        PageDrawFlags flags = GetPageDrawFlags(PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, pictures, _lastRequest);
+        surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, flags, default);
     }
 
     private SKSurface GetSurface(PagesDrawingRequest request)

@@ -7,6 +7,7 @@ public sealed partial class PdfPanelRenderer
 {
     internal const float DefaultPageCornerRadius = 0f;
     internal const bool DefaultShowPageLoadingAnimation = true;
+    internal const bool DefaultUseThumbnailsAsPlaceholders = false;
 
     internal static readonly PdfColor DefaultBackgroundColor = PdfColors.LightGray;
 
@@ -25,6 +26,12 @@ public sealed partial class PdfPanelRenderer
     /// Draws an animated placeholder over pages that have no decoded content yet.
     /// </summary>
     public bool ShowPageLoadingAnimation { get; set; } = DefaultShowPageLoadingAnimation;
+
+    /// <summary>
+    /// Draws the thumbnail of a page that has no decoded content yet in place of the page.
+    /// Thumbnails are always drawn under decoded content.
+    /// </summary>
+    public bool UseThumbnailsAsPlaceholders { get; set; } = DefaultUseThumbnailsAsPlaceholders;
 
     /// <summary>
     /// If true - antialiasing is enabled for page content.

@@ -36,6 +36,11 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     public bool ShowPageLoadingAnimation { get; set; }
 
     /// <summary>
+    /// Draws the thumbnail of a page that has no decoded content yet in place of the page.
+    /// </summary>
+    public bool UseThumbnailsAsPlaceholders { get; set; }
+
+    /// <summary>
     /// ON/OFF state of the optional content groups content is rendered with, or null for the document's default configuration.
     /// </summary>
     public IReadOnlyDictionary<PdfReference, bool>? OptionalContentStates { get; set; }
@@ -51,6 +56,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
                 && BackgroundColor.Equals(other.BackgroundColor)
                 && PageCornerRadius == other.PageCornerRadius
                 && ShowPageLoadingAnimation == other.ShowPageLoadingAnimation
+                && UseThumbnailsAsPlaceholders == other.UseThumbnailsAsPlaceholders
                 && AreOptionalContentStatesEqual(OptionalContentStates, other.OptionalContentStates);
         }
 
@@ -100,6 +106,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         hash.Add(BackgroundColor);
         hash.Add(PageCornerRadius);
         hash.Add(ShowPageLoadingAnimation);
+        hash.Add(UseThumbnailsAsPlaceholders);
         return hash.ToHashCode();
     }
 }
