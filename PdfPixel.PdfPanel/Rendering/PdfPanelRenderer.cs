@@ -2,6 +2,7 @@ using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Scheduling;
 using PdfPixel.Skia;
 using SkiaSharp;
 using System;
@@ -14,14 +15,14 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// <summary>
 /// Drives the rendering loop for a PDF panel.
 /// On each <see cref="Submit(PagesDrawingRequest)"/> call it renders immediately from the current cache, then triggers background
-/// decoding via <see cref="PdfPageContentProvider"/>. When decoding completes, individual pages are
+/// decoding via <see cref="PdfPanelScheduler"/>. When decoding completes, individual pages are
 /// re-rendered on the UI thread without redrawing the whole panel.
 /// </summary>
 public sealed partial class PdfPanelRenderer : IDisposable
 {
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly PdfPanelDocument _panelDocument;
-    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelScheduler _scheduler;
     private readonly PdfPanelGraphics _graphics;
     private readonly SynchronizationContext? _synchronizationContext;
     private readonly Timer _contentUpdateTimer;
@@ -41,12 +42,12 @@ public sealed partial class PdfPanelRenderer : IDisposable
     internal PdfPanelRenderer(
         ISkSurfaceFactory surfaceFactory,
         PdfPanelDocument panelDocument,
-        PdfPageContentProvider contentProvider,
+        PdfPanelScheduler scheduler,
         PdfPanelGraphics graphics)
     {
         _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
         _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
         _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
         _synchronizationContext = panelDocument.SynchronizationContext;
         _tiler = new PdfPageContentTiler(surfaceFactory, TileSize);
@@ -350,11 +351,11 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
         _contentUpdatePending = false;
         _contentUpdateTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _contentProvider.UpdateContent(_lastRequest);
+        _scheduler.UpdateContent(_lastRequest);
 
         if (includeLookAhead && _lastLookAheadRequest != null)
         {
-            _contentProvider.UpdateContent(_lastLookAheadRequest);
+            _scheduler.UpdateContent(_lastLookAheadRequest);
         }
     }
 
@@ -372,7 +373,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
         if (!_contentUpdatePending)
         {
-            _contentProvider.UpdateContent(request);
+            _scheduler.UpdateContent(request);
         }
     }
 

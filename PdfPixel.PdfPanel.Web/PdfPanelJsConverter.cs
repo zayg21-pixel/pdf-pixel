@@ -46,7 +46,6 @@ internal static class PdfPanelJsConverter
         target.AllowImageSelection = ReadBoolean(source, "allowImageSelection", target.AllowImageSelection);
         target.ShowSearchHighlights = ReadBoolean(source, "showSearchHighlights", target.ShowSearchHighlights);
         target.UsePageThumbnails = ReadBoolean(source, "usePageThumbnails", target.UsePageThumbnails);
-        target.RenderPageThumbnails = ReadBoolean(source, "renderPageThumbnails", target.RenderPageThumbnails);
         target.ThumbnailMaximumCount = ReadInt32(source, "thumbnailMaximumCount", target.ThumbnailMaximumCount);
         target.ThumbnailPreloadMode = ReadThumbnailPreloadMode(source, "thumbnailPreloadMode", target.ThumbnailPreloadMode);
         target.UseThumbnailsAsPlaceholders = ReadBoolean(source, "useThumbnailsAsPlaceholders", target.UseThumbnailsAsPlaceholders);

@@ -110,7 +110,11 @@ Multi-line summary style. Use `/// <inheritdoc />` for interface/override implem
 
 ## Architecture notes
 
-- Rendering always on UI thread. Decoding always on background thread. No direct cross-thread references — communicate via plain data (`PageUpdatedArgs`, `UpdateContentRequest`).
-- `PdfPanelContext` is the single entry point for all viewport/layout updates. It builds `PagesDrawingRequest` and submits to `PdfPanelRenderer`.
-- `PdfPanelRenderer` renders immediately from cache, then triggers background decode via `PdfPageContentProvider`. When a page is ready, `OnPageUpdated` fires on the UI thread and re-draws only that page.
-- `SkCanvasExtensions.DrawPage` takes a required `PageDrawFlags` parameter. Full render passes `PageDrawFlags.All`. Partial content updates pass `PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content` — never redraw shadows on partial updates.
+- Rendering always on the UI thread. Decoding always through the work queue (`IWorkQueue`). Panel data may hold live model objects (`PdfImage`, annotations) — the old "plain data only across threads" rule is obsolete.
+- Storage and scheduling are separate:
+  - `PdfPanelDocument` (`ContentProvider/`) is the storage of a page collection: the document and its lock, one `PdfPageCacheEntry` per page (everything per page the panel needs), the read accessors and freshness checks, the optional content states the extracted content was produced with, and the notifications (`PageUpdated`, `PageTextExtracted`, `PageThumbnailRendered`, `ExtractedContentCleared`), posted once to the synchronization context given to `PdfPanelPageCollection.FromDocument`.
+  - `PdfPanelScheduler` (`Scheduling/`) only processes requests (content, thumbnails, text extraction) and writes results into `PdfPanelDocument` through work items on the queue.
+  - Consumers read from `PdfPanelDocument`; only `PdfPanelContext`, `PdfPanelRenderer` and `PdfPanelThumbnails` talk to the scheduler.
+- `PdfPanelContext` is created per page collection. It is the single entry point for all viewport/layout updates: it builds `PagesDrawingRequest` and submits to `PdfPanelRenderer`, and in `Render` compares the request's optional content states with the stored ones, clearing extracted content when they differ.
+- `PdfPanelRenderer` renders immediately from `PdfPanelDocument`, then triggers background decode via `PdfPanelScheduler.UpdateContent`. When a page is ready, `PdfPanelDocument.PageUpdated` fires on the UI thread and re-draws only that page.
+- `SkCanvasExtensions.DrawPage` takes a required `PageDrawFlags` parameter. Full render passes `PageDrawFlags.AllContent`. Partial content updates pass `PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content` — never redraw shadows on partial updates.

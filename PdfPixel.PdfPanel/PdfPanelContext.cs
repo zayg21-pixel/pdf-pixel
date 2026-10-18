@@ -1,5 +1,4 @@
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
@@ -9,6 +8,7 @@ using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Scheduling;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Thumbnails;
 using System;
@@ -29,7 +29,7 @@ public sealed class PdfPanelContext : IDisposable
 
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
     private readonly PdfPanelDocument _panelDocument;
-    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelScheduler _scheduler;
     private readonly PdfPanelGraphics _graphics;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
     private float? _lastVerticalOffset;
@@ -48,8 +48,8 @@ public sealed class PdfPanelContext : IDisposable
         Pages = pages ?? throw new ArgumentNullException(nameof(pages));
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
         _panelDocument = pages.PanelDocument;
-        _contentProvider = pages.ContentProvider;
-        _contentProvider.ClearExtractedContent();
+        _scheduler = pages.Scheduler;
+        _scheduler.ClearExtractedContent();
         _graphics = new PdfPanelGraphics(_panelDocument);
 
         Input = new PdfPanelInput();
@@ -58,9 +58,9 @@ public sealed class PdfPanelContext : IDisposable
         Search = new PdfPanelSearch(this, Text, _panelDocument, _graphics);
         Content = new PdfPanelContent(_panelDocument, Input, _graphics);
         Layers = new PdfPanelLayers(_panelDocument.Document);
-        Thumbnails = new PdfPanelThumbnails(_panelDocument, _contentProvider);
+        Thumbnails = new PdfPanelThumbnails(_panelDocument, _scheduler);
         Actions = new PdfPanelActions(this, _panelDocument.Document, Annotations, Layers);
-        Renderer = new PdfPanelRenderer(surfaceFactory, _panelDocument, _contentProvider, _graphics);
+        Renderer = new PdfPanelRenderer(surfaceFactory, _panelDocument, _scheduler, _graphics);
         _panelDocument.OptionalContentStates = Layers.Configuration?.ToStates();
 
         _panelDocument.PageTextExtracted += OnPageTextExtracted;
@@ -217,7 +217,7 @@ public sealed class PdfPanelContext : IDisposable
         Search.Synchronize();
         Content.Synchronize(Scale);
         Renderer.Synchronize();
-        _contentProvider.SetTextExtractionSettings(Text.ExtractText);
+        _scheduler.SetTextExtractionSettings(Text.ExtractText);
     }
 
     /// <summary>
@@ -236,7 +236,7 @@ public sealed class PdfPanelContext : IDisposable
         if (_panelDocument.OptionalContentStates != request.OptionalContentStates)
         {
             _panelDocument.OptionalContentStates = request.OptionalContentStates;
-            _contentProvider.ClearExtractedContent();
+            _scheduler.ClearExtractedContent();
         }
 
         Renderer.Submit(request);

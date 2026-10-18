@@ -2,7 +2,7 @@ namespace PdfPixel.PdfPanel.Execution;
 
 /// <summary>
 /// Creates the <see cref="IPdfCancellableExecutionObserver"/> instances that
-/// <see cref="ContentProvider.PdfPageContentProvider"/> runs page work with.
+/// <see cref="Scheduling.PdfPanelScheduler"/> runs page work with.
 /// </summary>
 public interface IPdfExecutionObserverFactory
 {

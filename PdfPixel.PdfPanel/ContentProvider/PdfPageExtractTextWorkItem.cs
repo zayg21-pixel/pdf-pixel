@@ -36,11 +36,11 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     private readonly PdfTextExtractionProperties _textExtractionProperties;
     private readonly PdfOptionalContentStates? _optionalContentStates;
     private readonly IPdfCancellableExecutionObserver _observer;
-    private readonly Action<int> _onCompleted;
+    private readonly Action<BackgroundWorkItemComplete> _onCompleted;
 
     /// <summary>
     /// Initializes the work item for the given cache entry. The work item takes ownership of <paramref name="observer"/>
-    /// and invokes <paramref name="onCompleted"/> with the page number once it finishes.
+    /// and invokes <paramref name="onCompleted"/> with its completion once it finishes.
     /// </summary>
     public PdfPageExtractTextWorkItem(
         PdfPageCacheEntry cacheEntry,
@@ -50,7 +50,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         PdfTextExtractionProperties textExtractionProperties,
         PdfOptionalContentStates? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
-        Action<int> onCompleted)
+        Action<BackgroundWorkItemComplete> onCompleted)
     {
         CacheEntry = cacheEntry ?? throw new ArgumentNullException(nameof(cacheEntry));
         _document = document ?? throw new ArgumentNullException(nameof(document));
@@ -73,6 +73,8 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     /// <inheritdoc />
     public async ValueTask ProcessAsync()
     {
+        var result = BackgroundWorkItemResult.Error;
+
         try
         {
             await _observer.YieldAsync().ConfigureAwait(false);
@@ -81,11 +83,18 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
             {
                 ExtractWords();
             }
+
+            result = BackgroundWorkItemResult.Success;
+        }
+        catch (OperationCanceledException)
+        {
+            result = BackgroundWorkItemResult.Cancelled;
+            throw;
         }
         finally
         {
             _observer.Dispose();
-            _onCompleted(CacheEntry.PageNumber);
+            _onCompleted(new BackgroundWorkItemComplete(CacheEntry.PageNumber, result, _observer));
         }
     }
 

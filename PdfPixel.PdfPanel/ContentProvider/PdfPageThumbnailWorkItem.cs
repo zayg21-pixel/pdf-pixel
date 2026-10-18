@@ -27,10 +27,11 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
     private readonly PdfIntegerSize _maximumSize;
     private readonly PdfOptionalContentStates? _optionalContentStates;
     private readonly IPdfCancellableExecutionObserver _observer;
-    private readonly Action<PageThumbnailRenderedEventArgs> _onRendered;
+    private readonly Action<BackgroundWorkItemComplete> _onCompleted;
 
     /// <summary>
-    /// Initializes the work item for the given cache entry and thumbnail request.
+    /// Initializes the work item for the given cache entry and thumbnail request. The work item takes ownership of <paramref name="observer"/>
+    /// and invokes <paramref name="onCompleted"/> with its completion once it finishes.
     /// </summary>
     public PdfPageThumbnailWorkItem(
         PdfPageCacheEntry cacheEntry,
@@ -40,7 +41,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
         in PdfIntegerSize maximumSize,
         PdfOptionalContentStates? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
-        Action<PageThumbnailRenderedEventArgs> onRendered)
+        Action<BackgroundWorkItemComplete> onCompleted)
     {
         _cacheEntry = cacheEntry ?? throw new ArgumentNullException(nameof(cacheEntry));
         _document = document ?? throw new ArgumentNullException(nameof(document));
@@ -49,7 +50,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
         _maximumSize = maximumSize;
         _optionalContentStates = optionalContentStates;
         _observer = observer ?? throw new ArgumentNullException(nameof(observer));
-        _onRendered = onRendered ?? throw new ArgumentNullException(nameof(onRendered));
+        _onCompleted = onCompleted ?? throw new ArgumentNullException(nameof(onCompleted));
     }
 
     /// <inheritdoc />
@@ -58,26 +59,29 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
     /// <inheritdoc />
     public async ValueTask ProcessAsync()
     {
-        byte[]? png = null;
+        var result = BackgroundWorkItemResult.Error;
 
         try
         {
             _observer.Notify();
 
-            using (LockedContent<byte[]> lockedThumbnail = _cacheEntry.Thumbnail.GetContent())
+            if (!_cacheEntry.Thumbnail.HasContent)
             {
-                png = lockedThumbnail.Content;
-            }
-
-            if (png == null)
-            {
-                png = await ProducePngAsync().ConfigureAwait(false);
+                byte[] png = await ProducePngAsync().ConfigureAwait(false);
                 _cacheEntry.Thumbnail.SetContent(png);
             }
+
+            result = BackgroundWorkItemResult.Success;
+        }
+        catch (OperationCanceledException)
+        {
+            result = BackgroundWorkItemResult.Cancelled;
+            throw;
         }
         finally
         {
-            _onRendered(new PageThumbnailRenderedEventArgs(_cacheEntry.PageNumber, _observer, png));
+            _observer.Dispose();
+            _onCompleted(new BackgroundWorkItemComplete(_cacheEntry.PageNumber, result, _observer));
         }
     }
 

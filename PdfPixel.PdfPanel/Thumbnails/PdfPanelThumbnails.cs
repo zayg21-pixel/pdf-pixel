@@ -2,6 +2,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Execution;
+using PdfPixel.PdfPanel.Scheduling;
 using System;
 
 namespace PdfPixel.PdfPanel.Thumbnails;
@@ -12,27 +13,23 @@ namespace PdfPixel.PdfPanel.Thumbnails;
 public sealed class PdfPanelThumbnails
 {
     internal const bool DefaultUsePageThumbnails = false;
-    internal const bool DefaultRenderPages = true;
     internal const int DefaultMaximumCount = 100;
     internal const PdfPanelThumbnailPreloadMode DefaultPreloadMode = PdfPanelThumbnailPreloadMode.VisiblePages;
 
     internal static readonly PdfIntegerSize DefaultRenderMaximumSize = new(400, 400);
 
     private readonly PdfPanelDocument _panelDocument;
-    private readonly PdfPageContentProvider _contentProvider;
-    private readonly bool[] _requestedPages;
+    private readonly PdfPanelScheduler _scheduler;
     private bool _usePageThumbnails = DefaultUsePageThumbnails;
-    private bool _renderPages = DefaultRenderPages;
     private PdfIntegerSize _renderMaximumSize = DefaultRenderMaximumSize;
     private int _maximumCount = DefaultMaximumCount;
     private PdfPanelThumbnailPreloadMode _preloadMode = DefaultPreloadMode;
 
-    internal PdfPanelThumbnails(PdfPanelDocument panelDocument, PdfPageContentProvider contentProvider)
+    internal PdfPanelThumbnails(PdfPanelDocument panelDocument, PdfPanelScheduler scheduler)
     {
         _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        _requestedPages = new bool[panelDocument.PageCount];
-        _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        UpdateSchedulingSettings();
     }
 
     /// <summary>
@@ -57,24 +54,7 @@ public sealed class PdfPanelThumbnails
             if (_usePageThumbnails != value)
             {
                 _usePageThumbnails = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Whether pages without a used thumbnail image are rendered. Changing it clears the thumbnails.
-    /// </summary>
-    public bool RenderPages
-    {
-        get => _renderPages;
-
-        set
-        {
-            if (_renderPages != value)
-            {
-                _renderPages = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
+                UpdateSchedulingSettings();
             }
         }
     }
@@ -92,7 +72,7 @@ public sealed class PdfPanelThumbnails
             if (_renderMaximumSize != value)
             {
                 _renderMaximumSize = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
+                UpdateSchedulingSettings();
             }
         }
     }
@@ -109,7 +89,7 @@ public sealed class PdfPanelThumbnails
             if (_maximumCount != value)
             {
                 _maximumCount = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
+                UpdateSchedulingSettings();
             }
         }
     }
@@ -126,7 +106,7 @@ public sealed class PdfPanelThumbnails
             if (_preloadMode != value)
             {
                 _preloadMode = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
+                UpdateSchedulingSettings();
             }
         }
     }
@@ -143,11 +123,6 @@ public sealed class PdfPanelThumbnails
             return GetDecodedSize(pageThumbnail);
         }
 
-        if (!_renderPages)
-        {
-            return null;
-        }
-
         PdfIntegerSize renderSize = PdfPageThumbnailWorkItem.GetRenderSize(_panelDocument.GetPageInfo(pageNumber).CropBox, _renderMaximumSize);
 
         return new PdfSize(renderSize.Width, renderSize.Height);
@@ -160,72 +135,40 @@ public sealed class PdfPanelThumbnails
     public byte[]? GetPng(int pageNumber) => _panelDocument.GetThumbnail(pageNumber);
 
     /// <summary>
-    /// Starts producing the thumbnail of a page, unless it is ready, pending, or the page has none.
+    /// Starts producing the thumbnail of a page, unless it is pending or the page has none.
     /// <see cref="ThumbnailReady"/> is raised when it is ready.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
-    public void Request(int pageNumber)
-    {
-        int index = pageNumber - 1;
-
-        if (_requestedPages[index] || _panelDocument.GetThumbnail(pageNumber) != null)
-        {
-            return;
-        }
-
-        _requestedPages[index] = _contentProvider.RequestThumbnail(pageNumber);
-    }
+    public void Request(int pageNumber) => _scheduler.RequestThumbnail(pageNumber);
 
     /// <summary>
     /// Cancels producing the thumbnail of a page; a ready thumbnail is kept.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
-    public void Cancel(int pageNumber)
-    {
-        int index = pageNumber - 1;
-
-        if (!_requestedPages[index])
-        {
-            return;
-        }
-
-        _requestedPages[index] = false;
-        _contentProvider.CancelThumbnail(pageNumber);
-    }
+    public void Cancel(int pageNumber) => _scheduler.CancelThumbnail(pageNumber);
 
     /// <summary>
-    /// Cancels the pending thumbnails and raises <see cref="Cleared"/>.
+    /// Raises <see cref="Cleared"/>.
     /// </summary>
-    internal void OnExtractedContentCleared()
-    {
-        for (int pageNumber = 1; pageNumber <= _requestedPages.Length; pageNumber++)
-        {
-            Cancel(pageNumber);
-        }
-
-        Cleared?.Invoke(this, EventArgs.Empty);
-    }
+    internal void OnExtractedContentCleared() => Cleared?.Invoke(this, EventArgs.Empty);
 
     /// <summary>
-    /// Completes the pending request of a page and raises <see cref="ThumbnailReady"/> when it produced a thumbnail.
+    /// Raises <see cref="ThumbnailReady"/> for the thumbnail produced by the request of a page.
     /// </summary>
     internal void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args)
+        => ThumbnailReady?.Invoke(this, new PdfPanelThumbnailEventArgs(args.PageNumber, args.Png));
+
+    private void UpdateSchedulingSettings()
     {
-        int index = args.PageNumber - 1;
-
-        if (!_requestedPages[index])
+        PdfPanelThumbnailSchedulingSettings settings = new()
         {
-            return;
-        }
+            UsePageThumbnails = _usePageThumbnails,
+            RenderMaximumSize = _renderMaximumSize,
+            MaximumCount = _maximumCount,
+            PreloadMode = _preloadMode
+        };
 
-        _requestedPages[index] = false;
-
-        if (args.Png == null)
-        {
-            return;
-        }
-
-        ThumbnailReady?.Invoke(this, new PdfPanelThumbnailEventArgs(args.PageNumber, args.Png));
+        _scheduler.SetThumbnailSettings(settings);
     }
 
     private PdfImage? GetPageThumbnail(int pageNumber)

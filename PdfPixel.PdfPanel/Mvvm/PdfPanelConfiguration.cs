@@ -38,7 +38,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private bool _allowImageSelection = PdfPanelContent.DefaultAllowImageSelection;
     private bool _showSearchHighlights = PdfPanelSearch.DefaultShowHighlights;
     private bool _usePageThumbnails = PdfPanelThumbnails.DefaultUsePageThumbnails;
-    private bool _renderPageThumbnails = PdfPanelThumbnails.DefaultRenderPages;
     private PdfIntegerSize _thumbnailRenderMaximumSize = PdfPanelThumbnails.DefaultRenderMaximumSize;
     private int _thumbnailMaximumCount = PdfPanelThumbnails.DefaultMaximumCount;
     private PdfPanelThumbnailPreloadMode _thumbnailPreloadMode = PdfPanelThumbnails.DefaultPreloadMode;
@@ -260,15 +259,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Whether pages without a used thumbnail image are rendered as their thumbnail.
-    /// </summary>
-    public bool RenderPageThumbnails
-    {
-        get => _renderPageThumbnails;
-        set => SetProperty(ref _renderPageThumbnails, value, nameof(RenderPageThumbnails));
-    }
-
-    /// <summary>
     /// Size in pixels a rendered page thumbnail is fitted within, keeping its aspect ratio.
     /// </summary>
     public PdfIntegerSize ThumbnailRenderMaximumSize
@@ -426,7 +416,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Content.AllowHover = AllowPageContentHover;
         context.Content.AllowImageSelection = AllowImageSelection;
         context.Thumbnails.UsePageThumbnails = UsePageThumbnails;
-        context.Thumbnails.RenderPages = RenderPageThumbnails;
         context.Thumbnails.RenderMaximumSize = ThumbnailRenderMaximumSize;
         context.Thumbnails.MaximumCount = ThumbnailMaximumCount;
         context.Thumbnails.PreloadMode = ThumbnailPreloadMode;

@@ -4,6 +4,7 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Execution;
+using PdfPixel.PdfPanel.Scheduling;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
@@ -20,11 +21,11 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     private readonly object disposeLocker = new();
     private bool isDisposed;
 
-    internal PdfPanelPageCollection(PdfPanelDocument panelDocument, PdfPageContentProvider contentProvider, IList<PdfPanelPage> pages)
+    internal PdfPanelPageCollection(PdfPanelDocument panelDocument, PdfPanelScheduler scheduler, IList<PdfPanelPage> pages)
         : base(pages)
     {
         PanelDocument = panelDocument;
-        ContentProvider = contentProvider;
+        Scheduler = scheduler;
     }
 
     /// <summary>
@@ -33,9 +34,9 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     internal PdfPanelDocument PanelDocument { get; }
 
     /// <summary>
-    /// Pages content provider that handles rendering of page content and annotation layers.
+    /// Scheduler that produces the content of the pages.
     /// </summary>
-    internal PdfPageContentProvider ContentProvider { get; }
+    internal PdfPanelScheduler Scheduler { get; }
 
     /// <summary>
     /// Document the pages are decoded from.
@@ -111,7 +112,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         SynchronizationContext? synchronizationContext)
     {
         PdfPanelDocument panelDocument = new(document, synchronizationContext);
-        PdfPageContentProvider contentProvider = new(panelDocument, processingQueue, observerFactory);
+        PdfPanelScheduler scheduler = new(panelDocument, processingQueue, observerFactory);
         List<PdfPanelPage> pages = [];
 
         for (int i = 0; i < panelDocument.PageCount; i++)
@@ -122,11 +123,11 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
             pages.Add(page);
         }
 
-        return new PdfPanelPageCollection(panelDocument, contentProvider, pages);
+        return new PdfPanelPageCollection(panelDocument, scheduler, pages);
     }
 
     /// <summary>
-    /// Disposes the underlying content provider and releases all page resources.
+    /// Disposes the underlying scheduler and releases all page resources.
     /// </summary>
     public void Dispose()
     {
@@ -139,7 +140,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
             isDisposed = true;
 
-            ContentProvider.Dispose();
+            Scheduler.Dispose();
             PanelDocument.Dispose();
         }
     }

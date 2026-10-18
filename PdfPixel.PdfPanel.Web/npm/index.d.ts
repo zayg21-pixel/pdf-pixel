@@ -60,8 +60,6 @@ export interface PdfPixelConfiguration {
     showSearchHighlights?: boolean;
     /** Use the page's embedded thumbnail image as its thumbnail when present. */
     usePageThumbnails?: boolean;
-    /** Render pages without a used thumbnail image as their thumbnail. */
-    renderPageThumbnails?: boolean;
     /** Size in pixels a rendered page thumbnail is fitted within, keeping its aspect ratio. */
     thumbnailRenderMaximumSize?: Partial<PdfPixelSize>;
     /** Maximum number of page thumbnails kept, the ones nearest to the first visible page. */
