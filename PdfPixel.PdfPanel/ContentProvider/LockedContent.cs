@@ -12,12 +12,11 @@ internal sealed class LockedContent<T> : IDisposable
     private readonly ReaderWriterLockSlim _locker;
 
     /// <summary>
-    /// Acquires a read lock on <paramref name="locker"/> and stores <paramref name="content"/>.
+    /// Stores <paramref name="content"/> read under a read lock already held on <paramref name="locker"/>.
     /// </summary>
     public LockedContent(T? content, ReaderWriterLockSlim locker)
     {
         _locker = locker ?? throw new ArgumentNullException(nameof(locker));
-        _locker.EnterReadLock();
         Content = content;
     }
 

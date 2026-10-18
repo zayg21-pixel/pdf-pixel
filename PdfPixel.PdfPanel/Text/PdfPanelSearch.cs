@@ -18,6 +18,14 @@ namespace PdfPixel.PdfPanel.Text;
 /// </summary>
 public sealed class PdfPanelSearch
 {
+    internal const bool DefaultMatchCase = false;
+    internal const bool DefaultWholeWord = false;
+    internal const bool DefaultMatchDiacritics = false;
+    internal const bool DefaultShowHighlights = true;
+
+    internal static readonly PdfColor DefaultMatchColor = new(255f / 255f, 200f / 255f, 0f / 255f, 100f / 255f);
+    internal static readonly PdfColor DefaultCurrentMatchColor = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
+
     private readonly PdfPanelContext _context;
     private readonly PdfPanelText _text;
     private readonly PdfPageContentProvider _contentProvider;
@@ -63,32 +71,32 @@ public sealed class PdfPanelSearch
     /// <summary>
     /// Whether letter case must match.
     /// </summary>
-    public bool MatchCase { get; set; }
+    public bool MatchCase { get; set; } = DefaultMatchCase;
 
     /// <summary>
     /// Whether a match must start and end on word boundaries.
     /// </summary>
-    public bool WholeWord { get; set; }
+    public bool WholeWord { get; set; } = DefaultWholeWord;
 
     /// <summary>
     /// Whether diacritics must match, so that "e" does not match "é".
     /// </summary>
-    public bool MatchDiacritics { get; set; }
+    public bool MatchDiacritics { get; set; } = DefaultMatchDiacritics;
 
     /// <summary>
     /// Color the search matches are highlighted with.
     /// </summary>
-    public PdfColor MatchColor { get; set; } = new(255f / 255f, 200f / 255f, 0f / 255f, 100f / 255f);
+    public PdfColor MatchColor { get; set; } = DefaultMatchColor;
 
     /// <summary>
     /// Color the current search match is highlighted with.
     /// </summary>
-    public PdfColor CurrentMatchColor { get; set; } = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
+    public PdfColor CurrentMatchColor { get; set; } = DefaultCurrentMatchColor;
 
     /// <summary>
     /// Whether the search matches are highlighted.
     /// </summary>
-    public bool ShowHighlights { get; set; } = true;
+    public bool ShowHighlights { get; set; } = DefaultShowHighlights;
 
     /// <summary>
     /// The match highlighted as current, or <see langword="null"/> when there is none.

@@ -225,8 +225,7 @@
                                            RenderOptions.BitmapScalingMode="NearestNeighbor">
                                         <Image.LayoutTransform>
                                             <TransformGroup>
-                                                <ScaleTransform ScaleX="{Binding DataContext.ThumbnailDisplayScale, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                ScaleY="{Binding DataContext.ThumbnailDisplayScale, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                                <ScaleTransform ScaleX="0.5" ScaleY="0.5" />
                                                 <RotateTransform Angle="{Binding Info.Rotation}" />
                                             </TransformGroup>
                                         </Image.LayoutTransform>

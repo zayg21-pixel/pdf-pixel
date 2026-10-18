@@ -11,14 +11,17 @@ namespace PdfPixel.PdfPanel.Thumbnails;
 /// </summary>
 public sealed class PdfPanelThumbnails
 {
-    private const int DefaultRenderMaximumSize = 200;
-    private const int DefaultMaximumCount = 300;
+    internal const bool DefaultUsePageThumbnails = false;
+    internal const bool DefaultRenderPages = true;
+    internal const int DefaultMaximumCount = 100;
+
+    internal static readonly PdfIntegerSize DefaultRenderMaximumSize = new(400, 400);
 
     private readonly PdfPageContentProvider _contentProvider;
     private readonly IPdfCancellableExecutionObserver?[] _pendingObservers;
-    private bool _usePageThumbnails = true;
-    private bool _renderPages = true;
-    private PdfIntegerSize _renderMaximumSize = new(DefaultRenderMaximumSize, DefaultRenderMaximumSize);
+    private bool _usePageThumbnails = DefaultUsePageThumbnails;
+    private bool _renderPages = DefaultRenderPages;
+    private PdfIntegerSize _renderMaximumSize = DefaultRenderMaximumSize;
     private int _maximumCount = DefaultMaximumCount;
 
     internal PdfPanelThumbnails(PdfPageContentProvider contentProvider)

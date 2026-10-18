@@ -9,11 +9,15 @@ namespace PdfPixel.PdfPanel.Layout;
 /// </summary>
 public class PdfPanelVerticalLayout : IPdfPanelLayout
 {
-    /// <inheritdoc />
-    public PdfRectangle Padding { get; set; } = new(10, 10, 10, 10);
+    internal const float DefaultPageGap = 10f;
+
+    internal static readonly PdfRectangle DefaultPadding = new(10f, 10f, 10f, 10f);
 
     /// <inheritdoc />
-    public float PageGap { get; set; } = 10;
+    public PdfRectangle Padding { get; set; } = DefaultPadding;
+
+    /// <inheritdoc />
+    public float PageGap { get; set; } = DefaultPageGap;
 
     /// <inheritdoc />
     public PdfSize CalculateFitSize(PdfPanelPageCollection pages)

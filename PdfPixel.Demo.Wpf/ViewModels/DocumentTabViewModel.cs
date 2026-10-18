@@ -31,7 +31,6 @@ namespace PdfPixel.Demo.Wpf.ViewModels;
 public class DocumentTabViewModel : ObservableObject, IDisposable
 {
     private const string EmptyTabTitle = "New tab";
-    private const int ThumbnailSize = 200;
 
     private readonly SkiaFontSubstitutor _fontSubstitutor;
     private readonly PdfDocumentReader _reader;
@@ -56,7 +55,6 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
     private GridLength _openSidePanelWidth = new(240);
     private GridLength _logsHeight = new(0);
     private GridLength _openLogsHeight = new(160);
-    private double _thumbnailDisplayScale = 1;
 
     /// <summary>
     /// Initializes an empty tab that opens documents in new tabs through <paramref name="openTab"/>.
@@ -282,15 +280,6 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Scale from thumbnail pixels to device-independent units of the main window.
-    /// </summary>
-    public double ThumbnailDisplayScale
-    {
-        get => _thumbnailDisplayScale;
-        private set => SetProperty(ref _thumbnailDisplayScale, value);
-    }
-
-    /// <summary>
     /// Opens the document of <paramref name="request"/> in this tab, replacing the current one.
     /// </summary>
     public void Load(DocumentTabRequest request)
@@ -314,7 +303,6 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
         _request = request;
         Title = GetTitle(document, request.FileName);
         SidePanel = DocumentSidePanel.None;
-        ApplyThumbnailDpi();
         Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToHeight;
         OnPropertyChanged(nameof(HasDocument));
@@ -323,21 +311,6 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
         {
             PanelInterface.ScrollToDestination(request.Destination);
         }
-    }
-
-    private void ApplyThumbnailDpi()
-    {
-        Window window = Application.Current.MainWindow;
-        if (window == null)
-        {
-            return;
-        }
-
-        double dpiScale = VisualTreeHelper.GetDpi(window).DpiScaleX;
-        int thumbnailSize = (int)Math.Round(ThumbnailSize * dpiScale);
-
-        PanelConfiguration.ThumbnailRenderMaximumSize = new PdfIntegerSize(thumbnailSize, thumbnailSize);
-        ThumbnailDisplayScale = 1 / dpiScale;
     }
 
     private static string GetTitle(IPdfDocument document, string fileName)

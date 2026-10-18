@@ -52,6 +52,8 @@ internal sealed class ContentLocker<T> : IDisposable
     public LockedContent<T> GetContent()
     {
         CheckIfDisposed();
+        _lock.EnterReadLock();
+
         return new LockedContent<T>(_content, _lock);
     }
 

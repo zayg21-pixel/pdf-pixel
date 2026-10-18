@@ -5,21 +5,26 @@ namespace PdfPixel.PdfPanel.Rendering;
 
 public sealed partial class PdfPanelRenderer
 {
+    internal const float DefaultPageCornerRadius = 0f;
+    internal const bool DefaultShowPageLoadingAnimation = true;
+
+    internal static readonly PdfColor DefaultBackgroundColor = PdfColors.LightGray;
+
     /// <summary>
     /// Background color drawn behind the pages.
     /// </summary>
-    public PdfColor BackgroundColor { get; set; } = PdfColors.LightGray;
+    public PdfColor BackgroundColor { get; set; } = DefaultBackgroundColor;
 
     /// <summary>
     /// Corner radius for page rendering in unscaled panel space.
     /// A value of 0 renders pages with sharp corners.
     /// </summary>
-    public float PageCornerRadius { get; set; }
+    public float PageCornerRadius { get; set; } = DefaultPageCornerRadius;
 
     /// <summary>
     /// Draws an animated placeholder over pages that have no decoded content yet.
     /// </summary>
-    public bool ShowPageLoadingAnimation { get; set; } = true;
+    public bool ShowPageLoadingAnimation { get; set; } = DefaultShowPageLoadingAnimation;
 
     /// <summary>
     /// If true - antialiasing is enabled for page content.

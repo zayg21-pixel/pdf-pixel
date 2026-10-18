@@ -14,6 +14,12 @@ namespace PdfPixel.PdfPanel.Content;
 /// </summary>
 public sealed class PdfPanelContent
 {
+    internal const float DefaultSelectionBorderThickness = 2f;
+    internal const bool DefaultAllowHover = true;
+    internal const bool DefaultAllowImageSelection = true;
+
+    internal static readonly PdfColor DefaultSelectionBorderColor = new(0f, 0f, 0f, 1f);
+
     private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelInput _input;
     private readonly PdfPanelGraphics _graphics;
@@ -47,22 +53,22 @@ public sealed class PdfPanelContent
     /// <summary>
     /// Width of the border drawn around the selected content, in device pixels.
     /// </summary>
-    public float SelectionBorderThickness { get; set; } = 2f;
+    public float SelectionBorderThickness { get; set; } = DefaultSelectionBorderThickness;
 
     /// <summary>
     /// Color of the border drawn around the selected content.
     /// </summary>
-    public PdfColor SelectionBorderColor { get; set; } = new(0f, 0f, 0f, 1f);
+    public PdfColor SelectionBorderColor { get; set; } = DefaultSelectionBorderColor;
 
     /// <summary>
     /// Whether the content under the pointer is tracked.
     /// </summary>
-    public bool AllowHover { get; set; } = true;
+    public bool AllowHover { get; set; } = DefaultAllowHover;
 
     /// <summary>
     /// Whether images can be selected with the pointer.
     /// </summary>
-    public bool AllowImageSelection { get; set; } = true;
+    public bool AllowImageSelection { get; set; } = DefaultAllowImageSelection;
 
     /// <summary>
     /// Content item under the pointer, or <see langword="null"/> if there is none.

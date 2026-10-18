@@ -23,6 +23,9 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public sealed class PdfPanelContext : IDisposable
 {
+    internal const float DefaultMinScale = 0.1f;
+    internal const float DefaultMaxScale = 10f;
+    internal const float DefaultZoomStep = 0.1f;
     private const float ScaleTolerance = 0.001f;
 
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
@@ -85,17 +88,17 @@ public sealed class PdfPanelContext : IDisposable
     /// <summary>
     /// Minimum allowed zoom scale factor.
     /// </summary>
-    public float MinScale { get; set; } = 0.1f;
+    public float MinScale { get; set; } = DefaultMinScale;
 
     /// <summary>
     /// Maximum allowed zoom scale factor.
     /// </summary>
-    public float MaxScale { get; set; } = 10.0f;
+    public float MaxScale { get; set; } = DefaultMaxScale;
 
     /// <summary>
     /// Proportional scale change of a single zoom step (e.g. 0.1 for 10%).
     /// </summary>
-    public float ZoomStep { get; set; } = 0.1f;
+    public float ZoomStep { get; set; } = DefaultZoomStep;
 
     /// <summary>
     /// Total width of all pages including padding, in device pixels after applying <see cref="Scale"/>.

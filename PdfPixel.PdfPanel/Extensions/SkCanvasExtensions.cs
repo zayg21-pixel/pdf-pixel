@@ -122,7 +122,7 @@ internal static class SkCanvasExtensions
             return;
         }
 
-        canvas.DrawImage(image, pageRect, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        canvas.DrawImage(image, pageRect, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
     }
 
     private static void DrawPlaceholder(SKCanvas canvas, SKRect pageRect, in AnimationState animation)

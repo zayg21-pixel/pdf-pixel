@@ -1,5 +1,10 @@
 using PdfPixel.Color;
 using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Content;
+using PdfPixel.PdfPanel.Layout;
+using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Thumbnails;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,30 +16,30 @@ namespace PdfPixel.PdfPanel.Mvvm;
 /// </summary>
 public sealed class PdfPanelConfiguration : INotifyPropertyChanged
 {
-    private float _minScale = 0.1f;
-    private float _maxScale = 10f;
-    private float _zoomStep = 0.1f;
-    private float _pageGap = 10f;
-    private PdfRectangle _layoutPadding = new(10f, 10f, 10f, 10f);
-    private PdfColor _panelBackgroundColor = new(211f / 255f, 211f / 255f, 211f / 255f, 1f);
-    private float _pageCornerRadius;
-    private bool _showPageLoadingAnimation = true;
-    private bool _extractAllText;
-    private PdfColor _textSelectionColor = new(50f / 255f, 100f / 255f, 220f / 255f, 80f / 255f);
-    private bool _searchMatchCase;
-    private bool _searchMatchWholeWord;
-    private bool _searchMatchDiacritics;
-    private PdfColor _searchMatchColor = new(255f / 255f, 200f / 255f, 0f / 255f, 100f / 255f);
-    private PdfColor _searchCurrentMatchColor = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
-    private float _contentSelectionBorderThickness = 2f;
-    private PdfColor _contentSelectionBorderColor = new(0f, 0f, 0f, 1f);
-    private bool _allowTextSelection = true;
-    private bool _allowPageContentHover = true;
-    private bool _allowImageSelection = true;
-    private bool _showSearchHighlights = true;
-    private bool _usePageThumbnails = true;
-    private bool _renderPageThumbnails = true;
-    private PdfIntegerSize _thumbnailRenderMaximumSize = new(200, 200);
+    private float _minScale = PdfPanelContext.DefaultMinScale;
+    private float _maxScale = PdfPanelContext.DefaultMaxScale;
+    private float _zoomStep = PdfPanelContext.DefaultZoomStep;
+    private float _pageGap = PdfPanelVerticalLayout.DefaultPageGap;
+    private PdfRectangle _layoutPadding = PdfPanelVerticalLayout.DefaultPadding;
+    private PdfColor _panelBackgroundColor = PdfPanelRenderer.DefaultBackgroundColor;
+    private float _pageCornerRadius = PdfPanelRenderer.DefaultPageCornerRadius;
+    private bool _showPageLoadingAnimation = PdfPanelRenderer.DefaultShowPageLoadingAnimation;
+    private bool _extractAllText = PdfPanelText.DefaultExtractText;
+    private PdfColor _textSelectionColor = PdfPanelText.DefaultSelectionColor;
+    private bool _searchMatchCase = PdfPanelSearch.DefaultMatchCase;
+    private bool _searchMatchWholeWord = PdfPanelSearch.DefaultWholeWord;
+    private bool _searchMatchDiacritics = PdfPanelSearch.DefaultMatchDiacritics;
+    private PdfColor _searchMatchColor = PdfPanelSearch.DefaultMatchColor;
+    private PdfColor _searchCurrentMatchColor = PdfPanelSearch.DefaultCurrentMatchColor;
+    private float _contentSelectionBorderThickness = PdfPanelContent.DefaultSelectionBorderThickness;
+    private PdfColor _contentSelectionBorderColor = PdfPanelContent.DefaultSelectionBorderColor;
+    private bool _allowTextSelection = PdfPanelText.DefaultAllowSelection;
+    private bool _allowPageContentHover = PdfPanelContent.DefaultAllowHover;
+    private bool _allowImageSelection = PdfPanelContent.DefaultAllowImageSelection;
+    private bool _showSearchHighlights = PdfPanelSearch.DefaultShowHighlights;
+    private bool _usePageThumbnails = PdfPanelThumbnails.DefaultUsePageThumbnails;
+    private bool _renderPageThumbnails = PdfPanelThumbnails.DefaultRenderPages;
+    private PdfIntegerSize _thumbnailRenderMaximumSize = PdfPanelThumbnails.DefaultRenderMaximumSize;
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;

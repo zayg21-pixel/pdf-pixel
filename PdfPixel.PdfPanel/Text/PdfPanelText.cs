@@ -17,6 +17,11 @@ namespace PdfPixel.PdfPanel.Text;
 /// </summary>
 public sealed class PdfPanelText
 {
+    internal const bool DefaultExtractText = false;
+    internal const bool DefaultAllowSelection = true;
+
+    internal static readonly PdfColor DefaultSelectionColor = new(50f / 255f, 100f / 255f, 220f / 255f, 80f / 255f);
+
     private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelInput _input;
     private readonly PdfPanelGraphics _graphics;
@@ -71,7 +76,7 @@ public sealed class PdfPanelText
     /// <summary>
     /// Whether the words of every page are extracted, not only of the pages that are rendered.
     /// </summary>
-    public bool ExtractText { get; set; }
+    public bool ExtractText { get; set; } = DefaultExtractText;
 
     /// <summary>
     /// Whether the words of every page have been extracted.
@@ -92,12 +97,12 @@ public sealed class PdfPanelText
     /// <summary>
     /// Color the selected text is highlighted with.
     /// </summary>
-    public PdfColor SelectionColor { get; set; } = new(50f / 255f, 100f / 255f, 220f / 255f, 80f / 255f);
+    public PdfColor SelectionColor { get; set; } = DefaultSelectionColor;
 
     /// <summary>
     /// Whether text can be selected with the pointer.
     /// </summary>
-    public bool AllowSelection { get; set; } = true;
+    public bool AllowSelection { get; set; } = DefaultAllowSelection;
 
     /// <summary>
     /// 1-based number of the page the selection is on, or <see langword="null"/> when nothing is selected.
