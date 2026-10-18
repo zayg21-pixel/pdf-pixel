@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace PdfPixel.Models;
 
 /// <summary>
@@ -5,16 +8,44 @@ namespace PdfPixel.Models;
 /// </summary>
 public sealed class PdfKeywordValue : PdfValue
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PdfKeywordValue"/> class.
-    /// </summary>
-    /// <param name="value">The keyword token.</param>
-    internal PdfKeywordValue(in PdfString value) => Value = value;
+    private static readonly Dictionary<PdfKeyword, PdfKeywordValue> SharedValues = CreateSharedValues();
+
+    private PdfKeywordValue(PdfKeyword value) => Value = value;
 
     /// <summary>
-    /// Gets the keyword token.
+    /// Gets the keyword.
     /// </summary>
-    public PdfString Value { get; }
+    public PdfKeyword Value { get; }
+
+    /// <summary>
+    /// Returns the shared instance for a defined keyword, or a new instance for any other keyword code.
+    /// </summary>
+    /// <param name="value">The keyword.</param>
+    internal static PdfKeywordValue FromKeyword(PdfKeyword value)
+    {
+        if (SharedValues.TryGetValue(value, out PdfKeywordValue? sharedValue))
+        {
+            return sharedValue;
+        }
+
+        return new PdfKeywordValue(value);
+    }
+
+    private static Dictionary<PdfKeyword, PdfKeywordValue> CreateSharedValues()
+    {
+        Dictionary<PdfKeyword, PdfKeywordValue> sharedValues = [];
+
+#if NETSTANDARD2_0
+        foreach (PdfKeyword value in Enum.GetValues(typeof(PdfKeyword)))
+#else
+        foreach (PdfKeyword value in Enum.GetValues<PdfKeyword>())
+#endif
+        {
+            sharedValues[value] = new PdfKeywordValue(value);
+        }
+
+        return sharedValues;
+    }
 
     /// <inheritdoc/>
     public override string ToString() => Value.ToString();

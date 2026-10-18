@@ -205,8 +205,9 @@ internal partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private PdfValue ReadOperator()
     {
-        // Single-pass operator parsing using _charBuffer (avoids scan + slice allocation).
-        _localBuffer.Clear();
+        // Single-pass token packing: the first eight bytes, little-endian, no buffer.
+        ulong packedToken = 0;
+        int length = 0;
         while (!IsAtEnd)
         {
             byte currentByte = PeekByte();
@@ -215,31 +216,39 @@ internal partial struct PdfParser
                 break;
             }
 
-            _localBuffer.Add(ReadByte());
+            Advance(1);
+            if (length < MaxKeywordLength)
+            {
+                packedToken |= (ulong)currentByte << (length * 8);
+            }
+
+            length++;
         }
 
-        ReadOnlyMemory<byte> result = _localBuffer.ToArray();
+        if (length <= MaxKeywordLength)
+        {
+            if (packedToken == TrueToken)
+            {
+                return PdfBooleanValue.True;
+            }
+            else if (packedToken == FalseToken)
+            {
+                return PdfBooleanValue.False;
+            }
+            else if (packedToken == NullToken)
+            {
+                return PdfNullValue.Instance;
+            }
+        }
 
-        if (result.Span.SequenceEqual(TrueValue))
+        if (_mode == PdfParserMode.ContentStream)
         {
-            return PdfBooleanValue.True;
+            PdfOperator contentOperator = (length <= MaxOperatorLength) ? (PdfOperator)packedToken : PdfOperator.Unknown;
+            return PdfOperatorValue.FromOperator(contentOperator);
         }
-        else if (result.Span.SequenceEqual(FalseValue))
-        {
-            return PdfBooleanValue.False;
-        }
-        else if (result.Span.SequenceEqual(NullValue))
-        {
-            return PdfNullValue.Instance;
-        }
-        else if (_mode == PdfParserMode.ContentStream)
-        {
-            return new PdfOperatorValue(result);
-        }
-        else
-        {
-            return new PdfKeywordValue(result);
-        }
+
+        PdfKeyword keyword = (length <= MaxKeywordLength) ? (PdfKeyword)packedToken : PdfKeyword.Unknown;
+        return PdfKeywordValue.FromKeyword(keyword);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

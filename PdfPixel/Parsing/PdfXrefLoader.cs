@@ -67,11 +67,11 @@ internal sealed class PdfXrefLoader
         HashSet<int> visitedOffsets = [xrefOffset];
 
         // Classic table path.
-        if (MatchSequenceAt(xrefOffset, PdfTokens.Xref))
+        if (MatchSequenceAt(xrefOffset, PdfByteScanner.Xref))
         {
             try
             {
-                parser.Position = xrefOffset + PdfTokens.Xref.Length;
+                parser.Position = xrefOffset + PdfByteScanner.Xref.Length;
                 PdfDictionary? trailer = ParseClassicXref(ref parser);
                 ApplyHybridCrossReferenceStream(trailer);
 
@@ -87,9 +87,9 @@ internal sealed class PdfXrefLoader
                     }
 
                     _logger.LogDebug("Following /Prev chain to offset {Offset} (classic path).", offsetValue);
-                    if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
+                    if (MatchSequenceAt(offsetValue, PdfByteScanner.Xref))
                     {
-                        parser.Position = offsetValue + PdfTokens.Xref.Length;
+                        parser.Position = offsetValue + PdfByteScanner.Xref.Length;
                         trailer = ParseClassicXref(ref parser);
                         ApplyHybridCrossReferenceStream(trailer);
                     }
@@ -131,9 +131,9 @@ internal sealed class PdfXrefLoader
                 }
 
                 _logger.LogDebug("Following /Prev chain to offset {Offset} (stream path).", offsetValue);
-                if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
+                if (MatchSequenceAt(offsetValue, PdfByteScanner.Xref))
                 {
-                    parser.Position = offsetValue + PdfTokens.Xref.Length;
+                    parser.Position = offsetValue + PdfByteScanner.Xref.Length;
                     streamTrailer = ParseClassicXref(ref parser);
                     ApplyHybridCrossReferenceStream(streamTrailer);
                 }
@@ -175,7 +175,7 @@ internal sealed class PdfXrefLoader
             // Trailer detection.
             if (firstValue is PdfKeywordValue keywordValue)
             {
-                if (keywordValue.Value == PdfTokens.Trailer)
+                if (keywordValue.Value == PdfKeyword.Trailer)
                 {
                     PdfValue? dictValue = parser.ReadNextValue();
                     PdfDictionary? trailerDict = dictValue?.AsDictionary();
@@ -238,7 +238,7 @@ internal sealed class PdfXrefLoader
     /// <summary>
     /// Parse a single classic xref table entry using the unified PdfParser.
     /// Reads three tokens (offset, generation, status): the first two must be numeric,
-    /// the third an operator 'n' or 'f'.
+    /// the third a keyword 'n' or 'f'.
     /// </summary>
     private bool ParseSingleEntry(ref PdfParser parser, uint objectNumber)
     {
@@ -246,23 +246,21 @@ internal sealed class PdfXrefLoader
 
         int? offsetValue = parser.ReadNextValue().AsInteger();
         int? generation = parser.ReadNextValue().AsInteger();
-        PdfString? statusString = parser.ReadNextValue().AsString();
+        PdfValue? statusValue = parser.ReadNextValue();
 
-        if (offsetValue == null || generation == null || statusString == null || statusString.Value.Value.Length != 1)
+        if (offsetValue == null || generation == null || statusValue is not PdfKeywordValue statusKeyword)
         {
             parser.Position = entryStart;
             return false;
         }
 
-        byte statusByte = statusString.Value.Value.Span[0];
-
         PdfReference reference = new(objectNumber, generation.Value);
         PdfObjectInfo info;
-        if (statusByte == (byte)'n')
+        if (statusKeyword.Value == PdfKeyword.InUse)
         {
             info = PdfObjectInfo.ForUncompressed(_document.HeaderOffset + (uint)offsetValue.Value);
         }
-        else if (statusByte == (byte)'f')
+        else if (statusKeyword.Value == PdfKeyword.Free)
         {
             info = PdfObjectInfo.Free;
         }
@@ -508,12 +506,12 @@ internal sealed class PdfXrefLoader
 
     #region Shared Helpers
 
-    private long LocateLastStartXref() => PdfByteScanner.LocateLast(_document.Stream, PdfTokens.Startxref);
+    private long LocateLastStartXref() => PdfByteScanner.LocateLast(_document.Stream, PdfByteScanner.Startxref);
 
     private int ParseStartXrefOffset(long startxrefPos)
     {
         PdfParser parser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: false, decrypt: false);
-        parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
+        parser.Position = (int)startxrefPos + PdfByteScanner.Startxref.Length;
 
         // -1 marks a missing or non-numeric startxref offset.
         return parser.ReadNextValue().AsInteger() ?? -1;

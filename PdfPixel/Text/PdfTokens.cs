@@ -4,24 +4,10 @@ using System;
 namespace PdfPixel.Text;
 
 /// <summary>
-/// PDF keyword and dictionary key constants.
+/// PDF dictionary key constants.
 /// </summary>
 internal static class PdfTokens
 {
-    // PDF Keywords
-
-    public static ReadOnlySpan<byte> Header => "%PDF-"u8;
-    public static ReadOnlySpan<byte> Xref => "xref"u8;
-    public static ReadOnlySpan<byte> Startxref => "startxref"u8;
-
-    public static readonly PdfString Stream = (PdfString)"stream"u8;
-    public static readonly PdfString EndStream = (PdfString)"endstream"u8;
-
-    public static readonly PdfString Obj = (PdfString)"obj"u8;
-    public static readonly PdfString EndObj = (PdfString)"endobj"u8;
-
-    public static readonly PdfString Trailer = (PdfString)"trailer"u8;
-
     // Dictionary Key Constants (as PdfString for dictionary lookups)
     public static readonly PdfString RootKey = (PdfString)"Root"u8;
     public static readonly PdfString PagesKey = (PdfString)"Pages"u8;

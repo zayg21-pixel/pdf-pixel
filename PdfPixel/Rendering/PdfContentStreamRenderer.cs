@@ -107,7 +107,7 @@ internal class PdfContentStreamRenderer
 #pragma warning disable CA1031
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, operatorValue.Value.ToString());
+                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, operatorValue.ToString());
                 }
 #pragma warning restore CA1031
 

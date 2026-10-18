@@ -1,3 +1,4 @@
+using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 
 namespace PdfPixel.Rendering.Operators;

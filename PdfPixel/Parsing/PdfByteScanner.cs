@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using PdfPixel.Text;
+using PdfPixel.Models;
 
 namespace PdfPixel.Parsing;
 
@@ -16,6 +16,31 @@ internal static class PdfByteScanner
     private const int HeaderSearchLimit = 1024;
 
     /// <summary>
+    /// The <c>endstream</c> keyword.
+    /// </summary>
+    public static readonly PdfString EndStream = (PdfString)"endstream"u8;
+
+    /// <summary>
+    /// The <c>trailer</c> keyword.
+    /// </summary>
+    public static readonly PdfString Trailer = (PdfString)"trailer"u8;
+
+    /// <summary>
+    /// The <c>%PDF-</c> file header.
+    /// </summary>
+    public static ReadOnlySpan<byte> Header => "%PDF-"u8;
+
+    /// <summary>
+    /// The <c>xref</c> keyword.
+    /// </summary>
+    public static ReadOnlySpan<byte> Xref => "xref"u8;
+
+    /// <summary>
+    /// The <c>startxref</c> keyword.
+    /// </summary>
+    public static ReadOnlySpan<byte> Startxref => "startxref"u8;
+
+    /// <summary>
     /// Locates the <c>%PDF-</c> file header. Files can carry junk bytes ahead of the header, and every
     /// offset such a file declares (startxref, cross-reference entries) counts from the header rather
     /// than from the start of the file.
@@ -24,11 +49,11 @@ internal static class PdfByteScanner
     /// <returns>The absolute file position of the header, or 0 when no header is present.</returns>
     public static int LocateHeader(Stream stream)
     {
-        long limit = Math.Min(HeaderSearchLimit, stream.Length - PdfTokens.Header.Length);
+        long limit = Math.Min(HeaderSearchLimit, stream.Length - Header.Length);
 
         for (long scanIndex = 0; scanIndex <= limit; scanIndex++)
         {
-            if (MatchesAt(stream, scanIndex, PdfTokens.Header))
+            if (MatchesAt(stream, scanIndex, Header))
             {
                 return (int)scanIndex;
             }

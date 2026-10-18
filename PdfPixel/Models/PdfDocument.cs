@@ -270,7 +270,7 @@ internal class PdfDocument : IPdfDocumentInternal
 
     private PdfVersion? ReadHeaderVersion()
     {
-        long versionPosition = ((IPdfDocumentInternal)this).HeaderOffset + PdfTokens.Header.Length;
+        long versionPosition = ((IPdfDocumentInternal)this).HeaderOffset + PdfByteScanner.Header.Length;
         if (versionPosition >= _stream.Length)
         {
             return null;

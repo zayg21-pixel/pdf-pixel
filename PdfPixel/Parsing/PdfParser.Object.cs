@@ -19,7 +19,7 @@ internal partial struct PdfParser
         PdfValue? second = ReadNextValue();
         PdfValue? third = ReadNextValue();
 
-        if (third.AsString() != PdfTokens.Obj)
+        if (third is not PdfKeywordValue { Value: PdfKeyword.Obj })
         {
             Position = startPos;
             return null;
@@ -53,7 +53,7 @@ internal partial struct PdfParser
         PdfValue? second = ReadNextValue();
         PdfValue? third = ReadNextValue();
 
-        if (third.AsString() != PdfTokens.Obj)
+        if (third is not PdfKeywordValue { Value: PdfKeyword.Obj })
         {
             Position = startPos;
             return null;
@@ -90,7 +90,7 @@ internal partial struct PdfParser
         int preStreamPos = Position;
         PdfValue? possibleStreamOp = ReadNextValue();
 
-        if (possibleStreamOp.AsString() == PdfTokens.Stream)
+        if (possibleStreamOp is PdfKeywordValue { Value: PdfKeyword.Stream })
         {
             PdfDictionary? dict = value.AsDictionary();
             if (dict == null)
@@ -130,7 +130,7 @@ internal partial struct PdfParser
             Advance(declaredLength);
             SkipSingleEndOfLine();
 
-            if (TryConsumeToken(PdfTokens.EndStream))
+            if (TryConsumeToken(PdfByteScanner.EndStream))
             {
                 return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
             }
@@ -138,7 +138,7 @@ internal partial struct PdfParser
             Position = streamStart;
         }
 
-        int distanceToEndStream = ScanForToken(PdfTokens.EndStream);
+        int distanceToEndStream = ScanForToken(PdfByteScanner.EndStream);
         if (distanceToEndStream <= 0)
         {
             return default;
@@ -147,7 +147,7 @@ internal partial struct PdfParser
         declaredLength = distanceToEndStream - RewindSingleEndOfLine(distanceToEndStream);
 
         Position = streamStart + distanceToEndStream;
-        Advance(PdfTokens.EndStream.Value.Length);
+        Advance(PdfByteScanner.EndStream.Value.Length);
 
         return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
     }

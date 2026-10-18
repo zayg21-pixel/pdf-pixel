@@ -36,14 +36,6 @@ internal static class PdfValueExtension
         {
             return nameValue.Value;
         }
-        else if (value is PdfOperatorValue operatorValue)
-        {
-            return operatorValue.Value;
-        }
-        else if (value is PdfKeywordValue keywordValue)
-        {
-            return keywordValue.Value;
-        }
 
         return null;
     }

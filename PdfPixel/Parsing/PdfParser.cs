@@ -10,10 +10,13 @@ namespace PdfPixel.Parsing;
 internal ref partial struct PdfParser
 #pragma warning restore RCS1019 // Order modifiers
 {
-    // Boolean literal constants
-    private readonly ReadOnlySpan<byte> TrueValue = "true"u8;
-    private readonly ReadOnlySpan<byte> FalseValue = "false"u8;
-    private readonly ReadOnlySpan<byte> NullValue = "null"u8;
+    // Literal tokens packed little-endian
+    private const ulong TrueToken = 't' | ('r' << 8) | ('u' << 16) | ((ulong)'e' << 24);
+    private const ulong FalseToken = 'f' | ('a' << 8) | ('l' << 16) | ((ulong)'s' << 24) | ((ulong)'e' << 32);
+    private const ulong NullToken = 'n' | ('u' << 8) | ('l' << 16) | ((ulong)'l' << 24);
+
+    private const int MaxOperatorLength = 3;
+    private const int MaxKeywordLength = sizeof(ulong);
 
     private readonly ReadOnlySpan<double> inversePowersOf10 =
     [

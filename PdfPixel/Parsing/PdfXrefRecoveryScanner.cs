@@ -74,7 +74,7 @@ internal sealed class PdfXrefRecoveryScanner
             }
 
             parser.Position = objectStart;
-            if (parser.TryScanKeyword(PdfTokens.Trailer))
+            if (parser.TryScanKeyword(PdfByteScanner.Trailer))
             {
                 PdfDictionary? trailerDictionary = parser.ReadNextValue()?.AsDictionary();
                 if (trailerDictionary != null)

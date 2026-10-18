@@ -54,23 +54,22 @@ internal class PdfOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
     }
 
-    public void ProcessOperator(in PdfString token, ref PdfGraphicsState graphicsState)
+    public void ProcessOperator(PdfOperator contentOperator, ref PdfGraphicsState graphicsState)
     {
-        PdfOperator op = token.AsOperator();
-
-        bool handled = _pathOperators.ProcessOperator(op, ref graphicsState)
-            || _graphicsStateOperators.ProcessOperator(op, ref graphicsState)
-            || _colorOperators.ProcessOperator(op, ref graphicsState)
-            || _textOperators.ProcessOperator(op, ref graphicsState)
-            || _markedContentOperators.ProcessOperator(op, ref graphicsState)
-            || _inlineImageOperators.ProcessOperator(op, ref graphicsState)
-            || _miscOperators.ProcessOperator(op, ref graphicsState);
+        bool handled = _pathOperators.ProcessOperator(contentOperator, ref graphicsState)
+            || _graphicsStateOperators.ProcessOperator(contentOperator, ref graphicsState)
+            || _colorOperators.ProcessOperator(contentOperator, ref graphicsState)
+            || _textOperators.ProcessOperator(contentOperator, ref graphicsState)
+            || _markedContentOperators.ProcessOperator(contentOperator, ref graphicsState)
+            || _inlineImageOperators.ProcessOperator(contentOperator, ref graphicsState)
+            || _miscOperators.ProcessOperator(contentOperator, ref graphicsState);
 
         if (!handled)
         {
-            ProcessUnknownOperator(token);
+            ProcessUnknownOperator(contentOperator);
         }
     }
 
-    private void ProcessUnknownOperator(in PdfString token) => _logger.LogWarning("Unknown PDF operator {Op}' with {Count} operands on stack", token.ToString(), _operandStack.Count);
+    private void ProcessUnknownOperator(PdfOperator contentOperator)
+        => _logger.LogWarning("Unknown PDF operator {Op}' with {Count} operands on stack", PdfOperatorValue.FromOperator(contentOperator).GetOperatorText(), _operandStack.Count);
 }

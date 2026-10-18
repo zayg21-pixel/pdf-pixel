@@ -192,7 +192,7 @@ public class PdfType3Font : PdfSingleByteFont
         {
             if (value is PdfOperatorValue operatorValue)
             {
-                switch (operatorValue.Value.AsOperator())
+                switch (operatorValue.Value)
                 {
                     case PdfOperator.GlyphWidth:
                     {
