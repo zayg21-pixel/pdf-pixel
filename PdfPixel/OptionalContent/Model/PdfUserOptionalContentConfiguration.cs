@@ -66,7 +66,7 @@ public sealed class PdfUserOptionalContentConfiguration
     /// <summary>
     /// Returns a snapshot of the current state of every group, keyed by group reference.
     /// </summary>
-    public IReadOnlyDictionary<PdfReference, bool> ToStates()
+    public PdfOptionalContentStates ToStates()
     {
         Dictionary<PdfReference, bool> states = new(_groups.Count);
 
@@ -75,7 +75,7 @@ public sealed class PdfUserOptionalContentConfiguration
             states[state.Group.Reference] = state.IsOn;
         }
 
-        return states;
+        return new PdfOptionalContentStates(states);
     }
 
     /// <summary>

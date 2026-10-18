@@ -5,12 +5,12 @@ using PdfPixel.Content;
 using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.Skia;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -34,7 +34,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     private readonly object _documentLocker;
     private readonly PdfTextExtractor _textExtractor;
     private readonly PdfTextExtractionProperties _textExtractionProperties;
-    private readonly IReadOnlyDictionary<PdfReference, bool>? _optionalContentStates;
+    private readonly PdfOptionalContentStates? _optionalContentStates;
     private readonly IPdfCancellableExecutionObserver _observer;
     private readonly Action<int> _onCompleted;
 
@@ -48,7 +48,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         object documentLocker,
         PdfTextExtractor textExtractor,
         PdfTextExtractionProperties textExtractionProperties,
-        IReadOnlyDictionary<PdfReference, bool>? optionalContentStates,
+        PdfOptionalContentStates? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
         Action<int> onCompleted)
     {

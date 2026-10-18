@@ -60,7 +60,6 @@ internal sealed class PdfPageContentProvider : IDisposable
         _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _observerFactory = observerFactory ?? throw new ArgumentNullException(nameof(observerFactory));
         _processingQueue = processingQueue;
-        _panelDocument.OptionalContentStatesChanged += OnOptionalContentStatesChanged;
     }
 
     /// <summary>
@@ -634,15 +633,9 @@ internal sealed class PdfPageContentProvider : IDisposable
         return null;
     }
 
-    /// <summary>
-    /// Clears all extracted content, which was produced with the previous optional content states.
-    /// </summary>
-    private void OnOptionalContentStatesChanged(object? sender, EventArgs args) => ClearExtractedContent();
-
     /// <inheritdoc />
     public void Dispose()
     {
-        _panelDocument.OptionalContentStatesChanged -= OnOptionalContentStatesChanged;
         _extractText = false;
         _processingQueue.Dispose();
         _textExtractionObserver?.Dispose();

@@ -1,5 +1,6 @@
 using PdfPixel.Content.Model;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Requests;
@@ -17,7 +18,6 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 internal sealed class PdfPanelDocument : IDisposable
 {
     private readonly PdfPageCacheEntry[] _entries;
-    private IReadOnlyDictionary<PdfReference, bool>? _optionalContentStates;
 
     /// <summary>
     /// Initializes the storage for the pages of <paramref name="document"/>. Notifications are posted to
@@ -56,11 +56,6 @@ internal sealed class PdfPanelDocument : IDisposable
     public event EventHandler<ExtractedContentClearedEventArgs>? ExtractedContentCleared;
 
     /// <summary>
-    /// Raised on the setting thread when <see cref="OptionalContentStates"/> changed.
-    /// </summary>
-    public event EventHandler? OptionalContentStatesChanged;
-
-    /// <summary>
     /// Document the pages are decoded from.
     /// </summary>
     public IPdfDocument Document { get; }
@@ -87,24 +82,8 @@ internal sealed class PdfPanelDocument : IDisposable
 
     /// <summary>
     /// Optional content states the words and thumbnails are produced with.
-    /// Setting different states raises <see cref="OptionalContentStatesChanged"/>.
     /// </summary>
-    public IReadOnlyDictionary<PdfReference, bool>? OptionalContentStates
-    {
-        get => _optionalContentStates;
-
-        set
-        {
-            // TODO: AreOptionalContentStatesEqual must not be public, we need separate comparer. Somewhere.
-            if (PagesDrawingRequest.AreOptionalContentStatesEqual(_optionalContentStates, value))
-            {
-                return;
-            }
-
-            _optionalContentStates = value;
-            OptionalContentStatesChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
+    public PdfOptionalContentStates? OptionalContentStates { get; set; }
 
     /// <summary>
     /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.

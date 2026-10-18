@@ -16,7 +16,7 @@ namespace PdfPixel.Commands.Context;
 /// </summary>
 public sealed class PdfContentTreeBuilder
 {
-    private readonly IReadOnlyDictionary<PdfReference, bool> _groupStates;
+    private readonly PdfOptionalContentStates _groupStates;
     private readonly Stack<PdfScope> _stack = [];
     private readonly Stack<bool> _scopeOpenedNode = [];
     private readonly Stack<PdfContentNode> _openNodes = [];
@@ -26,7 +26,7 @@ public sealed class PdfContentTreeBuilder
     /// Initializes a new <see cref="PdfContentTreeBuilder"/> with the ON/OFF states of the optional content
     /// groups that take part in visibility; groups not listed have no effect.
     /// </summary>
-    public PdfContentTreeBuilder(IReadOnlyDictionary<PdfReference, bool> groupStates)
+    public PdfContentTreeBuilder(PdfOptionalContentStates groupStates)
     {
         _groupStates = groupStates;
         Root = new PdfContentNode(parent: null, scope: null);
@@ -156,16 +156,20 @@ public sealed class PdfContentTreeBuilder
 
         foreach (PdfReference group in membership.Groups)
         {
-            if (_groupStates.TryGetValue(group, out bool isOn))
+            bool? state = _groupStates.GetState(group);
+
+            if (state == null)
             {
-                if (isOn)
-                {
-                    onCount++;
-                }
-                else
-                {
-                    offCount++;
-                }
+                continue;
+            }
+
+            if (state.Value)
+            {
+                onCount++;
+            }
+            else
+            {
+                offCount++;
             }
         }
 
@@ -232,11 +236,13 @@ public sealed class PdfContentTreeBuilder
 
     private bool GetGroupVisibility(in PdfReference reference)
     {
-        if (_groupStates.TryGetValue(reference, out bool isOn))
+        bool? state = _groupStates.GetState(reference);
+
+        if (state == null)
         {
-            return isOn;
+            return true;
         }
 
-        return true;
+        return state.Value;
     }
 }

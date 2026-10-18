@@ -3,11 +3,11 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.WorkQueue;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -25,7 +25,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
     private readonly object _documentLocker;
     private readonly PdfImage? _pageThumbnail;
     private readonly PdfIntegerSize _maximumSize;
-    private readonly IReadOnlyDictionary<PdfReference, bool>? _optionalContentStates;
+    private readonly PdfOptionalContentStates? _optionalContentStates;
     private readonly IPdfCancellableExecutionObserver _observer;
     private readonly Action<PageThumbnailRenderedEventArgs> _onRendered;
 
@@ -38,7 +38,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
         object documentLocker,
         PdfImage? pageThumbnail,
         in PdfIntegerSize maximumSize,
-        IReadOnlyDictionary<PdfReference, bool>? optionalContentStates,
+        PdfOptionalContentStates? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
         Action<PageThumbnailRenderedEventArgs> onRendered)
     {

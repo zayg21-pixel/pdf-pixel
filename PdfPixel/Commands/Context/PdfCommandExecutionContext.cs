@@ -23,7 +23,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
         IPdfDocument document,
         PdfCommandExecutionParameters parameters,
         object contentLocker,
-        IReadOnlyDictionary<PdfReference, bool>? optionalContentStates,
+        PdfOptionalContentStates? optionalContentStates,
         IPdfExecutionObserver executionObserver,
         PdfRectangle? pageRegionOfInterest = null)
     {
@@ -36,7 +36,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
             PdfOptionalContentConfiguration? defaultConfiguration = document.OptionalContentProperties.DefaultConfiguration;
             if (defaultConfiguration == null)
             {
-                optionalContentStates = new Dictionary<PdfReference, bool>();
+                optionalContentStates = new PdfOptionalContentStates(new Dictionary<PdfReference, bool>());
             }
             else
             {
@@ -101,7 +101,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// <summary>
     /// ON/OFF state of the optional content groups content visibility is evaluated under, keyed by group reference.
     /// </summary>
-    public IReadOnlyDictionary<PdfReference, bool> OptionalContentStates { get; }
+    public PdfOptionalContentStates OptionalContentStates { get; }
 
     /// <inheritdoc />
     public void Dispose() => Cache.Dispose();

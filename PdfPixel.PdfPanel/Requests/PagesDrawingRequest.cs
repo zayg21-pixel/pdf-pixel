@@ -1,7 +1,6 @@
 using PdfPixel.Color;
-using PdfPixel.Models;
+using PdfPixel.OptionalContent.Model;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Requests;
 
@@ -53,7 +52,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     /// <summary>
     /// ON/OFF state of the optional content groups content is rendered with, or null for the document's default configuration.
     /// </summary>
-    public IReadOnlyDictionary<PdfReference, bool>? OptionalContentStates { get; set; }
+    public PdfOptionalContentStates? OptionalContentStates { get; set; }
 
     /// <summary>
     /// Returns whether the page with the given page number decoded for this request also satisfies <paramref name="other"/>:
@@ -73,7 +72,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
             && ActiveAnnotation == other.ActiveAnnotation
             && ActiveAnnotationState == other.ActiveAnnotationState
             && !other.ForceAnnotationUpdate
-            && AreOptionalContentStatesEqual(OptionalContentStates, other.OptionalContentStates);
+            && OptionalContentStates == other.OptionalContentStates;
     }
 
     /// <inheritdoc />
@@ -90,36 +89,10 @@ internal sealed class PagesDrawingRequest : DrawingRequest
                 && PageCornerRadius == other.PageCornerRadius
                 && ShowPageLoadingAnimation == other.ShowPageLoadingAnimation
                 && UseThumbnailsAsPlaceholders == other.UseThumbnailsAsPlaceholders
-                && AreOptionalContentStatesEqual(OptionalContentStates, other.OptionalContentStates);
+                && OptionalContentStates == other.OptionalContentStates;
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Returns whether two optional content state snapshots hold the same state for every group.
-    /// </summary>
-    public static bool AreOptionalContentStatesEqual(IReadOnlyDictionary<PdfReference, bool>? left, IReadOnlyDictionary<PdfReference, bool>? right)
-    {
-        if (left == null || right == null)
-        {
-            return left == right;
-        }
-
-        if (left.Count != right.Count)
-        {
-            return false;
-        }
-
-        foreach (KeyValuePair<PdfReference, bool> entry in left)
-        {
-            if (!right.TryGetValue(entry.Key, out bool isOn) || isOn != entry.Value)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /// <inheritdoc />

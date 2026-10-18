@@ -49,6 +49,7 @@ public sealed class PdfPanelContext : IDisposable
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
         _panelDocument = pages.PanelDocument;
         _contentProvider = pages.ContentProvider;
+        _contentProvider.ClearExtractedContent();
         _graphics = new PdfPanelGraphics(_panelDocument);
 
         Input = new PdfPanelInput();
@@ -232,7 +233,11 @@ public sealed class PdfPanelContext : IDisposable
         PagesDrawingRequest lookAheadRequest = BuildRequest(GetLookAheadPages(request.Pages).ToArray(), isLookAhead: true);
         Actions.ClearAnnotationUpdate();
 
-        _panelDocument.OptionalContentStates = request.OptionalContentStates;
+        if (_panelDocument.OptionalContentStates != request.OptionalContentStates)
+        {
+            _panelDocument.OptionalContentStates = request.OptionalContentStates;
+            _contentProvider.ClearExtractedContent();
+        }
 
         Renderer.Submit(request);
         Renderer.Submit(lookAheadRequest);
