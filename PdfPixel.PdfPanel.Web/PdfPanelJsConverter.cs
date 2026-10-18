@@ -6,6 +6,7 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Thumbnails;
 using System;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
@@ -44,6 +45,29 @@ internal static class PdfPanelJsConverter
         target.AllowPageContentHover = ReadBoolean(source, "allowPageContentHover", target.AllowPageContentHover);
         target.AllowImageSelection = ReadBoolean(source, "allowImageSelection", target.AllowImageSelection);
         target.ShowSearchHighlights = ReadBoolean(source, "showSearchHighlights", target.ShowSearchHighlights);
+        target.UsePageThumbnails = ReadBoolean(source, "usePageThumbnails", target.UsePageThumbnails);
+        target.RenderPageThumbnails = ReadBoolean(source, "renderPageThumbnails", target.RenderPageThumbnails);
+        target.ThumbnailMaximumCount = ReadInt32(source, "thumbnailMaximumCount", target.ThumbnailMaximumCount);
+        target.ThumbnailPreloadMode = ReadThumbnailPreloadMode(source, "thumbnailPreloadMode", target.ThumbnailPreloadMode);
+        target.UseThumbnailsAsPlaceholders = ReadBoolean(source, "useThumbnailsAsPlaceholders", target.UseThumbnailsAsPlaceholders);
+        target.Antialias = ReadBoolean(source, "antialias", target.Antialias);
+        target.SnapToDevicePixels = ReadBoolean(source, "snapToDevicePixels", target.SnapToDevicePixels);
+        target.TileSize = ReadInt32(source, "tileSize", target.TileSize);
+        target.AnimationFps = ReadInt32(source, "animationFps", target.AnimationFps);
+        target.ScrollContentUpdateDelay = ReadMilliseconds(source, "scrollContentUpdateDelay", target.ScrollContentUpdateDelay);
+        target.ZoomContentUpdateDelay = ReadMilliseconds(source, "zoomContentUpdateDelay", target.ZoomContentUpdateDelay);
+        target.TextCharacterHitRadius = ReadFloat(source, "textCharacterHitRadius", target.TextCharacterHitRadius);
+        target.TextLineMergeThreshold = ReadFloat(source, "textLineMergeThreshold", target.TextLineMergeThreshold);
+
+        using JSObject thumbnailRenderMaximumSize = source.GetPropertyAsJSObject("thumbnailRenderMaximumSize");
+
+        if (thumbnailRenderMaximumSize != null)
+        {
+            PdfIntegerSize size = target.ThumbnailRenderMaximumSize;
+            target.ThumbnailRenderMaximumSize = new PdfIntegerSize(
+                ReadInt32(thumbnailRenderMaximumSize, "width", size.Width),
+                ReadInt32(thumbnailRenderMaximumSize, "height", size.Height));
+        }
 
         using JSObject layoutPadding = source.GetPropertyAsJSObject("layoutPadding");
 
@@ -223,6 +247,28 @@ internal static class PdfPanelJsConverter
 
     private static float ReadFloat(JSObject source, string name, float currentValue)
         => source.HasProperty(name) ? (float)source.GetPropertyAsDouble(name) : currentValue;
+
+    private static int ReadInt32(JSObject source, string name, int currentValue)
+        => (source.HasProperty(name)) ? source.GetPropertyAsInt32(name) : currentValue;
+
+    private static TimeSpan ReadMilliseconds(JSObject source, string name, in TimeSpan currentValue)
+        => (source.HasProperty(name)) ? TimeSpan.FromMilliseconds(source.GetPropertyAsDouble(name)) : currentValue;
+
+    private static PdfPanelThumbnailPreloadMode ReadThumbnailPreloadMode(JSObject source, string name, PdfPanelThumbnailPreloadMode currentValue)
+    {
+        if (!source.HasProperty(name))
+        {
+            return currentValue;
+        }
+
+        return source.GetPropertyAsString(name) switch
+        {
+            "none" => PdfPanelThumbnailPreloadMode.None,
+            "visiblePages" => PdfPanelThumbnailPreloadMode.VisiblePages,
+            "nearestPages" => PdfPanelThumbnailPreloadMode.NearestPages,
+            _ => currentValue
+        };
+    }
 
     private static bool ReadBoolean(JSObject source, string name, bool currentValue)
         => source.HasProperty(name) ? source.GetPropertyAsBoolean(name) : currentValue;

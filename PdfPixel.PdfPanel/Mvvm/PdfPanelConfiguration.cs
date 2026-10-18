@@ -40,6 +40,17 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private bool _usePageThumbnails = PdfPanelThumbnails.DefaultUsePageThumbnails;
     private bool _renderPageThumbnails = PdfPanelThumbnails.DefaultRenderPages;
     private PdfIntegerSize _thumbnailRenderMaximumSize = PdfPanelThumbnails.DefaultRenderMaximumSize;
+    private int _thumbnailMaximumCount = PdfPanelThumbnails.DefaultMaximumCount;
+    private PdfPanelThumbnailPreloadMode _thumbnailPreloadMode = PdfPanelThumbnails.DefaultPreloadMode;
+    private bool _useThumbnailsAsPlaceholders = PdfPanelRenderer.DefaultUseThumbnailsAsPlaceholders;
+    private bool _antialias = PdfPanelRenderer.DefaultAntialias;
+    private bool _snapToDevicePixels = PdfPanelRenderer.DefaultSnapToDevicePixels;
+    private int _tileSize = PdfPanelRenderer.DefaultTileSize;
+    private int _animationFps = PdfPanelRenderer.DefaultAnimationFps;
+    private TimeSpan _scrollContentUpdateDelay = PdfPanelRenderer.DefaultScrollContentUpdateDelay;
+    private TimeSpan _zoomContentUpdateDelay = PdfPanelRenderer.DefaultZoomContentUpdateDelay;
+    private float _textCharacterHitRadius = PdfPanelText.DefaultCharacterHitRadius;
+    private float _textLineMergeThreshold = PdfPanelText.DefaultLineMergeThreshold;
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -266,6 +277,105 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Maximum number of page thumbnails kept, the ones nearest to the first visible page.
+    /// </summary>
+    public int ThumbnailMaximumCount
+    {
+        get => _thumbnailMaximumCount;
+        set => SetProperty(ref _thumbnailMaximumCount, value, nameof(ThumbnailMaximumCount));
+    }
+
+    /// <summary>
+    /// Pages whose thumbnails are produced without being requested.
+    /// </summary>
+    public PdfPanelThumbnailPreloadMode ThumbnailPreloadMode
+    {
+        get => _thumbnailPreloadMode;
+        set => SetProperty(ref _thumbnailPreloadMode, value, nameof(ThumbnailPreloadMode));
+    }
+
+    /// <summary>
+    /// Whether the thumbnail of a page that has no decoded content yet is drawn in place of the page.
+    /// </summary>
+    public bool UseThumbnailsAsPlaceholders
+    {
+        get => _useThumbnailsAsPlaceholders;
+        set => SetProperty(ref _useThumbnailsAsPlaceholders, value, nameof(UseThumbnailsAsPlaceholders));
+    }
+
+    /// <summary>
+    /// Whether page content is antialiased.
+    /// </summary>
+    public bool Antialias
+    {
+        get => _antialias;
+        set => SetProperty(ref _antialias, value, nameof(Antialias));
+    }
+
+    /// <summary>
+    /// Whether rectangles and image tiles are snapped to whole device pixels.
+    /// </summary>
+    public bool SnapToDevicePixels
+    {
+        get => _snapToDevicePixels;
+        set => SetProperty(ref _snapToDevicePixels, value, nameof(SnapToDevicePixels));
+    }
+
+    /// <summary>
+    /// Edge length of a single content tile, in device pixels.
+    /// </summary>
+    public int TileSize
+    {
+        get => _tileSize;
+        set => SetProperty(ref _tileSize, value, nameof(TileSize));
+    }
+
+    /// <summary>
+    /// Frames per second animations are driven at.
+    /// </summary>
+    public int AnimationFps
+    {
+        get => _animationFps;
+        set => SetProperty(ref _animationFps, value, nameof(AnimationFps));
+    }
+
+    /// <summary>
+    /// Time a scrolled view waits before page content decoding starts.
+    /// </summary>
+    public TimeSpan ScrollContentUpdateDelay
+    {
+        get => _scrollContentUpdateDelay;
+        set => SetProperty(ref _scrollContentUpdateDelay, value, nameof(ScrollContentUpdateDelay));
+    }
+
+    /// <summary>
+    /// Time a zoomed view waits before page content decoding starts.
+    /// </summary>
+    public TimeSpan ZoomContentUpdateDelay
+    {
+        get => _zoomContentUpdateDelay;
+        set => SetProperty(ref _zoomContentUpdateDelay, value, nameof(ZoomContentUpdateDelay));
+    }
+
+    /// <summary>
+    /// Distance from a character within which the pointer counts as being over it, in unscaled panel space.
+    /// </summary>
+    public float TextCharacterHitRadius
+    {
+        get => _textCharacterHitRadius;
+        set => SetProperty(ref _textCharacterHitRadius, value, nameof(TextCharacterHitRadius));
+    }
+
+    /// <summary>
+    /// Vertical distance between two characters, as a fraction of character height, within which they highlight as one strip.
+    /// </summary>
+    public float TextLineMergeThreshold
+    {
+        get => _textLineMergeThreshold;
+        set => SetProperty(ref _textLineMergeThreshold, value, nameof(TextLineMergeThreshold));
+    }
+
+    /// <summary>
     /// Sets the settings on <paramref name="context"/>.
     /// </summary>
     public void ApplyConfiguration(PdfPanelContext context)
@@ -299,6 +409,17 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Thumbnails.UsePageThumbnails = UsePageThumbnails;
         context.Thumbnails.RenderPages = RenderPageThumbnails;
         context.Thumbnails.RenderMaximumSize = ThumbnailRenderMaximumSize;
+        context.Thumbnails.MaximumCount = ThumbnailMaximumCount;
+        context.Thumbnails.PreloadMode = ThumbnailPreloadMode;
+        context.Renderer.UseThumbnailsAsPlaceholders = UseThumbnailsAsPlaceholders;
+        context.Renderer.Antialias = Antialias;
+        context.Renderer.SnapToDevicePixels = SnapToDevicePixels;
+        context.Renderer.TileSize = TileSize;
+        context.Renderer.AnimationFps = AnimationFps;
+        context.Renderer.ScrollContentUpdateDelay = ScrollContentUpdateDelay;
+        context.Renderer.ZoomContentUpdateDelay = ZoomContentUpdateDelay;
+        context.Text.CharacterHitRadius = TextCharacterHitRadius;
+        context.Text.LineMergeThreshold = TextLineMergeThreshold;
     }
 
     private void SetProperty<T>(ref T field, T value, string propertyName)

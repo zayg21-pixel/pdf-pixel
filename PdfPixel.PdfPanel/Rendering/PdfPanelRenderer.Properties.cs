@@ -8,8 +8,14 @@ public sealed partial class PdfPanelRenderer
     internal const float DefaultPageCornerRadius = 0f;
     internal const bool DefaultShowPageLoadingAnimation = true;
     internal const bool DefaultUseThumbnailsAsPlaceholders = false;
+    internal const bool DefaultAntialias = true;
+    internal const bool DefaultSnapToDevicePixels = true;
+    internal const int DefaultTileSize = 512;
+    internal const int DefaultAnimationFps = 60;
 
     internal static readonly PdfColor DefaultBackgroundColor = PdfColors.LightGray;
+    internal static readonly TimeSpan DefaultScrollContentUpdateDelay = TimeSpan.Zero;
+    internal static readonly TimeSpan DefaultZoomContentUpdateDelay = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
     /// Background color drawn behind the pages.
@@ -36,30 +42,30 @@ public sealed partial class PdfPanelRenderer
     /// <summary>
     /// If true - antialiasing is enabled for page content.
     /// </summary>
-    public bool Antialias { get; set; } = true;
+    public bool Antialias { get; set; } = DefaultAntialias;
 
     /// <summary>
     /// If true - rects and image tiles are snapped to whole device pixels.
     /// </summary>
-    public bool SnapToDevicePixels { get; set; } = true;
+    public bool SnapToDevicePixels { get; set; } = DefaultSnapToDevicePixels;
 
     /// <summary>
     /// Edge length of a single content tile in device pixels.
     /// </summary>
-    public int TileSize { get; set; } = 512;
+    public int TileSize { get; set; } = DefaultTileSize;
 
     /// <summary>
     /// Frames per second the renderer drives its animations at.
     /// </summary>
-    public int AnimationFps { get; set; } = 60;
+    public int AnimationFps { get; set; } = DefaultAnimationFps;
 
     /// <summary>
     /// Time a scrolled request waits before page content decoding starts.
     /// </summary>
-    public TimeSpan ScrollContentUpdateDelay { get; set; } = TimeSpan.Zero;
+    public TimeSpan ScrollContentUpdateDelay { get; set; } = DefaultScrollContentUpdateDelay;
 
     /// <summary>
     /// Time a zoomed request waits before page content decoding starts.
     /// </summary>
-    public TimeSpan ZoomContentUpdateDelay { get; set; } = TimeSpan.FromMilliseconds(200);
+    public TimeSpan ZoomContentUpdateDelay { get; set; } = DefaultZoomContentUpdateDelay;
 }

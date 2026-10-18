@@ -18,6 +18,9 @@ export interface PdfPixelSize {
 /** Automatic scaling mode of a panel. */
 export type PdfPixelAutoScaleMode = 'noAutoScale' | 'scaleToWidth' | 'scaleToHeight';
 
+/** Pages whose thumbnails are produced without being requested. */
+export type PdfPixelThumbnailPreloadMode = 'none' | 'visiblePages' | 'nearestPages';
+
 /** Fit type of a destination (ISO 32000 Table 149). */
 export type PdfPixelFitType = 'XYZ' | 'Fit' | 'FitH' | 'FitV' | 'FitR' | 'FitB' | 'FitBH' | 'FitBV';
 
@@ -55,6 +58,31 @@ export interface PdfPixelConfiguration {
     allowPageContentHover?: boolean;
     allowImageSelection?: boolean;
     showSearchHighlights?: boolean;
+    /** Use the page's embedded thumbnail image as its thumbnail when present. */
+    usePageThumbnails?: boolean;
+    /** Render pages without a used thumbnail image as their thumbnail. */
+    renderPageThumbnails?: boolean;
+    /** Size in pixels a rendered page thumbnail is fitted within, keeping its aspect ratio. */
+    thumbnailRenderMaximumSize?: Partial<PdfPixelSize>;
+    /** Maximum number of page thumbnails kept, the ones nearest to the first visible page. */
+    thumbnailMaximumCount?: number;
+    thumbnailPreloadMode?: PdfPixelThumbnailPreloadMode;
+    /** Draw the thumbnail of a page that has no decoded content yet in place of the page. */
+    useThumbnailsAsPlaceholders?: boolean;
+    antialias?: boolean;
+    /** Snap rectangles and image tiles to whole device pixels. */
+    snapToDevicePixels?: boolean;
+    /** Edge length of a single content tile, in device pixels. */
+    tileSize?: number;
+    animationFps?: number;
+    /** Time in milliseconds a scrolled view waits before page content decoding starts. */
+    scrollContentUpdateDelay?: number;
+    /** Time in milliseconds a zoomed view waits before page content decoding starts. */
+    zoomContentUpdateDelay?: number;
+    /** Distance from a character within which the pointer counts as being over it, in unscaled page space. */
+    textCharacterHitRadius?: number;
+    /** Vertical distance between two characters, as a fraction of character height, within which they highlight as one strip. */
+    textLineMergeThreshold?: number;
 }
 
 /** Result of a text search: a run of characters on a page. */
