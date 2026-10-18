@@ -60,7 +60,7 @@ internal partial struct PdfParser
         if (!sawDigit)
         {
             // Malformed number like '+' '-' '.' -> treat as 0.
-            return new PdfIntegerValue(0);
+            return PdfIntegerValue.Zero;
         }
 
         if (fractionalDigits == 0)
@@ -71,7 +71,7 @@ internal partial struct PdfParser
                 intValue = -intValue;
             }
 
-            return new PdfIntegerValue(intValue);
+            return PdfIntegerValue.FromInteger(intValue);
         }
 
         // Scale once using lookup (fallback to Math.Pow for lengths beyond precomputed span).

@@ -89,7 +89,7 @@ internal partial struct PdfParser
 
         if (!imageDictionary.HasKey(PdfTokens.BitsPerComponentKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
         {
-            imageDictionary.Set(PdfTokens.BitsPerComponentKey, new PdfIntegerValue(8));
+            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfIntegerValue.FromInteger(8));
         }
 
         if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
@@ -99,7 +99,7 @@ internal partial struct PdfParser
 
         if (imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
         {
-            imageDictionary.Set(PdfTokens.BitsPerComponentKey, new PdfIntegerValue(1));
+            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfIntegerValue.One);
         }
 
         return imageDictionary;
