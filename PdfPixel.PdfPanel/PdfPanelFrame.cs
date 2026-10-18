@@ -10,7 +10,7 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public sealed class PdfPanelFrame
 {
-    internal PdfPanelFrame(DrawingRequest request, in PdfMatrix hostToPanel, PdfPageContentProvider contentProvider)
+    internal PdfPanelFrame(DrawingRequest request, in PdfMatrix hostToPanel, PdfPanelDocument panelDocument)
     {
         HostToPanel = hostToPanel;
         PanelSize = request.PanelSize;
@@ -24,8 +24,8 @@ public sealed class PdfPanelFrame
             pages[pageIndex] = new PdfPanelFramePage(
                 page,
                 request.Scale,
-                contentProvider.GetRenderedContentInfo(page.PageNumber),
-                contentProvider.GetRenderedAnnotationsInfo(page.PageNumber));
+                panelDocument.GetRenderedContentInfo(page.PageNumber),
+                panelDocument.GetRenderedAnnotationsInfo(page.PageNumber));
         }
 
         Pages = pages;

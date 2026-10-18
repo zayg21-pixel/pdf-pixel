@@ -18,6 +18,7 @@ public sealed class PdfPanelThumbnails
 
     internal static readonly PdfIntegerSize DefaultRenderMaximumSize = new(400, 400);
 
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPageContentProvider _contentProvider;
     private readonly bool[] _requestedPages;
     private bool _usePageThumbnails = DefaultUsePageThumbnails;
@@ -26,10 +27,11 @@ public sealed class PdfPanelThumbnails
     private int _maximumCount = DefaultMaximumCount;
     private PdfPanelThumbnailPreloadMode _preloadMode = DefaultPreloadMode;
 
-    internal PdfPanelThumbnails(PdfPageContentProvider contentProvider)
+    internal PdfPanelThumbnails(PdfPanelDocument panelDocument, PdfPageContentProvider contentProvider)
     {
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        _requestedPages = new bool[contentProvider.GetPagesCount()];
+        _requestedPages = new bool[panelDocument.PageCount];
         _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
     }
 
@@ -146,7 +148,7 @@ public sealed class PdfPanelThumbnails
             return null;
         }
 
-        PdfIntegerSize renderSize = PdfPageThumbnailWorkItem.GetRenderSize(_contentProvider.GetPageInfo(pageNumber).CropBox, _renderMaximumSize);
+        PdfIntegerSize renderSize = PdfPageThumbnailWorkItem.GetRenderSize(_panelDocument.GetPageInfo(pageNumber).CropBox, _renderMaximumSize);
 
         return new PdfSize(renderSize.Width, renderSize.Height);
     }
@@ -155,7 +157,7 @@ public sealed class PdfPanelThumbnails
     /// Returns the thumbnail of a page as a PNG file, or <see langword="null"/> when it is not ready.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
-    public byte[]? GetPng(int pageNumber) => _contentProvider.GetThumbnail(pageNumber);
+    public byte[]? GetPng(int pageNumber) => _panelDocument.GetThumbnail(pageNumber);
 
     /// <summary>
     /// Starts producing the thumbnail of a page, unless it is ready, pending, or the page has none.
@@ -166,7 +168,7 @@ public sealed class PdfPanelThumbnails
     {
         int index = pageNumber - 1;
 
-        if (_requestedPages[index] || _contentProvider.GetThumbnail(pageNumber) != null)
+        if (_requestedPages[index] || _panelDocument.GetThumbnail(pageNumber) != null)
         {
             return;
         }
@@ -233,9 +235,9 @@ public sealed class PdfPanelThumbnails
             return null;
         }
 
-        lock (_contentProvider.DocumentLocker)
+        lock (_panelDocument.DocumentLocker)
         {
-            return _contentProvider.Document.Pages[pageNumber - 1].Thumbnail;
+            return _panelDocument.Document.Pages[pageNumber - 1].Thumbnail;
         }
     }
 

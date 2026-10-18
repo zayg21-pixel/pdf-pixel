@@ -8,6 +8,7 @@ using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
@@ -19,11 +20,17 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     private readonly object disposeLocker = new();
     private bool isDisposed;
 
-    internal PdfPanelPageCollection(PdfPageContentProvider contentProvider, IList<PdfPanelPage> pages)
+    internal PdfPanelPageCollection(PdfPanelDocument panelDocument, PdfPageContentProvider contentProvider, IList<PdfPanelPage> pages)
         : base(pages)
     {
+        PanelDocument = panelDocument;
         ContentProvider = contentProvider;
     }
+
+    /// <summary>
+    /// Document of the pages and the content produced for them.
+    /// </summary>
+    internal PdfPanelDocument PanelDocument { get; }
 
     /// <summary>
     /// Pages content provider that handles rendering of page content and annotation layers.
@@ -31,10 +38,15 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     internal PdfPageContentProvider ContentProvider { get; }
 
     /// <summary>
+    /// Document the pages are decoded from.
+    /// </summary>
+    public IPdfDocument Document => PanelDocument.Document;
+
+    /// <summary>
     /// Lock object serializing access to the document the pages are decoded from.
     /// Code reading the document while the pages are in use must lock on it.
     /// </summary>
-    public object DocumentLocker => ContentProvider.DocumentLocker;
+    public object DocumentLocker => PanelDocument.DocumentLocker;
 
     /// <summary>
     /// Returns the page if it exists.
@@ -75,9 +87,12 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// </summary>
     /// <param name="document">PDF document.</param>
     /// <param name="loggerFactory">Logger factory instance.</param>
+    /// <param name="synchronizationContext">
+    /// Synchronization context page content notifications are posted to, or <see langword="null"/> to raise them on the decoding thread.
+    /// </param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
-    public static PdfPanelPageCollection FromDocument(IPdfDocument document, ILoggerFactory loggerFactory)
-        => FromDocument(document, new SequentialWorkQueue(loggerFactory.CreateLogger<SequentialWorkQueue>()), new PdfNonYieldingObserverFactory());
+    public static PdfPanelPageCollection FromDocument(IPdfDocument document, ILoggerFactory loggerFactory, SynchronizationContext? synchronizationContext)
+        => FromDocument(document, new SequentialWorkQueue(loggerFactory.CreateLogger<SequentialWorkQueue>()), new PdfNonYieldingObserverFactory(), synchronizationContext);
 
     /// <summary>
     /// Generates <see cref="PdfPanelPageCollection"/> from PDF document.
@@ -85,21 +100,29 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <param name="document">PDF document.</param>
     /// <param name="processingQueue">Queue the page content is decoded on.</param>
     /// <param name="observerFactory">Factory of the execution observers the page content is decoded with.</param>
+    /// <param name="synchronizationContext">
+    /// Synchronization context page content notifications are posted to, or <see langword="null"/> to raise them on the decoding thread.
+    /// </param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
-    public static PdfPanelPageCollection FromDocument(IPdfDocument document, IWorkQueue processingQueue, IPdfExecutionObserverFactory observerFactory)
+    public static PdfPanelPageCollection FromDocument(
+        IPdfDocument document,
+        IWorkQueue processingQueue,
+        IPdfExecutionObserverFactory observerFactory,
+        SynchronizationContext? synchronizationContext)
     {
-        PdfPageContentProvider contentProvider = new(document, processingQueue, observerFactory);
+        PdfPanelDocument panelDocument = new(document, synchronizationContext);
+        PdfPageContentProvider contentProvider = new(panelDocument, processingQueue, observerFactory);
         List<PdfPanelPage> pages = [];
 
-        for (int i = 0; i < contentProvider.GetPagesCount(); i++)
+        for (int i = 0; i < panelDocument.PageCount; i++)
         {
             int pageNumber = i + 1;
-            PdfPanelPageInfo info = contentProvider.GetPageInfo(pageNumber);
-            PdfPanelPage page = new(info, pageNumber, contentProvider);
+            PdfPanelPageInfo info = panelDocument.GetPageInfo(pageNumber);
+            PdfPanelPage page = new(info, pageNumber, panelDocument);
             pages.Add(page);
         }
 
-        return new PdfPanelPageCollection(contentProvider, pages);
+        return new PdfPanelPageCollection(panelDocument, contentProvider, pages);
     }
 
     /// <summary>
@@ -117,6 +140,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
             isDisposed = true;
 
             ContentProvider.Dispose();
+            PanelDocument.Dispose();
         }
     }
 }

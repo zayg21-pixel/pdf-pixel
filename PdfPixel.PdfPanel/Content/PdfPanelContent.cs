@@ -20,7 +20,7 @@ public sealed class PdfPanelContent
 
     internal static readonly PdfColor DefaultSelectionBorderColor = new(0f, 0f, 0f, 1f);
 
-    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelInput _input;
     private readonly PdfPanelGraphics _graphics;
     private PdfPanelContentItem? _activeNamedContent;
@@ -30,15 +30,15 @@ public sealed class PdfPanelContent
     private float _drawnScale;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfPanelContent"/> with the given content provider and graphics,
+    /// Initializes a new <see cref="PdfPanelContent"/> with the given panel document and graphics,
     /// and subscribes it to the given input.
     /// </summary>
     internal PdfPanelContent(
-        PdfPageContentProvider contentProvider,
+        PdfPanelDocument panelDocument,
         PdfPanelInput input,
         PdfPanelGraphics graphics)
     {
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _input = input ?? throw new ArgumentNullException(nameof(input));
         _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
 
@@ -131,7 +131,7 @@ public sealed class PdfPanelContent
 
     private SKPicture CreateSelectionPicture(PdfPanelImageContentItem selection, float scale)
     {
-        PdfPanelPageInfo pageInfo = _contentProvider.GetPageInfo(selection.PageNumber);
+        PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(selection.PageNumber);
 
         using SKPictureRecorder recorder = new();
         SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
@@ -223,7 +223,7 @@ public sealed class PdfPanelContent
             return null;
         }
 
-        PdfPanelContentItem[]? contentItems = _contentProvider.GetContent(pagePoint.Value.PageNumber);
+        PdfPanelContentItem[]? contentItems = _panelDocument.GetContent(pagePoint.Value.PageNumber);
 
         if (contentItems == null)
         {
@@ -253,7 +253,7 @@ public sealed class PdfPanelContent
             return null;
         }
 
-        PdfPanelContentItem[]? contentItems = _contentProvider.GetContent(pagePoint.Value.PageNumber);
+        PdfPanelContentItem[]? contentItems = _panelDocument.GetContent(pagePoint.Value.PageNumber);
 
         if (contentItems == null)
         {

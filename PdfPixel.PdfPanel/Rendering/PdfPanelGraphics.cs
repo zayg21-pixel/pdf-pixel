@@ -10,15 +10,15 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// </summary>
 internal sealed class PdfPanelGraphics : IDisposable
 {
-    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly Dictionary<int, PdfPanelPageGraphics> _pages = [];
     private readonly List<int> _updatedPageNumbers = [];
 
     /// <summary>
-    /// Initializes empty graphics for the pages of <paramref name="contentProvider"/>.
+    /// Initializes empty graphics for the pages of <paramref name="panelDocument"/>.
     /// </summary>
-    internal PdfPanelGraphics(PdfPageContentProvider contentProvider)
-        => _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+    internal PdfPanelGraphics(PdfPanelDocument panelDocument)
+        => _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
 
     /// <summary>
     /// Replaces the picture of <paramref name="layer"/> on the given page. A <see langword="null"/> picture empties the layer.
@@ -54,7 +54,7 @@ internal sealed class PdfPanelGraphics : IDisposable
                 continue;
             }
 
-            PdfPanelPageInfo pageInfo = _contentProvider.GetPageInfo(page.Key);
+            PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(page.Key);
             page.Value.Compose(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
             _updatedPageNumbers.Add(page.Key);
         }

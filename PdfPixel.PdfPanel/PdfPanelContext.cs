@@ -14,7 +14,6 @@ using PdfPixel.PdfPanel.Thumbnails;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
@@ -29,7 +28,7 @@ public sealed class PdfPanelContext : IDisposable
     private const float ScaleTolerance = 0.001f;
 
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
-    private readonly SynchronizationContext? _synchronizationContext;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelGraphics _graphics;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
@@ -38,34 +37,34 @@ public sealed class PdfPanelContext : IDisposable
 
     /// <summary>
     /// Initializes the context with the given page collection, surface factory and render target factory.
-    /// Page and animation callbacks are posted to <paramref name="synchronizationContext"/>, or invoked on the calling thread when it is <see langword="null"/>.
+    /// Page and animation callbacks are posted to the synchronization context <paramref name="pages"/> were created with,
+    /// or invoked on the calling thread when they were created without one.
     /// </summary>
     public PdfPanelContext(
         PdfPanelPageCollection pages,
         ISkSurfaceFactory surfaceFactory,
-        IPdfPanelRenderTargetFactory renderTargetFactory,
-        SynchronizationContext? synchronizationContext)
+        IPdfPanelRenderTargetFactory renderTargetFactory)
     {
         Pages = pages ?? throw new ArgumentNullException(nameof(pages));
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
-        _synchronizationContext = synchronizationContext;
+        _panelDocument = pages.PanelDocument;
         _contentProvider = pages.ContentProvider;
-        _graphics = new PdfPanelGraphics(_contentProvider);
+        _graphics = new PdfPanelGraphics(_panelDocument);
 
         Input = new PdfPanelInput();
         Annotations = new PdfPanelAnnotations(pages, Input);
-        Text = new PdfPanelText(_contentProvider, Input, _graphics);
-        Search = new PdfPanelSearch(this, Text, _contentProvider, _graphics);
-        Content = new PdfPanelContent(_contentProvider, Input, _graphics);
-        Layers = new PdfPanelLayers(_contentProvider.Document);
-        Thumbnails = new PdfPanelThumbnails(_contentProvider);
-        Actions = new PdfPanelActions(this, _contentProvider.Document, Annotations, Layers);
-        Renderer = new PdfPanelRenderer(surfaceFactory, _contentProvider, _graphics, synchronizationContext);
-        _contentProvider.SetOptionalContentStates(Layers.Configuration?.ToStates());
+        Text = new PdfPanelText(_panelDocument, Input, _graphics);
+        Search = new PdfPanelSearch(this, Text, _panelDocument, _graphics);
+        Content = new PdfPanelContent(_panelDocument, Input, _graphics);
+        Layers = new PdfPanelLayers(_panelDocument.Document);
+        Thumbnails = new PdfPanelThumbnails(_panelDocument, _contentProvider);
+        Actions = new PdfPanelActions(this, _panelDocument.Document, Annotations, Layers);
+        Renderer = new PdfPanelRenderer(surfaceFactory, _panelDocument, _contentProvider, _graphics);
+        _panelDocument.OptionalContentStates = Layers.Configuration?.ToStates();
 
-        _contentProvider.PageTextExtracted += OnPageTextExtracted;
-        _contentProvider.PageThumbnailRendered += OnPageThumbnailRendered;
-        _contentProvider.ExtractedContentCleared += OnExtractedContentCleared;
+        _panelDocument.PageTextExtracted += OnPageTextExtracted;
+        _panelDocument.PageThumbnailRendered += OnPageThumbnailRendered;
+        _panelDocument.ExtractedContentCleared += OnExtractedContentCleared;
     }
 
     /// <summary>
@@ -233,7 +232,7 @@ public sealed class PdfPanelContext : IDisposable
         PagesDrawingRequest lookAheadRequest = BuildRequest(GetLookAheadPages(request.Pages).ToArray(), isLookAhead: true);
         Actions.ClearAnnotationUpdate();
 
-        _contentProvider.SetOptionalContentStates(request.OptionalContentStates);
+        _panelDocument.OptionalContentStates = request.OptionalContentStates;
 
         Renderer.Submit(request);
         Renderer.Submit(lookAheadRequest);
@@ -457,57 +456,23 @@ public sealed class PdfPanelContext : IDisposable
 
     private void OnPageTextExtracted(object? sender, PageTextExtractedEventArgs args)
     {
-        if (_synchronizationContext != null)
-        {
-            _synchronizationContext.Post(_ => OnPageTextExtractedSync(args.PageNumber), null);
-        }
-        else
-        {
-            OnPageTextExtractedSync(args.PageNumber);
-        }
-    }
-
-    private void OnPageTextExtractedSync(int pageNumber)
-    {
-        Text.OnPageTextExtracted(pageNumber);
-        Search.SearchPage(pageNumber);
+        Text.OnPageTextExtracted(args.PageNumber);
+        Search.SearchPage(args.PageNumber);
         Renderer.RedrawGraphics(_graphics.Update());
     }
 
-    private void OnPageThumbnailRendered(object? sender, PageThumbnailRenderedEventArgs args)
-    {
-        if (_synchronizationContext != null)
-        {
-            _synchronizationContext.Post(_ => Thumbnails.OnPageThumbnailRendered(args), null);
-        }
-        else
-        {
-            Thumbnails.OnPageThumbnailRendered(args);
-        }
-    }
+    private void OnPageThumbnailRendered(object? sender, PageThumbnailRenderedEventArgs args) => Thumbnails.OnPageThumbnailRendered(args);
 
     private void OnExtractedContentCleared(object? sender, ExtractedContentClearedEventArgs args)
     {
-        if (_synchronizationContext != null)
-        {
-            _synchronizationContext.Post(_ => OnExtractedContentClearedSync(args.ContentTypes), null);
-        }
-        else
-        {
-            OnExtractedContentClearedSync(args.ContentTypes);
-        }
-    }
-
-    private void OnExtractedContentClearedSync(CachedContentType contentTypes)
-    {
-        if ((contentTypes & CachedContentType.Words) != 0)
+        if ((args.ContentTypes & CachedContentType.Words) != 0)
         {
             Text.OnExtractedContentCleared();
             Search.OnExtractedContentCleared();
             Renderer.RedrawGraphics(_graphics.Update());
         }
 
-        if ((contentTypes & CachedContentType.Thumbnail) != 0)
+        if ((args.ContentTypes & CachedContentType.Thumbnail) != 0)
         {
             Thumbnails.OnExtractedContentCleared();
         }
@@ -519,9 +484,9 @@ public sealed class PdfPanelContext : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        _contentProvider.PageTextExtracted -= OnPageTextExtracted;
-        _contentProvider.PageThumbnailRendered -= OnPageThumbnailRendered;
-        _contentProvider.ExtractedContentCleared -= OnExtractedContentCleared;
+        _panelDocument.PageTextExtracted -= OnPageTextExtracted;
+        _panelDocument.PageThumbnailRendered -= OnPageThumbnailRendered;
+        _panelDocument.ExtractedContentCleared -= OnExtractedContentCleared;
 
         Annotations.Dispose();
         Text.Dispose();

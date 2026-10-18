@@ -3,7 +3,7 @@ using System;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Data for <see cref="PdfPageContentProvider.ExtractedContentCleared"/>.
+/// Data for <see cref="PdfPanelDocument.ExtractedContentCleared"/>.
 /// </summary>
 internal sealed class ExtractedContentClearedEventArgs : EventArgs
 {

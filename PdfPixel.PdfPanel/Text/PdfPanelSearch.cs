@@ -28,7 +28,7 @@ public sealed class PdfPanelSearch
 
     private readonly PdfPanelContext _context;
     private readonly PdfPanelText _text;
-    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelGraphics _graphics;
     private readonly SortedDictionary<int, List<PdfPanelSearchMatch>> _pageMatches = [];
     private readonly List<PdfPanelSearchMatch> _matches = [];
@@ -48,13 +48,13 @@ public sealed class PdfPanelSearch
     private bool _drawnShowHighlights = true;
 
     /// <summary>
-    /// Initializes the search of the text of <paramref name="text"/> across the pages of <paramref name="contentProvider"/>.
+    /// Initializes the search of the text of <paramref name="text"/> across the pages of <paramref name="panelDocument"/>.
     /// </summary>
-    internal PdfPanelSearch(PdfPanelContext context, PdfPanelText text, PdfPageContentProvider contentProvider, PdfPanelGraphics graphics)
+    internal PdfPanelSearch(PdfPanelContext context, PdfPanelText text, PdfPanelDocument panelDocument, PdfPanelGraphics graphics)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _text = text ?? throw new ArgumentNullException(nameof(text));
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
     }
 
@@ -253,7 +253,7 @@ public sealed class PdfPanelSearch
 
         _pageMatches.Clear();
 
-        int pageCount = _contentProvider.GetPagesCount();
+        int pageCount = _panelDocument.PageCount;
 
         for (int pageNumber = 1; pageNumber <= pageCount; pageNumber++)
         {
@@ -280,7 +280,7 @@ public sealed class PdfPanelSearch
             return null;
         }
 
-        PdfPanelPageInfo pageInfo = _contentProvider.GetPageInfo(pageNumber);
+        PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(pageNumber);
 
         using SKPictureRecorder recorder = new();
         SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
@@ -315,7 +315,7 @@ public sealed class PdfPanelSearch
             return false;
         }
 
-        PdfWord[]? words = _contentProvider.GetWords(pageNumber);
+        PdfWord[]? words = _panelDocument.GetWords(pageNumber);
 
         if (words == null)
         {

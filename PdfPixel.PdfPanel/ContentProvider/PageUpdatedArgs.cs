@@ -3,7 +3,7 @@ using PdfPixel.Geometry;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Arguments passed to <see cref="PdfPageContentProvider.OnPageUpdated"/> when a page's decoded content is ready.
+/// Data for <see cref="PdfPanelDocument.PageUpdated"/>, raised when a page's decoded content is ready.
 /// </summary>
 internal sealed class PageUpdatedArgs
 {

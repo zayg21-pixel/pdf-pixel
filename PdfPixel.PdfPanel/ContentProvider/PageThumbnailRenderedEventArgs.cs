@@ -4,7 +4,7 @@ using System;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Data for <see cref="PdfPageContentProvider.PageThumbnailRendered"/>.
+/// Data for <see cref="PdfPanelDocument.PageThumbnailRendered"/>.
 /// </summary>
 internal sealed class PageThumbnailRenderedEventArgs : EventArgs
 {

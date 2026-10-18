@@ -227,7 +227,7 @@ public partial class WpfPdfPanel : FrameworkElement
         DisposeContext();
         ClearSearchResults();
 
-        _context = new PdfPanelContext(Pages, _surfaceFactory, _renderTargetFactory, SynchronizationContext.Current);
+        _context = new PdfPanelContext(Pages, _surfaceFactory, _renderTargetFactory);
         _context.AutoScaleMode = AutoScaleMode;
         _context.Actions.ActionRequested += OnActionRequested;
         _context.Search.MatchesChanged += OnSearchMatchesChanged;

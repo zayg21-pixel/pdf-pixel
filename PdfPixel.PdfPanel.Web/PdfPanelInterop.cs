@@ -243,12 +243,13 @@ internal static partial class PdfPanelInterop
             resources.Pages = PdfPanelPageCollection.FromDocument(
                 resources.Document,
                 new SequentialWorkQueue(LoggerFactory.CreateLogger<SequentialWorkQueue>()),
-                new PdfYieldingObserverFactory(resources.YieldInterval));
+                new PdfYieldingObserverFactory(resources.YieldInterval),
+                SynchronizationContext.Current);
 
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
 
             DisposeContext(resources);
-            resources.Context = new PdfPanelContext(resources.Pages, resources.SkSurfaceFactory, resources.RenderTargetFactory, SynchronizationContext.Current);
+            resources.Context = new PdfPanelContext(resources.Pages, resources.SkSurfaceFactory, resources.RenderTargetFactory);
             resources.Configuration.ApplyConfiguration(resources.Context);
             resources.Context.Actions.ActionRequested += resources.OnActionRequested;
             resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;

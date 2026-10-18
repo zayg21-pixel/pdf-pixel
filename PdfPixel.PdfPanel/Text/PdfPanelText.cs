@@ -24,7 +24,7 @@ public sealed class PdfPanelText
 
     internal static readonly PdfColor DefaultSelectionColor = new(50f / 255f, 100f / 255f, 220f / 255f, 80f / 255f);
 
-    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelInput _input;
     private readonly PdfPanelGraphics _graphics;
     private readonly StringBuilder _textBuilder = new();
@@ -39,18 +39,18 @@ public sealed class PdfPanelText
     private bool _isPointerOverText;
 
     /// <summary>
-    /// Initializes a new <see cref="PdfPanelText"/> with the given content provider and graphics,
+    /// Initializes a new <see cref="PdfPanelText"/> with the given panel document and graphics,
     /// and subscribes it to the given input.
     /// </summary>
     internal PdfPanelText(
-        PdfPageContentProvider contentProvider,
+        PdfPanelDocument panelDocument,
         PdfPanelInput input,
         PdfPanelGraphics graphics)
     {
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _input = input ?? throw new ArgumentNullException(nameof(input));
         _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
-        _extractedPages = new bool[contentProvider.GetPagesCount()];
+        _extractedPages = new bool[panelDocument.PageCount];
 
         for (int pageNumber = 1; pageNumber <= _extractedPages.Length; pageNumber++)
         {
@@ -169,7 +169,7 @@ public sealed class PdfPanelText
     /// </summary>
     public PdfWord[]? GetWords(int pageNumber)
     {
-        PdfWord[]? words = _contentProvider.GetWords(pageNumber);
+        PdfWord[]? words = _panelDocument.GetWords(pageNumber);
 
         if (words == null || words.Length == 0)
         {
@@ -273,7 +273,7 @@ public sealed class PdfPanelText
 
     private void MarkExtracted(int pageNumber)
     {
-        if (_extractedPages[pageNumber - 1] || _contentProvider.GetWords(pageNumber) == null)
+        if (_extractedPages[pageNumber - 1] || _panelDocument.GetWords(pageNumber) == null)
         {
             return;
         }
@@ -340,7 +340,7 @@ public sealed class PdfPanelText
             return null;
         }
 
-        PdfPanelPageInfo pageInfo = _contentProvider.GetPageInfo(selection.PageNumber);
+        PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(selection.PageNumber);
 
         using SKPictureRecorder recorder = new();
         SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
@@ -491,7 +491,7 @@ public sealed class PdfPanelText
             return null;
         }
 
-        float? pageDistance = maxDistance / _contentProvider.GetPageInfo(pagePoint.Value.PageNumber).UserUnit;
+        float? pageDistance = maxDistance / _panelDocument.GetPageInfo(pagePoint.Value.PageNumber).UserUnit;
 
         return HitTestCharacterNearest(words, pagePoint.Value.Position, pageDistance);
     }

@@ -19,6 +19,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -303,7 +304,7 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
         _request = request;
         Title = GetTitle(document, request.FileName);
         SidePanel = DocumentSidePanel.None;
-        Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory);
+        Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory, SynchronizationContext.Current);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToHeight;
         OnPropertyChanged(nameof(HasDocument));
 

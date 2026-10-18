@@ -20,6 +20,7 @@ namespace PdfPixel.PdfPanel.Rendering;
 public sealed partial class PdfPanelRenderer : IDisposable
 {
     private readonly ISkSurfaceFactory _surfaceFactory;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelGraphics _graphics;
     private readonly SynchronizationContext? _synchronizationContext;
@@ -33,24 +34,26 @@ public sealed partial class PdfPanelRenderer : IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Initializes the renderer, registers the page-updated callback, and calls <see cref="ISkSurfaceFactory.Initialize"/>.
-    /// Page and animation callbacks are posted to <paramref name="synchronizationContext"/>, or invoked on the calling thread when it is <see langword="null"/>.
+    /// Initializes the renderer, subscribes to <see cref="PdfPanelDocument.PageUpdated"/>, and calls <see cref="ISkSurfaceFactory.Initialize"/>.
+    /// Animation and delayed content update callbacks are posted to the synchronization context of <paramref name="panelDocument"/>,
+    /// or invoked on the calling thread when it has none.
     /// </summary>
     internal PdfPanelRenderer(
         ISkSurfaceFactory surfaceFactory,
+        PdfPanelDocument panelDocument,
         PdfPageContentProvider contentProvider,
-        PdfPanelGraphics graphics,
-        SynchronizationContext? synchronizationContext)
+        PdfPanelGraphics graphics)
     {
         _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
         _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
-        _synchronizationContext = synchronizationContext;
+        _synchronizationContext = panelDocument.SynchronizationContext;
         _tiler = new PdfPageContentTiler(surfaceFactory, TileSize);
         _clock = new PdfAnimationClock(AnimationFps);
         _contentUpdateTimer = new Timer(OnContentUpdateDue, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-        _contentProvider.OnPageUpdated = OnPageUpdated;
+        _panelDocument.PageUpdated += OnPageUpdated;
         _surfaceFactory.Initialize();
     }
 
@@ -208,9 +211,9 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
         foreach (RequestPageInfo page in request.Pages)
         {
-            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+            PdfContentPictures pictures = _panelDocument.GetContentPictures(page.PageNumber);
 
-            if (!_contentProvider.NeedsContentUpdate(page.PageNumber, request))
+            if (!_panelDocument.NeedsContentUpdate(page.PageNumber, request))
             {
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
@@ -248,7 +251,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
         foreach (RequestPageInfo page in _lastRequest.Pages)
         {
-            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+            PdfContentPictures pictures = _panelDocument.GetContentPictures(page.PageNumber);
 
             if (!IsPageLoading(pictures, _lastRequest))
             {
@@ -276,7 +279,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         PagesDrawingRequest? request = _lastRequest;
         bool anyLoading = request != null
             && request.ShowPageLoadingAnimation
-            && request.Pages.Any(page => IsPageLoading(_contentProvider.GetExistingContentPictures(page.PageNumber), request));
+            && request.Pages.Any(page => IsPageLoading(_panelDocument.GetContentPictures(page.PageNumber), request));
 
         if (anyLoading)
         {
@@ -325,7 +328,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         {
             bool pageAppeared = !previousPages.Any(previousPage => previousPage.PageNumber == page.PageNumber);
 
-            if (pageAppeared || _contentProvider.NeedsAnnotationUpdate(page.PageNumber, request))
+            if (pageAppeared || _panelDocument.NeedsAnnotationUpdate(page.PageNumber, request))
             {
                 return true;
             }
@@ -395,19 +398,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         StartContentUpdate(includeLookAhead: true);
     }
 
-    private void OnPageUpdated(PageUpdatedArgs args)
-    {
-        if (_synchronizationContext != null)
-        {
-            _synchronizationContext.Post(_ => OnPageUpdatedSync(args), null);
-        }
-        else
-        {
-            OnPageUpdatedSync(args);
-        }
-    }
-
-    private void OnPageUpdatedSync(PageUpdatedArgs args)
+    private void OnPageUpdated(object? sender, PageUpdatedArgs args)
     {
         if (_disposed || _lastRequest == null || _lastRequest.RenderTarget == null)
         {
@@ -436,7 +427,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
             return;
         }
 
-        PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+        PdfContentPictures pictures = _panelDocument.GetContentPictures(page.PageNumber);
         PageDrawFlags flags = GetPageDrawFlags(PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, pictures, _lastRequest);
         surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, flags, default);
     }
@@ -453,11 +444,11 @@ public sealed partial class PdfPanelRenderer : IDisposable
             return;
         }
 
-        renderTarget.Render(surface, new PdfPanelFrame(request, renderTarget.HostToPanel, _contentProvider));
+        renderTarget.Render(surface, new PdfPanelFrame(request, renderTarget.HostToPanel, _panelDocument));
     }
 
     /// <summary>
-    /// Unregisters the page-updated callback and marks the renderer as disposed.
+    /// Unsubscribes from <see cref="PdfPanelDocument.PageUpdated"/> and marks the renderer as disposed.
     /// </summary>
     public void Dispose()
     {
@@ -472,6 +463,6 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
         _contentUpdateTimer.Dispose();
         _tiler.Dispose();
-        _contentProvider.OnPageUpdated = null;
+        _panelDocument.PageUpdated -= OnPageUpdated;
     }
 }

@@ -17,7 +17,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
 /// Work item that decodes a page's content and annotation pictures and stores them in <see cref="CacheEntry"/>.
-/// Invokes <see cref="PdfPageContentProvider.OnPageUpdated"/> when finished.
+/// Invokes the page-updated callback when finished.
 /// </summary>
 internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
 {

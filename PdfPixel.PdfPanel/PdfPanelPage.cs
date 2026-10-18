@@ -11,13 +11,13 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelPage
 {
-    private readonly PdfPageContentProvider _contentProvider;
+    private readonly PdfPanelDocument _panelDocument;
 
-    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, PdfPageContentProvider contentProvider)
+    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, PdfPanelDocument panelDocument)
     {
         Info = info;
         PageNumber = pageNumber;
-        _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ public class PdfPanelPage
     /// <summary>
     /// Collection of annotation popups for this page.
     /// </summary>
-    public PdfAnnotationPopup[] Popups => _contentProvider.GetAnnotationPopups(PageNumber);
+    public PdfAnnotationPopup[] Popups => _panelDocument.GetAnnotationPopups(PageNumber);
 
     /// <summary>
     /// Gets the offset of the page.

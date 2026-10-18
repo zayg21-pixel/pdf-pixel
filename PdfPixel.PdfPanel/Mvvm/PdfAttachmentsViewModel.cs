@@ -22,7 +22,7 @@ public sealed class PdfAttachmentsViewModel
             throw new ArgumentNullException(nameof(pages));
         }
 
-        IPdfDocument document = pages.ContentProvider.Document;
+        IPdfDocument document = pages.Document;
         List<PdfAttachmentViewModel> items = [];
         HashSet<PdfReference> documentReferences = [];
 

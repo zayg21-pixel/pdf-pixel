@@ -4,11 +4,8 @@ using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
-using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Requests;
-using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
@@ -19,17 +16,16 @@ using System.Threading;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Provides decoded page content and annotation pictures for rendering.
-/// Decodes page content and annotations through its work queue and notifies the UI via <see cref="OnPageUpdated"/>.
+/// Produces page content, words and thumbnails for the requests of a panel and stores them in its <see cref="PdfPanelDocument"/>.
+/// Decodes page content and annotations through its work queue; <see cref="PdfPanelDocument.PageUpdated"/> is raised when they are ready.
 /// </summary>
 internal sealed class PdfPageContentProvider : IDisposable
 {
     private static readonly PdfContentKind[] ExtractedContentKinds = [PdfContentKind.Path, PdfContentKind.Image, PdfContentKind.Shading, PdfContentKind.Form];
 
-    private readonly IPdfDocument _document;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly IWorkQueue _processingQueue;
     private readonly IPdfExecutionObserverFactory _observerFactory;
-    private readonly PdfPageCacheEntry[] _cache;
     private readonly HashSet<int> _visiblePageNumbers = [];
     private readonly HashSet<int> _lookAheadPageNumbers = [];
     private readonly List<int> _contentCachePageNumbers = [];
@@ -40,7 +36,6 @@ internal sealed class PdfPageContentProvider : IDisposable
     private readonly PdfTextExtractionProperties _textExtractionProperties = new();
     private readonly PdfContentExtractor _contentExtractor = new();
     private readonly PdfContentExtractionParameters _contentExtractionParameters = new() { ContentKinds = ExtractedContentKinds };
-    private volatile IReadOnlyDictionary<PdfReference, bool>? _optionalContentStates;
     private volatile bool _extractText;
     private volatile int _textExtractionStartPageNumber = 1;
     private int _textExtractionPending;
@@ -57,136 +52,15 @@ internal sealed class PdfPageContentProvider : IDisposable
     private int _thumbnailPending;
 
     /// <summary>
-    /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work
+    /// Initializes the provider for <paramref name="panelDocument"/>, using <paramref name="processingQueue"/> for background work
     /// and <paramref name="observerFactory"/> to create per-page cancellation observers.
     /// </summary>
-    public PdfPageContentProvider(IPdfDocument document, IWorkQueue processingQueue, IPdfExecutionObserverFactory observerFactory)
+    public PdfPageContentProvider(PdfPanelDocument panelDocument, IWorkQueue processingQueue, IPdfExecutionObserverFactory observerFactory)
     {
-        _document = document ?? throw new ArgumentNullException(nameof(document));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _observerFactory = observerFactory ?? throw new ArgumentNullException(nameof(observerFactory));
-        _cache = new PdfPageCacheEntry[document.Pages.Count];
-
-        for (int i = 0; i < document.Pages.Count; i++)
-        {
-            _cache[i] = new PdfPageCacheEntry(i + 1, PdfDocumentContentExtensions.GetPageInfo(_document, i + 1));
-        }
-
         _processingQueue = processingQueue;
-    }
-
-    /// <summary>
-    /// Raised from a work item when a page's characters have been extracted, by text extraction or by rendering.
-    /// </summary>
-    public event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
-
-    /// <summary>
-    /// Raised from a work item when the thumbnail request made with <see cref="RequestThumbnail"/> finished.
-    /// </summary>
-    public event EventHandler<PageThumbnailRenderedEventArgs>? PageThumbnailRendered;
-
-    /// <summary>
-    /// Raised from a work item when extracted content of every page was cleared.
-    /// </summary>
-    public event EventHandler<ExtractedContentClearedEventArgs>? ExtractedContentCleared;
-
-    /// <summary>
-    /// Synchronisation object used to serialise access to the underlying PDF document.
-    /// </summary>
-    public object DocumentLocker { get; } = new();
-
-    /// <summary>
-    /// Document the pages are decoded from.
-    /// </summary>
-    public IPdfDocument Document => _document;
-
-    /// <summary>
-    /// Called on the UI thread whenever a page's content or annotations have been decoded and are ready to render.
-    /// </summary>
-    public Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
-
-    /// <summary>
-    /// Returns the annotation popups for the specified 1-based page number.
-    /// </summary>
-    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _cache[pageNumber - 1].GetAnnotations(_document, DocumentLocker);
-
-    /// <summary>
-    /// Returns the total number of pages in the document.
-    /// </summary>
-    public int GetPagesCount() => _cache.Length;
-
-    /// <summary>
-    /// Returns the currently cached <see cref="PdfContentPictures"/> for the specified 1-based page number.
-    /// Returns empty pictures if the page has not been decoded yet.
-    /// </summary>
-    public PdfContentPictures GetExistingContentPictures(int pageNumber)
-    {
-        PdfPageCacheEntry cacheEntry = _cache[pageNumber - 1];
-
-        return cacheEntry.GetContentPictures();
-
-    }
-
-    /// <summary>
-    /// Returns the extracted words of the specified 1-based page number in reading order,
-    /// or <see langword="null"/> if they have not been extracted yet.
-    /// </summary>
-    public PdfWord[]? GetWords(int pageNumber)
-    {
-        using LockedContent<PdfWord[]> lockedWords = _cache[pageNumber - 1].Content.Words.GetContent();
-
-        return lockedWords.Content;
-    }
-
-    /// <summary>
-    /// Returns the thumbnail of the specified 1-based page number as a PNG file,
-    /// or <see langword="null"/> if it has not been produced yet.
-    /// </summary>
-    public byte[]? GetThumbnail(int pageNumber)
-    {
-        using LockedContent<byte[]> lockedThumbnail = _cache[pageNumber - 1].Thumbnail.GetContent();
-
-        return lockedThumbnail.Content;
-    }
-
-    /// <summary>
-    /// Returns the extracted content items of the specified 1-based page number in drawing order,
-    /// or <see langword="null"/> if they have not been extracted yet.
-    /// </summary>
-    public PdfPanelContentItem[]? GetContent(int pageNumber)
-    {
-        using LockedContent<PdfPanelContentItem[]> lockedContentItems = _cache[pageNumber - 1].Content.ContentItems.GetContent();
-
-        return lockedContentItems.Content;
-    }
-
-    /// <summary>
-    /// Returns the information about the rendered content of the specified 1-based page number,
-    /// or <see langword="null"/> if it has not been rendered yet.
-    /// </summary>
-    public PdfPanelRenderedLayerInfo? GetRenderedContentInfo(int pageNumber) => _cache[pageNumber - 1].Content.GetRenderedLayerInfo();
-
-    /// <summary>
-    /// Returns the information about the rendered annotations of the specified 1-based page number,
-    /// or <see langword="null"/> if they have not been rendered yet.
-    /// </summary>
-    public PdfPanelRenderedLayerInfo? GetRenderedAnnotationsInfo(int pageNumber) => _cache[pageNumber - 1].AnnotationContent.GetRenderedLayerInfo();
-
-    /// <summary>
-    /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the content
-    /// picture of the specified 1-based page number for <paramref name="request"/>.
-    /// </summary>
-    public bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _cache[pageNumber - 1].Content.NeedsPictureUpdate(request);
-
-    /// <summary>
-    /// Returns <see langword="true"/> when <see cref="UpdateContent"/> would regenerate the annotation
-    /// recording of the specified 1-based page number for <paramref name="request"/>.
-    /// </summary>
-    public bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request)
-    {
-        PdfPageCacheEntry cacheEntry = _cache[pageNumber - 1];
-
-        return cacheEntry.GetAnnotations(_document, DocumentLocker).Length > 0
-            && cacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(request);
+        _panelDocument.OptionalContentStatesChanged += OnOptionalContentStatesChanged;
     }
 
     /// <summary>
@@ -230,7 +104,7 @@ internal sealed class PdfPageContentProvider : IDisposable
         {
             foreach (int pageNumber in _lookAheadPageNumbers)
             {
-                EnqueueContentUpdate(_cache[pageNumber - 1], _lastLookAheadRequest);
+                EnqueueContentUpdate(_panelDocument.Entries[pageNumber - 1], _lastLookAheadRequest);
             }
         }
 
@@ -245,21 +119,6 @@ internal sealed class PdfPageContentProvider : IDisposable
             EnqueueNextThumbnail();
             EnqueueNextTextExtraction();
         }
-    }
-
-    /// <summary>
-    /// Sets the optional content states that words and thumbnails are produced with.
-    /// Clears all extracted content when the states changed.
-    /// </summary>
-    public void SetOptionalContentStates(IReadOnlyDictionary<PdfReference, bool>? optionalContentStates)
-    {
-        if (PagesDrawingRequest.AreOptionalContentStatesEqual(_optionalContentStates, optionalContentStates))
-        {
-            return;
-        }
-
-        _optionalContentStates = optionalContentStates;
-        ClearExtractedContent();
     }
 
     /// <summary>
@@ -308,13 +167,13 @@ internal sealed class PdfPageContentProvider : IDisposable
 
     /// <summary>
     /// Clears all extracted content of every page after the work already enqueued.
-    /// <see cref="ExtractedContentCleared"/> is raised when done.
+    /// <see cref="PdfPanelDocument.ExtractedContentCleared"/> is raised when done.
     /// </summary>
     public void ClearExtractedContent() => EnqueueClear(CachedContentType.Words | CachedContentType.Thumbnail);
 
     /// <summary>
     /// Adds the specified 1-based page number to the requested thumbnails and starts producing its thumbnail as set by
-    /// <see cref="SetThumbnailSettings"/>; <see cref="PageThumbnailRendered"/> is raised when it is produced.
+    /// <see cref="SetThumbnailSettings"/>; <see cref="PdfPanelDocument.PageThumbnailRendered"/> is raised when it is produced.
     /// Returns <see langword="false"/> when the page has no thumbnail.
     /// </summary>
     public bool RequestThumbnail(int pageNumber)
@@ -356,11 +215,6 @@ internal sealed class PdfPageContentProvider : IDisposable
     }
 
     /// <summary>
-    /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.
-    /// </summary>
-    public PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
-
-    /// <summary>
     /// Enqueues decoding of <paramref name="cacheEntry"/> for <paramref name="request"/> unless its pending decode pass covers the request.
     /// </summary>
     private void EnqueueContentUpdate(PdfPageCacheEntry cacheEntry, PagesDrawingRequest request)
@@ -375,15 +229,15 @@ internal sealed class PdfPageContentProvider : IDisposable
         cacheEntry.InitializeForRendering(_observerFactory, request);
         _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(
             cacheEntry,
-            _document,
-            DocumentLocker,
+            _panelDocument.Document,
+            _panelDocument.DocumentLocker,
             _textExtractor,
             _textExtractionProperties,
             _contentExtractor,
             _contentExtractionParameters,
             request,
-            OnPageUpdated,
-            OnPageTextExtracted));
+            _panelDocument.NotifyPageUpdated,
+            _panelDocument.NotifyPageTextExtracted));
     }
 
     /// <summary>
@@ -393,7 +247,7 @@ internal sealed class PdfPageContentProvider : IDisposable
     {
         foreach (RequestPageInfo page in request.Pages)
         {
-            EnqueueContentUpdate(_cache[page.PageNumber - 1], request);
+            EnqueueContentUpdate(_panelDocument.Entries[page.PageNumber - 1], request);
             _contentCachePageNumbers.Remove(page.PageNumber);
             _contentCachePageNumbers.Add(page.PageNumber);
         }
@@ -403,7 +257,7 @@ internal sealed class PdfPageContentProvider : IDisposable
     {
         foreach (int pageNumber in pageNumbers.ToList())
         {
-            _cache[pageNumber - 1].Cancel();
+            _panelDocument.Entries[pageNumber - 1].Cancel();
         }
     }
 
@@ -461,7 +315,7 @@ internal sealed class PdfPageContentProvider : IDisposable
                 continue;
             }
 
-            PdfPageCacheEntry evictedEntry = _cache[pageNumber - 1];
+            PdfPageCacheEntry evictedEntry = _panelDocument.Entries[pageNumber - 1];
             evictedEntry.Cancel();
             evictedEntries.Add(evictedEntry);
             _contentCachePageNumbers.RemoveAt(index);
@@ -469,7 +323,7 @@ internal sealed class PdfPageContentProvider : IDisposable
 
         if (evictedEntries.Count > 0)
         {
-            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(evictedEntries, DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
+            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(evictedEntries, _panelDocument.DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
         }
     }
 
@@ -492,17 +346,17 @@ internal sealed class PdfPageContentProvider : IDisposable
         _textExtractionObserver = observer;
         _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(
             nextEntry,
-            _document,
-            DocumentLocker,
+            _panelDocument.Document,
+            _panelDocument.DocumentLocker,
             _textExtractor,
             _textExtractionProperties,
-            _optionalContentStates,
+            _panelDocument.OptionalContentStates,
             observer,
             pageNumber => OnTextExtractionCompleted(pageNumber, observer)));
     }
 
     private void EnqueueClear(CachedContentType contentTypes)
-        => _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(_cache, DocumentLocker, contentTypes, OnExtractedContentCleared));
+        => _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(_panelDocument.Entries, _panelDocument.DocumentLocker, contentTypes, OnExtractedContentCleared));
 
     private void EnqueueNextThumbnail()
     {
@@ -532,11 +386,11 @@ internal sealed class PdfPageContentProvider : IDisposable
     {
         return new(
             cacheEntry,
-            _document,
-            DocumentLocker,
+            _panelDocument.Document,
+            _panelDocument.DocumentLocker,
             pageThumbnail,
             _thumbnailMaximumSize,
-            _optionalContentStates,
+            _panelDocument.OptionalContentStates,
             observer,
             onRendered);
     }
@@ -548,13 +402,11 @@ internal sealed class PdfPageContentProvider : IDisposable
             return null;
         }
 
-        lock (DocumentLocker)
+        lock (_panelDocument.DocumentLocker)
         {
-            return _document.Pages[pageNumber - 1].Thumbnail;
+            return _panelDocument.Document.Pages[pageNumber - 1].Thumbnail;
         }
     }
-
-    private void OnPageTextExtracted(int pageNumber) => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber));
 
     private void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args)
     {
@@ -571,7 +423,7 @@ internal sealed class PdfPageContentProvider : IDisposable
             _thumbnailRequests.Remove(args.PageNumber);
         }
 
-        PageThumbnailRendered?.Invoke(this, args);
+        _panelDocument.NotifyPageThumbnailRendered(args);
     }
 
     /// <summary>
@@ -581,7 +433,7 @@ internal sealed class PdfPageContentProvider : IDisposable
     {
         IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(pageNumber);
         _thumbnailRequests[pageNumber] = observer;
-        _processingQueue.Enqueue(CreateThumbnailWorkItem(_cache[pageNumber - 1], pageThumbnail, observer, OnPageThumbnailRendered));
+        _processingQueue.Enqueue(CreateThumbnailWorkItem(_panelDocument.Entries[pageNumber - 1], pageThumbnail, observer, OnPageThumbnailRendered));
     }
 
     /// <summary>
@@ -621,12 +473,13 @@ internal sealed class PdfPageContentProvider : IDisposable
     /// </summary>
     private void EnforceThumbnailLimit()
     {
+        IReadOnlyList<PdfPageCacheEntry> entries = _panelDocument.Entries;
         int centerIndex = _thumbnailCenterPageNumber - 1;
         List<int> storedIndexes = [];
 
-        for (int index = 0; index < _cache.Length; index++)
+        for (int index = 0; index < entries.Count; index++)
         {
-            if (_cache[index].Thumbnail.HasContent)
+            if (entries[index].Thumbnail.HasContent)
             {
                 storedIndexes.Add(index);
             }
@@ -641,22 +494,22 @@ internal sealed class PdfPageContentProvider : IDisposable
 
         foreach (int index in storedIndexes.OrderByDescending(storedIndex => Math.Abs(storedIndex - centerIndex)).Take(excessCount))
         {
-            _cache[index].Clear(CachedContentType.Thumbnail);
+            entries[index].Clear(CachedContentType.Thumbnail);
         }
     }
 
     private void OnExtractedContentCleared(CachedContentType contentTypes)
     {
-        ExtractedContentCleared?.Invoke(this, new ExtractedContentClearedEventArgs(contentTypes));
+        _panelDocument.NotifyExtractedContentCleared(contentTypes);
         EnqueueNextTextExtraction();
         EnqueueNextThumbnail();
     }
 
     private void OnTextExtractionCompleted(int pageNumber, IPdfCancellableExecutionObserver observer)
     {
-        if (_cache[pageNumber - 1].Content.Words.HasContent)
+        if (_panelDocument.Entries[pageNumber - 1].Content.Words.HasContent)
         {
-            OnPageTextExtracted(pageNumber);
+            _panelDocument.NotifyPageTextExtracted(pageNumber);
         }
 
         if (Interlocked.CompareExchange(ref _textExtractionObserver, null, observer) != observer)
@@ -670,11 +523,12 @@ internal sealed class PdfPageContentProvider : IDisposable
 
     private PdfPageCacheEntry? FindNextEntryWithoutWords()
     {
+        IReadOnlyList<PdfPageCacheEntry> entries = _panelDocument.Entries;
         int startIndex = _textExtractionStartPageNumber - 1;
 
-        for (int offset = 0; offset < _cache.Length; offset++)
+        for (int offset = 0; offset < entries.Count; offset++)
         {
-            PdfPageCacheEntry cacheEntry = _cache[(startIndex + offset) % _cache.Length];
+            PdfPageCacheEntry cacheEntry = entries[(startIndex + offset) % entries.Count];
 
             if (!cacheEntry.Content.Words.HasContent)
             {
@@ -699,13 +553,14 @@ internal sealed class PdfPageContentProvider : IDisposable
             return null;
         }
 
+        IReadOnlyList<PdfPageCacheEntry> entries = _panelDocument.Entries;
         int centerIndex = _thumbnailCenterPageNumber - 1;
         int storedCount = 0;
         int? farthestIndex = null;
 
-        for (int index = 0; index < _cache.Length; index++)
+        for (int index = 0; index < entries.Count; index++)
         {
-            if (!_cache[index].Thumbnail.HasContent)
+            if (!entries[index].Thumbnail.HasContent)
             {
                 continue;
             }
@@ -733,7 +588,7 @@ internal sealed class PdfPageContentProvider : IDisposable
             return null;
         }
 
-        for (int distance = 0; distance < _cache.Length; distance++)
+        for (int distance = 0; distance < entries.Count; distance++)
         {
             for (int direction = 0; direction < 2; direction++)
             {
@@ -744,7 +599,7 @@ internal sealed class PdfPageContentProvider : IDisposable
 
                 int index = (direction == 0) ? centerIndex + distance : centerIndex - distance;
 
-                if (index >= 0 && index < _cache.Length && NeedsThumbnail(index))
+                if (index >= 0 && index < entries.Count && NeedsThumbnail(index))
                 {
                     return SelectThumbnailEntry(index, centerIndex, storedCount, farthestIndex);
                 }
@@ -756,7 +611,7 @@ internal sealed class PdfPageContentProvider : IDisposable
 
     private bool NeedsThumbnail(int index)
     {
-        return !_cache[index].Thumbnail.HasContent
+        return !_panelDocument.Entries[index].Thumbnail.HasContent
             && (_renderPageThumbnails || GetPageThumbnail(index + 1) != null);
     }
 
@@ -768,28 +623,29 @@ internal sealed class PdfPageContentProvider : IDisposable
     {
         if (storedCount < _maximumThumbnailCount)
         {
-            return _cache[index];
+            return _panelDocument.Entries[index];
         }
 
         if (farthestIndex != null && Math.Abs(farthestIndex.Value - centerIndex) > Math.Abs(index - centerIndex))
         {
-            return _cache[index];
+            return _panelDocument.Entries[index];
         }
 
         return null;
     }
 
+    /// <summary>
+    /// Clears all extracted content, which was produced with the previous optional content states.
+    /// </summary>
+    private void OnOptionalContentStatesChanged(object? sender, EventArgs args) => ClearExtractedContent();
+
     /// <inheritdoc />
     public void Dispose()
     {
+        _panelDocument.OptionalContentStatesChanged -= OnOptionalContentStatesChanged;
         _extractText = false;
         _processingQueue.Dispose();
         _textExtractionObserver?.Dispose();
         _thumbnailChainObserver?.Dispose();
-
-        foreach (PdfPageCacheEntry cacheEntry in _cache)
-        {
-            cacheEntry.Dispose();
-        }
     }
 }
