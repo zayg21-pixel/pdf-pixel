@@ -38,8 +38,8 @@ internal ref partial struct PdfParser
     private readonly BufferedStream? _stream;
     private readonly bool _streamMode;
     private readonly IPdfDocumentInternal _document;
-    private readonly PdfParserMode _mode;
     private readonly int _length;
+    private readonly bool _useOperators;
     private readonly bool _allowReferences;
     private readonly bool _decrypt;
 
@@ -47,24 +47,24 @@ internal ref partial struct PdfParser
     private PdfParseContext _parseContext;
     private PdfReference? _currentReference;
 
-    public PdfParser(PdfParseContext parseContext, IPdfDocumentInternal document, PdfParserMode mode, bool allowReferences, bool decrypt)
+    public PdfParser(PdfParseContext parseContext, IPdfDocumentInternal document, PdfParserMode mode)
     {
         _parseContext = parseContext;
         _document = document;
-        _mode = mode;
-        _allowReferences = allowReferences;
-        _decrypt = decrypt;
+        _useOperators = mode == PdfParserMode.ContentStream;
+        _allowReferences = mode != PdfParserMode.ContentStream;
+        _decrypt = mode == PdfParserMode.IndirectObject;
         _length = parseContext.Length;
     }
 
-    public PdfParser(BufferedStream bufferedStream, IPdfDocumentInternal document, PdfParserMode mode, bool allowReferences, bool decrypt)
+    public PdfParser(BufferedStream bufferedStream, IPdfDocumentInternal document, PdfParserMode mode)
     {
         _stream = bufferedStream;
         _length = (int)bufferedStream.Length;
         _document = document;
-        _mode = mode;
-        _allowReferences = allowReferences;
-        _decrypt = decrypt;
+        _useOperators = mode == PdfParserMode.ContentStream;
+        _allowReferences = mode != PdfParserMode.ContentStream;
+        _decrypt = mode == PdfParserMode.IndirectObject;
         _streamMode = true;
     }
 

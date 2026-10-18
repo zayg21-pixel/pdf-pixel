@@ -1,17 +1,32 @@
 namespace PdfPixel.Parsing;
 
 /// <summary>
-/// Specifies the kind of data a <see cref="PdfParser"/> reads.
+/// Specifies what a <see cref="PdfParser"/> reads.
 /// </summary>
 internal enum PdfParserMode
 {
     /// <summary>
-    /// Content stream: bare tokens are read as operators.
+    /// Content stream: bare tokens are operators; no references, no decryption.
     /// </summary>
     ContentStream,
 
     /// <summary>
-    /// File structure: bare tokens are read as keywords.
+    /// Indirect object of the file body: bare tokens are keywords; references, decrypted strings and streams.
     /// </summary>
-    FileStructure
+    IndirectObject,
+
+    /// <summary>
+    /// Object stream contents: bare tokens are keywords; references, no decryption.
+    /// </summary>
+    ObjectStream,
+
+    /// <summary>
+    /// Cross-reference table, stream and trailer: bare tokens are keywords; references, no decryption.
+    /// </summary>
+    CrossReference,
+
+    /// <summary>
+    /// Recovery scan of the file body: bare tokens are keywords; references, no decryption.
+    /// </summary>
+    Recovery
 }

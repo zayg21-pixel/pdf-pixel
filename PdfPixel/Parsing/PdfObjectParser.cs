@@ -60,7 +60,7 @@ internal class PdfObjectParser
         }
 
         // Use unified PdfParser.ReadObject for indirect object parsing (handles header + value + optional stream).
-        PdfParser parser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: true);
+        PdfParser parser = new(_document.Stream, _document, PdfParserMode.IndirectObject);
         parser.Position = (int)info.Offset.Value;
 
         PdfObject? parsedObject = parser.ReadObject();

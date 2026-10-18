@@ -94,7 +94,7 @@ internal class PdfObjectStreamParser
         ReadOnlyMemory<byte> slice = container.Decoded.Slice(objectStart, length);
         PdfParseContext context = new(slice);
         // Use new PdfParser struct for value parsing (handles whitespace/comments internally).
-        PdfParser parser = new(context, _pdfDocument, PdfParserMode.FileStructure, allowReferences: true, decrypt: true);
+        PdfParser parser = new(context, _pdfDocument, PdfParserMode.ObjectStream);
         PdfValue? value = parser.ReadNextValue();
         if (value == null)
         {
@@ -136,7 +136,7 @@ internal class PdfObjectStreamParser
         ReadOnlyMemory<byte> headerMemory = decoded.Slice(0, firstOffset);
         PdfParseContext headerContext = new(headerMemory);
         // Unified parsing via PdfParser for header: sequence of objectNumber relativeOffset pairs.
-        PdfParser headerParser = new(headerContext, _pdfDocument, PdfParserMode.FileStructure, allowReferences: false, decrypt: false);
+        PdfParser headerParser = new(headerContext, _pdfDocument, PdfParserMode.ObjectStream);
 
         var relativeOffsets = new int[objectCount];
         int parsedCount = 0;

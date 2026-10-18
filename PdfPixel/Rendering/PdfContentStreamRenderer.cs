@@ -89,7 +89,7 @@ internal class PdfContentStreamRenderer
         PdfOperandStack operandStack = new();
         PdfPathBuilder currentPath = new();
         PdfOperatorProcessor operatorProcessor = new(_renderer, _host, processor, operandStack, graphicsStack, currentPath);
-        PdfParser parser = new(parseContext, _host.Document, PdfParserMode.ContentStream, allowReferences: false, decrypt: false);
+        PdfParser parser = new(parseContext, _host.Document, PdfParserMode.ContentStream);
         PdfValue? value;
 
         while ((value = parser.ReadNextValue(operandStack)) != null)

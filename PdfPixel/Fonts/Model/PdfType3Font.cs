@@ -182,7 +182,7 @@ public class PdfType3Font : PdfSingleByteFont
 
     private (PdfSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
-        PdfParser parser = new(parseContext, Document, PdfParserMode.ContentStream, allowReferences: false, decrypt: false);
+        PdfParser parser = new(parseContext, Document, PdfParserMode.ContentStream);
         PdfValue? value;
         PdfOperandStack operandStack = new();
 

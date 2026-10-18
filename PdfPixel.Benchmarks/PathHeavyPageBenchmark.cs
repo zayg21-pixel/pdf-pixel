@@ -116,7 +116,7 @@ namespace Benchmarks
 
         private int ParseContext(PdfParseContext parseContext)
         {
-            PdfParser parser = new(parseContext, (IPdfDocumentInternal)_document, PdfParserMode.ContentStream, allowReferences: false, decrypt: false);
+            PdfParser parser = new(parseContext, (IPdfDocumentInternal)_document, PdfParserMode.ContentStream);
             PdfOperandStack operandStack = new();
             int operatorCount = 0;
             PdfValue value;

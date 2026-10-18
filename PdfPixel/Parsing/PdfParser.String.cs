@@ -241,7 +241,7 @@ internal partial struct PdfParser
             }
         }
 
-        if (_mode == PdfParserMode.ContentStream)
+        if (_useOperators)
         {
             PdfOperator contentOperator = (length <= MaxOperatorLength) ? (PdfOperator)packedToken : PdfOperator.Unknown;
             return PdfOperatorValue.FromOperator(contentOperator);

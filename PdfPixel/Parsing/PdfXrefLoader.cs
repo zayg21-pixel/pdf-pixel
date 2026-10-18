@@ -63,7 +63,7 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        PdfParser parser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: false);
+        PdfParser parser = new(_document.Stream, _document, PdfParserMode.CrossReference);
         HashSet<int> visitedOffsets = [xrefOffset];
 
         // Classic table path.
@@ -95,7 +95,7 @@ internal sealed class PdfXrefLoader
                     }
                     else
                     {
-                        PdfParser streamParser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: false);
+                        PdfParser streamParser = new(_document.Stream, _document, PdfParserMode.CrossReference);
                         streamParser.Position = offsetValue;
                         trailer = ParseXrefStream(ref streamParser);
                     }
@@ -318,7 +318,7 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        PdfParser streamParser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: false);
+        PdfParser streamParser = new(_document.Stream, _document, PdfParserMode.CrossReference);
         streamParser.Position = streamOffset;
 
         PdfObject? crossReferenceStream = streamParser.ReadObject();
@@ -510,7 +510,7 @@ internal sealed class PdfXrefLoader
 
     private int ParseStartXrefOffset(long startxrefPos)
     {
-        PdfParser parser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: false, decrypt: false);
+        PdfParser parser = new(_document.Stream, _document, PdfParserMode.CrossReference);
         parser.Position = (int)startxrefPos + PdfByteScanner.Startxref.Length;
 
         // -1 marks a missing or non-numeric startxref offset.
