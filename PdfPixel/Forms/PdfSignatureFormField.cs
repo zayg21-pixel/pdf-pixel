@@ -23,5 +23,5 @@ public class PdfSignatureFormField : PdfFormField
     /// <summary>
     /// Gets a value indicating whether this signature field is signed.
     /// </summary>
-    public bool IsSigned => Value != null && Value.Type == PdfValueType.Dictionary;
+    public bool IsSigned => Value is PdfDictionaryValue;
 }

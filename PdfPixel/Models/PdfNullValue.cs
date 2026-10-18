@@ -3,15 +3,16 @@ namespace PdfPixel.Models;
 /// <summary>
 /// Represents a PDF null value.
 /// </summary>
-public class NullValue : IPdfValue
+public sealed class PdfNullValue : PdfValue
 {
     /// <summary>
-    /// Singleton instance of <see cref="NullValue"/>.
+    /// Singleton instance of <see cref="PdfNullValue"/>.
     /// </summary>
-    public static readonly NullValue Instance = new();
+    public static readonly PdfNullValue Instance = new();
 
-    /// <inheritdoc/>
-    public PdfValueType Type => PdfValueType.Null;
+    private PdfNullValue()
+    {
+    }
 
     /// <summary>
     /// Returns the string representation of the null value.

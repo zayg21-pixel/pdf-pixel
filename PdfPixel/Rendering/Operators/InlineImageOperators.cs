@@ -58,7 +58,7 @@ internal class InlineImageOperators : IOperatorProcessor
 
     private void ProcessEndInlineImage(ref PdfGraphicsState graphicsState)
     {
-        IPdfValue value = _operandStack.Pop();
+        PdfValue value = _operandStack.Pop();
         _operandStack.Clear();
 
         if (!graphicsState.RenderingParameters.ProcessImages

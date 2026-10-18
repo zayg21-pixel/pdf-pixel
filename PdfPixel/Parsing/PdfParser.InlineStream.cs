@@ -12,7 +12,7 @@ namespace PdfPixel.Parsing;
 internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue? ReadInlineStream(PdfOperandStack? operandStack)
+    private PdfInlineImageValue? ReadInlineStream(PdfOperandStack? operandStack)
     {
         // Skip single whitespace after ID per PDF spec.
         int beginPosition = Position;
@@ -51,9 +51,9 @@ internal partial struct PdfParser
             return null;
         }
 
-        PdfObject inlineObject = new(_document, PdfValueFactory.Dictionary(imageDictionary), new PdfString([.. _localBuffer]).Value);
+        PdfObject inlineObject = new(_document, new PdfDictionaryValue(imageDictionary), new PdfString([.. _localBuffer]).Value);
 
-        return PdfValueFactory.InlineImage(inlineObject);
+        return new PdfInlineImageValue(inlineObject);
     }
 
     /// <summary>
@@ -64,15 +64,15 @@ internal partial struct PdfParser
     private PdfDictionary BuildImageDictionary(PdfOperandStack? operandStack)
     {
         PdfDictionary imageDictionary = new(_document);
-        imageDictionary.Set(PdfTokens.SubtypeKey, PdfValueFactory.Name(PdfTokens.ImageSubtype));
+        imageDictionary.Set(PdfTokens.SubtypeKey, new PdfNameValue(PdfTokens.ImageSubtype));
 
         if (operandStack != null && operandStack.Count > 0)
         {
-            ReadOnlySpan<IPdfValue> parameters = operandStack.Pop(operandStack.Count);
+            ReadOnlySpan<PdfValue> parameters = operandStack.Pop(operandStack.Count);
 
             for (int parameterIndex = 0; parameterIndex + 1 < parameters.Length; parameterIndex += 2)
             {
-                IPdfValue keyValue = parameters[parameterIndex];
+                PdfValue keyValue = parameters[parameterIndex];
                 PdfString? rawKey = keyValue.AsName();
                 if (rawKey == null)
                 {
@@ -89,17 +89,17 @@ internal partial struct PdfParser
 
         if (!imageDictionary.HasKey(PdfTokens.BitsPerComponentKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
         {
-            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValueFactory.Integer(8));
+            imageDictionary.Set(PdfTokens.BitsPerComponentKey, new PdfIntegerValue(8));
         }
 
         if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
         {
-            imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValueFactory.Name(PdfColorSpaceType.DeviceGray.AsPdfString()));
+            imageDictionary.Set(PdfTokens.ColorSpaceKey, new PdfNameValue(PdfColorSpaceType.DeviceGray.AsPdfString()));
         }
 
         if (imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
         {
-            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValueFactory.Integer(1));
+            imageDictionary.Set(PdfTokens.BitsPerComponentKey, new PdfIntegerValue(1));
         }
 
         return imageDictionary;
@@ -344,7 +344,7 @@ internal partial struct PdfParser
         return (totalBytes > 0 && totalBytes <= int.MaxValue) ? (int)totalBytes : null;
     }
 
-    private static int? ResolveInlineComponentCount(IPdfValue? colorSpaceValue)
+    private static int? ResolveInlineComponentCount(PdfValue? colorSpaceValue)
     {
         PdfString? colorSpaceName = colorSpaceValue.AsName();
         if (colorSpaceName == null)

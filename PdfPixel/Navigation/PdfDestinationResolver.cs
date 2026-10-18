@@ -195,7 +195,7 @@ public sealed class PdfDestinationResolver
         return destination;
     }
 
-    private PdfDestination? ParseValue(IPdfValue? value)
+    private PdfDestination? ParseValue(PdfValue? value)
     {
         PdfArray? destinationArray = value.AsArray();
         if (destinationArray != null)

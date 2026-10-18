@@ -182,23 +182,21 @@ public class PdfType3Font : PdfSingleByteFont
 
     private (PdfSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
-        PdfParser parser = new(parseContext, Document, allowReferences: false, decrypt: false);
-        IPdfValue? value;
+        PdfParser parser = new(parseContext, Document, PdfParserMode.ContentStream, allowReferences: false, decrypt: false);
+        PdfValue? value;
         PdfOperandStack operandStack = new();
 
         PdfSize type3Advancement = new(0, 0);
         PdfRectangle? type3BoundingBox = null;
         while ((value = parser.ReadNextValue()) != null)
         {
-            PdfString? operatorName = (value.Type == PdfValueType.Operator) ? value.AsString() : null;
-
-            if (operatorName != null)
+            if (value is PdfOperatorValue operatorValue)
             {
-                switch (operatorName.Value.AsOperator())
+                switch (operatorValue.Value.AsOperator())
                 {
                     case PdfOperator.GlyphWidth:
                     {
-                            ReadOnlySpan<IPdfValue> operands = operandStack.Pop(6);
+                            ReadOnlySpan<PdfValue> operands = operandStack.Pop(6);
 
                         if (operands.Length < 2)
                         {
@@ -218,7 +216,7 @@ public class PdfType3Font : PdfSingleByteFont
                     }
                     case PdfOperator.GlyphWidthAndBoundingBox:
                     {
-                            ReadOnlySpan<IPdfValue> operands = operandStack.Pop(6);
+                            ReadOnlySpan<PdfValue> operands = operandStack.Pop(6);
 
                         if (operands.Length < 6)
                         {

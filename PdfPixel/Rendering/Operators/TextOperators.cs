@@ -154,7 +154,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetFont(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -174,7 +174,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetCharacterSpacing(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -192,7 +192,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetWordSpacing(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -210,7 +210,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetHorizontalScaling(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -228,7 +228,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextLeading(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -246,7 +246,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRise(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -264,7 +264,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRenderingMode(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -289,7 +289,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessMoveTextPosition(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -311,7 +311,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessMoveTextPositionAndSetLeading(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -334,7 +334,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowText(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -352,7 +352,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowTextWithPositioning(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -371,7 +371,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextMatrix(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(6);
         if (operands.Length < 6)
         {
             return;
@@ -386,7 +386,7 @@ internal class TextOperators : IOperatorProcessor
     {
         ProcessNextLine(graphicsState);
 
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(3);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(3);
         if (operands.Length < 3)
         {
             return;

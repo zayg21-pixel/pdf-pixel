@@ -69,7 +69,7 @@ internal sealed partial class PdfColorSpaceResolver
     ///3) Null (default device fallback).
     /// Results are cached by indirect reference (document-level) when applicable.
     /// </summary>
-    public PdfColorSpaceConverter? ResolveByValue(IPdfValue? value, int defaultComponents = 3)
+    public PdfColorSpaceConverter? ResolveByValue(PdfValue? value, int defaultComponents = 3)
     {
         if (value == null)
         {
@@ -129,7 +129,7 @@ internal sealed partial class PdfColorSpaceResolver
         return PdfDeviceRgbColorSpaceConverter.Instance;
     }
 
-    private PdfColorSpaceConverter ResolveByNameAndValue(in PdfString name, IPdfValue originalValue)
+    private PdfColorSpaceConverter ResolveByNameAndValue(in PdfString name, PdfValue originalValue)
     {
         if (name.IsEmpty)
         {
@@ -195,7 +195,7 @@ internal sealed partial class PdfColorSpaceResolver
         }
     }
 
-    private bool TryGetColorSpaceName(IPdfValue value, out PdfString name)
+    private bool TryGetColorSpaceName(PdfValue value, out PdfString name)
     {
         if (value == null)
         {
@@ -210,7 +210,7 @@ internal sealed partial class PdfColorSpaceResolver
             return true;
         }
 
-        if (value.Type == PdfValueType.Array)
+        if (value is PdfArrayValue)
         {
             PdfArray? arr = value.AsArray();
             PdfString? firstName = (arr?.Count > 0) ? arr.GetName(0) : null;

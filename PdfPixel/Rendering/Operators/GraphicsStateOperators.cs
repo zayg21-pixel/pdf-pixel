@@ -110,7 +110,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetRenderingIntent(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -144,7 +144,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessConcatenateMatrix(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(6);
         if (operands.Length < 6)
         {
             return;
@@ -159,7 +159,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineWidth(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -178,7 +178,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineCap(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -205,7 +205,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineJoin(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -232,7 +232,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetMiterLimit(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -251,7 +251,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetDashPattern(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -275,7 +275,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetGraphicsStateParameters(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -292,7 +292,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;

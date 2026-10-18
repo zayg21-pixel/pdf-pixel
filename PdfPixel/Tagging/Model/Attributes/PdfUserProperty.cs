@@ -7,7 +7,7 @@ namespace PdfPixel.Tagging.Model.Attributes;
 /// </summary>
 public sealed class PdfUserProperty
 {
-    internal PdfUserProperty(in PdfString name, IPdfValue value, PdfString? formattedValue, bool? hidden)
+    internal PdfUserProperty(in PdfString name, PdfValue value, PdfString? formattedValue, bool? hidden)
     {
         Name = name;
         Value = value;
@@ -23,7 +23,7 @@ public sealed class PdfUserProperty
     /// <summary>
     /// Value of the property (V), of any type.
     /// </summary>
-    public IPdfValue Value { get; }
+    public PdfValue Value { get; }
 
     /// <summary>
     /// Formatted representation of <see cref="Value"/> (F), or <see langword="null"/> when absent.

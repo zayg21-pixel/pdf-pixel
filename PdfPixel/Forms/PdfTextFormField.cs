@@ -87,7 +87,7 @@ public class PdfTextFormField : PdfFormField
     /// <returns>The field's text value, or an empty string if not set.</returns>
     public string GetTextValue()
     {
-        PdfString? textValue = (Value?.Type == PdfValueType.String) ? Value.AsString() : null;
+        PdfString? textValue = (Value is PdfStringValue) ? Value.AsString() : null;
 
         if (textValue == null)
         {

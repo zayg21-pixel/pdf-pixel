@@ -84,14 +84,14 @@ public class PdfChoiceFormField : PdfFormField
 
         for (int i = 0; i < Options.Count; i++)
         {
-            IPdfValue? option = Options.GetValue(i);
-            PdfString? optionText = (option?.Type == PdfValueType.String) ? option.AsString() : null;
+            PdfValue? option = Options.GetValue(i);
+            PdfString? optionText = (option is PdfStringValue) ? option.AsString() : null;
 
             if (optionText != null)
             {
                 yield return optionText.Value.ToString();
             }
-            else if (option != null && option.Type == PdfValueType.Array)
+            else if (option is PdfArrayValue)
             {
                 PdfArray? optionArray = option.AsArray();
                 PdfString? displayText = (optionArray?.Count >= 2) ? optionArray.GetString(1) : null;
@@ -115,7 +115,7 @@ public class PdfChoiceFormField : PdfFormField
             yield break;
         }
 
-        if (Value.Type == PdfValueType.String)
+        if (Value is PdfStringValue)
         {
             PdfString? selectedValue = Value.AsString();
 
@@ -124,15 +124,15 @@ public class PdfChoiceFormField : PdfFormField
                 yield return selectedValue.Value.ToString();
             }
         }
-        else if (Value.Type == PdfValueType.Array)
+        else if (Value is PdfArrayValue)
         {
             PdfArray? valueArray = Value.AsArray();
             if (valueArray != null)
             {
                 for (int i = 0; i < valueArray.Count; i++)
                 {
-                    IPdfValue? item = valueArray.GetValue(i);
-                    PdfString? itemValue = (item?.Type == PdfValueType.String) ? item.AsString() : null;
+                    PdfValue? item = valueArray.GetValue(i);
+                    PdfString? itemValue = (item is PdfStringValue) ? item.AsString() : null;
 
                     if (itemValue != null)
                     {

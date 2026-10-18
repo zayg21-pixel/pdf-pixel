@@ -7,7 +7,7 @@ namespace PdfPixel.Parsing;
 internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue ReadHexString()
+    private PdfStringValue ReadHexString()
     {
         // Initial '<' already consumed by ReadToken.
         // Single-pass implementation using reusable _charBuffer (mirrors ReadString style).
@@ -56,11 +56,11 @@ internal partial struct PdfParser
             bytes = _document.Decryptor.DecryptString(bytes, _currentReference.Value);
         }
 
-        return PdfValueFactory.String(new PdfString(bytes));
+        return new PdfStringValue(new PdfString(bytes));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue ReadString()
+    private PdfStringValue ReadString()
     {
         // Initial '(' already consumed by ReadToken.
         // Single-pass variant using _charBuffer list to accumulate bytes.
@@ -167,11 +167,11 @@ internal partial struct PdfParser
             bytes = _document.Decryptor.DecryptString(bytes, _currentReference.Value);
         }
 
-        return PdfValueFactory.String(new PdfString(bytes));
+        return new PdfStringValue(new PdfString(bytes));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue ReadName()
+    private PdfNameValue ReadName()
     {
         // Initial '/' already consumed by ReadToken.
         _localBuffer.Clear();
@@ -199,11 +199,11 @@ internal partial struct PdfParser
             }
         }
 
-        return PdfValueFactory.Name(new PdfString([.. _localBuffer]));
+        return new PdfNameValue(new PdfString([.. _localBuffer]));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue ReadOperator()
+    private PdfValue ReadOperator()
     {
         // Single-pass operator parsing using _charBuffer (avoids scan + slice allocation).
         _localBuffer.Clear();
@@ -222,19 +222,23 @@ internal partial struct PdfParser
 
         if (result.Span.SequenceEqual(TrueValue))
         {
-            return PdfValueFactory.Boolean(true);
+            return PdfBooleanValue.True;
         }
         else if (result.Span.SequenceEqual(FalseValue))
         {
-            return PdfValueFactory.Boolean(false);
+            return PdfBooleanValue.False;
         }
         else if (result.Span.SequenceEqual(NullValue))
         {
-            return PdfValueFactory.Null();
+            return PdfNullValue.Instance;
+        }
+        else if (_mode == PdfParserMode.ContentStream)
+        {
+            return new PdfOperatorValue(result);
         }
         else
         {
-            return PdfValueFactory.Operator(result);
+            return new PdfKeywordValue(result);
         }
     }
 

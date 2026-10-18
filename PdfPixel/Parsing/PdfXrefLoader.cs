@@ -63,7 +63,7 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
+        PdfParser parser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: false);
         HashSet<int> visitedOffsets = [xrefOffset];
 
         // Classic table path.
@@ -95,7 +95,7 @@ internal sealed class PdfXrefLoader
                     }
                     else
                     {
-                        PdfParser streamParser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
+                        PdfParser streamParser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: false);
                         streamParser.Position = offsetValue;
                         trailer = ParseXrefStream(ref streamParser);
                     }
@@ -165,7 +165,7 @@ internal sealed class PdfXrefLoader
         int subsectionIndex = 0;
         while (true)
         {
-            IPdfValue? firstValue = parser.ReadNextValue();
+            PdfValue? firstValue = parser.ReadNextValue();
             if (firstValue == null)
             {
                 _logger.LogDebug("Finished parsing classic xref (EOF).");
@@ -173,11 +173,11 @@ internal sealed class PdfXrefLoader
             }
 
             // Trailer detection.
-            if (firstValue.Type == PdfValueType.Operator)
+            if (firstValue is PdfKeywordValue keywordValue)
             {
-                if (firstValue.AsString() == PdfTokens.Trailer)
+                if (keywordValue.Value == PdfTokens.Trailer)
                 {
-                    IPdfValue? dictValue = parser.ReadNextValue();
+                    PdfValue? dictValue = parser.ReadNextValue();
                     PdfDictionary? trailerDict = dictValue?.AsDictionary();
                     if (trailerDict != null)
                     {
@@ -188,8 +188,8 @@ internal sealed class PdfXrefLoader
                     return trailerDict;
                 }
 
-                // Unexpected operator -> treat as end.
-                _logger.LogDebug("Unexpected operator instead of subsection header; ending parse.");
+                // Unexpected keyword -> treat as end.
+                _logger.LogDebug("Unexpected keyword instead of subsection header; ending parse.");
                 break;
             }
 
@@ -320,7 +320,7 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        PdfParser streamParser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
+        PdfParser streamParser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: false);
         streamParser.Position = streamOffset;
 
         PdfObject? crossReferenceStream = streamParser.ReadObject();
@@ -512,7 +512,7 @@ internal sealed class PdfXrefLoader
 
     private int ParseStartXrefOffset(long startxrefPos)
     {
-        PdfParser parser = new(_document.Stream, _document, allowReferences: false, decrypt: false);
+        PdfParser parser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: false, decrypt: false);
         parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
 
         // -1 marks a missing or non-numeric startxref offset.

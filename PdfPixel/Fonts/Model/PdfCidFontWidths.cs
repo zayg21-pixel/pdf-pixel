@@ -84,13 +84,13 @@ public class PdfCidFontWidths
                 }
 
                 var firstCid = (uint)firstCidValue.Value;
-                IPdfValue? second = wArray.GetValue(i++);
+                PdfValue? second = wArray.GetValue(i++);
                 if (second == null)
                 {
                     continue;
                 }
 
-                if (second.Type == PdfValueType.Array)
+                if (second is PdfArrayValue)
                 {
                     // Individual widths for a range
                     PdfArray? widthsArr = second.AsArray();

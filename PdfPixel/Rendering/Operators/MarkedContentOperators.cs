@@ -74,7 +74,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessMarkedContentPoint(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -92,7 +92,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessMarkedContentPointWithProperties(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -110,7 +110,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessBeginMarkedContent(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -129,7 +129,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessBeginMarkedContentWithProperties(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -144,7 +144,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, operands[1], isSequence: true, graphicsState)));
     }
 
-    private PdfMarkedContentScope CreateMarkedContent(in PdfString tagName, IPdfValue? propertiesOperand, bool isSequence, PdfGraphicsState graphicsState)
+    private PdfMarkedContentScope CreateMarkedContent(in PdfString tagName, PdfValue? propertiesOperand, bool isSequence, PdfGraphicsState graphicsState)
     {
         PdfMarkedContentTag tagType = tagName.AsEnum<PdfMarkedContentTag>();
 
@@ -207,7 +207,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         return _structureTree.FindParent(structParents.Value, mcid);
     }
 
-    private PdfDictionary? ResolvePropertiesDictionary(IPdfValue propertiesOperand)
+    private PdfDictionary? ResolvePropertiesDictionary(PdfValue propertiesOperand)
     {
         PdfDictionary? inlineDictionary = propertiesOperand.AsDictionary();
         if (inlineDictionary != null)
@@ -224,7 +224,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         return _host.Resources.GetProperties(propertiesName.Value);
     }
 
-    private List<PdfFileSpecification>? ResolveAssociatedFiles(IPdfValue propertiesOperand)
+    private List<PdfFileSpecification>? ResolveAssociatedFiles(PdfValue propertiesOperand)
     {
         PdfArray? inlineArray = propertiesOperand.AsArray();
         if (inlineArray != null)
@@ -241,7 +241,7 @@ internal class MarkedContentOperators : IOperatorProcessor
         return _host.Resources.GetAssociatedFiles(propertiesName.Value);
     }
 
-    private PdfOptionalContentMembership? ResolveOptionalContent(IPdfValue propertiesOperand)
+    private PdfOptionalContentMembership? ResolveOptionalContent(PdfValue propertiesOperand)
     {
         // Inline dictionary — wrap in a synthetic PdfObject.
         PdfDictionary? inlineDictionary = propertiesOperand.AsDictionary();

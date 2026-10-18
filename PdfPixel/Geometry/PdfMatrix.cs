@@ -108,7 +108,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// Creates a <see cref="PdfMatrix"/> from PDF transformation matrix operands.
     /// Returns null if the operands have insufficient elements or any operand is not numeric.
     /// </summary>
-    public static PdfMatrix? FromOperands(in ReadOnlySpan<IPdfValue> operands)
+    public static PdfMatrix? FromOperands(in ReadOnlySpan<PdfValue> operands)
     {
         if (operands.Length < 6)
         {

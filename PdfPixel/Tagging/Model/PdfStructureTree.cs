@@ -85,7 +85,7 @@ public sealed class PdfStructureTree : IPdfAssociatedFilesHost
             yield break;
         }
 
-        IPdfValue? children = _dictionary.GetValue(PdfTokens.KKey);
+        PdfValue? children = _dictionary.GetValue(PdfTokens.KKey);
         PdfArray? childArray = children.AsArray();
 
         if (childArray == null)

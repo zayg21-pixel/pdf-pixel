@@ -151,7 +151,7 @@ internal class PathOperators : IOperatorProcessor
     // ---------------------- Helper Implementations --------------------------
     private void ProcessMoveTo()
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -173,7 +173,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessLineTo()
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -194,7 +194,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveTo()
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(6);
         if (operands.Length < 6)
         {
             return;
@@ -224,7 +224,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToV()
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(4);
         if (operands.Length < 4)
         {
             return;
@@ -247,7 +247,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToY()
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(4);
         if (operands.Length < 4)
         {
             return;
@@ -276,7 +276,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessRectangle()
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(4);
         if (operands.Length < 4)
         {
             return;

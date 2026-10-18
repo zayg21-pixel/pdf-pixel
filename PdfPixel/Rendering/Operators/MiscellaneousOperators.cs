@@ -78,7 +78,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessInvokeXObject(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -147,7 +147,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessShading(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<IPdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;

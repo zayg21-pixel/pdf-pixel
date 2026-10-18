@@ -7,7 +7,7 @@ namespace PdfPixel.Parsing;
 internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue ReadNumber()
+    private PdfValue ReadNumber()
     {
         // Single-pass number parsing.
         // Accumulates all digits (integer and fractional) into one combined value.
@@ -60,7 +60,7 @@ internal partial struct PdfParser
         if (!sawDigit)
         {
             // Malformed number like '+' '-' '.' -> treat as 0.
-            return PdfValueFactory.Integer(0);
+            return new PdfIntegerValue(0);
         }
 
         if (fractionalDigits == 0)
@@ -71,7 +71,7 @@ internal partial struct PdfParser
                 intValue = -intValue;
             }
 
-            return PdfValueFactory.Integer(intValue);
+            return new PdfIntegerValue(intValue);
         }
 
         // Scale once using lookup (fallback to Math.Pow for lengths beyond precomputed span).
@@ -92,6 +92,6 @@ internal partial struct PdfParser
             realValue = -realValue;
         }
 
-        return PdfValueFactory.Real((float)realValue);
+        return new PdfRealValue((float)realValue);
     }
 }

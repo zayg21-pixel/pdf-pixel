@@ -89,18 +89,16 @@ internal class PdfContentStreamRenderer
         PdfOperandStack operandStack = new();
         PdfPathBuilder currentPath = new();
         PdfOperatorProcessor operatorProcessor = new(_renderer, _host, processor, operandStack, graphicsStack, currentPath);
-        PdfParser parser = new(parseContext, _host.Document, allowReferences: false, decrypt: false);
-        IPdfValue? value;
+        PdfParser parser = new(parseContext, _host.Document, PdfParserMode.ContentStream, allowReferences: false, decrypt: false);
+        PdfValue? value;
 
         while ((value = parser.ReadNextValue(operandStack)) != null)
         {
-            PdfString? operatorName = (value.Type == PdfValueType.Operator) ? value.AsString() : null;
-
-            if (operatorName != null)
+            if (value is PdfOperatorValue operatorValue)
             {
                 try
                 {
-                    operatorProcessor.ProcessOperator(operatorName.Value, ref graphicsState);
+                    operatorProcessor.ProcessOperator(operatorValue.Value, ref graphicsState);
                 }
                 catch (OperationCanceledException)
                 {
@@ -109,7 +107,7 @@ internal class PdfContentStreamRenderer
 #pragma warning disable CA1031
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, operatorName.Value.ToString());
+                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, operatorValue.Value.ToString());
                 }
 #pragma warning restore CA1031
 

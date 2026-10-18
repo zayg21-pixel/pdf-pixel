@@ -152,7 +152,7 @@ public sealed class PdfStreamDecoder
     /// <summary>
     /// Expands a <c>/Filter</c> value (a single name or an array of names) into the ordered filter chain.
     /// </summary>
-    public static List<PdfFilterType> GetFilters(IPdfValue? filterValue)
+    public static List<PdfFilterType> GetFilters(PdfValue? filterValue)
     {
         List<PdfFilterType> filters = [];
 
@@ -161,7 +161,7 @@ public sealed class PdfStreamDecoder
             return filters;
         }
 
-        if (filterValue.Type == PdfValueType.Array)
+        if (filterValue is PdfArrayValue)
         {
             PdfArray? filterArray = filterValue.AsArray();
             if (filterArray != null)

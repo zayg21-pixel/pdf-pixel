@@ -236,7 +236,7 @@ internal sealed class PdfResourceNode
     /// </summary>
     /// <param name="value">The color space operand.</param>
     /// <param name="defaultComponents">Component count to assume when no color space was written.</param>
-    public PdfColorSpaceConverter? ResolveColorSpace(IPdfValue? value, int defaultComponents = 3)
+    public PdfColorSpaceConverter? ResolveColorSpace(PdfValue? value, int defaultComponents = 3)
     {
         PdfString? name = value?.AsName();
         if (name != null && !IsColorSpaceFamilyName(name.Value))

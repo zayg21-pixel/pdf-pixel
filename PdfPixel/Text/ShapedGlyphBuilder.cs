@@ -72,11 +72,11 @@ public static class ShapedGlyphBuilder
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
     public static void BuildFromArray(
-        IPdfValue arrayOperand,
+        PdfValue arrayOperand,
         PdfGraphicsState state,
         ShapedGlyphBuffer buffer)
     {
-        if (arrayOperand == null || arrayOperand.Type != PdfValueType.Array || state == null || buffer == null)
+        if (arrayOperand is not PdfArrayValue || state == null || buffer == null)
         {
             return;
         }
@@ -99,14 +99,14 @@ public static class ShapedGlyphBuilder
         {
             for (int i = 0; i < array.Count; i++)
             {
-                IPdfValue? item = array.GetValue(i);
+                PdfValue? item = array.GetValue(i);
 
                 if (item == null)
                 {
                     continue;
                 }
 
-                if (item.Type == PdfValueType.String)
+                if (item is PdfStringValue)
                 {
                     PdfText pdfText = PdfText.FromOperand(item);
                     AddShapedGlyphsForText(pdfText, font, state, buffer, ref x, ref y);
@@ -141,11 +141,11 @@ public static class ShapedGlyphBuilder
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
     public static void BuildFromString(
-        IPdfValue stringOperand,
+        PdfValue stringOperand,
         PdfGraphicsState state,
         ShapedGlyphBuffer buffer)
     {
-        if (stringOperand == null || stringOperand.Type != PdfValueType.String || state == null || buffer == null)
+        if (stringOperand is not PdfStringValue || state == null || buffer == null)
         {
             return;
         }

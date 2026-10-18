@@ -10,7 +10,7 @@ internal sealed class PdfOperandStack
 {
     private const int InitialCapacity = 16;
 
-    private IPdfValue[] _items = new IPdfValue[InitialCapacity];
+    private PdfValue[] _items = new PdfValue[InitialCapacity];
     private int _count;
 
     /// <summary>
@@ -21,7 +21,7 @@ internal sealed class PdfOperandStack
     /// <summary>
     /// Pushes an operand onto the stack.
     /// </summary>
-    public void Push(IPdfValue value)
+    public void Push(PdfValue value)
     {
         if (_count == _items.Length)
         {
@@ -36,7 +36,7 @@ internal sealed class PdfOperandStack
     /// Removes and returns the top operand.
     /// </summary>
     /// <exception cref="InvalidOperationException">The stack is empty.</exception>
-    public IPdfValue Pop()
+    public PdfValue Pop()
     {
         if (_count == 0)
         {
@@ -52,7 +52,7 @@ internal sealed class PdfOperandStack
     /// Removes the top <paramref name="count"/> operands, or every operand when fewer are on the stack,
     /// and returns them in the order they were pushed. The span is valid until the next <see cref="Push"/>.
     /// </summary>
-    public ReadOnlySpan<IPdfValue> Pop(int count)
+    public ReadOnlySpan<PdfValue> Pop(int count)
     {
         int available = Math.Min(count, _count);
         _count -= available;

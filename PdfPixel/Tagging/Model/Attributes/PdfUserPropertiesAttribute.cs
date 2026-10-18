@@ -32,7 +32,7 @@ public sealed class PdfUserPropertiesAttribute : PdfStructureAttributeBase
         {
             PdfDictionary? property = properties.GetDictionary(index);
             PdfString? name = property?.GetString(PdfTokens.UserPropertyNameKey);
-            IPdfValue? value = property?.GetValue(PdfTokens.ValueKey);
+            PdfValue? value = property?.GetValue(PdfTokens.ValueKey);
             if (property == null || name == null || value == null)
             {
                 continue;

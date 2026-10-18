@@ -96,13 +96,13 @@ public class PdfCidFontVerticalMetrics
                 }
 
                 var firstCid = (uint)firstCidValue.Value;
-                IPdfValue? second = w2Array.GetValue(i++);
+                PdfValue? second = w2Array.GetValue(i++);
                 if (second == null)
                 {
                     continue;
                 }
 
-                if (second.Type == PdfValueType.Array)
+                if (second is PdfArrayValue)
                 {
                     // Individual successive CIDs starting at firstCid
                     PdfArray? arr = second.AsArray();

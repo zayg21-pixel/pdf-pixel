@@ -18,7 +18,7 @@ internal static class PdfFontEncodingParser
     /// <returns>Parsed encoding info.</returns>
     public static PdfFontEncodingInfo ParseSingleByteEncoding(PdfDictionary dict)
     {
-        IPdfValue? encodingValue = dict.GetValue(PdfTokens.EncodingKey);
+        PdfValue? encodingValue = dict.GetValue(PdfTokens.EncodingKey);
         if (encodingValue == null)
         {
             // No /Encoding specified, assume standard
@@ -50,7 +50,7 @@ internal static class PdfFontEncodingParser
                 int currentCode = -1;
                 for (int i = 0; i < diffs.Count; i++)
                 {
-                    IPdfValue? item = diffs.GetValue(i);
+                    PdfValue? item = diffs.GetValue(i);
 
                     if (item == null)
                     {

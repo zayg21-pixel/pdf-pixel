@@ -44,9 +44,9 @@ public sealed class TransferFunctionTransform : IColorTransform
 
     private static TransferFunctionTransform? FromObject(PdfObject functionObject)
     {
-        IPdfValue value = functionObject.Value;
+        PdfValue value = functionObject.Value;
 
-        if (value.Type == PdfValueType.Array)
+        if (value is PdfArrayValue)
         {
             PdfArray? arr = value.AsArray();
             if (arr == null)

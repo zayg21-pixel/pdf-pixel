@@ -80,12 +80,12 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <remarks>
     /// The type and format depend on the field type.
     /// </remarks>
-    public IPdfValue? Value { get; }
+    public PdfValue? Value { get; }
 
     /// <summary>
     /// Gets the default field value.
     /// </summary>
-    public IPdfValue? DefaultValue { get; }
+    public PdfValue? DefaultValue { get; }
 
     /// <summary>
     /// Gets the reference to the parent field, or <see langword="null"/> when absent.

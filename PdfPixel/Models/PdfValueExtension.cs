@@ -1,19 +1,19 @@
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Extension methods for extracting strongly-typed values from <see cref="IPdfValue"/> instances.
+/// Extension methods for extracting strongly-typed values from <see cref="PdfValue"/> instances.
 /// Provides conversion and type-checking helpers for PDF value types.
 /// </summary>
-internal static class IPdfValueExtension
+internal static class PdfValueExtension
 {
     /// <summary>
-    /// Returns the value as a PDF name if the type is <see cref="PdfValueType.Name"/>; otherwise returns <c>null</c>.
+    /// Returns the value as a PDF name if the type is <see cref="PdfNameValue"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> representing the name, or <c>null</c> if not a name.</returns>
-    public static PdfString? AsName(this IPdfValue? value)
+    public static PdfString? AsName(this PdfValue? value)
     {
-        if (value is IPdfValue<PdfString> nameValue && nameValue.Type == PdfValueType.Name)
+        if (value is PdfNameValue nameValue)
         {
             return nameValue.Value;
         }
@@ -26,62 +26,74 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> value, or <c>null</c> if not a string type.</returns>
-    public static PdfString? AsString(this IPdfValue? value)
+    public static PdfString? AsString(this PdfValue? value)
     {
-        if (value is IPdfValue<PdfString> stringValue)
+        if (value is PdfStringValue stringValue)
         {
             return stringValue.Value;
         }
+        else if (value is PdfNameValue nameValue)
+        {
+            return nameValue.Value;
+        }
+        else if (value is PdfOperatorValue operatorValue)
+        {
+            return operatorValue.Value;
+        }
+        else if (value is PdfKeywordValue keywordValue)
+        {
+            return keywordValue.Value;
+        }
 
         return null;
     }
 
     /// <summary>
-    /// Returns the value as an integer if the type is <see cref="PdfValueType.Integer"/> or <see cref="PdfValueType.Real"/>; otherwise returns <c>null</c>.
+    /// Returns the value as an integer if the type is <see cref="PdfIntegerValue"/> or <see cref="PdfRealValue"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The integer value, or <c>null</c> if not numeric.</returns>
-    public static int? AsInteger(this IPdfValue? value)
+    public static int? AsInteger(this PdfValue? value)
     {
-        if (value is IPdfValue<int> intValue && intValue.Type == PdfValueType.Integer)
+        if (value is PdfIntegerValue integerValue)
         {
-            return intValue.Value;
+            return integerValue.Value;
         }
-        else if (value is IPdfValue<float> floatNumber && floatNumber.Type == PdfValueType.Real)
+        else if (value is PdfRealValue realValue)
         {
-            return (int)floatNumber.Value;
+            return (int)realValue.Value;
         }
 
         return null;
     }
 
     /// <summary>
-    /// Returns the value as a float if the type is <see cref="PdfValueType.Integer"/> or <see cref="PdfValueType.Real"/>; otherwise returns <c>null</c>.
+    /// Returns the value as a float if the type is <see cref="PdfIntegerValue"/> or <see cref="PdfRealValue"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The float value, or <c>null</c> if not numeric.</returns>
-    public static float? AsFloat(this IPdfValue? value)
+    public static float? AsFloat(this PdfValue? value)
     {
-        if (value is IPdfValue<float> realValue && realValue.Type == PdfValueType.Real)
+        if (value is PdfRealValue realValue)
         {
             return realValue.Value;
         }
-        else if (value is IPdfValue<int> intValue && intValue.Type == PdfValueType.Integer)
+        else if (value is PdfIntegerValue integerValue)
         {
-            return intValue.Value;
+            return integerValue.Value;
         }
 
         return null;
     }
 
     /// <summary>
-    /// Returns the value as a boolean if the type is <see cref="PdfValueType.Boolean"/>; otherwise returns <c>null</c>.
+    /// Returns the value as a boolean if the type is <see cref="PdfBooleanValue"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The boolean value, or <c>null</c> if not a boolean.</returns>
-    public static bool? AsBoolean(this IPdfValue? value)
+    public static bool? AsBoolean(this PdfValue? value)
     {
-        if (value is IPdfValue<bool> booleanValue && booleanValue.Type == PdfValueType.Boolean)
+        if (value is PdfBooleanValue booleanValue)
         {
             return booleanValue.Value;
         }
@@ -90,13 +102,13 @@ internal static class IPdfValueExtension
     }
 
     /// <summary>
-    /// Returns the value as a PDF array if the type is <see cref="PdfValueType.Array"/>; otherwise returns <c>null</c>.
+    /// Returns the value as a PDF array if the type is <see cref="PdfArrayValue"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfArray"/> value, or <c>null</c> if not an array.</returns>
-    public static PdfArray? AsArray(this IPdfValue? value)
+    public static PdfArray? AsArray(this PdfValue? value)
     {
-        if (value is IPdfValue<PdfArray> arrayValue && arrayValue.Type == PdfValueType.Array)
+        if (value is PdfArrayValue arrayValue)
         {
             return arrayValue.Value;
         }
@@ -105,13 +117,13 @@ internal static class IPdfValueExtension
     }
 
     /// <summary>
-    /// Returns the value as a PDF dictionary if the type is <see cref="PdfValueType.Dictionary"/>; otherwise returns <c>null</c>.
+    /// Returns the value as a PDF dictionary if the type is <see cref="PdfDictionaryValue"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfDictionary"/> value, or <c>null</c> if not a dictionary.</returns>
-    public static PdfDictionary? AsDictionary(this IPdfValue? value)
+    public static PdfDictionary? AsDictionary(this PdfValue? value)
     {
-        if (value is IPdfValue<PdfDictionary> dictionaryValue && dictionaryValue.Type == PdfValueType.Dictionary)
+        if (value is PdfDictionaryValue dictionaryValue)
         {
             return dictionaryValue.Value;
         }
@@ -120,13 +132,13 @@ internal static class IPdfValueExtension
     }
 
     /// <summary>
-    /// Returns the value as a parsed inline image object if the type is <see cref="PdfValueType.InlineImage"/>; otherwise returns <c>null</c>.
+    /// Returns the value as a parsed inline image object if the type is <see cref="PdfInlineImageValue"/>; otherwise returns <c>null</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfObject"/> carrying the inline image's dictionary and stream bytes, or <c>null</c>.</returns>
-    public static PdfObject? AsInlineImage(this IPdfValue? value)
+    public static PdfObject? AsInlineImage(this PdfValue? value)
     {
-        if (value is IPdfValue<PdfObject> inlineImageValue && inlineImageValue.Type == PdfValueType.InlineImage)
+        if (value is PdfInlineImageValue inlineImageValue)
         {
             return inlineImageValue.Value;
         }
@@ -141,22 +153,20 @@ internal static class IPdfValueExtension
     /// <param name="value">The PDF value to resolve.</param>
     /// <param name="document">The PDF document used for object resolution.</param>
     /// <param name="maxDepth">Maximum recursion depth for reference resolution.</param>
-    /// <returns>The resolved non-reference <see cref="IPdfValue"/>, or <c>null</c> if resolution fails.</returns>
-    public static IPdfValue? ResolveToNonReference(this IPdfValue? value, IPdfDocumentInternal document, int maxDepth = 10)
+    /// <returns>The resolved non-reference <see cref="PdfValue"/>, or <c>null</c> if resolution fails.</returns>
+    public static PdfValue? ResolveToNonReference(this PdfValue? value, IPdfDocumentInternal document, int maxDepth = 10)
     {
         if (value == null || document == null || maxDepth <= 0)
         {
             return null;
         }
 
-        if (value.Type != PdfValueType.Reference)
+        if (value is not PdfReferenceValue referenceValue)
         {
             return value;
         }
 
-        var reference = (IPdfValue<PdfReference>)value;
-
-        PdfObject? referencedObject = document.ObjectCache.GetObject(reference.Value);
+        PdfObject? referencedObject = document.ObjectCache.GetObject(referenceValue.Value);
 
         if (referencedObject == null)
         {

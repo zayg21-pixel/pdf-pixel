@@ -17,7 +17,7 @@ public class PdfObject
     /// <param name="reference">The PDF reference for this object, or <see langword="null"/> for a direct object.</param>
     /// <param name="document">The owning PDF document.</param>
     /// <param name="value">The value of the PDF object.</param>
-    internal PdfObject(PdfReference? reference, IPdfDocumentInternal document, IPdfValue value)
+    internal PdfObject(PdfReference? reference, IPdfDocumentInternal document, PdfValue value)
     {
         Reference = reference;
         Document = document;
@@ -32,7 +32,7 @@ public class PdfObject
     /// <param name="document">The owning PDF document.</param>
     /// <param name="value">The value of the PDF object.</param>
     /// <param name="streamInfo">The location of the object's stream data, or <see langword="null"/> when it has none.</param>
-    internal PdfObject(PdfReference? reference, IPdfDocumentInternal document, IPdfValue value, PdfObjectStreamReference? streamInfo)
+    internal PdfObject(PdfReference? reference, IPdfDocumentInternal document, PdfValue value, PdfObjectStreamReference? streamInfo)
         : this(reference, document, value)
     {
         StreamInfo = streamInfo;
@@ -44,7 +44,7 @@ public class PdfObject
     /// <param name="document">The owning PDF document.</param>
     /// <param name="value">The value of the PDF object.</param>
     /// <param name="embeddedStream">The stream data.</param>
-    internal PdfObject(IPdfDocumentInternal document, IPdfValue value, in ReadOnlyMemory<byte> embeddedStream)
+    internal PdfObject(IPdfDocumentInternal document, PdfValue value, in ReadOnlyMemory<byte> embeddedStream)
         : this(null, document, value)
     {
         EmbaddedStream = embeddedStream;
@@ -63,7 +63,7 @@ public class PdfObject
     /// <summary>
     /// Gets the value of the PDF object.
     /// </summary>
-    public IPdfValue Value { get; }
+    public PdfValue Value { get; }
 
     /// <summary>
     /// Gets the dictionary associated with this PDF object.

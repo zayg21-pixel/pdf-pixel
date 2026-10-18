@@ -30,11 +30,12 @@ internal ref partial struct PdfParser
     ];
 
     private readonly List<byte> _localBuffer = [];
-    private readonly List<IPdfValue> _values = [];
+    private readonly List<PdfValue> _values = [];
     private readonly Stack<CollectionFrame> _frames = [];
     private readonly BufferedStream? _stream;
     private readonly bool _streamMode;
     private readonly IPdfDocumentInternal _document;
+    private readonly PdfParserMode _mode;
     private readonly int _length;
     private readonly bool _allowReferences;
     private readonly bool _decrypt;
@@ -43,20 +44,22 @@ internal ref partial struct PdfParser
     private PdfParseContext _parseContext;
     private PdfReference? _currentReference;
 
-    public PdfParser(PdfParseContext parseContext, IPdfDocumentInternal document, bool allowReferences, bool decrypt)
+    public PdfParser(PdfParseContext parseContext, IPdfDocumentInternal document, PdfParserMode mode, bool allowReferences, bool decrypt)
     {
         _parseContext = parseContext;
         _document = document;
+        _mode = mode;
         _allowReferences = allowReferences;
         _decrypt = decrypt;
         _length = parseContext.Length;
     }
 
-    public PdfParser(BufferedStream bufferedStream, IPdfDocumentInternal document, bool allowReferences, bool decrypt)
+    public PdfParser(BufferedStream bufferedStream, IPdfDocumentInternal document, PdfParserMode mode, bool allowReferences, bool decrypt)
     {
         _stream = bufferedStream;
         _length = (int)bufferedStream.Length;
         _document = document;
+        _mode = mode;
         _allowReferences = allowReferences;
         _decrypt = decrypt;
         _streamMode = true;
@@ -90,9 +93,9 @@ internal ref partial struct PdfParser
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public IPdfValue? ReadNextValue(PdfOperandStack? operandStack = null)
+    public PdfValue? ReadNextValue(PdfOperandStack? operandStack = null)
     {
-        List<IPdfValue> values = _values;
+        List<PdfValue> values = _values;
         Stack<CollectionFrame> frames = _frames;
         values.Clear();
         frames.Clear();
@@ -107,31 +110,31 @@ internal ref partial struct PdfParser
             {
                 case PdfTokenType.HexString:
                 {
-                    IPdfValue hexValue = ReadHexString();
+                    PdfValue hexValue = ReadHexString();
                     values.Add(hexValue);
                     break;
                 }
                 case PdfTokenType.String:
                 {
-                    IPdfValue strValue = ReadString();
+                    PdfValue strValue = ReadString();
                     values.Add(strValue);
                     break;
                 }
                 case PdfTokenType.Name:
                 {
-                    IPdfValue nameValue = ReadName();
+                    PdfValue nameValue = ReadName();
                     values.Add(nameValue);
                     break;
                 }
                 case PdfTokenType.Operator:
                 {
-                    IPdfValue opValue = ReadOperator();
+                    PdfValue opValue = ReadOperator();
                     values.Add(opValue);
                     break;
                 }
                 case PdfTokenType.Number:
                 {
-                    IPdfValue numberValue = ReadNumber();
+                    PdfValue numberValue = ReadNumber();
                     values.Add(numberValue);
                     break;
                 }
@@ -170,11 +173,11 @@ internal ref partial struct PdfParser
                             // Invalid object identifier (7.3.10): the null object.
                             if (objectNumber.Value > 0 && generation.Value >= 0)
                             {
-                                values.Add(PdfValueFactory.Reference(new PdfReference((uint)objectNumber.Value, generation.Value)));
+                                values.Add(new PdfReferenceValue(new PdfReference((uint)objectNumber.Value, generation.Value)));
                             }
                             else
                             {
-                                values.Add(PdfValueFactory.Null());
+                                values.Add(PdfNullValue.Instance);
                             }
                         }
                     }
@@ -183,7 +186,7 @@ internal ref partial struct PdfParser
                 }
                 case PdfTokenType.InlineStreamStart:
                 {
-                    IPdfValue? streamValue = ReadInlineStream(operandStack);
+                    PdfValue? streamValue = ReadInlineStream(operandStack);
                     if (streamValue == null)
                     {
                         return null;

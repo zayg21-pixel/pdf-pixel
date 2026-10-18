@@ -40,7 +40,7 @@ internal sealed class PdfXrefRecoveryScanner
         PdfReference? catalogReference = null;
         PdfReference? referenceWithRoot = null;
 
-        PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
+        PdfParser parser = new(_document.Stream, _document, PdfParserMode.FileStructure, allowReferences: true, decrypt: false);
         parser.Position = _document.HeaderOffset;
         int objectsFound = 0;
 

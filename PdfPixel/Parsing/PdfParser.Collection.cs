@@ -12,7 +12,7 @@ internal partial struct PdfParser
     /// <param name="values">Accumulated values list.</param>
     /// <param name="frames">Open collection frames stack.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void HandleArrayEnd(List<IPdfValue> values, Stack<CollectionFrame> frames)
+    private void HandleArrayEnd(List<PdfValue> values, Stack<CollectionFrame> frames)
     {
         if (frames.Count == 0 || frames.Peek().FrameToken != PdfTokenType.ArrayStart)
         {
@@ -21,7 +21,7 @@ internal partial struct PdfParser
 
         CollectionFrame frame = frames.Pop();
         int itemCount = values.Count - frame.StartIndex;
-        var items = new IPdfValue[itemCount];
+        var items = new PdfValue[itemCount];
 
         for (int itemIndex = 0; itemIndex < itemCount; itemIndex++)
         {
@@ -30,17 +30,17 @@ internal partial struct PdfParser
 
         values.RemoveRange(frame.StartIndex, itemCount);
         PdfArray array = new(_document, items);
-        values.Add(PdfValueFactory.Array(array));
+        values.Add(new PdfArrayValue(array));
     }
 
     /// <summary>
     /// Handle closing of a dictionary. Validates matching frame and materializes PdfDictionary.
-    /// Builds raw key/value map first, then uses PdfDictionary(PdfDocument, Dictionary&lt;PdfString, IPdfValue&gt;) overload.
+    /// Builds raw key/value map first, then uses PdfDictionary(PdfDocument, Dictionary&lt;PdfString, PdfValue&gt;) overload.
     /// </summary>
     /// <param name="values">Accumulated values list.</param>
     /// <param name="frames">Open collection frames stack.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void HandleDictionaryEnd(List<IPdfValue> values, Stack<CollectionFrame> frames)
+    private void HandleDictionaryEnd(List<PdfValue> values, Stack<CollectionFrame> frames)
     {
         if (frames.Count == 0 || frames.Peek().FrameToken != PdfTokenType.DictionaryStart)
         {
@@ -49,12 +49,12 @@ internal partial struct PdfParser
 
         CollectionFrame frame = frames.Pop();
         int rawCount = values.Count - frame.StartIndex;
-        Dictionary<PdfString, IPdfValue> rawMap = [];
+        Dictionary<PdfString, PdfValue> rawMap = [];
 
         int scanIndex = frame.StartIndex;
         while (scanIndex < values.Count)
         {
-            IPdfValue possibleKey = values[scanIndex];
+            PdfValue possibleKey = values[scanIndex];
             PdfString? keyName = possibleKey.AsName();
             if (keyName == null)
             {
@@ -68,13 +68,13 @@ internal partial struct PdfParser
                 break;
             }
 
-            IPdfValue value = values[valueIndex];
+            PdfValue value = values[valueIndex];
             rawMap[keyName.Value] = value;
             scanIndex = valueIndex + 1;
         }
 
         values.RemoveRange(frame.StartIndex, rawCount);
         PdfDictionary dictionary = new(_document, rawMap);
-        values.Add(PdfValueFactory.Dictionary(dictionary));
+        values.Add(new PdfDictionaryValue(dictionary));
     }
 }

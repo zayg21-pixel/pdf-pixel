@@ -13,18 +13,18 @@ namespace PdfPixel.Models;
 /// </remarks>
 public class PdfArray
 {
-    private readonly IPdfValue[] _items;
+    private readonly PdfValue[] _items;
 
-    internal PdfArray(IPdfDocumentInternal document, IPdfValue[] items)
+    internal PdfArray(IPdfDocumentInternal document, PdfValue[] items)
     {
         Document = document;
-        _items = items ?? Array.Empty<IPdfValue>();
+        _items = items ?? Array.Empty<PdfValue>();
     }
 
-    internal PdfArray(IPdfDocumentInternal document, IList<IPdfValue> items)
+    internal PdfArray(IPdfDocumentInternal document, IList<PdfValue> items)
     {
         Document = document;
-        _items = items?.ToArray() ?? Array.Empty<IPdfValue>();
+        _items = items?.ToArray() ?? Array.Empty<PdfValue>();
     }
 
     /// <summary>
@@ -42,15 +42,15 @@ public class PdfArray
     /// Follows references to the first non-reference value.
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
-    /// <returns>The resolved <see cref="IPdfValue"/> at the specified index, or <c>null</c> if out of range.</returns>
-    public IPdfValue? GetValue(int index)
+    /// <returns>The resolved <see cref="PdfValue"/> at the specified index, or <c>null</c> if out of range.</returns>
+    public PdfValue? GetValue(int index)
     {
         if (!IsValidIndex(index))
         {
             return null;
         }
 
-        IPdfValue storedValue = _items[index];
+        PdfValue storedValue = _items[index];
         return storedValue.ResolveToNonReference(Document);
     }
 
@@ -133,7 +133,7 @@ public class PdfArray
     /// <returns>The <see cref="PdfArray"/> if the value is an array; otherwise, <c>null</c>.</returns>
     public PdfArray? GetArray(int index)
     {
-        IPdfValue? value = GetValue(index);
+        PdfValue? value = GetValue(index);
 
         if (value == null)
         {
@@ -150,7 +150,7 @@ public class PdfArray
     /// <returns>The <see cref="PdfDictionary"/> if the value is a dictionary; otherwise, <c>null</c>.</returns>
     public PdfDictionary? GetDictionary(int index)
     {
-        IPdfValue? value = GetValue(index);
+        PdfValue? value = GetValue(index);
 
         if (value == null)
         {
@@ -172,7 +172,7 @@ public class PdfArray
             return null;
         }
 
-        IPdfValue storedValue = _items[index];
+        PdfValue storedValue = _items[index];
 
         // Array of references case
         PdfArray? referenceArray = storedValue.AsArray();
@@ -182,7 +182,7 @@ public class PdfArray
         }
 
         // Single reference case
-        if (storedValue is IPdfValue<PdfReference> referenceValue)
+        if (storedValue is PdfReferenceValue referenceValue)
         {
             PdfReference reference = referenceValue.Value;
             return Document.ObjectCache.GetObject(reference);
@@ -199,7 +199,7 @@ public class PdfArray
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The <see cref="PdfReference"/> at the specified index, or <c>null</c>.</returns>
     public PdfReference? GetReference(int index)
-        => (IsValidIndex(index) && _items[index] is IPdfValue<PdfReference> referenceValue) ? referenceValue.Value : null;
+        => (IsValidIndex(index) && _items[index] is PdfReferenceValue referenceValue) ? referenceValue.Value : null;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsValidIndex(int index) => index >= 0 && index < _items.Length;

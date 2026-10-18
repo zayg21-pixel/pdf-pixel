@@ -155,7 +155,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
     /// </summary>
     public IEnumerable<PdfStructureAttributeBase> EnumerateAttributes()
     {
-        IPdfValue? attributes = _dictionary.GetValue(PdfTokens.AttributesKey);
+        PdfValue? attributes = _dictionary.GetValue(PdfTokens.AttributesKey);
         PdfArray? attributeArray = attributes.AsArray();
 
         if (attributeArray == null)
@@ -186,7 +186,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
             }
         }
 
-        IPdfValue? classes = _dictionary.GetValue(PdfTokens.ClassKey);
+        PdfValue? classes = _dictionary.GetValue(PdfTokens.ClassKey);
         PdfArray? classArray = classes.AsArray();
 
         if (classArray == null)
@@ -229,7 +229,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
     /// </summary>
     public IEnumerable<PdfString> EnumerateClasses()
     {
-        IPdfValue? classes = _dictionary.GetValue(PdfTokens.ClassKey);
+        PdfValue? classes = _dictionary.GetValue(PdfTokens.ClassKey);
         PdfArray? classArray = classes.AsArray();
 
         if (classArray == null)
@@ -256,7 +256,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
     /// <inheritdoc />
     public IEnumerable<IPdfStructureNode> EnumerateChildren()
     {
-        IPdfValue? children = _dictionary.GetValue(PdfTokens.KKey);
+        PdfValue? children = _dictionary.GetValue(PdfTokens.KKey);
         PdfArray? childArray = children.AsArray();
 
         if (childArray == null)
@@ -335,7 +335,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
         }
     }
 
-    private IPdfStructureNode? CreateNode(IPdfValue? child, PdfReference? reference)
+    private IPdfStructureNode? CreateNode(PdfValue? child, PdfReference? reference)
     {
         int? mcid = child.AsInteger();
         if (mcid != null)

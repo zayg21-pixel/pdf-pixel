@@ -10,7 +10,7 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal partial class PdfColorSpaceResolver
 {
-    private PdfIndexedColorSpaceConverter? CreateIndexedColorSpace(IPdfValue colorSpaceValue)
+    private PdfIndexedColorSpaceConverter? CreateIndexedColorSpace(PdfValue colorSpaceValue)
     {
         if (colorSpaceValue == null)
         {
@@ -60,7 +60,7 @@ internal partial class PdfColorSpaceResolver
         return new PdfIndexedColorSpaceConverter(baseConverter, highestIndex, lookupTableBytes);
     }
 
-    private PdfSeparationColorSpaceConverter? CreateSeparationColorSpace(IPdfValue colorSpaceValue)
+    private PdfSeparationColorSpaceConverter? CreateSeparationColorSpace(PdfValue colorSpaceValue)
     {
         if (colorSpaceValue == null)
         {
@@ -79,7 +79,7 @@ internal partial class PdfColorSpaceResolver
         return new PdfSeparationColorSpaceConverter(colorantName, alternateConverter, tintFunction);
     }
 
-    private PdfDeviceNColorSpaceConverter? CreateDeviceNColorSpace(IPdfValue colorSpaceValue)
+    private PdfDeviceNColorSpaceConverter? CreateDeviceNColorSpace(PdfValue colorSpaceValue)
     {
         if (colorSpaceValue == null)
         {
@@ -109,7 +109,7 @@ internal partial class PdfColorSpaceResolver
         return new PdfDeviceNColorSpaceConverter(colorantNames, alternateConverter, tintFunction);
     }
 
-    private PdfCalGrayColorSpaceConverter? CreateCalGrayColorSpace(IPdfValue colorSpaceValue)
+    private PdfCalGrayColorSpaceConverter? CreateCalGrayColorSpace(PdfValue colorSpaceValue)
     {
         PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
         if (dictionary == null)
@@ -125,7 +125,7 @@ internal partial class PdfColorSpaceResolver
         return new PdfCalGrayColorSpaceConverter(whitePoint, blackPoint, gamma);
     }
 
-    private PdfCalRgbColorSpaceConverter? CreateCalRrgbColorSpace(IPdfValue colorSpaceValue)
+    private PdfCalRgbColorSpaceConverter? CreateCalRrgbColorSpace(PdfValue colorSpaceValue)
     {
         PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
         if (dictionary == null)
@@ -174,7 +174,7 @@ internal partial class PdfColorSpaceResolver
         return new PdfCalRgbColorSpaceConverter(whitePoint, blackPoint, gamma, matrix);
     }
 
-    private PdfIccColorSpaceConverter? CreateIccColorSpace(IPdfValue colorSpaceValue)
+    private PdfIccColorSpaceConverter? CreateIccColorSpace(PdfValue colorSpaceValue)
     {
         PdfArray? parametersArray = colorSpaceValue.AsArray();
         if (parametersArray == null || parametersArray.Count < 2)
@@ -201,9 +201,9 @@ internal partial class PdfColorSpaceResolver
         return new PdfIccColorSpaceConverter(componentCount, alternateConverter, iccProfileBytes);
     }
 
-    private PdfPatternColorSpaceConverter CreatePatternColorSpace(IPdfValue colorSpaceValue)
+    private PdfPatternColorSpaceConverter CreatePatternColorSpace(PdfValue colorSpaceValue)
     {
-        if (colorSpaceValue != null && colorSpaceValue.Type == PdfValueType.Array)
+        if (colorSpaceValue is PdfArrayValue)
         {
             PdfArray? colorSpaceArray = colorSpaceValue.AsArray();
             if (colorSpaceArray?.Count >= 2)
@@ -217,7 +217,7 @@ internal partial class PdfColorSpaceResolver
         return new PdfPatternColorSpaceConverter(null);
     }
 
-    private static PdfLabColorSpaceConverter? CreateLabColorSpace(IPdfValue colorSpaceValue)
+    private static PdfLabColorSpaceConverter? CreateLabColorSpace(PdfValue colorSpaceValue)
     {
         PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
         if (dictionary == null)
@@ -242,7 +242,7 @@ internal partial class PdfColorSpaceResolver
         return PdfFunctions.GetFunction(colorSpaceArray, tintFunctionIndex);
     }
 
-    private static PdfDictionary? GetDictionaryValue(IPdfValue value)
+    private static PdfDictionary? GetDictionaryValue(PdfValue value)
     {
         if (value == null)
         {

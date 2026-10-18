@@ -15,9 +15,9 @@ internal partial struct PdfParser
     {
         int startPos = Position;
 
-        IPdfValue? first = ReadNextValue();
-        IPdfValue? second = ReadNextValue();
-        IPdfValue? third = ReadNextValue();
+        PdfValue? first = ReadNextValue();
+        PdfValue? second = ReadNextValue();
+        PdfValue? third = ReadNextValue();
 
         if (third.AsString() != PdfTokens.Obj)
         {
@@ -43,15 +43,15 @@ internal partial struct PdfParser
             return null;
         }
 
-        IPdfValue? first = ReadNextValue();
+        PdfValue? first = ReadNextValue();
 
         if (!HasLeadingDigit())
         {
             return null;
         }
 
-        IPdfValue? second = ReadNextValue();
-        IPdfValue? third = ReadNextValue();
+        PdfValue? second = ReadNextValue();
+        PdfValue? third = ReadNextValue();
 
         if (third.AsString() != PdfTokens.Obj)
         {
@@ -62,7 +62,7 @@ internal partial struct PdfParser
         return FinishReadObject(first, second, startPos);
     }
 
-    private PdfObject? FinishReadObject(IPdfValue? first, IPdfValue? second, int startPos)
+    private PdfObject? FinishReadObject(PdfValue? first, PdfValue? second, int startPos)
     {
         int? objectNumber = first.AsInteger();
         int? generation = second.AsInteger();
@@ -76,7 +76,7 @@ internal partial struct PdfParser
         PdfReference reference = new((uint)objectNumber.Value, generation.Value);
         _currentReference = reference;
 
-        IPdfValue? value = ReadNextValue();
+        PdfValue? value = ReadNextValue();
         _currentReference = null;
 
         if (value == null)
@@ -88,7 +88,7 @@ internal partial struct PdfParser
         PdfObjectStreamReference? streamInfo = null;
 
         int preStreamPos = Position;
-        IPdfValue? possibleStreamOp = ReadNextValue();
+        PdfValue? possibleStreamOp = ReadNextValue();
 
         if (possibleStreamOp.AsString() == PdfTokens.Stream)
         {
