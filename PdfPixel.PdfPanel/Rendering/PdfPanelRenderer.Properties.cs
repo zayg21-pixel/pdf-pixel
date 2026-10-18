@@ -18,6 +18,7 @@ public sealed partial class PdfPanelRenderer
     internal static readonly PdfColor DefaultBackgroundColor = PdfColors.LightGray;
     internal static readonly TimeSpan DefaultScrollContentUpdateDelay = TimeSpan.Zero;
     internal static readonly TimeSpan DefaultZoomContentUpdateDelay = TimeSpan.FromMilliseconds(200);
+
     /// <summary>
     /// Background color drawn behind the pages.
     /// </summary>

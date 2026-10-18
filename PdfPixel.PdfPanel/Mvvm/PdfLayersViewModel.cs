@@ -55,6 +55,12 @@ public sealed class PdfLayersViewModel : INotifyPropertyChanged
     public bool HasLayers => Configurations.Count > 0;
 
     /// <summary>
+    /// Whether there is a configuration to choose: the document has more than one, or its only one is named.
+    /// </summary>
+    public bool HasDistinctConfigurations
+        => Configurations.Count > 1 || (Configurations.Count == 1 && Configurations[0].Name != null);
+
+    /// <summary>
     /// Configuration content is rendered with, one of <see cref="Configurations"/>.
     /// </summary>
     public PdfLayerConfigurationViewModel? Configuration

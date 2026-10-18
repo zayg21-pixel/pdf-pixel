@@ -61,7 +61,7 @@ internal static class PdfPanelJsConverter
         target.TextCharacterHitRadius = ReadFloat(source, "textCharacterHitRadius", target.TextCharacterHitRadius);
         target.TextLineMergeThreshold = ReadFloat(source, "textLineMergeThreshold", target.TextLineMergeThreshold);
 
-        using JSObject thumbnailRenderMaximumSize = source.GetPropertyAsJSObject("thumbnailRenderMaximumSize");
+        using JSObject? thumbnailRenderMaximumSize = source.GetPropertyAsJSObject("thumbnailRenderMaximumSize");
 
         if (thumbnailRenderMaximumSize != null)
         {
@@ -71,7 +71,7 @@ internal static class PdfPanelJsConverter
                 ReadInt32(thumbnailRenderMaximumSize, "height", size.Height));
         }
 
-        using JSObject layoutPadding = source.GetPropertyAsJSObject("layoutPadding");
+        using JSObject? layoutPadding = source.GetPropertyAsJSObject("layoutPadding");
 
         if (layoutPadding != null)
         {
@@ -88,7 +88,7 @@ internal static class PdfPanelJsConverter
     /// Reads a destination <c>{ pageNumber, fitType, left, top, right, bottom, zoom }</c>, or returns <see langword="null"/>
     /// when the fit type is not one of <see cref="PdfDestinationFitType"/>.
     /// </summary>
-    public static PdfPageNumberDestination ReadDestination(JSObject source)
+    public static PdfPageNumberDestination? ReadDestination(JSObject source)
     {
         PdfDestinationFitType? fitType = source.GetPropertyAsString("fitType") switch
         {
@@ -122,7 +122,7 @@ internal static class PdfPanelJsConverter
     /// Reads a text range <c>{ pageNumber, startIndex, length }</c>, or returns <see langword="null"/> when
     /// <paramref name="source"/> is <see langword="null"/>.
     /// </summary>
-    public static PdfPanelTextRange? ReadTextRange(JSObject source)
+    public static PdfPanelTextRange? ReadTextRange(JSObject? source)
     {
         if (source == null)
         {
@@ -138,7 +138,7 @@ internal static class PdfPanelJsConverter
     /// <summary>
     /// Reads an automatic scaling mode name, or returns <see langword="null"/> when the name is unknown.
     /// </summary>
-    public static PdfPanelAutoScaleMode? ReadAutoScaleMode(string value)
+    public static PdfPanelAutoScaleMode? ReadAutoScaleMode(string? value)
     {
         return value switch
         {
@@ -210,7 +210,7 @@ internal static class PdfPanelJsConverter
             return "encrypted";
         }
 
-        for (Exception current = exception; current != null; current = current.InnerException)
+        for (Exception? current = exception; current != null; current = current.InnerException)
         {
             if (current is NotSupportedException)
             {
@@ -237,7 +237,7 @@ internal static class PdfPanelJsConverter
     /// <summary>
     /// Returns the CSS cursor of <paramref name="cursor"/>, or <see langword="null"/> when the panel has no preference.
     /// </summary>
-    public static string ToCursorStyle(PdfPanelCursor cursor)
+    public static string? ToCursorStyle(PdfPanelCursor cursor)
     {
         return cursor switch
         {
@@ -248,7 +248,7 @@ internal static class PdfPanelJsConverter
     }
 
     private static float ReadFloat(JSObject source, string name, float currentValue)
-        => source.HasProperty(name) ? (float)source.GetPropertyAsDouble(name) : currentValue;
+        => (source.HasProperty(name)) ? (float)source.GetPropertyAsDouble(name) : currentValue;
 
     private static int ReadInt32(JSObject source, string name, int currentValue)
         => (source.HasProperty(name)) ? source.GetPropertyAsInt32(name) : currentValue;
@@ -273,10 +273,13 @@ internal static class PdfPanelJsConverter
     }
 
     private static bool ReadBoolean(JSObject source, string name, bool currentValue)
-        => source.HasProperty(name) ? source.GetPropertyAsBoolean(name) : currentValue;
+        => (source.HasProperty(name)) ? source.GetPropertyAsBoolean(name) : currentValue;
 
-    private static PdfColor ReadColor(JSObject source, string name, PdfColor currentValue)
-        => source.HasProperty(name) ? PdfColor.ParseHexColor(source.GetPropertyAsString(name)) : currentValue;
+    private static PdfColor ReadColor(JSObject source, string name, in PdfColor currentValue)
+    {
+        string? value = source.GetPropertyAsString(name);
+        return (value != null) ? PdfColor.ParseHexColor(value) : currentValue;
+    }
 
     private static float? ReadOptionalFloat(JSObject source, string name)
         => (source.GetTypeOfProperty(name) == "number") ? (float)source.GetPropertyAsDouble(name) : null;

@@ -19,8 +19,8 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     private readonly string _canvasSelector;
     private readonly ILogger _logger;
     private readonly Action<PdfPanelFrame> _onFramePresented;
-    private CanvasGlContext _glContext;
-    private SKSurface _tilingSurface;
+    private CanvasGlContext? _glContext;
+    private SKSurface? _tilingSurface;
     private int _tilingWidth;
     private int _tilingHeight;
 
@@ -56,7 +56,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             throw new InvalidOperationException("Initialize must be called before GetDrawingSurface");
         }
 
-        EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
+        _ = EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
         return _glContext.CreateSurface(width, height);
     }
 
@@ -68,6 +68,11 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             return;
         }
 
+        if (_glContext == null)
+        {
+            throw new InvalidOperationException("Initialize must be called before Render");
+        }
+
         _glContext.Present();
         _onFramePresented(frame);
     }
@@ -75,7 +80,12 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     /// <inheritdoc />
     public SKSurface GetTilingSurface(int width, int height)
     {
-        EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
+        if (_glContext == null)
+        {
+            throw new InvalidOperationException("Initialize must be called before GetTilingSurface");
+        }
+
+        _ = EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
 
         if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
         {
@@ -96,7 +106,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     {
         if (_glContext != null)
         {
-            EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
+            _ = EmscriptenInterop.WebGlMakeContextCurrent(_glContext.WebGlContext);
         }
 
         _tilingSurface?.Dispose();

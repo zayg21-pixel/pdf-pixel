@@ -438,7 +438,8 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Renderer.ScrollContentUpdateDelay = ScrollContentUpdateDelay;
         context.Renderer.ZoomContentUpdateDelay = ZoomContentUpdateDelay;
         context.Renderer.LookAheadPageCount = LookAheadPageCount;
-        context.Renderer.ContentCacheSize = ContentCacheSize;        context.Text.CharacterHitRadius = TextCharacterHitRadius;
+        context.Renderer.ContentCacheSize = ContentCacheSize;
+        context.Text.CharacterHitRadius = TextCharacterHitRadius;
         context.Text.LineMergeThreshold = TextLineMergeThreshold;
     }
 

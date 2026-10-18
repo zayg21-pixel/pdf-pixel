@@ -17,6 +17,7 @@ using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.Skia.Fonts;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices.JavaScript;
@@ -26,19 +27,17 @@ using System.Threading;
 namespace PdfPixel.PdfPanel.Web;
 
 [SupportedOSPlatform("browser")]
-public partial class PdfPanelInterop
+internal static partial class PdfPanelInterop
 {
-    private static bool _isInitialized = false;
+    private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = [];
 
-    private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
+    private static readonly ILoggerFactory LoggerFactory = new EmscriptenConsoleLoggerFactory(LogLevel.Warning);
 
-    private static PdfDocumentReader DocumentReader;
+    private static readonly ILogger Logger = LoggerFactory.CreateLogger(typeof(PdfPanelInterop));
 
-    /// <summary>Gets the application-wide logger factory, available after <see cref="Initialize"/> has been called.</summary>
-    public static ILoggerFactory LoggerFactory { get; private set; }
+    private static readonly PdfDocumentReader DocumentReader = new(LoggerFactory, new SkiaFontSubstitutor(LoggerFactory));
 
-    /// <summary>Gets the logger for <see cref="PdfPanelInterop"/>, available after <see cref="Initialize"/> has been called.</summary>
-    public static ILogger Logger { get; private set; }
+    private static bool _isInitialized;
 
     [JSExport]
     internal static void Initialize()
@@ -48,9 +47,6 @@ public partial class PdfPanelInterop
             return;
         }
 
-        LoggerFactory = new EmscriptenConsoleLoggerFactory(LogLevel.Warning);
-        Logger = LoggerFactory.CreateLogger<PdfPanelInterop>();
-        DocumentReader = new PdfDocumentReader(LoggerFactory, new SkiaFontSubstitutor(LoggerFactory));
         Logger.LogInformation("PdfPanelInterop initialized");
 
         _isInitialized = true;
@@ -71,28 +67,20 @@ public partial class PdfPanelInterop
 
         try
         {
-            var webGl = configuration.GetPropertyAsBoolean("useWebGL");
-            var selector = $"#{containerId} .pdf-panel-canvas";
+            bool webGl = configuration.GetPropertyAsBoolean("useWebGL");
+            string selector = $"#{containerId} .pdf-panel-canvas";
 
             PdfPanelResources resources;
 
             if (webGl)
             {
-                var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
-                resources = new PdfPanelResources(containerId)
-                {
-                    SkSurfaceFactory = renderer,
-                    RenderTargetFactory = renderer
-                };
+                WebGlSkiaRenderer renderer = new(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
+                resources = new PdfPanelResources(containerId, renderer, renderer);
             }
             else
             {
-                var renderer = new CpuSkiaRenderer(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
-                resources = new PdfPanelResources(containerId)
-                {
-                    SkSurfaceFactory = renderer,
-                    RenderTargetFactory = renderer
-                };
+                CpuSkiaRenderer renderer = new(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
+                resources = new PdfPanelResources(containerId, renderer, renderer);
             }
 
             resources.YieldInterval = TimeSpan.FromMilliseconds(configuration.GetPropertyAsDouble("yieldInterval"));
@@ -100,10 +88,12 @@ public partial class PdfPanelInterop
 
             ResourcesMap[containerId] = resources;
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error registering container with id '{ContainerId}'", containerId);
         }
+#pragma warning restore CA1031
     }
 
     /// <summary>
@@ -118,7 +108,7 @@ public partial class PdfPanelInterop
             return;
         }
 
-        if (!ResourcesMap.TryGetValue(containerId, out var resources))
+        if (!ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources))
         {
             return;
         }
@@ -132,10 +122,12 @@ public partial class PdfPanelInterop
                 resources.Configuration.ApplyConfiguration(resources.Context);
             }
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error updating configuration of container '{Id}'", containerId);
         }
+#pragma warning restore CA1031
     }
 
     /// <summary>
@@ -143,14 +135,14 @@ public partial class PdfPanelInterop
     /// <c>{ type: 'text', text }</c> for selected text, or null when nothing is selected.
     /// </summary>
     [JSExport]
-    public static JSObject GetSelectedContent(string containerId)
+    public static JSObject? GetSelectedContent(string containerId)
     {
-        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
+        if (!ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources) || resources.Context == null)
         {
             return null;
         }
 
-        PdfPanelImageContentItem selectedImage = resources.Context.Content.SelectedImage;
+        PdfPanelImageContentItem? selectedImage = resources.Context.Content.SelectedImage;
 
         if (selectedImage != null)
         {
@@ -186,7 +178,7 @@ public partial class PdfPanelInterop
             return;
         }
 
-        if (ResourcesMap.TryGetValue(containerId, out var resources))
+        if (ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources))
         {
             DisposeContext(resources);
             resources.Pages?.Dispose();
@@ -212,7 +204,7 @@ public partial class PdfPanelInterop
             return result;
         }
 
-        if (!ResourcesMap.TryGetValue(containerId, out var resources))
+        if (!ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources))
         {
             Logger.LogWarning("Received document data for unknown container id '{Id}'", containerId);
             PdfPanelJsConverter.WriteDocumentResult(result, "error", $"No panel is registered with id '{containerId}'.");
@@ -232,12 +224,14 @@ public partial class PdfPanelInterop
             Logger.LogInformation("Reading PDF document, size={Size} bytes", document.Length);
             loadedDocument = DocumentReader.Read(new MemoryStream(document));
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading PDF document for container '{Id}'", containerId);
             PdfPanelJsConverter.WriteDocumentResult(result, PdfPanelJsConverter.GetDocumentErrorReason(ex), ex.Message);
             return result;
         }
+#pragma warning restore CA1031
 
         try
         {
@@ -264,11 +258,13 @@ public partial class PdfPanelInterop
 
             PdfPanelJsConverter.WriteDocumentResult(result, resources.Pages.Count);
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error showing PDF document for container '{Id}'", containerId);
             PdfPanelJsConverter.WriteDocumentResult(result, "error", ex.Message);
         }
+#pragma warning restore CA1031
 
         return result;
     }
@@ -280,12 +276,12 @@ public partial class PdfPanelInterop
     [JSExport]
     public static bool ScrollToDestination(string containerId, JSObject destination)
     {
-        if (!TryGetContext(containerId, out PdfPanelContext context))
+        if (!TryGetContext(containerId, out PdfPanelContext? context))
         {
             return false;
         }
 
-        PdfPageNumberDestination pageDestination = PdfPanelJsConverter.ReadDestination(destination);
+        PdfPageNumberDestination? pageDestination = PdfPanelJsConverter.ReadDestination(destination);
 
         if (pageDestination == null)
         {
@@ -303,12 +299,12 @@ public partial class PdfPanelInterop
     [JSExport]
     public static bool SetPageRotation(string containerId, int pageNumber, int degrees)
     {
-        if (degrees % 90 != 0 || !TryGetContext(containerId, out PdfPanelContext context))
+        if (degrees % 90 != 0 || !TryGetContext(containerId, out PdfPanelContext? context))
         {
             return false;
         }
 
-        if (!context.Pages.TryGetPage(pageNumber, out PdfPanelPage page) || page == null)
+        if (!context.Pages.TryGetPage(pageNumber, out PdfPanelPage? page) || page == null)
         {
             return false;
         }
@@ -325,7 +321,7 @@ public partial class PdfPanelInterop
     [JSExport]
     public static bool SetRotation(string containerId, int degrees)
     {
-        if (degrees % 90 != 0 || !TryGetContext(containerId, out PdfPanelContext context))
+        if (degrees % 90 != 0 || !TryGetContext(containerId, out PdfPanelContext? context))
         {
             return false;
         }
@@ -349,7 +345,7 @@ public partial class PdfPanelInterop
             return;
         }
 
-        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
+        if (!ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources) || resources.Context == null)
         {
             return;
         }
@@ -359,9 +355,9 @@ public partial class PdfPanelInterop
             int width = state.GetPropertyAsInt32("panelWidth");
             int height = state.GetPropertyAsInt32("panelHeight");
 
-            float verticalOffset = (float)(double)state.GetPropertyAsDouble("verticalOffset");
-            float horizontalOffset = (float)(double)state.GetPropertyAsDouble("horizontalOffset");
-            float scale = (float)(double)state.GetPropertyAsDouble("scale");
+            var verticalOffset = (float)(double)state.GetPropertyAsDouble("verticalOffset");
+            var horizontalOffset = (float)(double)state.GetPropertyAsDouble("horizontalOffset");
+            var scale = (float)(double)state.GetPropertyAsDouble("scale");
 
             resources.Context.VerticalOffset = verticalOffset;
             resources.Context.HorizontalOffset = horizontalOffset;
@@ -379,13 +375,13 @@ public partial class PdfPanelInterop
             }
 
             resources.Context.Search.Query = state.GetPropertyAsString("searchQuery");
-            ApplyCurrentSearchResult(resources, state);
+            ApplyCurrentSearchResult(resources, resources.Context, state);
 
             bool pointerInside = state.GetPropertyAsBoolean("pointerInside");
             if (pointerInside)
             {
-                float pointerX = (float)(double)state.GetPropertyAsDouble("pointerX");
-                float pointerY = (float)(double)state.GetPropertyAsDouble("pointerY");
+                var pointerX = (float)(double)state.GetPropertyAsDouble("pointerX");
+                var pointerY = (float)(double)state.GetPropertyAsDouble("pointerY");
                 resources.Context.Input.PointerPosition = new PdfPoint(pointerX, pointerY);
             }
             else
@@ -402,7 +398,7 @@ public partial class PdfPanelInterop
             state.SetProperty("openUri", resources.OpenUri);
             resources.OpenUri = string.Empty;
 
-            PdfAnnotationPopup activeAnnotation = resources.Context.Annotations.ActiveAnnotation;
+            PdfAnnotationPopup? activeAnnotation = resources.Context.Annotations.ActiveAnnotation;
 
             if (activeAnnotation != resources.AnnotationPopup)
             {
@@ -410,7 +406,7 @@ public partial class PdfPanelInterop
                 SetAnnotationPopup(state, activeAnnotation);
             }
 
-            string activeContentName = resources.Context.Content.ActiveContentName;
+            string? activeContentName = resources.Context.Content.ActiveContentName;
 
             if (activeContentName != resources.ActiveContentName)
             {
@@ -439,10 +435,12 @@ public partial class PdfPanelInterop
 
             resources.Context.Render();
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error in container '{Id}'", containerId);
         }
+#pragma warning restore CA1031
     }
 
     /// <summary>
@@ -451,15 +449,15 @@ public partial class PdfPanelInterop
     /// </summary>
     private static void ApplyZoomRequest(PdfPanelContext context, JSObject state)
     {
-        using JSObject zoomRequest = state.GetPropertyAsJSObject("zoomRequest");
+        using JSObject? zoomRequest = state.GetPropertyAsJSObject("zoomRequest");
 
         if (zoomRequest == null)
         {
             return;
         }
 
-        float centerX = (float)zoomRequest.GetPropertyAsDouble("centerX");
-        float centerY = (float)zoomRequest.GetPropertyAsDouble("centerY");
+        var centerX = (float)zoomRequest.GetPropertyAsDouble("centerX");
+        var centerY = (float)zoomRequest.GetPropertyAsDouble("centerY");
 
         if (zoomRequest.HasProperty("scale"))
         {
@@ -492,14 +490,14 @@ public partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Sets the current search match from the <c>currentSearchResult</c> range of the redraw state,
+    /// Sets the current search match of <paramref name="context"/> from the <c>currentSearchResult</c> range of the redraw state,
     /// and scrolls to it when the range differs from the last one received.
     /// </summary>
-    private static void ApplyCurrentSearchResult(PdfPanelResources resources, JSObject state)
+    private static void ApplyCurrentSearchResult(PdfPanelResources resources, PdfPanelContext context, JSObject state)
     {
         PdfPanelTextRange? range;
 
-        using (JSObject result = state.GetPropertyAsJSObject("currentSearchResult"))
+        using (JSObject? result = state.GetPropertyAsJSObject("currentSearchResult"))
         {
             range = PdfPanelJsConverter.ReadTextRange(result);
         }
@@ -508,7 +506,7 @@ public partial class PdfPanelInterop
 
         if (range != null)
         {
-            foreach (PdfPanelSearchMatch match in resources.Context.Search.Matches)
+            foreach (PdfPanelSearchMatch match in context.Search.Matches)
             {
                 if (match.Range == range.Value)
                 {
@@ -518,7 +516,7 @@ public partial class PdfPanelInterop
             }
         }
 
-        resources.Context.Search.CurrentMatch = currentMatch;
+        context.Search.CurrentMatch = currentMatch;
 
         if (range == resources.CurrentSearchRange)
         {
@@ -529,7 +527,7 @@ public partial class PdfPanelInterop
 
         if (currentMatch != null)
         {
-            resources.Context.ScrollToSearchMatch(currentMatch.Value);
+            context.ScrollToSearchMatch(currentMatch.Value);
         }
     }
 
@@ -558,11 +556,11 @@ public partial class PdfPanelInterop
         state.SetProperty("searchResults", results);
     }
 
-    private static bool TryGetContext(string containerId, out PdfPanelContext context)
+    private static bool TryGetContext(string containerId, [NotNullWhen(true)] out PdfPanelContext? context)
     {
         context = null;
 
-        if (!_isInitialized || !ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
+        if (!_isInitialized || !ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources) || resources.Context == null)
         {
             return false;
         }
@@ -575,13 +573,13 @@ public partial class PdfPanelInterop
     /// Sets the JS popup object built from <paramref name="popup"/>, or null when no annotation is active,
     /// and marks the popup as changed on the redraw state.
     /// </summary>
-    private static void SetAnnotationPopup(JSObject state, PdfAnnotationPopup popup)
+    private static void SetAnnotationPopup(JSObject state, PdfAnnotationPopup? popup)
     {
         state.SetProperty("annotationPopupChanged", true);
 
         if (popup == null)
         {
-            state.SetProperty("annotationPopup", (JSObject)null);
+            state.SetProperty("annotationPopup", (JSObject?)null);
             return;
         }
 

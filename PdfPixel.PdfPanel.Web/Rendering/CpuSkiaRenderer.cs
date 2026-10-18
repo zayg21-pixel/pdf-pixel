@@ -81,11 +81,13 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
 
             EmscriptenInterop.SetCanvasRgba(_canvasSelector, src, width, height);
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to upload CPU surface to canvas {CanvasSelector}", _canvasSelector);
             return;
         }
+#pragma warning restore CA1031
 
         _onFramePresented(frame);
     }

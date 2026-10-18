@@ -14,12 +14,17 @@ namespace PdfPixel.PdfPanel.Web;
 /// Encapsulates all resources associated with a single PDF panel instance.
 /// </summary>
 [SupportedOSPlatform("browser")]
-internal class PdfPanelResources
+internal sealed class PdfPanelResources
 {
     /// <summary>
     /// Initializes the resources of the panel in the container with the given id.
     /// </summary>
-    public PdfPanelResources(string containerId) => ContainerId = containerId;
+    public PdfPanelResources(string containerId, ISkSurfaceFactory skSurfaceFactory, IPdfPanelRenderTargetFactory renderTargetFactory)
+    {
+        ContainerId = containerId;
+        SkSurfaceFactory = skSurfaceFactory;
+        RenderTargetFactory = renderTargetFactory;
+    }
 
     /// <summary>
     /// Gets the id of the container the panel is registered for.
@@ -27,29 +32,29 @@ internal class PdfPanelResources
     public string ContainerId { get; }
 
     /// <summary>
-    /// Gets or sets the render target factory for the panel.
+    /// Gets the render target factory for the panel.
     /// </summary>
-    public IPdfPanelRenderTargetFactory RenderTargetFactory { get; set; }
+    public IPdfPanelRenderTargetFactory RenderTargetFactory { get; }
 
     /// <summary>
-    /// Gets or sets the Skia surface factory for the panel.
+    /// Gets the Skia surface factory for the panel.
     /// </summary>
-    public ISkSurfaceFactory SkSurfaceFactory { get; set; }
+    public ISkSurfaceFactory SkSurfaceFactory { get; }
 
     /// <summary>
-    /// Gets or sets the PDF panel context instance.
+    /// Gets or sets the PDF panel context instance, or null when no document is loaded.
     /// </summary>
-    public PdfPanelContext Context { get; set; }
+    public PdfPanelContext? Context { get; set; }
 
     /// <summary>
-    /// Gets or sets the document currently loaded into the panel.
+    /// Gets or sets the document currently loaded into the panel, or null when none is loaded.
     /// </summary>
-    public IPdfDocument Document { get; set; }
+    public IPdfDocument? Document { get; set; }
 
     /// <summary>
-    /// Gets or sets the pages of the currently loaded document.
+    /// Gets or sets the pages of the currently loaded document, or null when none is loaded.
     /// </summary>
-    public PdfPanelPageCollection Pages { get; set; }
+    public PdfPanelPageCollection? Pages { get; set; }
 
     /// <summary>
     /// Gets the panel values set through the panel configuration.
@@ -64,12 +69,12 @@ internal class PdfPanelResources
     /// <summary>
     /// Gets or sets the annotation popup last sent to JS, or null when none is shown.
     /// </summary>
-    public PdfAnnotationPopup AnnotationPopup { get; set; }
+    public PdfAnnotationPopup? AnnotationPopup { get; set; }
 
     /// <summary>
     /// Gets or sets the name of the content under the pointer last sent to JS, or null when none is shown.
     /// </summary>
-    public string ActiveContentName { get; set; }
+    public string? ActiveContentName { get; set; }
 
     /// <summary>
     /// Gets or sets whether the search matches changed since they were last sent to JS.
@@ -90,7 +95,7 @@ internal class PdfPanelResources
     /// Handles an action the panel does not perform: keeps the first URI requested during a synchronization for JS
     /// to open.
     /// </summary>
-    public void OnActionRequested(object sender, PdfPanelActionEventArgs args)
+    public void OnActionRequested(object? sender, PdfPanelActionEventArgs args)
     {
         switch (args.Action)
         {
@@ -114,7 +119,7 @@ internal class PdfPanelResources
     /// <summary>
     /// Marks the search matches as changed and schedules a redraw that sends them to JS.
     /// </summary>
-    public void OnSearchMatchesChanged(object sender, EventArgs args)
+    public void OnSearchMatchesChanged(object? sender, EventArgs args)
     {
         SearchResultsChanged = true;
         PdfPanelInterop.ScheduleRedraw(ContainerId);
@@ -123,5 +128,5 @@ internal class PdfPanelResources
     /// <summary>
     /// Schedules a redraw that sends the extracted text state to JS.
     /// </summary>
-    public void OnTextExtracted(object sender, EventArgs args) => PdfPanelInterop.ScheduleRedraw(ContainerId);
+    public void OnTextExtracted(object? sender, EventArgs args) => PdfPanelInterop.ScheduleRedraw(ContainerId);
 }

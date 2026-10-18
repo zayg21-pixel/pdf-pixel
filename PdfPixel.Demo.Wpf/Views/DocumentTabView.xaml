@@ -294,6 +294,7 @@
                     <ComboBox DockPanel.Dock="Top"
                               ItemsSource="{Binding Layers.Configurations, ElementName=pdfPanel}"
                               SelectedItem="{Binding Layers.Configuration, ElementName=pdfPanel}"
+                              Visibility="{Binding Layers.HasDistinctConfigurations, ElementName=pdfPanel, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
                               Margin="8 0 8 4">
                         <ComboBox.ItemTemplate>
                             <DataTemplate DataType="{x:Type pdfPanelMvvm:PdfLayerConfigurationViewModel}">

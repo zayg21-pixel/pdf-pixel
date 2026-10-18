@@ -7,17 +7,17 @@ namespace PdfPixel.PdfPanel.Web;
 /// <summary>
 /// Encapsulates per-canvas WebGL handles.
 /// </summary>
-public sealed class CanvasGlContext : IDisposable
+internal sealed class CanvasGlContext : IDisposable
 {
     private bool _disposed;
-    private SKSurface _presentSurface;
+    private SKSurface? _presentSurface;
     private int _surfaceWidth;
     private int _surfaceHeight;
 
-    internal CanvasGlContext(
-    string canvasSelector,
-    int webGlContext,
-    GRContext grContext)
+    public CanvasGlContext(
+        string canvasSelector,
+        int webGlContext,
+        GRContext grContext)
     {
         CanvasSelector = canvasSelector;
         WebGlContext = webGlContext;
@@ -42,14 +42,14 @@ public sealed class CanvasGlContext : IDisposable
             return _presentSurface;
         }
 
-        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
+        _ = EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
 
-        RecreatePresentSurface(width, height);
+        SKSurface presentSurface = RecreatePresentSurface(width, height);
 
         _surfaceWidth = width;
         _surfaceHeight = height;
 
-        return _presentSurface;
+        return presentSurface;
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ public sealed class CanvasGlContext : IDisposable
             return;
         }
 
-        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
+        _ = EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
         _presentSurface.Flush();
     }
 
@@ -75,13 +75,13 @@ public sealed class CanvasGlContext : IDisposable
         }
 
         _disposed = true;
-        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
+        _ = EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
         _presentSurface?.Dispose();
         GrContext.Dispose();
-        EmscriptenInterop.WebGlDestroyContext(WebGlContext);
+        _ = EmscriptenInterop.WebGlDestroyContext(WebGlContext);
     }
 
-    private void RecreatePresentSurface(int width, int height)
+    private SKSurface RecreatePresentSurface(int width, int height)
     {
         _presentSurface?.Dispose();
 
@@ -110,5 +110,7 @@ public sealed class CanvasGlContext : IDisposable
         }
 
         _presentSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
+
+        return _presentSurface;
     }
 }

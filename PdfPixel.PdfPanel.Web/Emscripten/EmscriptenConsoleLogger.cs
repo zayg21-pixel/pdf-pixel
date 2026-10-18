@@ -20,30 +20,30 @@ internal sealed class EmscriptenConsoleLogger : ILogger
     }
 
     /// <inheritdoc />
-    public bool IsEnabled(LogLevel logLevel) =>
-        logLevel != LogLevel.None && logLevel >= _minimumLevel;
+    public bool IsEnabled(LogLevel logLevel)
+        => logLevel != LogLevel.None && logLevel >= _minimumLevel;
 
     /// <inheritdoc />
     public void Log<TState>(
         LogLevel logLevel,
         EventId eventId,
         TState state,
-        Exception exception,
-        Func<TState, Exception, string> formatter)
+        Exception? exception,
+        Func<TState, Exception?, string> formatter)
     {
         if (!IsEnabled(logLevel))
         {
             return;
         }
 
-        var message = formatter(state, exception);
+        string message = formatter(state, exception);
 
         if (exception != null)
         {
             message = $"{message}{Environment.NewLine}{exception}";
         }
 
-        var prefix = logLevel switch
+        string prefix = logLevel switch
         {
             LogLevel.Trace => "TRC",
             LogLevel.Debug => "DBG",
@@ -58,13 +58,15 @@ internal sealed class EmscriptenConsoleLogger : ILogger
     }
 
     /// <inheritdoc />
-    public IDisposable BeginScope<TState>(TState state) where TState : notnull =>
-        NullScope.Instance;
+    public IDisposable BeginScope<TState>(TState state) where TState : notnull
+        => NullScope.Instance;
 
     private sealed class NullScope : IDisposable
     {
         internal static readonly NullScope Instance = new();
 
-        public void Dispose() { }
+        public void Dispose()
+        {
+        }
     }
 }
