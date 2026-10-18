@@ -8,12 +8,12 @@ namespace PdfPixel.PdfPanel;
 /// <summary>
 /// Immutable snapshot of a page's rendering parameters captured at the start of each render pass.
 /// </summary>
-internal readonly struct VisiblePageInfo
+internal readonly struct RequestPageInfo
 {
     /// <summary>
-    /// Initialises a new snapshot for a visible page.
+    /// Initialises a new snapshot for a page of a request.
     /// </summary>
-    public VisiblePageInfo(
+    public RequestPageInfo(
         int pageNumber,
         in PdfPoint offset,
         in PdfPanelPageInfo pageInfo,
@@ -38,10 +38,20 @@ internal readonly struct VisiblePageInfo
         PdfRectangle panelRect = PdfRectangle.FromLocationAndSize(0, 0, panelSize.Width, panelSize.Height);
         PdfRectangle visibleContent = GetContentToPanelMatrix(scale).Invert().MapRect(panelRect);
         PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.CropBox.Width, pageInfo.CropBox.Height);
+        float pageScale = scale * pageInfo.UserUnit;
 
-        RegionOfInterest = PdfRectangle.Intersect(
-            PdfPageContentTiler.SnapToTileGrid(visibleContent, scale * pageInfo.UserUnit, tileSize),
-            pageBounds);
+        VisibleRegion = (PdfRectangle.IntersectsWith(visibleContent, pageBounds))
+            ? PdfRectangle.Intersect(PdfPageContentTiler.SnapToTileGrid(visibleContent, pageScale, tileSize), pageBounds)
+            : PdfRectangle.Empty;
+
+        if (pageBounds.Width * pageScale <= panelSize.Width && pageBounds.Height * pageScale <= panelSize.Height)
+        {
+            RegionOfInterest = null;
+        }
+        else
+        {
+            RegionOfInterest = VisibleRegion;
+        }
     }
 
     /// <summary>
@@ -66,10 +76,16 @@ internal readonly struct VisiblePageInfo
     public int UserRotation { get; }
 
     /// <summary>
-    /// Gets the part of the page covered by the canvas, in content coordinates,
-    /// expanded to the tile grid and clamped to the page bounds.
+    /// Gets the part of the page covered by the canvas, in content coordinates, expanded to the tile grid and clamped
+    /// to the page bounds, or <see cref="PdfRectangle.Empty"/> when the canvas does not cover the page.
     /// </summary>
-    public PdfRectangle RegionOfInterest { get; }
+    public PdfRectangle VisibleRegion { get; }
+
+    /// <summary>
+    /// Gets the part of the page its content is decoded for: <see langword="null"/> for the whole page when the page
+    /// fits within the canvas at the current scale, otherwise <see cref="VisibleRegion"/>.
+    /// </summary>
+    public PdfRectangle? RegionOfInterest { get; }
 
     /// <summary>
     /// Gets the rotated size of the page.
@@ -113,5 +129,24 @@ internal readonly struct VisiblePageInfo
             Info.CropBox.Height + Info.CropBox.Top - pdfRect.Bottom,
             pdfRect.Width,
             pdfRect.Height);
+    }
+
+    /// <summary>
+    /// Returns whether content decoded for <paramref name="decodedRegion"/> covers <paramref name="requestedRegion"/>,
+    /// where <see langword="null"/> stands for the whole page and an empty region needs no content.
+    /// </summary>
+    public static bool CoversRegion(PdfRectangle? decodedRegion, PdfRectangle? requestedRegion)
+    {
+        if (decodedRegion == null)
+        {
+            return true;
+        }
+
+        if (requestedRegion == null)
+        {
+            return false;
+        }
+
+        return requestedRegion.Value.IsEmpty || decodedRegion.Value.Contains(requestedRegion.Value);
     }
 }

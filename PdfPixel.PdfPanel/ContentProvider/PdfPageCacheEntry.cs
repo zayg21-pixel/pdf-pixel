@@ -2,6 +2,7 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Execution;
+using PdfPixel.PdfPanel.Requests;
 using System;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -11,7 +12,9 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 internal sealed class PdfPageCacheEntry : IDisposable
 {
+    private readonly object _renderingLocker = new();
     private PdfAnnotationPopup[]? _annotations;
+    private PagesDrawingRequest? _pendingRequest;
     private bool _disposed;
 
     /// <summary>
@@ -79,9 +82,18 @@ internal sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// True if this entry has a pending or completed decode request.
+    /// Request the queued or running decode pass of this entry works for, or <see langword="null"/> when none is pending.
     /// </summary>
-    public bool PendingRequest { get; private set; }
+    public PagesDrawingRequest? PendingRequest
+    {
+        get
+        {
+            lock (_renderingLocker)
+            {
+                return _pendingRequest;
+            }
+        }
+    }
 
     /// <summary>
     /// Observer used during page command recording. Held here so the provider can cancel it.
@@ -94,11 +106,11 @@ internal sealed class PdfPageCacheEntry : IDisposable
     public IPdfCancellableExecutionObserver? ContentObserver { get; private set; }
 
     /// <summary>
-    /// Prepares the entry for a new decode pass.
+    /// Prepares the entry for a new decode pass for <paramref name="request"/>.
     /// Keeps the parse observer if one already exists, creating it only when missing;
     /// always cancels and replaces the content observer.
     /// </summary>
-    public void InitializeForRendering(IPdfExecutionObserverFactory observerFactory)
+    public void InitializeForRendering(IPdfExecutionObserverFactory observerFactory, PagesDrawingRequest request)
     {
         if (observerFactory == null)
         {
@@ -107,16 +119,32 @@ internal sealed class PdfPageCacheEntry : IDisposable
 
         ThrowIfDisposed();
 
-        if (ParseObserver == null)
+        lock (_renderingLocker)
         {
-            ParseObserver = observerFactory.CreateParseObserver(PageNumber);
+            if (ParseObserver == null)
+            {
+                ParseObserver = observerFactory.CreateParseObserver(PageNumber);
+            }
+
+            ContentObserver?.Cancel();
+            ContentObserver?.Dispose();
+            ContentObserver = observerFactory.CreateContentObserver(PageNumber);
+            _pendingRequest = request ?? throw new ArgumentNullException(nameof(request));
         }
+    }
 
-        ContentObserver?.Cancel();
-        ContentObserver?.Dispose();
-        ContentObserver = observerFactory.CreateContentObserver(PageNumber);
-
-        PendingRequest = true;
+    /// <summary>
+    /// Ends the pending decode pass when <paramref name="contentObserver"/> is still the entry's content observer.
+    /// </summary>
+    public void CompleteRendering(IPdfCancellableExecutionObserver contentObserver)
+    {
+        lock (_renderingLocker)
+        {
+            if (ReferenceEquals(ContentObserver, contentObserver))
+            {
+                _pendingRequest = null;
+            }
+        }
     }
 
     /// <summary>
@@ -126,15 +154,17 @@ internal sealed class PdfPageCacheEntry : IDisposable
     {
         ThrowIfDisposed();
 
-        ParseObserver?.Cancel();
-        ParseObserver?.Dispose();
-        ParseObserver = null;
+        lock (_renderingLocker)
+        {
+            ParseObserver?.Cancel();
+            ParseObserver?.Dispose();
+            ParseObserver = null;
 
-        ContentObserver?.Cancel();
-        ContentObserver?.Dispose();
-        ContentObserver = null;
-
-        PendingRequest = false;
+            ContentObserver?.Cancel();
+            ContentObserver?.Dispose();
+            ContentObserver = null;
+            _pendingRequest = null;
+        }
     }
 
     /// <summary>

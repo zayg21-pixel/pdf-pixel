@@ -79,7 +79,10 @@ export interface PdfPixelConfiguration {
     scrollContentUpdateDelay?: number;
     /** Time in milliseconds a zoomed view waits before page content decoding starts. */
     zoomContentUpdateDelay?: number;
-    /** Distance from a character within which the pointer counts as being over it, in unscaled page space. */
+    /** Number of pages ahead of the visible pages in the scroll direction whose content is decoded after them; 0 decodes no pages ahead. */
+    lookAheadPageCount?: number;
+    /** Number of pages besides the visible ones whose decoded content is kept; 0 keeps only the visible pages. */
+    contentCacheSize?: number;    /** Distance from a character within which the pointer counts as being over it, in unscaled page space. */
     textCharacterHitRadius?: number;
     /** Vertical distance between two characters, as a fraction of character height, within which they highlight as one strip. */
     textLineMergeThreshold?: number;

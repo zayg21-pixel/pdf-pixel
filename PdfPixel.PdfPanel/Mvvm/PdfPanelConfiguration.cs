@@ -49,7 +49,8 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private int _animationFps = PdfPanelRenderer.DefaultAnimationFps;
     private TimeSpan _scrollContentUpdateDelay = PdfPanelRenderer.DefaultScrollContentUpdateDelay;
     private TimeSpan _zoomContentUpdateDelay = PdfPanelRenderer.DefaultZoomContentUpdateDelay;
-    private float _textCharacterHitRadius = PdfPanelText.DefaultCharacterHitRadius;
+    private int _lookAheadPageCount = PdfPanelRenderer.DefaultLookAheadPageCount;
+    private int _contentCacheSize = PdfPanelRenderer.DefaultContentCacheSize;    private float _textCharacterHitRadius = PdfPanelText.DefaultCharacterHitRadius;
     private float _textLineMergeThreshold = PdfPanelText.DefaultLineMergeThreshold;
 
     /// <inheritdoc />
@@ -358,6 +359,24 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Number of pages ahead of the visible pages in the scroll direction whose content is decoded after them.
+    /// </summary>
+    public int LookAheadPageCount
+    {
+        get => _lookAheadPageCount;
+        set => SetProperty(ref _lookAheadPageCount, value, nameof(LookAheadPageCount));
+    }
+
+    /// <summary>
+    /// Number of pages besides the visible ones whose decoded content is kept, the most recently requested ones.
+    /// </summary>
+    public int ContentCacheSize
+    {
+        get => _contentCacheSize;
+        set => SetProperty(ref _contentCacheSize, value, nameof(ContentCacheSize));
+    }
+
+    /// <summary>
     /// Distance from a character within which the pointer counts as being over it, in unscaled panel space.
     /// </summary>
     public float TextCharacterHitRadius
@@ -418,7 +437,8 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Renderer.AnimationFps = AnimationFps;
         context.Renderer.ScrollContentUpdateDelay = ScrollContentUpdateDelay;
         context.Renderer.ZoomContentUpdateDelay = ZoomContentUpdateDelay;
-        context.Text.CharacterHitRadius = TextCharacterHitRadius;
+        context.Renderer.LookAheadPageCount = LookAheadPageCount;
+        context.Renderer.ContentCacheSize = ContentCacheSize;        context.Text.CharacterHitRadius = TextCharacterHitRadius;
         context.Text.LineMergeThreshold = TextLineMergeThreshold;
     }
 

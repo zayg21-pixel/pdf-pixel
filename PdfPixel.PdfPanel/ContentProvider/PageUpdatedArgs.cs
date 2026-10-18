@@ -10,7 +10,7 @@ internal sealed class PageUpdatedArgs
     /// <summary>
     /// Initialises a new instance with the updated page number, pictures, content type, partial flag, and region of interest.
     /// </summary>
-    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType, bool isPartialContent, in PdfRectangle regionOfInterest)
+    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType, bool isPartialContent, PdfRectangle? regionOfInterest)
     {
         PageNumber = pageNumber;
         ContentPictures = contentPictures;
@@ -40,7 +40,7 @@ internal sealed class PageUpdatedArgs
     public bool IsPartialContent { get; }
 
     /// <summary>
-    /// Visible region within the page content coordinate space used when the content was decoded.
+    /// Region within the page content coordinate space used when the content was decoded, or <see langword="null"/> for the whole page.
     /// </summary>
-    public PdfRectangle RegionOfInterest { get; }
+    public PdfRectangle? RegionOfInterest { get; }
 }

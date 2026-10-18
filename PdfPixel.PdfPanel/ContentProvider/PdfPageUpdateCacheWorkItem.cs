@@ -95,10 +95,23 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
     /// <inheritdoc />
     public async ValueTask ProcessAsync()
     {
-        if (_parseObserver == null ||  _contentObserver == null)
+        if (_parseObserver == null || _contentObserver == null)
         {
             return;
         }
+
+        try
+        {
+            await ProcessContentAsync(_parseObserver, _contentObserver).ConfigureAwait(false);
+        }
+        finally
+        {
+            CacheEntry.CompleteRendering(_contentObserver);
+        }
+    }
+
+    private async ValueTask ProcessContentAsync(IPdfCancellableExecutionObserver parseObserver, IPdfCancellableExecutionObserver contentObserver)
+    {
 
         var contentUpdated = false;
         var contentIsPartial = false;
@@ -107,12 +120,12 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             if (!CacheEntry.Content.ContentCommandRecording.HasContent)
             {
-                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, RenderingParameters, _parseObserver);
+                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, RenderingParameters, parseObserver);
                 CacheEntry.Content.UpdateContentCommandRecording(recording);
             }
         }
 
-        await _parseObserver.YieldAsync().ConfigureAwait(false);
+        await parseObserver.YieldAsync().ConfigureAwait(false);
 
         if (CacheEntry.Content.NeedsPictureUpdate(_request))
         {
@@ -133,7 +146,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                     _executionParameters,
                     _documentLocker,
                     _request.OptionalContentStates,
-                    _contentObserver,
+                    contentObserver,
                     ToPictureRegion(_request.GetPage(CacheEntry.PageNumber).RegionOfInterest, pictureScale));
 
                 await PdfDocumentContentExtensions
@@ -168,7 +181,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
             _onPageUpdated?.Invoke(
                 new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, _request.GetPage(CacheEntry.PageNumber).RegionOfInterest));
 
-            await _contentObserver.YieldAsync().ConfigureAwait(false);
+            await contentObserver.YieldAsync().ConfigureAwait(false);
         }
 
         var annotationRecordingUpdated = false;
@@ -183,7 +196,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                     _request.ActiveAnnotation?.PageAnnotation,
                     _request.ActiveAnnotationState,
                     RenderingParameters,
-                    _contentObserver);
+                    contentObserver);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 annotationRecordingUpdated = true;
             }
@@ -212,7 +225,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
                     _executionParameters,
                     _documentLocker,
                     _request.OptionalContentStates,
-                    _contentObserver,
+                    contentObserver,
                     ToPictureRegion(_request.GetPage(CacheEntry.PageNumber).RegionOfInterest, annotationPictureScale));
 
                 await PdfDocumentContentExtensions
@@ -239,6 +252,13 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
     /// Maps <paramref name="regionOfInterest"/> from page content coordinates into the coordinates of
     /// a picture recorded at <paramref name="pictureScale"/>.
     /// </summary>
-    private static PdfRectangle ToPictureRegion(in PdfRectangle regionOfInterest, float pictureScale)
-        => PdfMatrix.CreateScale(pictureScale, pictureScale).MapRect(regionOfInterest);
+    private static PdfRectangle? ToPictureRegion(PdfRectangle? regionOfInterest, float pictureScale)
+    {
+        if (regionOfInterest == null)
+        {
+            return null;
+        }
+
+        return PdfMatrix.CreateScale(pictureScale, pictureScale).MapRect(regionOfInterest.Value);
+    }
 }

@@ -11,6 +11,16 @@ namespace PdfPixel.PdfPanel.Requests;
 internal sealed class PagesDrawingRequest : DrawingRequest
 {
     /// <summary>
+    /// Whether the pages are the ones ahead of the visible pages in the scroll direction, decoded but not drawn.
+    /// </summary>
+    public bool IsLookAhead { get; set; }
+
+    /// <summary>
+    /// Number of pages besides the visible ones whose decoded content is kept.
+    /// </summary>
+    public int ContentCacheSize { get; set; }
+
+    /// <summary>
     /// If true - antialiasing is enabled for page content.
     /// </summary>
     public bool Antialias { get; set; }
@@ -45,12 +55,35 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     /// </summary>
     public IReadOnlyDictionary<PdfReference, bool>? OptionalContentStates { get; set; }
 
+    /// <summary>
+    /// Returns whether the page with the given page number decoded for this request also satisfies <paramref name="other"/>:
+    /// the same scale, drawing and optional content settings and active annotation, and a region of interest containing the one of <paramref name="other"/>.
+    /// </summary>
+    public bool CoversPage(int pageNumber, PagesDrawingRequest other)
+    {
+        if (other == null)
+        {
+            throw new ArgumentNullException(nameof(other));
+        }
+
+        return Scale == other.Scale
+            && RequestPageInfo.CoversRegion(GetPage(pageNumber).RegionOfInterest, other.GetPage(pageNumber).RegionOfInterest)
+            && Antialias == other.Antialias
+            && SnapToDevicePixels == other.SnapToDevicePixels
+            && ActiveAnnotation == other.ActiveAnnotation
+            && ActiveAnnotationState == other.ActiveAnnotationState
+            && !other.ForceAnnotationUpdate
+            && AreOptionalContentStatesEqual(OptionalContentStates, other.OptionalContentStates);
+    }
+
     /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         if (obj is PagesDrawingRequest other)
         {
             return base.Equals(obj)
+                && IsLookAhead == other.IsLookAhead
+                && ContentCacheSize == other.ContentCacheSize
                 && Antialias == other.Antialias
                 && SnapToDevicePixels == other.SnapToDevicePixels
                 && BackgroundColor.Equals(other.BackgroundColor)
@@ -101,6 +134,8 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         hash.Add(RenderTarget);
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);
+        hash.Add(IsLookAhead);
+        hash.Add(ContentCacheSize);
         hash.Add(Antialias);
         hash.Add(SnapToDevicePixels);
         hash.Add(BackgroundColor);

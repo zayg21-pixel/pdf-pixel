@@ -31,6 +31,11 @@ internal sealed class PdfPageContentProvider : IDisposable
     private readonly IPdfExecutionObserverFactory _observerFactory;
     private readonly PdfPageCacheEntry[] _cache;
     private readonly HashSet<int> _visiblePageNumbers = [];
+    private readonly HashSet<int> _lookAheadPageNumbers = [];
+    private readonly List<int> _contentCachePageNumbers = [];
+    private readonly object _thumbnailRequestLocker = new();
+    private readonly Dictionary<int, IPdfCancellableExecutionObserver?> _thumbnailRequests = [];
+    private PagesDrawingRequest? _lastLookAheadRequest;
     private readonly PdfTextExtractor _textExtractor = new();
     private readonly PdfTextExtractionProperties _textExtractionProperties = new();
     private readonly PdfContentExtractor _contentExtractor = new();
@@ -39,6 +44,8 @@ internal sealed class PdfPageContentProvider : IDisposable
     private volatile bool _extractText;
     private volatile int _textExtractionStartPageNumber = 1;
     private int _textExtractionPending;
+    private IPdfCancellableExecutionObserver? _textExtractionObserver;
+    private IPdfCancellableExecutionObserver? _thumbnailChainObserver;
     private volatile bool _usePageThumbnails;
     private volatile bool _renderPageThumbnails;
     private PdfIntegerSize _thumbnailMaximumSize;
@@ -183,8 +190,12 @@ internal sealed class PdfPageContentProvider : IDisposable
     }
 
     /// <summary>
-    /// Starts or updates background decoding for the pages described by <paramref name="request"/>.
-    /// Pages no longer visible are cancelled and their cache cleared.
+    /// Starts or updates decoding for the pages described by <paramref name="request"/>.
+    /// A visible request cancels the decoding of every page that is no longer visible and all background work, decodes its pages first
+    /// and enqueues the remaining background work again after them: the pages of the last look-ahead request, the requested thumbnails,
+    /// then the thumbnail and text extraction chains. A look-ahead request cancels the look-ahead pages it no longer holds.
+    /// The decoded content of at most <see cref="PagesDrawingRequest.ContentCacheSize"/> pages besides the visible ones is kept,
+    /// clearing the least recently requested ones beyond that.
     /// </summary>
     public void UpdateContent(PagesDrawingRequest request)
     {
@@ -193,45 +204,46 @@ internal sealed class PdfPageContentProvider : IDisposable
             throw new ArgumentNullException(nameof(request));
         }
 
-        HashSet<int> requestedPageNumbers = new(request.VisiblePages.Select(x => x.PageNumber));
+        HashSet<int> requestedPageNumbers = new(request.Pages.Select(page => page.PageNumber));
 
-        foreach (int pageNumber in _visiblePageNumbers.Except(requestedPageNumbers).ToList())
+        if (request.IsLookAhead)
         {
-            PdfPageCacheEntry hiddenEntry = _cache[pageNumber - 1];
-
-            hiddenEntry.Cancel();
-            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem([hiddenEntry], DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
+            CancelPages(_lookAheadPageNumbers.Except(requestedPageNumbers));
+            _lookAheadPageNumbers.Clear();
+            _lookAheadPageNumbers.UnionWith(requestedPageNumbers);
+            _lastLookAheadRequest = request;
+            EnqueueContentUpdates(request);
+            EvictContentCache(request.ContentCacheSize);
+            return;
         }
 
+        CancelBackgroundWork();
+        CancelPages(_lookAheadPageNumbers.Union(_visiblePageNumbers).Except(requestedPageNumbers));
         _visiblePageNumbers.Clear();
+        _visiblePageNumbers.UnionWith(requestedPageNumbers);
+        _visiblePageNumbersInOrder = request.Pages.Select(page => page.PageNumber).ToArray();
+        _lookAheadPageNumbers.ExceptWith(requestedPageNumbers);
 
-        foreach (VisiblePageInfo page in request.VisiblePages)
+        EnqueueContentUpdates(request);
+
+        if (_lastLookAheadRequest != null)
         {
-            PdfPageCacheEntry cacheEntry = _cache[page.PageNumber - 1];
-
-            _visiblePageNumbers.Add(page.PageNumber);
-            cacheEntry.InitializeForRendering(_observerFactory);
-            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(
-                cacheEntry,
-                _document,
-                DocumentLocker,
-                _textExtractor,
-                _textExtractionProperties,
-                _contentExtractor,
-                _contentExtractionParameters,
-                request,
-                OnPageUpdated,
-                OnPageTextExtracted));
+            foreach (int pageNumber in _lookAheadPageNumbers)
+            {
+                EnqueueContentUpdate(_cache[pageNumber - 1], _lastLookAheadRequest);
+            }
         }
 
-        _visiblePageNumbersInOrder = request.VisiblePages.Select(page => page.PageNumber).ToArray();
+        RequeueThumbnailRequests();
+        EvictContentCache(request.ContentCacheSize);
 
-        if (request.VisiblePages.Length > 0)
+        if (request.Pages.Length > 0)
         {
-            _textExtractionStartPageNumber = request.VisiblePages[0].PageNumber;
-            _thumbnailCenterPageNumber = request.VisiblePages[0].PageNumber;
+            _textExtractionStartPageNumber = request.Pages[0].PageNumber;
+            _thumbnailCenterPageNumber = request.Pages[0].PageNumber;
             _produceThumbnails = true;
             EnqueueNextThumbnail();
+            EnqueueNextTextExtraction();
         }
     }
 
@@ -301,29 +313,165 @@ internal sealed class PdfPageContentProvider : IDisposable
     public void ClearExtractedContent() => EnqueueClear(CachedContentType.Words | CachedContentType.Thumbnail);
 
     /// <summary>
-    /// Starts producing the thumbnail of the specified 1-based page number as set by <see cref="SetThumbnailSettings"/>.
-    /// Returns the observer that cancels the request and identifies it in <see cref="PageThumbnailRendered"/>,
-    /// or <see langword="null"/> when the page has no thumbnail.
+    /// Adds the specified 1-based page number to the requested thumbnails and starts producing its thumbnail as set by
+    /// <see cref="SetThumbnailSettings"/>; <see cref="PageThumbnailRendered"/> is raised when it is produced.
+    /// Returns <see langword="false"/> when the page has no thumbnail.
     /// </summary>
-    public IPdfCancellableExecutionObserver? RequestThumbnail(int pageNumber)
+    public bool RequestThumbnail(int pageNumber)
     {
         PdfImage? pageThumbnail = GetPageThumbnail(pageNumber);
 
         if (pageThumbnail == null && !_renderPageThumbnails)
         {
-            return null;
+            return false;
         }
 
-        IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(pageNumber);
-        _processingQueue.Enqueue(CreateThumbnailWorkItem(_cache[pageNumber - 1], pageThumbnail, observer, OnPageThumbnailRendered));
+        lock (_thumbnailRequestLocker)
+        {
+            if (!_thumbnailRequests.ContainsKey(pageNumber))
+            {
+                EnqueueThumbnailRequest(pageNumber, pageThumbnail);
+            }
+        }
 
-        return observer;
+        return true;
+    }
+
+    /// <summary>
+    /// Removes the specified 1-based page number from the requested thumbnails and cancels producing its thumbnail.
+    /// </summary>
+    public void CancelThumbnail(int pageNumber)
+    {
+        lock (_thumbnailRequestLocker)
+        {
+            if (!_thumbnailRequests.TryGetValue(pageNumber, out IPdfCancellableExecutionObserver? observer))
+            {
+                return;
+            }
+
+            _thumbnailRequests.Remove(pageNumber);
+            observer?.Cancel();
+            observer?.Dispose();
+        }
     }
 
     /// <summary>
     /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.
     /// </summary>
     public PdfPanelPageInfo GetPageInfo(int pageNumber) => _cache[pageNumber - 1].PageInfo;
+
+    /// <summary>
+    /// Enqueues decoding of <paramref name="cacheEntry"/> for <paramref name="request"/> unless its pending decode pass covers the request.
+    /// </summary>
+    private void EnqueueContentUpdate(PdfPageCacheEntry cacheEntry, PagesDrawingRequest request)
+    {
+        PagesDrawingRequest? pendingRequest = cacheEntry.PendingRequest;
+
+        if (pendingRequest != null && pendingRequest.CoversPage(cacheEntry.PageNumber, request))
+        {
+            return;
+        }
+
+        cacheEntry.InitializeForRendering(_observerFactory, request);
+        _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(
+            cacheEntry,
+            _document,
+            DocumentLocker,
+            _textExtractor,
+            _textExtractionProperties,
+            _contentExtractor,
+            _contentExtractionParameters,
+            request,
+            OnPageUpdated,
+            OnPageTextExtracted));
+    }
+
+    /// <summary>
+    /// Enqueues decoding of the pages of <paramref name="request"/> and marks them as the most recently requested.
+    /// </summary>
+    private void EnqueueContentUpdates(PagesDrawingRequest request)
+    {
+        foreach (RequestPageInfo page in request.Pages)
+        {
+            EnqueueContentUpdate(_cache[page.PageNumber - 1], request);
+            _contentCachePageNumbers.Remove(page.PageNumber);
+            _contentCachePageNumbers.Add(page.PageNumber);
+        }
+    }
+
+    private void CancelPages(IEnumerable<int> pageNumbers)
+    {
+        foreach (int pageNumber in pageNumbers.ToList())
+        {
+            _cache[pageNumber - 1].Cancel();
+        }
+    }
+
+    /// <summary>
+    /// Cancels the queued or running items of the requested thumbnails and of the text extraction and thumbnail chains.
+    /// </summary>
+    private void CancelBackgroundWork()
+    {
+        lock (_thumbnailRequestLocker)
+        {
+            foreach (int pageNumber in _thumbnailRequests.Keys.ToList())
+            {
+                IPdfCancellableExecutionObserver? observer = _thumbnailRequests[pageNumber];
+                observer?.Cancel();
+                observer?.Dispose();
+                _thumbnailRequests[pageNumber] = null;
+            }
+        }
+
+        IPdfCancellableExecutionObserver? textExtractionObserver = Interlocked.Exchange(ref _textExtractionObserver, null);
+
+        if (textExtractionObserver != null)
+        {
+            textExtractionObserver.Cancel();
+            textExtractionObserver.Dispose();
+            Volatile.Write(ref _textExtractionPending, 0);
+        }
+
+        IPdfCancellableExecutionObserver? thumbnailChainObserver = Interlocked.Exchange(ref _thumbnailChainObserver, null);
+
+        if (thumbnailChainObserver != null)
+        {
+            thumbnailChainObserver.Cancel();
+            thumbnailChainObserver.Dispose();
+            Volatile.Write(ref _thumbnailPending, 0);
+        }
+    }
+
+    /// <summary>
+    /// Cancels and clears the decoded content of the least recently requested pages that are not visible,
+    /// until at most <paramref name="contentCacheSize"/> pages besides the visible ones hold decoded content.
+    /// </summary>
+    private void EvictContentCache(int contentCacheSize)
+    {
+        List<PdfPageCacheEntry> evictedEntries = [];
+        int index = 0;
+
+        while (_contentCachePageNumbers.Count - _visiblePageNumbers.Count > contentCacheSize && index < _contentCachePageNumbers.Count)
+        {
+            int pageNumber = _contentCachePageNumbers[index];
+
+            if (_visiblePageNumbers.Contains(pageNumber))
+            {
+                index++;
+                continue;
+            }
+
+            PdfPageCacheEntry evictedEntry = _cache[pageNumber - 1];
+            evictedEntry.Cancel();
+            evictedEntries.Add(evictedEntry);
+            _contentCachePageNumbers.RemoveAt(index);
+        }
+
+        if (evictedEntries.Count > 0)
+        {
+            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(evictedEntries, DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
+        }
+    }
 
     private void EnqueueNextTextExtraction()
     {
@@ -341,6 +489,7 @@ internal sealed class PdfPageContentProvider : IDisposable
         }
 
         IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextEntry.PageNumber);
+        _textExtractionObserver = observer;
         _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(
             nextEntry,
             _document,
@@ -349,7 +498,7 @@ internal sealed class PdfPageContentProvider : IDisposable
             _textExtractionProperties,
             _optionalContentStates,
             observer,
-            OnTextExtractionCompleted));
+            pageNumber => OnTextExtractionCompleted(pageNumber, observer)));
     }
 
     private void EnqueueClear(CachedContentType contentTypes)
@@ -371,6 +520,7 @@ internal sealed class PdfPageContentProvider : IDisposable
         }
 
         IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextEntry.PageNumber);
+        _thumbnailChainObserver = observer;
         _processingQueue.Enqueue(CreateThumbnailWorkItem(nextEntry, GetPageThumbnail(nextEntry.PageNumber), observer, OnThumbnailChainItemCompleted));
     }
 
@@ -408,14 +558,56 @@ internal sealed class PdfPageContentProvider : IDisposable
 
     private void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args)
     {
+        args.Observer.Dispose();
         EnforceThumbnailLimit();
+
+        lock (_thumbnailRequestLocker)
+        {
+            if (!_thumbnailRequests.TryGetValue(args.PageNumber, out IPdfCancellableExecutionObserver? observer) || observer != args.Observer)
+            {
+                return;
+            }
+
+            _thumbnailRequests.Remove(args.PageNumber);
+        }
+
         PageThumbnailRendered?.Invoke(this, args);
+    }
+
+    /// <summary>
+    /// Enqueues producing the requested thumbnail of the specified 1-based page number. Must be called under the thumbnail request lock.
+    /// </summary>
+    private void EnqueueThumbnailRequest(int pageNumber, PdfImage? pageThumbnail)
+    {
+        IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(pageNumber);
+        _thumbnailRequests[pageNumber] = observer;
+        _processingQueue.Enqueue(CreateThumbnailWorkItem(_cache[pageNumber - 1], pageThumbnail, observer, OnPageThumbnailRendered));
+    }
+
+    /// <summary>
+    /// Enqueues again the requested thumbnails, whose work was cancelled by <see cref="CancelBackgroundWork"/>.
+    /// </summary>
+    private void RequeueThumbnailRequests()
+    {
+        lock (_thumbnailRequestLocker)
+        {
+            foreach (int pageNumber in _thumbnailRequests.Keys.ToList())
+            {
+                EnqueueThumbnailRequest(pageNumber, GetPageThumbnail(pageNumber));
+            }
+        }
     }
 
     private void OnThumbnailChainItemCompleted(PageThumbnailRenderedEventArgs args)
     {
         args.Observer.Dispose();
         EnforceThumbnailLimit();
+
+        if (Interlocked.CompareExchange(ref _thumbnailChainObserver, null, args.Observer) != args.Observer)
+        {
+            return;
+        }
+
         Volatile.Write(ref _thumbnailPending, 0);
 
         if (args.Png != null)
@@ -460,11 +652,16 @@ internal sealed class PdfPageContentProvider : IDisposable
         EnqueueNextThumbnail();
     }
 
-    private void OnTextExtractionCompleted(int pageNumber)
+    private void OnTextExtractionCompleted(int pageNumber, IPdfCancellableExecutionObserver observer)
     {
         if (_cache[pageNumber - 1].Content.Words.HasContent)
         {
             OnPageTextExtracted(pageNumber);
+        }
+
+        if (Interlocked.CompareExchange(ref _textExtractionObserver, null, observer) != observer)
+        {
+            return;
         }
 
         Volatile.Write(ref _textExtractionPending, 0);
@@ -587,6 +784,8 @@ internal sealed class PdfPageContentProvider : IDisposable
     {
         _extractText = false;
         _processingQueue.Dispose();
+        _textExtractionObserver?.Dispose();
+        _thumbnailChainObserver?.Dispose();
 
         foreach (PdfPageCacheEntry cacheEntry in _cache)
         {

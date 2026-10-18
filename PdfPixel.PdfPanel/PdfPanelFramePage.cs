@@ -12,7 +12,7 @@ public readonly struct PdfPanelFramePage
     private readonly PdfMatrix _contentToPanel;
 
     internal PdfPanelFramePage(
-        in VisiblePageInfo page,
+        in RequestPageInfo page,
         float scale,
         PdfPanelRenderedLayerInfo? renderedContent,
         PdfPanelRenderedLayerInfo? renderedAnnotations)

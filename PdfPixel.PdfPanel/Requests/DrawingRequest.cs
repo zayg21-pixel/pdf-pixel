@@ -42,9 +42,9 @@ internal abstract class DrawingRequest
     public PdfPanelPointerState ActiveAnnotationState { get; set; }
 
     /// <summary>
-    /// Pages visible in the current panel, in render order.
+    /// Pages of the request, in render order.
     /// </summary>
-    public VisiblePageInfo[] VisiblePages { get; set; } = [];
+    public RequestPageInfo[] Pages { get; set; } = [];
 
     /// <summary>
     /// Whether the annotations of the visible pages are recorded again even when the request is otherwise unchanged.
@@ -57,9 +57,9 @@ internal abstract class DrawingRequest
     public bool Force => ForceAnnotationUpdate;
 
     /// <summary>
-    /// Returns the visible page with the given page number.
+    /// Returns the page of the request with the given page number.
     /// </summary>
-    public VisiblePageInfo GetPage(int pageNumber) => VisiblePages.First(page => page.PageNumber == pageNumber);
+    public RequestPageInfo GetPage(int pageNumber) => Pages.First(page => page.PageNumber == pageNumber);
 
     /// <inheritdoc />
     public override bool Equals(object? obj)
@@ -72,12 +72,12 @@ internal abstract class DrawingRequest
                 && Offset == request.Offset
                 && PanelSize == request.PanelSize
                 && RenderTarget == request.RenderTarget
-                && VisiblePages.SequenceEqual(request.VisiblePages);
+                && Pages.SequenceEqual(request.Pages);
         }
 
         return false;
     }
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Scale, Offset, PanelSize, RenderTarget, ActiveAnnotation, ActiveAnnotationState, VisiblePages);
+    public override int GetHashCode() => HashCode.Combine(Scale, Offset, PanelSize, RenderTarget, ActiveAnnotation, ActiveAnnotationState, Pages);
 }

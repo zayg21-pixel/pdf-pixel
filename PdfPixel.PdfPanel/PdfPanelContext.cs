@@ -33,6 +33,8 @@ public sealed class PdfPanelContext : IDisposable
     private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelGraphics _graphics;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
+    private float? _lastVerticalOffset;
+    private bool _isScrollingUp;
 
     /// <summary>
     /// Initializes the context with the given page collection, surface factory and render target factory.
@@ -225,12 +227,16 @@ public sealed class PdfPanelContext : IDisposable
     {
         Renderer.RedrawGraphics(_graphics.Update());
 
-        PagesDrawingRequest request = BuildRequest();
+        UpdateScrollDirection();
+
+        PagesDrawingRequest request = BuildRequest(GetVisiblePages().ToArray(), isLookAhead: false);
+        PagesDrawingRequest lookAheadRequest = BuildRequest(GetLookAheadPages(request.Pages).ToArray(), isLookAhead: true);
         Actions.ClearAnnotationUpdate();
 
         _contentProvider.SetOptionalContentStates(request.OptionalContentStates);
 
         Renderer.Submit(request);
+        Renderer.Submit(lookAheadRequest);
     }
 
     /// <summary>
@@ -332,7 +338,7 @@ public sealed class PdfPanelContext : IDisposable
         HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - PanelWidth));
     }
 
-    private PagesDrawingRequest BuildRequest()
+    private PagesDrawingRequest BuildRequest(RequestPageInfo[] pages, bool isLookAhead)
     {
         return new()
         {
@@ -342,7 +348,9 @@ public sealed class PdfPanelContext : IDisposable
             Offset = new PdfPoint(HorizontalOffset, VerticalOffset),
             PanelSize = new PdfSize(PanelWidth, PanelHeight),
             RenderTarget = _renderTargetFactory.GetRenderTarget(this),
-            VisiblePages = GetVisiblePages().ToArray(),
+            Pages = pages,
+            IsLookAhead = isLookAhead,
+            ContentCacheSize = Renderer.ContentCacheSize,
             Antialias = Renderer.Antialias,
             SnapToDevicePixels = Renderer.SnapToDevicePixels,
             BackgroundColor = Renderer.BackgroundColor,
@@ -354,28 +362,67 @@ public sealed class PdfPanelContext : IDisposable
         };
     }
 
-    private IEnumerable<VisiblePageInfo> GetVisiblePages()
+    private IEnumerable<RequestPageInfo> GetVisiblePages()
     {
-        PdfSize panelSize = new(PanelWidth, PanelHeight);
-
         for (int i = 0; i < Pages.Count; i++)
         {
-            PdfPanelPage page = Pages[i];
-
-            if (page.IsPageVisible(PanelRectangle, Scale))
+            if (Pages[i].IsPageVisible(PanelRectangle, Scale))
             {
-                float offsetX = (page.Offset.X - HorizontalOffset) / Scale;
-                float offsetY = (page.Offset.Y - VerticalOffset) / Scale;
-                yield return new VisiblePageInfo(
-                    i + 1,
-                    new PdfPoint(offsetX, offsetY),
-                    page.Info,
-                    page.UserRotation,
-                    panelSize,
-                    Scale,
-                    Renderer.TileSize);
+                yield return CreateRequestPage(i);
             }
         }
+    }
+
+    /// <summary>
+    /// Returns up to <see cref="PdfPanelRenderer.LookAheadPageCount"/> pages following <paramref name="visiblePages"/> in the last scroll direction.
+    /// </summary>
+    private IEnumerable<RequestPageInfo> GetLookAheadPages(RequestPageInfo[] visiblePages)
+    {
+        if (visiblePages.Length == 0)
+        {
+            yield break;
+        }
+
+        int step = _isScrollingUp ? -1 : 1;
+        int edgeIndex = _isScrollingUp ? visiblePages[0].PageNumber - 1 : visiblePages[visiblePages.Length - 1].PageNumber - 1;
+
+        for (int offset = 1; offset <= Renderer.LookAheadPageCount; offset++)
+        {
+            int index = edgeIndex + (step * offset);
+
+            if (index < 0 || index >= Pages.Count)
+            {
+                yield break;
+            }
+
+            yield return CreateRequestPage(index);
+        }
+    }
+
+    private void UpdateScrollDirection()
+    {
+        if (_lastVerticalOffset != null && VerticalOffset != _lastVerticalOffset.Value)
+        {
+            _isScrollingUp = VerticalOffset < _lastVerticalOffset.Value;
+        }
+
+        _lastVerticalOffset = VerticalOffset;
+    }
+
+    private RequestPageInfo CreateRequestPage(int index)
+    {
+        PdfPanelPage page = Pages[index];
+        float offsetX = (page.Offset.X - HorizontalOffset) / Scale;
+        float offsetY = (page.Offset.Y - VerticalOffset) / Scale;
+
+        return new RequestPageInfo(
+            index + 1,
+            new PdfPoint(offsetX, offsetY),
+            page.Info,
+            page.UserRotation,
+            new PdfSize(PanelWidth, PanelHeight),
+            Scale,
+            Renderer.TileSize);
     }
 
     private void ApplyAutoScale()

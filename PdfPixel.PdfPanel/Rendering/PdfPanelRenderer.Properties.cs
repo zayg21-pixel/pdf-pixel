@@ -12,11 +12,12 @@ public sealed partial class PdfPanelRenderer
     internal const bool DefaultSnapToDevicePixels = true;
     internal const int DefaultTileSize = 512;
     internal const int DefaultAnimationFps = 60;
+    internal const int DefaultLookAheadPageCount = 2;
+    internal const int DefaultContentCacheSize = 10;
 
     internal static readonly PdfColor DefaultBackgroundColor = PdfColors.LightGray;
     internal static readonly TimeSpan DefaultScrollContentUpdateDelay = TimeSpan.Zero;
     internal static readonly TimeSpan DefaultZoomContentUpdateDelay = TimeSpan.FromMilliseconds(200);
-
     /// <summary>
     /// Background color drawn behind the pages.
     /// </summary>
@@ -68,4 +69,13 @@ public sealed partial class PdfPanelRenderer
     /// Time a zoomed request waits before page content decoding starts.
     /// </summary>
     public TimeSpan ZoomContentUpdateDelay { get; set; } = DefaultZoomContentUpdateDelay;
-}
+
+    /// <summary>
+    /// Number of pages ahead of the visible pages in the scroll direction whose content is decoded after them.
+    /// </summary>
+    public int LookAheadPageCount { get; set; } = DefaultLookAheadPageCount;
+
+    /// <summary>
+    /// Number of pages besides the visible ones whose decoded content is kept, the most recently requested ones.
+    /// </summary>
+    public int ContentCacheSize { get; set; } = DefaultContentCacheSize;}

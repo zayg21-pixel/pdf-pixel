@@ -27,6 +27,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
     private PdfPageContentTiler _tiler;
     private PdfAnimationClock _clock;
     private PagesDrawingRequest? _lastRequest;
+    private PagesDrawingRequest? _lastLookAheadRequest;
     private long _lastTick;
     private bool _contentUpdatePending;
     private bool _disposed;
@@ -55,6 +56,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
     /// <summary>
     /// Renders the current cache state immediately, then starts background decoding for visible pages.
+    /// A look-ahead request is not rendered; its pages are decoded after the visible ones.
     /// </summary>
     internal void Submit(PagesDrawingRequest request)
     {
@@ -66,6 +68,12 @@ public sealed partial class PdfPanelRenderer : IDisposable
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));
+        }
+
+        if (request.IsLookAhead)
+        {
+            SubmitLookAhead(request);
+            return;
         }
 
         if (!request.Force && request.Equals(_lastRequest))
@@ -84,7 +92,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
         if (contentUpdateDelay <= TimeSpan.Zero || NeedsImmediateContentUpdate(previousRequest, request))
         {
-            StartContentUpdate();
+            StartContentUpdate(includeLookAhead: false);
         }
         else
         {
@@ -108,7 +116,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         SKSurface surface = GetSurface(_lastRequest);
         var pageDrawn = false;
 
-        foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
+        foreach (RequestPageInfo page in _lastRequest.Pages)
         {
             if (!pageNumbers.Contains(page.PageNumber))
             {
@@ -182,6 +190,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         surface.Canvas.Clear(SKColors.Transparent);
         Present(surface, _lastRequest);
         _lastRequest = null;
+        _lastLookAheadRequest = null;
     }
 
     private void RenderAll(PagesDrawingRequest request)
@@ -195,9 +204,9 @@ public sealed partial class PdfPanelRenderer : IDisposable
         surface.Canvas.Clear(request.BackgroundColor.ToSkiaColor());
         AnimationState animation = GetAnimationState();
 
-        _tiler.EvictExcept(request.VisiblePages);
+        _tiler.EvictExcept(request.Pages);
 
-        foreach (VisiblePageInfo page in request.VisiblePages)
+        foreach (RequestPageInfo page in request.Pages)
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
@@ -237,7 +246,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
 
         AnimationState animation = GetAnimationState();
 
-        foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
+        foreach (RequestPageInfo page in _lastRequest.Pages)
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
@@ -267,7 +276,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         PagesDrawingRequest? request = _lastRequest;
         bool anyLoading = request != null
             && request.ShowPageLoadingAnimation
-            && request.VisiblePages.Any(page => IsPageLoading(_contentProvider.GetExistingContentPictures(page.PageNumber), request));
+            && request.Pages.Any(page => IsPageLoading(_contentProvider.GetExistingContentPictures(page.PageNumber), request));
 
         if (anyLoading)
         {
@@ -310,9 +319,9 @@ public sealed partial class PdfPanelRenderer : IDisposable
             return true;
         }
 
-        VisiblePageInfo[] previousPages = previousRequest.VisiblePages;
+        RequestPageInfo[] previousPages = previousRequest.Pages;
 
-        foreach (VisiblePageInfo page in request.VisiblePages)
+        foreach (RequestPageInfo page in request.Pages)
         {
             bool pageAppeared = !previousPages.Any(previousPage => previousPage.PageNumber == page.PageNumber);
 
@@ -325,7 +334,11 @@ public sealed partial class PdfPanelRenderer : IDisposable
         return false;
     }
 
-    private void StartContentUpdate()
+    /// <summary>
+    /// Starts decoding the pages of the last visible request, followed by the pages of the last look-ahead request
+    /// when <paramref name="includeLookAhead"/> is set.
+    /// </summary>
+    private void StartContentUpdate(bool includeLookAhead)
     {
         if (_lastRequest == null)
         {
@@ -335,6 +348,29 @@ public sealed partial class PdfPanelRenderer : IDisposable
         _contentUpdatePending = false;
         _contentUpdateTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _contentProvider.UpdateContent(_lastRequest);
+
+        if (includeLookAhead && _lastLookAheadRequest != null)
+        {
+            _contentProvider.UpdateContent(_lastLookAheadRequest);
+        }
+    }
+
+    /// <summary>
+    /// Keeps <paramref name="request"/> and starts decoding its pages unless the visible pages wait for a delayed content update.
+    /// </summary>
+    private void SubmitLookAhead(PagesDrawingRequest request)
+    {
+        if (request.Equals(_lastLookAheadRequest))
+        {
+            return;
+        }
+
+        _lastLookAheadRequest = request;
+
+        if (!_contentUpdatePending)
+        {
+            _contentProvider.UpdateContent(request);
+        }
     }
 
     private void OnContentUpdateDue(object? state)
@@ -356,7 +392,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
             return;
         }
 
-        StartContentUpdate();
+        StartContentUpdate(includeLookAhead: true);
     }
 
     private void OnPageUpdated(PageUpdatedArgs args)
@@ -378,12 +414,12 @@ public sealed partial class PdfPanelRenderer : IDisposable
             return;
         }
 
-        if (!_lastRequest.VisiblePages.Any(p => p.PageNumber == args.PageNumber))
+        if (!_lastRequest.Pages.Any(p => p.PageNumber == args.PageNumber))
         {
             return;
         }
 
-        VisiblePageInfo page = _lastRequest.GetPage(args.PageNumber);
+        RequestPageInfo page = _lastRequest.GetPage(args.PageNumber);
 
         _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 
@@ -393,7 +429,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         Present(surface, _lastRequest);
     }
 
-    private void DrawPageContent(SKSurface surface, in VisiblePageInfo page)
+    private void DrawPageContent(SKSurface surface, in RequestPageInfo page)
     {
         if (_lastRequest == null)
         {

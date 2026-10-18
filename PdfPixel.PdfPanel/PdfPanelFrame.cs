@@ -15,11 +15,11 @@ public sealed class PdfPanelFrame
         HostToPanel = hostToPanel;
         PanelSize = request.PanelSize;
 
-        var pages = new PdfPanelFramePage[request.VisiblePages.Length];
+        var pages = new PdfPanelFramePage[request.Pages.Length];
 
         for (int pageIndex = 0; pageIndex < pages.Length; pageIndex++)
         {
-            VisiblePageInfo page = request.VisiblePages[pageIndex];
+            RequestPageInfo page = request.Pages[pageIndex];
 
             pages[pageIndex] = new PdfPanelFramePage(
                 page,

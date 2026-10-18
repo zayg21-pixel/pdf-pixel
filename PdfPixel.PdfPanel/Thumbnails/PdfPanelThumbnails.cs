@@ -19,7 +19,7 @@ public sealed class PdfPanelThumbnails
     internal static readonly PdfIntegerSize DefaultRenderMaximumSize = new(400, 400);
 
     private readonly PdfPageContentProvider _contentProvider;
-    private readonly IPdfCancellableExecutionObserver?[] _pendingObservers;
+    private readonly bool[] _requestedPages;
     private bool _usePageThumbnails = DefaultUsePageThumbnails;
     private bool _renderPages = DefaultRenderPages;
     private PdfIntegerSize _renderMaximumSize = DefaultRenderMaximumSize;
@@ -29,7 +29,7 @@ public sealed class PdfPanelThumbnails
     internal PdfPanelThumbnails(PdfPageContentProvider contentProvider)
     {
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        _pendingObservers = new IPdfCancellableExecutionObserver?[contentProvider.GetPagesCount()];
+        _requestedPages = new bool[contentProvider.GetPagesCount()];
         _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
     }
 
@@ -166,12 +166,12 @@ public sealed class PdfPanelThumbnails
     {
         int index = pageNumber - 1;
 
-        if (_pendingObservers[index] != null || _contentProvider.GetThumbnail(pageNumber) != null)
+        if (_requestedPages[index] || _contentProvider.GetThumbnail(pageNumber) != null)
         {
             return;
         }
 
-        _pendingObservers[index] = _contentProvider.RequestThumbnail(pageNumber);
+        _requestedPages[index] = _contentProvider.RequestThumbnail(pageNumber);
     }
 
     /// <summary>
@@ -181,16 +181,14 @@ public sealed class PdfPanelThumbnails
     public void Cancel(int pageNumber)
     {
         int index = pageNumber - 1;
-        IPdfCancellableExecutionObserver? observer = _pendingObservers[index];
 
-        if (observer == null)
+        if (!_requestedPages[index])
         {
             return;
         }
 
-        observer.Cancel();
-        observer.Dispose();
-        _pendingObservers[index] = null;
+        _requestedPages[index] = false;
+        _contentProvider.CancelThumbnail(pageNumber);
     }
 
     /// <summary>
@@ -198,7 +196,7 @@ public sealed class PdfPanelThumbnails
     /// </summary>
     internal void OnExtractedContentCleared()
     {
-        for (int pageNumber = 1; pageNumber <= _pendingObservers.Length; pageNumber++)
+        for (int pageNumber = 1; pageNumber <= _requestedPages.Length; pageNumber++)
         {
             Cancel(pageNumber);
         }
@@ -213,13 +211,12 @@ public sealed class PdfPanelThumbnails
     {
         int index = args.PageNumber - 1;
 
-        if (_pendingObservers[index] != args.Observer)
+        if (!_requestedPages[index])
         {
             return;
         }
 
-        _pendingObservers[index] = null;
-        args.Observer.Dispose();
+        _requestedPages[index] = false;
 
         if (args.Png == null)
         {

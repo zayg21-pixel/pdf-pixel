@@ -45,7 +45,7 @@ internal sealed class PdfPageContentTiler : IDisposable
     /// <param name="forceClearVisible">When true, re-rasterizes tiles in the visible region.</param>
     public void UpdateTiles(
         ContentLocker<SKPicture>? contentLocker,
-        in VisiblePageInfo pageInfo,
+        in RequestPageInfo pageInfo,
         PagesDrawingRequest request,
         bool forceClearVisible)
     {
@@ -75,7 +75,7 @@ internal sealed class PdfPageContentTiler : IDisposable
 
         PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.CropBox.Width, pageInfo.Info.CropBox.Height);
 
-        PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.RegionOfInterest, pageScale);
+        PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.VisibleRegion, pageScale);
         PdfIntegerRectangle pagePixels = ToPixels(pageBounds, pageScale);
         PdfIntegerRectangle visibleTileRange = ToTileRange(visiblePixels);
 
@@ -90,7 +90,7 @@ internal sealed class PdfPageContentTiler : IDisposable
     /// <param name="pageInfo">Visible page layout snapshot.</param>
     /// <param name="currentScale">Current rendering scale.</param>
     /// <param name="deviceMatrix">Matrix mapping page content coordinates to panel pixels.</param>
-    public void DrawTiles(SKCanvas canvas, in VisiblePageInfo pageInfo, float currentScale, in PdfMatrix deviceMatrix)
+    public void DrawTiles(SKCanvas canvas, in RequestPageInfo pageInfo, float currentScale, in PdfMatrix deviceMatrix)
     {
         if (canvas == null)
         {
@@ -124,7 +124,7 @@ internal sealed class PdfPageContentTiler : IDisposable
     /// Evicts cached tiles for pages not in the given visible set.
     /// </summary>
     /// <param name="visiblePages">Pages to keep tiles for.</param>
-    public void EvictExcept(IReadOnlyList<VisiblePageInfo> visiblePages)
+    public void EvictExcept(IReadOnlyList<RequestPageInfo> visiblePages)
     {
         foreach (int pageNumber in _pageCache.Keys.Where(key => !visiblePages.Any(page => page.PageNumber == key)).ToList())
         {

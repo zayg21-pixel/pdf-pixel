@@ -103,7 +103,7 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
         return !ContentPicture.HasContent
             || LastRequest == null
             || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.Scale != request.Scale)
-            || ((Features & PdfCommandFeatures.Region) != 0 && LastRequest.GetPage(PageNumber).RegionOfInterest != request.GetPage(PageNumber).RegionOfInterest)
+            || ((Features & PdfCommandFeatures.Region) != 0 && !RequestPageInfo.CoversRegion(LastRequest.GetPage(PageNumber).RegionOfInterest, request.GetPage(PageNumber).RegionOfInterest))
             || !PagesDrawingRequest.AreOptionalContentStatesEqual(LastRequest.OptionalContentStates, request.OptionalContentStates);
     }
 

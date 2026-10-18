@@ -14,7 +14,7 @@ internal static class SkCanvasExtensions
 {
     public static void DrawPage(
         this SKCanvas canvas,
-        in VisiblePageInfo page,
+        in RequestPageInfo page,
         PagesDrawingRequest request,
         PdfContentPictures pictures,
         PdfPageContentTiler tiler,
@@ -63,7 +63,7 @@ internal static class SkCanvasExtensions
         canvas.RestoreToCount(savedCount);
     }
 
-    private static void DrawGraphicsPicture(SKCanvas canvas, PdfPanelGraphics graphics, in VisiblePageInfo page)
+    private static void DrawGraphicsPicture(SKCanvas canvas, PdfPanelGraphics graphics, in RequestPageInfo page)
     {
         SKPicture? picture = graphics.GetPicture(page.PageNumber);
         if (picture == null)
