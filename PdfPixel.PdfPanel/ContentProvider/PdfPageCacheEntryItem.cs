@@ -49,16 +49,16 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
 
 
     /// <summary>
-    /// Words of the page in reading order, or <see langword="null"/> if they have not been extracted yet.
+    /// Words of the page in reading order.
     /// Kept when the content is cleared.
     /// </summary>
-    public PdfWord[]? Words { get; private set; }
+    public ContentLocker<PdfWord[]> Words { get; } = new();
 
     /// <summary>
-    /// Content items of the page in drawing order, or <see langword="null"/> if they have not been extracted yet.
+    /// Content items of the page in drawing order.
     /// Kept when the content is cleared.
     /// </summary>
-    public PdfPanelContentItem[]? ContentItems { get; private set; }
+    public ContentLocker<PdfPanelContentItem[]> ContentItems { get; } = new();
 
     /// <summary>
     /// Replace page content with a new command recording. Disposes the previous recording if present.
@@ -87,24 +87,6 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
         ThrowIfDisposed();
         ContentPicture.SetContent(picture);
         LastRequest = request;
-    }
-
-    /// <summary>
-    /// Replace the extracted words of the page.
-    /// </summary>
-    public void UpdateWords(PdfWord[] words)
-    {
-        ThrowIfDisposed();
-        Words = words ?? throw new ArgumentNullException(nameof(words));
-    }
-
-    /// <summary>
-    /// Replace the extracted content items of the page.
-    /// </summary>
-    public void UpdateContentItems(PdfPanelContentItem[] contentItems)
-    {
-        ThrowIfDisposed();
-        ContentItems = contentItems ?? throw new ArgumentNullException(nameof(contentItems));
     }
 
     /// <summary>

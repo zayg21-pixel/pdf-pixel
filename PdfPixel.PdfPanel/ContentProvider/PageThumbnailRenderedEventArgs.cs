@@ -11,7 +11,7 @@ internal sealed class PageThumbnailRenderedEventArgs : EventArgs
     /// <summary>
     /// Initializes the arguments for the given 1-based page number, request observer and PNG file.
     /// </summary>
-    public PageThumbnailRenderedEventArgs(int pageNumber, IPdfCancellableExecutionObserver observer, byte[] png)
+    public PageThumbnailRenderedEventArgs(int pageNumber, IPdfCancellableExecutionObserver observer, byte[]? png)
     {
         PageNumber = pageNumber;
         Observer = observer;
@@ -29,7 +29,7 @@ internal sealed class PageThumbnailRenderedEventArgs : EventArgs
     public IPdfCancellableExecutionObserver Observer { get; }
 
     /// <summary>
-    /// Thumbnail as a PNG file.
+    /// Thumbnail as a PNG file, or <see langword="null"/> when the request was cancelled or failed.
     /// </summary>
-    public byte[] Png { get; }
+    public byte[]? Png { get; }
 }

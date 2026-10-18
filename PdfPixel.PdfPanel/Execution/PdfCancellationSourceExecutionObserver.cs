@@ -17,6 +17,9 @@ public abstract class PdfCancellationSourceExecutionObserver : IPdfCancellableEx
     public CancellationTokenSource CancellationTokenSource { get; } = new();
 
     /// <inheritdoc/>
+    public bool IsCancelled => _disposed || CancellationTokenSource.IsCancellationRequested;
+
+    /// <inheritdoc/>
     public abstract ValueTask YieldAsync();
 
     /// <inheritdoc/>

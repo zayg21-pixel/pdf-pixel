@@ -10,6 +10,7 @@ using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.Skia;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -33,6 +34,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     private readonly object _documentLocker;
     private readonly PdfTextExtractor _textExtractor;
     private readonly PdfTextExtractionProperties _textExtractionProperties;
+    private readonly IReadOnlyDictionary<PdfReference, bool>? _optionalContentStates;
     private readonly IPdfCancellableExecutionObserver _observer;
     private readonly Action<int> _onCompleted;
 
@@ -46,6 +48,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         object documentLocker,
         PdfTextExtractor textExtractor,
         PdfTextExtractionProperties textExtractionProperties,
+        IReadOnlyDictionary<PdfReference, bool>? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
         Action<int> onCompleted)
     {
@@ -54,6 +57,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         _documentLocker = documentLocker ?? throw new ArgumentNullException(nameof(documentLocker));
         _textExtractor = textExtractor ?? throw new ArgumentNullException(nameof(textExtractor));
         _textExtractionProperties = textExtractionProperties ?? throw new ArgumentNullException(nameof(textExtractionProperties));
+        _optionalContentStates = optionalContentStates;
         _observer = observer ?? throw new ArgumentNullException(nameof(observer));
         _onCompleted = onCompleted ?? throw new ArgumentNullException(nameof(onCompleted));
     }
@@ -73,7 +77,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         {
             await _observer.YieldAsync().ConfigureAwait(false);
 
-            if (CacheEntry.Content.Words == null)
+            if (!CacheEntry.Content.Words.HasContent)
             {
                 ExtractWords();
             }
@@ -95,7 +99,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
                 _document,
                 new PdfCommandExecutionParameters(),
                 _documentLocker,
-                null,
+                _optionalContentStates,
                 _observer);
 
             using SKNoDrawCanvas canvas = new((int)page.CropBox.Width, (int)page.CropBox.Height);
@@ -104,7 +108,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
             page.Render(processor, TextExtractionParameters, _observer);
 
             PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, PdfMatrix.Identity, _textExtractionProperties);
-            CacheEntry.Content.UpdateWords(words);
+            CacheEntry.Content.Words.SetContent(words);
         }
     }
 }

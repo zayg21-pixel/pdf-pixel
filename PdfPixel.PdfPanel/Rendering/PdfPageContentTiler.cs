@@ -106,10 +106,17 @@ internal sealed class PdfPageContentTiler : IDisposable
             ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)
             : SKSamplingOptions.Default;
 
+        using SKPaint backgroundPaint = new()
+        {
+            Style = SKPaintStyle.Fill,
+            Color = SKColors.White
+        };
+
         foreach (CachedTile tile in pageCache.Tiles.Values)
         {
-            PdfRectangle snappedDestination = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(tile.Destination, deviceMatrix);
-            canvas.DrawImage(tile.Image, snappedDestination.ToSkRect(), sampling);
+            SKRect snappedDestination = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(tile.Destination, deviceMatrix).ToSkRect();
+            canvas.DrawRect(snappedDestination, backgroundPaint);
+            canvas.DrawImage(tile.Image, snappedDestination, sampling);
         }
     }
 

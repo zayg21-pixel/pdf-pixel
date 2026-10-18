@@ -11,6 +11,7 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
 {
     private readonly PdfPanelThumbnails _thumbnails;
     private bool _isRequested;
+    private byte[]? _png;
 
     internal PdfThumbnailViewModel(PdfPanelThumbnails thumbnails, int pageNumber, in PdfPanelPageInfo info)
     {
@@ -38,9 +39,9 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
     public PdfSize? Size => _thumbnails.GetSize(PageNumber);
 
     /// <summary>
-    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not ready.
+    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not requested or not ready.
     /// </summary>
-    public byte[]? Png => _thumbnails.GetPng(PageNumber);
+    public byte[]? Png => _png;
 
     /// <summary>
     /// Whether the thumbnail is requested: setting it starts producing the thumbnail, clearing it cancels producing.
@@ -60,27 +61,44 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
 
             if (value)
             {
-                _thumbnails.Request(PageNumber);
+                _png = _thumbnails.GetPng(PageNumber);
+
+                if (_png == null)
+                {
+                    _thumbnails.Request(PageNumber);
+                }
             }
             else
             {
                 _thumbnails.Cancel(PageNumber);
+                _png = null;
             }
 
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRequested)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
         }
     }
 
     /// <summary>
-    /// Reports the thumbnail that became ready.
+    /// Keeps the thumbnail that became ready while it is requested.
     /// </summary>
-    internal void OnThumbnailReady() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
+    internal void OnThumbnailReady(byte[] png)
+    {
+        if (!_isRequested)
+        {
+            return;
+        }
+
+        _png = png;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
+    }
 
     /// <summary>
     /// Reports the dropped thumbnail and requests it again while it is requested.
     /// </summary>
     internal void OnCleared()
     {
+        _png = null;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Size)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
 

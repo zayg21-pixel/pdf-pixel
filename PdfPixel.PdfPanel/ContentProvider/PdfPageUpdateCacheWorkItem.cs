@@ -145,17 +145,17 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
 
                 PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
 
-                if (CacheEntry.Content.Words == null)
+                if (!CacheEntry.Content.Words.HasContent)
                 {
                     PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, pictureToPage, _textExtractionProperties);
-                    CacheEntry.Content.UpdateWords(words);
+                    CacheEntry.Content.Words.SetContent(words);
                     _onPageTextExtracted(CacheEntry.PageNumber);
                 }
 
-                if (CacheEntry.Content.ContentItems == null)
+                if (!CacheEntry.Content.ContentItems.HasContent)
                 {
                     PdfContentEntry[] entries = _contentExtractor.ExtractContent(executionContext.ContentTree.Root, _contentExtractionParameters);
-                    CacheEntry.Content.UpdateContentItems(PdfDocumentContentExtensions.CreateContentItems(CacheEntry.PageNumber, entries, pictureToPage));
+                    CacheEntry.Content.ContentItems.SetContent(PdfDocumentContentExtensions.CreateContentItems(CacheEntry.PageNumber, entries, pictureToPage));
                 }
 
                 contentUpdated = true;

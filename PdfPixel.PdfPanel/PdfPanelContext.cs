@@ -30,7 +30,6 @@ public sealed class PdfPanelContext : IDisposable
     private readonly PdfPageContentProvider _contentProvider;
     private readonly PdfPanelGraphics _graphics;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
-    private IReadOnlyDictionary<PdfReference, bool>? _optionalContentStates;
 
     /// <summary>
     /// Initializes the context with the given page collection, surface factory and render target factory.
@@ -54,13 +53,14 @@ public sealed class PdfPanelContext : IDisposable
         Search = new PdfPanelSearch(this, Text, _contentProvider, _graphics);
         Content = new PdfPanelContent(_contentProvider, Input, _graphics);
         Layers = new PdfPanelLayers(_contentProvider.Document);
-        Thumbnails = new PdfPanelThumbnails(_contentProvider, Layers);
+        Thumbnails = new PdfPanelThumbnails(_contentProvider);
         Actions = new PdfPanelActions(this, _contentProvider.Document, Annotations, Layers);
         Renderer = new PdfPanelRenderer(surfaceFactory, _contentProvider, _graphics, synchronizationContext);
-        _optionalContentStates = Layers.Configuration?.ToStates();
+        _contentProvider.SetOptionalContentStates(Layers.Configuration?.ToStates());
 
         _contentProvider.PageTextExtracted += OnPageTextExtracted;
         _contentProvider.PageThumbnailRendered += OnPageThumbnailRendered;
+        _contentProvider.ExtractedContentCleared += OnExtractedContentCleared;
     }
 
     /// <summary>
@@ -212,7 +212,7 @@ public sealed class PdfPanelContext : IDisposable
         Search.Synchronize();
         Content.Synchronize(Scale);
         Renderer.Synchronize();
-        _contentProvider.UpdateTextExtraction(Text.ExtractText);
+        _contentProvider.SetTextExtractionSettings(Text.ExtractText);
     }
 
     /// <summary>
@@ -225,11 +225,7 @@ public sealed class PdfPanelContext : IDisposable
         PagesDrawingRequest request = BuildRequest();
         Actions.ClearAnnotationUpdate();
 
-        if (!PagesDrawingRequest.AreOptionalContentStatesEqual(_optionalContentStates, request.OptionalContentStates))
-        {
-            _optionalContentStates = request.OptionalContentStates;
-            Thumbnails.Clear();
-        }
+        _contentProvider.SetOptionalContentStates(request.OptionalContentStates);
 
         Renderer.Submit(request);
     }
@@ -439,6 +435,33 @@ public sealed class PdfPanelContext : IDisposable
         }
     }
 
+    private void OnExtractedContentCleared(object? sender, ExtractedContentClearedEventArgs args)
+    {
+        if (_synchronizationContext != null)
+        {
+            _synchronizationContext.Post(_ => OnExtractedContentClearedSync(args.ContentTypes), null);
+        }
+        else
+        {
+            OnExtractedContentClearedSync(args.ContentTypes);
+        }
+    }
+
+    private void OnExtractedContentClearedSync(ExtractedContentType contentTypes)
+    {
+        if ((contentTypes & ExtractedContentType.Words) != 0)
+        {
+            Text.OnExtractedContentCleared();
+            Search.OnExtractedContentCleared();
+            Renderer.RedrawGraphics(_graphics.Update());
+        }
+
+        if ((contentTypes & ExtractedContentType.Thumbnails) != 0)
+        {
+            Thumbnails.OnExtractedContentCleared();
+        }
+    }
+
     private static float Clamp(float value, float min, float max)
         => Math.Max(min, Math.Min(max, value));
 
@@ -447,6 +470,7 @@ public sealed class PdfPanelContext : IDisposable
     {
         _contentProvider.PageTextExtracted -= OnPageTextExtracted;
         _contentProvider.PageThumbnailRendered -= OnPageThumbnailRendered;
+        _contentProvider.ExtractedContentCleared -= OnExtractedContentCleared;
 
         Annotations.Dispose();
         Text.Dispose();

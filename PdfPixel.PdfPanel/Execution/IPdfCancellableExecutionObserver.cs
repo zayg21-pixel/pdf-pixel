@@ -10,6 +10,11 @@ namespace PdfPixel.PdfPanel.Execution;
 public interface IPdfCancellableExecutionObserver : IPdfExecutionObserver, IDisposable
 {
     /// <summary>
+    /// Whether cancellation was signaled or the observer was disposed.
+    /// </summary>
+    bool IsCancelled { get; }
+
+    /// <summary>
     /// Signals cancellation without releasing resources.
     /// </summary>
     void Cancel();

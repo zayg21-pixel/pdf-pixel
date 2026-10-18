@@ -247,6 +247,23 @@ public sealed class PdfPanelText
         UpdateGraphics(GetSelection());
     }
 
+    /// <summary>
+    /// Marks again the pages whose words are extracted and updates the selection graphics.
+    /// </summary>
+    internal void OnExtractedContentCleared()
+    {
+        Array.Clear(_extractedPages, 0, _extractedPages.Length);
+        _extractedPageCount = 0;
+
+        for (int pageNumber = 1; pageNumber <= _extractedPages.Length; pageNumber++)
+        {
+            MarkExtracted(pageNumber);
+        }
+
+        ClampSelection();
+        UpdateGraphics(GetSelection());
+    }
+
     private void MarkExtracted(int pageNumber)
     {
         if (_extractedPages[pageNumber - 1] || _contentProvider.GetWords(pageNumber) == null)

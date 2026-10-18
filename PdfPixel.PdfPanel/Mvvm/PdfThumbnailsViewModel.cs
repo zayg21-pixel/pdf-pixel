@@ -68,7 +68,7 @@ public sealed class PdfThumbnailsViewModel
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnThumbnailReady(object? sender, PdfPanelThumbnailEventArgs args) => _items[args.PageNumber - 1].OnThumbnailReady();
+    private void OnThumbnailReady(object? sender, PdfPanelThumbnailEventArgs args) => _items[args.PageNumber - 1].OnThumbnailReady(args.Png);
 
     private void OnCleared(object? sender, EventArgs args)
     {

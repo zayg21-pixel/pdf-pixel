@@ -43,6 +43,11 @@ internal static class SkCanvasExtensions
             DrawPageBackground(canvas, pageRect, cornerRadius);
         }
 
+        if ((flags & PageDrawFlags.Thumbnail) != 0)
+        {
+            DrawThumbnail(canvas, pictures.Thumbnail, pageRect);
+        }
+
         if ((flags & PageDrawFlags.Placeholder) != 0)
         {
             DrawPlaceholder(canvas, pageRect, animation);
@@ -93,6 +98,31 @@ internal static class SkCanvasExtensions
         canvas.DrawPicture(picture);
 
         canvas.RestoreToCount(savedCount);
+    }
+
+    private static void DrawThumbnail(SKCanvas canvas, ContentLocker<byte[]>? thumbnail, SKRect pageRect)
+    {
+        if (thumbnail?.HasContent != true)
+        {
+            return;
+        }
+
+        using LockedContent<byte[]> lockedThumbnail = thumbnail.GetContent();
+        byte[]? png = lockedThumbnail.Content;
+
+        if (png == null)
+        {
+            return;
+        }
+
+        using SKImage image = SKImage.FromEncodedData(png);
+
+        if (image == null)
+        {
+            return;
+        }
+
+        canvas.DrawImage(image, pageRect, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
     }
 
     private static void DrawPlaceholder(SKCanvas canvas, SKRect pageRect, in AnimationState animation)

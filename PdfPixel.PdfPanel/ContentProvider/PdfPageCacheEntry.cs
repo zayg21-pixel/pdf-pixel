@@ -51,6 +51,11 @@ internal sealed class PdfPageCacheEntry : IDisposable
     public PdfPageCacheEntryItem AnnotationContent { get; }
 
     /// <summary>
+    /// Thumbnail of the page as a PNG file. Kept when the content is cleared.
+    /// </summary>
+    public ContentLocker<byte[]> Thumbnail { get; } = new();
+
+    /// <summary>
     /// Returns the page's annotation popups, creating them on first call.
     /// </summary>
     public PdfAnnotationPopup[] GetAnnotations(IPdfDocument document, object documentLocker)
@@ -144,7 +149,7 @@ internal sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// Returns collection of content pictures for main content and annotations.
+    /// Returns collection of content pictures for main content, annotations and thumbnail.
     /// </summary>
     public PdfContentPictures GetContentPictures()
     {
@@ -153,7 +158,8 @@ internal sealed class PdfPageCacheEntry : IDisposable
         return new PdfContentPictures
         {
             Content = Content.ContentPicture,
-            Annotations = AnnotationContent.ContentPicture
+            Annotations = AnnotationContent.ContentPicture,
+            Thumbnail = Thumbnail
         };
     }
 
@@ -175,6 +181,7 @@ internal sealed class PdfPageCacheEntry : IDisposable
 
         Cancel();
         ClearContent();
+        Thumbnail.Dispose();
         _disposed = true;
     }
 }

@@ -3,7 +3,7 @@ using SkiaSharp;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Pairs of cached <see cref="SKPicture"/> recordings for a single page — main content and annotation layer.
+/// Cached pictures for a single page — main content and annotation layer recordings, and the thumbnail.
 /// </summary>
 internal sealed class PdfContentPictures
 {
@@ -16,4 +16,9 @@ internal sealed class PdfContentPictures
     /// Locked reference to the annotation layer picture, or <see langword="null"/> if not yet decoded.
     /// </summary>
     public ContentLocker<SKPicture>? Annotations { get; set; }
+
+    /// <summary>
+    /// Locked reference to the thumbnail as a PNG file, or <see langword="null"/> if not set.
+    /// </summary>
+    public ContentLocker<byte[]>? Thumbnail { get; set; }
 }

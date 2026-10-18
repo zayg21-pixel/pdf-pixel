@@ -189,6 +189,19 @@ public sealed class PdfPanelSearch
         UpdateGraphics(pageNumber);
     }
 
+    /// <summary>
+    /// Searches every page with extracted characters again for the last searched query and updates the match graphics.
+    /// </summary>
+    internal void OnExtractedContentCleared()
+    {
+        SearchAllPages();
+
+        foreach (int pageNumber in _pageMatches.Keys)
+        {
+            UpdateGraphics(pageNumber);
+        }
+    }
+
     private void SelectMatch(int step)
     {
         if (_matches.Count == 0)
@@ -214,16 +227,22 @@ public sealed class PdfPanelSearch
 
     private void Search()
     {
-        foreach (int pageNumber in _pageMatches.Keys)
-        {
-            _graphics.Update(pageNumber, PdfPanelGraphicsLayer.SearchMatches, null);
-        }
-
         _query = Query;
         _matchCase = MatchCase;
         _wholeWord = WholeWord;
         _matchDiacritics = MatchDiacritics;
         _normalizedQuery = (Query == null) ? null : NormalizeQuery(Query);
+
+        SearchAllPages();
+    }
+
+    private void SearchAllPages()
+    {
+        foreach (int pageNumber in _pageMatches.Keys)
+        {
+            _graphics.Update(pageNumber, PdfPanelGraphicsLayer.SearchMatches, null);
+        }
+
         _pageMatches.Clear();
 
         int pageCount = _contentProvider.GetPagesCount();

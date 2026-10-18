@@ -12,21 +12,20 @@ namespace PdfPixel.PdfPanel.Thumbnails;
 public sealed class PdfPanelThumbnails
 {
     private const int DefaultRenderMaximumSize = 200;
+    private const int DefaultMaximumCount = 300;
 
     private readonly PdfPageContentProvider _contentProvider;
-    private readonly PdfPanelLayers _layers;
     private readonly IPdfCancellableExecutionObserver?[] _pendingObservers;
-    private readonly byte[]?[] _pngs;
     private bool _usePageThumbnails = true;
     private bool _renderPages = true;
     private PdfIntegerSize _renderMaximumSize = new(DefaultRenderMaximumSize, DefaultRenderMaximumSize);
+    private int _maximumCount = DefaultMaximumCount;
 
-    internal PdfPanelThumbnails(PdfPageContentProvider contentProvider, PdfPanelLayers layers)
+    internal PdfPanelThumbnails(PdfPageContentProvider contentProvider)
     {
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        _layers = layers ?? throw new ArgumentNullException(nameof(layers));
         _pendingObservers = new IPdfCancellableExecutionObserver?[contentProvider.GetPagesCount()];
-        _pngs = new byte[]?[contentProvider.GetPagesCount()];
+        _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
     }
 
     /// <summary>
@@ -35,7 +34,7 @@ public sealed class PdfPanelThumbnails
     public event EventHandler<PdfPanelThumbnailEventArgs>? ThumbnailReady;
 
     /// <summary>
-    /// Raised when every thumbnail was dropped by <see cref="Clear"/>.
+    /// Raised when every thumbnail was dropped, after a setting or the visibility of a layer changed.
     /// </summary>
     public event EventHandler? Cleared;
 
@@ -51,7 +50,7 @@ public sealed class PdfPanelThumbnails
             if (_usePageThumbnails != value)
             {
                 _usePageThumbnails = value;
-                Clear();
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
             }
         }
     }
@@ -68,7 +67,7 @@ public sealed class PdfPanelThumbnails
             if (_renderPages != value)
             {
                 _renderPages = value;
-                Clear();
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
             }
         }
     }
@@ -86,7 +85,24 @@ public sealed class PdfPanelThumbnails
             if (_renderMaximumSize != value)
             {
                 _renderMaximumSize = value;
-                Clear();
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Maximum number of thumbnails kept, the ones nearest to the first visible page.
+    /// </summary>
+    public int MaximumCount
+    {
+        get => _maximumCount;
+
+        set
+        {
+            if (_maximumCount != value)
+            {
+                _maximumCount = value;
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
             }
         }
     }
@@ -108,7 +124,7 @@ public sealed class PdfPanelThumbnails
             return null;
         }
 
-        PdfIntegerSize renderSize = GetRenderSize(pageNumber);
+        PdfIntegerSize renderSize = PdfPageThumbnailWorkItem.GetRenderSize(_contentProvider.GetPageInfo(pageNumber).CropBox, _renderMaximumSize);
 
         return new PdfSize(renderSize.Width, renderSize.Height);
     }
@@ -117,7 +133,7 @@ public sealed class PdfPanelThumbnails
     /// Returns the thumbnail of a page as a PNG file, or <see langword="null"/> when it is not ready.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
-    public byte[]? GetPng(int pageNumber) => _pngs[pageNumber - 1];
+    public byte[]? GetPng(int pageNumber) => _contentProvider.GetThumbnail(pageNumber);
 
     /// <summary>
     /// Starts producing the thumbnail of a page, unless it is ready, pending, or the page has none.
@@ -128,24 +144,12 @@ public sealed class PdfPanelThumbnails
     {
         int index = pageNumber - 1;
 
-        if (_pngs[index] != null || _pendingObservers[index] != null)
+        if (_pendingObservers[index] != null || _contentProvider.GetThumbnail(pageNumber) != null)
         {
             return;
         }
 
-        PdfImage? pageThumbnail = GetPageThumbnail(pageNumber);
-        if (pageThumbnail == null && !_renderPages)
-        {
-            return;
-        }
-
-        _pendingObservers[index] = _contentProvider.RequestThumbnail(
-            pageNumber,
-            pageThumbnail,
-            _renderMaximumSize,
-            GetRenderSize(pageNumber),
-            GetRenderScale(pageNumber),
-            _layers.Configuration?.ToStates());
+        _pendingObservers[index] = _contentProvider.RequestThumbnail(pageNumber);
     }
 
     /// <summary>
@@ -168,21 +172,20 @@ public sealed class PdfPanelThumbnails
     }
 
     /// <summary>
-    /// Drops every thumbnail and cancels the pending ones.
+    /// Cancels the pending thumbnails and raises <see cref="Cleared"/>.
     /// </summary>
-    public void Clear()
+    internal void OnExtractedContentCleared()
     {
-        for (int pageNumber = 1; pageNumber <= _pngs.Length; pageNumber++)
+        for (int pageNumber = 1; pageNumber <= _pendingObservers.Length; pageNumber++)
         {
             Cancel(pageNumber);
         }
 
-        Array.Clear(_pngs, 0, _pngs.Length);
         Cleared?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
-    /// Stores a produced thumbnail when it belongs to the pending request of its page.
+    /// Completes the pending request of a page and raises <see cref="ThumbnailReady"/> when it produced a thumbnail.
     /// </summary>
     internal void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args)
     {
@@ -195,8 +198,13 @@ public sealed class PdfPanelThumbnails
 
         _pendingObservers[index] = null;
         args.Observer.Dispose();
-        _pngs[index] = args.Png;
-        ThumbnailReady?.Invoke(this, new PdfPanelThumbnailEventArgs(args.PageNumber));
+
+        if (args.Png == null)
+        {
+            return;
+        }
+
+        ThumbnailReady?.Invoke(this, new PdfPanelThumbnailEventArgs(args.PageNumber, args.Png));
     }
 
     private PdfImage? GetPageThumbnail(int pageNumber)
@@ -230,22 +238,5 @@ public sealed class PdfPanelThumbnails
         return new PdfSize(
             Math.Max(1, (int)(pageThumbnail.Width * scale)),
             Math.Max(1, (int)(pageThumbnail.Height * scale)));
-    }
-
-    private float GetRenderScale(int pageNumber)
-    {
-        PdfRectangle cropBox = _contentProvider.GetPageInfo(pageNumber).CropBox;
-
-        return Math.Min(_renderMaximumSize.Width / cropBox.Width, _renderMaximumSize.Height / cropBox.Height);
-    }
-
-    private PdfIntegerSize GetRenderSize(int pageNumber)
-    {
-        PdfRectangle cropBox = _contentProvider.GetPageInfo(pageNumber).CropBox;
-        float scale = GetRenderScale(pageNumber);
-
-        return new PdfIntegerSize(
-            Math.Max(1, (int)Math.Round(cropBox.Width * scale)),
-            Math.Max(1, (int)Math.Round(cropBox.Height * scale)));
     }
 }

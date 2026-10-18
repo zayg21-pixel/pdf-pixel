@@ -241,7 +241,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
-            if (pictures.Content?.HasContent == true)
+            if (pictures.Content?.HasContent == true || pictures.Thumbnail?.HasContent == true)
             {
                 continue;
             }
@@ -266,8 +266,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
     {
         bool anyLoading = _lastRequest != null
             && _lastRequest.ShowPageLoadingAnimation
-            && _lastRequest.VisiblePages.Any(
-                p => _contentProvider.GetExistingContentPictures(p.PageNumber).Content?.HasContent != true);
+            && _lastRequest.VisiblePages.Any(IsPageLoading);
 
         if (anyLoading)
         {
@@ -278,6 +277,14 @@ public sealed partial class PdfPanelRenderer : IDisposable
         {
             _clock.Tick -= OnAnimationTick;
         }
+    }
+
+    private bool IsPageLoading(VisiblePageInfo page)
+    {
+        PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+
+        return pictures.Content?.HasContent != true
+            && pictures.Thumbnail?.HasContent != true;
     }
 
     private bool NeedsImmediateContentUpdate(PagesDrawingRequest? previousRequest, PagesDrawingRequest request)
@@ -365,7 +372,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 
         SKSurface surface = GetSurface(_lastRequest);
-        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Content, default);
+        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, default);
         Present(surface, _lastRequest);
     }
 
@@ -377,7 +384,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         }
 
         PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
-        surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Content, default);
+        surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, default);
     }
 
     private SKSurface GetSurface(PagesDrawingRequest request)
