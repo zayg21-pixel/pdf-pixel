@@ -9,6 +9,7 @@ using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
@@ -42,6 +43,8 @@ internal sealed class PdfPageContentProvider : IDisposable
     private volatile bool _renderPageThumbnails;
     private PdfIntegerSize _thumbnailMaximumSize;
     private volatile int _maximumThumbnailCount;
+    private volatile PdfPanelThumbnailPreloadMode _thumbnailPreloadMode;
+    private volatile int[] _visiblePageNumbersInOrder = [];
     private volatile bool _produceThumbnails;
     private volatile int _thumbnailCenterPageNumber = 1;
     private int _thumbnailPending;
@@ -197,7 +200,7 @@ internal sealed class PdfPageContentProvider : IDisposable
             PdfPageCacheEntry hiddenEntry = _cache[pageNumber - 1];
 
             hiddenEntry.Cancel();
-            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(hiddenEntry, DocumentLocker));
+            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem([hiddenEntry], DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
         }
 
         _visiblePageNumbers.Clear();
@@ -220,6 +223,8 @@ internal sealed class PdfPageContentProvider : IDisposable
                 OnPageUpdated,
                 OnPageTextExtracted));
         }
+
+        _visiblePageNumbersInOrder = request.VisiblePages.Select(page => page.PageNumber).ToArray();
 
         if (request.VisiblePages.Length > 0)
         {
@@ -248,10 +253,16 @@ internal sealed class PdfPageContentProvider : IDisposable
     /// <summary>
     /// Sets how thumbnails are produced: from the page's thumbnail image when <paramref name="usePageThumbnails"/> is set and the page has one,
     /// otherwise by rendering the page when <paramref name="renderPages"/> is set, fitted within <paramref name="renderMaximumSize"/>,
-    /// keeping at most <paramref name="maximumCount"/> thumbnails nearest to the first visible page.
-    /// Clears the thumbnails when a setting other than <paramref name="maximumCount"/> changed.
+    /// keeping at most <paramref name="maximumCount"/> thumbnails nearest to the first visible page,
+    /// and producing unrequested thumbnails for the pages selected by <paramref name="preloadMode"/>.
+    /// Clears the thumbnails when a setting other than <paramref name="maximumCount"/> or <paramref name="preloadMode"/> changed.
     /// </summary>
-    public void SetThumbnailSettings(bool usePageThumbnails, bool renderPages, in PdfIntegerSize renderMaximumSize, int maximumCount)
+    public void SetThumbnailSettings(
+        bool usePageThumbnails,
+        bool renderPages,
+        in PdfIntegerSize renderMaximumSize,
+        int maximumCount,
+        PdfPanelThumbnailPreloadMode preloadMode)
     {
         bool thumbnailsChanged = usePageThumbnails != _usePageThumbnails
             || renderPages != _renderPageThumbnails
@@ -261,13 +272,15 @@ internal sealed class PdfPageContentProvider : IDisposable
         _renderPageThumbnails = renderPages;
         _thumbnailMaximumSize = renderMaximumSize;
         _maximumThumbnailCount = maximumCount;
+        _thumbnailPreloadMode = preloadMode;
 
         if (thumbnailsChanged)
         {
-            EnqueueClear(ExtractedContentType.Thumbnails);
+            EnqueueClear(CachedContentType.Thumbnail);
         }
         else
         {
+            EnforceThumbnailLimit();
             EnqueueNextThumbnail();
         }
     }
@@ -285,7 +298,7 @@ internal sealed class PdfPageContentProvider : IDisposable
     /// Clears all extracted content of every page after the work already enqueued.
     /// <see cref="ExtractedContentCleared"/> is raised when done.
     /// </summary>
-    public void ClearExtractedContent() => EnqueueClear(ExtractedContentType.All);
+    public void ClearExtractedContent() => EnqueueClear(CachedContentType.Words | CachedContentType.Thumbnail);
 
     /// <summary>
     /// Starts producing the thumbnail of the specified 1-based page number as set by <see cref="SetThumbnailSettings"/>.
@@ -339,8 +352,8 @@ internal sealed class PdfPageContentProvider : IDisposable
             OnTextExtractionCompleted));
     }
 
-    private void EnqueueClear(ExtractedContentType contentTypes)
-        => _processingQueue.Enqueue(new PdfPageClearExtractedContentWorkItem(_cache, contentTypes, OnExtractedContentCleared));
+    private void EnqueueClear(CachedContentType contentTypes)
+        => _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(_cache, DocumentLocker, contentTypes, OnExtractedContentCleared));
 
     private void EnqueueNextThumbnail()
     {
@@ -393,11 +406,16 @@ internal sealed class PdfPageContentProvider : IDisposable
 
     private void OnPageTextExtracted(int pageNumber) => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber));
 
-    private void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args) => PageThumbnailRendered?.Invoke(this, args);
+    private void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args)
+    {
+        EnforceThumbnailLimit();
+        PageThumbnailRendered?.Invoke(this, args);
+    }
 
     private void OnThumbnailChainItemCompleted(PageThumbnailRenderedEventArgs args)
     {
         args.Observer.Dispose();
+        EnforceThumbnailLimit();
         Volatile.Write(ref _thumbnailPending, 0);
 
         if (args.Png != null)
@@ -406,7 +424,36 @@ internal sealed class PdfPageContentProvider : IDisposable
         }
     }
 
-    private void OnExtractedContentCleared(ExtractedContentType contentTypes)
+    /// <summary>
+    /// Clears the thumbnails farthest from the thumbnail center page until at most <see cref="_maximumThumbnailCount"/> are stored.
+    /// </summary>
+    private void EnforceThumbnailLimit()
+    {
+        int centerIndex = _thumbnailCenterPageNumber - 1;
+        List<int> storedIndexes = [];
+
+        for (int index = 0; index < _cache.Length; index++)
+        {
+            if (_cache[index].Thumbnail.HasContent)
+            {
+                storedIndexes.Add(index);
+            }
+        }
+
+        int excessCount = storedIndexes.Count - _maximumThumbnailCount;
+
+        if (excessCount <= 0)
+        {
+            return;
+        }
+
+        foreach (int index in storedIndexes.OrderByDescending(storedIndex => Math.Abs(storedIndex - centerIndex)).Take(excessCount))
+        {
+            _cache[index].Clear(CachedContentType.Thumbnail);
+        }
+    }
+
+    private void OnExtractedContentCleared(CachedContentType contentTypes)
     {
         ExtractedContentCleared?.Invoke(this, new ExtractedContentClearedEventArgs(contentTypes));
         EnqueueNextTextExtraction();
@@ -442,12 +489,19 @@ internal sealed class PdfPageContentProvider : IDisposable
     }
 
     /// <summary>
-    /// Returns the page nearest to the thumbnail center page that has no thumbnail yet, walking outward from it.
-    /// When <see cref="_maximumThumbnailCount"/> thumbnails are stored, the farthest one is cleared for a nearer page,
-    /// and <see langword="null"/> is returned when no page is nearer than it.
+    /// Returns the next page selected by <see cref="_thumbnailPreloadMode"/> that has no thumbnail yet:
+    /// a visible page in drawing order, or the page nearest to the thumbnail center page, walking outward from it.
+    /// When <see cref="_maximumThumbnailCount"/> thumbnails are stored, only a page nearer than the farthest stored one is returned.
     /// </summary>
     private PdfPageCacheEntry? FindNextEntryWithoutThumbnail()
     {
+        PdfPanelThumbnailPreloadMode preloadMode = _thumbnailPreloadMode;
+
+        if (preloadMode == PdfPanelThumbnailPreloadMode.None)
+        {
+            return null;
+        }
+
         int centerIndex = _thumbnailCenterPageNumber - 1;
         int storedCount = 0;
         int? farthestIndex = null;
@@ -467,6 +521,21 @@ internal sealed class PdfPageContentProvider : IDisposable
             }
         }
 
+        if (preloadMode == PdfPanelThumbnailPreloadMode.VisiblePages)
+        {
+            foreach (int pageNumber in _visiblePageNumbersInOrder)
+            {
+                int index = pageNumber - 1;
+
+                if (NeedsThumbnail(index))
+                {
+                    return SelectThumbnailEntry(index, centerIndex, storedCount, farthestIndex);
+                }
+            }
+
+            return null;
+        }
+
         for (int distance = 0; distance < _cache.Length; distance++)
         {
             for (int direction = 0; direction < 2; direction++)
@@ -478,29 +547,36 @@ internal sealed class PdfPageContentProvider : IDisposable
 
                 int index = (direction == 0) ? centerIndex + distance : centerIndex - distance;
 
-                if (index < 0 || index >= _cache.Length || _cache[index].Thumbnail.HasContent)
+                if (index >= 0 && index < _cache.Length && NeedsThumbnail(index))
                 {
-                    continue;
+                    return SelectThumbnailEntry(index, centerIndex, storedCount, farthestIndex);
                 }
-
-                if (GetPageThumbnail(index + 1) == null && !_renderPageThumbnails)
-                {
-                    continue;
-                }
-
-                if (storedCount < _maximumThumbnailCount)
-                {
-                    return _cache[index];
-                }
-
-                if (farthestIndex != null && Math.Abs(farthestIndex.Value - centerIndex) > distance)
-                {
-                    _cache[farthestIndex.Value].Thumbnail.SetContent(null);
-                    return _cache[index];
-                }
-
-                return null;
             }
+        }
+
+        return null;
+    }
+
+    private bool NeedsThumbnail(int index)
+    {
+        return !_cache[index].Thumbnail.HasContent
+            && (_renderPageThumbnails || GetPageThumbnail(index + 1) != null);
+    }
+
+    /// <summary>
+    /// Returns the entry at <paramref name="index"/> when another thumbnail can be stored or the thumbnail
+    /// at <paramref name="farthestIndex"/> is farther from <paramref name="centerIndex"/>, otherwise <see langword="null"/>.
+    /// </summary>
+    private PdfPageCacheEntry? SelectThumbnailEntry(int index, int centerIndex, int storedCount, int? farthestIndex)
+    {
+        if (storedCount < _maximumThumbnailCount)
+        {
+            return _cache[index];
+        }
+
+        if (farthestIndex != null && Math.Abs(farthestIndex.Value - centerIndex) > Math.Abs(index - centerIndex))
+        {
+            return _cache[index];
         }
 
         return null;

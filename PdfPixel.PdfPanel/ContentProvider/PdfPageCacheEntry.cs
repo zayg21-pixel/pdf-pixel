@@ -138,14 +138,31 @@ internal sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// Clears cached content, keeping extracted characters. Must be called from a work item.
+    /// Clears the given types of cached content. Must be called from a work item.
     /// </summary>
-    public void ClearContent()
+    public void Clear(CachedContentType contentTypes)
     {
         ThrowIfDisposed();
 
-        Content.ClearContent();
-        AnnotationContent.ClearContent();
+        if ((contentTypes & CachedContentType.Content) != 0)
+        {
+            Content.ClearContent();
+        }
+
+        if ((contentTypes & CachedContentType.Annotations) != 0)
+        {
+            AnnotationContent.ClearContent();
+        }
+
+        if ((contentTypes & CachedContentType.Words) != 0)
+        {
+            Content.Words.SetContent(null);
+        }
+
+        if ((contentTypes & CachedContentType.Thumbnail) != 0)
+        {
+            Thumbnail.SetContent(null);
+        }
     }
 
     /// <summary>
@@ -180,7 +197,7 @@ internal sealed class PdfPageCacheEntry : IDisposable
         }
 
         Cancel();
-        ClearContent();
+        Clear(CachedContentType.All);
         Thumbnail.Dispose();
         _disposed = true;
     }

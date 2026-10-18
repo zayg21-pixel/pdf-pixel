@@ -14,6 +14,7 @@ public sealed class PdfPanelThumbnails
     internal const bool DefaultUsePageThumbnails = false;
     internal const bool DefaultRenderPages = true;
     internal const int DefaultMaximumCount = 100;
+    internal const PdfPanelThumbnailPreloadMode DefaultPreloadMode = PdfPanelThumbnailPreloadMode.VisiblePages;
 
     internal static readonly PdfIntegerSize DefaultRenderMaximumSize = new(400, 400);
 
@@ -23,12 +24,13 @@ public sealed class PdfPanelThumbnails
     private bool _renderPages = DefaultRenderPages;
     private PdfIntegerSize _renderMaximumSize = DefaultRenderMaximumSize;
     private int _maximumCount = DefaultMaximumCount;
+    private PdfPanelThumbnailPreloadMode _preloadMode = DefaultPreloadMode;
 
     internal PdfPanelThumbnails(PdfPageContentProvider contentProvider)
     {
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
         _pendingObservers = new IPdfCancellableExecutionObserver?[contentProvider.GetPagesCount()];
-        _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
+        _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
     }
 
     /// <summary>
@@ -53,7 +55,7 @@ public sealed class PdfPanelThumbnails
             if (_usePageThumbnails != value)
             {
                 _usePageThumbnails = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
             }
         }
     }
@@ -70,7 +72,7 @@ public sealed class PdfPanelThumbnails
             if (_renderPages != value)
             {
                 _renderPages = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
             }
         }
     }
@@ -88,7 +90,7 @@ public sealed class PdfPanelThumbnails
             if (_renderMaximumSize != value)
             {
                 _renderMaximumSize = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
             }
         }
     }
@@ -105,7 +107,24 @@ public sealed class PdfPanelThumbnails
             if (_maximumCount != value)
             {
                 _maximumCount = value;
-                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount);
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Pages whose thumbnails are produced without being requested.
+    /// </summary>
+    public PdfPanelThumbnailPreloadMode PreloadMode
+    {
+        get => _preloadMode;
+
+        set
+        {
+            if (_preloadMode != value)
+            {
+                _preloadMode = value;
+                _contentProvider.SetThumbnailSettings(_usePageThumbnails, _renderPages, _renderMaximumSize, _maximumCount, _preloadMode);
             }
         }
     }

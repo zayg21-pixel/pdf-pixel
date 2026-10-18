@@ -450,16 +450,16 @@ public sealed class PdfPanelContext : IDisposable
         }
     }
 
-    private void OnExtractedContentClearedSync(ExtractedContentType contentTypes)
+    private void OnExtractedContentClearedSync(CachedContentType contentTypes)
     {
-        if ((contentTypes & ExtractedContentType.Words) != 0)
+        if ((contentTypes & CachedContentType.Words) != 0)
         {
             Text.OnExtractedContentCleared();
             Search.OnExtractedContentCleared();
             Renderer.RedrawGraphics(_graphics.Update());
         }
 
-        if ((contentTypes & ExtractedContentType.Thumbnails) != 0)
+        if ((contentTypes & CachedContentType.Thumbnail) != 0)
         {
             Thumbnails.OnExtractedContentCleared();
         }

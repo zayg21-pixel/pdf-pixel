@@ -10,10 +10,10 @@ internal sealed class ExtractedContentClearedEventArgs : EventArgs
     /// <summary>
     /// Initializes the arguments for the given cleared content types.
     /// </summary>
-    public ExtractedContentClearedEventArgs(ExtractedContentType contentTypes) => ContentTypes = contentTypes;
+    public ExtractedContentClearedEventArgs(CachedContentType contentTypes) => ContentTypes = contentTypes;
 
     /// <summary>
     /// Content types that were cleared.
     /// </summary>
-    public ExtractedContentType ContentTypes { get; }
+    public CachedContentType ContentTypes { get; }
 }
