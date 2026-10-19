@@ -2,6 +2,8 @@ using PdfPixel.Text;
 
 namespace PdfPixel.Annotations.Model;
 
+// TODO: [MEDIUM] Non-standard icon names (Check, Circle, Cross, CrossHairs, RightArrow, RightPointer, Star, UpArrow,
+// UpLeftArrow) fall back to Note; most viewers draw their own icon for them. See issue14203.pdf.
 /// <summary>
 /// Icon types for Text annotations as allowed by the PDF specification.
 /// </summary>

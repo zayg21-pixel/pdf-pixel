@@ -41,7 +41,10 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
         }
 
         BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
-        // TODO: [MEDIUM] IT (Intent: PolygonCloud, PolygonDimension), Measure
+        // TODO: [MEDIUM] Not parsed, so the polygon is drawn as a plain shape without its cloud or measurement:
+        // - intent: cloud outline or area dimension (IT: PolygonCloud, PolygonDimension)
+        // - measurement dictionary for dimension polygons, units and scale (Measure)
+        // - curved outline that replaces Vertices, PDF 2.0 (Path)
     }
 
     /// <summary>

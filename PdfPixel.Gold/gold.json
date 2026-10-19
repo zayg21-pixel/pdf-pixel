@@ -1168,6 +1168,13 @@
       "pages": []
     },
     {
+      "name": "bug1671312_ArialNarrow.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/bug1671312_ArialNarrow.pdf",
+      "sha256": "665ee9f8a2f7c235509217afdd302d152af520097dbfc29259c22deb11fafa62",
+      "origin": "https://bugzilla.mozilla.org/show_bug.cgi?id=1671312",
+      "pages": []
+    },
+    {
       "name": "bug1671312_reduced.pdf",
       "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/bug1671312_reduced.pdf",
       "sha256": "0cf0ec3e99d072e32d067caf90760aba891ca4226231977538bd33a1226a1436",
@@ -1452,6 +1459,14 @@
       "sha256": "2172c6a5788e3e876e01b7f241a3dfef32e5841b1ed84669e48e43a88237554d",
       "origin": "https://bugzilla.mozilla.org/show_bug.cgi?id=1974436",
       "pages": []
+    },
+    {
+      "name": "bug1978317.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/bug1978317.pdf",
+      "sha256": "2da2307afefe14c163f0f57a794c5199e9302eec3fdc154896a05976e08c2727",
+      "origin": "https://bugzilla.mozilla.org/show_bug.cgi?id=1978317",
+      "pages": [],
+      "fullRun": true
     },
     {
       "name": "bug1980958.pdf",
@@ -1822,6 +1837,13 @@
       "pages": []
     },
     {
+      "name": "comments.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/comments.pdf",
+      "sha256": "283b215db9937fcdf148b22e7310892d148e43047bccffa6bf56eb4156592e5d",
+      "origin": "https://github.com/mozilla/pdf.js",
+      "pages": []
+    },
+    {
       "name": "complex_ttf_font.pdf",
       "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/complex_ttf_font.pdf",
       "sha256": "4b205d3fd11e7ad2b9b86cc446561909d48dd9e0b38327cfd69d0fdeb6c28e14",
@@ -2133,6 +2155,13 @@
       "name": "highlight.pdf",
       "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/highlight.pdf",
       "sha256": "ad646d6a4b730c28ba9816c9a6a0b42f44b7d6795971b40503a0a4da3b771b76",
+      "origin": "https://github.com/mozilla/pdf.js",
+      "pages": []
+    },
+    {
+      "name": "highlights.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/highlights.pdf",
+      "sha256": "025a8235824da8fdc2a73503d78ec0a658eb9f6620380108807e27013ae3a07d",
       "origin": "https://github.com/mozilla/pdf.js",
       "pages": []
     },
@@ -3240,6 +3269,13 @@
       "pages": []
     },
     {
+      "name": "issue14438.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/issue14438.pdf",
+      "sha256": "58c0ee6cf2b2210f36f530d5e88bf12ee5f30c30a0e1c5c62c467395740c63d7",
+      "origin": "https://github.com/mozilla/pdf.js/issues/14438",
+      "pages": []
+    },
+    {
       "name": "issue14462_reduced.pdf",
       "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/issue14462_reduced.pdf",
       "sha256": "8524a00cc4fe9f2bece570525f24b3bdac45af51a521dfc886e226f94484dc61",
@@ -3437,6 +3473,13 @@
       "url": "https://github.com/mozilla/pdf.js/files/9280755/issue15289.pdf",
       "sha256": "67e89c59c3d80273ae88f99fa9f9b6a7f323d6b82dfdbf41e8433be662999111",
       "origin": "https://github.com/mozilla/pdf.js/issues/15289",
+      "pages": []
+    },
+    {
+      "name": "issue15292.pdf",
+      "url": "https://github.com/mozilla/pdf.js/files/9288663/issue15292.pdf",
+      "sha256": "26e49cabc4910585e778da28f123e443b8bf12c7ce6601ee1b64813e8a4282b4",
+      "origin": "https://github.com/mozilla/pdf.js/issues/15292",
       "pages": []
     },
     {
@@ -4811,6 +4854,14 @@
       "sha256": "6e7bd57ffa12dfc05de588ef2102f00829b95beb2368404351c2a4fe7c9ae8fc",
       "origin": "https://github.com/mozilla/pdf.js/issues/2537",
       "pages": []
+    },
+    {
+      "name": "issue2618.pdf",
+      "url": "https://github.com/mozilla/pdf.js/files/9983741/issue2618.pdf",
+      "sha256": "30c1fad08046fb078cbc65fe4c513001231395f1b529e9fd45267727c0fa712c",
+      "origin": "https://github.com/mozilla/pdf.js/issues/2618",
+      "pages": [],
+      "fullRun": true
     },
     {
       "name": "issue2627.pdf",
@@ -6782,6 +6833,13 @@
       "url": "https://github.com/mozilla/pdf.js/files/1793688/Problem.pdf",
       "sha256": "ce3299616256d89d1170a91a5ca1137e43d6362127c0b2303d1502a7ea709e7a",
       "origin": "https://github.com/mozilla/pdf.js/issues/9540",
+      "pages": []
+    },
+    {
+      "name": "issue9552.pdf",
+      "url": "https://github.com/mozilla/pdf.js/files/3721640/issue9552.pdf",
+      "sha256": "aef48deaf7c647c6eaf54d919ff1c881dad721cbe2ed30a0a04974dd4935ea38",
+      "origin": "https://github.com/mozilla/pdf.js/issues/9552",
       "pages": []
     },
     {

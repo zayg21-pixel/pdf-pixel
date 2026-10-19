@@ -18,7 +18,15 @@ public class PdfFreeTextAnnotation : PdfAnnotationBase
     public PdfFreeTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FreeText)
     {
-        // TODO: [MEDIUM] DA (default appearance), Q (justification), IT (intent), CL (callout line), RD (rect inset), DS, BE
+        // TODO: [MEDIUM] Not parsed, so a FreeText without an appearance stream is not drawn:
+        // - default appearance string: font, size and text color (DA)
+        // - text justification: left, centered or right (Q)
+        // - intent: plain, callout or typewriter (IT)
+        // - callout line points and its line ending (CL, LE)
+        // - inset of the text box from the annotation rectangle (RD)
+        // - default rich text style string (DS)
+        // - border effect, cloudy border (BE)
+        // Fallback rendering waits on default appearance handling from the Widget implementation.
     }
 
     /// <inheritdoc/>

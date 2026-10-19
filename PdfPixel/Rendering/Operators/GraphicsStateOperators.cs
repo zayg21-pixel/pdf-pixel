@@ -164,7 +164,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        PdfMatrix matrix = operands.AsMatrix() ?? PdfMatrix.Identity;
+        PdfMatrix matrix = PdfMatrix.FromOperands(operands) ?? PdfMatrix.Identity;
         _processor.Process(new ConcatMatrixCommand(matrix));
 
         // Update CTM in graphics state - concatenate with existing CTM

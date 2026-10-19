@@ -29,6 +29,7 @@ internal static class AnalyzeCommand
 
         Stopwatch runStopwatch = Stopwatch.StartNew();
         int failedCount = 0;
+        double renderSeconds = 0;
         List<PageStatistics> timeOutliers = new();
         List<PageStatistics> memoryOutliers = new();
 
@@ -36,7 +37,7 @@ internal static class AnalyzeCommand
         {
             try
             {
-                Analyze(paths, reader, entry, options.MeasureMemory, timeOutliers, memoryOutliers);
+                renderSeconds += Analyze(paths, reader, entry, options.MeasureMemory, timeOutliers, memoryOutliers);
             }
             catch (Exception exception)
             {
@@ -51,6 +52,7 @@ internal static class AnalyzeCommand
 
         string summary = $"Analyzed {entries.Count - failedCount} of {entries.Count} PDF(s) in the {options.Scope} run in {runStopwatch.Elapsed.TotalSeconds:F1} s; {failedCount} failed.";
         ConsoleUtilities.Write(failedCount == 0 ? ConsoleColor.Green : ConsoleColor.Red, summary);
+        ConsoleUtilities.Write(ConsoleColor.Cyan, $"Rendering the pages took {renderSeconds:F1} s.");
 
         PrintOutliers(timeOutliers, memoryOutliers, options.MeasureMemory);
 
@@ -63,8 +65,9 @@ internal static class AnalyzeCommand
     /// set, the peak memory it reached while it rendered along with the memory the document held on
     /// to afterwards; the document reports its totals, and the pages that go over the outlier
     /// thresholds are collected into <paramref name="timeOutliers"/> and <paramref name="memoryOutliers"/>.
+    /// Returns the time all its pages took to render.
     /// </summary>
-    private static void Analyze(
+    private static double Analyze(
         GoldPaths paths,
         PdfDocumentReader reader,
         GoldEntry entry,
@@ -164,6 +167,8 @@ internal static class AnalyzeCommand
         }
 
         ConsoleUtilities.Write(ConsoleColor.Cyan, total);
+
+        return documentSeconds;
     }
 
     /// <summary>

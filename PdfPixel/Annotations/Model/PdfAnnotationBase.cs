@@ -79,6 +79,9 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
         InReplyTo = annotationObject.Dictionary.GetReference(PdfTokens.InReplyToKey);
         ReplyType = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
         AssociatedFiles = PdfFileSpecification.GetFileSpecifications(annotationObject.Dictionary.GetArray(PdfTokens.AssociatedFilesKey));
+        // TODO: [MEDIUM] Not parsed, so every annotation is drawn regardless of layers and with normal blending:
+        // - optional content membership, hiding the annotation when its layer is off (OC)
+        // - blend mode the appearance is composited onto the page with, PDF 2.0 (BM)
     }
 
     /// <summary>

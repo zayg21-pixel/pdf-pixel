@@ -1,6 +1,4 @@
-using PdfPixel.Geometry;
 using PdfPixel.Models;
-using System;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
@@ -93,36 +91,6 @@ internal static class PdfContentStreamValueExtensions
                 return null;
             }
         }
-    }
-
-    /// <summary>
-    /// Returns the matrix [a b c d e f] given by the first six tokens if they are all numbers; otherwise returns null.
-    /// </summary>
-    public static PdfMatrix? AsMatrix(this in ReadOnlySpan<PdfContentStreamValue> operands) // TODO: move back to where it belongs
-    {
-        if (operands.Length < 6)
-        {
-            return null;
-        }
-
-        float? a = operands[0].AsFloat();
-        float? b = operands[1].AsFloat();
-        float? c = operands[2].AsFloat();
-        float? d = operands[3].AsFloat();
-        float? e = operands[4].AsFloat();
-        float? f = operands[5].AsFloat();
-
-        if (a == null
-            || b == null
-            || c == null
-            || d == null
-            || e == null
-            || f == null)
-        {
-            return null;
-        }
-
-        return new PdfMatrix(a.Value, c.Value, e.Value, b.Value, d.Value, f.Value);
     }
 
     /// <summary>

@@ -133,6 +133,11 @@ public class PdfType3Font : PdfSingleByteFont
         PdfParseContext parseContext = new(info.Content, PdfParseContext.ContentStreamValuesCapacity);
         PdfGraphicsState charState = sourceState.CloneForType3Glyph(glyphHost);
 
+        // TODO: [MEDIUM] Type3 text not selectable (issue19624.pdf): d0 glyphs without d1 bbox and FontBBox [0 0 0 0]
+        // get zero-size character bounds. Treat an all-zero FontBBox as absent (spec: no assumptions), add
+        // IContentRenderCommand with Bounds on every Draw*Command (render targets already compute them, outer space,
+        // independent of the command's own matrix), a general bounds walker over recordings, then take glyph bounds
+        // live from the recording when d1 bbox is absent.
         PdfRectangle? glyphBounds = info.BBox ?? FontBBox;
         if (glyphBounds != null)
         {

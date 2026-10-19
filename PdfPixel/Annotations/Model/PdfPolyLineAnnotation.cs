@@ -51,7 +51,10 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
         StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
-        // TODO: [MEDIUM] IT (Intent: PolyLineDimension), Measure
+        // TODO: [MEDIUM] Not parsed, so the polyline is drawn as a plain line without its measurement:
+        // - intent: perimeter dimension (IT: PolyLineDimension)
+        // - measurement dictionary for dimension polylines, units and scale (Measure)
+        // - curved outline that replaces Vertices, PDF 2.0 (Path)
     }
 
     /// <summary>

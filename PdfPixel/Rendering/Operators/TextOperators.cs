@@ -389,7 +389,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        PdfMatrix matrix = operands.AsMatrix() ?? PdfMatrix.Identity;
+        PdfMatrix matrix = PdfMatrix.FromOperands(operands) ?? PdfMatrix.Identity;
         graphicsState.TextMatrix = matrix;
         graphicsState.TextLineMatrix = matrix;
     }

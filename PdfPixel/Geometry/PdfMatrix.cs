@@ -1,4 +1,5 @@
 using PdfPixel.Models;
+using PdfPixel.Parsing;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -102,6 +103,37 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
         float f = array.GetFloatOrDefault(5);
 
         return new PdfMatrix(a, c, e, b, d, f);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="PdfMatrix"/> [a b c d e f] from the first six content stream operands.
+    /// Returns null if there are fewer than six operands or any of them is not a number.
+    /// </summary>
+    internal static PdfMatrix? FromOperands(in ReadOnlySpan<PdfContentStreamValue> operands)
+    {
+        if (operands.Length < 6)
+        {
+            return null;
+        }
+
+        float? a = operands[0].AsFloat();
+        float? b = operands[1].AsFloat();
+        float? c = operands[2].AsFloat();
+        float? d = operands[3].AsFloat();
+        float? e = operands[4].AsFloat();
+        float? f = operands[5].AsFloat();
+
+        if (a == null
+            || b == null
+            || c == null
+            || d == null
+            || e == null
+            || f == null)
+        {
+            return null;
+        }
+
+        return new PdfMatrix(a.Value, c.Value, e.Value, b.Value, d.Value, f.Value);
     }
 
     /// <summary>

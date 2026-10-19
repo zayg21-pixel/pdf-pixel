@@ -33,6 +33,8 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         Action = PdfAction.GetAction(annotationObject.Dictionary, PdfTokens.AKey);
 
         HighlightMode = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
+        // TODO: [MEDIUM] Not parsed, so the whole rectangle is the active area:
+        // - quadrilaterals the link is active in, e.g. a link spanning two lines of text (QuadPoints)
     }
 
     /// <inheritdoc/>

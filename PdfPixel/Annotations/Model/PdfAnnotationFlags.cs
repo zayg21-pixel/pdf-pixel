@@ -30,12 +30,17 @@ public enum PdfAnnotationFlags
 
     // TODO: [MEDIUM] NoZoom is not honored by rendering. Annotations should keep a fixed device-pixel
     // size across page zoom levels; today annotation commands are recorded in PDF user-space units and
-    // scaled with the rest of the page.
+    // scaled with the rest of the page. The view zoom is not known to rendering and has to be passed in
+    // through the rendering parameters.
     /// <summary>
     /// If set, do not scale the annotation's appearance to match the magnification of the page.
     /// </summary>
     NoZoom = 1 << 3,
 
+    // TODO: [MEDIUM] NoRotate is not honored by rendering. The appearance should stay upright, pivoting on the
+    // upper-left corner of the annotation rectangle, when the page is rotated; today it rotates with the page.
+    // The rotation is the page's /Rotate plus the viewer's own rotation, which is not known to rendering and has
+    // to be passed in through the rendering parameters.
     /// <summary>
     /// If set, do not rotate the annotation's appearance to match the rotation of the page.
     /// </summary>
@@ -56,6 +61,8 @@ public enum PdfAnnotationFlags
     /// </summary>
     Locked = 1 << 7,
 
+    // TODO: [LOW] ToggleNoView is not honored. A NoView annotation with this flag should show while the pointer
+    // is over it or it is selected; today NoView annotations are always skipped.
     /// <summary>
     /// If set, invert the interpretation of the NoView flag for certain events.
     /// </summary>

@@ -31,6 +31,8 @@ public class PdfInkAnnotation : PdfAnnotationBase
         InkList = ParseInkList(inkList);
 
         StrokeStyle = (BorderStyle?.StrokeStyle ?? new PdfStrokeStyle()).WithLineCap(PdfStrokeCap.Round).WithLineJoin(PdfStrokeJoin.Round);
+        // TODO: [MEDIUM] Not parsed, so curved ink strokes are drawn as straight segments:
+        // - curved strokes that replace InkList, PDF 2.0 (Path)
     }
 
     /// <summary>

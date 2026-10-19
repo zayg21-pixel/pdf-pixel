@@ -47,7 +47,12 @@ public class PdfLineAnnotation : PdfAnnotationBase
         LeaderLineExtension = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineExtensionKey);
         LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
         StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
-        // TODO: [MEDIUM] Cap (caption flag), CP (caption position: Inline/Top), CO (caption offset), Measure (dimension dict)
+        // TODO: [MEDIUM] Not parsed, so the line is drawn without its caption or measurement:
+        // - whether the Contents text is shown as a caption on the line (Cap)
+        // - caption position, centered inside the line or on top of it (CP)
+        // - caption offset from its default position (CO)
+        // - intent: arrow or dimension line (IT: LineArrow, LineDimension)
+        // - measurement dictionary for dimension lines, units and scale (Measure)
     }
 
     /// <summary>

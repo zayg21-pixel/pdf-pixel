@@ -38,6 +38,8 @@ public class PdfStampAnnotation : PdfAnnotationBase
         : base(annotationObject, PdfAnnotationSubType.Stamp)
     {
         StampName = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfStampName>();
+        // TODO: [LOW] Not parsed, so a stamp is always treated as a named rubber stamp:
+        // - intent: rubber stamp, image or snapshot, PDF 2.0 (IT: Stamp, StampImage, StampSnapshot)
     }
 
     /// <summary>
