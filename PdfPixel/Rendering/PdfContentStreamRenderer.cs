@@ -96,21 +96,7 @@ internal class PdfContentStreamRenderer
         {
             if (value is PdfOperatorValue operatorValue)
             {
-                try
-                {
-                    operatorProcessor.ProcessOperator(operatorValue.Value, ref graphicsState);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-#pragma warning disable CA1031
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, operatorValue.ToString());
-                }
-#pragma warning restore CA1031
-
+                ProcessOperator(operatorProcessor, operatorValue, ref graphicsState);
                 operandStack.Clear();
             }
             else
@@ -120,5 +106,82 @@ internal class PdfContentStreamRenderer
 
             graphicsState.ExecutionObserver?.Notify();
         }
+    }
+
+    /// <summary>
+    /// Renders parsed content stream values using the given command processor with stack-based approach.
+    /// </summary>
+#if !NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+    public void RenderContext(IPdfCommandProcessor processor, PdfValue[] content, PdfGraphicsState graphicsState)
+    {
+        Stack<PdfGraphicsState> graphicsStack = [];
+        PdfOperandStack operandStack = new();
+        PdfPathBuilder currentPath = new();
+        PdfOperatorProcessor operatorProcessor = new(_renderer, _host, processor, operandStack, graphicsStack, currentPath);
+
+        foreach (PdfValue value in content)
+        {
+            if (value is PdfOperatorValue operatorValue)
+            {
+                ProcessOperator(operatorProcessor, operatorValue, ref graphicsState);
+                operandStack.Clear();
+            }
+            else
+            {
+                operandStack.Push(value);
+            }
+
+            graphicsState.ExecutionObserver?.Notify();
+        }
+    }
+
+    /// <summary>
+    /// Parses a content stream into its values in stream order, each operator following its operands.
+    /// </summary>
+    public static PdfValue[] ParseContent(PdfParseContext parseContext, IPdfDocumentInternal document)
+    {
+        PdfParser parser = new(parseContext, document, PdfParserMode.ContentStream);
+        PdfOperandStack operandStack = new();
+        List<PdfValue> content = [];
+        PdfValue? value;
+
+        while ((value = parser.ReadNextValue(operandStack)) != null)
+        {
+            if (value is PdfOperatorValue)
+            {
+                foreach (PdfValue operand in operandStack.Pop(operandStack.Count))
+                {
+                    content.Add(operand);
+                }
+
+                content.Add(value);
+            }
+            else
+            {
+                operandStack.Push(value);
+            }
+        }
+
+        return [.. content];
+    }
+
+    private void ProcessOperator(PdfOperatorProcessor operatorProcessor, PdfOperatorValue operatorValue, ref PdfGraphicsState graphicsState)
+    {
+        try
+        {
+            operatorProcessor.ProcessOperator(operatorValue.Value, ref graphicsState);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+#pragma warning disable CA1031
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, operatorValue.ToString());
+        }
+#pragma warning restore CA1031
     }
 }

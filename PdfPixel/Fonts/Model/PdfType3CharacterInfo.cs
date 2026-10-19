@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using System;
 
 namespace PdfPixel.Fonts.Model;
@@ -13,16 +14,16 @@ public sealed class PdfType3CharacterInfo
     /// <summary>
     /// Gets a singleton instance representing an undefined character (no character procedure/metrics available).
     /// </summary>
-    public static PdfType3CharacterInfo Undefined { get; } = new(ReadOnlyMemory<byte>.Empty, 0, null, PdfSize.Empty);
+    public static PdfType3CharacterInfo Undefined { get; } = new(Array.Empty<PdfValue>(), 0, null, PdfSize.Empty);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfType3CharacterInfo"/> class.
     /// </summary>
-    /// <param name="content">Decoded CharProc content stream; empty when not defined.</param>
+    /// <param name="content">Parsed values of the CharProc content stream; empty when not defined.</param>
     /// <param name="objectNumber">Object number of the CharProc stream, guarding against recursive glyphs.</param>
     /// <param name="bbox">Bounding box parsed by d1 (llx, lly, urx, ury). Null when not provided.</param>
     /// <param name="advancement">Glyph advancement vector parsed by d0/d1 (wx, wy). If not provided, use <see cref="PdfSize.Empty"/>.</param>
-    internal PdfType3CharacterInfo(in ReadOnlyMemory<byte> content, uint objectNumber, PdfRectangle? bbox, in PdfSize advancement)
+    internal PdfType3CharacterInfo(PdfValue[] content, uint objectNumber, PdfRectangle? bbox, in PdfSize advancement)
     {
         Content = content;
         ObjectNumber = objectNumber;
@@ -33,7 +34,7 @@ public sealed class PdfType3CharacterInfo
     /// <summary>
     /// True when the character procedure was found and has content.
     /// </summary>
-    public bool IsDefined => !Content.IsEmpty;
+    public bool IsDefined => Content.Length > 0;
 
     /// <summary>
     /// Gets the character bounding box from d1 if provided; otherwise null.
@@ -51,9 +52,9 @@ public sealed class PdfType3CharacterInfo
     public bool IsColored => !BBox.HasValue;
 
     /// <summary>
-    /// Gets the decoded CharProc content stream.
+    /// Gets the parsed values of the CharProc content stream.
     /// </summary>
-    internal ReadOnlyMemory<byte> Content { get; }
+    internal PdfValue[] Content { get; }
 
     /// <summary>
     /// Gets the object number of the CharProc stream.
