@@ -30,7 +30,7 @@ npm install pdf-pixel@next
     pdfPixel.registerPanel(container.id, container);
 
     const response = await fetch('document.pdf');
-    const result = pdfPixel.setDocument(container.id, new Uint8Array(await response.arrayBuffer()));
+    const result = await pdfPixel.setDocument(container.id, new Uint8Array(await response.arrayBuffer()));
     pdfPixel.requestRedraw(container.id);
 </script>
 ```
@@ -138,7 +138,15 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `registerPanel(id, container, configuration?)` | Creates a panel in the container element with the id `id`. |
 | `unregisterPanel(id)` | Disposes the panel. |
 | `loadGzipResource` | Resource loader for `dotnet.withResourceLoader` that loads the gzip-compressed runtime files. |
-| `setDocument(id, bytes)` | Loads a PDF document from a `Uint8Array` and returns `{ ok: true, pageCount }` or `{ ok: false, reason, message }`, with `reason` one of `empty`, `encrypted`, `unsupported`, `invalid` and `error`. The shown document is kept when loading fails. |
+| `setDocument(id, bytes)` | Loads a PDF document from a `Uint8Array` and resolves to `ok: true` with the document data (see below) or `{ ok: false, reason, message }`, with `reason` one of `empty`, `encrypted`, `unsupported`, `invalid` and `error`. The shown document is kept when loading fails. |
+| `setOnCredentialRequested(id, callback)` | Calls `callback({ reason, authEvent })` when an encrypted document needs a credential, on open (`documentOpen`) or when an embedded file is read (`embeddedFileOpen`): `reason` is `required` for the first request and `rejected` after a credential that is not accepted. The callback returns the credential, `{ type: 'password', password }`, or `null` to stop loading, directly or as a promise. Without a callback, an encrypted document fails to load with `encrypted`. |
+| `activateOutlineItem(id, handle)` | Performs the action of an outline item, or navigates to its destination when it has none. |
+| `setLayerConfiguration(id, handle)` | Renders the content with a layer configuration. |
+| `setLayerVisible(id, handle, visible)` | Shows or hides a layer; showing it hides the other layers of its radio-button sets. |
+| `getFileBytes(id, handle)` | Resolves to the content of an embedded file, from `attachments` or from a requested action, as a `Uint8Array`, or `null`. An encrypted file requests its credential through `setOnCredentialRequested` with `authEvent` `embeddedFileOpen`. |
+| `setOnActionRequested(id, callback)` | Calls `callback({ source, action })` for each action the panel does not perform itself, after the render during which it was requested (see below). |
+| `requestThumbnail(id, pageNumber)`, `cancelThumbnail(id, pageNumber)` | Requests the thumbnail of a page, or cancels the request. The PNG of a requested thumbnail is passed to the `setOnThumbnailUpdated` callback when it is ready, and again whenever it is produced anew. |
+| `setOnThumbnailUpdated(id, callback)` | Calls `callback({ pageNumber, png })` for each requested thumbnail that is ready. |
 | `requestRedraw(id)` | Renders the panel. |
 | `setPage(id, pageNumber)` | Scrolls to a 1-based page. |
 | `setScale(id, scale)` | Zooms to a scale (`1.0` = 100%) around the panel center. |
@@ -152,11 +160,44 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `setOnStateChanged(id, callback)` | Calls `callback(state)` after every render. |
 | `setOnFramePresented(id, callback)` | Calls `callback({ id, canvas, frame })` after every presented frame, with an overlay canvas for custom drawing above the pages. |
 
+The document data returned by `setDocument` includes:
+
+| Field | Description |
+| --- | --- |
+| `pageCount` | Number of pages. |
+| `pages` | Per page in page order, `{ label, cropBox, rotation }`, the shape of the frame page `info`. |
+| `version` | Version the document conforms to, such as `1.7`, or `null`. |
+| `pageMode`, `pageLayout` | How the document is displayed and laid out when opened, as PDF names (`UseOutlines`, `TwoColumnLeft`, …), `Unknown` for an unrecognized value, or `null`. |
+| `lang` | Natural language of the document, or `null`. |
+| `information` | `{ title, author, subject, keywords, creator, producer, creationDate, modificationDate, isTrapped, customEntries }`, the dates in ISO 8601, or `null`. |
+| `permissions` | `{ print, modify, copy, annotate, fillForms, assemble, highQualityPrint }`, or `null` when the document is not encrypted. |
+| `outlines` | Outline tree, `{ handle, title, isBold, isItalic, color, isExpanded, children }`. |
+| `layerConfigurations` | Layer configurations, `{ handle, name, isDefault, layers }`, each layer `{ handle, name, isLayer, isLocked, children }`. |
+| `attachments` | Attached files, `{ file, pageNumber }`, `pageNumber` being `null` for a file attached to the document. |
+
+A file is `{ handle, name, description }`, its `handle` being `null` when the file is not embedded. A handle identifies an item for the functions that take one, for the loaded document only.
+
+The panel navigates, switches layers and hides annotations itself. Any other action is passed to the `setOnActionRequested` callback as `{ source, action }`; the panel does not open links or files on its own.
+
+| `source` | Triggered by |
+| --- | --- |
+| `documentOpen`, `pageOpen`, `pageClose` | Opening the document, a page becoming or leaving the current page. |
+| `linkAnnotationClick`, `fileAttachmentAnnotationClick` | A click on a link or file attachment annotation. |
+| `outline` | `activateOutlineItem`. |
+
+| `action.type` | Fields |
+| --- | --- |
+| `uri` | `uri`. |
+| `launch` | `file`, `newWindow`. |
+| `goToRemote` | `file`, `newWindow` and `destination` in the other document: `{ pageNumber, fitType, … }` as for `scrollToDestination`, `{ name }`, or `null`. |
+| `named` | `name` of a named action the panel does not know. |
+| `unsupported` | `actionType`, the PDF name of any other action, such as `GoToE` or `JavaScript`. |
+
 The state passed to `setOnStateChanged` includes:
 
 | Field | Description |
 | --- | --- |
-| `currentPage`, `pageCount` | Page shown in the panel center and number of pages. |
+| `currentPage` | Page shown in the panel center. |
 | `scale` | Current zoom scale. |
 | `autoScaleMode` | Current automatic scaling mode. |
 | `cursorStyle` | Cursor the panel sets on its scroll host, or `null` when it leaves the cursor to the host page. |
@@ -165,6 +206,8 @@ The state passed to `setOnStateChanged` includes:
 | `isTextExtracted` | Whether the text of every page has been extracted, so `searchResults` is final. |
 | `annotationPopup` | Messages of the annotation under the pointer, or `null`. |
 | `activeContentName` | Alternate description (`/Alt`) of the page content under the pointer, or `null`. |
+| `layerConfiguration` | Handle of the layer configuration the content is rendered with, or `null`. |
+| `visibleLayers` | Handles of the visible layers. |
 
 ## Features
 

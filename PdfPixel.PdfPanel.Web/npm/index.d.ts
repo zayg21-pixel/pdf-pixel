@@ -117,7 +117,6 @@ export interface PdfPixelAnnotationPopup {
 export interface PdfPixelState {
     /** Page shown in the panel center. */
     currentPage: number;
-    pageCount: number;
     scale: number;
     autoScaleMode: PdfPixelAutoScaleMode;
     verticalOffset: number;
@@ -134,6 +133,10 @@ export interface PdfPixelState {
     annotationPopup: PdfPixelAnnotationPopup | null;
     /** Alternate description (`/Alt`) of the page content under the pointer. */
     activeContentName: string | null;
+    /** Handle of the layer configuration the content is rendered with. */
+    layerConfiguration: number | null;
+    /** Handles of the visible layers. */
+    visibleLayers: number[];
     mouseX: number | null;
     mouseY: number | null;
     pointerPressed: boolean;
@@ -187,9 +190,161 @@ export interface PdfPixelDestination {
     zoom?: number;
 }
 
+/** Static info of a page, the shape of the frame page `info`. */
+export interface PdfPixelPageInfo {
+    label: string;
+    /** Crop box in PDF user space. */
+    cropBox: PdfPixelRectangle;
+    /** Page rotation from the document. */
+    rotation: number;
+}
+
+/** How the document is displayed when opened (`/PageMode`). */
+export type PdfPixelPageMode = 'Unknown' | 'UseNone' | 'UseOutlines' | 'UseThumbs' | 'FullScreen' | 'UseOC' | 'UseAttachments';
+
+/** Page layout used when the document is opened (`/PageLayout`). */
+export type PdfPixelPageLayout =
+    'Unknown' | 'SinglePage' | 'OneColumn' | 'TwoColumnLeft' | 'TwoColumnRight' | 'TwoPageLeft' | 'TwoPageRight';
+
+/** Document information dictionary. */
+export interface PdfPixelDocumentInformation {
+    title: string | null;
+    author: string | null;
+    subject: string | null;
+    keywords: string | null;
+    creator: string | null;
+    producer: string | null;
+    /** ISO 8601 creation date. */
+    creationDate: string | null;
+    /** ISO 8601 modification date. */
+    modificationDate: string | null;
+    isTrapped: boolean | null;
+    /** Entries the document defines beyond the standard ones, keyed by name. */
+    customEntries: Record<string, string>;
+}
+
+/** User access permissions of an encrypted document. */
+export interface PdfPixelPermissions {
+    print: boolean;
+    modify: boolean;
+    copy: boolean;
+    annotate: boolean;
+    fillForms: boolean;
+    assemble: boolean;
+    highQualityPrint: boolean;
+}
+
+/** Outline item (bookmark). */
+export interface PdfPixelOutlineItem {
+    /** Handle for `activateOutlineItem`. */
+    handle: number;
+    title: string | null;
+    isBold: boolean;
+    isItalic: boolean;
+    color: PdfPixelColor | null;
+    /** Whether the document opens the item. */
+    isExpanded: boolean;
+    children: PdfPixelOutlineItem[];
+}
+
+/** Node of a layer tree: a switchable layer, or a list of layers with an optional label. */
+export interface PdfPixelLayer {
+    /** Handle for `setLayerVisible`, reported in `visibleLayers` of the view state. */
+    handle: number;
+    name: string | null;
+    isLayer: boolean;
+    /** Whether the document locks the layer against changes through a user interface. */
+    isLocked: boolean;
+    children: PdfPixelLayer[];
+}
+
+/** Layer configuration with its tree of layers. */
+export interface PdfPixelLayerConfiguration {
+    /** Handle for `setLayerConfiguration`, reported as `layerConfiguration` of the view state. */
+    handle: number;
+    name: string | null;
+    isDefault: boolean;
+    layers: PdfPixelLayer[];
+}
+
+/** File the document references. */
+export interface PdfPixelFile {
+    /** Handle for `getFileBytes`, or `null` when the file is not embedded in the document. */
+    handle: number | null;
+    name: string | null;
+    description: string | null;
+}
+
+/** File attached to the document or to one of its pages. */
+export interface PdfPixelAttachment {
+    file: PdfPixelFile;
+    /** 1-based number of the page the file is attached to, or `null` when it is attached to the document. */
+    pageNumber: number | null;
+}
+
+/** Destination in another document: a page with its view, or a named destination. */
+export type PdfPixelRemoteDestination = PdfPixelDestination | { name: string };
+
+/** Action the panel does not perform itself. */
+export type PdfPixelAction =
+    | { type: 'uri'; uri: string | null }
+    | { type: 'launch'; file: PdfPixelFile | null; newWindow: boolean | null }
+    | { type: 'goToRemote'; file: PdfPixelFile | null; destination: PdfPixelRemoteDestination | null; newWindow: boolean | null }
+    | { type: 'named'; name: string | null }
+    /** Any other action, with its PDF name (`/S`), such as `GoToE` or `JavaScript`. */
+    | { type: 'unsupported'; actionType: string };
+
+/** What triggered a requested action. */
+export type PdfPixelActionSource =
+    'documentOpen' | 'pageOpen' | 'pageClose' | 'linkAnnotationClick' | 'fileAttachmentAnnotationClick' | 'outline';
+
+/** Request passed to the `setOnActionRequested` callback. */
+export interface PdfPixelActionRequest {
+    source: PdfPixelActionSource;
+    action: PdfPixelAction;
+}
+
+/** Document data of a loaded document. */
+export interface PdfPixelDocument {
+    ok: true;
+    pageCount: number;
+    /** Static info per page, in page order. */
+    pages: PdfPixelPageInfo[];
+    version: string | null;
+    pageMode: PdfPixelPageMode | null;
+    pageLayout: PdfPixelPageLayout | null;
+    lang: string | null;
+    information: PdfPixelDocumentInformation | null;
+    /** `null` when the document is not encrypted. */
+    permissions: PdfPixelPermissions | null;
+    outlines: PdfPixelOutlineItem[];
+    layerConfigurations: PdfPixelLayerConfiguration[];
+    attachments: PdfPixelAttachment[];
+}
+
+/** Update passed to the `setOnThumbnailUpdated` callback. */
+export interface PdfPixelThumbnailUpdate {
+    /** 1-based page number. */
+    pageNumber: number;
+    png: Uint8Array;
+}
+
+/** Request passed to the `setOnCredentialRequested` callback. */
+export interface PdfPixelCredentialRequest {
+    /** `required` for the first request, `rejected` after a credential that is not accepted. */
+    reason: 'required' | 'rejected';
+    /** Access that requires the credential. */
+    authEvent: 'documentOpen' | 'embeddedFileOpen';
+}
+
+/** Credential that opens an encrypted document. */
+export type PdfPixelCredential =
+    /** User or owner password of the Standard security handler. */
+    | { type: 'password'; password: string };
+
 /** Result of `setDocument`. */
 export type PdfPixelDocumentResult =
-    | { ok: true; pageCount: number }
+    | PdfPixelDocument
     | { ok: false; reason: 'empty' | 'encrypted' | 'unsupported' | 'invalid' | 'error'; message: string };
 
 /** Runtime created with the `dotnet` builder. */
@@ -209,7 +364,10 @@ export function loadGzipResource(type: string, name: string, defaultUri: string)
 
 export function registerPanel(id: string, containerElement: HTMLElement, configuration?: PdfPixelConfiguration): boolean;
 export function unregisterPanel(id: string): boolean;
-export function setDocument(id: string, documentData: Uint8Array): PdfPixelDocumentResult;
+export function setDocument(id: string, documentData: Uint8Array): Promise<PdfPixelDocumentResult>;
+export function setOnCredentialRequested(
+    id: string,
+    callback: (request: PdfPixelCredentialRequest) => PdfPixelCredential | null | Promise<PdfPixelCredential | null>): boolean;
 export function requestRedraw(id: string): boolean;
 export function setPage(id: string, pageNumber: number): boolean;
 export function setScale(id: string, scale: number): boolean;
@@ -226,3 +384,11 @@ export function setOnStateChanged(id: string, callback: (state: PdfPixelState) =
 export function setOnFramePresented(
     id: string,
     callback: (args: { id: string; canvas: HTMLCanvasElement; frame: PdfPixelFrame }) => void): boolean;
+export function activateOutlineItem(id: string, handle: number): boolean;
+export function setLayerConfiguration(id: string, handle: number): boolean;
+export function setLayerVisible(id: string, handle: number, visible: boolean): boolean;
+export function getFileBytes(id: string, handle: number): Promise<Uint8Array | null>;
+export function setOnActionRequested(id: string, callback: (request: PdfPixelActionRequest) => void): boolean;
+export function requestThumbnail(id: string, pageNumber: number): boolean;
+export function cancelThumbnail(id: string, pageNumber: number): boolean;
+export function setOnThumbnailUpdated(id: string, callback: (update: PdfPixelThumbnailUpdate) => void): boolean;

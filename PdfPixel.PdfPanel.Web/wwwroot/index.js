@@ -72,5 +72,14 @@ export {
     scrollToDestination,
     setPageRotation,
     setRotation,
-    setAutoScaleMode
+    setAutoScaleMode,
+    activateOutlineItem,
+    setLayerConfiguration,
+    setLayerVisible,
+    getFileBytes,
+    setOnActionRequested,
+    setOnCredentialRequested,
+    requestThumbnail,
+    cancelThumbnail,
+    setOnThumbnailUpdated
 } from './canvasInterop.js';

@@ -125,7 +125,6 @@ class PdfPanelView {
             mouseX: null,
             mouseY: null,
             currentPage: 0,
-            pageCount: 0,
             forcePageSet: 0,
             pointerPressed: false,
             annotationPopup: null,
@@ -136,6 +135,8 @@ class PdfPanelView {
             currentSearchResult: null,
             searchResults: [],
             isTextExtracted: false,
+            layerConfiguration: null,
+            visibleLayers: [],
             zoomRequest: null
         };
 
@@ -147,6 +148,9 @@ class PdfPanelView {
         this._expectedScrollTop = 0;
         this.onStateChanged = null;
         this.onFramePresented = null;
+        this.onThumbnailUpdated = null;
+        this.onActionRequested = null;
+        this.onCredentialRequested = null;
 
         // Tracks the initial pinch distance and scale for two-finger zoom gestures.
         this._touchStartDistance = 0;
@@ -242,14 +246,17 @@ class PdfPanelView {
 
         this.state.autoScaleMode = redrawState.autoScaleMode;
         this.state.currentPage = redrawState.currentPage;
-        this.state.pageCount = redrawState.pageCount;
         this.state.isTextExtracted = redrawState.isTextExtracted;
 
         if (redrawState.searchResultsChanged) {
             this.state.searchResults = redrawState.searchResults || [];
         }
 
-        // Annotation handling: cursor, popup, and URI open
+        if (redrawState.layersChanged) {
+            this.state.layerConfiguration = redrawState.layerConfiguration ?? null;
+            this.state.visibleLayers = redrawState.visibleLayers || [];
+        }
+
         if (redrawState.annotationPopupChanged) {
             this.state.annotationPopup = redrawState.annotationPopup || null;
         }
@@ -260,10 +267,6 @@ class PdfPanelView {
 
         this.state.cursorStyle = redrawState.cursorStyle || null;
         this.scrollHost.style.cursor = this.state.cursorStyle || '';
-
-        if (redrawState.openUri) {
-            window.open(redrawState.openUri, '_blank', 'noopener,noreferrer');
-        }
 
         this.spacer.style.width = (this.state.scrollWidth / dpr) + 'px';
         this.spacer.style.height = (this.state.scrollHeight / dpr) + 'px';
@@ -286,6 +289,12 @@ class PdfPanelView {
 
         if (typeof this.onStateChanged === 'function') {
             this.onStateChanged({ ...this.state });
+        }
+
+        if (redrawState.actionRequests && typeof this.onActionRequested === 'function') {
+            for (const request of redrawState.actionRequests) {
+                this.onActionRequested(request);
+            }
         }
     }
 
@@ -567,6 +576,34 @@ class PdfPanelView {
         }
     }
 
+    /**
+     * Resets the view state of the previous document: the scroll position, the current page and the state reported
+     * for its content.
+     */
+    resetDocumentState() {
+        this.state.verticalOffset = 0;
+        this.state.horizontalOffset = 0;
+        this.state.currentPage = 0;
+        this.state.forcePageSet = 0;
+        this.state.zoomRequest = null;
+        this.state.currentSearchResult = null;
+        this.state.searchResults = [];
+        this.state.annotationPopup = null;
+        this.state.activeContentName = null;
+        this.state.layerConfiguration = null;
+        this.state.visibleLayers = [];
+    }
+
+    /**
+     * Passes a thumbnail update to the subscriber of the view.
+     * @param {{ pageNumber: number, png: Uint8Array }} update The thumbnail update.
+     */
+    updateThumbnail(update) {
+        if (typeof this.onThumbnailUpdated === 'function') {
+            this.onThumbnailUpdated(update);
+        }
+    }
+
     dispose() {
         this.detachEvents();
         this.canvas.remove();
@@ -645,13 +682,204 @@ export function unregisterPanel(id) {
 
 /**
  * Set the PDF document for the specified view. The shown document is kept when loading fails.
+ * An encrypted document asks the `setOnCredentialRequested` callback for its credential until one is accepted or the
+ * callback returns null.
  * @param {string} id View id.
  * @param {Uint8Array} documentData PDF file bytes.
- * @returns {{ ok: true, pageCount: number } | { ok: false, reason: 'empty' | 'encrypted' | 'unsupported' | 'invalid' | 'error', message: string }}
- * The result of loading the document.
+ * @returns {Promise<object>} The result of loading the document: on success `ok: true` with the document data
+ * (`pageCount`, `version`, `pageMode`, `pageLayout`, `lang`, `information`, `permissions`, `pages`, `outlines`,
+ * `layerConfigurations`, `attachments`), otherwise `{ ok: false, reason, message }` with `reason` one of `empty`,
+ * `encrypted`, `unsupported`, `invalid` and `error`.
  */
-export function setDocument(id, documentData) {
-    return interop.SetDocument(id, documentData);
+export async function setDocument(id, documentData) {
+    const view = views.get(id);
+    const result = await performWithCredential(view, credential => interop.SetDocument(id, documentData, credential));
+
+    if (!result.ok) {
+        return { ok: false, reason: result.reason, message: result.message };
+    }
+
+    view?.resetDocumentState();
+    return result;
+}
+
+/**
+ * Performs `attempt` without a credential, then, while its result requests a credential, again with the credential the
+ * `setOnCredentialRequested` callback of `view` returns, until the result requests none or the callback returns null.
+ * @param {PdfPanelView | undefined} view The view.
+ * @param {(credential: object | null) => object | null} attempt Performs the request with a credential.
+ * @returns {Promise<object | null>} The last result.
+ */
+async function performWithCredential(view, attempt) {
+    let result = attempt(null);
+
+    while (result && result.credentialRequest && view && typeof view.onCredentialRequested === 'function') {
+        const request = result.credentialRequest;
+        const credential = await view.onCredentialRequested({ reason: request.reason, authEvent: request.authEvent });
+        if (!credential) {
+            break;
+        }
+
+        result = attempt(credential);
+    }
+
+    return result;
+}
+
+/**
+ * Subscribe to credential requests of encrypted documents loaded into the specified view. The callback receives
+ * `{ reason, authEvent }`, `reason` being `required` for the first request and `rejected` after a credential that is not
+ * accepted, and returns the credential, such as `{ type: 'password', password }`, or null to stop, directly or as a
+ * promise.
+ * @param {string} id View id.
+ * @param {(request: { reason: 'required' | 'rejected', authEvent: 'documentOpen' | 'embeddedFileOpen' }) => object | null | Promise<object | null>} callback
+ * Called with each credential request.
+ * @returns {boolean} True if the view was found and the callback was registered.
+ */
+export function setOnCredentialRequested(id, callback) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.onCredentialRequested = callback;
+    return true;
+}
+
+/**
+ * Activate an outline item of the specified view: perform its action, or navigate to its destination when it has none.
+ * @param {string} id View id.
+ * @param {number} handle Handle of an item of `outlines` in the document data.
+ * @returns {boolean} True if the view has a document and the item was activated.
+ */
+export function activateOutlineItem(id, handle) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    const activated = interop.ActivateOutlineItem(id, handle);
+    view.requestRender();
+    return activated;
+}
+
+/**
+ * Render the content of the specified view with a layer configuration; the current one is reported as
+ * `layerConfiguration` in the view state.
+ * @param {string} id View id.
+ * @param {number} handle Handle of a configuration of `layerConfigurations` in the document data.
+ * @returns {boolean} True if the view has a document and the configuration was set.
+ */
+export function setLayerConfiguration(id, handle) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    const applied = interop.SetLayerConfiguration(id, handle);
+    view.requestRender();
+    return applied;
+}
+
+/**
+ * Show or hide a layer of the specified view; showing it hides the other layers of its radio-button sets.
+ * The visible layers are reported as `visibleLayers` in the view state.
+ * @param {string} id View id.
+ * @param {number} handle Handle of a layer of `layerConfigurations` in the document data.
+ * @param {boolean} visible Whether the layer is visible.
+ * @returns {boolean} True if the view has a document and the visibility was set.
+ */
+export function setLayerVisible(id, handle, visible) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    const applied = interop.SetLayerVisible(id, handle, visible);
+    view.requestRender();
+    return applied;
+}
+
+/**
+ * Get the content of an embedded file of the specified view. An encrypted file asks the `setOnCredentialRequested`
+ * callback for its credential until one is accepted or the callback returns null.
+ * @param {string} id View id.
+ * @param {number} handle Handle of a file, from `attachments` in the document data or from a requested action.
+ * @returns {Promise<Uint8Array | null>} The file content, or null when the view has no document, there is no such file or
+ * it is not opened without a credential.
+ */
+export async function getFileBytes(id, handle) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return null;
+    }
+
+    const result = await performWithCredential(view, credential => interop.GetFileBytes(id, handle, credential));
+    return (result && result.ok) ? result.bytes : null;
+}
+
+/**
+ * Subscribe to the actions the specified view does not perform itself. The callback receives `{ source, action }`
+ * for each requested action, after the render during which it was requested.
+ * @param {string} id View id.
+ * @param {(request: { source: string, action: object }) => void} callback Called with each requested action.
+ * @returns {boolean} True if the view was found and the callback was registered.
+ */
+export function setOnActionRequested(id, callback) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.onActionRequested = callback;
+    return true;
+}
+
+/**
+ * Request the thumbnail of a page of the specified view. Its PNG is passed to the `setOnThumbnailUpdated` callback when it
+ * is ready, and again whenever it is produced anew while it stays requested.
+ * @param {string} id View id.
+ * @param {number} pageNumber 1-based page number.
+ * @returns {boolean} True if the view has a document and the thumbnail was requested.
+ */
+export function requestThumbnail(id, pageNumber) {
+    if (!views.has(id)) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    return interop.RequestThumbnail(id, pageNumber);
+}
+
+/**
+ * Cancel the thumbnail request of a page of the specified view; no PNG of it is passed until it is requested again.
+ * @param {string} id View id.
+ * @param {number} pageNumber 1-based page number.
+ * @returns {boolean} True if the view has a document and the request was canceled.
+ */
+export function cancelThumbnail(id, pageNumber) {
+    if (!views.has(id)) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    return interop.CancelThumbnail(id, pageNumber);
+}
+
+/**
+ * Subscribe to thumbnail updates of the specified view. The callback receives `{ pageNumber, png }`
+ * for each requested thumbnail that is ready.
+ * @param {string} id View id.
+ * @param {(update: { pageNumber: number, png: Uint8Array }) => void} callback Called with each update.
+ * @returns {boolean} True if the view was found and the callback was registered.
+ */
+export function setOnThumbnailUpdated(id, callback) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    view.onThumbnailUpdated = callback;
+    return true;
 }
 
 /**
@@ -945,6 +1173,19 @@ export function framePresented(id, frame) {
         return;
     }
     view.presentFrame(frame);
+}
+
+/**
+ * Passes a thumbnail update to the subscriber of the view.
+ * Called from C# via JSImport.
+ * @param {string} id View id.
+ * @param {{ pageNumber: number, png: Uint8Array }} update The thumbnail update.
+ */
+export function thumbnailUpdated(id, update) {
+    const view = views.get(id);
+    if (view) {
+        view.updateThumbnail(update);
+    }
 }
 
 /**

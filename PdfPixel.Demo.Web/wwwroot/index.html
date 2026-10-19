@@ -7,300 +7,9 @@
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
-    <style>
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
-
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
-            font-family: Roboto, Arial, sans-serif;
-        }
-
-        body {
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* ── Toolbar ─────────────────────────────────────────────── */
-        #header {
-            flex: 0 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 0 12px;
-            height: 40px;
-            background: #f0f0f0;
-            color: #1a1a1a;
-            border-bottom: 1px solid #c8c8c8;
-            z-index: 10;
-        }
-
-        .app-brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            margin-right: 8px;
-            flex-shrink: 0;
-            text-decoration: none;
-            user-select: none;
-        }
-
-        .app-logo {
-            width: 22px;
-            height: 22px;
-            flex-shrink: 0;
-        }
-
-        .app-title {
-            margin: 0;
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: 0.1px;
-            white-space: nowrap;
-            color: #1a1a1a;
-        }
-
-        .title-accent {
-            color: #4695eb;
-        }
-
-        /* Pushes the GitHub button to the far right */
-        .hdr-spacer {
-            flex: 1 1 auto;
-        }
-
-        .header-sep {
-            width: 1px;
-            height: 24px;
-            background: rgba(0, 0, 0, 0.15);
-            margin: 0 6px;
-            flex-shrink: 0;
-        }
-
-        /* ── Toolbar icon buttons ────────────────────────────────── */
-        .hdr-icon-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            padding: 0;
-            background: none;
-            border: none;
-            border-radius: 3px;
-            color: #3c3c3c;
-            cursor: pointer;
-            transition: background 0.15s;
-            flex-shrink: 0;
-        }
-
-        .hdr-icon-btn:hover:not(:disabled) {
-            background: rgba(0, 0, 0, 0.07);
-        }
-
-        .hdr-icon-btn:active:not(:disabled) {
-            background: rgba(0, 0, 0, 0.13);
-        }
-
-        .hdr-icon-btn:disabled {
-            color: rgba(0, 0, 0, 0.28);
-            cursor: default;
-        }
-
-        .hdr-icon-btn .material-symbols-outlined {
-            font-size: 20px;
-            user-select: none;
-        }
-
-        /* ── "Open PDF" button ───────────────────────────────────── */
-        #loadPdfBtn {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            height: 28px;
-            padding: 0 10px 0 8px;
-            background: #e8e8e8;
-            border: 1px solid #c0c0c0;
-            border-radius: 3px;
-            color: #1a1a1a;
-            font-family: Roboto, Arial, sans-serif;
-            font-size: 13px;
-            font-weight: 400;
-            cursor: pointer;
-            transition: background 0.15s;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        #loadPdfBtn:hover {
-            background: #dedede;
-        }
-
-        #loadPdfBtn:active {
-            background: #d0d0d0;
-        }
-
-        #loadPdfBtn .material-symbols-outlined {
-            font-size: 17px;
-        }
-
-        /* ── Page navigation: [<] [input] / N [>] ─────────────────── */
-        .page-nav {
-            display: inline-flex;
-            align-items: center;
-            gap: 2px;
-        }
-
-        #pageInput {
-            width: 44px;
-            height: 24px;
-            padding: 0 4px;
-            background: #ffffff;
-            border: 1px solid #c0c0c0;
-            border-radius: 3px;
-            color: #1a1a1a;
-            font-family: Roboto, Arial, sans-serif;
-            font-size: 13px;
-            font-weight: 400;
-            text-align: center;
-            outline: none;
-            transition: border-color 0.15s;
-            -moz-appearance: textfield;
-        }
-
-        #pageInput::-webkit-inner-spin-button,
-        #pageInput::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-        }
-
-        #pageInput:focus {
-            border-color: #555555;
-        }
-
-        #pageInput:disabled {
-            opacity: 0.45;
-            cursor: default;
-        }
-
-        .page-total {
-            font-size: 13px;
-            color: rgba(0, 0, 0, 0.55);
-            white-space: nowrap;
-            padding-left: 4px;
-            user-select: none;
-        }
-
-        /* ── Zoom controls ────────────────────────────────────────── */
-        #zoomLevel {
-            min-width: 46px;
-            text-align: center;
-            font-size: 13px;
-            color: rgba(0, 0, 0, 0.65);
-            user-select: none;
-        }
-
-        /* ── Search footer ───────────────────────────────────────── */
-        #footer {
-            flex: 0 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 0 12px;
-            height: 36px;
-            background: #f0f0f0;
-            color: #1a1a1a;
-            border-top: 1px solid #c8c8c8;
-            z-index: 10;
-        }
-
-        .search-option {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            margin-left: 4px;
-            font-size: 13px;
-            user-select: none;
-        }
-
-        #searchInput {
-            width: 240px;
-            height: 24px;
-            padding: 0 6px;
-            background: #ffffff;
-            border: 1px solid #c0c0c0;
-            border-radius: 3px;
-            color: #1a1a1a;
-            font-family: Roboto, Arial, sans-serif;
-            font-size: 13px;
-            outline: none;
-            transition: border-color 0.15s;
-        }
-
-        #searchInput:focus {
-            border-color: #555555;
-        }
-
-        .search-status {
-            margin-left: 4px;
-            font-size: 12px;
-            color: rgba(0, 0, 0, 0.55);
-            user-select: none;
-        }
-
-        /* ── Canvas container ─────────────────────────────────────── */
-        #canvasContainer {
-            flex: 1 1 auto;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* ── Annotation popup tooltip ─────────────────────────────── */
-        .annotation-popup {
-            display: none;
-            position: absolute;
-            z-index: 10;
-            max-width: 320px;
-            padding: 8px 12px;
-            background: #fff;
-            border: 1px solid #c0c0c0;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-            font-size: 13px;
-            color: #1a1a1a;
-            pointer-events: none;
-            line-height: 1.4;
-        }
-
-        .annotation-popup.visible {
-            display: block;
-        }
-
-        .annotation-popup-title {
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .annotation-popup-content {
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .annotation-popup-date {
-            margin-top: 4px;
-            font-size: 11px;
-            color: rgba(0, 0, 0, 0.45);
-        }
-
-        .annotation-popup-replies {
-            margin-left: 12px;
-        }
-    </style>
+    <link href="styles.css" rel="stylesheet">
 </head>
 <body>
     <header id="header">
@@ -338,14 +47,25 @@
         <button id="resetZoom" class="hdr-icon-btn" title="Reset zoom">
             <span class="material-symbols-outlined">zoom_in_map</span>
         </button>
+        <button id="autoScale" class="hdr-icon-btn" title="Change pages fit mode">
+            <span id="autoScaleIcon" class="material-symbols-outlined">height</span>
+        </button>
 
         <div class="header-sep"></div>
 
         <button id="rotateAllPages" class="hdr-icon-btn" title="Rotate all pages">
             <span class="material-symbols-outlined">rotate_right</span>
         </button>
+        <button id="rotatePage" class="hdr-icon-btn" title="Rotate current page">
+            <span class="material-symbols-outlined">rotate_right</span>
+            <span class="rotate-page-index">1</span>
+        </button>
 
         <div class="hdr-spacer"></div>
+
+        <button id="searchToggle" class="hdr-icon-btn" disabled title="Search (Ctrl+F)">
+            <span class="material-symbols-outlined">search</span>
+        </button>
 
         <a id="githubBtn" class="hdr-icon-btn" href="https://github.com/zayg21-pixel/pdf-pixel" target="_blank" rel="noopener" title="View on GitHub">
             <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -361,11 +81,50 @@
         </a>
     </header>
 
-    <div id="canvasContainer">
-        <div id="pointerPopup" class="annotation-popup"></div>
+    <div id="main">
+        <nav id="sideRail" hidden>
+            <button class="hdr-icon-btn" data-side-panel="thumbnails" title="Thumbnails">
+                <span class="material-symbols-outlined">view_agenda</span>
+            </button>
+            <button class="hdr-icon-btn" data-side-panel="outlines" title="Contents">
+                <span class="material-symbols-outlined">toc</span>
+            </button>
+            <button class="hdr-icon-btn" data-side-panel="layers" title="Layers">
+                <span class="material-symbols-outlined">layers</span>
+            </button>
+            <button class="hdr-icon-btn" data-side-panel="attachments" title="Attachments">
+                <span class="material-symbols-outlined">attach_file</span>
+            </button>
+        </nav>
+
+        <aside id="sidePanel" hidden>
+            <section class="side-section" data-side-panel="thumbnails">
+                <div class="side-header">Thumbnails</div>
+                <div id="thumbnailList" class="side-content"></div>
+            </section>
+            <section class="side-section" data-side-panel="outlines">
+                <div class="side-header">Contents</div>
+                <div id="outlineTree" class="side-content"></div>
+            </section>
+            <section class="side-section" data-side-panel="layers">
+                <div class="side-header">Layers</div>
+                <select id="layerConfigurationSelect" aria-label="Layer configuration"></select>
+                <div id="layerTree" class="side-content"></div>
+            </section>
+            <section class="side-section" data-side-panel="attachments">
+                <div class="side-header">Attachments</div>
+                <div id="attachmentList" class="side-content"></div>
+            </section>
+        </aside>
+
+        <div id="sideSplitter" hidden></div>
+
+        <div id="canvasContainer">
+            <div id="pointerPopup" class="annotation-popup"></div>
+        </div>
     </div>
 
-    <footer id="footer">
+    <footer id="footer" hidden>
         <input id="searchInput" type="search" placeholder="Search" aria-label="Search">
         <button id="previousSearchResult" class="hdr-icon-btn" title="Previous result">
             <span class="material-symbols-outlined">keyboard_arrow_up</span>
@@ -377,253 +136,25 @@
         <label class="search-option"><input type="checkbox" id="searchMatchCase"> Match case</label>
         <label class="search-option"><input type="checkbox" id="searchWholeWord"> Whole word</label>
         <label class="search-option"><input type="checkbox" id="searchMatchDiacritics"> Match diacritics</label>
+        <div class="hdr-spacer"></div>
+        <button id="closeSearch" class="hdr-icon-btn" title="Close search (Esc)">
+            <span class="material-symbols-outlined">close</span>
+        </button>
     </footer>
 
-    <script type="module">
-        import * as pdfPixel from './index.js';
+    <dialog id="passwordDialog">
+        <form method="dialog" class="password-form">
+            <div class="password-title">Password required</div>
+            <div id="passwordText" class="password-text"></div>
+            <input id="passwordInput" type="password" autocomplete="off" aria-label="Password">
+            <div id="passwordError" class="password-error" hidden>Incorrect password. Please try again.</div>
+            <div class="password-buttons">
+                <button value="cancel" formnovalidate>Cancel</button>
+                <button value="open" class="primary">Open</button>
+            </div>
+        </form>
+    </dialog>
 
-        await pdfPixel.initialize();
-
-        const container = document.getElementById('canvasContainer');
-        const containerId = container.id;
-
-        await pdfPixel.registerPanel(containerId, container, {
-            panelBackgroundColor: '#D3D3D3',
-            showPageLoadingAnimation: false
-        });
-
-        const loadPdfBtn = document.getElementById('loadPdfBtn');
-        const pdfFileInput = document.getElementById('pdfFileInput');
-        const prevPageButton = document.getElementById('prevPage');
-        const nextPageButton = document.getElementById('nextPage');
-        const pageInput = document.getElementById('pageInput');
-        const pageTotalLabel = document.getElementById('pageTotal');
-        const zoomLevelLabel = document.getElementById('zoomLevel');
-        const zoomOutButton = document.getElementById('zoomOut');
-        const zoomInButton = document.getElementById('zoomIn');
-        const resetZoomButton = document.getElementById('resetZoom');
-        const rotateAllPagesButton = document.getElementById('rotateAllPages');
-        let allPagesRotation = 0;
-        const pointerPopupEl = document.getElementById('pointerPopup');
-        const searchInput = document.getElementById('searchInput');
-        const searchStatus = document.getElementById('searchStatus');
-        const previousSearchResultButton = document.getElementById('previousSearchResult');
-        const nextSearchResultButton = document.getElementById('nextSearchResult');
-        const searchMatchCaseInput = document.getElementById('searchMatchCase');
-        const searchWholeWordInput = document.getElementById('searchWholeWord');
-        const searchMatchDiacriticsInput = document.getElementById('searchMatchDiacritics');
-
-        let currentState = { currentPage: 0, pageCount: 0, scale: 1.0 };
-        let searchInputTimer = null;
-
-        function updateSearchStatus(state) {
-            const results = state.searchResults;
-            const current = state.currentSearchResult;
-            const currentIndex = current
-                ? results.findIndex(result => result.pageNumber === current.pageNumber
-                    && result.startIndex === current.startIndex
-                    && result.length === current.length)
-                : -1;
-
-            if (searchInput.value.length === 0) {
-                searchStatus.textContent = '';
-            } else if (!state.isTextExtracted) {
-                searchStatus.textContent = 'Searching...';
-            } else if (results.length === 0) {
-                searchStatus.textContent = 'Not found';
-            } else if (currentIndex >= 0) {
-                searchStatus.textContent = `${currentIndex + 1} of ${results.length}`;
-            } else {
-                searchStatus.textContent = `${results.length} found`;
-            }
-        }
-
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchInputTimer);
-            searchInputTimer = setTimeout(() => {
-                pdfPixel.updateConfiguration(containerId, { extractAllText: searchInput.value.length > 0 });
-                pdfPixel.setCurrentSearchResult(containerId, null);
-                pdfPixel.setSearchQuery(containerId, searchInput.value);
-            }, 300);
-        });
-
-        previousSearchResultButton.addEventListener('click', () => pdfPixel.previousSearchResult(containerId));
-        nextSearchResultButton.addEventListener('click', () => pdfPixel.nextSearchResult(containerId));
-
-        searchMatchCaseInput.addEventListener('change', () =>
-            pdfPixel.updateConfiguration(containerId, { searchMatchCase: searchMatchCaseInput.checked }));
-        searchWholeWordInput.addEventListener('change', () =>
-            pdfPixel.updateConfiguration(containerId, { searchMatchWholeWord: searchWholeWordInput.checked }));
-        searchMatchDiacriticsInput.addEventListener('change', () =>
-            pdfPixel.updateConfiguration(containerId, { searchMatchDiacritics: searchMatchDiacriticsInput.checked }));
-
-        function updatePointerPopup(state) {
-            const popup = state.annotationPopup;
-            const hasMessages = popup && popup.messages && popup.messages.length > 0;
-            const contentName = state.activeContentName;
-
-            if ((!hasMessages && !contentName) || state.mouseX == null || state.mouseY == null) {
-                pointerPopupEl.classList.remove('visible');
-                return;
-            }
-
-            pointerPopupEl.innerHTML = hasMessages
-                ? renderAnnotationMessages(popup.messages)
-                : `<div class="annotation-popup-content">${escapeHtml(contentName)}</div>`;
-
-            // Position below and to the right of the cursor
-            const containerRect = container.getBoundingClientRect();
-            const offsetX = 12;
-            const offsetY = 16;
-            let left = state.mouseX + offsetX;
-            let top = state.mouseY + offsetY;
-
-            // Clamp so popup stays within the container
-            const maxLeft = containerRect.width - pointerPopupEl.offsetWidth - 4;
-            const maxTop = containerRect.height - pointerPopupEl.offsetHeight - 4;
-            if (left > maxLeft) {
-                left = state.mouseX - pointerPopupEl.offsetWidth - offsetX;
-            }
-            if (top > maxTop) {
-                top = state.mouseY - pointerPopupEl.offsetHeight - offsetY;
-            }
-
-            pointerPopupEl.style.left = Math.max(0, left) + 'px';
-            pointerPopupEl.style.top = Math.max(0, top) + 'px';
-            pointerPopupEl.classList.add('visible');
-        }
-
-        function renderAnnotationMessages(messages) {
-            let html = '';
-            for (const message of messages) {
-                if (message.title) {
-                    html += `<div class="annotation-popup-title">${escapeHtml(message.title)}</div>`;
-                }
-                if (message.contents) {
-                    html += `<div class="annotation-popup-content">${escapeHtml(message.contents)}</div>`;
-                }
-                if (message.creationDate) {
-                    const dateText = new Date(message.creationDate).toLocaleString();
-                    html += `<div class="annotation-popup-date">${dateText}</div>`;
-                }
-                if (message.replies.length > 0) {
-                    html += `<div class="annotation-popup-replies">${renderAnnotationMessages(message.replies)}</div>`;
-                }
-            }
-            return html;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        pdfPixel.setOnStateChanged(containerId, (state) => {
-            currentState = state;
-            const hasDocument = state.pageCount > 0;
-            pageInput.disabled = !hasDocument;
-            if (document.activeElement !== pageInput) {
-                pageInput.value = hasDocument ? String(state.currentPage) : '';
-                pageInput.max = hasDocument ? String(state.pageCount) : '';
-            }
-            pageTotalLabel.textContent = hasDocument ? `/ ${state.pageCount}` : '/ –';
-            prevPageButton.disabled = !hasDocument || state.currentPage <= 1;
-            nextPageButton.disabled = !hasDocument || state.currentPage >= state.pageCount;
-            zoomLevelLabel.textContent = `${Math.round(state.scale * 100)}%`;
-
-            updatePointerPopup(state);
-            updateSearchStatus(state);
-        });
-
-        pdfPixel.setOnFramePresented(containerId, ({ canvas, frame }) => {
-            const context = canvas.getContext('2d');
-            const { width, height } = frame.panelSize;
-
-            context.clearRect(0, 0, width, height);
-            drawLogo(context, width, height);
-        });
-
-        function drawLogo(context, panelWidth, panelHeight) {
-            const cellSize = 18;
-            const padding = 4;
-
-            context.save();
-            context.translate(panelWidth - 58, panelHeight - 48);
-            context.scale(0.5, 0.5);
-
-            for (let column = 0; column < 3; column++) {
-                for (let row = 0; row < 3; row++) {
-                    const isCenter = column === 1 && row === 1;
-                    context.fillStyle = isCenter ? 'rgba(70, 149, 235, 0.5)' : 'rgba(33, 35, 43, 0.5)';
-                    context.fillRect(column * (cellSize + padding), row * (cellSize + padding), cellSize, cellSize);
-                }
-            }
-
-            context.restore();
-        }
-
-        prevPageButton.addEventListener('click', () => {
-            if (currentState.currentPage > 1) {
-                pdfPixel.setPage(containerId, currentState.currentPage - 1);
-            }
-        });
-
-        nextPageButton.addEventListener('click', () => {
-            if (currentState.currentPage < currentState.pageCount) {
-                pdfPixel.setPage(containerId, currentState.currentPage + 1);
-            }
-        });
-
-        pageInput.addEventListener('change', () => {
-            const requestedPage = parseInt(pageInput.value, 10);
-            if (!isNaN(requestedPage) && requestedPage >= 1 && requestedPage <= currentState.pageCount) {
-                pdfPixel.setPage(containerId, requestedPage);
-            } else {
-                pageInput.value = String(currentState.currentPage);
-            }
-        });
-
-        pageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                pageInput.blur();
-            }
-        });
-
-        zoomOutButton.addEventListener('click', () => {
-            pdfPixel.setScale(containerId, currentState.scale * 0.9);
-        });
-
-        zoomInButton.addEventListener('click', () => {
-            pdfPixel.setScale(containerId, currentState.scale * 1.1);
-        });
-
-        resetZoomButton.addEventListener('click', () => {
-            pdfPixel.setScale(containerId, 1.0);
-        });
-
-        rotateAllPagesButton.addEventListener('click', () => {
-            allPagesRotation = (allPagesRotation + 90) % 360;
-            pdfPixel.setRotation(containerId, allPagesRotation);
-        });
-
-        loadPdfBtn.addEventListener('click', () => {
-            pdfFileInput.value = '';
-            pdfFileInput.click();
-        });
-
-        pdfFileInput.addEventListener('change', async (event) => {
-            const file = event.target.files && event.target.files[0];
-            if (!file) {
-                return;
-            }
-            const arrayBuffer = await file.arrayBuffer();
-            const result = pdfPixel.setDocument(containerId, new Uint8Array(arrayBuffer));
-            if (result.ok) {
-                allPagesRotation = 0;
-            }
-            pdfPixel.requestRedraw(containerId);
-        });
-    </script>
+    <script type="module" src="demo.js"></script>
 </body>
 </html>

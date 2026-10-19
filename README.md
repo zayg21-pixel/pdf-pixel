@@ -124,19 +124,19 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 | View manipulation (zoom, scroll, rotation) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Page layout | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Presentation mode | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Thumbnails | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Page labels | ✅ | ✅ | ⚠️ *(frame page info, not document data)* | ❌ | ❌ | ❌ |
+| Thumbnails | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Page labels | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Text selection | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Content extraction | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Text search | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Content interaction (hover, image selection) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Annotation interaction (popups, hover) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Same-document navigation (links, destinations) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Host-handled actions (URI, GoToR, …) | ✅ | ✅ | ⚠️ *(URI only)* | ❌ | ❌ | ❌ |
+| Host-handled actions (URI, GoToR, …) | ✅ | ✅ | ⚠️ *(GoToE not supported)* | ❌ | ❌ | ❌ |
 | Interactive forms | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Optional content / layers | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Outlines / bookmarks | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| File attachments | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Optional content / layers | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Outlines / bookmarks | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| File attachments | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 

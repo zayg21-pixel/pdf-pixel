@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Management;
+using PdfPixel.Encryption.Model;
+using PdfPixel.Files;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
@@ -8,8 +9,7 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.PdfPanel.Input;
-using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
@@ -18,7 +18,6 @@ using PdfPixel.Skia.Fonts;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
@@ -84,7 +83,7 @@ internal static partial class PdfPanelInterop
             }
 
             resources.YieldInterval = TimeSpan.FromMilliseconds(configuration.GetPropertyAsDouble("yieldInterval"));
-            PdfPanelJsConverter.ReadConfiguration(configuration, resources.Configuration);
+            ReadConfiguration(configuration, resources.Configuration);
 
             ResourcesMap[containerId] = resources;
         }
@@ -115,7 +114,7 @@ internal static partial class PdfPanelInterop
 
         try
         {
-            PdfPanelJsConverter.ReadConfiguration(configuration, resources.Configuration);
+            ReadConfiguration(configuration, resources.Configuration);
 
             if (resources.Context != null)
             {
@@ -149,11 +148,7 @@ internal static partial class PdfPanelInterop
             PdfCancellationExecutionObserver observer = new(CancellationToken.None);
             byte[] png = selectedImage.Image.DecodePng(PdfImageDecodingParameters.Default, observer);
 
-            JSObject image = CreateObject();
-            image.SetProperty("type", "image");
-            image.SetProperty("png", png);
-
-            return image;
+            return CreateSelectedImage(png);
         }
 
         string text = resources.Context.Text.SelectedText;
@@ -163,11 +158,7 @@ internal static partial class PdfPanelInterop
             return null;
         }
 
-        JSObject content = CreateObject();
-        content.SetProperty("type", "text");
-        content.SetProperty("text", text);
-
-        return content;
+        return CreateSelectedText(text);
     }
 
     [JSExport]
@@ -190,48 +181,54 @@ internal static partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Loads <paramref name="document"/> into the panel of <paramref name="containerId"/> and returns the JS result object;
-    /// the shown document is kept when loading fails.
+    /// Loads <paramref name="document"/> into the panel of <paramref name="containerId"/>, opening an encrypted document
+    /// with the JS <paramref name="credential"/>, and returns the JS result object; the shown document is kept when
+    /// loading fails.
     /// </summary>
     [JSExport]
-    internal static JSObject SetDocument(string containerId, byte[] document)
+    internal static JSObject SetDocument(string containerId, byte[] document, JSObject? credential)
     {
-        JSObject result = CreateObject();
-
         if (!_isInitialized)
         {
-            PdfPanelJsConverter.WriteDocumentResult(result, "error", "The runtime is not initialized.");
-            return result;
+            return CreateDocumentResult("error", "The runtime is not initialized.");
         }
 
         if (!ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources))
         {
             Logger.LogWarning("Received document data for unknown container id '{Id}'", containerId);
-            PdfPanelJsConverter.WriteDocumentResult(result, "error", $"No panel is registered with id '{containerId}'.");
-            return result;
+            return CreateDocumentResult("error", $"No panel is registered with id '{containerId}'.");
         }
 
         if (document == null || document.Length == 0)
         {
-            PdfPanelJsConverter.WriteDocumentResult(result, "empty", "The document data is empty.");
-            return result;
+            return CreateDocumentResult("empty", "The document data is empty.");
         }
 
         IPdfDocument loadedDocument;
+        resources.Credential = ReadCredential(credential);
+        resources.LastCredentialRequest = null;
 
         try
         {
             Logger.LogInformation("Reading PDF document, size={Size} bytes", document.Length);
-            loadedDocument = DocumentReader.Read(new MemoryStream(document));
+            loadedDocument = DocumentReader.Read(new MemoryStream(document), resources.OnCredentialRequested);
+        }
+        catch (PdfAuthenticationException ex)
+        {
+            Logger.LogInformation("PDF document for container '{Id}' is not opened: {Message}", containerId, ex.Message);
+            return CreateCredentialRequestedResult("encrypted", ex.Message, resources.LastCredentialRequest);
         }
 #pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading PDF document for container '{Id}'", containerId);
-            PdfPanelJsConverter.WriteDocumentResult(result, PdfPanelJsConverter.GetDocumentErrorReason(ex), ex.Message);
-            return result;
+            return CreateDocumentResult(GetDocumentErrorReason(ex), ex.Message);
         }
 #pragma warning restore CA1031
+        finally
+        {
+            resources.Credential = null;
+        }
 
         try
         {
@@ -257,17 +254,17 @@ internal static partial class PdfPanelInterop
             resources.SearchResultsChanged = true;
             resources.CurrentSearchRange = null;
 
-            PdfPanelJsConverter.WriteDocumentResult(result, resources.Pages.Count);
+            CreateViewModels(resources, resources.Pages, resources.Context);
+
+            return CreateDocumentResult(resources);
         }
 #pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error showing PDF document for container '{Id}'", containerId);
-            PdfPanelJsConverter.WriteDocumentResult(result, "error", ex.Message);
+            return CreateDocumentResult("error", ex.Message);
         }
 #pragma warning restore CA1031
-
-        return result;
     }
 
     /// <summary>
@@ -282,7 +279,7 @@ internal static partial class PdfPanelInterop
             return false;
         }
 
-        PdfPageNumberDestination? pageDestination = PdfPanelJsConverter.ReadDestination(destination);
+        PdfPageNumberDestination? pageDestination = ReadDestination(destination);
 
         if (pageDestination == null)
         {
@@ -338,6 +335,137 @@ internal static partial class PdfPanelInterop
         return true;
     }
 
+    /// <summary>
+    /// Performs the action of the outline item with <paramref name="handle"/>, or navigates to its destination
+    /// when it has no action, on the next redraw.
+    /// </summary>
+    [JSExport]
+    public static bool ActivateOutlineItem(string containerId, int handle)
+    {
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Outlines == null)
+        {
+            return false;
+        }
+
+        if (handle < 0 || handle >= resources.OutlineItems.Count)
+        {
+            return false;
+        }
+
+        resources.Outlines.Activate(resources.OutlineItems[handle]);
+        return true;
+    }
+
+    /// <summary>
+    /// Renders content with the layer configuration of <paramref name="handle"/>.
+    /// </summary>
+    [JSExport]
+    public static bool SetLayerConfiguration(string containerId, int handle)
+    {
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Layers == null)
+        {
+            return false;
+        }
+
+        if (handle < 0 || handle >= resources.Layers.Configurations.Count)
+        {
+            return false;
+        }
+
+        resources.Layers.Configuration = resources.Layers.Configurations[handle];
+        return true;
+    }
+
+    /// <summary>
+    /// Shows or hides the layer of <paramref name="handle"/>; showing it hides the other layers of its radio-button sets.
+    /// </summary>
+    [JSExport]
+    public static bool SetLayerVisible(string containerId, int handle, bool visible)
+    {
+        if (!TryGetResources(containerId, out PdfPanelResources? resources))
+        {
+            return false;
+        }
+
+        if (handle < 0 || handle >= resources.LayerItems.Count || !resources.LayerItems[handle].IsLayer)
+        {
+            return false;
+        }
+
+        resources.LayerItems[handle].IsVisible = visible;
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the JS result of reading the embedded file of <paramref name="handle"/>, decrypting it with the JS
+    /// <paramref name="credential"/> when it requires one, or null when there is no such file.
+    /// </summary>
+    [JSExport]
+    public static JSObject? GetFileBytes(string containerId, int handle, JSObject? credential)
+    {
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Pages == null)
+        {
+            return null;
+        }
+
+        if (handle < 0 || handle >= resources.Files.Count)
+        {
+            return null;
+        }
+
+        PdfFileSpecification fileSpecification = resources.Files[handle];
+        PdfEmbeddedFile? embeddedFile = fileSpecification.UnicodeEmbeddedFile ?? fileSpecification.EmbeddedFile;
+
+        if (embeddedFile == null)
+        {
+            return null;
+        }
+
+        resources.Credential = ReadCredential(credential);
+        resources.LastCredentialRequest = null;
+
+        try
+        {
+            lock (resources.Pages.DocumentLocker)
+            {
+                return CreateFileResult(embeddedFile.Stream.DecodeAsMemory().ToArray());
+            }
+        }
+        catch (PdfAuthenticationException ex)
+        {
+            Logger.LogInformation("Embedded file of container '{Id}' is not opened: {Message}", containerId, ex.Message);
+            return CreateCredentialRequestedResult("encrypted", ex.Message, resources.LastCredentialRequest);
+        }
+        finally
+        {
+            resources.Credential = null;
+        }
+    }
+
+    /// <summary>
+    /// Starts producing the thumbnail of a page; its PNG is passed to the thumbnail subscriber of the panel when it is ready,
+    /// and again whenever it is produced anew while it stays requested.
+    /// </summary>
+    [JSExport]
+    public static bool RequestThumbnail(string containerId, int pageNumber)
+        => SetThumbnailRequested(containerId, pageNumber, true);
+
+    /// <summary>
+    /// Cancels producing the thumbnail of a page; no PNG of it is passed until it is requested again.
+    /// </summary>
+    [JSExport]
+    public static bool CancelThumbnail(string containerId, int pageNumber)
+        => SetThumbnailRequested(containerId, pageNumber, false);
+
+    /// <summary>
+    /// Passes the PNG of the thumbnail of a page to the thumbnail subscriber of the panel of <paramref name="containerId"/>.
+    /// </summary>
+    internal static void ReportThumbnail(string containerId, int pageNumber, byte[] png)
+    {
+        using JSObject update = CreateThumbnailUpdate(pageNumber, png);
+        ThumbnailUpdated(containerId, update);
+    }
+
     [JSExport]
     public static void RequestRedraw(string containerId, JSObject state)
     {
@@ -363,7 +491,7 @@ internal static partial class PdfPanelInterop
             resources.Context.VerticalOffset = verticalOffset;
             resources.Context.HorizontalOffset = horizontalOffset;
             resources.Context.Scale = scale;
-            resources.Context.AutoScaleMode = PdfPanelJsConverter.ReadAutoScaleMode(state.GetPropertyAsString("autoScaleMode")) ?? PdfPanelAutoScaleMode.NoAutoScale;
+            resources.Context.AutoScaleMode = ReadAutoScaleMode(state.GetPropertyAsString("autoScaleMode")) ?? PdfPanelAutoScaleMode.NoAutoScale;
             resources.Context.PanelWidth = width;
             resources.Context.PanelHeight = height;
 
@@ -394,10 +522,9 @@ internal static partial class PdfPanelInterop
             resources.Context.Input.PointerState = pointerPressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
             resources.Context.Synchronize();
+            resources.Layers?.Synchronize();
 
-            state.SetProperty("cursorStyle", PdfPanelJsConverter.ToCursorStyle(resources.Context.Input.Cursor));
-            state.SetProperty("openUri", resources.OpenUri);
-            resources.OpenUri = string.Empty;
+            state.SetProperty("cursorStyle", ToCursorStyle(resources.Context.Input.Cursor));
 
             PdfAnnotationPopup? activeAnnotation = resources.Context.Annotations.ActiveAnnotation;
 
@@ -425,14 +552,25 @@ internal static partial class PdfPanelInterop
                 SetSearchResults(state, search.Matches);
             }
 
+            if (resources.LayersChanged)
+            {
+                resources.LayersChanged = false;
+                SetLayers(state, resources);
+            }
+
+            if (resources.ActionRequests.Count > 0)
+            {
+                SetActionRequests(state, resources);
+                resources.ActionRequests.Clear();
+            }
+
             state.SetProperty("scrollWidth", resources.Context.ExtentWidth);
             state.SetProperty("scrollHeight", resources.Context.ExtentHeight);
             state.SetProperty("verticalOffset", resources.Context.VerticalOffset);
             state.SetProperty("horizontalOffset", resources.Context.HorizontalOffset);
             state.SetProperty("scale", resources.Context.Scale);
-            state.SetProperty("autoScaleMode", PdfPanelJsConverter.ToString(resources.Context.AutoScaleMode));
+            state.SetProperty("autoScaleMode", ToString(resources.Context.AutoScaleMode));
             state.SetProperty("currentPage", resources.Context.GetCurrentPage());
-            state.SetProperty("pageCount", resources.Context.Pages.Count);
 
             resources.Context.Render();
         }
@@ -487,7 +625,55 @@ internal static partial class PdfPanelInterop
         resources.Context.Actions.ActionRequested -= resources.OnActionRequested;
         resources.Context.Search.MatchesChanged -= resources.OnSearchMatchesChanged;
         resources.Context.Text.TextExtracted -= resources.OnTextExtracted;
+
+        if (resources.Thumbnails != null)
+        {
+            foreach (PdfThumbnailViewModel thumbnail in resources.Thumbnails.Items)
+            {
+                thumbnail.PropertyChanged -= resources.OnThumbnailPropertyChanged;
+            }
+        }
+
+        if (resources.Layers != null)
+        {
+            resources.Layers.PropertyChanged -= resources.OnLayersPropertyChanged;
+        }
+
+        foreach (PdfLayerViewModel layer in resources.LayerItems)
+        {
+            layer.PropertyChanged -= resources.OnLayersPropertyChanged;
+        }
+
+        resources.Outlines = null;
+        resources.Layers = null;
+        resources.Thumbnails = null;
+        resources.Attachments = null;
+        resources.OutlineItems.Clear();
+        resources.ActionRequests.Clear();
+        resources.Files.Clear();
+        resources.FileHandles.Clear();
+        resources.LayerItems.Clear();
         resources.Context.Dispose();
+    }
+
+    /// <summary>
+    /// Creates the view models of the outline, layers, thumbnails and attached files of the loaded document
+    /// and subscribes the panel to the changes it sends to JS.
+    /// </summary>
+    private static void CreateViewModels(PdfPanelResources resources, PdfPanelPageCollection pages, PdfPanelContext context)
+    {
+        resources.Outlines = new PdfOutlinesViewModel(pages, context.Actions);
+        resources.Layers = new PdfLayersViewModel(context.Layers);
+        resources.Thumbnails = new PdfThumbnailsViewModel(context.Thumbnails, pages, context.Actions);
+        resources.Attachments = new PdfAttachmentsViewModel(pages);
+        resources.LayersChanged = true;
+
+        resources.Layers.PropertyChanged += resources.OnLayersPropertyChanged;
+
+        foreach (PdfThumbnailViewModel thumbnail in resources.Thumbnails.Items)
+        {
+            thumbnail.PropertyChanged += resources.OnThumbnailPropertyChanged;
+        }
     }
 
     /// <summary>
@@ -500,7 +686,7 @@ internal static partial class PdfPanelInterop
 
         using (JSObject? result = state.GetPropertyAsJSObject("currentSearchResult"))
         {
-            range = PdfPanelJsConverter.ReadTextRange(result);
+            range = ReadTextRange(result);
         }
 
         PdfPanelSearchMatch? currentMatch = null;
@@ -532,31 +718,6 @@ internal static partial class PdfPanelInterop
         }
     }
 
-    /// <summary>
-    /// Sets the JS array built from <paramref name="matches"/> and marks the search results as changed on the redraw state.
-    /// </summary>
-    private static void SetSearchResults(JSObject state, IReadOnlyList<PdfPanelSearchMatch> matches)
-    {
-        state.SetProperty("searchResultsChanged", true);
-
-        using JSObject results = CreateArray();
-
-        for (int matchIndex = 0; matchIndex < matches.Count; matchIndex++)
-        {
-            PdfPanelSearchMatch match = matches[matchIndex];
-
-            using JSObject result = CreateObject();
-            using JSObject bounds = CreateObject();
-            PdfPanelJsConverter.WriteSearchMatch(result, match);
-            PdfPanelJsConverter.WriteRectangle(bounds, match.Bounds);
-            result.SetProperty("bounds", bounds);
-
-            results.SetProperty(matchIndex.ToString(CultureInfo.InvariantCulture), result);
-        }
-
-        state.SetProperty("searchResults", results);
-    }
-
     private static bool TryGetContext(string containerId, [NotNullWhen(true)] out PdfPanelContext? context)
     {
         context = null;
@@ -570,48 +731,33 @@ internal static partial class PdfPanelInterop
         return true;
     }
 
-    /// <summary>
-    /// Sets the JS popup object built from <paramref name="popup"/>, or null when no annotation is active,
-    /// and marks the popup as changed on the redraw state.
-    /// </summary>
-    private static void SetAnnotationPopup(JSObject state, PdfAnnotationPopup? popup)
+    private static bool TryGetResources(string containerId, [NotNullWhen(true)] out PdfPanelResources? resources)
     {
-        state.SetProperty("annotationPopupChanged", true);
-
-        if (popup == null)
+        if (!_isInitialized || !ResourcesMap.TryGetValue(containerId, out resources) || resources.Context == null)
         {
-            state.SetProperty("annotationPopup", (JSObject?)null);
-            return;
+            resources = null;
+            return false;
         }
 
-        using JSObject popupObject = CreateObject();
-        using JSObject messagesArray = CreateMessagesArray(popup.Messages);
-        popupObject.SetProperty("isInteractive", popup.IsInteractive);
-        popupObject.SetProperty("messages", messagesArray);
-
-        state.SetProperty("annotationPopup", popupObject);
+        return true;
     }
 
-    /// <summary>
-    /// Builds the JS array of <paramref name="messages"/>, each with its replies nested.
-    /// </summary>
-    private static JSObject CreateMessagesArray(IReadOnlyList<PdfAnnotationMessage> messages)
+    private static bool SetThumbnailRequested(string containerId, int pageNumber, bool isRequested)
     {
-        JSObject messagesArray = CreateArray();
-
-        for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Thumbnails == null)
         {
-            PdfAnnotationMessage message = messages[messageIndex];
-
-            using JSObject messageObject = CreateObject();
-            using JSObject repliesArray = CreateMessagesArray(message.Replies);
-            PdfPanelJsConverter.WriteAnnotationMessage(messageObject, message);
-            messageObject.SetProperty("replies", repliesArray);
-
-            messagesArray.SetProperty(messageIndex.ToString(CultureInfo.InvariantCulture), messageObject);
+            return false;
         }
 
-        return messagesArray;
+        IReadOnlyList<PdfThumbnailViewModel> thumbnails = resources.Thumbnails.Items;
+
+        if (pageNumber < 1 || pageNumber > thumbnails.Count)
+        {
+            return false;
+        }
+
+        thumbnails[pageNumber - 1].IsRequested = isRequested;
+        return true;
     }
 
     /// <summary>
@@ -668,9 +814,6 @@ internal static partial class PdfPanelInterop
     [JSImport("scheduleRedraw", "canvasInterop.js")]
     internal static partial void ScheduleRedraw(string containerId);
 
-    [JSImport("createObject", "canvasInterop.js")]
-    private static partial JSObject CreateObject();
-
-    [JSImport("createArray", "canvasInterop.js")]
-    private static partial JSObject CreateArray();
+    [JSImport("thumbnailUpdated", "canvasInterop.js")]
+    private static partial void ThumbnailUpdated(string containerId, JSObject update);
 }

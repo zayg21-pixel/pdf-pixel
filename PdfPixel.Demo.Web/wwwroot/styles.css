@@ -1,0 +1,563 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: Roboto, Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────── */
+#header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    height: 40px;
+    background: #f0f0f0;
+    color: #1a1a1a;
+    border-bottom: 1px solid #c8c8c8;
+    z-index: 10;
+}
+
+.app-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    text-decoration: none;
+    user-select: none;
+}
+
+.app-logo {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.app-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.1px;
+    white-space: nowrap;
+    color: #1a1a1a;
+}
+
+.title-accent {
+    color: #4695eb;
+}
+
+/* Pushes the GitHub button to the far right */
+.hdr-spacer {
+    flex: 1 1 auto;
+}
+
+.header-sep {
+    width: 1px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.15);
+    margin: 0 6px;
+    flex-shrink: 0;
+}
+
+/* ── Toolbar icon buttons ────────────────────────────────── */
+.hdr-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: #3c3c3c;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.hdr-icon-btn:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.07);
+}
+
+.hdr-icon-btn:active:not(:disabled) {
+    background: rgba(0, 0, 0, 0.13);
+}
+
+.hdr-icon-btn.active {
+    background: rgba(70, 149, 235, 0.18);
+    color: #1f6fc5;
+}
+
+.hdr-icon-btn:disabled {
+    color: rgba(0, 0, 0, 0.28);
+    cursor: default;
+}
+
+.hdr-icon-btn .material-symbols-outlined {
+    font-size: 20px;
+    user-select: none;
+}
+
+.rotate-page-index {
+    font-size: 11px;
+    margin-left: -2px;
+    align-self: flex-end;
+    margin-bottom: 4px;
+}
+
+/* ── "Open PDF" button ───────────────────────────────────── */
+#loadPdfBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 10px 0 8px;
+    background: #e8e8e8;
+    border: 1px solid #c0c0c0;
+    border-radius: 3px;
+    color: #1a1a1a;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+#loadPdfBtn:hover {
+    background: #dedede;
+}
+
+#loadPdfBtn:active {
+    background: #d0d0d0;
+}
+
+#loadPdfBtn .material-symbols-outlined {
+    font-size: 17px;
+}
+
+/* ── Page navigation: [<] [input] / N [>] ─────────────────── */
+.page-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+#pageInput {
+    width: 44px;
+    height: 24px;
+    padding: 0 4px;
+    background: #ffffff;
+    border: 1px solid #c0c0c0;
+    border-radius: 3px;
+    color: #1a1a1a;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.15s;
+    -moz-appearance: textfield;
+}
+
+#pageInput::-webkit-inner-spin-button,
+#pageInput::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+}
+
+#pageInput:focus {
+    border-color: #555555;
+}
+
+#pageInput:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.page-total {
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.55);
+    white-space: nowrap;
+    padding-left: 4px;
+    user-select: none;
+}
+
+/* ── Zoom controls ────────────────────────────────────────── */
+#zoomLevel {
+    min-width: 46px;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.65);
+    user-select: none;
+}
+
+/* ── Main area: side rail, side panel, splitter, document ── */
+#main {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+}
+
+#sideRail {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    background: #f0f0f0;
+    border-right: 1px solid #c8c8c8;
+}
+
+#sideRail .hdr-icon-btn {
+    width: 32px;
+    height: 32px;
+}
+
+#sidePanel {
+    flex: 0 0 auto;
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: #fafafa;
+}
+
+.side-section {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.side-header {
+    margin: 10px 12px 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+    user-select: none;
+}
+
+.side-content {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 0 4px 8px;
+    font-size: 13px;
+    color: #1a1a1a;
+}
+
+#sideSplitter {
+    flex: 0 0 auto;
+    width: 5px;
+    cursor: col-resize;
+    background: #c8c8c8;
+    touch-action: none;
+}
+
+#canvasContainer {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+    min-width: 0;
+}
+
+/* ── Thumbnails ──────────────────────────────────────────── */
+.thumbnail-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 4px 0;
+    padding: 6px 0 4px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.thumbnail-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.thumbnail-item.current {
+    background: rgba(70, 149, 235, 0.15);
+}
+
+.thumbnail-frame {
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.thumbnail-frame img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+}
+
+.thumbnail-label {
+    margin-top: 4px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.65);
+}
+
+/* ── Trees: contents and layers ──────────────────────────── */
+.tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.tree .tree {
+    padding-left: 16px;
+}
+
+.tree-item.collapsed > .tree {
+    display: none;
+}
+
+.tree-row {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: 3px;
+}
+
+.tree-row:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.tree-toggle {
+    flex: 0 0 auto;
+    width: 18px;
+    font-size: 18px;
+    color: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s;
+}
+
+.tree-item.collapsed > .tree-row .tree-toggle {
+    transform: rotate(-90deg);
+}
+
+.tree-toggle.empty {
+    visibility: hidden;
+}
+
+.tree-label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.layer-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.layer-group {
+    font-weight: 600;
+}
+
+#layerConfigurationSelect {
+    margin: 0 8px 4px;
+    height: 26px;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 13px;
+}
+
+/* ── Attachments ─────────────────────────────────────────── */
+.attachment-item {
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.attachment-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.attachment-location {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.55);
+}
+
+/* ── Search footer ───────────────────────────────────────── */
+#footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    height: 36px;
+    background: #f0f0f0;
+    color: #1a1a1a;
+    border-top: 1px solid #c8c8c8;
+    z-index: 10;
+}
+
+.search-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+    font-size: 13px;
+    user-select: none;
+}
+
+#searchInput {
+    width: 240px;
+    height: 24px;
+    padding: 0 6px;
+    background: #ffffff;
+    border: 1px solid #c0c0c0;
+    border-radius: 3px;
+    color: #1a1a1a;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+#searchInput:focus {
+    border-color: #555555;
+}
+
+.search-status {
+    margin-left: 4px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.55);
+    user-select: none;
+}
+
+/* ── Password dialog ─────────────────────────────────────── */
+#passwordDialog {
+    width: 340px;
+    padding: 0;
+    border: 1px solid #c0c0c0;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+#passwordDialog::backdrop {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    font-size: 13px;
+    color: #1a1a1a;
+}
+
+.password-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#passwordInput {
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid #c0c0c0;
+    border-radius: 3px;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 13px;
+    outline: none;
+}
+
+#passwordInput:focus {
+    border-color: #555555;
+}
+
+.password-error {
+    color: #c42b1c;
+    font-size: 12px;
+}
+
+.password-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.password-buttons button {
+    height: 28px;
+    padding: 0 14px;
+    background: #e8e8e8;
+    border: 1px solid #c0c0c0;
+    border-radius: 3px;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.password-buttons button.primary {
+    background: #4695eb;
+    border-color: #3a85d6;
+    color: #ffffff;
+}
+
+/* ── Annotation popup tooltip ─────────────────────────────── */
+.annotation-popup {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    max-width: 320px;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #c0c0c0;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    font-size: 13px;
+    color: #1a1a1a;
+    pointer-events: none;
+    line-height: 1.4;
+}
+
+.annotation-popup.visible {
+    display: block;
+}
+
+.annotation-popup-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.annotation-popup-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.annotation-popup-date {
+    margin-top: 4px;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.annotation-popup-replies {
+    margin-left: 12px;
+}

@@ -1,4 +1,5 @@
-﻿using PdfPixel.Actions.Model;
+﻿using PdfPixel.Encryption.Model;
+using PdfPixel.Files;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
@@ -6,6 +7,8 @@ using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.Versioning;
 
 namespace PdfPixel.PdfPanel.Web;
@@ -57,6 +60,41 @@ internal sealed class PdfPanelResources
     public PdfPanelPageCollection? Pages { get; set; }
 
     /// <summary>
+    /// Gets or sets the outline of the currently loaded document, or null when none is loaded.
+    /// </summary>
+    public PdfOutlinesViewModel? Outlines { get; set; }
+
+    /// <summary>
+    /// Gets or sets the layers of the currently loaded document, or null when none is loaded.
+    /// </summary>
+    public PdfLayersViewModel? Layers { get; set; }
+
+    /// <summary>
+    /// Gets or sets the page thumbnails of the currently loaded document, or null when none is loaded.
+    /// </summary>
+    public PdfThumbnailsViewModel? Thumbnails { get; set; }
+
+    /// <summary>
+    /// Gets or sets the attached files of the currently loaded document, or null when none is loaded.
+    /// </summary>
+    public PdfAttachmentsViewModel? Attachments { get; set; }
+
+    /// <summary>
+    /// Gets the outline items sent to JS, indexed by their handles.
+    /// </summary>
+    public List<PdfOutlineItemViewModel> OutlineItems { get; } = [];
+
+    /// <summary>
+    /// Gets the layer tree nodes of every layer configuration sent to JS, indexed by their handles.
+    /// </summary>
+    public List<PdfLayerViewModel> LayerItems { get; } = [];
+
+    /// <summary>
+    /// Gets or sets whether the layer configuration or the visibility of a layer changed since they were last sent to JS.
+    /// </summary>
+    public bool LayersChanged { get; set; }
+
+    /// <summary>
     /// Gets the panel values set through the panel configuration.
     /// </summary>
     public PdfPanelConfiguration Configuration { get; } = new();
@@ -87,33 +125,47 @@ internal sealed class PdfPanelResources
     public PdfPanelTextRange? CurrentSearchRange { get; set; }
 
     /// <summary>
-    /// Gets or sets the URI requested during the last synchronization for JS to open, or empty when none was requested.
+    /// Gets the actions the panel does not perform, requested since they were last sent to JS, in request order.
     /// </summary>
-    public string OpenUri { get; set; } = string.Empty;
+    public List<PdfPanelActionEventArgs> ActionRequests { get; } = [];
 
     /// <summary>
-    /// Handles an action the panel does not perform: keeps the first URI requested during a synchronization for JS
-    /// to open.
+    /// Gets the embedded files sent to JS, indexed by their handles.
+    /// </summary>
+    public List<PdfFileSpecification> Files { get; } = [];
+
+    /// <summary>
+    /// Gets the handles of the embedded files sent to JS.
+    /// </summary>
+    public Dictionary<PdfFileSpecification, int> FileHandles { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the credential offered for the next credential request of the document, or null to offer none.
+    /// </summary>
+    public PdfCredential? Credential { get; set; }
+
+    /// <summary>
+    /// Gets or sets the last credential request of the document, or null when it requested none.
+    /// </summary>
+    public PdfCredentialRequest? LastCredentialRequest { get; set; }
+
+    /// <summary>
+    /// Keeps the credential request of the document and offers <see cref="Credential"/> when a credential is required;
+    /// a rejected credential is not offered again.
+    /// </summary>
+    public PdfCredential? OnCredentialRequested(PdfCredentialRequest request)
+    {
+        LastCredentialRequest = request;
+        return (request.Reason == PdfCredentialRequestReason.CredentialRequired) ? Credential : null;
+    }
+
+    /// <summary>
+    /// Keeps an action the panel does not perform and schedules a redraw that sends it to JS.
     /// </summary>
     public void OnActionRequested(object? sender, PdfPanelActionEventArgs args)
     {
-        switch (args.Action)
-        {
-            case PdfUriAction uriAction:
-            {
-                if (uriAction.Uri != null && OpenUri.Length == 0)
-                {
-                    OpenUri = uriAction.Uri.Value.ToString();
-                }
-
-                break;
-            }
-            case PdfGoToRemoteAction:
-            {
-                // TODO: handle remote file loading
-                break;
-            }
-        }
+        ActionRequests.Add(args);
+        PdfPanelInterop.ScheduleRedraw(ContainerId);
     }
 
     /// <summary>
@@ -129,4 +181,29 @@ internal sealed class PdfPanelResources
     /// Schedules a redraw that sends the extracted text state to JS.
     /// </summary>
     public void OnTextExtracted(object? sender, EventArgs args) => PdfPanelInterop.ScheduleRedraw(ContainerId);
+
+    /// <summary>
+    /// Marks the layers as changed when the layer configuration or the visibility of a layer changed.
+    /// </summary>
+    public void OnLayersPropertyChanged(object? sender, PropertyChangedEventArgs args) => LayersChanged = true;
+
+    /// <summary>
+    /// Passes the PNG of a requested thumbnail to JS when it is ready.
+    /// </summary>
+    public void OnThumbnailPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(PdfThumbnailViewModel.Png) || sender is not PdfThumbnailViewModel thumbnail)
+        {
+            return;
+        }
+
+        byte[]? png = thumbnail.Png;
+
+        if (!thumbnail.IsRequested || png == null)
+        {
+            return;
+        }
+
+        PdfPanelInterop.ReportThumbnail(ContainerId, thumbnail.PageNumber, png);
+    }
 }
