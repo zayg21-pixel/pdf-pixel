@@ -9,6 +9,26 @@ internal partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private PdfValue ReadNumber()
     {
+        if (ReadRawNumber(out int integerValue, out float realValue))
+        {
+            return PdfIntegerValue.FromInteger(integerValue);
+        }
+
+        return new PdfRealValue(realValue);
+    }
+
+    /// <summary>
+    /// Reads a number token.
+    /// </summary>
+    /// <param name="integerValue">The number when it is an integer.</param>
+    /// <param name="realValue">The number when it is a real.</param>
+    /// <returns>True when the number is an integer.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool ReadRawNumber(out int integerValue, out float realValue)
+    {
+        integerValue = 0;
+        realValue = 0f;
+
         // Single-pass number parsing.
         // Accumulates all digits (integer and fractional) into one combined value.
         // Fractional digit count determines scaling using precomputed inverse powers of10.
@@ -60,7 +80,7 @@ internal partial struct PdfParser
         if (!sawDigit)
         {
             // Malformed number like '+' '-' '.' -> treat as 0.
-            return PdfIntegerValue.Zero;
+            return true;
         }
 
         if (fractionalDigits == 0)
@@ -71,7 +91,8 @@ internal partial struct PdfParser
                 intValue = -intValue;
             }
 
-            return PdfIntegerValue.FromInteger(intValue);
+            integerValue = intValue;
+            return true;
         }
 
         // Scale once using lookup (fallback to Math.Pow for lengths beyond precomputed span).
@@ -85,13 +106,14 @@ internal partial struct PdfParser
             scale = Math.Pow(0.1d, fractionalDigits);
         }
 
-        double realValue = combined * scale;
+        double scaledValue = combined * scale;
 
         if (isNegative)
         {
-            realValue = -realValue;
+            scaledValue = -scaledValue;
         }
 
-        return new PdfRealValue((float)realValue);
+        realValue = (float)scaledValue;
+        return false;
     }
 }

@@ -29,32 +29,32 @@ internal class MarkedContentOperators : IOperatorProcessor
         _structureTree = host.Document.StructureTree;
     }
 
-    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
             case PdfOperator.MarkedContentPoint:
             {
                 // Marked content point
-                ProcessMarkedContentPoint(graphicsState);
+                ProcessMarkedContentPoint(context, graphicsState);
                 break;
             }
             case PdfOperator.MarkedContentPointWithProperties:
             {
                 // Marked content point with properties
-                ProcessMarkedContentPointWithProperties(graphicsState);
+                ProcessMarkedContentPointWithProperties(context, graphicsState);
                 break;
             }
             case PdfOperator.BeginMarkedContent:
             {
                 // Begin marked content
-                ProcessBeginMarkedContent(graphicsState);
+                ProcessBeginMarkedContent(context, graphicsState);
                 break;
             }
             case PdfOperator.BeginMarkedContentWithProperties:
             {
                 // Begin marked content with properties
-                ProcessBeginMarkedContentWithProperties(graphicsState);
+                ProcessBeginMarkedContentWithProperties(context, graphicsState);
                 break;
             }
             case PdfOperator.EndMarkedContent:
@@ -72,15 +72,15 @@ internal class MarkedContentOperators : IOperatorProcessor
         return true;
     }
 
-    private void ProcessMarkedContentPoint(PdfGraphicsState graphicsState)
+    private void ProcessMarkedContentPoint(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfString? tagName = operands[0].AsName();
+        PdfString? tagName = operands[0].GetPdfValue(context).AsName();
         if (tagName == null)
         {
             return;
@@ -90,33 +90,33 @@ internal class MarkedContentOperators : IOperatorProcessor
         _processor.Process(new EndScopeCommand());
     }
 
-    private void ProcessMarkedContentPointWithProperties(PdfGraphicsState graphicsState)
+    private void ProcessMarkedContentPointWithProperties(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
         }
 
-        PdfString? tagName = operands[0].AsName();
+        PdfString? tagName = operands[0].GetPdfValue(context).AsName();
         if (tagName == null)
         {
             return;
         }
 
-        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, operands[1], isSequence: false, graphicsState)));
+        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, operands[1].GetPdfValue(context),isSequence: false, graphicsState)));
         _processor.Process(new EndScopeCommand());
     }
 
-    private void ProcessBeginMarkedContent(PdfGraphicsState graphicsState)
+    private void ProcessBeginMarkedContent(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfString? tagName = operands[0].AsName();
+        PdfString? tagName = operands[0].GetPdfValue(context).AsName();
         if (tagName == null)
         {
             return;
@@ -127,21 +127,21 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessEndMarkedContent() => _processor.Process(new EndScopeCommand());
 
-    private void ProcessBeginMarkedContentWithProperties(PdfGraphicsState graphicsState)
+    private void ProcessBeginMarkedContentWithProperties(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
         }
 
-        PdfString? tagName = operands[0].AsName();
+        PdfString? tagName = operands[0].GetPdfValue(context).AsName();
         if (tagName == null)
         {
             return;
         }
 
-        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, operands[1], isSequence: true, graphicsState)));
+        _processor.Process(new BeginScopeCommand(CreateMarkedContent(tagName.Value, operands[1].GetPdfValue(context),isSequence: true, graphicsState)));
     }
 
     private PdfMarkedContentScope CreateMarkedContent(in PdfString tagName, PdfValue? propertiesOperand, bool isSequence, PdfGraphicsState graphicsState)

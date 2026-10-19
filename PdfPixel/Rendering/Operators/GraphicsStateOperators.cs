@@ -30,7 +30,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<GraphicsStateOperators>();
     }
 
-    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
@@ -79,19 +79,19 @@ internal class GraphicsStateOperators : IOperatorProcessor
             case PdfOperator.DashPattern:
             {
                 // Set dash pattern
-                ProcessSetDashPattern(graphicsState);
+                ProcessSetDashPattern(context, graphicsState);
                 break;
             }
             case PdfOperator.GraphicsStateParameters:
             {
                 // Set graphics state parameters from ExtGState
-                ProcessSetGraphicsStateParameters(graphicsState);
+                ProcessSetGraphicsStateParameters(context, graphicsState);
                 break;
             }
             case PdfOperator.RenderingIntent:
             {
                 // Set rendering intent
-                ProcessSetRenderingIntent(graphicsState);
+                ProcessSetRenderingIntent(context, graphicsState);
                 break;
             }
             case PdfOperator.Flatness:
@@ -109,15 +109,15 @@ internal class GraphicsStateOperators : IOperatorProcessor
         return true;
     }
 
-    private void ProcessSetRenderingIntent(PdfGraphicsState graphicsState)
+    private void ProcessSetRenderingIntent(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfString? intentName = operands[0].AsName();
+        PdfString? intentName = operands[0].GetPdfValue(context).AsName();
         if (intentName == null)
         {
             return;
@@ -158,13 +158,13 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessConcatenateMatrix(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(6);
         if (operands.Length < 6)
         {
             return;
         }
 
-        PdfMatrix matrix = PdfMatrix.FromOperands(operands) ?? PdfMatrix.Identity;
+        PdfMatrix matrix = operands.AsMatrix() ?? PdfMatrix.Identity;
         _processor.Process(new ConcatMatrixCommand(matrix));
 
         // Update CTM in graphics state - concatenate with existing CTM
@@ -173,7 +173,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineWidth(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -192,7 +192,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineCap(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -219,7 +219,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineJoin(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -246,7 +246,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetMiterLimit(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
@@ -263,9 +263,9 @@ internal class GraphicsStateOperators : IOperatorProcessor
         graphicsState.StrokePaint = graphicsState.StrokePaint.WithStrokeStyle(strokeStyle);
     }
 
-    private void ProcessSetDashPattern(PdfGraphicsState graphicsState)
+    private void ProcessSetDashPattern(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -278,7 +278,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        float[]? dashArray = operands[0].AsArray()?.GetFloatArray();
+        float[]? dashArray = operands[0].GetPdfValue(context).AsArray()?.GetFloatArray();
 
         PdfStrokeStyle strokeStyle = (dashArray?.Length > 0)
             ? graphicsState.StrokePaint.RequireStrokeStyle().WithDash(GetDashPattern(dashArray), dashPhase.Value)
@@ -287,15 +287,15 @@ internal class GraphicsStateOperators : IOperatorProcessor
         graphicsState.StrokePaint = graphicsState.StrokePaint.WithStrokeStyle(strokeStyle);
     }
 
-    private void ProcessSetGraphicsStateParameters(PdfGraphicsState graphicsState)
+    private void ProcessSetGraphicsStateParameters(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfString? gsName = operands[0].AsName();
+        PdfString? gsName = operands[0].GetPdfValue(context).AsName();
         if (gsName == null)
         {
             return;
@@ -306,7 +306,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;

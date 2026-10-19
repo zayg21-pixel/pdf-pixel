@@ -24,7 +24,7 @@ internal class ColorOperators : IOperatorProcessor
         _host = host;
     }
 
-    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
@@ -44,12 +44,12 @@ internal class ColorOperators : IOperatorProcessor
             }
             case PdfOperator.FillColorSpace:
             {
-                ProcessSetFillColorSpace(graphicsState);
+                ProcessSetFillColorSpace(context, graphicsState);
                 break;
             }
             case PdfOperator.StrokeColorSpace:
             {
-                ProcessSetStrokeColorSpace(graphicsState);
+                ProcessSetStrokeColorSpace(context, graphicsState);
                 break;
             }
             case PdfOperator.FillColor:
@@ -64,12 +64,12 @@ internal class ColorOperators : IOperatorProcessor
             }
             case PdfOperator.FillColorN:
             {
-                ProcessSetFillColorN(graphicsState);
+                ProcessSetFillColorN(context, graphicsState);
                 break;
             }
             case PdfOperator.StrokeColorN:
             {
-                ProcessSetStrokeColorN(graphicsState);
+                ProcessSetStrokeColorN(context, graphicsState);
                 break;
             }
             default:
@@ -111,7 +111,7 @@ internal class ColorOperators : IOperatorProcessor
             }
         }
 
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(expected);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(expected);
         if (operands.Length < expected && expected > 1)
         {
             return;
@@ -161,7 +161,7 @@ internal class ColorOperators : IOperatorProcessor
             }
         }
 
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(expected);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(expected);
         if (operands.Length < expected && expected > 1)
         {
             return;
@@ -183,7 +183,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetFillColor(PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -200,7 +200,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetStrokeColor(PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -216,9 +216,9 @@ internal class ColorOperators : IOperatorProcessor
         state.StrokePaint = state.StrokePaint.WithSolidColor(state.StrokeRgbaSampler.Sample(components).ToPdfColor());
     }
 
-    private void ProcessSetFillColorN(PdfGraphicsState state)
+    private void ProcessSetFillColorN(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -227,7 +227,7 @@ internal class ColorOperators : IOperatorProcessor
         PdfColorSpaceConverter converter = state.FillColorConverter;
         if (converter is PdfPatternColorSpaceConverter)
         {
-            PdfString? patternName = operands[operands.Length - 1].AsName();
+            PdfString? patternName = operands[operands.Length - 1].GetPdfValue(context).AsName();
             PdfPattern? resolvedPattern = (patternName == null) ? null : _host.Resources.GetPattern(patternName.Value);
 
             if (resolvedPattern is PdfTilingPattern tilingPattern)
@@ -262,9 +262,9 @@ internal class ColorOperators : IOperatorProcessor
         state.FillPaint = state.FillPaint.WithSolidColor(converter.ToSrgb(numericComponents, new PdfColorConversionParameters(state, state.FillDeviceColorMapping)));
     }
 
-    private void ProcessSetStrokeColorN(PdfGraphicsState state)
+    private void ProcessSetStrokeColorN(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -273,7 +273,7 @@ internal class ColorOperators : IOperatorProcessor
         PdfColorSpaceConverter converter = state.StrokeColorConverter;
         if (converter is PdfPatternColorSpaceConverter)
         {
-            PdfString? patternName = operands[operands.Length - 1].AsName();
+            PdfString? patternName = operands[operands.Length - 1].GetPdfValue(context).AsName();
             PdfPattern? resolvedPattern = (patternName == null) ? null : _host.Resources.GetPattern(patternName.Value);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
@@ -307,15 +307,20 @@ internal class ColorOperators : IOperatorProcessor
         state.StrokePaint = state.StrokePaint.WithSolidColor(converter.ToSrgb(numericComponents, new PdfColorConversionParameters(state, state.StrokeDeviceColorMapping)));
     }
 
-    private void ProcessSetFillColorSpace(PdfGraphicsState state)
+    private void ProcessSetFillColorSpace(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfValue raw = operands[0];
+        PdfValue? raw = operands[0].GetPdfValue(context);
+        if (raw == null)
+        {
+            return;
+        }
+
         PdfColorSpaceConverter converter = _host.Resources.ResolveColorSpace(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
         state.FillColorConverter = converter;
         state.FillDeviceColorMapping = _host.Resources.DeviceColorMapping;
@@ -326,15 +331,20 @@ internal class ColorOperators : IOperatorProcessor
         state.FillPaint = state.FillPaint.WithSolidColor(initialColor);
     }
 
-    private void ProcessSetStrokeColorSpace(PdfGraphicsState state)
+    private void ProcessSetStrokeColorSpace(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfValue raw = operands[0];
+        PdfValue? raw = operands[0].GetPdfValue(context);
+        if (raw == null)
+        {
+            return;
+        }
+
         PdfColorSpaceConverter converter = _host.Resources.ResolveColorSpace(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
         state.StrokeColorConverter = converter;
         state.StrokeDeviceColorMapping = _host.Resources.DeviceColorMapping;
@@ -345,7 +355,7 @@ internal class ColorOperators : IOperatorProcessor
         state.StrokePaint = state.StrokePaint.WithSolidColor(initialColor);
     }
 
-    private ReadOnlySpan<float> ExtractTintComponents(in ReadOnlySpan<PdfValue> operands)
+    private ReadOnlySpan<float> ExtractTintComponents(in ReadOnlySpan<PdfContentStreamValue> operands)
     {
         if (operands.Length <= 1)
         {

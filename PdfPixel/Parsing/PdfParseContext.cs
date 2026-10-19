@@ -1,3 +1,4 @@
+using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,11 @@ namespace PdfPixel.Parsing;
 /// </summary>
 public ref struct PdfParseContext
 {
+    /// <summary>
+    /// Number of content stream operand values a content stream context holds.
+    /// </summary>
+    internal const int ContentStreamValuesCapacity = 4;
+
     private readonly ReadOnlySpan<byte> _data;
     private int _position;
 
@@ -18,13 +24,29 @@ public ref struct PdfParseContext
     /// Construct context from a single memory block (wrapped as one chunk).
     /// </summary>
     /// <param name="memory">The memory block to parse.</param>
-    public PdfParseContext(in ReadOnlyMemory<byte> memory) => _data = memory.Span;
+    public PdfParseContext(in ReadOnlyMemory<byte> memory)
+    {
+        _data = memory.Span;
+        Values = Array.Empty<PdfValue>();
+    }
 
     /// <summary>
-    /// Construct context from a list of memory chunks.
+    /// Construct a content stream context from a single memory block.
+    /// </summary>
+    /// <param name="memory">The memory block to parse.</param>
+    /// <param name="valuesCapacity">Number of operand values the context holds.</param>
+    internal PdfParseContext(in ReadOnlyMemory<byte> memory, int valuesCapacity)
+    {
+        _data = memory.Span;
+        Values = CreateValues(valuesCapacity);
+    }
+
+    /// <summary>
+    /// Construct a content stream context from a list of memory chunks.
     /// </summary>
     /// <param name="chunks">The list of chunks representing one logical stream.</param>
-    public PdfParseContext(List<ReadOnlyMemory<byte>> chunks)
+    /// <param name="valuesCapacity">Number of operand values the context holds.</param>
+    internal PdfParseContext(List<ReadOnlyMemory<byte>> chunks, int valuesCapacity)
     {
         if (chunks == null)
         {
@@ -41,7 +63,14 @@ public ref struct PdfParseContext
         }
 
         _data = total.Span;
+        Values = CreateValues(valuesCapacity);
     }
+
+    /// <summary>
+    /// Values of the content stream operands read since the last operator, other than numbers, booleans and null;
+    /// empty for a context that does not read a content stream.
+    /// </summary>
+    internal PdfValue[] Values { get; }
 
     /// <summary>
     /// Current absolute position in the logical stream.
@@ -149,4 +178,16 @@ public ref struct PdfParseContext
 
     /// <inheritdoc/>
     public override string ToString() => Text.EncodingExtensions.PdfDefault.GetString(_data);
+
+    private static PdfValue[] CreateValues(int capacity)
+    {
+        var values = new PdfValue[capacity];
+
+        for (int index = 0; index < values.Length; index++)
+        {
+            values[index] = PdfNullValue.Instance;
+        }
+
+        return values;
+    }
 }

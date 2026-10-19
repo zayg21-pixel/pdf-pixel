@@ -54,15 +54,15 @@ internal class PdfOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
     }
 
-    public void ProcessOperator(PdfOperator contentOperator, ref PdfGraphicsState graphicsState)
+    public void ProcessOperator(PdfOperator contentOperator, PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
-        bool handled = _pathOperators.ProcessOperator(contentOperator, ref graphicsState)
-            || _graphicsStateOperators.ProcessOperator(contentOperator, ref graphicsState)
-            || _colorOperators.ProcessOperator(contentOperator, ref graphicsState)
-            || _textOperators.ProcessOperator(contentOperator, ref graphicsState)
-            || _markedContentOperators.ProcessOperator(contentOperator, ref graphicsState)
-            || _inlineImageOperators.ProcessOperator(contentOperator, ref graphicsState)
-            || _miscOperators.ProcessOperator(contentOperator, ref graphicsState);
+        bool handled = _pathOperators.ProcessOperator(contentOperator, context, ref graphicsState)
+            || _graphicsStateOperators.ProcessOperator(contentOperator, context, ref graphicsState)
+            || _colorOperators.ProcessOperator(contentOperator, context, ref graphicsState)
+            || _textOperators.ProcessOperator(contentOperator, context, ref graphicsState)
+            || _markedContentOperators.ProcessOperator(contentOperator, context, ref graphicsState)
+            || _inlineImageOperators.ProcessOperator(contentOperator, context, ref graphicsState)
+            || _miscOperators.ProcessOperator(contentOperator, context, ref graphicsState);
 
         if (!handled)
         {

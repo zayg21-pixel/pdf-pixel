@@ -105,37 +105,6 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     }
 
     /// <summary>
-    /// Creates a <see cref="PdfMatrix"/> from PDF transformation matrix operands.
-    /// Returns null if the operands have insufficient elements or any operand is not numeric.
-    /// </summary>
-    public static PdfMatrix? FromOperands(in ReadOnlySpan<PdfValue> operands)
-    {
-        if (operands.Length < 6)
-        {
-            return null;
-        }
-
-        float? a = operands[0].AsFloat();
-        float? b = operands[1].AsFloat();
-        float? c = operands[2].AsFloat();
-        float? d = operands[3].AsFloat();
-        float? e = operands[4].AsFloat();
-        float? f = operands[5].AsFloat();
-
-        if (a == null
-            || b == null
-            || c == null
-            || d == null
-            || e == null
-            || f == null)
-        {
-            return null;
-        }
-
-        return new PdfMatrix(a.Value, c.Value, e.Value, b.Value, d.Value, f.Value);
-    }
-
-    /// <summary>
     /// Creates a matrix that translates points by <paramref name="translateX"/> and <paramref name="translateY"/>.
     /// </summary>
     public static PdfMatrix CreateTranslation(float translateX, float translateY) => new(1, 0, translateX, 0, 1, translateY);

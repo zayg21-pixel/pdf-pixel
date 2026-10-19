@@ -130,6 +130,7 @@ public class PdfType3Font : PdfSingleByteFont
         IPdfContentHost sourceHost = sourceState.Host;
         PdfContentHost glyphHost = new(sourceHost.Document, _resources ?? sourceHost.Resources, null);
         PdfContentStreamRenderer contentRenderer = new(renderer, glyphHost);
+        PdfParseContext parseContext = new(info.Content, PdfParseContext.ContentStreamValuesCapacity);
         PdfGraphicsState charState = sourceState.CloneForType3Glyph(glyphHost);
 
         PdfRectangle? glyphBounds = info.BBox ?? FontBBox;
@@ -141,7 +142,7 @@ public class PdfType3Font : PdfSingleByteFont
         PdfCommandRecorder recorder = new();
         PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.Type3Glyph);
         recorder.Process(new BeginScopeCommand(contentStreamScope));
-        contentRenderer.RenderContext(recorder, info.Content, charState);
+        contentRenderer.RenderContext(recorder, ref parseContext, charState);
         recorder.Process(new EndScopeCommand());
 
         sourceState.RecursionGuard.Remove(info.ObjectNumber);
@@ -174,27 +175,27 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        PdfValue[] content = PdfContentStreamRenderer.ParseContent(new PdfParseContext(streamData), Document);
-        (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(content);
+        (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(new PdfParseContext(streamData, PdfParseContext.ContentStreamValuesCapacity));
 
-        return new PdfType3CharacterInfo(content, charObject.Reference.Value.ObjectNumber, boundingBox, advancement);
+        return new PdfType3CharacterInfo(streamData, charObject.Reference.Value.ObjectNumber, boundingBox, advancement);
     }
 
-    private static (PdfSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfValue[] content)
+    private (PdfSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
+        PdfParser parser = new(parseContext, Document, PdfParserMode.ContentStream);
         PdfOperandStack operandStack = new();
 
         PdfSize type3Advancement = new(0, 0);
         PdfRectangle? type3BoundingBox = null;
-        foreach (PdfValue value in content)
+        while (parser.TryReadContentStreamValue(out PdfContentStreamValue value))
         {
-            if (value is PdfOperatorValue operatorValue)
+            if (value.Kind == PdfContentStreamValueKind.Operator)
             {
-                switch (operatorValue.Value)
+                switch (value.GetOperator())
                 {
                     case PdfOperator.GlyphWidth:
                     {
-                            ReadOnlySpan<PdfValue> operands = operandStack.Pop(6);
+                            ReadOnlySpan<PdfContentStreamValue> operands = operandStack.Pop(6);
 
                         if (operands.Length < 2)
                         {
@@ -214,7 +215,7 @@ public class PdfType3Font : PdfSingleByteFont
                     }
                     case PdfOperator.GlyphWidthAndBoundingBox:
                     {
-                            ReadOnlySpan<PdfValue> operands = operandStack.Pop(6);
+                            ReadOnlySpan<PdfContentStreamValue> operands = operandStack.Pop(6);
 
                         if (operands.Length < 6)
                         {

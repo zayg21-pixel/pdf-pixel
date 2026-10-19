@@ -34,6 +34,7 @@ internal ref partial struct PdfParser
 
     private readonly List<byte> _localBuffer = [];
     private readonly List<PdfValue> _values = [];
+    private readonly List<PdfValue> _inlineImageParameters = [];
     private readonly Stack<CollectionFrame> _frames = [];
     private readonly BufferedStream? _stream;
     private readonly bool _streamMode;
@@ -44,6 +45,9 @@ internal ref partial struct PdfParser
     private readonly bool _decrypt;
 
     private int _lastSetPostion = 0;
+    private bool _inlineImagePending;
+    private bool _clearValuesOnNextRead;
+    private int _valueCount;
     private PdfParseContext _parseContext;
     private PdfReference? _currentReference;
 
@@ -96,7 +100,7 @@ internal ref partial struct PdfParser
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public PdfValue? ReadNextValue(PdfOperandStack? operandStack = null)
+    public PdfValue? ReadNextValue()
     {
         List<PdfValue> values = _values;
         Stack<CollectionFrame> frames = _frames;
@@ -189,7 +193,7 @@ internal ref partial struct PdfParser
                 }
                 case PdfTokenType.InlineStreamStart:
                 {
-                    PdfValue? streamValue = ReadInlineStream(operandStack);
+                    PdfValue? streamValue = ReadInlineStream();
                     if (streamValue == null)
                     {
                         return null;

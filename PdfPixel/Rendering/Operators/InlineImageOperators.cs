@@ -28,7 +28,7 @@ internal class InlineImageOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<InlineImageOperators>();
     }
 
-    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
@@ -44,7 +44,7 @@ internal class InlineImageOperators : IOperatorProcessor
             }
             case PdfOperator.EndInlineImage:
             {
-                ProcessEndInlineImage(ref graphicsState);
+                ProcessEndInlineImage(context, ref graphicsState);
                 break;
             }
             default:
@@ -56,9 +56,9 @@ internal class InlineImageOperators : IOperatorProcessor
         return true;
     }
 
-    private void ProcessEndInlineImage(ref PdfGraphicsState graphicsState)
+    private void ProcessEndInlineImage(PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
-        PdfValue value = _operandStack.Pop();
+        PdfContentStreamValue value = _operandStack.Pop();
         _operandStack.Clear();
 
         if (!graphicsState.RenderingParameters.ProcessImages
@@ -67,7 +67,7 @@ internal class InlineImageOperators : IOperatorProcessor
             return;
         }
 
-        PdfObject? inlineObject = value.AsInlineImage();
+        PdfObject? inlineObject = value.GetPdfValue(context).AsInlineImage();
         if (inlineObject == null)
         {
             return;

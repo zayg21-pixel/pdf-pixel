@@ -33,13 +33,13 @@ internal class MiscellaneousOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
     }
 
-    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
             case PdfOperator.InvokeXObject:
             {
-                ProcessInvokeXObject(graphicsState);
+                ProcessInvokeXObject(context, graphicsState);
                 break;
             }
             case PdfOperator.BeginCompatibility:
@@ -64,7 +64,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             }
             case PdfOperator.Shading:
             {
-                ProcessShading(graphicsState);
+                ProcessShading(context, graphicsState);
                 break;
             }
             default:
@@ -76,15 +76,15 @@ internal class MiscellaneousOperators : IOperatorProcessor
         return true;
     }
 
-    private void ProcessInvokeXObject(PdfGraphicsState graphicsState)
+    private void ProcessInvokeXObject(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfString? xObjectName = operands[0].AsName();
+        PdfString? xObjectName = operands[0].GetPdfValue(context).AsName();
         if (xObjectName == null)
         {
             return;
@@ -145,15 +145,15 @@ internal class MiscellaneousOperators : IOperatorProcessor
         // Ignored per PDF spec (compatibility section end).
     }
 
-    private void ProcessShading(PdfGraphicsState graphicsState)
+    private void ProcessShading(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
         if (operands.Length == 0)
         {
             return;
         }
 
-        PdfString? shadingName = operands[0].AsName();
+        PdfString? shadingName = operands[0].GetPdfValue(context).AsName();
         if (shadingName == null)
         {
             return;

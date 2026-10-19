@@ -35,7 +35,7 @@ internal class PathOperators : IOperatorProcessor
         _logger = host.Document.LoggerFactory.CreateLogger<PathOperators>();
     }
 
-    public bool ProcessOperator(PdfOperator op, ref PdfGraphicsState graphicsState)
+    public bool ProcessOperator(PdfOperator op, PdfParseContext context, ref PdfGraphicsState graphicsState)
     {
         switch (op)
         {
@@ -151,7 +151,7 @@ internal class PathOperators : IOperatorProcessor
     // ---------------------- Helper Implementations --------------------------
     private void ProcessMoveTo()
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -173,7 +173,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessLineTo()
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
         if (operands.Length < 2)
         {
             return;
@@ -194,7 +194,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveTo()
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(6);
         if (operands.Length < 6)
         {
             return;
@@ -224,7 +224,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToV()
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(4);
         if (operands.Length < 4)
         {
             return;
@@ -247,7 +247,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToY()
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(4);
         if (operands.Length < 4)
         {
             return;
@@ -276,7 +276,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessRectangle()
     {
-        ReadOnlySpan<PdfValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(4);
         if (operands.Length < 4)
         {
             return;

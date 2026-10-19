@@ -11,8 +11,42 @@ namespace PdfPixel.Parsing;
 
 internal partial struct PdfParser
 {
+    /// <summary>
+    /// Reads an inline image: the dictionary entries that follow BI, the ID keyword and the image data.
+    /// </summary>
+    /// <returns>
+    /// The inline image, or null when an operator or the end of the data comes before the image data ends;
+    /// the position is then left where reading started.
+    /// </returns>
+    public PdfValue? ReadInlineImage()
+    {
+        int startPosition = Position;
+        _inlineImageParameters.Clear();
+        PdfValue? value;
+
+        while ((value = ReadNextValue()) != null)
+        {
+            if (value is PdfInlineImageValue)
+            {
+                return value;
+            }
+
+            if (value is PdfOperatorValue)
+            {
+                break;
+            }
+
+            _inlineImageParameters.Add(value);
+        }
+
+        _inlineImageParameters.Clear();
+        Position = startPosition;
+
+        return null;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private PdfInlineImageValue? ReadInlineStream(PdfOperandStack? operandStack)
+    private PdfInlineImageValue? ReadInlineStream()
     {
         // Skip single whitespace after ID per PDF spec.
         int beginPosition = Position;
@@ -32,7 +66,7 @@ internal partial struct PdfParser
 
         _localBuffer.Clear();
 
-        PdfDictionary imageDictionary = BuildImageDictionary(operandStack);
+        PdfDictionary imageDictionary = BuildImageDictionary();
         List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(imageDictionary);
         PdfFilterType? filter = (filters.Count > 0) ? filters[0] : null;
 
@@ -57,35 +91,34 @@ internal partial struct PdfParser
     }
 
     /// <summary>
-    /// Builds the fully expanded inline image dictionary from the BI/ID operand pairs accumulated on
-    /// <paramref name="operandStack"/>, applying default values for /BitsPerComponent and /ColorSpace.
-    /// The stack is consumed and cleared since the pairs are not needed again once the dictionary is built.
+    /// Builds the fully expanded inline image dictionary from the BI/ID entries collected by
+    /// <see cref="ReadInlineImage"/>, applying default values for /BitsPerComponent and /ColorSpace.
+    /// The entries are consumed and cleared since they are not needed again once the dictionary is built.
     /// </summary>
-    private PdfDictionary BuildImageDictionary(PdfOperandStack? operandStack)
+    private PdfDictionary BuildImageDictionary()
     {
         PdfDictionary imageDictionary = new(_document);
         imageDictionary.Set(PdfTokens.SubtypeKey, new PdfNameValue(PdfTokens.ImageSubtype));
 
-        if (operandStack != null && operandStack.Count > 0)
+        List<PdfValue> parameters = _inlineImageParameters;
+
+        for (int parameterIndex = 0; parameterIndex + 1 < parameters.Count; parameterIndex += 2)
         {
-            ReadOnlySpan<PdfValue> parameters = operandStack.Pop(operandStack.Count);
-
-            for (int parameterIndex = 0; parameterIndex + 1 < parameters.Length; parameterIndex += 2)
+            PdfValue keyValue = parameters[parameterIndex];
+            PdfString? rawKey = keyValue.AsName();
+            if (rawKey == null)
             {
-                PdfValue keyValue = parameters[parameterIndex];
-                PdfString? rawKey = keyValue.AsName();
-                if (rawKey == null)
-                {
-                    break;
-                }
+                break;
+            }
 
-                PdfString expandedKey = ExpandInlineImageKey(rawKey.Value);
-                if (!imageDictionary.HasKey(expandedKey))
-                {
-                    imageDictionary.Set(expandedKey, parameters[parameterIndex + 1]);
-                }
+            PdfString expandedKey = ExpandInlineImageKey(rawKey.Value);
+            if (!imageDictionary.HasKey(expandedKey))
+            {
+                imageDictionary.Set(expandedKey, parameters[parameterIndex + 1]);
             }
         }
+
+        parameters.Clear();
 
         if (!imageDictionary.HasKey(PdfTokens.BitsPerComponentKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
         {
