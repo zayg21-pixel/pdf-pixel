@@ -2,24 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
-using PdfPixel.Encryption.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
 namespace PdfPixel.Parsing;
 
 /// <summary>
-/// Cross-reference loader supporting classic tables and PDF 1.5+ cross-reference streams.
-/// Handles incremental updates by following the /Prev chain from the latest trailer backwards.
-/// Newest xref section is parsed first; older revisions never overwrite existing entries.
+/// Parses the cross-reference sections of a file, classic tables and cross-reference streams, from the
+/// section <c>startxref</c> points at along the /Prev chain.
 /// </summary>
-internal sealed class PdfXrefLoader
+internal sealed class PdfCrossReferenceParser
 {
-    private readonly IPdfDocumentInternal _document;
-    private readonly ILogger<PdfXrefLoader> _logger;
-    private readonly PdfTrailerParser _trailerParser;
+    private static ReadOnlySpan<byte> Xref => "xref"u8;
 
-    public PdfXrefLoader(IPdfDocumentInternal document)
+    private static ReadOnlySpan<byte> Startxref => "startxref"u8;
+
+    private readonly IPdfDocumentInternal _document;
+    private readonly ILogger<PdfCrossReferenceParser> _logger;
+
+    public PdfCrossReferenceParser(IPdfDocumentInternal document)
     {
         if (document == null)
         {
@@ -27,141 +28,126 @@ internal sealed class PdfXrefLoader
         }
 
         _document = document;
-        _logger = document.LoggerFactory.CreateLogger<PdfXrefLoader>();
-        _trailerParser = new PdfTrailerParser(document);
+        _logger = document.LoggerFactory.CreateLogger<PdfCrossReferenceParser>();
     }
 
     /// <summary>
-    /// Loads the cross-reference table/stream(s) into the document's object index.
+    /// Parses the cross-reference sections of the file and merges them.
     /// </summary>
-    public void LoadXref()
+    /// <exception cref="PdfInvalidDocumentException">Thrown if a section fails to parse.</exception>
+    public PdfCrossReference Parse()
     {
-        LoadSections();
+        List<PdfCrossReferenceSection> sections = ParseSections();
 
-        // Resolving /Root may run the recovery scan, which selects its own root.
-        PdfObject? rootObject = _document.Trailer?.GetObject(PdfTokens.RootKey);
-        if (_document.RootObject == null)
-        {
-            _document.RootObject = rootObject;
-        }
+        return PdfCrossReference.FromSections(sections);
     }
 
-    private void LoadSections()
+    /// <summary>
+    /// Applies the entries of a cross-reference stream reached other than by following the /Prev chain:
+    /// the <c>/XRefStm</c> of a hybrid-reference file, or one the recovery scan found in the file.
+    /// Entries the index already holds keep precedence, so this only fills the gaps — chiefly the
+    /// compressed objects, which live inside /ObjStm containers and are never declared with an
+    /// <c>N G obj</c> header of their own.
+    /// </summary>
+    /// <param name="crossReferenceStream">A parsed object whose dictionary is of <c>/Type /XRef</c>.</param>
+    /// <param name="entries">The index the entries are added to.</param>
+    public void ApplyCrossReferenceStream(PdfObject crossReferenceStream, Dictionary<PdfReference, PdfObjectInfo> entries)
     {
+        ReadOnlyMemory<byte> decoded = crossReferenceStream.Stream.DecodeAsMemory();
+        if (decoded.IsEmpty)
+        {
+            _logger.LogWarning("Cross-reference stream {Reference} decoded to nothing.", crossReferenceStream.Reference);
+            return;
+        }
+
+        ParseXrefStreamEntries(crossReferenceStream.Dictionary, decoded, entries);
+    }
+
+    /// <summary>
+    /// Parses the cross-reference sections of the file, newest first.
+    /// </summary>
+    private List<PdfCrossReferenceSection> ParseSections()
+    {
+        List<PdfCrossReferenceSection> sections = [];
+
         long startxrefPos = LocateLastStartXref();
         if (startxrefPos < 0)
         {
             _logger.LogError("'startxref' keyword not found.");
-            return;
+            return sections;
         }
 
         int declaredOffset = ParseStartXrefOffset(startxrefPos);
-        int xrefOffset = _document.HeaderOffset + declaredOffset;
+        int xrefOffset = _document.Header.Offset + declaredOffset;
         if (declaredOffset < 0 || xrefOffset >= _document.Stream.Length)
         {
             _logger.LogWarning("Parsed startxref offset {Offset} is invalid (file length {Length}).", declaredOffset, _document.Stream.Length);
-            return;
+            return sections;
         }
 
         PdfParser parser = new(_document.Stream, _document, PdfParserMode.CrossReference);
         HashSet<int> visitedOffsets = [xrefOffset];
 
-        // Classic table path.
-        if (MatchSequenceAt(xrefOffset, PdfByteScanner.Xref))
-        {
-            try
-            {
-                parser.Position = xrefOffset + PdfByteScanner.Xref.Length;
-                PdfDictionary? trailer = ParseClassicXref(ref parser);
-                ApplyHybridCrossReferenceStream(trailer);
-
-                // Walk /Prev chain backwards.
-                int? prevOffset;
-                while ((prevOffset = _trailerParser.GetPrevOffset(trailer)).HasValue)
-                {
-                    int offsetValue = _document.HeaderOffset + prevOffset.Value;
-                    if (!visitedOffsets.Add(offsetValue))
-                    {
-                        _logger.LogWarning("Detected /Prev chain cycle at offset {Offset}; stopping xref traversal.", offsetValue);
-                        break;
-                    }
-
-                    _logger.LogDebug("Following /Prev chain to offset {Offset} (classic path).", offsetValue);
-                    if (MatchSequenceAt(offsetValue, PdfByteScanner.Xref))
-                    {
-                        parser.Position = offsetValue + PdfByteScanner.Xref.Length;
-                        trailer = ParseClassicXref(ref parser);
-                        ApplyHybridCrossReferenceStream(trailer);
-                    }
-                    else
-                    {
-                        PdfParser streamParser = new(_document.Stream, _document, PdfParserMode.CrossReference);
-                        streamParser.Position = offsetValue;
-                        trailer = ParseXrefStream(ref streamParser);
-                    }
-                }
-            }
-            catch (PdfAuthenticationException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Exception while parsing classic xref.");
-                throw new PdfInvalidDocumentException("Failed to parse classic xref.", ex);
-            }
-
-            return;
-        }
-
-        // Stream path.
         try
         {
-            parser.Position = xrefOffset;
-            PdfDictionary? streamTrailer = ParseXrefStream(ref parser);
-
-            int? prevOffset;
-            while ((prevOffset = _trailerParser.GetPrevOffset(streamTrailer)).HasValue)
+            PdfCrossReferenceSection? section = ReadSection(ref parser, xrefOffset);
+            while (section != null)
             {
-                int offsetValue = _document.HeaderOffset + prevOffset.Value;
+                sections.Add(section);
+
+                int? prevOffset = section.Trailer?.Prev;
+                if (prevOffset == null)
+                {
+                    break;
+                }
+
+                int offsetValue = _document.Header.Offset + prevOffset.Value;
                 if (!visitedOffsets.Add(offsetValue))
                 {
                     _logger.LogWarning("Detected /Prev chain cycle at offset {Offset}; stopping xref traversal.", offsetValue);
                     break;
                 }
 
-                _logger.LogDebug("Following /Prev chain to offset {Offset} (stream path).", offsetValue);
-                if (MatchSequenceAt(offsetValue, PdfByteScanner.Xref))
-                {
-                    parser.Position = offsetValue + PdfByteScanner.Xref.Length;
-                    streamTrailer = ParseClassicXref(ref parser);
-                    ApplyHybridCrossReferenceStream(streamTrailer);
-                }
-                else
-                {
-                    parser.Position = offsetValue;
-                    streamTrailer = ParseXrefStream(ref parser);
-                }
+                _logger.LogDebug("Following /Prev chain to offset {Offset}.", offsetValue);
+                section = ReadSection(ref parser, offsetValue);
             }
-        }
-        catch (PdfAuthenticationException)
-        {
-            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Exception while parsing xref stream.");
-            throw new PdfInvalidDocumentException("Failed to parse xref stream.", ex);
+            _logger.LogWarning(ex, "Exception while parsing cross-reference section.");
+            throw new PdfInvalidDocumentException("Failed to parse cross-reference section.", ex);
         }
+
+        return sections;
     }
 
-    #region Classic XRef
+    /// <summary>
+    /// Parses the section at <paramref name="offset"/>: a classic table (ISO 32000-2 7.5.4) or a cross-reference stream (7.5.8).
+    /// </summary>
+    private PdfCrossReferenceSection? ReadSection(ref PdfParser parser, int offset)
+    {
+        PdfCrossReferenceSection? section;
+        if (MatchSequenceAt(offset, Xref))
+        {
+            section = ParseClassicXref(ref parser, offset);
+        }
+        else
+        {
+            section = ParseXrefStream(ref parser, offset);
+        }
+
+        return section;
+    }
 
     /// <summary>
-    /// Parse classic xref subsections using PdfParser only. Format: (firstObject entryCount) lines followed by entries, ending with trailer operator.
+    /// Parses a classic table and the <c>trailer</c> dictionary after it (ISO 32000-2 7.5.4, 7.5.5).
     /// </summary>
-    private PdfDictionary? ParseClassicXref(ref PdfParser parser)
+    private PdfCrossReferenceSection ParseClassicXref(ref PdfParser parser, int offset)
     {
+        parser.Position = offset + Xref.Length;
+
+        Dictionary<PdfReference, PdfObjectInfo> entries = [];
+        PdfDictionary? trailerDictionary = null;
         int subsectionIndex = 0;
         while (true)
         {
@@ -172,23 +158,17 @@ internal sealed class PdfXrefLoader
                 break;
             }
 
-            // Trailer detection.
             if (firstValue is PdfKeywordValue keywordValue)
             {
                 if (keywordValue.Value == PdfKeyword.Trailer)
                 {
                     PdfValue? dictValue = parser.ReadNextValue();
-                    PdfDictionary? trailerDict = dictValue?.AsDictionary();
-                    if (trailerDict != null)
-                    {
-                        TryApplyTrailer(trailerDict);
-                    }
+                    trailerDictionary = dictValue?.AsDictionary();
 
                     _logger.LogTrace("Encountered 'trailer' after subsection {Index}. Ending xref parse.", subsectionIndex);
-                    return trailerDict;
+                    break;
                 }
 
-                // Unexpected keyword -> treat as end.
                 _logger.LogDebug("Unexpected keyword instead of subsection header; ending parse.");
                 break;
             }
@@ -196,7 +176,6 @@ internal sealed class PdfXrefLoader
             int? subsectionStart = firstValue.AsInteger();
             if (subsectionStart == null)
             {
-                // Not integer and not trailer -> end.
                 _logger.LogDebug("Non-integer subsection start value; ending classic xref parse.");
                 break;
             }
@@ -215,7 +194,7 @@ internal sealed class PdfXrefLoader
             for (int localIndex = 0; localIndex < entryCount; localIndex++)
             {
                 var entryObjectNumber = (uint)(firstObject + localIndex);
-                if (!ParseSingleEntry(ref parser, entryObjectNumber))
+                if (!ParseSingleEntry(ref parser, entryObjectNumber, entries))
                 {
                     _logger.LogWarning("Failed xref entry index {LocalIndex} (object {ObjectNumber}) at position {Position}.", localIndex, entryObjectNumber, parser.Position);
                     break;
@@ -232,15 +211,20 @@ internal sealed class PdfXrefLoader
             subsectionIndex++;
         }
 
-        return null;
+        PdfTrailer? trailer = null;
+        if (trailerDictionary != null)
+        {
+            trailer = new PdfTrailer(trailerDictionary);
+            ApplyHybridCrossReferenceStream(trailer, entries);
+        }
+
+        return new PdfCrossReferenceSection(entries, trailer);
     }
 
     /// <summary>
-    /// Parse a single classic xref table entry using the unified PdfParser.
-    /// Reads three tokens (offset, generation, status): the first two must be numeric,
-    /// the third a keyword 'n' or 'f'.
+    /// Parses one table entry, offset, generation and <c>n</c> or <c>f</c>; restores the position when it fails.
     /// </summary>
-    private bool ParseSingleEntry(ref PdfParser parser, uint objectNumber)
+    private bool ParseSingleEntry(ref PdfParser parser, uint objectNumber, Dictionary<PdfReference, PdfObjectInfo> entries)
     {
         int entryStart = parser.Position;
 
@@ -258,7 +242,7 @@ internal sealed class PdfXrefLoader
         PdfObjectInfo info;
         if (statusKeyword.Value == PdfKeyword.InUse)
         {
-            info = PdfObjectInfo.ForUncompressed(_document.HeaderOffset + (uint)offsetValue.Value);
+            info = PdfObjectInfo.ForUncompressed(_document.Header.Offset + (uint)offsetValue.Value);
         }
         else if (statusKeyword.Value == PdfKeyword.Free)
         {
@@ -270,48 +254,22 @@ internal sealed class PdfXrefLoader
             return false;
         }
 
-        TryAddObjectIndexEntry(in reference, info);
+        TryAddEntry(entries, in reference, info);
         return true;
     }
 
-    #endregion
-
-    #region XRef Stream (PDF 1.5+)
-
     /// <summary>
-    /// Applies the entries of a cross-reference stream reached other than by following the /Prev chain:
-    /// the <c>/XRefStm</c> of a hybrid-reference file, or one the recovery scan found in the file.
-    /// Entries the index already holds keep precedence, so this only fills the gaps — chiefly the
-    /// compressed objects, which live inside /ObjStm containers and are never declared with an
-    /// <c>N G obj</c> header of their own.
+    /// Adds the entries of the /XRefStm cross-reference stream of a hybrid-reference file (ISO 32000-2 7.5.8.4).
     /// </summary>
-    /// <param name="crossReferenceStream">A parsed object whose dictionary is of <c>/Type /XRef</c>.</param>
-    public void ApplyCrossReferenceStream(PdfObject crossReferenceStream)
+    private void ApplyHybridCrossReferenceStream(PdfTrailer trailer, Dictionary<PdfReference, PdfObjectInfo> entries)
     {
-        ReadOnlyMemory<byte> decoded = crossReferenceStream.Stream.DecodeAsMemory();
-        if (decoded.IsEmpty)
-        {
-            _logger.LogWarning("Cross-reference stream {Reference} decoded to nothing.", crossReferenceStream.Reference);
-            return;
-        }
-
-        ParseXrefStreamEntries(crossReferenceStream.Dictionary, decoded);
-    }
-
-    /// <summary>
-    /// Reads the cross-reference stream a classic section points at with <c>/XRefStm</c>, taking only
-    /// its entries: the section's own trailer remains the one that carries /Root and /Prev, and the
-    /// stream is read after the table it accompanies so the table keeps precedence over it.
-    /// </summary>
-    private void ApplyHybridCrossReferenceStream(PdfDictionary? trailer)
-    {
-        int? declaredOffset = _trailerParser.GetCrossReferenceStreamOffset(trailer);
+        int? declaredOffset = trailer.XRefStm;
         if (declaredOffset == null)
         {
             return;
         }
 
-        int streamOffset = _document.HeaderOffset + declaredOffset.Value;
+        int streamOffset = _document.Header.Offset + declaredOffset.Value;
         if (streamOffset >= _document.Stream.Length)
         {
             _logger.LogWarning("Trailer declares /XRefStm at offset {Offset}, past the end of the file.", declaredOffset.Value);
@@ -328,11 +286,16 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        ApplyCrossReferenceStream(crossReferenceStream);
+        ApplyCrossReferenceStream(crossReferenceStream, entries);
     }
 
-    private PdfDictionary? ParseXrefStream(ref PdfParser parser)
+    /// <summary>
+    /// Parses a cross-reference stream; its dictionary is the trailer (ISO 32000-2 7.5.8).
+    /// </summary>
+    private PdfCrossReferenceSection? ParseXrefStream(ref PdfParser parser, int offset)
     {
+        parser.Position = offset;
+
         PdfObject? xrefObject = parser.ReadObject();
         if (xrefObject == null || xrefObject.Dictionary == null)
         {
@@ -347,12 +310,16 @@ internal sealed class PdfXrefLoader
             return null;
         }
 
-        ParseXrefStreamEntries(xrefObject.Dictionary, decoded);
-        TryApplyTrailer(xrefObject.Dictionary);
-        return xrefObject.Dictionary;
+        Dictionary<PdfReference, PdfObjectInfo> entries = [];
+        ParseXrefStreamEntries(xrefObject.Dictionary, decoded, entries);
+
+        return new PdfCrossReferenceSection(entries, new PdfTrailer(xrefObject.Dictionary));
     }
 
-    private void ParseXrefStreamEntries(PdfDictionary dict, in ReadOnlyMemory<byte> decoded)
+    /// <summary>
+    /// Reads the /W-sized entries over the /Index ranges, by default <c>[0 Size]</c> (ISO 32000-2 7.5.8.2, 7.5.8.3).
+    /// </summary>
+    private void ParseXrefStreamEntries(PdfDictionary dict, in ReadOnlyMemory<byte> decoded, Dictionary<PdfReference, PdfObjectInfo> entries)
     {
         PdfArray? wArray = dict.GetArray(PdfTokens.WKey);
         if (wArray == null || wArray.Count < 3)
@@ -436,7 +403,7 @@ internal sealed class PdfXrefLoader
                     }
                     case 1:
                     {
-                        info = PdfObjectInfo.ForUncompressed(_document.HeaderOffset + field2);
+                        info = PdfObjectInfo.ForUncompressed(_document.Header.Offset + field2);
                         break;
                     }
                     case 2:
@@ -456,22 +423,33 @@ internal sealed class PdfXrefLoader
                     }
                 }
 
-                TryAddObjectIndexEntry(in reference, info);
+                TryAddEntry(entries, in reference, info);
             }
         }
     }
 
-    /// <summary>
-    /// Add an entry to the document object index if not already present (newest wins).
-    /// </summary>
-    /// <param name="reference">Object reference (number + generation).</param>
-    /// <param name="info">Parsed xref information describing the object.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void TryAddObjectIndexEntry(in PdfReference reference, PdfObjectInfo info)
+    private long LocateLastStartXref() => PdfByteScanner.LocateLast(_document.Stream, Startxref);
+
+    private int ParseStartXrefOffset(long startxrefPos)
     {
-        if (!_document.ObjectCache.ObjectIndex.ContainsKey(reference))
+        PdfParser parser = new(_document.Stream, _document, PdfParserMode.CrossReference);
+        parser.Position = (int)startxrefPos + Startxref.Length;
+
+        // -1 marks a missing or non-numeric startxref offset.
+        return parser.ReadNextValue().AsInteger() ?? -1;
+    }
+
+    private bool MatchSequenceAt(long position, in ReadOnlySpan<byte> sequence) => PdfByteScanner.MatchesAt(_document.Stream, position, sequence);
+
+    /// <summary>
+    /// Adds the entry unless <paramref name="entries"/> already has one for <paramref name="reference"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TryAddEntry(Dictionary<PdfReference, PdfObjectInfo> entries, in PdfReference reference, PdfObjectInfo info)
+    {
+        if (!entries.ContainsKey(reference))
         {
-            _document.ObjectCache.ObjectIndex[reference] = info;
+            entries[reference] = info;
         }
     }
 
@@ -486,38 +464,4 @@ internal sealed class PdfXrefLoader
 
         return value;
     }
-
-    private void TryApplyTrailer(PdfDictionary dict)
-    {
-        if (dict == null)
-        {
-            return;
-        }
-
-        _trailerParser.TrySetDecryptor(dict);
-
-        if (_document.Trailer == null)
-        {
-            _document.Trailer = dict;
-        }
-    }
-
-    #endregion
-
-    #region Shared Helpers
-
-    private long LocateLastStartXref() => PdfByteScanner.LocateLast(_document.Stream, PdfByteScanner.Startxref);
-
-    private int ParseStartXrefOffset(long startxrefPos)
-    {
-        PdfParser parser = new(_document.Stream, _document, PdfParserMode.CrossReference);
-        parser.Position = (int)startxrefPos + PdfByteScanner.Startxref.Length;
-
-        // -1 marks a missing or non-numeric startxref offset.
-        return parser.ReadNextValue().AsInteger() ?? -1;
-    }
-
-    private bool MatchSequenceAt(long position, in ReadOnlySpan<byte> sequence) => PdfByteScanner.MatchesAt(_document.Stream, position, sequence);
-
-    #endregion
 }

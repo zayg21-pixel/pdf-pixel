@@ -13,15 +13,18 @@ namespace PdfPixel.Models;
 /// </summary>
 internal class PdfDocumentObjectCache : IDisposable
 {
-    private readonly PdfObjectParser _pdfObjectParser;
+    private readonly IPdfDocumentInternal _document;
     private readonly PdfXrefRecoveryScanner _recoveryScanner;
     private readonly ILogger<PdfDocumentObjectCache> _logger;
     private readonly Dictionary<Type, Dictionary<PdfReference, object?>> _objectsByType = [];
+    private PdfObjectParser _pdfObjectParser;
+    private bool _isLoaded;
     private bool _recoveryScanAttempted;
 
-    public PdfDocumentObjectCache(IPdfDocumentInternal document, PdfObjectParser parser)
+    public PdfDocumentObjectCache(IPdfDocumentInternal document)
     {
-        _pdfObjectParser = parser;
+        _document = document;
+        _pdfObjectParser = new PdfObjectParser(document);
         _recoveryScanner = new PdfXrefRecoveryScanner(document);
         _logger = document.LoggerFactory.CreateLogger<PdfDocumentObjectCache>();
     }
@@ -29,7 +32,30 @@ internal class PdfDocumentObjectCache : IDisposable
     /// <summary>
     /// Document object index collection.
     /// </summary>
-    public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = [];
+    public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; private set; } = [];
+
+    /// <summary>
+    /// Takes <paramref name="objectIndex"/> as the object index. Until called, no object resolves.
+    /// </summary>
+    /// <param name="objectIndex">Object index of the document.</param>
+    public void Load(Dictionary<PdfReference, PdfObjectInfo> objectIndex)
+    {
+        ObjectIndex = objectIndex;
+        _isLoaded = true;
+    }
+
+    /// <summary>
+    /// Returns the cache to its state before <see cref="Load"/>: no index, no cached objects, no scan attempted.
+    /// </summary>
+    public void Reset()
+    {
+        DisposeCachedObjects();
+        _objectsByType.Clear();
+        _pdfObjectParser = new PdfObjectParser(_document);
+        ObjectIndex = new Dictionary<PdfReference, PdfObjectInfo>();
+        _isLoaded = false;
+        _recoveryScanAttempted = false;
+    }
 
     /// <summary>
     /// Parses the object a reference names, from the offset the index holds for it.
@@ -38,18 +64,26 @@ internal class PdfDocumentObjectCache : IDisposable
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
     public PdfObject? GetObject(PdfReference? reference)
     {
-        if (reference == null)
+        if (reference == null || !_isLoaded)
         {
             return null;
         }
 
-        PdfObject? parsed = ResolveIndexedObject(reference.Value);
+        PdfObject? parsed = null;
+        if (ObjectIndex.TryGetValue(reference.Value, out PdfObjectInfo? info))
+        {
+            parsed = _pdfObjectParser.ParseSingleIndexedObject(reference.Value, info);
+        }
 
         if (parsed == null && !_recoveryScanAttempted)
         {
             _logger.LogWarning("Object {Reference} could not be resolved from the xref table; running a fallback recovery scan.", reference);
-            RunRecoveryScan();
-            parsed = ResolveIndexedObject(reference.Value);
+            MergeRecoveryScan();
+
+            if (ObjectIndex.TryGetValue(reference.Value, out info))
+            {
+                parsed = _pdfObjectParser.ParseSingleIndexedObject(reference.Value, info);
+            }
         }
 
         return parsed;
@@ -159,42 +193,20 @@ internal class PdfDocumentObjectCache : IDisposable
     }
 
     /// <summary>
-    /// Rebuilds the object index and the document root by scanning the file itself. Runs at most once
-    /// per document, so that resolving objects while the scan picks a root cannot recurse into it.
+    /// Scans the file and takes the scanned entries into the index, replacing the entries it holds for the same references.
     /// </summary>
-    public void RunRecoveryScan()
+    private void MergeRecoveryScan()
     {
-        if (_recoveryScanAttempted)
-        {
-            return;
-        }
-
         _recoveryScanAttempted = true;
-        _recoveryScanner.Scan();
-    }
+        PdfCrossReference scanned = _recoveryScanner.Scan();
 
-    /// <summary>
-    /// Records where an object was found without materializing it. The object is parsed on demand from
-    /// this offset, which keeps it out of the cache until the document is fully set up — an object
-    /// parsed before the decryptor exists would hold its strings undecrypted forever.
-    /// </summary>
-    /// <param name="reference">Object reference declared by the object header.</param>
-    /// <param name="fileOffset">Absolute byte offset in the source file where the object header begins.</param>
-    public void SetObjectOffset(in PdfReference reference, long fileOffset)
-        => ObjectIndex[reference] = PdfObjectInfo.ForUncompressed(fileOffset);
-
-    private PdfObject? ResolveIndexedObject(in PdfReference reference)
-    {
-        if (!ObjectIndex.TryGetValue(reference, out PdfObjectInfo? info))
+        foreach (KeyValuePair<PdfReference, PdfObjectInfo> entry in scanned.ObjectIndex)
         {
-            return null;
+            ObjectIndex[entry.Key] = entry.Value;
         }
-
-        return _pdfObjectParser.ParseSingleIndexedObject(reference, info);
     }
 
-    /// <inheritdoc />
-    public void Dispose()
+    private void DisposeCachedObjects()
     {
         foreach (Dictionary<PdfReference, object?> objects in _objectsByType.Values)
         {
@@ -207,4 +219,7 @@ internal class PdfDocumentObjectCache : IDisposable
             }
         }
     }
+
+    /// <inheritdoc />
+    public void Dispose() => DisposeCachedObjects();
 }

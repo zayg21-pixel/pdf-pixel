@@ -1,6 +1,5 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Encryption.Decryption;
-using PdfPixel.Encryption.Model;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
@@ -15,31 +14,14 @@ namespace PdfPixel.Models;
 internal interface IPdfDocumentInternal : IPdfDocument
 {
     /// <summary>
-    /// Gets the mutable list of pages in the PDF document.
+    /// Gets the pages of the PDF document.
     /// </summary>
-    new List<IPdfPageInternal> Pages { get; }
+    new IReadOnlyList<IPdfPageInternal> Pages { get; }
 
     /// <summary>
     /// Reader of the document's name trees and number trees.
     /// </summary>
     PdfTreeReader TreeReader { get; }
-
-    /// <summary>
-    /// Gets or sets the root object of the PDF document.
-    /// </summary>
-    PdfObject? RootObject { get; set; }
-
-    /// <summary>
-    /// Gets or sets the newest trailer dictionary of the document.
-    /// </summary>
-    PdfDictionary? Trailer { get; set; }
-
-    /// <summary>
-    /// Gets or sets the absolute file position of the <c>%PDF-</c> header. Offsets the document declares
-    /// for itself (startxref, cross-reference entries) are relative to this position, which is non-zero
-    /// only when the file carries junk bytes ahead of the header.
-    /// </summary>
-    int HeaderOffset { get; set; }
 
     /// <summary>
     /// Gets the object cache for PDF objects in the document.
@@ -73,14 +55,9 @@ internal interface IPdfDocumentInternal : IPdfDocument
     PdfStreamDecoder StreamDecoder { get; }
 
     /// <summary>
-    /// Gets or sets the decryptor for encrypted PDF content.
+    /// Gets the decryptor for encrypted PDF content.
     /// </summary>
-    BasePdfDecryptor? Decryptor { get; set; }
-
-    /// <summary>
-    /// Gets or sets the callback supplied by the caller for requesting the credential of this document.
-    /// </summary>
-    PdfCredentialRequestedCallback? OnCredentialRequested { get; set; }
+    BasePdfDecryptor? Decryptor { get; }
 
     /// <summary>
     /// Gets the original PDF file stream for internal parser use (lazy object loading).

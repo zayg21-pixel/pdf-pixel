@@ -6,7 +6,7 @@ namespace PdfPixel.Parsing;
 
 /// <summary>
 /// Shared low-level byte-sequence scanning used to locate PDF structural keywords
-/// (xref, startxref, trailer) directly against the document stream.
+/// directly against the document stream.
 /// </summary>
 internal static class PdfByteScanner
 {
@@ -21,24 +21,9 @@ internal static class PdfByteScanner
     public static readonly PdfString EndStream = (PdfString)"endstream"u8;
 
     /// <summary>
-    /// The <c>trailer</c> keyword.
-    /// </summary>
-    public static readonly PdfString Trailer = (PdfString)"trailer"u8;
-
-    /// <summary>
     /// The <c>%PDF-</c> file header.
     /// </summary>
     public static ReadOnlySpan<byte> Header => "%PDF-"u8;
-
-    /// <summary>
-    /// The <c>xref</c> keyword.
-    /// </summary>
-    public static ReadOnlySpan<byte> Xref => "xref"u8;
-
-    /// <summary>
-    /// The <c>startxref</c> keyword.
-    /// </summary>
-    public static ReadOnlySpan<byte> Startxref => "startxref"u8;
 
     /// <summary>
     /// Locates the <c>%PDF-</c> file header. Files can carry junk bytes ahead of the header, and every

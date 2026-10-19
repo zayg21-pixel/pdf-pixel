@@ -16,13 +16,17 @@ public sealed class PdfDestinationResolver
     private readonly IPdfDocumentInternal _document;
     private readonly Dictionary<PdfReference, PdfDestination?> _destinationsByReference = [];
     private readonly Dictionary<PdfString, PdfDestination?> _destinationsByName = [];
-    private bool _namedEntriesCollected;
-    private PdfDictionary? _destinationsDictionary;
-    private Dictionary<PdfString, (PdfArray Names, int Index)>? _nameTreeEntries;
+    private readonly PdfDictionary? _destinationsDictionary;
+    private readonly PdfDictionary? _destinationsTree;
+    private Dictionary<PdfString, NameTreeEntry>? _nameTreeEntries;
     private Dictionary<PdfReference, IPdfPageInternal>? _pagesByReference;
 
-    internal PdfDestinationResolver(IPdfDocumentInternal document)
-        => _document = document ?? throw new ArgumentNullException(nameof(document));
+    private PdfDestinationResolver(IPdfDocumentInternal document, PdfDictionary? destinationsDictionary, PdfDictionary? destinationsTree)
+    {
+        _document = document;
+        _destinationsDictionary = destinationsDictionary;
+        _destinationsTree = destinationsTree;
+    }
 
     /// <summary>
     /// Resolves a destination of this document into the target to navigate to, or null when it leads
@@ -295,21 +299,23 @@ public sealed class PdfDestinationResolver
             return knownDestination;
         }
 
-        if (!_namedEntriesCollected)
-        {
-            CollectNamedEntries();
-            _namedEntriesCollected = true;
-        }
-
         PdfDestination? destination = null;
 
         if (_destinationsDictionary != null && _destinationsDictionary.HasKey(name))
         {
             destination = Parse(_destinationsDictionary, name);
         }
-        else if (_nameTreeEntries != null && _nameTreeEntries.TryGetValue(name, out (PdfArray Names, int Index) entry))
+        else if (_destinationsTree != null)
         {
-            destination = Parse(entry.Names, entry.Index);
+            if (_nameTreeEntries == null)
+            {
+                _nameTreeEntries = _document.TreeReader.ReadNameTree(_destinationsTree, GetNameTreeEntry);
+            }
+
+            if (_nameTreeEntries.TryGetValue(name, out NameTreeEntry entry))
+            {
+                destination = Parse(entry.Names, entry.Index);
+            }
         }
 
         _destinationsByName[name] = destination;
@@ -318,27 +324,19 @@ public sealed class PdfDestinationResolver
     }
 
     /// <summary>
-    /// Collects where the catalog declares its destination names, keeping the entries unparsed so that
-    /// only the destinations actually used are parsed. <c>/Dests</c> wins over <c>/Names/Dests</c>.
+    /// Creates the resolver of the destinations the catalog declares by name, keeping the entries unparsed so
+    /// that only the destinations actually used are parsed. <c>/Dests</c> wins over <c>/Names/Dests</c>.
     /// </summary>
-    private void CollectNamedEntries()
+    /// <param name="catalog">The document catalog.</param>
+    internal static PdfDestinationResolver FromCatalog(PdfDictionary catalog)
     {
-        PdfObject? rootObject = _document.RootObject;
-        if (rootObject == null)
-        {
-            return;
-        }
+        PdfDictionary? destinationsDictionary = catalog.GetDictionary(PdfTokens.DestsKey);
+        PdfDictionary? destinationsTree = catalog.GetDictionary(PdfTokens.NamesKey)?.GetDictionary(PdfTokens.DestsKey);
 
-        PdfDictionary? destinationsTree = rootObject.Dictionary.GetDictionary(PdfTokens.NamesKey)?.GetDictionary(PdfTokens.DestsKey);
-        if (destinationsTree != null)
-        {
-            _nameTreeEntries = _document.TreeReader.ReadNameTree(destinationsTree, GetNameTreeEntry);
-        }
-
-        _destinationsDictionary = rootObject.Dictionary.GetDictionary(PdfTokens.DestsKey);
+        return new PdfDestinationResolver(catalog.Document, destinationsDictionary, destinationsTree);
     }
 
-    private static (PdfArray Names, int Index) GetNameTreeEntry(PdfArray names, int index) => (names, index);
+    private static NameTreeEntry GetNameTreeEntry(PdfArray names, int index) => new(names, index);
 
     private IPdfPageInternal? GetPage(in PdfReference pageReference)
     {
@@ -361,7 +359,7 @@ public sealed class PdfDestinationResolver
     /// </summary>
     private Dictionary<PdfReference, IPdfPageInternal> BuildPageIndex()
     {
-        List<IPdfPageInternal> pages = _document.Pages;
+        IReadOnlyList<IPdfPageInternal> pages = _document.Pages;
         Dictionary<PdfReference, IPdfPageInternal> pagesByReference = new(pages.Count);
 
         foreach (IPdfPageInternal page in pages)
@@ -374,5 +372,21 @@ public sealed class PdfDestinationResolver
         }
 
         return pagesByReference;
+    }
+
+    /// <summary>
+    /// Entry of the /Names/Dests name tree: the names array of the node holding it and the index of its key.
+    /// </summary>
+    private readonly struct NameTreeEntry
+    {
+        public NameTreeEntry(PdfArray names, int index)
+        {
+            Names = names;
+            Index = index;
+        }
+
+        public PdfArray Names { get; }
+
+        public int Index { get; }
     }
 }

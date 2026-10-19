@@ -27,49 +27,39 @@ internal class PdfPageExtractor
     }
 
     /// <summary>
-    /// Extract all pages in the document populating <see cref="IPdfDocument.Pages"/>.
-    /// RootRef is expected to be established earlier (xref parsing). This method will only set RootRef
-    /// if it is currently unset (0) and a /Catalog is discovered during fallback scan.
+    /// Extract all pages of the page tree of <paramref name="catalog"/>.
     /// </summary>
-    public void ExtractPages()
+    /// <param name="catalog">The document catalog.</param>
+    /// <exception cref="PdfInvalidDocumentException">Thrown if the catalog has no /Pages tree or no page is found.</exception>
+    public List<IPdfPageInternal> ExtractPages(PdfDictionary catalog)
     {
-        PdfObject? rootObject = _document.RootObject;
-        if (rootObject == null)
-        {
-            _logger.LogWarning("Document root not found in objects.");
-            return;
-        }
-
-        PdfObject? rootPagesObject = rootObject.Dictionary.GetObject(PdfTokens.PagesKey);
+        PdfObject? rootPagesObject = catalog.GetObject(PdfTokens.PagesKey);
         if (rootPagesObject == null)
         {
-            _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found; attempting recovery scan.", rootObject.Reference);
-            _document.ObjectCache.RunRecoveryScan();
-
-            // The recovery scan picks its own root, so the /Pages tree has to be read off the new one.
-            rootObject = _document.RootObject;
-            rootPagesObject = rootObject?.Dictionary.GetObject(PdfTokens.PagesKey);
-        }
-
-        if (rootObject == null || rootPagesObject == null)
-        {
-            _logger.LogWarning("Document root present but /Pages tree not found even after recovery scan.");
-            return;
+            throw new PdfInvalidDocumentException("Failed to parse PDF document: /Pages tree not found.");
         }
 
         // Try to resolve page labels from the catalog
-        PdfPageLabelResolver labelResolver = new(rootObject.Dictionary, _document.TreeReader);
+        PdfPageLabelResolver labelResolver = new(catalog, _document.TreeReader);
 
+        List<IPdfPageInternal> pages = [];
         PdfPageResources initialResources = new();
         initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
         HashSet<uint> visited = [];
-        ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver, visited);
+        ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver, visited, pages);
+
+        if (pages.Count == 0)
+        {
+            throw new PdfInvalidDocumentException("Failed to parse PDF document: no pages found.");
+        }
+
+        return pages;
     }
 
     /// <summary>
     /// Recursively extract pages from a /Pages node, handling nested page trees with inherited attributes.
     /// </summary>
-    private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum, PdfPageResources inherited, PdfPageLabelResolver labelResolver, HashSet<uint> visited)
+    private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum, PdfPageResources inherited, PdfPageLabelResolver labelResolver, HashSet<uint> visited, List<IPdfPageInternal> pages)
     {
         if (pagesObj == null)
         {
@@ -106,7 +96,7 @@ internal class PdfPageExtractor
             // damaged documents routinely omit /Type on leaf pages, and inline them into /Kids.
             if (kidObject.Dictionary.GetName(PdfTokens.TypeKey) != PdfTokens.PageKey && kidObject.Dictionary.HasKey(PdfTokens.KidsKey))
             {
-                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver, visited);
+                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver, visited, pages);
             }
             else
             {
@@ -115,7 +105,7 @@ internal class PdfPageExtractor
                 pageResources.UpdateFrom(kidObject);
                 PdfString pageLabel = labelResolver.GetLabel(currentPageNum - 1);
                 PdfPage page = new(currentPageNum, pageLabel, _document, kidObject, pageResources);
-                _document.Pages.Add(page);
+                pages.Add(page);
                 currentPageNum++;
             }
         }

@@ -35,15 +35,14 @@ public interface IPdfDocument : IPdfAssociatedFilesHost, IDisposable
     PdfOpenAction? OpenAction { get; }
 
     /// <summary>
-    /// Gets the version the document conforms to: the catalog /Version when later than the header version,
-    /// otherwise the header version; <see langword="null"/> when neither is readable.
+    /// Gets the catalog /Version, or <see langword="null"/> when absent or malformed.
     /// </summary>
     PdfVersion? Version { get; }
 
     /// <summary>
-    /// Gets the version declared by the <c>%PDF-</c> file header, or <see langword="null"/> when it is malformed.
+    /// Gets the <c>%PDF-</c> file header.
     /// </summary>
-    PdfVersion? HeaderVersion { get; }
+    PdfFileHeader Header { get; }
 
     /// <summary>
     /// Gets the document information dictionary (trailer /Info), or <see langword="null"/> when absent.

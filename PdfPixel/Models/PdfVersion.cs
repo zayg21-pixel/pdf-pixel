@@ -33,20 +33,6 @@ public readonly struct PdfVersion
     public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0}.{1}", Major, Minor);
 
     /// <summary>
-    /// Returns whether this version is later than <paramref name="other"/>.
-    /// </summary>
-    /// <param name="other">The version to compare with.</param>
-    internal bool IsLaterThan(in PdfVersion other)
-    {
-        if (Major != other.Major)
-        {
-            return Major > other.Major;
-        }
-
-        return Minor > other.Minor;
-    }
-
-    /// <summary>
     /// Parses a version written as <c>major.minor</c> at the start of <paramref name="text"/>,
     /// or returns <see langword="null"/> when it does not start with one.
     /// </summary>
