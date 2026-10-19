@@ -11,6 +11,8 @@ using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Web.Dto.Converters;
+using PdfPixel.PdfPanel.Web.Dto.Model;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
 using PdfPixel.PdfPanel.WorkQueue;
@@ -182,26 +184,26 @@ internal static partial class PdfPanelInterop
 
     /// <summary>
     /// Loads <paramref name="document"/> into the panel of <paramref name="containerId"/>, opening an encrypted document
-    /// with the JS <paramref name="credential"/>, and returns the JS result object; the shown document is kept when
+    /// with the JS <paramref name="credential"/>, and returns the JSON result; the shown document is kept when
     /// loading fails.
     /// </summary>
     [JSExport]
-    internal static JSObject SetDocument(string containerId, byte[] document, JSObject? credential)
+    internal static string SetDocument(string containerId, byte[] document, JSObject? credential)
     {
         if (!_isInitialized)
         {
-            return CreateDocumentResult("error", "The runtime is not initialized.");
+            return DocumentDtoConverter.CreateDocumentError("error", "The runtime is not initialized.");
         }
 
         if (!ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources))
         {
             Logger.LogWarning("Received document data for unknown container id '{Id}'", containerId);
-            return CreateDocumentResult("error", $"No panel is registered with id '{containerId}'.");
+            return DocumentDtoConverter.CreateDocumentError("error", $"No panel is registered with id '{containerId}'.");
         }
 
         if (document == null || document.Length == 0)
         {
-            return CreateDocumentResult("empty", "The document data is empty.");
+            return DocumentDtoConverter.CreateDocumentError("empty", "The document data is empty.");
         }
 
         IPdfDocument loadedDocument;
@@ -216,13 +218,13 @@ internal static partial class PdfPanelInterop
         catch (PdfAuthenticationException ex)
         {
             Logger.LogInformation("PDF document for container '{Id}' is not opened: {Message}", containerId, ex.Message);
-            return CreateCredentialRequestedResult("encrypted", ex.Message, resources.LastCredentialRequest);
+            return DocumentDtoConverter.CreateCredentialRequestedResult("encrypted", ex.Message, resources.LastCredentialRequest);
         }
 #pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading PDF document for container '{Id}'", containerId);
-            return CreateDocumentResult(GetDocumentErrorReason(ex), ex.Message);
+            return DocumentDtoConverter.CreateDocumentError(GetDocumentErrorReason(ex), ex.Message);
         }
 #pragma warning restore CA1031
         finally
@@ -256,13 +258,13 @@ internal static partial class PdfPanelInterop
 
             CreateViewModels(resources, resources.Pages, resources.Context);
 
-            return CreateDocumentResult(resources);
+            return DocumentDtoConverter.CreateDocumentResult(resources);
         }
 #pragma warning disable CA1031
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error showing PDF document for container '{Id}'", containerId);
-            return CreateDocumentResult("error", ex.Message);
+            return DocumentDtoConverter.CreateDocumentError("error", ex.Message);
         }
 #pragma warning restore CA1031
     }
@@ -461,116 +463,68 @@ internal static partial class PdfPanelInterop
     /// Passes the PNG of the thumbnail of a page to the thumbnail subscriber of the panel of <paramref name="containerId"/>.
     /// </summary>
     internal static void ReportThumbnail(string containerId, int pageNumber, byte[] png)
-    {
-        using JSObject update = CreateThumbnailUpdate(pageNumber, png);
-        ThumbnailUpdated(containerId, update);
-    }
+        => ThumbnailUpdated(containerId, pageNumber, png);
 
+    /// <summary>
+    /// Applies the JSON view state <paramref name="input"/> to the panel of <paramref name="containerId"/>, renders it
+    /// and returns the JSON view state after the render, or <see langword="null"/> when the panel has no document.
+    /// </summary>
     [JSExport]
-    public static void RequestRedraw(string containerId, JSObject state)
+    public static string? RequestRedraw(string containerId, string input)
     {
         if (!_isInitialized)
         {
-            return;
+            return null;
         }
 
         if (!ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources) || resources.Context == null)
         {
-            return;
+            return null;
         }
+
+        string? output = null;
 
         try
         {
-            int width = state.GetPropertyAsInt32("panelWidth");
-            int height = state.GetPropertyAsInt32("panelHeight");
+            RedrawInputDto? state = RedrawDtoConverter.ReadInput(input);
 
-            var verticalOffset = (float)(double)state.GetPropertyAsDouble("verticalOffset");
-            var horizontalOffset = (float)(double)state.GetPropertyAsDouble("horizontalOffset");
-            var scale = (float)(double)state.GetPropertyAsDouble("scale");
-
-            resources.Context.VerticalOffset = verticalOffset;
-            resources.Context.HorizontalOffset = horizontalOffset;
-            resources.Context.Scale = scale;
-            resources.Context.AutoScaleMode = ReadAutoScaleMode(state.GetPropertyAsString("autoScaleMode")) ?? PdfPanelAutoScaleMode.NoAutoScale;
-            resources.Context.PanelWidth = width;
-            resources.Context.PanelHeight = height;
-
-            ApplyZoomRequest(resources.Context, state);
-
-            int forcePageSet = state.GetPropertyAsInt32("forcePageSet");
-            if (forcePageSet > 0)
+            if (state == null)
             {
-                resources.Context.ScrollToPage(forcePageSet);
+                return null;
             }
 
-            resources.Context.Search.Query = state.GetPropertyAsString("searchQuery");
-            ApplyCurrentSearchResult(resources, resources.Context, state);
+            resources.Context.VerticalOffset = state.VerticalOffset;
+            resources.Context.HorizontalOffset = state.HorizontalOffset;
+            resources.Context.Scale = state.Scale;
+            resources.Context.AutoScaleMode = RedrawDtoConverter.ReadAutoScaleMode(state.AutoScaleMode) ?? PdfPanelAutoScaleMode.NoAutoScale;
+            resources.Context.PanelWidth = state.PanelWidth;
+            resources.Context.PanelHeight = state.PanelHeight;
 
-            bool pointerInside = state.GetPropertyAsBoolean("pointerInside");
-            if (pointerInside)
+            ApplyZoomRequest(resources.Context, state.ZoomRequest);
+
+            if (state.ForcePageSet > 0)
             {
-                var pointerX = (float)(double)state.GetPropertyAsDouble("pointerX");
-                var pointerY = (float)(double)state.GetPropertyAsDouble("pointerY");
-                resources.Context.Input.PointerPosition = new PdfPoint(pointerX, pointerY);
+                resources.Context.ScrollToPage(state.ForcePageSet);
+            }
+
+            resources.Context.Search.Query = state.SearchQuery;
+            ApplyCurrentSearchResult(resources, resources.Context, state.CurrentSearchResult);
+
+            if (state.PointerInside)
+            {
+                resources.Context.Input.PointerPosition = new PdfPoint(state.PointerX, state.PointerY);
             }
             else
             {
                 resources.Context.Input.PointerPosition = null;
             }
 
-            bool pointerPressed = state.GetPropertyAsBoolean("pointerPressed");
-            resources.Context.Input.PointerState = pointerPressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
+            resources.Context.Input.PointerState = (state.PointerPressed) ?PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
             resources.Context.Synchronize();
             resources.Layers?.Synchronize();
 
-            state.SetProperty("cursorStyle", ToCursorStyle(resources.Context.Input.Cursor));
-
-            PdfAnnotationPopup? activeAnnotation = resources.Context.Annotations.ActiveAnnotation;
-
-            if (activeAnnotation != resources.AnnotationPopup)
-            {
-                resources.AnnotationPopup = activeAnnotation;
-                SetAnnotationPopup(state, activeAnnotation);
-            }
-
-            string? activeContentName = resources.Context.Content.ActiveContentName;
-
-            if (activeContentName != resources.ActiveContentName)
-            {
-                resources.ActiveContentName = activeContentName;
-                state.SetProperty("activeContentNameChanged", true);
-                state.SetProperty("activeContentName", activeContentName);
-            }
-
-            PdfPanelSearch search = resources.Context.Search;
-            state.SetProperty("isTextExtracted", resources.Context.Text.IsTextExtracted);
-
-            if (resources.SearchResultsChanged)
-            {
-                resources.SearchResultsChanged = false;
-                SetSearchResults(state, search.Matches);
-            }
-
-            if (resources.LayersChanged)
-            {
-                resources.LayersChanged = false;
-                SetLayers(state, resources);
-            }
-
-            if (resources.ActionRequests.Count > 0)
-            {
-                SetActionRequests(state, resources);
-                resources.ActionRequests.Clear();
-            }
-
-            state.SetProperty("scrollWidth", resources.Context.ExtentWidth);
-            state.SetProperty("scrollHeight", resources.Context.ExtentHeight);
-            state.SetProperty("verticalOffset", resources.Context.VerticalOffset);
-            state.SetProperty("horizontalOffset", resources.Context.HorizontalOffset);
-            state.SetProperty("scale", resources.Context.Scale);
-            state.SetProperty("autoScaleMode", ToString(resources.Context.AutoScaleMode));
-            state.SetProperty("currentPage", resources.Context.GetCurrentPage());
+            output = RedrawDtoConverter.CreateResult(resources, resources.Context);
 
             resources.Context.Render();
         }
@@ -580,35 +534,32 @@ internal static partial class PdfPanelInterop
             Logger.LogError(ex, "Error in container '{Id}'", containerId);
         }
 #pragma warning restore CA1031
+
+        return output;
     }
 
     /// <summary>
     /// Zooms <paramref name="context"/> by the <c>zoomRequest</c> of the redraw state: to its <c>scale</c> when set,
     /// otherwise one step in or out by the sign of its <c>step</c>, around its <c>centerX</c> and <c>centerY</c>.
     /// </summary>
-    private static void ApplyZoomRequest(PdfPanelContext context, JSObject state)
+    private static void ApplyZoomRequest(PdfPanelContext context, ZoomRequestDto? zoomRequest)
     {
-        using JSObject? zoomRequest = state.GetPropertyAsJSObject("zoomRequest");
-
         if (zoomRequest == null)
         {
             return;
         }
 
-        var centerX = (float)zoomRequest.GetPropertyAsDouble("centerX");
-        var centerY = (float)zoomRequest.GetPropertyAsDouble("centerY");
-
-        if (zoomRequest.HasProperty("scale"))
+        if (zoomRequest.Scale != null)
         {
-            context.Zoom((float)zoomRequest.GetPropertyAsDouble("scale"), centerX, centerY);
+            context.Zoom(zoomRequest.Scale.Value, zoomRequest.CenterX, zoomRequest.CenterY);
         }
-        else if (zoomRequest.GetPropertyAsInt32("step") > 0)
+        else if (zoomRequest.Step > 0)
         {
-            context.ZoomIn(centerX, centerY);
+            context.ZoomIn(zoomRequest.CenterX, zoomRequest.CenterY);
         }
         else
         {
-            context.ZoomOut(centerX, centerY);
+            context.ZoomOut(zoomRequest.CenterX, zoomRequest.CenterY);
         }
     }
 
@@ -680,15 +631,9 @@ internal static partial class PdfPanelInterop
     /// Sets the current search match of <paramref name="context"/> from the <c>currentSearchResult</c> range of the redraw state,
     /// and scrolls to it when the range differs from the last one received.
     /// </summary>
-    private static void ApplyCurrentSearchResult(PdfPanelResources resources, PdfPanelContext context, JSObject state)
+    private static void ApplyCurrentSearchResult(PdfPanelResources resources, PdfPanelContext context, TextRangeDto? currentSearchResult)
     {
-        PdfPanelTextRange? range;
-
-        using (JSObject? result = state.GetPropertyAsJSObject("currentSearchResult"))
-        {
-            range = ReadTextRange(result);
-        }
-
+        PdfPanelTextRange? range = RedrawDtoConverter.ReadTextRange(currentSearchResult);
         PdfPanelSearchMatch? currentMatch = null;
 
         if (range != null)
@@ -761,59 +706,20 @@ internal static partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Builds the JS object of <paramref name="frame"/> and passes it to the view of <paramref name="containerId"/>.
+    /// Builds the JSON of <paramref name="frame"/> and passes it to the view of <paramref name="containerId"/>.
     /// </summary>
     private static void OnFramePresented(string containerId, PdfPanelFrame frame)
     {
-        using JSObject frameObject = CreateFrame(frame.PanelSize.Width, frame.PanelSize.Height, ToDomMatrix(frame.HostToPanel));
-
-        foreach (PdfPanelFramePage page in frame.Pages)
-        {
-            PdfRectangle cropBox = page.Info.CropBox;
-            PdfSize rotatedSize = page.RotatedSize;
-            double[] cropBoxValues = [cropBox.Left, cropBox.Top, cropBox.Right, cropBox.Bottom];
-            double[] rotatedSizeValues = [rotatedSize.Width, rotatedSize.Height];
-
-            AddFramePage(
-                frameObject,
-                page.PageNumber,
-                page.Info.Label,
-                cropBoxValues,
-                page.Info.Rotation,
-                page.UserRotation,
-                rotatedSizeValues,
-                ToDomMatrix(page.GetPanelToPage(0)));
-        }
-
-        FramePresented(containerId, frameObject);
+        string frameJson = FrameDtoConverter.CreateFrame(frame);
+        FramePresented(containerId, frameJson);
     }
 
-    /// <summary>
-    /// Returns the <c>DOMMatrix</c> component order <c>[a, b, c, d, e, f]</c> of <paramref name="matrix"/>.
-    /// </summary>
-    private static double[] ToDomMatrix(in PdfMatrix matrix)
-        => [matrix.ScaleX, matrix.SkewY, matrix.SkewX, matrix.ScaleY, matrix.TransX, matrix.TransY];
-
-    [JSImport("createFrame", "canvasInterop.js")]
-    private static partial JSObject CreateFrame(double panelWidth, double panelHeight, [JSMarshalAs<JSType.Array<JSType.Number>>] double[] hostToPanel);
-
-    [JSImport("addFramePage", "canvasInterop.js")]
-    private static partial void AddFramePage(
-        JSObject frame,
-        int pageNumber,
-        string label,
-        [JSMarshalAs<JSType.Array<JSType.Number>>] double[] cropBox,
-        int rotation,
-        int userRotation,
-        [JSMarshalAs<JSType.Array<JSType.Number>>] double[] rotatedSize,
-        [JSMarshalAs<JSType.Array<JSType.Number>>] double[] panelToContent);
-
     [JSImport("framePresented", "canvasInterop.js")]
-    private static partial void FramePresented(string containerId, JSObject frame);
+    private static partial void FramePresented(string containerId, string frame);
 
     [JSImport("scheduleRedraw", "canvasInterop.js")]
     internal static partial void ScheduleRedraw(string containerId);
 
     [JSImport("thumbnailUpdated", "canvasInterop.js")]
-    private static partial void ThumbnailUpdated(string containerId, JSObject update);
+    private static partial void ThumbnailUpdated(string containerId, int pageNumber, [JSMarshalAs<JSType.Array<JSType.Number>>] byte[] png);
 }

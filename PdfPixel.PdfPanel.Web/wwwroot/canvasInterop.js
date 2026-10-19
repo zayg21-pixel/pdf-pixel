@@ -38,16 +38,21 @@ function createPanelCanvas(className) {
  * Visible page of a presented frame. Mirrors `PdfPanelFramePage`.
  */
 class PdfPanelFramePage {
-    constructor(pageNumber, label, cropBox, rotation, userRotation, rotatedSize, panelToContent) {
-        this.pageNumber = pageNumber;
+    /**
+     * @param {{ pageNumber: number, label: string, cropBox: { left: number, top: number, right: number, bottom: number },
+     * rotation: number, userRotation: number, rotatedWidth: number, rotatedHeight: number, panelToContent: number[] }} page
+     * The page of the frame JSON.
+     */
+    constructor(page) {
+        this.pageNumber = page.pageNumber;
         this.info = {
-            label: label,
-            cropBox: { left: cropBox[0], top: cropBox[1], right: cropBox[2], bottom: cropBox[3] },
-            rotation: rotation
+            label: page.label,
+            cropBox: page.cropBox,
+            rotation: page.rotation
         };
-        this.userRotation = userRotation;
-        this.rotatedSize = { width: rotatedSize[0], height: rotatedSize[1] };
-        this._panelToContent = new DOMMatrix(panelToContent);
+        this.userRotation = page.userRotation;
+        this.rotatedSize = { width: page.rotatedWidth, height: page.rotatedHeight };
+        this._panelToContent = new DOMMatrix(page.panelToContent);
     }
 
     /**
@@ -207,19 +212,14 @@ class PdfPanelView {
         const pointerX = pointerInside ? this.state.mouseX * devicePixelScale : 0;
         const pointerY = pointerInside ? this.state.mouseY * devicePixelScale : 0;
 
-        const redrawState = {
-            containerWidth: containerWidth,
-            containerHeight: containerHeight,
+        const input = {
             panelWidth: physicalWidth,
             panelHeight: physicalHeight,
-            devicePixelScale: devicePixelScale,
             verticalOffset: this.state.verticalOffset,
             horizontalOffset: this.state.horizontalOffset,
             scale: this.state.scale,
             autoScaleMode: this.state.autoScaleMode,
             zoomRequest: this.state.zoomRequest,
-            scrollWidth: 0,
-            scrollHeight: 0,
             forcePageSet: this.state.forcePageSet,
             pointerInside: pointerInside,
             pointerX: pointerX,
@@ -229,15 +229,27 @@ class PdfPanelView {
             currentSearchResult: this.state.currentSearchResult
         };
 
-        interop.RequestRedraw(this.id, redrawState);
+        const output = interop.RequestRedraw(this.id, JSON.stringify(input));
+
+        // Without a document the panel returns no state; the view keeps what it sent.
+        const redrawState = output
+            ? JSON.parse(output)
+            : {
+                scrollWidth: 0,
+                scrollHeight: 0,
+                verticalOffset: input.verticalOffset,
+                horizontalOffset: input.horizontalOffset,
+                scale: input.scale,
+                autoScaleMode: input.autoScaleMode
+            };
 
         this.state.forcePageSet = 0;
         this.state.zoomRequest = null;
-        this.state.containerWidth = redrawState.containerWidth;
-        this.state.containerHeight = redrawState.containerHeight;
-        this.state.devicePixelScale = redrawState.devicePixelScale;
-        this.state.panelWidth = redrawState.panelWidth;
-        this.state.panelHeight = redrawState.panelHeight;
+        this.state.containerWidth = containerWidth;
+        this.state.containerHeight = containerHeight;
+        this.state.devicePixelScale = devicePixelScale;
+        this.state.panelWidth = input.panelWidth;
+        this.state.panelHeight = input.panelHeight;
         this.state.scrollWidth = redrawState.scrollWidth;
         this.state.scrollHeight = redrawState.scrollHeight;
         this.state.verticalOffset = redrawState.verticalOffset;
@@ -693,7 +705,7 @@ export function unregisterPanel(id) {
  */
 export async function setDocument(id, documentData) {
     const view = views.get(id);
-    const result = await performWithCredential(view, credential => interop.SetDocument(id, documentData, credential));
+    const result = await performWithCredential(view, credential => JSON.parse(interop.SetDocument(id, documentData, credential)));
 
     if (!result.ok) {
         return { ok: false, reason: result.reason, message: result.message };
@@ -1130,61 +1142,38 @@ export function setScale(id, scale) {
 }
 
 /**
- * Creates a frame object without pages.
- * Called from C# via JSImport.
- * @param {number} panelWidth Panel width in device pixels.
- * @param {number} panelHeight Panel height in device pixels.
- * @param {number[]} hostToPanel Host to panel matrix as `[a, b, c, d, e, f]`.
- * @returns {{ panelSize: { width: number, height: number }, hostToPanel: DOMMatrix, pages: PdfPanelFramePage[] }} The frame object.
- */
-export function createFrame(panelWidth, panelHeight, hostToPanel) {
-    return {
-        panelSize: { width: panelWidth, height: panelHeight },
-        hostToPanel: new DOMMatrix(hostToPanel),
-        pages: []
-    };
-}
-
-/**
- * Appends a visible page to a frame's pages.
- * Called from C# via JSImport.
- * @param {object} frame The frame object.
- * @param {number} pageNumber 1-based page number.
- * @param {string} label Page label.
- * @param {number[]} cropBox Crop box in PDF user space as `[left, top, right, bottom]`.
- * @param {number} rotation Page rotation from the document.
- * @param {number} userRotation Rotation applied by the user.
- * @param {number[]} rotatedSize Page size after rotation as `[width, height]`.
- * @param {number[]} panelToContent Panel pixels to unrotated page content as `[a, b, c, d, e, f]`.
- */
-export function addFramePage(frame, pageNumber, label, cropBox, rotation, userRotation, rotatedSize, panelToContent) {
-    frame.pages.push(new PdfPanelFramePage(pageNumber, label, cropBox, rotation, userRotation, rotatedSize, panelToContent));
-}
-
-/**
  * Passes a presented frame to the subscriber of the view.
  * Called from C# via JSImport.
  * @param {string} id View id.
- * @param {object} frame The frame object.
+ * @param {string} frameJson The frame `{ panelWidth, panelHeight, hostToPanel, pages }` as JSON, the matrices as
+ * `[a, b, c, d, e, f]`.
  */
-export function framePresented(id, frame) {
+export function framePresented(id, frameJson) {
     const view = views.get(id);
     if (!view) {
         return;
     }
-    view.presentFrame(frame);
+
+    const frame = JSON.parse(frameJson);
+
+    view.presentFrame({
+        panelSize: { width: frame.panelWidth, height: frame.panelHeight },
+        hostToPanel: new DOMMatrix(frame.hostToPanel),
+        pages: frame.pages.map(page => new PdfPanelFramePage(page))
+    });
 }
 
 /**
  * Passes a thumbnail update to the subscriber of the view.
  * Called from C# via JSImport.
  * @param {string} id View id.
- * @param {{ pageNumber: number, png: Uint8Array }} update The thumbnail update.
+ * @param {number} pageNumber 1-based page number.
+ * @param {Uint8Array} png The thumbnail PNG.
  */
-export function thumbnailUpdated(id, update) {
+export function thumbnailUpdated(id, pageNumber, png) {
     const view = views.get(id);
     if (view) {
-        view.updateThumbnail(update);
+        view.updateThumbnail({ pageNumber: pageNumber, png: png });
     }
 }
 
@@ -1207,13 +1196,4 @@ export function scheduleRedraw(id) {
  */
 export function createObject() {
     return {};
-}
-
-/**
- * Creates an empty array.
- * Called from C# via JSImport.
- * @returns {Array} The array.
- */
-export function createArray() {
-    return [];
 }
