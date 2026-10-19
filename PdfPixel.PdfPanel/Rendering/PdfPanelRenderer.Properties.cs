@@ -13,7 +13,6 @@ public sealed partial class PdfPanelRenderer
     internal const int DefaultTileSize = 512;
     internal const int DefaultAnimationFps = 60;
     internal const int DefaultLookAheadPageCount = 2;
-    internal const int DefaultContentCacheSize = 10;
 
     internal static readonly PdfColor DefaultBackgroundColor = PdfColors.LightGray;
     internal static readonly TimeSpan DefaultScrollContentUpdateDelay = TimeSpan.Zero;
@@ -75,8 +74,5 @@ public sealed partial class PdfPanelRenderer
     /// Number of pages ahead of the visible pages in the scroll direction whose content is decoded after them.
     /// </summary>
     public int LookAheadPageCount { get; set; } = DefaultLookAheadPageCount;
+}
 
-    /// <summary>
-    /// Number of pages besides the visible ones whose decoded content is kept, the most recently requested ones.
-    /// </summary>
-    public int ContentCacheSize { get; set; } = DefaultContentCacheSize;}

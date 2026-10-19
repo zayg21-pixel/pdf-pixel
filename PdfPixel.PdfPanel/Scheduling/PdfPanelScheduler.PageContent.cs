@@ -14,7 +14,7 @@ internal sealed partial class PdfPanelScheduler
 
     private readonly HashSet<int> _visiblePageNumbers = [];
     private readonly HashSet<int> _lookAheadPageNumbers = [];
-    private readonly List<int> _contentCachePageNumbers = [];
+    private readonly HashSet<int> _contentCachePageNumbers = [];
     private PagesDrawingRequest? _lastLookAheadRequest;
     private readonly PdfContentExtractor _contentExtractor = new();
     private readonly PdfContentExtractionParameters _contentExtractionParameters = new() { ContentKinds = ExtractedContentKinds };
@@ -38,7 +38,7 @@ internal sealed partial class PdfPanelScheduler
             _lookAheadPageNumbers.UnionWith(requestedPageNumbers);
             _lastLookAheadRequest = request;
             EnqueueContentUpdates(request);
-            EvictContentCache(request.ContentCacheSize);
+            EvictContentCache();
             return;
         }
 
@@ -71,7 +71,7 @@ internal sealed partial class PdfPanelScheduler
             }
         }
 
-        EvictContentCache(request.ContentCacheSize);
+        EvictContentCache();
         RequeueThumbnailRequests();
         EnqueueNextThumbnail();
         EnqueueNextTextExtraction();
@@ -79,7 +79,6 @@ internal sealed partial class PdfPanelScheduler
 
     private void EnqueueContentUpdate(PdfPageCacheEntry cacheEntry, PagesDrawingRequest request)
     {
-        _contentCachePageNumbers.Remove(cacheEntry.PageNumber);
         _contentCachePageNumbers.Add(cacheEntry.PageNumber);
 
         PagesDrawingRequest? pendingRequest = cacheEntry.PendingRequest;
@@ -120,27 +119,27 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Clears the decoded content of the least recently requested pages beyond <paramref name="contentCacheSize"/>.
+    /// Clears the decoded content of the pages that are neither visible nor ahead of the visible pages.
     /// </summary>
-    private void EvictContentCache(int contentCacheSize)
+    private void EvictContentCache()
     {
         List<PdfPageCacheEntry> evictedEntries = [];
-        int index = 0;
 
-        while (_contentCachePageNumbers.Count - _visiblePageNumbers.Count > contentCacheSize && index < _contentCachePageNumbers.Count)
+        foreach (int pageNumber in _contentCachePageNumbers)
         {
-            int pageNumber = _contentCachePageNumbers[index];
-
-            if (_visiblePageNumbers.Contains(pageNumber))
+            if (_visiblePageNumbers.Contains(pageNumber) || _lookAheadPageNumbers.Contains(pageNumber))
             {
-                index++;
                 continue;
             }
 
             PdfPageCacheEntry evictedEntry = _panelDocument.Entries[pageNumber - 1];
             evictedEntry.Cancel();
             evictedEntries.Add(evictedEntry);
-            _contentCachePageNumbers.RemoveAt(index);
+        }
+
+        foreach (PdfPageCacheEntry evictedEntry in evictedEntries)
+        {
+            _contentCachePageNumbers.Remove(evictedEntry.PageNumber);
         }
 
         if (evictedEntries.Count > 0)

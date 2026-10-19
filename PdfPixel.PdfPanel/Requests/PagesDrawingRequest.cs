@@ -15,11 +15,6 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     public bool IsLookAhead { get; set; }
 
     /// <summary>
-    /// Number of pages besides the visible ones whose decoded content is kept.
-    /// </summary>
-    public int ContentCacheSize { get; set; }
-
-    /// <summary>
     /// If true - antialiasing is enabled for page content.
     /// </summary>
     public bool Antialias { get; set; }
@@ -82,7 +77,6 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         {
             return base.Equals(obj)
                 && IsLookAhead == other.IsLookAhead
-                && ContentCacheSize == other.ContentCacheSize
                 && Antialias == other.Antialias
                 && SnapToDevicePixels == other.SnapToDevicePixels
                 && BackgroundColor.Equals(other.BackgroundColor)
@@ -108,7 +102,6 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         hash.Add(ActiveAnnotation);
         hash.Add(ActiveAnnotationState);
         hash.Add(IsLookAhead);
-        hash.Add(ContentCacheSize);
         hash.Add(Antialias);
         hash.Add(SnapToDevicePixels);
         hash.Add(BackgroundColor);

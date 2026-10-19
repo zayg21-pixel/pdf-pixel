@@ -354,7 +354,6 @@ public sealed class PdfPanelContext : IDisposable
             RenderTarget = _renderTargetFactory.GetRenderTarget(this),
             Pages = pages,
             IsLookAhead = isLookAhead,
-            ContentCacheSize = Renderer.ContentCacheSize,
             Antialias = Renderer.Antialias,
             SnapToDevicePixels = Renderer.SnapToDevicePixels,
             BackgroundColor = Renderer.BackgroundColor,

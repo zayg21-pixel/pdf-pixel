@@ -50,7 +50,6 @@ internal static partial class PdfPanelInterop
         target.ScrollContentUpdateDelay = ReadMilliseconds(source, "scrollContentUpdateDelay", target.ScrollContentUpdateDelay);
         target.ZoomContentUpdateDelay = ReadMilliseconds(source, "zoomContentUpdateDelay", target.ZoomContentUpdateDelay);
         target.LookAheadPageCount = ReadInt32(source, "lookAheadPageCount", target.LookAheadPageCount);
-        target.ContentCacheSize = ReadInt32(source, "contentCacheSize", target.ContentCacheSize);
         target.TextCharacterHitRadius = ReadFloat(source, "textCharacterHitRadius", target.TextCharacterHitRadius);
         target.TextLineMergeThreshold = ReadFloat(source, "textLineMergeThreshold", target.TextLineMergeThreshold);
 

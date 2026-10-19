@@ -49,7 +49,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private TimeSpan _scrollContentUpdateDelay = PdfPanelRenderer.DefaultScrollContentUpdateDelay;
     private TimeSpan _zoomContentUpdateDelay = PdfPanelRenderer.DefaultZoomContentUpdateDelay;
     private int _lookAheadPageCount = PdfPanelRenderer.DefaultLookAheadPageCount;
-    private int _contentCacheSize = PdfPanelRenderer.DefaultContentCacheSize;    private float _textCharacterHitRadius = PdfPanelText.DefaultCharacterHitRadius;
+    private float _textCharacterHitRadius = PdfPanelText.DefaultCharacterHitRadius;
     private float _textLineMergeThreshold = PdfPanelText.DefaultLineMergeThreshold;
 
     /// <inheritdoc />
@@ -358,15 +358,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Number of pages besides the visible ones whose decoded content is kept, the most recently requested ones.
-    /// </summary>
-    public int ContentCacheSize
-    {
-        get => _contentCacheSize;
-        set => SetProperty(ref _contentCacheSize, value, nameof(ContentCacheSize));
-    }
-
-    /// <summary>
     /// Distance from a character within which the pointer counts as being over it, in unscaled panel space.
     /// </summary>
     public float TextCharacterHitRadius
@@ -427,7 +418,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Renderer.ScrollContentUpdateDelay = ScrollContentUpdateDelay;
         context.Renderer.ZoomContentUpdateDelay = ZoomContentUpdateDelay;
         context.Renderer.LookAheadPageCount = LookAheadPageCount;
-        context.Renderer.ContentCacheSize = ContentCacheSize;
         context.Text.CharacterHitRadius = TextCharacterHitRadius;
         context.Text.LineMergeThreshold = TextLineMergeThreshold;
     }
