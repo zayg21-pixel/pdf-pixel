@@ -18,6 +18,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfOperandStack _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
+    private readonly Stack<PdfGraphicsState> _freeStates = [];
     private readonly ILogger<GraphicsStateOperators> _logger;
 
     public GraphicsStateOperators(IPdfContentHost host, IPdfCommandProcessor processor, PdfOperandStack operandStack, Stack<PdfGraphicsState> graphicsStack)
@@ -127,7 +128,19 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSaveGraphicsState(PdfGraphicsState graphicsState)
     {
-        _graphicsStack.Push(graphicsState.Clone());
+        PdfGraphicsState savedState;
+
+        if (_freeStates.Count > 0)
+        {
+            savedState = _freeStates.Pop();
+            savedState.CopyFrom(graphicsState);
+        }
+        else
+        {
+            savedState = graphicsState.Clone();
+        }
+
+        _graphicsStack.Push(savedState);
         _processor.Process(SaveStateCommand.Instance);
     }
 
@@ -138,6 +151,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
+        _freeStates.Push(graphicsState);
         graphicsState = _graphicsStack.Pop();
         _processor.Process(RestoreStateCommand.Instance);
     }

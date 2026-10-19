@@ -398,38 +398,49 @@ public class PdfGraphicsState
         return glyphState;
     }
 
+    /// <summary>
+    /// Overwrites this state with the values of <paramref name="source"/> that q saves.
+    /// </summary>
+    /// <param name="source">The state to copy from.</param>
+    internal void CopyFrom(PdfGraphicsState source)
+    {
+        _renderingIntent = source._renderingIntent;
+        _strokeColorConverter = source._strokeColorConverter;
+        _strokeDeviceColorMapping = source._strokeDeviceColorMapping;
+        _strokeRgbaSampler = source._strokeRgbaSampler;
+        _fillColorConverter = source._fillColorConverter;
+        _fillDeviceColorMapping = source._fillDeviceColorMapping;
+        _fillRgbaSampler = source._fillRgbaSampler;
+        _transferFunction = source._transferFunction;
+        _useBlackPointCompensation = source._useBlackPointCompensation;
+        StrokePaint = source.StrokePaint;
+        FillPaint = source.FillPaint;
+        FlatnessTolerance = source.FlatnessTolerance;
+        SoftMask = source.SoftMask;
+        SoftMaskCTM = source.SoftMaskCTM;
+        AlphaIsShape = source.AlphaIsShape;
+        OverprintMode = source.OverprintMode;
+        CurrentFont = source.CurrentFont;
+        FontSize = source.FontSize;
+        CharacterSpacing = source.CharacterSpacing;
+        WordSpacing = source.WordSpacing;
+        HorizontalScaling = source.HorizontalScaling;
+        Leading = source.Leading;
+        Rise = source.Rise;
+        TextRenderingMode = source.TextRenderingMode;
+        TextMatrix = source.TextMatrix;
+        TextLineMatrix = source.TextLineMatrix;
+        CTM = source.CTM;
+        ClipBounds = source.ClipBounds;
+        TextClipPath = source.TextClipPath;
+    }
+
     private PdfGraphicsState Copy(IPdfContentHost stateHost, PdfRenderingParameters renderingParameters)
     {
-        return new(stateHost, ClipBounds, RecursionGuard, ExecutionObserver, renderingParameters)
-        {
-            StrokePaint = StrokePaint,
-            FillPaint = FillPaint,
-            FlatnessTolerance = FlatnessTolerance,
-            StrokeColorConverter = StrokeColorConverter,
-            StrokeDeviceColorMapping = StrokeDeviceColorMapping,
-            FillColorConverter = FillColorConverter,
-            FillDeviceColorMapping = FillDeviceColorMapping,
-            RenderingIntent = RenderingIntent,
-            SoftMask = SoftMask,
-            SoftMaskCTM = SoftMaskCTM,
-            TransferFunction = TransferFunction,
-            UseBlackPointCompensation = UseBlackPointCompensation,
-            AlphaIsShape = AlphaIsShape,
-            OverprintMode = OverprintMode,
-            CurrentFont = CurrentFont,
-            FontSize = FontSize,
-            CharacterSpacing = CharacterSpacing,
-            WordSpacing = WordSpacing,
-            HorizontalScaling = HorizontalScaling,
-            Leading = Leading,
-            Rise = Rise,
-            TextRenderingMode = TextRenderingMode,
-            TextMatrix = TextMatrix,
-            TextLineMatrix = TextLineMatrix,
-            CTM = CTM,
-            ClipBounds = ClipBounds,
-            TextClipPath = TextClipPath
-        };
+        PdfGraphicsState copy = new(stateHost, ClipBounds, RecursionGuard, ExecutionObserver, renderingParameters);
+        copy.CopyFrom(this);
+
+        return copy;
     }
 
     private void InvalidateRgbaSamplers()
