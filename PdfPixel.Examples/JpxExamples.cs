@@ -71,7 +71,7 @@ internal static class JpxExamples
         JpxDecodingParameters decodingParameters = new(descaleFactor, regions);
 
         // The tile provider decodes tiles on demand from the codestream that follows the header.
-        JpxTileProvider tileProvider = new(header, fileBytes.AsSpan(header.CodestreamOffset), decodingParameters);
+        JpxTileProvider tileProvider = new(header, fileBytes.AsMemory(header.CodestreamOffset), decodingParameters);
 
         // The converter assembles the tile grid into image rows, decoding each tile row as it is reached.
         JpxTileToRowConverter converter = new(header, tileProvider, decodingParameters);

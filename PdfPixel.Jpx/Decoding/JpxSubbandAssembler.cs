@@ -30,7 +30,7 @@ internal static class JpxSubbandAssembler
         if (codeBlock.ResolutionLevel == 0)
         {
             // Resolution 0 = LL subband (lowest frequency)
-            PlaceCodeBlock(subbands.LL, subbands.LLWidth, subbands.LLHeight, codeBlock, coefficients);
+            PlaceCodeBlock(subbands.Samples, 0, subbands.Stride, subbands.LLWidth, subbands.LLHeight, codeBlock, coefficients);
             return;
         }
 
@@ -41,7 +41,9 @@ internal static class JpxSubbandAssembler
         var subbandType = (JpxSubbandType)codeBlock.SubbandIndex;
 
         PlaceCodeBlock(
-            subbands.GetSubband(subbandLevel, subbandType),
+            subbands.Samples,
+            subbands.GetOffset(subbandLevel, subbandType),
+            subbands.Stride,
             subbands.GetWidth(subbandLevel, subbandType),
             subbands.GetHeight(subbandLevel, subbandType),
             codeBlock,
@@ -49,10 +51,12 @@ internal static class JpxSubbandAssembler
     }
 
     /// <summary>
-    /// Places a single code-block's coefficients into the target subband array.
+    /// Places a single code-block's coefficients into its subband within the component samples.
     /// </summary>
     private static void PlaceCodeBlock(
-        in Span<int> subbandData,
+        in Span<int> samples,
+        int subbandOffset,
+        int stride,
         int subbandWidth,
         int subbandHeight,
         JpxCodeBlock codeBlock,
@@ -77,7 +81,7 @@ internal static class JpxSubbandAssembler
             }
 
             coefficients.Slice(y * codeBlock.Width, coeffWidth)
-                .CopyTo(subbandData.Slice((destY * subbandWidth) + cbStartX, coeffWidth));
+                .CopyTo(samples.Slice(subbandOffset + (destY * stride) + cbStartX, coeffWidth));
         }
     }
 }

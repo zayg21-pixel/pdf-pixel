@@ -31,12 +31,12 @@ internal sealed class TileContentExtractor
     /// <summary>
     /// Extracts tile contents from a codestream, returning one entry per tile
     /// in tile-index order. The returned array length equals the total number of tiles
-    /// in the image grid. Tiles not present in the codestream will have a null <see cref="ExtractedTileContent.Data"/>.
+    /// in the image grid. Tiles not present in the codestream will have a null <see cref="ExtractedTileContent.TileHeader"/>.
     /// </summary>
     /// <param name="header">Parsed JPX header containing tile grid information.</param>
     /// <param name="codestream">Codestream data starting at the first SOT marker.</param>
     /// <returns>Array of extracted tile contents indexed by tile index.</returns>
-    public ExtractedTileContent[] ExtractTileContents(JpxHeader header, in ReadOnlySpan<byte> codestream)
+    public ExtractedTileContent[] ExtractTileContents(JpxHeader header, in ReadOnlyMemory<byte> codestream)
     {
         if (header == null)
         {
@@ -53,7 +53,7 @@ internal sealed class TileContentExtractor
         var hasData = new bool[totalTiles];
         var additionalSlices = new List<TilePartSlice>[totalTiles];
         var tileHeaders = new JpxTileHeader[totalTiles];
-        JpxSpanReader reader = new(codestream);
+        JpxSpanReader reader = new(codestream.Span);
 
         while (!reader.EndOfSpan && reader.Remaining >= 2)
         {
@@ -105,7 +105,7 @@ internal sealed class TileContentExtractor
         {
             if (!hasData[tileIndex])
             {
-                // Leave as default (Data will be null)
+                // Leave as default (TileHeader will be null)
                 continue;
             }
 
@@ -114,13 +114,13 @@ internal sealed class TileContentExtractor
 
             if (extra == null)
             {
-                // Single tile-part: slice directly from codestream, single allocation
-                byte[] data = codestream.Slice(first.Offset, first.Length).ToArray();
+                // Single tile-part: slice directly from codestream
+                ReadOnlyMemory<byte> data = codestream.Slice(first.Offset, first.Length);
                 results[tileIndex] = new ExtractedTileContent(tileHeaders[tileIndex], data);
             }
             else
             {
-                byte[] concatenatedData = ConcatenateSlices(codestream, first, extra);
+                byte[] concatenatedData = ConcatenateSlices(codestream.Span, first, extra);
                 results[tileIndex] = new ExtractedTileContent(tileHeaders[tileIndex], concatenatedData);
             }
         }

@@ -89,7 +89,7 @@ internal sealed class TiffChunkDecoder
             case TiffCompression.Jpeg2000:
             case TiffCompression.AperioJpeg2000Rgb:
                 {
-                    DecodeJpeg2000(encoded.Span, chunkWidth, chunkRows, sampleBits, rowBytes, destination);
+                    DecodeJpeg2000(encoded, chunkWidth, chunkRows, sampleBits, rowBytes, destination);
                     return;
                 }
             default:
@@ -234,9 +234,9 @@ internal sealed class TiffChunkDecoder
         return rows;
     }
 
-    private static void DecodeJpeg2000(in ReadOnlySpan<byte> encoded, int chunkWidth, int chunkRows, int[] sampleBits, int rowBytes, byte[] destination)
+    private static void DecodeJpeg2000(in ReadOnlyMemory<byte> encoded, int chunkWidth, int chunkRows, int[] sampleBits, int rowBytes, byte[] destination)
     {
-        JpxHeader header = JpxReader.ParseHeader(encoded);
+        JpxHeader header = JpxReader.ParseHeader(encoded.Span);
         JpxTileProvider tileProvider = new(header, encoded.Slice(header.CodestreamOffset));
         JpxTileToRowConverter rowConverter = new(header, tileProvider);
 

@@ -43,7 +43,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, regionsOfInterest, _resolvedConverter, includeOpacityComponent);
         JpxTileProvider tileProvider = new(
             jpxHeader,
-            encodedData.Span.Slice(jpxHeader.CodestreamOffset),
+            encodedData.Slice(jpxHeader.CodestreamOffset),
             jpxDecodingParameters);
 
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);

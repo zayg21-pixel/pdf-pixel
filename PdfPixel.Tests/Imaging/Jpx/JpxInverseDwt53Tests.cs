@@ -59,50 +59,57 @@ public class JpxInverseDwt53Tests
     {
         JpxQuantization quantization = CreateQuantization();
         JpxSubbandData subbands = new(1);
-        subbands.Reset(new JpxRectangle(0, 0, 1, 1));
-        subbands.LL[0] = 1 << 30;
+        int[] samples = new int[1];
+        subbands.Reset(new JpxRectangle(0, 0, 1, 1), samples);
+        samples[0] = 1 << 30;
 
         JpxInverseDwt53 transform = new(quantization);
-        int[] destination = new int[1];
-        transform.Transform(subbands, destination, new JpxDwtScratch());
+        transform.Transform(subbands, new JpxDwtScratch());
 
         int expected = JpxDequantizer.DequantizeReversible(1 << 30, JpxDequantizer.ComputeReversibleShift(quantization, 0));
-        Assert.Equal(expected, destination[0]);
+        Assert.Equal(expected, samples[0]);
     }
 
     private static int[] Reconstruct(int levels, int originX, int originY, int width, int height)
     {
         JpxSubbandData subbands = new(levels);
-        subbands.Reset(new JpxRectangle(originX, originY, width, height));
+        subbands.Reset(new JpxRectangle(originX, originY, width, height), new int[width * height]);
 
         // Deterministic pseudo-random sign-magnitude coefficients, as the Tier-1 decoder emits.
         uint state = (uint)((levels * PrimeLevels) + (originX * PrimeOriginX) + (originY * PrimeOriginY) + (width * PrimeWidth) + height);
-        Fill(subbands.LL, ref state);
+        Fill(subbands, 0, subbands.LLWidth, subbands.LLHeight, ref state);
 
         for (int level = 0; level < levels; level++)
         {
-            Fill(subbands.GetSubband(level, JpxSubbandType.HL), ref state);
-            Fill(subbands.GetSubband(level, JpxSubbandType.LH), ref state);
-            Fill(subbands.GetSubband(level, JpxSubbandType.HH), ref state);
+            Fill(subbands, level, JpxSubbandType.HL, ref state);
+            Fill(subbands, level, JpxSubbandType.LH, ref state);
+            Fill(subbands, level, JpxSubbandType.HH, ref state);
         }
 
         JpxInverseDwt53 transform = new(CreateQuantization());
-        int[] destination = new int[subbands.GetResolutionWidth(0) * subbands.GetResolutionHeight(0)];
-        transform.Transform(subbands, destination, new JpxDwtScratch());
+        transform.Transform(subbands, new JpxDwtScratch());
 
-        return destination;
+        return subbands.Samples.ToArray();
     }
 
-    private static void Fill(in Span<int> coefficients, ref uint state)
-    {
-        for (int i = 0; i < coefficients.Length; i++)
-        {
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
+    private static void Fill(JpxSubbandData subbands, int level, JpxSubbandType type, ref uint state)
+        => Fill(subbands, subbands.GetOffset(level, type), subbands.GetWidth(level, type), subbands.GetHeight(level, type), ref state);
 
-            // Magnitude in the upper bits, as Tier-1 leaves it, plus an independent sign bit.
-            coefficients[i] = (int)((state & 0x7FFFFFFF) | ((state & 1) << 31));
+    private static void Fill(JpxSubbandData subbands, int offset, int width, int height, ref uint state)
+    {
+        Span<int> samples = subbands.Samples;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+
+                // Magnitude in the upper bits, as Tier-1 leaves it, plus an independent sign bit.
+                samples[offset + (y * subbands.Stride) + x] = (int)((state & 0x7FFFFFFF) | ((state & 1) << 31));
+            }
         }
     }
 

@@ -405,7 +405,7 @@ public class JpxDecodingTests
 
         byte[] data = File.ReadAllBytes(filePath);
         JpxHeader header = JpxReader.ParseHeader(data);
-        JpxTileProvider provider = new(header, data.AsSpan(header.CodestreamOffset));
+        JpxTileProvider provider = new(header, data.AsMemory(header.CodestreamOffset));
         JpxTileToRowConverter converter = new(header, provider);
 
         // TODO: [MEDIUM] Accept grayscale, four-component and non-8-bit images so the corpus can

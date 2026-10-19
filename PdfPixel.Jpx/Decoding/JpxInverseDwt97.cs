@@ -43,7 +43,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    public void Transform(JpxSubbandData subbands, in Span<int> destination, JpxDwtScratch scratch, int stopAtLevel = 0)
+    public void Transform(JpxSubbandData subbands, JpxDwtScratch scratch, int stopAtLevel = 0)
     {
         if (subbands == null)
         {
@@ -57,46 +57,23 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
 
         int levels = subbands.Levels;
 
-        // Compute output dimensions based on how many levels we reconstruct
-        int outputWidth = subbands.GetResolutionWidth(stopAtLevel);
+        // The coefficients are replaced by their dequantized values in place, as floats of the same width.
+        Span<int> coefficients = subbands.Samples;
+        Span<float> samples = MemoryMarshal.Cast<int, float>(coefficients);
+        int stride = subbands.Stride;
         int outputHeight = subbands.GetResolutionHeight(stopAtLevel);
 
-        int maxPixels = outputWidth * outputHeight;
-
-        // The interleaved buffer holds the level being reconstructed; the lowpass one holds the
-        // level completed so far, which is the LL input of the next.
-        float[] interleavedBuffer = scratch.GetInterleavedSamples(maxPixels);
-        float[] lowpassBuffer = scratch.GetLowpassSamples(maxPixels);
-
-        Span<float> reconstructed = lowpassBuffer;
-
-        Span<int> lowpass = subbands.LL;
-        int lowpassWidth = subbands.LLWidth;
-        int currentWidth = lowpassWidth;
-        int currentHeight = subbands.LLHeight;
-
-        // Dequantize LL into the working buffer
         float llScale = JpxDequantizer.ComputeIrreversibleScale(_quantization, 0, 0, _bitDepth);
-        for (int y = 0; y < currentHeight; y++)
-        {
-            DequantizeInto(reconstructed.Slice(y * outputWidth, currentWidth), lowpass.Slice(y * lowpassWidth, currentWidth), llScale);
-        }
+        DequantizeSubband(samples, coefficients, 0, stride, subbands.LLWidth, subbands.LLHeight, llScale);
+
+        // One buffer serves both passes: a strip of columns vertically, a row at a time horizontally.
+        float[] lineBuffer = scratch.GetInterleavedSamples(Math.Max(stride, JpxDwtScratch.ColumnStripWidth * outputHeight));
 
         // Reconstruct level by level from coarsest to finest
         for (int level = levels - 1; level >= stopAtLevel; level--)
         {
             int nextWidth = subbands.GetResolutionWidth(level);
             int nextHeight = subbands.GetResolutionHeight(level);
-
-            Span<int> hl = subbands.GetSubband(level, JpxSubbandType.HL);
-            Span<int> lh = subbands.GetSubband(level, JpxSubbandType.LH);
-            Span<int> hh = subbands.GetSubband(level, JpxSubbandType.HH);
-            int hlWidth = subbands.GetWidth(level, JpxSubbandType.HL);
-            int hlHeight = subbands.GetHeight(level, JpxSubbandType.HL);
-            int lhWidth = subbands.GetWidth(level, JpxSubbandType.LH);
-            int lhHeight = subbands.GetHeight(level, JpxSubbandType.LH);
-            int hhWidth = subbands.GetWidth(level, JpxSubbandType.HH);
-            int hhHeight = subbands.GetHeight(level, JpxSubbandType.HH);
 
             // QCD step size indices: LL=0, then coarsest to finest detail
             // level (levels-1) → indices 1,2,3; level (levels-2) → 4,5,6; etc.
@@ -105,7 +82,30 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             float lhScale = JpxDequantizer.ComputeIrreversibleScale(_quantization, qcdBase + 1, 1, _bitDepth);
             float hhScale = JpxDequantizer.ComputeIrreversibleScale(_quantization, qcdBase + 2, 2, _bitDepth);
 
-            Span<float> interleaved = interleavedBuffer;
+            DequantizeSubband(
+                samples,
+                coefficients,
+                subbands.GetOffset(level, JpxSubbandType.HL),
+                stride,
+                subbands.GetWidth(level, JpxSubbandType.HL),
+                subbands.GetHeight(level, JpxSubbandType.HL),
+                hlScale);
+            DequantizeSubband(
+                samples,
+                coefficients,
+                subbands.GetOffset(level, JpxSubbandType.LH),
+                stride,
+                subbands.GetWidth(level, JpxSubbandType.LH),
+                subbands.GetHeight(level, JpxSubbandType.LH),
+                lhScale);
+            DequantizeSubband(
+                samples,
+                coefficients,
+                subbands.GetOffset(level, JpxSubbandType.HH),
+                stride,
+                subbands.GetWidth(level, JpxSubbandType.HH),
+                subbands.GetHeight(level, JpxSubbandType.HH),
+                hhScale);
 
             // A resolution starting on an odd reference-grid coordinate begins with a high-pass
             // sample, which swaps where each subband lands in the interleaved signal.
@@ -113,83 +113,45 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             int parityY = subbands.GetResolutionStartY(level) & 1;
             int lowColumn = parityX;
             int highColumn = 1 - parityX;
-            int lowRow = parityY;
-            int highRow = 1 - parityY;
 
-            // The level is held with each row's two sample classes in contiguous halves rather
-            // than interleaved. Nothing before the write-out needs the natural order: the
-            // vertical steps work on whole rows, and the horizontal ones read their neighbours
-            // from the opposite half, so both run a vector at a time over adjacent samples.
+            // The level is held with each row's two sample classes in contiguous halves and its
+            // low-pass rows above its high-pass ones. The horizontal steps read their neighbours
+            // from the opposite half, so they run a vector at a time over adjacent samples.
             int lowLength = (nextWidth - parityX + 1) >> 1;
+            int lowRows = (nextHeight - parityY + 1) >> 1;
 
-            // Build the level one row at a time. A low-pass row draws its low-pass columns from
-            // the already reconstructed LL and its high-pass columns from HL; a high-pass row
-            // draws them from LH and HH.
-            for (int n = 0; n < nextHeight; n++)
+            // Apply the 1D inverse 9-7 filter on columns, a strip at a time, returning each row
+            // class to its interleaved position.
+            for (int x = 0; x < nextWidth; x += JpxDwtScratch.ColumnStripWidth)
             {
-                Span<float> targetRow = interleaved.Slice(n * nextWidth, nextWidth);
-                Span<float> lowHalf = targetRow.Slice(0, lowLength);
-                Span<float> highHalf = targetRow.Slice(lowLength);
+                int stripWidth = Math.Min(JpxDwtScratch.ColumnStripWidth, nextWidth - x);
+                Span<float> strip = lineBuffer.AsSpan(0, stripWidth * nextHeight);
 
-                if ((n & 1) == lowRow)
-                {
-                    int sourceY = (n - lowRow) >> 1;
-
-                    if (sourceY < currentHeight)
-                    {
-                        ReadOnlySpan<float> source = reconstructed.Slice(sourceY * outputWidth, currentWidth);
-                        source.Slice(0, Math.Min(source.Length, lowHalf.Length)).CopyTo(lowHalf);
-                    }
-
-                    if (sourceY < hlHeight)
-                    {
-                        DequantizeInto(highHalf, hl.Slice(sourceY * hlWidth, hlWidth), hlScale);
-                    }
-                }
-                else
-                {
-                    int sourceY = (n - highRow) >> 1;
-
-                    if (sourceY < lhHeight)
-                    {
-                        DequantizeInto(lowHalf, lh.Slice(sourceY * lhWidth, lhWidth), lhScale);
-                    }
-
-                    if (sourceY < hhHeight)
-                    {
-                        DequantizeInto(highHalf, hh.Slice(sourceY * hhWidth, hhWidth), hhScale);
-                    }
-                }
+                GatherStrip(samples, stride, x, strip, stripWidth, nextHeight, lowRows, parityY);
+                InverseLiftColumns(strip, stripWidth, nextHeight, parityY);
+                ScatterStrip(strip, samples, stride, x, stripWidth, nextHeight);
             }
 
-            // Apply the 1D inverse 9-7 filter on columns, then on rows
-            InverseLiftColumns(interleaved.Slice(0, nextWidth * nextHeight), nextWidth, nextHeight, parityY);
-
-            for (int y = 0; y < nextHeight; y++)
-            {
-                InverseLiftRow(interleaved.Slice(y * nextWidth, nextWidth), lowLength, parityX);
-            }
-
-            // Carry the result forward, returning each class to its interleaved position. A
+            // Then on rows, returning each column class to its interleaved position. A
             // degenerate tile can reduce to a resolution with no columns at all, which leaves
             // no class positions to write and no row to slice.
             for (int y = 0; y < nextHeight && nextWidth > 0; y++)
             {
-                Span<float> sourceRow = interleaved.Slice(y * nextWidth, nextWidth);
-                Span<float> targetRow = reconstructed.Slice(y * outputWidth, nextWidth);
+                Span<float> row = samples.Slice(y * stride, nextWidth);
+                Span<float> line = lineBuffer.AsSpan(0, nextWidth);
 
-                Interleave(sourceRow.Slice(0, lowLength), targetRow.Slice(lowColumn));
-                Interleave(sourceRow.Slice(lowLength), targetRow.Slice(highColumn));
+                InverseLiftRow(row, lowLength, parityX);
+                row.CopyTo(line);
+
+                Interleave(line.Slice(0, lowLength), row.Slice(lowColumn));
+                Interleave(line.Slice(lowLength), row.Slice(highColumn));
             }
-
-            currentWidth = nextWidth;
-            currentHeight = nextHeight;
         }
 
         // Round the reconstructed samples to the nearest integer. Offsetting by a half that
         // carries the sample's own sign turns the conversion's truncation toward zero into
         // round-to-nearest, which needs no floor and so vectorizes on every target framework.
-        int totalPixels = outputWidth * outputHeight;
+        int totalPixels = stride * outputHeight;
         int i = 0;
 
         if (Vector.IsHardwareAccelerated && totalPixels >= Vector<float>.Count)
@@ -200,18 +162,58 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
 
             for (; i <= lastBlock; i += Vector<float>.Count)
             {
-                Vector<float> value = ReadVectorAt(reconstructed, i);
+                Vector<float> value = ReadVectorAt(samples, i);
                 Vector<int> sign = Vector.BitwiseAnd(Vector.AsVectorInt32(value), signMask);
                 Vector<float> offset = Vector.AsVectorSingle(Vector.BitwiseOr(halfBits, sign));
 
-                VectorAt(destination, i) = Vector.ConvertToInt32(value + offset);
+                VectorAt(coefficients, i) = Vector.ConvertToInt32(value + offset);
             }
         }
 
         for (; i < totalPixels; i++)
         {
-            float sample = reconstructed[i];
-            destination[i] = (int)(sample + ((sample < 0) ? -0.5f : 0.5f));
+            float sample = samples[i];
+            coefficients[i] = (int)(sample + ((sample < 0) ? -0.5f : 0.5f));
+        }
+    }
+
+    /// <summary>
+    /// Dequantizes one subband in place, replacing each coefficient with its float value.
+    /// </summary>
+    private static void DequantizeSubband(in Span<float> samples, in ReadOnlySpan<int> coefficients, int offset, int stride, int width, int height, float scale)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            int rowStart = offset + (y * stride);
+            DequantizeInto(samples.Slice(rowStart, width), coefficients.Slice(rowStart, width), scale);
+        }
+    }
+
+    /// <summary>
+    /// Copies <paramref name="width"/> columns starting at <paramref name="x"/> into
+    /// <paramref name="strip"/>, low-pass and high-pass rows interleaved.
+    /// </summary>
+    private static void GatherStrip(in ReadOnlySpan<float> samples, int stride, int x, in Span<float> strip, int width, int height, int lowRows, int parity)
+    {
+        for (int n = 0; n < height; n++)
+        {
+            int sourceRow = ((n & 1) == parity)
+                ? (n - parity) >> 1
+                : lowRows + ((n - 1 + parity) >> 1);
+
+            samples.Slice((sourceRow * stride) + x, width).CopyTo(strip.Slice(n * width, width));
+        }
+    }
+
+    /// <summary>
+    /// Copies <paramref name="strip"/> back to <paramref name="width"/> columns starting at
+    /// <paramref name="x"/>, row for row.
+    /// </summary>
+    private static void ScatterStrip(in ReadOnlySpan<float> strip, in Span<float> samples, int stride, int x, int width, int height)
+    {
+        for (int n = 0; n < height; n++)
+        {
+            strip.Slice(n * width, width).CopyTo(samples.Slice((n * stride) + x, width));
         }
     }
 
@@ -258,11 +260,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     }
 
     /// <summary>
-    /// Applies the inverse 9-7 lifting steps down every column of an interleaved level.
+    /// Applies the inverse 9-7 lifting steps down every column of an interleaved strip.
     /// Each step is pointwise across the row, so whole rows are lifted against their
-    /// neighbouring rows and no column ever has to be gathered into a buffer.
+    /// neighbouring rows.
     /// </summary>
-    /// <param name="samples">Interleaved level, row-major, <paramref name="height"/> rows of <paramref name="width"/>.</param>
+    /// <param name="samples">Interleaved strip, row-major, <paramref name="height"/> rows of <paramref name="width"/>.</param>
     /// <param name="width">Number of samples per row.</param>
     /// <param name="height">Number of rows.</param>
     /// <param name="parity">

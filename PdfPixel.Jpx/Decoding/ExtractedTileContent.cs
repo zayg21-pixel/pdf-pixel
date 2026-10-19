@@ -9,10 +9,10 @@ namespace PdfPixel.Jpx.Decoding;
 /// </summary>
 internal readonly struct ExtractedTileContent
 {
-    public ExtractedTileContent(JpxTileHeader tileHeader, byte[] data)
+    public ExtractedTileContent(JpxTileHeader tileHeader, in ReadOnlyMemory<byte> data)
     {
         TileHeader = tileHeader ?? throw new ArgumentNullException(nameof(tileHeader));
-        Data = data ?? throw new ArgumentNullException(nameof(data));
+        Data = data;
     }
 
     /// <summary>
@@ -26,5 +26,5 @@ internal readonly struct ExtractedTileContent
     /// Subsequent tile-parts have their SOD markers stripped so the result
     /// is a single contiguous packet data stream after the initial SOD.
     /// </summary>
-    public byte[] Data { get; }
+    public ReadOnlyMemory<byte> Data { get; }
 }

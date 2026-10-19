@@ -26,7 +26,7 @@ public readonly struct JpxTileProvider
     /// <param name="decodingParameters">Parameters controlling decoding resolution.</param>
     public JpxTileProvider(
         JpxHeader header,
-        in ReadOnlySpan<byte> codestream,
+        in ReadOnlyMemory<byte> codestream,
         in JpxDecodingParameters decodingParameters = default)
     {
         _header = header ?? throw new ArgumentNullException(nameof(header));
@@ -89,13 +89,13 @@ public readonly struct JpxTileProvider
 
         ExtractedTileContent extracted = _extractedTiles[tileIndex];
 
-        if (extracted.Data == null)
+        if (extracted.TileHeader == null)
         {
             ResetToEmptyTile(tileIndex, destination);
             return;
         }
 
-        _tileDecoder.DecodeTile(extracted.TileHeader, extracted.Data, _decodingParameters, destination, observer);
+        _tileDecoder.DecodeTile(extracted.TileHeader, extracted.Data.Span, _decodingParameters, destination, observer);
     }
 
     private void ResetToEmptyTile(int tileIndex, JpxTile destination)

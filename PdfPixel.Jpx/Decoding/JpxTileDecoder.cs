@@ -109,20 +109,20 @@ internal sealed class JpxTileDecoder
         for (int index = 0; index < _componentSelection.Count; index++)
         {
             int component = _componentSelection[index];
-            _subbands.Reset(tileBounds, levelsToSkip);
+            _subbands.Reset(tileBounds, destination.ComponentData[component], levelsToSkip);
 
             // Stages 2-3: Entropy decode each of this component's code-blocks and place
             // its coefficients into the subband it belongs to.
             bool hasCoefficients = TryDecodeComponentCoefficients(codeBlocks, component, highestNeededResolution, observer);
 
             // Stages 4-5: Inverse Quantization + Inverse DWT
-            // Dequantization is integrated into the interleaving step of both
-            // the 5-3 (reversible) and 9-7 (irreversible) transforms.
+            // Dequantization is integrated into both the 5-3 (reversible) and
+            // 9-7 (irreversible) transforms.
             // Transforming all-zero subbands only ever produces zeros, which the tile already
             // holds, so a component no code-block contributed to is left as it is.
             if (hasCoefficients)
             {
-                _inverseDwtByComponent[component].Transform(_subbands, destination.ComponentData[component].AsSpan(0, sampleCount), _dwtScratch, levelsToSkip);
+                _inverseDwtByComponent[component].Transform(_subbands, _dwtScratch, levelsToSkip);
             }
 
             observer?.Notify();

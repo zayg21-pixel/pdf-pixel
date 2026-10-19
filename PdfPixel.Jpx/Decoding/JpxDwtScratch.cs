@@ -6,20 +6,23 @@ namespace PdfPixel.Jpx.Decoding;
 /// Reusable working buffers for the inverse wavelet transform.
 /// </summary>
 /// <remarks>
-/// The transform works in scratch the size of the resolution it reconstructs, which for an
-/// image held in one tile is the whole component. One instance is shared by every tile and
-/// component of an image, so that only one set of those buffers exists at a time; each grows
-/// to fit the largest resolution seen and is reused from then on.
+/// The transform works in place on the component and holds one row or one strip of columns
+/// here at a time. One instance is shared by every tile and component of an image; each
+/// buffer grows to fit the largest request and is reused from then on.
 /// </remarks>
 internal sealed class JpxDwtScratch
 {
+    /// <summary>
+    /// Number of columns the transform reconstructs together in one strip.
+    /// </summary>
+    public const int ColumnStripWidth = 32;
+
     private int[] _integers = [];
     private float[] _interleavedSamples = [];
-    private float[] _lowpassSamples = [];
 
     /// <summary>
-    /// Buffer of at least <paramref name="length"/> integers, holding the level a reversible
-    /// transform is reconstructing.
+    /// Buffer of at least <paramref name="length"/> integers, holding the row or column strip a
+    /// reversible transform is reconstructing.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int[] GetIntegers(int length)
@@ -33,8 +36,8 @@ internal sealed class JpxDwtScratch
     }
 
     /// <summary>
-    /// Buffer of at least <paramref name="length"/> samples, holding the level an irreversible
-    /// transform is reconstructing.
+    /// Buffer of at least <paramref name="length"/> samples, holding the row or column strip an
+    /// irreversible transform is reconstructing.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float[] GetInterleavedSamples(int length)
@@ -45,20 +48,5 @@ internal sealed class JpxDwtScratch
         }
 
         return _interleavedSamples;
-    }
-
-    /// <summary>
-    /// Buffer of at least <paramref name="length"/> samples, holding the level an irreversible
-    /// transform has already reconstructed.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public float[] GetLowpassSamples(int length)
-    {
-        if (_lowpassSamples.Length < length)
-        {
-            _lowpassSamples = new float[length];
-        }
-
-        return _lowpassSamples;
     }
 }
