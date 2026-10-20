@@ -38,7 +38,6 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
         }
 
         // TODO: [MEDIUM] Not parsed, so the polygon is drawn as a plain shape without its measurement:
-        // - intent: area dimension (IT: PolygonDimension)
         // - measurement dictionary for dimension polygons, units and scale (Measure)
         // - curved outline that replaces Vertices, PDF 2.0 (Path)
     }

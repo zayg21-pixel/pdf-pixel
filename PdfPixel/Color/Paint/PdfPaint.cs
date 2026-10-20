@@ -19,7 +19,6 @@ public sealed class PdfPaint
         bool overprint,
         PdfPattern? pattern,
         PdfStrokeStyle? strokeStyle,
-        PdfPaintShadowEffect? shadowEffect,
         PdfMaskPaintParameters? maskParameters)
     {
         Style = style;
@@ -28,7 +27,6 @@ public sealed class PdfPaint
         Overprint = overprint;
         Pattern = pattern;
         StrokeStyle = strokeStyle;
-        ShadowEffect = shadowEffect;
         MaskParameters = maskParameters;
     }
 
@@ -37,7 +35,7 @@ public sealed class PdfPaint
     /// when <paramref name="style"/> is <see cref="PdfPaintStyle.Stroke"/>.
     /// </summary>
     public PdfPaint(PdfPaintStyle style)
-        : this(style, PdfColors.Black, PdfBlendMode.Normal, false, null, (style == PdfPaintStyle.Stroke) ? new PdfStrokeStyle() : null, null, null)
+        : this(style, PdfColors.Black, PdfBlendMode.Normal, false, null, (style == PdfPaintStyle.Stroke) ? new PdfStrokeStyle() : null, null)
     {
     }
 
@@ -45,7 +43,7 @@ public sealed class PdfPaint
     /// Initializes a new stroke paint that uses <paramref name="strokeStyle"/> directly.
     /// </summary>
     public PdfPaint(PdfStrokeStyle strokeStyle)
-        : this(PdfPaintStyle.Stroke, PdfColors.Black, PdfBlendMode.Normal, false, null, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)), null, null)
+        : this(PdfPaintStyle.Stroke, PdfColors.Black, PdfBlendMode.Normal, false, null, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)), null)
     {
     }
 
@@ -82,11 +80,6 @@ public sealed class PdfPaint
     public PdfStrokeStyle? StrokeStyle { get; }
 
     /// <summary>
-    /// Gets an optional drop-shadow effect applied to this paint. Null means no shadow.
-    /// </summary>
-    public PdfPaintShadowEffect? ShadowEffect { get; }
-
-    /// <summary>
     /// Gets the soft-mask compositing parameters (subtype and transfer function) when this paint
     /// composites a previously-rendered soft-mask layer onto content; null for every other paint.
     /// </summary>
@@ -121,14 +114,14 @@ public sealed class PdfPaint
     /// Returns a copy of this paint with <see cref="Color"/> replaced.
     /// </summary>
     public PdfPaint WithColor(in PdfColor color)
-        => new(Style, color, BlendMode, Overprint, Pattern, StrokeStyle, ShadowEffect, MaskParameters);
+        => new(Style, color, BlendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="Color"/>'s red, green, and blue channels replaced,
     /// clearing any pattern.
     /// </summary>
     public PdfPaint WithSolidColor(in PdfColor color)
-        => new(Style, color.WithAlpha(Color.Alpha), BlendMode, Overprint, null, StrokeStyle, ShadowEffect, MaskParameters);
+        => new(Style, color.WithAlpha(Color.Alpha), BlendMode, Overprint, null, StrokeStyle, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="Pattern"/> replaced and <see cref="Color"/>'s red, green,
@@ -141,26 +134,20 @@ public sealed class PdfPaint
             throw new ArgumentNullException(nameof(pattern));
         }
 
-        return new PdfPaint(Style, resolvedTintColor.WithAlpha(Color.Alpha), BlendMode, Overprint, pattern, StrokeStyle, ShadowEffect, MaskParameters);
+        return new PdfPaint(Style, resolvedTintColor.WithAlpha(Color.Alpha), BlendMode, Overprint, pattern, StrokeStyle, MaskParameters);
     }
-
-    /// <summary>
-    /// Returns a copy of this paint with <see cref="ShadowEffect"/> replaced.
-    /// </summary>
-    public PdfPaint WithShadowEffect(PdfPaintShadowEffect? shadowEffect)
-        => new(Style, Color, BlendMode, Overprint, Pattern, StrokeStyle, shadowEffect, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="Color"/>'s alpha channel replaced.
     /// </summary>
     public PdfPaint WithAlpha(float alpha)
-        => new(Style, Color.WithAlpha(alpha), BlendMode, Overprint, Pattern, StrokeStyle, ShadowEffect, MaskParameters);
+        => new(Style, Color.WithAlpha(alpha), BlendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="BlendMode"/> replaced.
     /// </summary>
     public PdfPaint WithBlendMode(PdfBlendMode blendMode)
-        => new(Style, Color, blendMode, Overprint, Pattern, StrokeStyle, ShadowEffect, MaskParameters);
+        => new(Style, Color, blendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="StrokeStyle"/> replaced. Only valid on stroke paints.
@@ -172,14 +159,14 @@ public sealed class PdfPaint
             throw new InvalidOperationException($"{nameof(WithStrokeStyle)} is only available on paints with {nameof(PdfPaintStyle)}.{nameof(PdfPaintStyle.Stroke)}.");
         }
 
-        return new PdfPaint(Style, Color, BlendMode, Overprint, Pattern, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)), ShadowEffect, MaskParameters);
+        return new PdfPaint(Style, Color, BlendMode, Overprint, Pattern, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)), MaskParameters);
     }
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="MaskParameters"/> replaced.
     /// </summary>
     public PdfPaint WithMaskParameters(PdfMaskPaintParameters? maskParameters)
-        => new(Style, Color, BlendMode, Overprint, Pattern, StrokeStyle, ShadowEffect, maskParameters);
+        => new(Style, Color, BlendMode, Overprint, Pattern, StrokeStyle, maskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with every field present in <paramref name="parameters"/> (from a <c>gs</c>
@@ -206,7 +193,6 @@ public sealed class PdfPaint
             overprint ?? Overprint,
             Pattern,
             strokeStyle,
-            ShadowEffect,
             MaskParameters);
     }
 

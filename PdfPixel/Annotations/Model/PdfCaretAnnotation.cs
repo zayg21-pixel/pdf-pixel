@@ -15,7 +15,7 @@ namespace PdfPixel.Annotations.Model;
 /// The <see cref="Symbol"/> entry indicates whether a paragraph break is implied.
 /// The <see cref="RectangleDifferences"/> entry insets the actual mark from the annotation rectangle.
 /// </remarks>
-public class PdfCaretAnnotation : PdfAnnotationBase
+public class PdfCaretAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfCaretAnnotation"/> class.

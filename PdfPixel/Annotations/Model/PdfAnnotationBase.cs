@@ -40,26 +40,9 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
 
         // Initialize all properties in constructor to avoid re-parsing
         Rectangle = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? PdfRectangle.Empty;
-        RichContents = annotationObject.Dictionary.GetString(PdfTokens.RichContentsKey);
-
-        PdfString? contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
-
-        if (contents == null)
-        {
-            Contents = PdfRichTextContentParser.ExtractPlainText(RichContents);
-        }
-        else
-        {
-            Contents = contents;
-        }
-
+        Contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
         Name = annotationObject.Dictionary.GetString(PdfTokens.AnnotationNameKey);
         ModificationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.ModificationDateKey));
-
-        // Parse additional annotation metadata
-        Title = annotationObject.Dictionary.GetString(PdfTokens.TitleKey);
-        Subject = annotationObject.Dictionary.GetString(PdfTokens.SubjectKey);
-        CreationDate = PdfDateParser.ParsePdfDate(annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey));
 
         Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FKey);
         IsHidden = (Flags & PdfAnnotationFlags.Hidden) != 0;
@@ -75,9 +58,6 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
         Opacity = annotationObject.Dictionary.GetFloat(PdfTokens.StrokeAlphaKey) ?? 1.0f;
         PageReference = annotationObject.Dictionary.GetReference(PdfTokens.PageKey);
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
-        Popup = annotationObject.Dictionary.GetReference(PdfTokens.PopupKey);
-        InReplyTo = annotationObject.Dictionary.GetReference(PdfTokens.InReplyToKey);
-        ReplyType = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
         AssociatedFiles = PdfFileSpecification.GetFileSpecifications(annotationObject.Dictionary.GetArray(PdfTokens.AssociatedFilesKey));
         // TODO: [MEDIUM] Not parsed, so every annotation is drawn regardless of layers and with normal blending:
         // - optional content membership, hiding the annotation when its layer is off (OC)
@@ -117,7 +97,7 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     /// <summary>
     /// Gets whether this annotation carries text to show in a pop-up window.
     /// </summary>
-    public virtual bool HasPopupContent => Contents != null || RichContents != null;
+    public virtual bool HasPopupContent => Contents != null;
 
     /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
@@ -125,10 +105,8 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     /// <remarks>
     /// When true, indicates that the annotation has content (like comments) that should
     /// be accessible through a bubble indicator. The HoverRectangle will be the bubble area only.
-    /// An annotation that carries no <see cref="Popup"/> triggers its pop-up from its own area
-    /// instead, so it shows no separate bubble.
     /// </remarks>
-    public virtual bool ShouldDisplayBubble => Popup != null && HasPopupContent;
+    public virtual bool ShouldDisplayBubble => false;
 
     /// <summary>
     /// Gets the pointer cursor to display when hovering over this annotation.
@@ -158,44 +136,13 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     /// Gets the annotation's contents, which is typically the text displayed
     /// for the annotation or associated with it.
     /// </summary>
-    public PdfString? Contents { get; }
-
-    /// <summary>
-    /// Gets the annotation's rich text contents (the RC entry), an XHTML-subset
-    /// markup representation of <see cref="Contents"/>.
-    /// </summary>
-    public PdfString? RichContents { get; }
+    public PdfString? Contents { get; protected set; }
 
     /// <summary>
     /// Gets the annotation's name, a text string uniquely identifying it among
     /// all the annotations on its page.
     /// </summary>
     public PdfString? Name { get; }
-
-    /// <summary>
-    /// Gets the annotation title/author.
-    /// </summary>
-    /// <remarks>
-    /// The title is typically used to identify the author or creator of the annotation.
-    /// </remarks>
-    public PdfString? Title { get; }
-
-    /// <summary>
-    /// Gets the annotation subject.
-    /// </summary>
-    /// <remarks>
-    /// The subject represents a short description of the subject being addressed by the annotation.
-    /// </remarks>
-    public PdfString? Subject { get; }
-
-    /// <summary>
-    /// Gets the creation date of the annotation.
-    /// </summary>
-    /// <remarks>
-    /// The creation date represents when the annotation was first created.
-    /// Returns null if the date is not present or could not be parsed.
-    /// </remarks>
-    public DateTime? CreationDate { get; }
 
     /// <summary>
     /// Gets the modification date of the annotation.
@@ -263,11 +210,6 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     public float Opacity { get; }
 
     /// <summary>
-    /// Gets the reference to the popup annotation associated with this markup annotation, if any.
-    /// </summary>
-    public PdfReference? Popup { get; }
-
-    /// <summary>
     /// Gets the page reference that specifies which page this annotation appears on.
     /// </summary>
     /// <remarks>
@@ -281,24 +223,6 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     /// in the document's structure tree.
     /// </summary>
     public int? StructuralParent { get; }
-
-    /// <summary>
-    /// Gets the reference to the annotation that this annotation is in reply to.
-    /// </summary>
-    /// <remarks>
-    /// Used to create threaded discussions where annotations can reply to other annotations.
-    /// Returns null if this annotation is not a reply.
-    /// </remarks>
-    public PdfReference? InReplyTo { get; }
-
-    /// <summary>
-    /// Gets the reply type indicating the relationship between this annotation and the one specified by InReplyTo.
-    /// </summary>
-    /// <remarks>
-    /// Reply (R) creates a linear thread, Group allows multiple replies to same parent.
-    /// Returns None if not specified or if this annotation is not a reply.
-    /// </remarks>
-    public PdfAnnotationReplyType ReplyType { get; }
 
     /// <inheritdoc />
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }

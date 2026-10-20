@@ -362,6 +362,7 @@ internal static class PdfTokens
     public static readonly PdfString PopupKey = (PdfString)"Popup"u8;                // Reference to popup annotation
     public static readonly PdfString InReplyToKey = (PdfString)"IRT"u8;              // Annotation reply reference
     public static readonly PdfString ReplyTypeKey = (PdfString)"RT"u8;               // Annotation reply type
+    public static readonly PdfString ITKey = (PdfString)"IT"u8;                      // Markup annotation intent
 
     // File attachment / filespec keys
     public static readonly PdfString FSKey = (PdfString)"FS"u8;                      // File specification dictionary key (for file attachment annotations)

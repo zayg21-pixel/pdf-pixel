@@ -12,7 +12,7 @@ namespace PdfPixel.Annotations.Model;
 /// <summary>
 /// Base class for annotations drawn as a closed shape with an interior color and a border.
 /// </summary>
-public abstract class PdfShapeAnnotation : PdfAnnotationBase
+public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfShapeAnnotation"/> class.

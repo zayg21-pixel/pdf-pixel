@@ -19,7 +19,7 @@ namespace PdfPixel.Annotations.Model;
 /// Link annotations represent either hypertext links to destinations elsewhere in the document
 /// or actions to be performed. They are typically invisible but may have a border or highlight effect.
 /// </remarks>
-public class PdfLinkAnnotation : PdfTextMarkupAnnotation
+public class PdfLinkAnnotation : PdfAnnotationBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfLinkAnnotation"/> class.

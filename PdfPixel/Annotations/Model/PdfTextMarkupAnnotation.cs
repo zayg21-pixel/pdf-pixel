@@ -13,7 +13,7 @@ namespace PdfPixel.Annotations.Model;
 /// to define the regions of text to be marked. QuadPoints specify quadrilaterals that
 /// encompass the marked text.
 /// </remarks>
-public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
+public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfTextMarkupAnnotation"/> class.

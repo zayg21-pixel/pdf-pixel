@@ -10,8 +10,6 @@ Test files: `PdfPixel.Tests/AnnotationFallbackTest.pdf` (fallback rendering play
 
 No new mechanism; each is one key read and used where the annotation is drawn or hit-tested.
 
-- **Stamp intent**: rubber stamp, image or snapshot, PDF 2.0 (`IT`: `Stamp`, `StampImage`, `StampSnapshot`).
-  `PdfPixel/Annotations/Model/PdfStampAnnotation.cs`
 - **Link active area**: quadrilaterals the link is active in, e.g. a link spanning two lines of text (`QuadPoints`). Today the whole rectangle is active.
   `PdfPixel/Annotations/Model/PdfLinkAnnotation.cs`
 - **Invisible flag scope**: `Invisible` applies only to annotation types the viewer does not recognize. Today the panel skips every annotation with the flag.
@@ -41,31 +39,19 @@ Files: `PdfPixel/Annotations/Model/PdfTextAnnotationIcon.cs`, `PdfPixel/Annotati
 
 Files: `PdfPixel/Annotations/Model/PdfInkAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`
 
-## 5. Cloudy border effect
-
-`PdfStrokeStyle` carries `EffectType` and `EffectIntensity`, but stroke-to-fill builds the outline from the plain path. Used by annotation borders (`BE`) only: Square, Circle and Polygon.
-
-- **Scallops**: add the cloud scallops to the stroked path.
-- **Polygon cloud intent**: then honor `IT /PolygonCloud`.
-
-Test file: `AnnotationFallbackTest.pdf` (cloudy Circle with intensity 1, cloudy Square with intensity 2).
-
-Files: `PdfPixel/Color/Paint/PdfStrokeEffectType.cs`, `PdfPixel/Geometry/PdfStrokeOutlineBuilder.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`
-
-## 6. Line captions
+## 5. Line captions
 
 Text laid out along the line:
 
 - whether the Contents text is shown as a caption on the line (`Cap`)
 - caption position, centered inside the line or on top of it (`CP`)
 - caption offset from its default position (`CO`)
-- intent: arrow or dimension line (`IT`: `LineArrow`, `LineDimension`)
 
 File: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`
 
-## 7. Measurement
+## 6. Measurement
 
-One shared measurement model (`Measure`: units and scale), then the dimension intents that use it:
+One shared measurement model (`Measure`: units and scale), used by the dimension annotations:
 
 - Line: `IT /LineDimension`
 - Polygon: `IT /PolygonDimension`
@@ -73,7 +59,7 @@ One shared measurement model (`Measure`: units and scale), then the dimension in
 
 Files: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`, plus a new model type.
 
-## 8. View-dependent flags
+## 7. View-dependent flags
 
 Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel.
 

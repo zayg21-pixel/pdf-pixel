@@ -38,22 +38,27 @@ internal static class PdfDocumentAnnotationExtractor
             return Array.Empty<PdfAnnotationPopup>();
         }
 
-        HashSet<PdfReference> pageReferences = BuildPageReferences(pageAnnotations);
-        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = BuildRepliesByParent(pageAnnotations);
+        HashSet<PdfReference> markupReferences = BuildMarkupReferences(pageAnnotations);
+        Dictionary<PdfReference, List<PdfMarkupAnnotation>> repliesByParent = BuildRepliesByParent(pageAnnotations);
         List<PdfAnnotationPopup> popups = [];
-        HashSet<PdfAnnotationBase> processedAnnotations = [];
+        HashSet<PdfMarkupAnnotation> processedAnnotations = [];
 
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
-            PdfAnnotationBase annotation = pageAnnotation.Content;
-
-            if (processedAnnotations.Contains(annotation) || !IsThreadRoot(annotation, pageReferences))
+            if (pageAnnotation.Content is PdfMarkupAnnotation markupAnnotation)
             {
-                continue;
-            }
+                if (processedAnnotations.Contains(markupAnnotation) || !IsThreadRoot(markupAnnotation, markupReferences))
+                {
+                    continue;
+                }
 
-            PdfAnnotationMessage[] thread = BuildThread(annotation, repliesByParent, processedAnnotations);
-            popups.Add(new PdfAnnotationPopup(pageAnnotation, thread));
+                PdfAnnotationMessage[] thread = BuildThread(markupAnnotation, repliesByParent, processedAnnotations);
+                popups.Add(new PdfAnnotationPopup(pageAnnotation, thread));
+            }
+            else
+            {
+                popups.Add(new PdfAnnotationPopup(pageAnnotation, Array.Empty<PdfAnnotationMessage>()));
+            }
         }
 
         return popups.ToArray();
@@ -61,16 +66,16 @@ internal static class PdfDocumentAnnotationExtractor
 
     /// <summary>
     /// Whether <paramref name="annotation"/> starts a thread: it either replies to nothing, or replies
-    /// to an annotation that <paramref name="pageReferences"/> does not contain.
+    /// to an annotation that <paramref name="markupReferences"/> does not contain.
     /// </summary>
-    private static bool IsThreadRoot(PdfAnnotationBase annotation, HashSet<PdfReference> pageReferences)
+    private static bool IsThreadRoot(PdfMarkupAnnotation annotation, HashSet<PdfReference> markupReferences)
     {
-        if (!annotation.InReplyTo.HasValue)
+        if (annotation.InReplyTo == null)
         {
             return true;
         }
 
-        return !pageReferences.Contains(annotation.InReplyTo.Value);
+        return !markupReferences.Contains(annotation.InReplyTo.Value);
     }
 
     /// <summary>
@@ -78,9 +83,9 @@ internal static class PdfDocumentAnnotationExtractor
     /// contents produces no message of its own and its replies take its place.
     /// </summary>
     private static PdfAnnotationMessage[] BuildThread(
-        PdfAnnotationBase annotation,
-        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent,
-        HashSet<PdfAnnotationBase> processedAnnotations)
+        PdfMarkupAnnotation annotation,
+        Dictionary<PdfReference, List<PdfMarkupAnnotation>> repliesByParent,
+        HashSet<PdfMarkupAnnotation> processedAnnotations)
     {
         if (!processedAnnotations.Add(annotation))
         {
@@ -89,7 +94,7 @@ internal static class PdfDocumentAnnotationExtractor
 
         List<PdfAnnotationMessage> replies = [];
 
-        foreach (PdfAnnotationBase reply in FindDirectReplies(annotation, repliesByParent))
+        foreach (PdfMarkupAnnotation reply in FindDirectReplies(annotation, repliesByParent))
         {
             replies.AddRange(BuildThread(reply, repliesByParent, processedAnnotations));
         }
@@ -105,51 +110,49 @@ internal static class PdfDocumentAnnotationExtractor
     }
 
     /// <summary>
-    /// Collects the references of every annotation on the page.
+    /// Collects the references of every markup annotation on the page.
     /// </summary>
-    private static HashSet<PdfReference> BuildPageReferences(IReadOnlyList<PdfPageAnnotation> pageAnnotations)
+    private static HashSet<PdfReference> BuildMarkupReferences(IReadOnlyList<PdfPageAnnotation> pageAnnotations)
     {
-        HashSet<PdfReference> pageReferences = [];
+        HashSet<PdfReference> markupReferences = [];
 
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
-            PdfAnnotationBase annotation = pageAnnotation.Content;
-
-            if (annotation.Reference != null)
+            if (pageAnnotation.Content is PdfMarkupAnnotation markupAnnotation && markupAnnotation.Reference != null)
             {
-                pageReferences.Add(annotation.Reference.Value);
+                markupReferences.Add(markupAnnotation.Reference.Value);
             }
         }
 
-        return pageReferences;
+        return markupReferences;
     }
 
     /// <summary>
-    /// Groups the page's annotations by the annotation they reply to, so that the replies of a given
+    /// Groups the page's markup annotations by the annotation they reply to, so that the replies of a given
     /// annotation are found by a single lookup instead of a scan over every annotation on the page.
     /// </summary>
-    private static Dictionary<PdfReference, List<PdfAnnotationBase>> BuildRepliesByParent(IReadOnlyList<PdfPageAnnotation> pageAnnotations)
+    private static Dictionary<PdfReference, List<PdfMarkupAnnotation>> BuildRepliesByParent(IReadOnlyList<PdfPageAnnotation> pageAnnotations)
     {
-        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent = [];
+        Dictionary<PdfReference, List<PdfMarkupAnnotation>> repliesByParent = [];
 
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
-            PdfAnnotationBase annotation = pageAnnotation.Content;
-
-            if (annotation.Reference == null || !annotation.InReplyTo.HasValue)
+            if (pageAnnotation.Content is not PdfMarkupAnnotation markupAnnotation
+                || markupAnnotation.Reference == null
+                || markupAnnotation.InReplyTo == null)
             {
                 continue;
             }
 
-            PdfReference parentReference = annotation.InReplyTo.Value;
+            PdfReference parentReference = markupAnnotation.InReplyTo.Value;
 
-            if (!repliesByParent.TryGetValue(parentReference, out List<PdfAnnotationBase>? replies))
+            if (!repliesByParent.TryGetValue(parentReference, out List<PdfMarkupAnnotation>? replies))
             {
-                replies = new List<PdfAnnotationBase>();
+                replies = new List<PdfMarkupAnnotation>();
                 repliesByParent[parentReference] = replies;
             }
 
-            replies.Add(annotation);
+            replies.Add(markupAnnotation);
         }
 
         return repliesByParent;
@@ -158,7 +161,7 @@ internal static class PdfDocumentAnnotationExtractor
     /// <summary>
     /// Creates annotation message from an annotation's metadata.
     /// </summary>
-    private static PdfAnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation, PdfAnnotationMessage[] replies)
+    private static PdfAnnotationMessage? CreateAnnotationMessage(PdfMarkupAnnotation annotation, PdfAnnotationMessage[] replies)
     {
         if (annotation.Contents == null)
         {
@@ -179,18 +182,18 @@ internal static class PdfDocumentAnnotationExtractor
         return new PdfAnnotationMessage(messageDate, messageTitle, contents, replies);
     }
 
-    private static List<PdfAnnotationBase> FindDirectReplies(
-        PdfAnnotationBase annotation,
-        Dictionary<PdfReference, List<PdfAnnotationBase>> repliesByParent)
+    private static List<PdfMarkupAnnotation> FindDirectReplies(
+        PdfMarkupAnnotation annotation,
+        Dictionary<PdfReference, List<PdfMarkupAnnotation>> repliesByParent)
     {
         if (annotation.Reference == null)
         {
-            return new List<PdfAnnotationBase>();
+            return new List<PdfMarkupAnnotation>();
         }
 
-        if (!repliesByParent.TryGetValue(annotation.Reference.Value, out List<PdfAnnotationBase>? replies))
+        if (!repliesByParent.TryGetValue(annotation.Reference.Value, out List<PdfMarkupAnnotation>? replies))
         {
-            return new List<PdfAnnotationBase>();
+            return new List<PdfMarkupAnnotation>();
         }
 
         return replies;

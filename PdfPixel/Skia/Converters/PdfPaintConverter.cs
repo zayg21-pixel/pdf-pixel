@@ -49,11 +49,6 @@ internal static class PdfPaintConverter
             Color = paint.Color.ToSkiaColor()
         };
 
-        if (paint.ShadowEffect is { } shadowEffect)
-        {
-            skPaint.ImageFilter = ComposeFilter(CreateShadowFilter(shadowEffect), skPaint.ImageFilter);
-        }
-
         if (paint.MaskParameters is { } maskParameters)
         {
             using SKColorFilter? maskFilter = CreateMaskColorFilter(maskParameters);
@@ -141,17 +136,4 @@ internal static class PdfPaintConverter
             paint.PathEffect = SKPathEffect.CreateDash(style.DashPattern, style.DashPhase);
         }
     }
-
-    private static SKImageFilter CreateShadowFilter(PdfPaintShadowEffect shadowEffect)
-    {
-        return SKImageFilter.CreateDropShadow(
-            dx: shadowEffect.OffsetX,
-            dy: shadowEffect.OffsetY,
-            sigmaX: shadowEffect.SigmaX,
-            sigmaY: shadowEffect.SigmaY,
-            color: shadowEffect.Color.ToSkiaColor());
-    }
-
-    private static SKImageFilter ComposeFilter(SKImageFilter outer, SKImageFilter? existing)
-        => (existing != null) ? SKImageFilter.CreateCompose(outer, existing) : outer;
 }

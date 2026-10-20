@@ -5,7 +5,7 @@
 endobj
 
 2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+<< /Type /Pages /Kids [3 0 R 77 0 R] /Count 2 >>
 endobj
 
 3 0 obj
@@ -672,11 +672,321 @@ endobj
    /T (Link BS W=1 no C) >>
 endobj
 
+% ============================================================
+% Page 2: Stamp annotations
+% ============================================================
+
+77 0 obj
+<< /Type /Page
+   /MediaBox [0 0 1000 1300]
+   /Parent 2 0 R
+   /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>
+   /Contents 78 0 R
+   /Annots [79 0 R 80 0 R 81 0 R 82 0 R 83 0 R
+            84 0 R 85 0 R 86 0 R 87 0 R 88 0 R
+            89 0 R 90 0 R 91 0 R 92 0 R 93 0 R
+            94 0 R 95 0 R 96 0 R 97 0 R 98 0 R 99 0 R
+            100 0 R 101 0 R 102 0 R 103 0 R 104 0 R 105 0 R 106 0 R
+            107 0 R 108 0 R 109 0 R 110 0 R 111 0 R 112 0 R
+            113 0 R 114 0 R 115 0 R 116 0 R 117 0 R 118 0 R
+            119 0 R 120 0 R 121 0 R 122 0 R 123 0 R 124 0 R 125 0 R 126 0 R
+            127 0 R 128 0 R 129 0 R 130 0 R 131 0 R
+            132 0 R 133 0 R]
+>>
+endobj
+
+78 0 obj
+<< /Length 1396 >>
+stream
+BT
+/F1 9 Tf
+1 0 0 1 15 1280 Tm (Standard names \(last: no /Name, defaults to Draft\)) Tj
+1 0 0 1 15 1045 Tm (Name variety: custom, custom + NM, lowercase, escaped space, very long, empty) Tj
+1 0 0 1 15 955 Tm (Sizes: tiny, small, large, tall, square, long label in a block, very wide) Tj
+1 0 0 1 15 700 Tm (Borders: no BS, BS W=0, BS W=1, BS W=6, BS dashed, Border [0 0 4]) Tj
+1 0 0 1 15 605 Tm (C is ignored, all red: no C, empty C, gray, RGB blue, CMYK red, green CA=0.5) Tj
+1 0 0 1 15 510 Tm (Backgrounds: top opaque, bottom CA=0.5) Tj
+1 0 0 1 15 280 Tm (Intent \(PDF 2.0\): IT Stamp + Name, StampImage, StampSnapshot, StampImage + Name, unknown IT) Tj
+1 0 0 1 15 185 Tm (Rect edge cases: reversed, zero height) Tj
+ET
+0 g
+15 305 230 190 re f
+1 1 0 rg
+260 305 230 190 re f
+1 0 0 rg
+505 305 10 190 re 525 305 10 190 re 545 305 10 190 re 565 305 10 190 re
+585 305 10 190 re 605 305 10 190 re 625 305 10 190 re 645 305 10 190 re
+665 305 10 190 re 685 305 10 190 re 705 305 10 190 re 725 305 10 190 re f
+0 0 1 rg
+515 305 10 190 re 535 305 10 190 re 555 305 10 190 re 575 305 10 190 re
+595 305 10 190 re 615 305 10 190 re 635 305 10 190 re 655 305 10 190 re
+675 305 10 190 re 695 305 10 190 re 715 305 10 190 re f
+0 g
+750 305 230 10 re 750 325 230 10 re 750 345 230 10 re 750 365 230 10 re
+750 385 230 10 re 750 405 230 10 re 750 425 230 10 re 750 445 230 10 re
+750 465 230 10 re 750 485 230 10 re f
+endstream
+endobj
+
+% ============================================================
+% Row A: standard names  y=1065-1265, 170x60 blocks
+% ============================================================
+
+79 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 1205 185 1265] /Name /Approved /T (Stamp Approved) >>
+endobj
+
+80 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [215 1205 385 1265] /Name /AsIs /T (Stamp AsIs) >>
+endobj
+
+81 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [415 1205 585 1265] /Name /Confidential /T (Stamp Confidential) >>
+endobj
+
+82 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [615 1205 785 1265] /Name /Departmental /T (Stamp Departmental) >>
+endobj
+
+83 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [815 1205 985 1265] /Name /Draft /T (Stamp Draft) >>
+endobj
+
+84 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 1135 185 1195] /Name /Experimental /T (Stamp Experimental) >>
+endobj
+
+85 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [215 1135 385 1195] /Name /Expired /T (Stamp Expired) >>
+endobj
+
+86 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [415 1135 585 1195] /Name /Final /T (Stamp Final) >>
+endobj
+
+87 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [615 1135 785 1195] /Name /ForComment /T (Stamp ForComment) >>
+endobj
+
+88 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [815 1135 985 1195] /Name /ForPublicRelease /T (Stamp ForPublicRelease) >>
+endobj
+
+89 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 1065 185 1125] /Name /NotApproved /T (Stamp NotApproved) >>
+endobj
+
+90 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [215 1065 385 1125] /Name /NotForPublicRelease /T (Stamp NotForPublicRelease) >>
+endobj
+
+91 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [415 1065 585 1125] /Name /Sold /T (Stamp Sold) >>
+endobj
+
+92 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [615 1065 785 1125] /Name /TopSecret /T (Stamp TopSecret) >>
+endobj
+
+93 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [815 1065 985 1125] /T (Stamp no Name) >>
+endobj
+
+% ============================================================
+% Row B: name variety  y=975-1035, 150x60 blocks
+% ============================================================
+
+94 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 975 165 1035] /Name /SignHere /T (Stamp custom Name SignHere) >>
+endobj
+
+95 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [180 975 330 1035] /Name /SBApproved
+   /NM (3f2a9c1e-7b4d-4e8a-9c21-5d6e7f8a9b0c) /T (Stamp custom Name SBApproved with NM) >>
+endobj
+
+96 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [345 975 495 1035] /Name /draft /T (Stamp lowercase Name draft) >>
+endobj
+
+97 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [510 975 660 1035] /Name /Approved#20Copy /T (Stamp Name with escaped space) >>
+endobj
+
+98 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [675 975 825 1035] /Name /AVeryLongCustomStampNameThatMustShrink /T (Stamp very long custom Name) >>
+endobj
+
+99 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [840 975 990 1035] /Name / /T (Stamp empty Name) >>
+endobj
+
+% ============================================================
+% Row C: sizes  y=720-941
+% ============================================================
+
+100 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 925 55 941] /Name /Draft /T (Stamp tiny 40x16) >>
+endobj
+
+101 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [70 911 150 941] /Name /Draft /T (Stamp small 80x30) >>
+endobj
+
+102 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [165 801 545 941] /Name /Draft /T (Stamp large 380x140) >>
+endobj
+
+103 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [560 721 620 941] /Name /Draft /T (Stamp tall 60x220) >>
+endobj
+
+104 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [635 801 775 941] /Name /Final /T (Stamp square 140x140) >>
+endobj
+
+105 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [790 801 990 941] /Name /NotForPublicRelease /T (Stamp long label 200x140) >>
+endobj
+
+106 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 720 545 750] /Name /ForPublicRelease /T (Stamp very wide 530x30) >>
+endobj
+
+% ============================================================
+% Row D: borders  y=625-690, 150x65 blocks
+% ============================================================
+
+107 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 625 165 690] /Name /Approved /T (Stamp no BS no Border) >>
+endobj
+
+108 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [180 625 330 690] /Name /Approved /BS << /W 0 /S /S >> /T (Stamp BS W=0) >>
+endobj
+
+109 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [345 625 495 690] /Name /Approved /BS << /W 1 /S /S >> /T (Stamp BS W=1) >>
+endobj
+
+110 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [510 625 660 690] /Name /Approved /BS << /W 6 /S /S >> /T (Stamp BS W=6) >>
+endobj
+
+111 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [675 625 825 690] /Name /Approved /BS << /W 2 /S /D /D [6 3] >> /T (Stamp BS dashed W=2) >>
+endobj
+
+112 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [840 625 990 690] /Name /Approved /Border [0 0 4] /T (Stamp Border 0 0 4 no BS) >>
+endobj
+
+% ============================================================
+% Row E: colors  y=530-595, 150x65 blocks
+% ============================================================
+
+113 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 530 165 595] /Name /Expired /T (Stamp no C) >>
+endobj
+
+114 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [180 530 330 595] /Name /Expired /C [] /T (Stamp empty C) >>
+endobj
+
+115 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [345 530 495 595] /Name /Expired /C [0.4] /T (Stamp gray C) >>
+endobj
+
+116 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [510 530 660 595] /Name /Expired /C [0 0 0.8] /T (Stamp RGB blue C) >>
+endobj
+
+117 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [675 530 825 595] /Name /Expired /C [0 1 1 0] /T (Stamp CMYK red C) >>
+endobj
+
+118 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [840 530 990 595] /Name /Expired /C [0 0.5 0] /CA 0.5 /T (Stamp green CA=0.5) >>
+endobj
+
+% ============================================================
+% Row F: backgrounds  y=305-495
+% Panels: black, yellow, red/blue vertical stripes, black/white horizontal stripes
+% ============================================================
+
+119 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [35 415 225 475] /Name /Draft /T (Stamp on black) >>
+endobj
+
+120 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [35 325 225 385] /Name /Approved /CA 0.5 /T (Stamp on black CA=0.5) >>
+endobj
+
+121 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [280 415 470 475] /Name /Draft /T (Stamp on yellow) >>
+endobj
+
+122 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [280 325 470 385] /Name /Approved /CA 0.5 /T (Stamp on yellow CA=0.5) >>
+endobj
+
+123 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [525 415 715 475] /Name /Draft /T (Stamp on vertical stripes) >>
+endobj
+
+124 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [525 325 715 385] /Name /Approved /CA 0.5 /T (Stamp on vertical stripes CA=0.5) >>
+endobj
+
+125 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [770 415 960 475] /Name /Draft /T (Stamp on horizontal stripes) >>
+endobj
+
+126 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [770 325 960 385] /Name /Approved /CA 0.5 /T (Stamp on horizontal stripes CA=0.5) >>
+endobj
+
+% ============================================================
+% Row G: intent (PDF 2.0)  y=205-270, 150x65 blocks
+% ============================================================
+
+127 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [15 205 165 270] /IT /Stamp /Name /Approved /T (Stamp IT Stamp Name Approved) >>
+endobj
+
+128 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [180 205 330 270] /IT /StampImage /T (Stamp IT StampImage) >>
+endobj
+
+129 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [345 205 495 270] /IT /StampSnapshot /T (Stamp IT StampSnapshot) >>
+endobj
+
+130 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [510 205 660 270] /IT /StampImage /Name /Final /T (Stamp IT StampImage with Name Final) >>
+endobj
+
+131 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [675 205 825 270] /IT /StampCustom /T (Stamp unknown IT) >>
+endobj
+
+% ============================================================
+% Row H: Rect edge cases  y=110-175
+% ============================================================
+
+132 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [165 175 15 110] /Name /Sold /T (Stamp reversed Rect) >>
+endobj
+
+133 0 obj
+<< /Type /Annot /Subtype /Stamp /Rect [180 140 330 140] /Name /Sold /T (Stamp zero height Rect) >>
+endobj
+
 xref
 0 1
 0000000000 65535 f
 trailer
-<< /Size 77 /Root 1 0 R >>
+<< /Size 134 /Root 1 0 R >>
 startxref
 0
 

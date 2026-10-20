@@ -16,7 +16,7 @@ namespace PdfPixel.Annotations.Model;
 /// contains an embedded file stream in the /EF dictionary. This class exposes basic metadata
 /// about the attached file and provides a minimal fallback rendering (paperclip icon + name).
 /// </remarks>
-public class PdfFileAttachmentAnnotation : PdfAnnotationBase
+public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfFileAttachmentAnnotation"/> class.

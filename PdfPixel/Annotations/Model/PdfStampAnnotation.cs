@@ -2,15 +2,14 @@ using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Model;
-using PdfPixel.Fonts;
 using PdfPixel.Fonts.Management;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Typeface;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
+using PdfPixel.Rendering.Text;
 using PdfPixel.Text;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Annotations.Model;
 
@@ -20,15 +19,17 @@ namespace PdfPixel.Annotations.Model;
 /// <remarks>
 /// Stamp annotations display a predefined icon or text label (e.g. "DRAFT", "APPROVED")
 /// as a visual mark on the page. When no appearance stream is available, the fallback
-/// renders a rounded rectangle border with centered label text. Both the border and text
-/// carry a drop-shadow paint filter to imitate a physical stamp impression.
+/// renders a slightly tilted rounded rectangle border with centered label text, both cast onto
+/// a flat shadow offset to the bottom right to imitate a physical stamp impression.
 /// </remarks>
-public class PdfStampAnnotation : PdfAnnotationBase
+public class PdfStampAnnotation : PdfMarkupAnnotation
 {
-    private const float BorderWidthDefault = 2f;
+    private const float BorderWidthFraction = 0.08f;
     private const float CornerRadiusFraction = 0.12f;
-    private const float MarginFraction = 0.10f;
-    private const byte ShadowAlpha = 80;
+    private const float LabelWidthFraction = 0.8f;
+    private const float LabelHeightFraction = 0.50f;
+    private const float ShadowGray = 0.8f;
+    private const float TiltDegrees = 1.25f;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfStampAnnotation"/> class.
@@ -37,92 +38,138 @@ public class PdfStampAnnotation : PdfAnnotationBase
     public PdfStampAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Stamp)
     {
-        StampName = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.NameKey).AsEnum<PdfStampName>();
-        // TODO: [LOW] Not parsed, so a stamp is always treated as a named rubber stamp:
-        // - intent: rubber stamp, image or snapshot, PDF 2.0 (IT: Stamp, StampImage, StampSnapshot)
+        PdfString? stampName = annotationObject.Dictionary.GetName(PdfTokens.NameKey);
+        StampName = stampName?.AsEnum<PdfStampName>() ?? PdfStampName.Draft;
+        RawStampName = (StampName == PdfStampName.Raw) ? stampName : null;
     }
 
     /// <summary>
     /// Gets the standard stamp name identifying the stamp type (e.g. Draft, Approved).
+    /// Default <see cref="PdfStampName.Draft"/>.
     /// </summary>
     public PdfStampName StampName { get; }
 
+    /// <summary>
+    /// Name as written when <see cref="StampName"/> is <see cref="PdfStampName.Raw"/>, otherwise <see langword="null"/>.
+    /// </summary>
+    public PdfString? RawStampName { get; }
+
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        PdfColor stampColor = ResolveColor(page, new PdfColor(180f / 255f, 0f, 0f));
-        float opacity = (visualStateKind == PdfAnnotationVisualStateKind.Rollover) ? 0.75f : 1.0f;
-        PdfColor color = stampColor.WithAlpha(stampColor.Alpha * opacity);
+        bool isRubberStamp = Intent == PdfAnnotationIntent.None || Intent == PdfAnnotationIntent.Stamp;
+        string? labelText = isRubberStamp ? GetLabelText() : null;
 
-        float borderWidth = (BorderStyle?.StrokeStyle.LineWidth > 0) ? BorderStyle.StrokeStyle.LineWidth : BorderWidthDefault;
-        float cornerRadius = Math.Min(Rectangle.Width, Rectangle.Height) * CornerRadiusFraction;
+        if (labelText == null)
+        {
+            return false;
+        }
+
+        float opacity = (visualStateKind == PdfAnnotationVisualStateKind.Rollover) ? 0.75f : 1.0f;
+        PdfColor color = GetStampColor().WithAlpha(opacity);
+        PdfColor shadowColor = new PdfColor(ShadowGray, ShadowGray, ShadowGray).WithAlpha(color.Alpha);
+
+        float shortSide = Math.Min(Rectangle.Width, Rectangle.Height);
+        float borderWidth = shortSide * BorderWidthFraction;
+        float cornerRadius = shortSide * CornerRadiusFraction;
         float halfBorderWidth = borderWidth / 2f;
         PdfRectangle borderRect = Rectangle.Inflate(-halfBorderWidth);
 
-        DrawBorder(processor, borderRect, cornerRadius, borderWidth, color);
-        DrawLabel(processor, page, GetLabelText(StampName, Name), color);
+        PdfMatrix shadowMatrix = PdfMatrix.CreateTranslation(halfBorderWidth, -halfBorderWidth);
+        PdfRectangle stampBounds = PdfRectangle.Union(Rectangle, shadowMatrix.MapRect(Rectangle));
+        PdfMatrix tiltMatrix = CreateTiltMatrix(stampBounds, out float tiltScale);
+        PdfMatrix shadowTiltMatrix = PdfMatrix.Concat(tiltMatrix, shadowMatrix);
+        float tiltedBorderWidth = borderWidth * tiltScale;
+
+        PdfPathBuilder borderPathBuilder = new();
+        borderPathBuilder.AddRoundRect(borderRect, cornerRadius, cornerRadius);
+        PdfPath borderPath = borderPathBuilder.ToPath();
+        PdfPath? labelPath = CreateLabelPath(page, labelText);
+
+        PdfPaint borderShadowPaint = PdfAnnotationPaintFactory.CreateStrokePaint(shadowColor, tiltedBorderWidth);
+        processor.Process(new DrawPathCommand(borderPath.Transform(shadowTiltMatrix), borderShadowPaint));
+
+        if (labelPath != null)
+        {
+            PdfPaint labelShadowPaint = PdfAnnotationPaintFactory.CreateFillPaint(shadowColor);
+            processor.Process(new DrawPathCommand(labelPath.Transform(shadowTiltMatrix), labelShadowPaint));
+        }
+
+        PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, tiltedBorderWidth);
+        processor.Process(new DrawPathCommand(borderPath.Transform(tiltMatrix), borderPaint));
+
+        if (labelPath != null)
+        {
+            PdfPaint labelPaint = PdfAnnotationPaintFactory.CreateFillPaint(color);
+            processor.Process(new DrawPathCommand(labelPath.Transform(tiltMatrix), labelPaint));
+        }
 
         return true;
     }
 
-    private static void DrawBorder(
-        IPdfCommandProcessor processor,
-        in PdfRectangle borderRect,
-        float cornerRadius,
-        float borderWidth,
-        in PdfColor color)
+    private PdfMatrix CreateTiltMatrix(in PdfRectangle stampBounds, out float tiltScale)
     {
-        PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStampBorderPaint(color, borderWidth);
+        PdfMatrix rotation = PdfMatrix.CreateRotationDegrees(TiltDegrees);
+        PdfRectangle tiltedBounds = rotation.MapRect(stampBounds);
+        tiltScale = Math.Min(Rectangle.Width / tiltedBounds.Width, Rectangle.Height / tiltedBounds.Height);
 
-        PdfPathBuilder borderPath = new();
-        borderPath.AddRoundRect(borderRect, cornerRadius, cornerRadius);
-        processor.Process(new DrawPathCommand(borderPath.ToPath(), borderPaint));
+        PdfMatrix toOrigin = PdfMatrix.CreateTranslation(-stampBounds.MidX, -stampBounds.MidY);
+        PdfMatrix scaledRotation = PdfMatrix.Concat(PdfMatrix.CreateScale(tiltScale, tiltScale), rotation);
+        PdfMatrix toRectangle = PdfMatrix.CreateTranslation(Rectangle.MidX, Rectangle.MidY);
+
+        return PdfMatrix.Concat(toRectangle, PdfMatrix.Concat(scaledRotation, toOrigin));
     }
 
-    private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in PdfColor color)
+    private PdfPath? CreateLabelPath(IPdfPageInternal page, string labelText)
     {
-        PdfSubstitutionInfo substitutionInfo = new(Fonts.Mapping.PdfStandardFontName.Courier, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, italicAngle: 0f);
+        PdfSubstitutionInfo substitutionInfo = new(PdfStandardFontName.Times, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, italicAngle: 0f);
         SfntPdfTypeface typeface = page.Document.FontProvider.GetTypefaceByUnicode(substitutionInfo, labelText);
-
-        float availableWidth = Rectangle.Width * (1f - 2f * MarginFraction);
-        float availableHeight = Rectangle.Height * (1f - 2f * MarginFraction);
-
-        PdfFontMetrics metrics = typeface.Metrics;
-
-        float glyphHeight = metrics.Ascent - metrics.Descent;
-        float fontSize = (glyphHeight > 0f) ? availableHeight / glyphHeight : availableHeight;
-
-        float textWidth = typeface.GetWidth(labelText) * fontSize;
-        if (textWidth > availableWidth)
-        {
-            fontSize *= availableWidth / textWidth;
-            textWidth = availableWidth;
-        }
-
-        float scaledAscent = metrics.Ascent * fontSize;
-        float scaledDescent = metrics.Descent * fontSize;
-
-        float textX = Rectangle.MidX - textWidth / 2f;
-        float textY = Rectangle.MidY - (scaledAscent + scaledDescent) / 2f;
-
-        // Shaped glyph positions are em-relative, so the font size scales them through the matrix.
-        PdfMatrix textMatrix = PdfMatrix.Concat(
-            PdfMatrix.CreateTranslation(textX, textY),
-            PdfMatrix.CreateScale(fontSize, -fontSize));
-
-        float shadowOffset = fontSize * 0.05f;
-        float shadowSigma = fontSize * 0.03f;
-        PdfPaintShadowEffect shadowEffect = new(shadowOffset, shadowOffset, shadowSigma, shadowSigma, PdfColors.Black.WithAlpha(ShadowAlpha / 255f));
-        PdfPaint textPaint = new PdfPaint(PdfPaintStyle.Fill).WithColor(color).WithShadowEffect(shadowEffect);
 
         ShapedGlyphBuffer glyphs = new();
         ShapedGlyphBuilder.BuildFromText(labelText, typeface, glyphs);
 
-        processor.Process(new DrawShapedTextCommand(textMatrix, glyphs.Glyphs.ToArray(), textPaint));
+        PdfPath emPath = TextRenderUtilities.GetTextPath(glyphs.Glyphs, PdfMatrix.CreateScale(1f, -1f));
+        PdfRectangle inkBounds = emPath.GetBounds();
+
+        if (inkBounds.Width <= 0f || inkBounds.Height <= 0f)
+        {
+            return null;
+        }
+
+        float fontSize = Math.Min(
+            Rectangle.Width * LabelWidthFraction / inkBounds.Width,
+            Rectangle.Height * LabelHeightFraction / inkBounds.Height);
+
+        PdfMatrix labelMatrix = PdfMatrix.CreateScaleTranslation(
+            fontSize,
+            fontSize,
+            Rectangle.MidX - (inkBounds.MidX * fontSize),
+            Rectangle.MidY - (inkBounds.MidY * fontSize));
+
+        return emPath.Transform(labelMatrix);
     }
 
-    private static string GetLabelText(PdfStampName stampName, PdfString? rawName)
+    private PdfColor GetStampColor()
     {
-        return stampName switch
+        switch (StampName)
+        {
+            case PdfStampName.Approved:
+            case PdfStampName.ForComment:
+            case PdfStampName.ForPublicRelease:
+                return new PdfColor(70f / 255f, 160f / 255f, 70f / 255f);
+
+            case PdfStampName.Departmental:
+            case PdfStampName.Experimental:
+            case PdfStampName.Sold:
+                return new PdfColor(0f, 113f / 255f, 187f / 255f);
+
+            default:
+                return new PdfColor(240f / 255f, 63f / 255f, 35f / 255f);
+        }
+    }
+
+    private string? GetLabelText()
+    {
+        return StampName switch
         {
             PdfStampName.Approved => "APPROVED",
             PdfStampName.AsIs => "AS IS",
@@ -138,7 +185,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
             PdfStampName.NotForPublicRelease => "NOT FOR PUBLIC RELEASE",
             PdfStampName.Sold => "SOLD",
             PdfStampName.TopSecret => "TOP SECRET",
-            _ => (rawName == null) ? "STAMP" : rawName.Value.ToString().ToUpperInvariant()
+            _ => null
         };
     }
 

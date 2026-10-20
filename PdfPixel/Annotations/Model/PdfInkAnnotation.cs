@@ -18,7 +18,7 @@ namespace PdfPixel.Annotations.Model;
 /// When displayed or printed, the paths are stroked with the annotation's color
 /// using a solid line of uniform thickness.
 /// </remarks>
-public class PdfInkAnnotation : PdfAnnotationBase
+public class PdfInkAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfInkAnnotation"/> class.

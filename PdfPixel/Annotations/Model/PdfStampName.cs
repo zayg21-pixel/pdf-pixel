@@ -9,10 +9,10 @@ namespace PdfPixel.Annotations.Model;
 public enum PdfStampName
 {
     /// <summary>
-    /// Unknown or non-standard stamp name.
+    /// Name not defined by ISO 32000; see <see cref="PdfStampAnnotation.RawStampName"/>.
     /// </summary>
     [PdfEnumDefaultValue]
-    Unknown,
+    Raw,
 
     /// <summary>
     /// Approved.

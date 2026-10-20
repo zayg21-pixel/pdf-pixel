@@ -9,7 +9,7 @@ namespace PdfPixel.Annotations.Model;
 /// <remarks>Free-form text annotations do not display a bubble and require an appearance stream for rendering.
 /// Fallback rendering is not implemented, as these annotations should always provide an appearance stream to ensure
 /// correct display.</remarks>
-public class PdfFreeTextAnnotation : PdfAnnotationBase
+public class PdfFreeTextAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfFreeTextAnnotation"/> class.
@@ -21,8 +21,7 @@ public class PdfFreeTextAnnotation : PdfAnnotationBase
         // TODO: [MEDIUM] Not parsed, so a FreeText without an appearance stream is not drawn:
         // - default appearance string: font, size and text color (DA)
         // - text justification: left, centered or right (Q)
-        // - intent: plain, callout or typewriter (IT)
-        // - callout line points and its line ending (CL, LE)
+        // - callout line points and its line ending, not drawn for the typewriter intent (CL, LE)
         // - inset of the text box from the annotation rectangle (RD)
         // - default rich text style string (DS)
         // - border effect, cloudy border (BE)

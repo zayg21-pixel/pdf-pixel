@@ -15,7 +15,7 @@ namespace PdfPixel.Annotations.Model;
 /// Line annotations display a single straight line on the page. The line may have optional
 /// line ending styles at its start and end points (such as arrows, circles, or diamonds).
 /// </remarks>
-public class PdfLineAnnotation : PdfAnnotationBase
+public class PdfLineAnnotation : PdfMarkupAnnotation
 {
     private readonly bool _hasLineCoordinates;
 
@@ -51,7 +51,6 @@ public class PdfLineAnnotation : PdfAnnotationBase
         // - whether the Contents text is shown as a caption on the line (Cap)
         // - caption position, centered inside the line or on top of it (CP)
         // - caption offset from its default position (CO)
-        // - intent: arrow or dimension line (IT: LineArrow, LineDimension)
         // - measurement dictionary for dimension lines, units and scale (Measure)
     }
 

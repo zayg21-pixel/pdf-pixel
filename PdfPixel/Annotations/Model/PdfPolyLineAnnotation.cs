@@ -17,7 +17,7 @@ namespace PdfPixel.Annotations.Model;
 /// Unlike Polygon, the path is not closed. PolyLine annotations can have line ending
 /// styles at the start and end points.
 /// </remarks>
-public class PdfPolyLineAnnotation : PdfAnnotationBase
+public class PdfPolyLineAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfPolyLineAnnotation"/> class.
@@ -52,7 +52,6 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
         StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
         // TODO: [MEDIUM] Not parsed, so the polyline is drawn as a plain line without its measurement:
-        // - intent: perimeter dimension (IT: PolyLineDimension)
         // - measurement dictionary for dimension polylines, units and scale (Measure)
         // - curved outline that replaces Vertices, PDF 2.0 (Path)
     }

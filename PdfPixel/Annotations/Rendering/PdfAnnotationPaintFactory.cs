@@ -27,18 +27,6 @@ internal static class PdfAnnotationPaintFactory
         => new PdfPaint(PdfPaintStyle.Fill).WithColor(color).WithBlendMode(PdfBlendMode.Multiply).WithAlpha(opacity);
 
     /// <summary>
-    /// Border stroke paint for a Stamp annotation's rounded-rectangle frame, with a drop-shadow effect
-    /// that gives the stamp its embossed look.
-    /// </summary>
-    public static PdfPaint CreateStampBorderPaint(in PdfColor color, float borderWidth)
-    {
-        float shadowOffset = borderWidth * 0.5f;
-        PdfPaintShadowEffect shadowEffect = new(shadowOffset, -shadowOffset, borderWidth * 0.3f, borderWidth * 0.3f, PdfColors.Black.WithAlpha(80f / 255f));
-        PdfStrokeStyle strokeStyle = new(lineWidth: borderWidth);
-        return new PdfPaint(strokeStyle).WithColor(color).WithShadowEffect(shadowEffect);
-    }
-
-    /// <summary>
     /// Plain fill paint.
     /// </summary>
     public static PdfPaint CreateFillPaint(in PdfColor color) => new PdfPaint(PdfPaintStyle.Fill).WithColor(color);

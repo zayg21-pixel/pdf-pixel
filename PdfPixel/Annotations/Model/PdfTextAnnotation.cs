@@ -15,7 +15,7 @@ namespace PdfPixel.Annotations.Model;
 /// When closed, they appear as an icon; when open, they display a pop-up window
 /// containing the text of the note in a font and size chosen by the conforming reader.
 /// </remarks>
-public class PdfTextAnnotation : PdfAnnotationBase
+public class PdfTextAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfTextAnnotation"/> class.

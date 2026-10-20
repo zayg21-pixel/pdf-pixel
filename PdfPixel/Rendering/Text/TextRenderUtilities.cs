@@ -19,9 +19,15 @@ internal static class TextRenderUtilities
     /// horizontal <see cref="ShapedGlyph.Scale"/> and position before being combined with the rest.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfPath GetTextPath(in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state)
+    public static PdfPath GetTextPath(in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state) => GetTextPath(glyphs, GetFullTextMatrix(state));
+
+    /// <summary>
+    /// Builds the combined glyph outline for <paramref name="glyphs"/>, transformed by
+    /// <paramref name="matrix"/>, which maps the text space the glyphs are positioned in.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static PdfPath GetTextPath(in ReadOnlySpan<ShapedGlyph> glyphs, in PdfMatrix matrix)
     {
-        PdfMatrix matrix = GetFullTextMatrix(state);
         PdfPathBuilder textPathBuilder = new(matrix);
 
         for (int i = 0; i < glyphs.Length; i++)
@@ -50,7 +56,7 @@ internal static class TextRenderUtilities
 
     /// <summary>
     /// Computes the area the glyphs of <paramref name="glyphs"/> can cover, in the same space
-    /// <see cref="GetTextPath"/> builds its outline in. Each glyph contributes the font bounding box its
+    /// <see cref="GetTextPath(in ReadOnlySpan{ShapedGlyph}, PdfGraphicsState)"/> builds its outline in. Each glyph contributes the font bounding box its
     /// <see cref="PdfCharacterInfo.Typeface"/> reports - the box every glyph of that font fits inside -
     /// placed and scaled the way that glyph is, which bounds the run without reading a single outline.
     /// Returns <see langword="null"/> when a glyph's typeface reports no usable box, leaving the extent
