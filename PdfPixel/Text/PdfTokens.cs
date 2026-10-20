@@ -349,6 +349,7 @@ internal static class PdfTokens
 
     // Polygon/PolyLine Annotation specific keys
     public static readonly PdfString VerticesKey = (PdfString)"Vertices"u8;           // Polygon/PolyLine vertices array
+    public static readonly PdfString PathKey = (PdfString)"Path"u8;                   // Ink/Polygon/PolyLine path operator array
 
     // Text markup annotation keys
     public static readonly PdfString QuadPointsKey = (PdfString)"QuadPoints"u8;       // Text markup quadrilaterals array

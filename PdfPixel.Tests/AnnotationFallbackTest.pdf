@@ -5,7 +5,7 @@
 endobj
 
 2 0 obj
-<< /Type /Pages /Kids [3 0 R 77 0 R] /Count 2 >>
+<< /Type /Pages /Kids [3 0 R 77 0 R 154 0 R] /Count 3 >>
 endobj
 
 3 0 obj
@@ -1073,11 +1073,72 @@ endobj
 << /Type /Annot /Subtype /Stamp /Rect [180 140 330 140] /Name /Sold /T (Stamp zero height Rect) >>
 endobj
 
+% ============================================================
+% Page 3: Geometry (PDF 2.0 Path, QuadPoints)
+% ============================================================
+
+154 0 obj
+<< /Type /Page
+   /MediaBox [0 0 1000 1300]
+   /Parent 2 0 R
+   /Annots [151 0 R 152 0 R 153 0 R]
+>>
+endobj
+
+% ============================================================
+% Row A: Ink Path  y=1200-1260
+%   151: Path circle (4 curves) + tail line, InkList straight line -> circle with tail
+%   152: Path zigzag (lines only), InkList same points -> sharp corners, not waves
+%   153: Path circle (4 curves) + tail line, no InkList -> circle with tail
+% ============================================================
+
+151 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [20 1200 150 1260]
+   /InkList [[35 1230 125 1230]]
+   /Path [[105 1230]
+          [105 1243.81 93.81 1255 80 1255]
+          [66.19 1255 55 1243.81 55 1230]
+          [55 1216.19 66.19 1205 80 1205]
+          [93.81 1205 105 1216.19 105 1230]
+          [135 1230]]
+   /C [0.2 0.2 0.8]
+   /BS << /W 2 >>
+   /T (Ink - Path Curves)
+   /Contents (Path: circle of 4 curves + tail line. InkList: straight line. Expected: circle with tail. Straight line = InkList drawn instead.) >>
+endobj
+
+152 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [170 1200 310 1260]
+   /InkList [[180 1210 210 1250 240 1210 270 1250 300 1210]]
+   /Path [[180 1210] [210 1250] [240 1210] [270 1250] [300 1210]]
+   /C [0.2 0.2 0.8]
+   /BS << /W 2 >>
+   /T (Ink - Path Lines)
+   /Contents (Path: zigzag of lines. InkList: same points. Expected: sharp corners. Soft waves = InkList smoothed instead.) >>
+endobj
+
+153 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [330 1200 470 1260]
+   /Path [[425 1230]
+          [425 1243.81 413.81 1255 400 1255]
+          [386.19 1255 375 1243.81 375 1230]
+          [375 1216.19 386.19 1205 400 1205]
+          [413.81 1205 425 1216.19 425 1230]
+          [455 1230]]
+   /C [0.2 0.2 0.8]
+   /BS << /W 2 >>
+   /T (Ink - Path Only)
+   /Contents (Path only, no InkList. Expected: circle with tail. Nothing drawn = Path not supported.) >>
+endobj
+
 xref
 0 1
 0000000000 65535 f
 trailer
-<< /Size 151 /Root 1 0 R >>
+<< /Size 155 /Root 1 0 R >>
 startxref
 0
 

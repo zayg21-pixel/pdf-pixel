@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -23,8 +24,7 @@ public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
     protected PdfTextMarkupAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
         : base(annotationObject, subtype)
     {
-        float[]? quadPoints = annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey)?.GetFloatArray();
-        Quadrilaterals = GetQuadrilaterals(quadPoints);
+        Quadrilaterals = PdfAnnotationGeometryParser.ParseQuadrilaterals(annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey));
     }
 
     /// <summary>
@@ -85,30 +85,5 @@ public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
         float maxY = Math.Max(Math.Max(quad[0].Y, quad[1].Y), Math.Max(quad[2].Y, quad[3].Y));
 
         return new PdfRectangle(left, minY, right, maxY);
-    }
-
-    private static PdfPoint[][] GetQuadrilaterals(float[]? quadPoints)
-    {
-        if (quadPoints == null || quadPoints.Length < 8 || quadPoints.Length % 8 != 0)
-        {
-            return System.Array.Empty<PdfPoint[]>();
-        }
-
-        int quadCount = quadPoints.Length / 8;
-        var quads = new PdfPoint[quadCount][];
-
-        for (int i = 0; i < quadCount; i++)
-        {
-            int offset = i * 8;
-            quads[i] =
-            [
-                new PdfPoint(quadPoints[offset + 6], quadPoints[offset + 7]),
-                new PdfPoint(quadPoints[offset + 4], quadPoints[offset + 5]),
-                new PdfPoint(quadPoints[offset + 0], quadPoints[offset + 1]),
-                new PdfPoint(quadPoints[offset + 2], quadPoints[offset + 3])
-            ];
-        }
-
-        return quads;
     }
 }

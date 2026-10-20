@@ -5,7 +5,6 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using System;
 using System.Linq;
 
 namespace PdfPixel.Annotations.Model;
@@ -27,23 +26,39 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     public PdfInkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Ink)
     {
-        PdfArray? inkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
-        InkList = ParseInkList(inkList);
+        InkList = PdfAnnotationGeometryParser.ParseInkList(annotationObject.Dictionary.GetArray(PdfTokens.InkListKey));
+        Path = PdfAnnotationGeometryParser.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
 
         StrokeStyle = (BorderStyle?.StrokeStyle ?? new PdfStrokeStyle()).WithLineCap(PdfStrokeCap.Round).WithLineJoin(PdfStrokeJoin.Round);
-        // TODO: [MEDIUM] Not parsed, so curved ink strokes are drawn as straight segments:
-        // - curved strokes that replace InkList, PDF 2.0 (Path)
     }
 
     /// <summary>
-    /// Gets the starting point for bubble placement, using the first point of the first ink path.
+    /// Gets the starting point for bubble placement, using the first point of <see cref="Path"/>, or of the
+    /// first ink path when there is no <see cref="Path"/>.
     /// </summary>
-    protected override PdfPoint ContentStart => (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
+    protected override PdfPoint ContentStart
+    {
+        get
+        {
+            if (Path != null)
+            {
+                PdfPathSegmentEnumerator segments = Path.Segments.GetEnumerator();
+
+                if (segments.MoveNext())
+                {
+                    return segments.Current.Points[0];
+                }
+            }
+
+            return (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
+        }
+    }
 
     /// <inheritdoc/>
     /// <remarks>
-    /// A declared /Rect that misses <see cref="InkList"/> entirely cannot be where the ink is, so the ink
-    /// bounds are used instead, grown to leave room for the stroke around them.
+    /// A declared /Rect that misses <see cref="Path"/>, or <see cref="InkList"/> when there is no
+    /// <see cref="Path"/>, entirely cannot be where the ink is, so the ink bounds are used instead, grown to
+    /// leave room for the stroke around them.
     /// </remarks>
     public override PdfRectangle Rectangle
     {
@@ -54,7 +69,9 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
                 return base.Rectangle;
             }
 
-            PdfRectangle? inkBounds = PdfRectangle.FromPoints(InkList.SelectMany(static path => path));
+            PdfRectangle? inkBounds = (Path != null)
+                ? Path.GetBounds()
+                : PdfRectangle.FromPoints(InkList.SelectMany(static path => path));
 
             if (inkBounds == null)
             {
@@ -74,56 +91,33 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     public PdfPoint[][] InkList { get; }
 
     /// <summary>
+    /// Gets the ink stroke built from path operators, PDF 2.0. Drawn instead of <see cref="InkList"/> when
+    /// present; null when absent or malformed.
+    /// </summary>
+    public PdfPath? Path { get; }
+
+    /// <summary>
     /// Gets the stroke style used to draw the ink paths (always round cap/join), falling back to
     /// defaults when no BS/Border entry is present.
     /// </summary>
     public PdfStrokeStyle StrokeStyle { get; }
 
-    private static PdfPoint[][] ParseInkList(PdfArray? inkList)
-    {
-        if (inkList == null || inkList.Count == 0)
-        {
-            return Array.Empty<PdfPoint[]>();
-        }
-
-        var result = new PdfPoint[inkList.Count][];
-        for (int i = 0; i < inkList.Count; i++)
-        {
-            PdfArray? pathArray = inkList.GetArray(i);
-            if (pathArray == null || pathArray.Count < 4)
-            {
-                result[i] = Array.Empty<PdfPoint>();
-                continue;
-            }
-
-            float[] coords = pathArray.GetFloatArray();
-            if (coords == null || coords.Length < 4)
-            {
-                result[i] = Array.Empty<PdfPoint>();
-                continue;
-            }
-
-            var points = new PdfPoint[coords.Length / 2];
-            int p = 0;
-            for (int j = 0; j < coords.Length - 1; j += 2)
-            {
-                points[p++] = new PdfPoint(coords[j], coords[j + 1]);
-            }
-
-            result[i] = points;
-        }
-
-        return result;
-    }
-
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
+        PdfColor inkColor = ResolveColor(page, PdfColors.Black);
+
+        if (Path != null)
+        {
+            PdfPaint pathPaint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
+            processor.Process(new DrawPathCommand(Path, pathPaint));
+
+            return true;
+        }
+
         if (InkList == null || InkList.Length == 0)
         {
             return false;
         }
-
-        PdfColor inkColor = ResolveColor(page, PdfColors.Black);
 
         // Render each path in the parsed ink list
         foreach (PdfPoint[] points in InkList)

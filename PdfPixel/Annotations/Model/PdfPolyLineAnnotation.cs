@@ -5,7 +5,6 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using System;
 
 namespace PdfPixel.Annotations.Model;
 
@@ -26,21 +25,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     public PdfPolyLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.PolyLine)
     {
-        float[]? vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
-
-        if (vertices != null)
-        {
-            Vertices = new PdfPoint[vertices.Length / 2];
-
-            for (int i = 0; i < vertices.Length; i += 2)
-            {
-                Vertices[i / 2] = new PdfPoint(vertices[i], vertices[i + 1]);
-            }
-        }
-        else
-        {
-            Vertices = Array.Empty<PdfPoint>();
-        }
+        Vertices = PdfAnnotationGeometryParser.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
 
         PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
         if (lineEndingArray?.Count >= 2)

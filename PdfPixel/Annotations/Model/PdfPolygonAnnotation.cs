@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -21,21 +22,7 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
     public PdfPolygonAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Polygon)
     {
-        float[]? vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
-
-        if (vertices != null)
-        {
-            Vertices = new PdfPoint[vertices.Length / 2];
-
-            for (int i = 0; i < vertices.Length; i += 2)
-            {
-                Vertices[i / 2] = new PdfPoint(vertices[i], vertices[i + 1]);
-            }
-        }
-        else
-        {
-            Vertices = System.Array.Empty<PdfPoint>();
-        }
+        Vertices = PdfAnnotationGeometryParser.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
 
         // TODO: [MEDIUM] Not parsed, so the polygon is drawn as a plain shape without its measurement:
         // - measurement dictionary for dimension polygons, units and scale (Measure)

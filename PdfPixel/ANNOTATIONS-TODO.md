@@ -26,12 +26,11 @@ Files: `PdfPixel/Annotations/Model/PdfAnnotationBase.cs`, `PdfPixel/Annotations/
 
 ## 3. PDF 2.0 curved paths
 
-`Path` replaces the point list with curves. Today curved strokes are drawn as straight segments. One parser shared by three types:
+`Path` replaces the point list with curves. Today curved outlines are drawn as straight segments. Ink already reads it through `PdfAnnotationGeometryParser.ParsePath`; what is left reuses that parser:
 
-- Ink: replaces `InkList`
 - Polygon and PolyLine: replace `Vertices`
 
-Files: `PdfPixel/Annotations/Model/PdfInkAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`
+Files: `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`
 
 ## 4. Line captions
 
