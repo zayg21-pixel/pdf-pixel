@@ -40,9 +40,10 @@ internal static class PdfDocumentContentExtensions
 
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
-            // TODO: [MEDIUM] Invisible applies only to annotation types the viewer does not recognize; standard
-            // types with the flag set are still displayed. Today every annotation with Invisible is skipped.
-            if ((pageAnnotation.Content.Flags & PdfAnnotationFlags.Invisible) != 0
+            bool isInvisibleUnknownType = (pageAnnotation.Content.Flags & PdfAnnotationFlags.Invisible) != 0
+                && pageAnnotation.Content.Subtype == PdfAnnotationSubType.Unknown;
+
+            if (isInvisibleUnknownType
                 || pageAnnotation.Content.IsHidden
                 || (pageAnnotation.Content.Flags & PdfAnnotationFlags.NoView) != 0)
             {

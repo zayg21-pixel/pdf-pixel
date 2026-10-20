@@ -6,14 +6,7 @@ Widgets, default appearance (DA) handling, FreeText fallback rendering and Hide-
 
 Test files: `PdfPixel.Tests/AnnotationFallbackTest.pdf` (fallback rendering playground), plus the Gold entries `comments.pdf`, `highlights.pdf`, `issue14438.pdf`, `issue9552.pdf`.
 
-## 1. Single-key parses
-
-No new mechanism; each is one key read and used where the annotation is drawn or hit-tested.
-
-- **Invisible flag scope**: `Invisible` applies only to annotation types the viewer does not recognize. Today the panel skips every annotation with the flag.
-  `PdfPixel.PdfPanel/ContentProvider/PdfDocumentContentExtensions.cs`
-
-## 2. Annotation base keys
+## 1. Annotation base keys
 
 Apply to every annotation type.
 
@@ -22,7 +15,7 @@ Apply to every annotation type.
 
 Files: `PdfPixel/Annotations/Model/PdfAnnotationBase.cs`, `PdfPixel/Annotations/Rendering/PdfAnnotationAppearanceRenderer.cs`
 
-## 3. Line captions
+## 2. Line captions
 
 Text laid out along the line:
 
@@ -32,7 +25,7 @@ Text laid out along the line:
 
 File: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`
 
-## 4. Measurement
+## 3. Measurement
 
 One shared measurement model (`Measure`: units and scale), used by the dimension annotations:
 
@@ -42,7 +35,7 @@ One shared measurement model (`Measure`: units and scale), used by the dimension
 
 Files: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`, plus a new model type.
 
-## 5. View-dependent flags
+## 4. View-dependent flags
 
 Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel.
 

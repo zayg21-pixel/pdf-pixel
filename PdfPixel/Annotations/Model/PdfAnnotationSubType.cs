@@ -168,5 +168,17 @@ public enum PdfAnnotationSubType
     /// Redact annotation.
     /// </summary>
     [PdfEnumValue("Redact")]
-    Redact
+    Redact,
+
+    /// <summary>
+    /// Projection annotation.
+    /// </summary>
+    [PdfEnumValue("Projection")]
+    Projection,
+
+    /// <summary>
+    /// Rich media annotation.
+    /// </summary>
+    [PdfEnumValue("RichMedia")]
+    RichMedia
 }
