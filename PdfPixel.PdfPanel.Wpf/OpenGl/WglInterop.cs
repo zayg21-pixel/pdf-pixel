@@ -120,7 +120,15 @@ internal static class WglInterop
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern nint wglGetCurrentContext();
 
+    [DllImport(OpenGl32, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern nint wglGetProcAddress(string procedureName);
+
     [DllImport(Kernel32)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static extern nint GetModuleHandleW([MarshalAs(UnmanagedType.LPWStr)] string? moduleName);
+
+    [DllImport(Kernel32, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern nint GetProcAddress(nint module, string procedureName);
 }

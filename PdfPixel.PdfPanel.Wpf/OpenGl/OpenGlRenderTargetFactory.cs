@@ -29,6 +29,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     private readonly WpfPdfPanel _panel;
     private readonly int _sampleCount;
     private WglContext? _glContext;
+    private GlProcedureLoader? _procedureLoader;
     private GRContext? _grContext;
 
     // Drawing surface state
@@ -71,15 +72,15 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         }
 
         _glContext = WglContext.Create();
+        _procedureLoader = new GlProcedureLoader();
 
-        using GRGlInterface glInterface = GRGlInterface.Create();
+        using GRGlInterface glInterface = GRGlInterface.Create(_procedureLoader.GetProcAddress);
 
         if (glInterface == null)
         {
             throw new InvalidOperationException("Failed to create GRGlInterface for WGL context.");
         }
 
-        // StencilBuffers causes most of blending issues. Though, disabling them does not solve ALL issues
         _grContext = GRContext.CreateGl(glInterface, new GRContextOptions { RuntimeProgramCacheSize = 128 });
         _grContext.SetResourceCacheLimit(ResourceCacheLimitBytes);
 
