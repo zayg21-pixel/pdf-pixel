@@ -37,8 +37,8 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
             Vertices = System.Array.Empty<PdfPoint>();
         }
 
-        // TODO: [MEDIUM] Not parsed, so the polygon is drawn as a plain shape without its cloud or measurement:
-        // - intent: cloud outline or area dimension (IT: PolygonCloud, PolygonDimension)
+        // TODO: [MEDIUM] Not parsed, so the polygon is drawn as a plain shape without its measurement:
+        // - intent: area dimension (IT: PolygonDimension)
         // - measurement dictionary for dimension polygons, units and scale (Measure)
         // - curved outline that replaces Vertices, PDF 2.0 (Path)
     }

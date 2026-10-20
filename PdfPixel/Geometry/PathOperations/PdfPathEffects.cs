@@ -273,36 +273,17 @@ public static class PdfPathEffects
 
         if (isCounterClockwise && overlapDegrees > 0f)
         {
-            AddArcSegments(builder, center, radius, startAngleDegrees, -overlapSweep);
-            AddArcSegments(builder, center, radius, startAngleDegrees - overlapSweep, overlapSweep);
+            builder.ArcTo(center, radius, radius, startAngleDegrees, -overlapSweep);
+            builder.ArcTo(center, radius, radius, startAngleDegrees - overlapSweep, overlapSweep);
         }
 
-        AddArcSegments(builder, center, radius, startAngleDegrees, sweepDegrees);
+        builder.ArcTo(center, radius, radius, startAngleDegrees, sweepDegrees);
 
         if (!isCounterClockwise && overlapDegrees > 0f)
         {
             float endOfArcDegrees = startAngleDegrees + sweepDegrees;
-            AddArcSegments(builder, center, radius, endOfArcDegrees, overlapSweep);
-            AddArcSegments(builder, center, radius, endOfArcDegrees + overlapSweep, -overlapSweep);
-        }
-    }
-
-    private static void AddArcSegments(PdfPathBuilder builder, Vector2 center, float radius, float startAngleDegrees, float sweepDegrees)
-    {
-        var segmentCount = (int)MathF.Ceiling(MathF.Abs(sweepDegrees) / 90f);
-        float segmentSweep = sweepDegrees / segmentCount;
-
-        for (int segment = 0; segment < segmentCount; segment++)
-        {
-            (PdfPoint control1, PdfPoint control2, PdfPoint arcEnd) = PdfPathExtensions.ArcSegmentToCubic(
-                center.X,
-                center.Y,
-                radius,
-                radius,
-                startAngleDegrees + (segmentSweep * segment),
-                segmentSweep);
-
-            builder.CubicTo(control1, control2, arcEnd);
+            builder.ArcTo(center, radius, radius, endOfArcDegrees, overlapSweep);
+            builder.ArcTo(center, radius, radius, endOfArcDegrees + overlapSweep, -overlapSweep);
         }
     }
 }

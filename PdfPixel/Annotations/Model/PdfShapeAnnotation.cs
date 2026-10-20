@@ -54,7 +54,7 @@ public abstract class PdfShapeAnnotation : PdfAnnotationBase
             processor.Process(new DrawPathCommand(effectPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
-        if (strokeStyle.LineWidth > 0 && Color?.Length > 0)
+        if (strokeStyle.LineWidth > 0 && Color?.Length != 0)
         {
             PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
             PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, strokeStyle, BorderEffect);

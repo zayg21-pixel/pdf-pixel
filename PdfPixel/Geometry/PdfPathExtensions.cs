@@ -1,5 +1,7 @@
 using PdfPixel.Color.Paint;
+using PdfPixel.Geometry.PathOperations;
 using System;
+using System.Numerics;
 
 namespace PdfPixel.Geometry;
 
@@ -149,59 +151,46 @@ public static class PdfPathExtensions
             return;
         }
 
-        float centerX = oval.MidX;
-        float centerY = oval.MidY;
-        float radiusX = oval.Width / 2f;
-        float radiusY = oval.Height / 2f;
+        Vector2 center = new(oval.MidX, oval.MidY);
+        Vector2 radius = new(oval.Width / 2f, oval.Height / 2f);
+        float startRadians = startAngleDegrees * MathF.PI / 180f;
 
-        var segmentCount = (int)MathF.Ceiling(MathF.Abs(sweepAngleDegrees) / 90f);
-        float segmentSweep = sweepAngleDegrees / segmentCount;
+        path.MoveTo(PdfVectorMath.ToPdfPoint(center + (radius * new Vector2(MathF.Cos(startRadians), MathF.Sin(startRadians)))));
+        path.ArcTo(center, radius.X, radius.Y, startAngleDegrees, sweepAngleDegrees);
+    }
 
-        path.MoveTo(PointOnOval(centerX, centerY, radiusX, radiusY, startAngleDegrees));
+    /// <summary>
+    /// Adds an elliptical arc around <paramref name="center"/> as cubic segments, continuing from the current point,
+    /// which is the point at <paramref name="startAngleDegrees"/>. Angles follow <see cref="AddArc"/>.
+    /// </summary>
+    internal static void ArcTo(this PdfPathBuilder path, Vector2 center, float radiusX, float radiusY, float startAngleDegrees, float sweepAngleDegrees)
+    {
+        var pieceCount = (int)MathF.Ceiling(MathF.Abs(sweepAngleDegrees) / 90f);
+        float pieceSweep = sweepAngleDegrees / pieceCount;
+        Vector2 radius = new(radiusX, radiusY);
 
-        for (int i = 0; i < segmentCount; i++)
+        for (int piece = 0; piece < pieceCount; piece++)
         {
-            float segmentStart = startAngleDegrees + (segmentSweep * i);
-            (PdfPoint control1, PdfPoint control2, PdfPoint end) = ArcSegmentToCubic(centerX, centerY, radiusX, radiusY, segmentStart, segmentSweep);
-            path.CubicTo(control1, control2, end);
+            AddArcPiece(path, center, radius, startAngleDegrees + (pieceSweep * piece), pieceSweep);
         }
     }
 
-    private static PdfPoint PointOnOval(float centerX, float centerY, float radiusX, float radiusY, float angleDegrees)
-    {
-        float radians = angleDegrees * MathF.PI / 180f;
-        return new PdfPoint(centerX + (radiusX * MathF.Cos(radians)), centerY + (radiusY * MathF.Sin(radians)));
-    }
-
-    internal static (PdfPoint Control1, PdfPoint Control2, PdfPoint End) ArcSegmentToCubic(
-        float centerX,
-        float centerY,
-        float radiusX,
-        float radiusY,
-        float startAngleDegrees,
-        float sweepAngleDegrees)
+    /// <summary>
+    /// Adds one arc piece of at most 90 degrees with the tan(sweep/4) arc-to-cubic approximation.
+    /// </summary>
+    private static void AddArcPiece(PdfPathBuilder path, Vector2 center, Vector2 radius, float startAngleDegrees, float sweepAngleDegrees)
     {
         float startRadians = startAngleDegrees * MathF.PI / 180f;
         float endRadians = (startAngleDegrees + sweepAngleDegrees) * MathF.PI / 180f;
         float alpha = (4f / 3f) * MathF.Tan((endRadians - startRadians) / 4f);
 
-        float cosStart = MathF.Cos(startRadians);
-        float sinStart = MathF.Sin(startRadians);
-        float cosEnd = MathF.Cos(endRadians);
-        float sinEnd = MathF.Sin(endRadians);
+        Vector2 startDirection = new(MathF.Cos(startRadians), MathF.Sin(startRadians));
+        Vector2 endDirection = new(MathF.Cos(endRadians), MathF.Sin(endRadians));
 
-        PdfPoint control1 = new(
-            centerX + (radiusX * (cosStart - (alpha * sinStart))),
-            centerY + (radiusY * (sinStart + (alpha * cosStart))));
+        Vector2 control1 = center + (radius * (startDirection + PdfVectorMath.LeftNormal(startDirection, alpha)));
+        Vector2 control2 = center + (radius * (endDirection - PdfVectorMath.LeftNormal(endDirection, alpha)));
+        Vector2 end = center + (radius * endDirection);
 
-        PdfPoint control2 = new(
-            centerX + (radiusX * (cosEnd + (alpha * sinEnd))),
-            centerY + (radiusY * (sinEnd - (alpha * cosEnd))));
-
-        PdfPoint end = new(
-            centerX + (radiusX * cosEnd),
-            centerY + (radiusY * sinEnd));
-
-        return (control1, control2, end);
+        path.CubicTo(PdfVectorMath.ToPdfPoint(control1), PdfVectorMath.ToPdfPoint(control2), PdfVectorMath.ToPdfPoint(end));
     }
 }

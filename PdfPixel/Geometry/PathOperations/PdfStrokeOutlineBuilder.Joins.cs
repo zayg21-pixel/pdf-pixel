@@ -36,7 +36,7 @@ public static partial class PdfStrokeOutlineBuilder
         {
             case PdfStrokeJoin.Round:
             {
-                AddArc(result, vertex, halfWidth, PdfVectorMath.AngleDegreesOf(PdfVectorMath.LeftNormal(incomingTangent, 1f)), sweep);
+                result.ArcTo(vertex, halfWidth, halfWidth, PdfVectorMath.AngleDegreesOf(PdfVectorMath.LeftNormal(incomingTangent, 1f)), sweep);
                 break;
             }
             case PdfStrokeJoin.Bevel:
@@ -85,7 +85,7 @@ public static partial class PdfStrokeOutlineBuilder
             case PdfStrokeCap.Round:
             {
                 float startAngle = PdfVectorMath.AngleDegreesOf(PdfVectorMath.LeftNormal(outwardTangent, 1f));
-                AddArc(result, pivot, halfWidth, startAngle, -180f);
+                result.ArcTo(pivot, halfWidth, halfWidth, startAngle, -180f);
                 break;
             }
             case PdfStrokeCap.Square:
@@ -105,40 +105,6 @@ public static partial class PdfStrokeOutlineBuilder
                 result.LineTo(PdfVectorMath.ToPdfPoint(end));
                 break;
             }
-        }
-    }
-
-    /// <summary>
-    /// Emits a circular arc of <paramref name="radius"/> centered at <paramref name="center"/>, starting at
-    /// <paramref name="startAngleDegrees"/> and sweeping by <paramref name="sweepDegrees"/> (signed, degrees),
-    /// as one or more cubic Bézier segments (the tan(sweep/4) arc-to-cubic approximation). The builder's
-    /// current point must already be the arc's start point.
-    /// </summary>
-    private static void AddArc(PdfPathBuilder result, Vector2 center, float radius, float startAngleDegrees, float sweepDegrees)
-    {
-        int pieceCount = Math.Max(1, (int)MathF.Ceiling(MathF.Abs(sweepDegrees) / 90f));
-        float pieceSweep = sweepDegrees / pieceCount;
-
-        float angle = startAngleDegrees;
-        for (int i = 0; i < pieceCount; i++)
-        {
-            float nextAngle = angle + pieceSweep;
-
-            float startRadians = angle * MathF.PI / 180f;
-            float endRadians = nextAngle * MathF.PI / 180f;
-            float alpha = (4f / 3f) * MathF.Tan((endRadians - startRadians) / 4f);
-
-            float cosStart = MathF.Cos(startRadians);
-            float sinStart = MathF.Sin(startRadians);
-            float cosEnd = MathF.Cos(endRadians);
-            float sinEnd = MathF.Sin(endRadians);
-
-            Vector2 control1 = new(center.X + (radius * (cosStart - (alpha * sinStart))), center.Y + (radius * (sinStart + (alpha * cosStart))));
-            Vector2 control2 = new(center.X + (radius * (cosEnd + (alpha * sinEnd))), center.Y + (radius * (sinEnd - (alpha * cosEnd))));
-            Vector2 end = new(center.X + (radius * cosEnd), center.Y + (radius * sinEnd));
-
-            result.CubicTo(PdfVectorMath.ToPdfPoint(control1), PdfVectorMath.ToPdfPoint(control2), PdfVectorMath.ToPdfPoint(end));
-            angle = nextAngle;
         }
     }
 }

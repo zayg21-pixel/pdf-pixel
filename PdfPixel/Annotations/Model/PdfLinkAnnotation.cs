@@ -73,15 +73,17 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (BorderStyle == null || BorderStyle.StrokeStyle.LineWidth <= 0)
+        PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
+
+        if (strokeStyle.LineWidth <= 0 || Color?.Length == 0)
         {
             return false;
         }
 
         PdfColor color = ResolveColor(page, PdfColors.Black);
-        float borderWidth = BorderStyle.StrokeStyle.LineWidth;
+        float borderWidth = strokeStyle.LineWidth;
 
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, BorderStyle.StrokeStyle);
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, strokeStyle);
 
         // A border narrower than the rectangle's shorter side outlines it from the inside and already stays
         // within it. Anything thicker inverts that inset rectangle and would stroke across the surrounding
@@ -94,7 +96,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
             processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
         }
 
-        if (BorderStyle.StyleType == PdfAnnotationBorderStyleType.Underline)
+        if (BorderStyle?.StyleType == PdfAnnotationBorderStyleType.Underline)
         {
             float y = Rectangle.Top - (borderWidth / 2);
             PdfPathBuilder linePath = new();

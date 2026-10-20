@@ -27,7 +27,7 @@ endobj
             61 0 R 62 0 R 63 0 R
             64 0 R 65 0 R 66 0 R 67 0 R 68 0 R
             69 0 R 70 0 R 71 0 R 72 0 R
-            73 0 R 74 0 R 75 0 R]
+            73 0 R 74 0 R 75 0 R 76 0 R]
 >>
 endobj
 
@@ -665,11 +665,18 @@ endobj
    /T (Link no BS no Border) >>
 endobj
 
+76 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [680 255 760 310]
+   /BS << /W 1 >>
+   /T (Link BS W=1 no C) >>
+endobj
+
 xref
 0 1
 0000000000 65535 f
 trailer
-<< /Size 76 /Root 1 0 R >>
+<< /Size 77 /Root 1 0 R >>
 startxref
 0
 
