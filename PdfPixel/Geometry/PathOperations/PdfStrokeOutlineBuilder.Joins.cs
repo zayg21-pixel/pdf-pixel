@@ -2,11 +2,11 @@ using PdfPixel.Color.Paint;
 using System;
 using System.Numerics;
 
-namespace PdfPixel.Geometry;
+namespace PdfPixel.Geometry.PathOperations;
 
 public static partial class PdfStrokeOutlineBuilder
 {
-    private static void AddJoin(
+    internal static void AddJoin(
         PdfPathBuilder result,
         Vector2 vertex,
         Vector2 incomingTangent,
@@ -15,8 +15,8 @@ public static partial class PdfStrokeOutlineBuilder
         PdfStrokeJoin join,
         float miterLimit)
     {
-        float sweep = AngleDegrees(incomingTangent, outgoingTangent);
-        if (MathF.Abs(sweep) <= Epsilon)
+        float sweep = PdfVectorMath.AngleDegrees(incomingTangent, outgoingTangent);
+        if (MathF.Abs(sweep) <= PdfVectorMath.Epsilon)
         {
             return;
         }
@@ -26,9 +26,9 @@ public static partial class PdfStrokeOutlineBuilder
             // Concave side: route the inner contour back through the vertex before stepping out to the
             // outgoing offset. Anchoring the overlap at the centerline keeps the winding number consistent
             // when a leg is shorter than the stroke radius (the short-leg problem).
-            result.LineTo(ToPdfPoint(vertex));
-            Vector2 concaveEnd = Offset(vertex, outgoingTangent, halfWidth);
-            result.LineTo(ToPdfPoint(concaveEnd));
+            result.LineTo(PdfVectorMath.ToPdfPoint(vertex));
+            Vector2 concaveEnd = PdfVectorMath.Offset(vertex, outgoingTangent, halfWidth);
+            result.LineTo(PdfVectorMath.ToPdfPoint(concaveEnd));
             return;
         }
 
@@ -36,13 +36,13 @@ public static partial class PdfStrokeOutlineBuilder
         {
             case PdfStrokeJoin.Round:
             {
-                AddArc(result, vertex, halfWidth, AngleDegreesOf(LeftNormal(incomingTangent, 1f)), sweep);
+                AddArc(result, vertex, halfWidth, PdfVectorMath.AngleDegreesOf(PdfVectorMath.LeftNormal(incomingTangent, 1f)), sweep);
                 break;
             }
             case PdfStrokeJoin.Bevel:
             {
-                Vector2 end = Offset(vertex, outgoingTangent, halfWidth);
-                result.LineTo(ToPdfPoint(end));
+                Vector2 end = PdfVectorMath.Offset(vertex, outgoingTangent, halfWidth);
+                result.LineTo(PdfVectorMath.ToPdfPoint(end));
                 break;
             }
             default:
@@ -61,21 +61,21 @@ public static partial class PdfStrokeOutlineBuilder
         float halfWidth,
         float miterLimit)
     {
-        Vector2 start = Offset(vertex, incomingTangent, halfWidth);
-        Vector2 end = Offset(vertex, outgoingTangent, halfWidth);
+        Vector2 start = PdfVectorMath.Offset(vertex, incomingTangent, halfWidth);
+        Vector2 end = PdfVectorMath.Offset(vertex, outgoingTangent, halfWidth);
 
-        if (TryIntersectLines(start, incomingTangent, end, outgoingTangent, out Vector2 miterPoint))
+        if (PdfVectorMath.TryIntersectLines(start, incomingTangent, end, outgoingTangent, out Vector2 miterPoint))
         {
             float miterLength = Vector2.Distance(miterPoint, vertex);
             if (miterLength / halfWidth <= MathF.Max(miterLimit, 1f))
             {
-                result.LineTo(ToPdfPoint(miterPoint));
-                result.LineTo(ToPdfPoint(end));
+                result.LineTo(PdfVectorMath.ToPdfPoint(miterPoint));
+                result.LineTo(PdfVectorMath.ToPdfPoint(end));
                 return;
             }
         }
 
-        result.LineTo(ToPdfPoint(end));
+        result.LineTo(PdfVectorMath.ToPdfPoint(end));
     }
 
     private static void AddCap(PdfPathBuilder result, Vector2 pivot, Vector2 outwardTangent, float halfWidth, PdfStrokeCap cap)
@@ -84,25 +84,25 @@ public static partial class PdfStrokeOutlineBuilder
         {
             case PdfStrokeCap.Round:
             {
-                float startAngle = AngleDegreesOf(LeftNormal(outwardTangent, 1f));
+                float startAngle = PdfVectorMath.AngleDegreesOf(PdfVectorMath.LeftNormal(outwardTangent, 1f));
                 AddArc(result, pivot, halfWidth, startAngle, -180f);
                 break;
             }
             case PdfStrokeCap.Square:
             {
-                Vector2 start = Offset(pivot, outwardTangent, halfWidth);
-                Vector2 end = Offset(pivot, -outwardTangent, halfWidth);
+                Vector2 start = PdfVectorMath.Offset(pivot, outwardTangent, halfWidth);
+                Vector2 end = PdfVectorMath.Offset(pivot, -outwardTangent, halfWidth);
                 Vector2 startExtended = start + (outwardTangent * halfWidth);
                 Vector2 endExtended = end + (outwardTangent * halfWidth);
-                result.LineTo(ToPdfPoint(startExtended));
-                result.LineTo(ToPdfPoint(endExtended));
-                result.LineTo(ToPdfPoint(end));
+                result.LineTo(PdfVectorMath.ToPdfPoint(startExtended));
+                result.LineTo(PdfVectorMath.ToPdfPoint(endExtended));
+                result.LineTo(PdfVectorMath.ToPdfPoint(end));
                 break;
             }
             default:
             {
-                Vector2 end = Offset(pivot, -outwardTangent, halfWidth);
-                result.LineTo(ToPdfPoint(end));
+                Vector2 end = PdfVectorMath.Offset(pivot, -outwardTangent, halfWidth);
+                result.LineTo(PdfVectorMath.ToPdfPoint(end));
                 break;
             }
         }
@@ -137,7 +137,7 @@ public static partial class PdfStrokeOutlineBuilder
             Vector2 control2 = new(center.X + (radius * (cosEnd + (alpha * sinEnd))), center.Y + (radius * (sinEnd - (alpha * cosEnd))));
             Vector2 end = new(center.X + (radius * cosEnd), center.Y + (radius * sinEnd));
 
-            result.CubicTo(ToPdfPoint(control1), ToPdfPoint(control2), ToPdfPoint(end));
+            result.CubicTo(PdfVectorMath.ToPdfPoint(control1), PdfVectorMath.ToPdfPoint(control2), PdfVectorMath.ToPdfPoint(end));
             angle = nextAngle;
         }
     }

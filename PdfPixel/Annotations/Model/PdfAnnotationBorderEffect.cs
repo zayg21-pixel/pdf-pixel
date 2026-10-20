@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.Geometry.PathOperations;
 
 namespace PdfPixel.Annotations.Model;
 

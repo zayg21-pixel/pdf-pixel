@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace PdfPixel.Geometry;
+namespace PdfPixel.Geometry.PathOperations;
 
 /// <summary>
 /// Builds the fill outline of a stroked <see cref="PdfPath"/> directly in <see cref="PdfPath"/> geometry
@@ -15,18 +15,8 @@ public static partial class PdfStrokeOutlineBuilder
     // the segment midpoint.
     private const float DeviceOffsetTolerance = 0.1f;
 
-    // Maximum subdivision levels for one source curve's offset rail.
-    private const int MaxSubdivisionDepth = 6;
-
     // A dash pattern that would cut a sub-path into more pieces than this leaves it solid instead.
     private const int MaxDashPieces = 10000;
-
-    private const float Epsilon = 1e-4f;
-
-    // Spacing of the chord samples a cubic's length is measured from, in the space the path is built in.
-    private const float CurveMeasureStep = 0.25f;
-    private const int MinCurveMeasureSamples = 8;
-    private const int MaxCurveMeasureSamples = 256;
 
     private const int OutlineCapacityFactor = 2;
 
@@ -61,27 +51,30 @@ public static partial class PdfStrokeOutlineBuilder
         PdfPathBuilder result = new(GetOutlineCapacity(source, halfWidth, offsetTolerance), penMatrix);
 
         float[]? dashPattern = GetDashPattern(style);
+        List<PdfContourMeasure> contours = PdfPathMeasure.GetContours(source);
 
-        foreach (SubPath subPath in EnumerateSubPaths(source))
+        for (int contourIndex = 0; contourIndex < contours.Count; contourIndex++)
         {
+            PdfContourMeasure contour = contours[contourIndex];
+
             if (dashPattern == null)
             {
-                MapToPenSpace(subPath.Segments, toPenSpace);
+                MapToPenSpace(contour.Segments, toPenSpace);
 
-                if (subPath.IsClosed)
+                if (contour.IsClosed)
                 {
-                    AddClosedOutline(result, subPath.Segments, halfWidth, offsetTolerance, style);
+                    AddClosedOutline(result, contour.Segments, halfWidth, offsetTolerance, style);
                 }
                 else
                 {
-                    AddOpenOutline(result, subPath.Segments, halfWidth, offsetTolerance, style);
+                    AddOpenOutline(result, contour.Segments, halfWidth, offsetTolerance, style);
                 }
 
                 continue;
             }
 
             // Split before entering pen space, over the arc length the pattern is written in.
-            foreach (List<IPathSegment> piece in SplitDashes(subPath, dashPattern, style.DashPhase))
+            foreach (List<IPdfContourSegment> piece in SplitDashes(contour, dashPattern, style.DashPhase))
             {
                 MapToPenSpace(piece, toPenSpace);
                 AddOpenOutline(result, piece, halfWidth, offsetTolerance, style);
@@ -97,83 +90,9 @@ public static partial class PdfStrokeOutlineBuilder
     private static int GetOutlineCapacity(PdfPath source, float halfWidth, float offsetTolerance)
     {
         float splitFactor = MathF.Sqrt(halfWidth / offsetTolerance);
-        int pieceCount = Math.Min(1 << MaxSubdivisionDepth, Math.Max(1, (int)splitFactor));
+        int pieceCount = Math.Min(1 << PdfCubicContourSegment.MaxSubdivisionDepth, Math.Max(1, (int)splitFactor));
 
         return source.Buffer.Length * OutlineCapacityFactor * pieceCount;
-    }
-
-    private sealed class SubPath
-    {
-        public List<IPathSegment> Segments { get; } = [];
-
-        public bool IsClosed { get; set; }
-    }
-
-    private static List<SubPath> EnumerateSubPaths(PdfPath path)
-    {
-        List<SubPath> result = [];
-        SubPath? current = null;
-        Vector2 currentPoint = default;
-        Vector2 subPathStart = default;
-
-        foreach (PdfPathSegment segment in path.Segments)
-        {
-            switch (segment.Type)
-            {
-                case PdfPathSegmentType.MoveTo:
-                {
-                    if (current != null)
-                    {
-                        result.Add(current);
-                    }
-
-                    subPathStart = ToVector2(segment.Points[0]);
-                    currentPoint = subPathStart;
-                    current = new SubPath();
-                    break;
-                }
-                case PdfPathSegmentType.LineTo:
-                {
-                    current ??= new SubPath();
-                    Vector2 end = ToVector2(segment.Points[0]);
-                    current.Segments.Add(new LinearPathSegment(currentPoint, end));
-                    currentPoint = end;
-                    break;
-                }
-                case PdfPathSegmentType.CubicTo:
-                {
-                    current ??= new SubPath();
-                    Vector2 control1 = ToVector2(segment.Points[0]);
-                    Vector2 control2 = ToVector2(segment.Points[1]);
-                    Vector2 end = ToVector2(segment.Points[2]);
-                    current.Segments.Add(new CubicPathSegment(currentPoint, control1, control2, end));
-                    currentPoint = end;
-                    break;
-                }
-                case PdfPathSegmentType.Close:
-                {
-                    if (current != null && current.Segments.Count > 0)
-                    {
-                        if (!PointsEqual(currentPoint, subPathStart))
-                        {
-                            current.Segments.Add(new LinearPathSegment(currentPoint, subPathStart));
-                        }
-
-                        current.IsClosed = true;
-                        currentPoint = subPathStart;
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        if (current != null)
-        {
-            result.Add(current);
-        }
-
-        return result;
     }
 
     /// <summary>
@@ -213,10 +132,10 @@ public static partial class PdfStrokeOutlineBuilder
             total += MathF.Max(entry, 0f);
         }
 
-        return (total > Epsilon) ? pattern : null;
+        return (total > PdfVectorMath.Epsilon) ? pattern : null;
     }
 
-    private static void MapToPenSpace(List<IPathSegment> segments, in PdfMatrix toPenSpace)
+    private static void MapToPenSpace(List<IPdfContourSegment> segments, in PdfMatrix toPenSpace)
     {
         if (toPenSpace.IsIdentity)
         {

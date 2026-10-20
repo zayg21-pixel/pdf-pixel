@@ -1,6 +1,7 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Context;
 using PdfPixel.Geometry;
+using PdfPixel.Geometry.PathOperations;
 using System;
 
 namespace PdfPixel.Commands.Processing;

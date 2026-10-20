@@ -1,24 +1,24 @@
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Geometry;
+namespace PdfPixel.Geometry.PathOperations;
 
 public static partial class PdfStrokeOutlineBuilder
 {
     [ThreadStatic]
-    private static CurveLengthBuffer? _lengthTableBuffer;
+    private static PdfCurveLengthBuffer? _lengthTableBuffer;
 
-    private static List<List<IPathSegment>> SplitDashes(SubPath subPath, float[] dashPattern, float dashPhase)
+    private static List<List<IPdfContourSegment>> SplitDashes(PdfContourMeasure subPath, float[] dashPattern, float dashPhase)
     {
-        List<List<IPathSegment>> pieces = [];
-        List<IPathSegment>? current = null;
+        List<List<IPdfContourSegment>> pieces = [];
+        List<IPdfContourSegment>? current = null;
 
         if (_lengthTableBuffer == null)
         {
-            _lengthTableBuffer = new CurveLengthBuffer();
+            _lengthTableBuffer = new PdfCurveLengthBuffer();
         }
 
-        CurveLengthBuffer lengthTableBuffer = _lengthTableBuffer;
+        PdfCurveLengthBuffer lengthTableBuffer = _lengthTableBuffer;
 
         int dashIndex = 0;
         float dashRemaining = dashPattern[0];
@@ -41,23 +41,23 @@ public static partial class PdfStrokeOutlineBuilder
 
         bool startsOn = isOn;
 
-        foreach (IPathSegment segment in subPath.Segments)
+        foreach (IPdfContourSegment segment in subPath.Segments)
         {
-            LengthLookup lengthLookup = segment.CreateLengthLookup(lengthTableBuffer);
+            PdfLengthLookup lengthLookup = segment.CreateLengthLookup(lengthTableBuffer);
             float segmentLength = lengthLookup.Length;
             float consumed = 0f;
 
-            while (segmentLength - consumed > Epsilon)
+            while (segmentLength - consumed > PdfVectorMath.Epsilon)
             {
                 float remainingInSegment = segmentLength - consumed;
 
                 if (dashRemaining >= remainingInSegment)
                 {
                     dashRemaining -= remainingInSegment;
-                    IPathSegment piece = segment.Slice(lengthLookup.ParameterAt(consumed), 1f);
+                    IPdfContourSegment piece = segment.Slice(lengthLookup.ParameterAt(consumed), 1f);
                     if (isOn)
                     {
-                        (current ??= new List<IPathSegment>()).Add(piece);
+                        (current ??= new List<IPdfContourSegment>()).Add(piece);
                     }
 
                     consumed = segmentLength;
@@ -65,10 +65,10 @@ public static partial class PdfStrokeOutlineBuilder
                 else
                 {
                     float nextConsumed = consumed + dashRemaining;
-                    IPathSegment piece = segment.Slice(lengthLookup.ParameterAt(consumed), lengthLookup.ParameterAt(nextConsumed));
+                    IPdfContourSegment piece = segment.Slice(lengthLookup.ParameterAt(consumed), lengthLookup.ParameterAt(nextConsumed));
                     if (isOn)
                     {
-                        (current ??= new List<IPathSegment>()).Add(piece);
+                        (current ??= new List<IPdfContourSegment>()).Add(piece);
                     }
 
                     if (isOn && current != null)
@@ -84,7 +84,7 @@ public static partial class PdfStrokeOutlineBuilder
 
                     if (pieces.Count > MaxDashPieces)
                     {
-                        return new List<List<IPathSegment>> { subPath.Segments };
+                        return new List<List<IPdfContourSegment>> { subPath.Segments };
                     }
                 }
             }

@@ -32,7 +32,7 @@ internal static class PdfPaintConverter
 
     /// <summary>
     /// Converts <paramref name="paint"/> for filling an outline that
-    /// <see cref="Geometry.PdfStrokeOutlineBuilder"/> has already widened, dashed, capped, and joined.
+    /// <see cref="Geometry.PathOperations.PdfStrokeOutlineBuilder"/> has already widened, dashed, capped, and joined.
     /// The stroke's own styling is left off, because the outline is plain geometry by the time it gets
     /// here.
     /// </summary>
