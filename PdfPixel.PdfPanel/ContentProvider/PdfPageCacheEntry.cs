@@ -61,20 +61,20 @@ internal sealed class PdfPageCacheEntry : IDisposable
     /// <summary>
     /// Returns the page's annotation popups, creating them on first call.
     /// </summary>
-    public PdfAnnotationPopup[] GetAnnotations(IPdfDocument document, object documentLocker)
+    public PdfAnnotationPopup[] GetAnnotations(PdfPanelDocument panelDocument)
     {
-        if (document == null)
+        if (panelDocument == null)
         {
-            throw new ArgumentNullException(nameof(document));
+            throw new ArgumentNullException(nameof(panelDocument));
         }
 
         ThrowIfDisposed();
 
         if (_annotations == null)
         {
-            lock (documentLocker)
+            lock (panelDocument.DocumentLocker)
             {
-                _annotations = document.CreateAnnotationPopups(PageNumber);
+                _annotations = panelDocument.CreateAnnotationPopups(PageNumber);
             }
         }
 

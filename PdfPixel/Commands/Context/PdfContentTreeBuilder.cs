@@ -134,7 +134,7 @@ public sealed class PdfContentTreeBuilder
         {
             if (scope is PdfContentScope contentScope
                 && contentScope.OptionalContent != null
-                && !IsOptionalContentVisible(contentScope.OptionalContent))
+                && !_groupStates.IsVisible(contentScope.OptionalContent))
             {
                 _isContentVisible = false;
                 return;
@@ -142,107 +142,5 @@ public sealed class PdfContentTreeBuilder
         }
 
         _isContentVisible = true;
-    }
-
-    private bool IsOptionalContentVisible(PdfOptionalContentMembership membership)
-    {
-        if (membership.VisibilityExpression != null)
-        {
-            return EvaluateVisibilityExpression(membership.VisibilityExpression);
-        }
-
-        int onCount = 0;
-        int offCount = 0;
-
-        foreach (PdfReference group in membership.Groups)
-        {
-            bool? state = _groupStates.GetState(group);
-
-            if (state == null)
-            {
-                continue;
-            }
-
-            if (state.Value)
-            {
-                onCount++;
-            }
-            else
-            {
-                offCount++;
-            }
-        }
-
-        if (onCount + offCount == 0)
-        {
-            return true;
-        }
-
-        return membership.VisibilityPolicy switch
-        {
-            PdfOptionalContentVisibilityPolicy.AllOn => offCount == 0,
-            PdfOptionalContentVisibilityPolicy.AnyOn => onCount > 0,
-            PdfOptionalContentVisibilityPolicy.AnyOff => offCount > 0,
-            PdfOptionalContentVisibilityPolicy.AllOff => onCount == 0,
-            _ => true
-        };
-    }
-
-    private bool EvaluateVisibilityExpression(PdfVisibilityExpression expression)
-    {
-        if (expression.GroupReference != null)
-        {
-            return GetGroupVisibility(expression.GroupReference.Value);
-        }
-
-        IReadOnlyList<PdfVisibilityExpression> operands = expression.Operands;
-
-        switch (expression.Operator)
-        {
-            case PdfVisibilityExpressionOperator.And:
-            {
-                foreach (PdfVisibilityExpression operand in operands)
-                {
-                    if (!EvaluateVisibilityExpression(operand))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-            case PdfVisibilityExpressionOperator.Or:
-            {
-                foreach (PdfVisibilityExpression operand in operands)
-                {
-                    if (EvaluateVisibilityExpression(operand))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-            case PdfVisibilityExpressionOperator.Not:
-            {
-                return operands.Count > 0 && !EvaluateVisibilityExpression(operands[0]);
-            }
-            default:
-            {
-                return true;
-            }
-        }
-    }
-
-    private bool GetGroupVisibility(in PdfReference reference)
-    {
-        bool? state = _groupStates.GetState(reference);
-
-        if (state == null)
-        {
-            return true;
-        }
-
-        return state.Value;
     }
 }

@@ -21,8 +21,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
     private static readonly PdfRenderingParameters RenderingParameters = new();
 
     private readonly PdfPageCacheEntry _cacheEntry;
-    private readonly IPdfDocument _document;
-    private readonly object _documentLocker;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfImage? _pageThumbnail;
     private readonly PdfIntegerSize _maximumSize;
     private readonly PdfOptionalContentStates? _optionalContentStates;
@@ -35,8 +34,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
     /// </summary>
     public PdfPageThumbnailWorkItem(
         PdfPageCacheEntry cacheEntry,
-        IPdfDocument document,
-        object documentLocker,
+        PdfPanelDocument panelDocument,
         PdfImage? pageThumbnail,
         in PdfIntegerSize maximumSize,
         PdfOptionalContentStates? optionalContentStates,
@@ -44,8 +42,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
         Action<BackgroundWorkItemComplete> onCompleted)
     {
         _cacheEntry = cacheEntry ?? throw new ArgumentNullException(nameof(cacheEntry));
-        _document = document ?? throw new ArgumentNullException(nameof(document));
-        _documentLocker = documentLocker ?? throw new ArgumentNullException(nameof(documentLocker));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _pageThumbnail = pageThumbnail;
         _maximumSize = maximumSize;
         _optionalContentStates = optionalContentStates;
@@ -94,7 +91,7 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
 
         PdfImageDecodingParameters decodingParameters = new() { MaximumSize = _maximumSize };
 
-        lock (_documentLocker)
+        lock (_panelDocument.DocumentLocker)
         {
             return _pageThumbnail.DecodePng(decodingParameters, _observer);
         }
@@ -111,9 +108,9 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
 
         if (recording == null)
         {
-            lock (_documentLocker)
+            lock (_panelDocument.DocumentLocker)
             {
-                recording = _document.GeneratePageCommandRecording(_cacheEntry.PageNumber, RenderingParameters, _observer);
+                recording = _panelDocument.Document.GeneratePageCommandRecording(_cacheEntry.PageNumber, RenderingParameters, _observer);
             }
         }
 
@@ -127,14 +124,14 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
 
         PdfCommandExecutionParameters executionParameters = new();
         using PdfCommandExecutionContext executionContext = new(
-            _document,
+            _panelDocument.Document,
             executionParameters,
-            _documentLocker,
+            _panelDocument.DocumentLocker,
             _optionalContentStates,
             _observer);
 
         await PdfDocumentContentExtensions
-            .RecordingToSkPictureAsync(recording, executionContext, canvas, GetRenderScale(cropBox, _maximumSize), _document.LoggerFactory)
+            .RecordingToSkPictureAsync(recording, executionContext, canvas, GetRenderScale(cropBox, _maximumSize), _panelDocument.Document.LoggerFactory)
             .ConfigureAwait(false);
 
         canvas.Restore();

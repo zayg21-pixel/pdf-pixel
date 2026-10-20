@@ -69,8 +69,7 @@ internal sealed partial class PdfPanelScheduler
             _textExtractionObserver = observer;
             _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(
                 nextEntry,
-                _panelDocument.Document,
-                _panelDocument.DocumentLocker,
+                _panelDocument,
                 _textExtractor,
                 _textExtractionProperties,
                 _panelDocument.OptionalContentStates,

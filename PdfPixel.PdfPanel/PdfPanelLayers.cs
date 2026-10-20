@@ -1,5 +1,5 @@
-using PdfPixel.Models;
 using PdfPixel.OptionalContent.Model;
+using PdfPixel.PdfPanel.ContentProvider;
 using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel;
@@ -9,10 +9,10 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public sealed class PdfPanelLayers
 {
-    internal PdfPanelLayers(IPdfDocument document)
+    internal PdfPanelLayers(PdfPanelDocument panelDocument)
     {
         List<PdfUserOptionalContentConfiguration> configurations = [];
-        PdfOptionalContentProperties properties = document.OptionalContentProperties;
+        PdfOptionalContentProperties properties = panelDocument.Document.OptionalContentProperties;
 
         if (properties.DefaultConfiguration != null)
         {

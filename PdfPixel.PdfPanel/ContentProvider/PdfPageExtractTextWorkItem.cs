@@ -30,8 +30,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         ExtractContent = true
     };
 
-    private readonly IPdfDocument _document;
-    private readonly object _documentLocker;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfTextExtractor _textExtractor;
     private readonly PdfTextExtractionProperties _textExtractionProperties;
     private readonly PdfOptionalContentStates? _optionalContentStates;
@@ -44,8 +43,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     /// </summary>
     public PdfPageExtractTextWorkItem(
         PdfPageCacheEntry cacheEntry,
-        IPdfDocument document,
-        object documentLocker,
+        PdfPanelDocument panelDocument,
         PdfTextExtractor textExtractor,
         PdfTextExtractionProperties textExtractionProperties,
         PdfOptionalContentStates? optionalContentStates,
@@ -53,8 +51,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         Action<BackgroundWorkItemComplete> onCompleted)
     {
         CacheEntry = cacheEntry ?? throw new ArgumentNullException(nameof(cacheEntry));
-        _document = document ?? throw new ArgumentNullException(nameof(document));
-        _documentLocker = documentLocker ?? throw new ArgumentNullException(nameof(documentLocker));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _textExtractor = textExtractor ?? throw new ArgumentNullException(nameof(textExtractor));
         _textExtractionProperties = textExtractionProperties ?? throw new ArgumentNullException(nameof(textExtractionProperties));
         _optionalContentStates = optionalContentStates;
@@ -100,19 +97,19 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
 
     private void ExtractWords()
     {
-        lock (_documentLocker)
+        lock (_panelDocument.DocumentLocker)
         {
-            IPdfPage page = _document.Pages[CacheEntry.PageNumber - 1];
+            IPdfPage page = _panelDocument.Document.Pages[CacheEntry.PageNumber - 1];
 
             using PdfCommandExecutionContext executionContext = new(
-                _document,
+                _panelDocument.Document,
                 new PdfCommandExecutionParameters(),
-                _documentLocker,
+                _panelDocument.DocumentLocker,
                 _optionalContentStates,
                 _observer);
 
             using SKNoDrawCanvas canvas = new((int)page.CropBox.Width, (int)page.CropBox.Height);
-            SkCanvasCommandProcessor processor = new(canvas, executionContext, _document.LoggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+            SkCanvasCommandProcessor processor = new(canvas, executionContext, _panelDocument.Document.LoggerFactory.CreateLogger<SkCanvasCommandProcessor>());
             processor.ApplyPageTransformations(page.CropBox);
             page.Render(processor, TextExtractionParameters, _observer);
 

@@ -93,7 +93,7 @@ internal sealed class PdfPanelDocument : IDisposable
     /// <summary>
     /// Returns the annotation popups for the specified 1-based page number.
     /// </summary>
-    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _entries[pageNumber - 1].GetAnnotations(Document, DocumentLocker);
+    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber) => _entries[pageNumber - 1].GetAnnotations(this);
 
     /// <summary>
     /// Returns the currently cached <see cref="PdfContentPictures"/> for the specified 1-based page number.
@@ -160,7 +160,7 @@ internal sealed class PdfPanelDocument : IDisposable
     {
         PdfPageCacheEntry cacheEntry = _entries[pageNumber - 1];
 
-        return cacheEntry.GetAnnotations(Document, DocumentLocker).Length > 0
+        return cacheEntry.GetAnnotations(this).Length > 0
             && cacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(request);
     }
 

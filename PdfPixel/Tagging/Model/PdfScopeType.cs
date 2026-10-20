@@ -18,5 +18,10 @@ public enum PdfScopeType
     /// <summary>
     /// <see cref="PdfXObjectScope"/>.
     /// </summary>
-    XObject
+    XObject,
+
+    /// <summary>
+    /// <see cref="PdfAnnotationScope"/>.
+    /// </summary>
+    Annotation
 }

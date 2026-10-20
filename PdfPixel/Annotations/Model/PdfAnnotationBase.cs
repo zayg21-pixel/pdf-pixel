@@ -9,6 +9,9 @@ using System;
 using System.Collections.Generic;
 using PdfPixel.Geometry;
 using PdfPixel.Commands.Model;
+using PdfPixel.OptionalContent.Model;
+using PdfPixel.Tagging.Model;
+using PdfPixel.Transparency.Model;
 
 namespace PdfPixel.Annotations.Model;
 
@@ -59,9 +62,14 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
         PageReference = annotationObject.Dictionary.GetReference(PdfTokens.PageKey);
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
         AssociatedFiles = PdfFileSpecification.GetFileSpecifications(annotationObject.Dictionary.GetArray(PdfTokens.AssociatedFilesKey));
-        // TODO: [MEDIUM] Not parsed, so every annotation is drawn regardless of layers and with normal blending:
-        // - optional content membership, hiding the annotation when its layer is off (OC)
-        // - blend mode the appearance is composited onto the page with, PDF 2.0 (BM)
+        OptionalContent = PdfOptionalContentMembership.FromDictionary(annotationObject.Dictionary);
+
+        PdfString? blendModeName = annotationObject.Dictionary.GetName(PdfTokens.BlendModeKey);
+        if (blendModeName != null)
+        {
+            PdfBlendMode blendMode = blendModeName.Value.AsEnum<PdfBlendMode>();
+            BlendMode = (blendMode == PdfBlendMode.Unknown) ? PdfBlendMode.Normal : blendMode;
+        }
     }
 
     /// <summary>
@@ -228,6 +236,17 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
+    /// Gets the optional content membership controlling the visibility of the annotation (OC entry),
+    /// or null when absent.
+    /// </summary>
+    public PdfOptionalContentMembership? OptionalContent { get; }
+
+    /// <summary>
+    /// Gets the blend mode the appearance stream is painted onto the page with (BM entry), or null when absent.
+    /// </summary>
+    public PdfBlendMode? BlendMode { get; }
+
+    /// <summary>
     /// Gets the hover rectangles for interaction purposes (hit testing, popups, etc.).
     /// </summary>
     /// <remarks>
@@ -270,45 +289,25 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        if (ShouldDisplayBubble)
+        PdfStructureTree? structureTree = null;
+        if (renderingParameters.ExtractContent)
         {
-            PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
-
-            if (bubbleIcon != null)
-            {
-                PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-                PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(page), borderColor, backgroundColor);
-            }
+            structureTree = page.Document.StructureTree;
         }
 
-        processor.Process(SaveStateCommand.Instance);
+        PdfAnnotationScope? annotationScope = PdfAnnotationScope.FromAnnotation(this, structureTree);
 
-        if (Appearance != null)
+        if (annotationScope != null)
         {
-            processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
-
-            if (RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
-            {
-                processor.Process(RestoreStateCommand.Instance);
-                return true;
-            }
+            processor.Process(new BeginScopeCommand(annotationScope));
         }
 
-        bool useOpacityLayer = UsesOpacityLayer;
-        if (useOpacityLayer)
+        bool rendered = RenderContent(processor, page, visualStateKind, renderer, renderingParameters, observer);
+
+        if (annotationScope != null)
         {
-            processor.Process(new SaveLayerCommand(Rectangle, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));
+            processor.Process(new EndScopeCommand());
         }
-
-        bool rendered = RenderFallback(processor, page, visualStateKind);
-
-        if (useOpacityLayer)
-        {
-            processor.Process(RestoreLayerCommand.Instance);
-        }
-
-        processor.Process(RestoreStateCommand.Instance);
 
         return rendered;
     }
@@ -406,6 +405,57 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
         }
 
         return $"{Subtype} Annotation";
+    }
+
+    private bool RenderContent(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
+    {
+        if (ShouldDisplayBubble)
+        {
+            PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
+
+            if (bubbleIcon != null)
+            {
+                PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+                PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(page), borderColor, backgroundColor);
+            }
+        }
+
+        processor.Process(SaveStateCommand.Instance);
+
+        if (Appearance != null)
+        {
+            processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
+
+            if (RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
+            {
+                processor.Process(RestoreStateCommand.Instance);
+                return true;
+            }
+        }
+
+        bool useOpacityLayer = UsesOpacityLayer;
+        if (useOpacityLayer)
+        {
+            processor.Process(new SaveLayerCommand(Rectangle, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));
+        }
+
+        bool rendered = RenderFallback(processor, page, visualStateKind);
+
+        if (useOpacityLayer)
+        {
+            processor.Process(RestoreLayerCommand.Instance);
+        }
+
+        processor.Process(RestoreStateCommand.Instance);
+
+        return rendered;
     }
 
     private PdfRectangle GetBubbleRectangle(IPdfPage page)

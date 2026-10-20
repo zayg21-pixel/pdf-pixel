@@ -134,8 +134,7 @@ internal sealed partial class PdfPanelScheduler
     {
         return new(
             cacheEntry,
-            _panelDocument.Document,
-            _panelDocument.DocumentLocker,
+            _panelDocument,
             pageThumbnail,
             _thumbnailSettings.RenderMaximumSize,
             _panelDocument.OptionalContentStates,

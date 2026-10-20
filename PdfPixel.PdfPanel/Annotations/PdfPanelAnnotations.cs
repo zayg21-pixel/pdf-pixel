@@ -130,14 +130,7 @@ public sealed class PdfPanelAnnotations
 
     private static PdfPanelCursor GetCursor(PdfAnnotationPopup annotation)
     {
-        PdfAnnotationCursorType? cursorType = annotation.PageAnnotation?.Content.CursorType;
-
-        if (cursorType == null)
-        {
-            return PdfPanelCursor.Hand;
-        }
-
-        return cursorType.Value switch
+        return annotation.PageAnnotation.Content.CursorType switch
         {
             PdfAnnotationCursorType.Hand => PdfPanelCursor.Hand,
             PdfAnnotationCursorType.IBeam => PdfPanelCursor.IBeam,

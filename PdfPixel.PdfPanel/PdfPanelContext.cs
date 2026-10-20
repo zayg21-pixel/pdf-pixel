@@ -57,9 +57,9 @@ public sealed class PdfPanelContext : IDisposable
         Text = new PdfPanelText(_panelDocument, Input, _graphics);
         Search = new PdfPanelSearch(this, Text, _panelDocument, _graphics);
         Content = new PdfPanelContent(_panelDocument, Input, _graphics);
-        Layers = new PdfPanelLayers(_panelDocument.Document);
+        Layers = new PdfPanelLayers(_panelDocument);
         Thumbnails = new PdfPanelThumbnails(_panelDocument, _scheduler);
-        Actions = new PdfPanelActions(this, _panelDocument.Document, Annotations, Layers);
+        Actions = new PdfPanelActions(this, _panelDocument, Annotations, Layers);
         Renderer = new PdfPanelRenderer(surfaceFactory, _panelDocument, _scheduler, _graphics);
         _panelDocument.OptionalContentStates = Layers.Configuration?.ToStates();
 

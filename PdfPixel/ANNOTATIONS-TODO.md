@@ -6,16 +6,7 @@ Widgets, default appearance (DA) handling, FreeText fallback rendering and Hide-
 
 Test files: `PdfPixel.Tests/AnnotationFallbackTest.pdf` (fallback rendering playground), plus the Gold entries `comments.pdf`, `highlights.pdf`, `issue14438.pdf`, `issue9552.pdf`.
 
-## 1. Annotation base keys
-
-Apply to every annotation type.
-
-- **Optional content**: hide the annotation when its layer is off (`OC`). `PdfOptionalContentMembership` already reads the key for XObjects.
-- **Blend mode**: the mode the appearance is composited onto the page with, PDF 2.0 (`BM`).
-
-Files: `PdfPixel/Annotations/Model/PdfAnnotationBase.cs`, `PdfPixel/Annotations/Rendering/PdfAnnotationAppearanceRenderer.cs`
-
-## 2. Line captions
+## 1. Line captions
 
 Text laid out along the line:
 
@@ -25,7 +16,7 @@ Text laid out along the line:
 
 File: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`
 
-## 3. Measurement
+## 2. Measurement
 
 One shared measurement model (`Measure`: units and scale), used by the dimension annotations:
 
@@ -35,12 +26,11 @@ One shared measurement model (`Measure`: units and scale), used by the dimension
 
 Files: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`, plus a new model type.
 
-## 4. View-dependent flags
+## 3. View-dependent flags
 
-Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel.
+Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel. Hover rectangles have to follow the same view state.
 
 - **NoZoom**: keep a fixed device-pixel size across zoom levels. Today annotations scale with the page.
 - **NoRotate**: stay upright, pivoting on the upper-left corner of the annotation rectangle. The rotation to cancel is the page's `/Rotate` plus the viewer's own rotation.
 - **ToggleNoView**: show a `NoView` annotation while the pointer is over it or it is selected.
-
 Files: `PdfPixel/Annotations/Model/PdfAnnotationFlags.cs`, `PdfPixel/Models/PdfRenderingParameters.cs`, `PdfPixel.PdfPanel`

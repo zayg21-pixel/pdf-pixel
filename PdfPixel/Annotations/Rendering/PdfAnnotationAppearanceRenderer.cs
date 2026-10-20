@@ -5,6 +5,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
+using PdfPixel.Transparency.Model;
 using System.Collections.Generic;
 
 namespace PdfPixel.Annotations.Rendering;
@@ -43,7 +44,7 @@ internal static class PdfAnnotationAppearanceRenderer
 
         processor.Process(SaveStateCommand.Instance);
 
-        RenderFormAppearance(processor, appearanceForm, annotation.Rectangle, page, renderer, renderingParameters, observer);
+        RenderFormAppearance(processor, appearanceForm, annotation.Rectangle, annotation.BlendMode, page, renderer, renderingParameters, observer);
 
         processor.Process(RestoreStateCommand.Instance);
 
@@ -57,6 +58,7 @@ internal static class PdfAnnotationAppearanceRenderer
         IPdfCommandProcessor processor,
         PdfForm formXObject,
         in PdfRectangle annotationRect,
+        PdfBlendMode? blendMode,
         IPdfPageInternal page,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
@@ -71,6 +73,13 @@ internal static class PdfAnnotationAppearanceRenderer
         processor.Process(new ConcatMatrixCommand(alignmentMatrix));
 
         PdfGraphicsState state = new(page, page.MediaBox, new HashSet<uint>(), observer, renderingParameters);
+
+        if (blendMode != null)
+        {
+            state.FillPaint = state.FillPaint.WithBlendMode(blendMode.Value);
+            state.StrokePaint = state.StrokePaint.WithBlendMode(blendMode.Value);
+        }
+
         renderer.DrawForm(processor, formXObject, state);
     }
 

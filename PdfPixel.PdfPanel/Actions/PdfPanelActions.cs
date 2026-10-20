@@ -4,6 +4,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Navigation.Model;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace PdfPixel.PdfPanel.Actions;
 public sealed class PdfPanelActions
 {
     private readonly PdfPanelContext _context;
-    private readonly IPdfDocument _document;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelAnnotations _annotations;
     private readonly PdfPanelLayers _layers;
     private bool _openActionPerformed;
@@ -28,12 +29,12 @@ public sealed class PdfPanelActions
     private PdfPoint? _targetLocation;
 
     /// <summary>
-    /// Initializes the actions of <paramref name="document"/> performed in <paramref name="context"/>.
+    /// Initializes the actions of <paramref name="panelDocument"/> performed in <paramref name="context"/>.
     /// </summary>
-    internal PdfPanelActions(PdfPanelContext context, IPdfDocument document, PdfPanelAnnotations annotations, PdfPanelLayers layers)
+    internal PdfPanelActions(PdfPanelContext context, PdfPanelDocument panelDocument, PdfPanelAnnotations annotations, PdfPanelLayers layers)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
-        _document = document ?? throw new ArgumentNullException(nameof(document));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _annotations = annotations ?? throw new ArgumentNullException(nameof(annotations));
         _layers = layers ?? throw new ArgumentNullException(nameof(layers));
     }
@@ -141,7 +142,8 @@ public sealed class PdfPanelActions
         if (!_openActionPerformed)
         {
             _openActionPerformed = true;
-            PerformAction(_document.OpenAction?.Destination, _document.OpenAction?.Action, PdfPanelActionSource.DocumentOpen, _document);
+            IPdfDocument document = _panelDocument.Document;
+            PerformAction(document.OpenAction?.Destination, document.OpenAction?.Action, PdfPanelActionSource.DocumentOpen, document);
         }
 
         if (_requestedDestination != null)
@@ -199,13 +201,13 @@ public sealed class PdfPanelActions
 
         if (_currentPageNumber != null)
         {
-            IPdfPage closedPage = _document.Pages[_currentPageNumber.Value - 1];
+            IPdfPage closedPage = _panelDocument.Document.Pages[_currentPageNumber.Value - 1];
             PerformAction(null, closedPage.AdditionalActions?.PageClose, PdfPanelActionSource.PageClose, closedPage);
         }
 
         _currentPageNumber = currentPageNumber;
 
-        IPdfPage openedPage = _document.Pages[currentPageNumber - 1];
+        IPdfPage openedPage = _panelDocument.Document.Pages[currentPageNumber - 1];
         PerformAction(null, openedPage.AdditionalActions?.PageOpen, PdfPanelActionSource.PageOpen, openedPage);
     }
 
@@ -284,7 +286,7 @@ public sealed class PdfPanelActions
         }
 
         IReadOnlyList<PdfAction>? nextActions;
-        lock (_context.Pages.DocumentLocker)
+        lock (_panelDocument.DocumentLocker)
         {
             nextActions = action.GetNext();
         }
@@ -302,7 +304,7 @@ public sealed class PdfPanelActions
 
     private void PerformHideAction(PdfHideAction action)
     {
-        lock (_context.Pages.DocumentLocker)
+        lock (_panelDocument.DocumentLocker)
         {
             foreach (PdfAnnotationBase annotation in action.GetAnnotations())
             {
@@ -314,7 +316,7 @@ public sealed class PdfPanelActions
     }
 
     private void RaiseActionRequested(PdfAction action, PdfPanelActionSource source, object sourceObject)
-        => ActionRequested?.Invoke(this, new PdfPanelActionEventArgs(action, source, sourceObject, _context.Pages.DocumentLocker));
+        => ActionRequested?.Invoke(this, new PdfPanelActionEventArgs(action, source, sourceObject, _panelDocument.DocumentLocker));
 
     private void PerformNamedAction(PdfNamedAction action, PdfPanelActionSource source, object sourceObject)
     {
@@ -353,9 +355,9 @@ public sealed class PdfPanelActions
     {
         PdfNavigationTarget? target;
 
-        lock (_context.Pages.DocumentLocker)
+        lock (_panelDocument.DocumentLocker)
         {
-            target = _document.Destinations.Resolve(destination);
+            target = _panelDocument.Document.Destinations.Resolve(destination);
         }
 
         if (target == null)

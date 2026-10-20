@@ -91,8 +91,7 @@ internal sealed partial class PdfPanelScheduler
         cacheEntry.InitializeForRendering(_observerFactory, request);
         _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(
             cacheEntry,
-            _panelDocument.Document,
-            _panelDocument.DocumentLocker,
+            _panelDocument,
             _textExtractor,
             _textExtractionProperties,
             _contentExtractor,

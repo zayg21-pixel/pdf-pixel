@@ -21,18 +21,17 @@ internal static class PdfDocumentAnnotationExtractor
 
         return page.Popups.FirstOrDefault(x =>
             x.IsInteractive
-                && x.PageAnnotation?.Content.IsHidden != true
                 && IsInHoverRectangles(page, x, pagePosition));
     }
 
-    public static PdfAnnotationPopup[] CreateAnnotationPopups(this IPdfDocument document, int pageNumber)
+    public static PdfAnnotationPopup[] CreateAnnotationPopups(this PdfPanelDocument panelDocument, int pageNumber)
     {
-        if (pageNumber < 1 || pageNumber > document.Pages.Count)
+        if (pageNumber < 1 || pageNumber > panelDocument.Document.Pages.Count)
         {
             return Array.Empty<PdfAnnotationPopup>();
         }
 
-        IReadOnlyList<PdfPageAnnotation> pageAnnotations = document.Pages[pageNumber - 1].GetAnnotations();
+        IReadOnlyList<PdfPageAnnotation> pageAnnotations = panelDocument.Document.Pages[pageNumber - 1].GetAnnotations();
         if (pageAnnotations.Count == 0)
         {
             return Array.Empty<PdfAnnotationPopup>();
@@ -53,11 +52,11 @@ internal static class PdfDocumentAnnotationExtractor
                 }
 
                 PdfAnnotationMessage[] thread = BuildThread(markupAnnotation, repliesByParent, processedAnnotations);
-                popups.Add(new PdfAnnotationPopup(pageAnnotation, thread));
+                popups.Add(new PdfAnnotationPopup(panelDocument, pageAnnotation, thread));
             }
             else
             {
-                popups.Add(new PdfAnnotationPopup(pageAnnotation, Array.Empty<PdfAnnotationMessage>()));
+                popups.Add(new PdfAnnotationPopup(panelDocument, pageAnnotation, Array.Empty<PdfAnnotationMessage>()));
             }
         }
 
