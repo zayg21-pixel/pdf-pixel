@@ -27,9 +27,9 @@ public sealed class PdfPageAnnotation
     public PdfAnnotationBase Content { get; }
 
     /// <summary>
-    /// Returns the hover rectangle for this annotation in PDF page coordinates.
+    /// Returns the hover rectangles for this annotation in PDF page coordinates.
     /// </summary>
-    public PdfRectangle GetHoverRectangle() => Content.GetHoverRectangle(_page);
+    public PdfRectangle[] GetHoverRectangles() => Content.GetHoverRectangles(_page);
 
     /// <summary>
     /// Renders this annotation via the command processor.

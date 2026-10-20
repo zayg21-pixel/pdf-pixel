@@ -59,7 +59,7 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
     public override bool IsInteractive => true;
 
     /// <inheritdoc/>
-    public override PdfRectangle GetHoverRectangle(IPdfPage page) => Rectangle;
+    public override PdfRectangle[] GetHoverRectangles(IPdfPage page) => [Rectangle];
 
     /// <summary>
     /// Gets the state model corresponding to a change in the annotation's state.
@@ -91,7 +91,7 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
 
         PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
         PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, GetHoverRectangle(page), borderColor, backgroundColor);
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, borderColor, backgroundColor);
         return true;
     }
 

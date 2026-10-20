@@ -11,14 +11,14 @@ namespace PdfPixel.PdfPanel.Annotations;
 public class PdfAnnotationPopup
 {
     /// <summary>
-    /// Initializes a popup with a pre-computed hover rectangle and messages.
+    /// Initializes a popup with pre-computed hover rectangles and messages.
     /// Used when the document is not directly accessible — for example, on the WASM main thread
     /// after annotation data has been serialized from the worker.
     /// </summary>
-    public PdfAnnotationPopup(bool isInteractive, in PdfRectangle hoverRectangle, PdfAnnotationMessage[] messages)
+    public PdfAnnotationPopup(bool isInteractive, PdfRectangle[] hoverRectangles, PdfAnnotationMessage[] messages)
     {
         IsInteractive = isInteractive;
-        HoverRectangle = hoverRectangle;
+        HoverRectangles = hoverRectangles ?? throw new ArgumentNullException(nameof(hoverRectangles));
         Messages = messages ?? throw new ArgumentNullException(nameof(messages));
     }
 
@@ -27,7 +27,7 @@ public class PdfAnnotationPopup
     /// Used when the document is loaded in-process (WPF path).
     /// </summary>
     internal PdfAnnotationPopup(PdfPageAnnotation pageAnnotation, PdfAnnotationMessage[] messages)
-        : this(pageAnnotation.Content.IsInteractive, pageAnnotation.GetHoverRectangle(), messages)
+        : this(pageAnnotation.Content.IsInteractive, pageAnnotation.GetHoverRectangles(), messages)
     {
         PageAnnotation = pageAnnotation ?? throw new ArgumentNullException(nameof(pageAnnotation));
     }
@@ -44,9 +44,9 @@ public class PdfAnnotationPopup
     public bool IsInteractive { get; }
 
     /// <summary>
-    /// Hover rectangle in PDF coordinates. Used for hit-testing.
+    /// Hover rectangles in PDF coordinates. Used for hit-testing.
     /// </summary>
-    public PdfRectangle HoverRectangle { get; }
+    public IReadOnlyList<PdfRectangle> HoverRectangles { get; }
 
     /// <summary>
     /// Thread of annotation messages (from oldest to newest).

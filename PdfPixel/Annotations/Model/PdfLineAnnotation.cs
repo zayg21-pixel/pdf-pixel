@@ -17,8 +17,6 @@ namespace PdfPixel.Annotations.Model;
 /// </remarks>
 public class PdfLineAnnotation : PdfMarkupAnnotation
 {
-    private readonly bool _hasLineCoordinates;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfLineAnnotation"/> class.
     /// </summary>
@@ -33,7 +31,7 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
             StartY = lineArray.GetFloatOrDefault(1);
             EndX = lineArray.GetFloatOrDefault(2);
             EndY = lineArray.GetFloatOrDefault(3);
-            _hasLineCoordinates = true;
+            DrawingPath = PdfAnnotationGeometry.CreatePolylinePath([new PdfPoint(StartX, StartY), new PdfPoint(EndX, EndY)]);
         }
 
         PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
@@ -57,7 +55,7 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets the starting point for bubble placement, using the line's start coordinates.
     /// </summary>
-    protected override PdfPoint ContentStart => new(StartX, StartY);
+    protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <inheritdoc/>
     /// <remarks>
@@ -68,21 +66,12 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     {
         get
         {
-            if (Appearance != null || !_hasLineCoordinates)
+            if (Appearance != null)
             {
                 return base.Rectangle;
             }
 
-            PdfRectangle? lineBounds = PdfRectangle.FromPoints([new PdfPoint(StartX, StartY), new PdfPoint(EndX, EndY)]);
-
-            if (lineBounds == null)
-            {
-                return base.Rectangle;
-            }
-
-            PdfRectangle strokeBounds = lineBounds.Value.Inflate(2f * StrokeStyle.LineWidth);
-
-            return (PdfRectangle.IntersectsWith(base.Rectangle, strokeBounds)) ? base.Rectangle : strokeBounds;
+            return PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
         }
     }
 
@@ -140,16 +129,23 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfStrokeStyle StrokeStyle { get; }
 
+    /// <summary>
+    /// Gets the line that is drawn, from the line coordinates. Null when they are absent.
+    /// </summary>
+    internal PdfPath? DrawingPath { get; }
+
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
+        if (DrawingPath == null)
+        {
+            return false;
+        }
+
         PdfColor lineColor = ResolveColor(page, PdfColors.Black);
 
         PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 
-        PdfPathBuilder linePath = new();
-        linePath.MoveTo(StartX, StartY);
-        linePath.LineTo(EndX, EndY);
-        processor.Process(new DrawPathCommand(linePath.ToPath(), linePaint));
+        processor.Process(new DrawPathCommand(DrawingPath, linePaint));
 
         PdfColor interiorColor = ResolveInteriorColor(page);
 

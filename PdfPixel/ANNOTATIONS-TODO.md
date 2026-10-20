@@ -10,8 +10,6 @@ Test files: `PdfPixel.Tests/AnnotationFallbackTest.pdf` (fallback rendering play
 
 No new mechanism; each is one key read and used where the annotation is drawn or hit-tested.
 
-- **Link active area**: quadrilaterals the link is active in, e.g. a link spanning two lines of text (`QuadPoints`). Today the whole rectangle is active.
-  `PdfPixel/Annotations/Model/PdfLinkAnnotation.cs`
 - **Invisible flag scope**: `Invisible` applies only to annotation types the viewer does not recognize. Today the panel skips every annotation with the flag.
   `PdfPixel.PdfPanel/ContentProvider/PdfDocumentContentExtensions.cs`
 
@@ -24,15 +22,7 @@ Apply to every annotation type.
 
 Files: `PdfPixel/Annotations/Model/PdfAnnotationBase.cs`, `PdfPixel/Annotations/Rendering/PdfAnnotationAppearanceRenderer.cs`
 
-## 3. PDF 2.0 curved paths
-
-`Path` replaces the point list with curves. Today curved outlines are drawn as straight segments. Ink already reads it through `PdfAnnotationGeometryParser.ParsePath`; what is left reuses that parser:
-
-- Polygon and PolyLine: replace `Vertices`
-
-Files: `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`
-
-## 4. Line captions
+## 3. Line captions
 
 Text laid out along the line:
 
@@ -42,7 +32,7 @@ Text laid out along the line:
 
 File: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`
 
-## 5. Measurement
+## 4. Measurement
 
 One shared measurement model (`Measure`: units and scale), used by the dimension annotations:
 
@@ -52,7 +42,7 @@ One shared measurement model (`Measure`: units and scale), used by the dimension
 
 Files: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`, plus a new model type.
 
-## 6. View-dependent flags
+## 5. View-dependent flags
 
 Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel.
 

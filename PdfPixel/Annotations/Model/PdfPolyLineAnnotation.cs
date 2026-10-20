@@ -25,7 +25,17 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     public PdfPolyLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.PolyLine)
     {
-        Vertices = PdfAnnotationGeometryParser.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
+        Vertices = PdfAnnotationGeometry.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
+        Path = PdfAnnotationGeometry.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
+
+        if (Path != null)
+        {
+            DrawingPath = Path;
+        }
+        else
+        {
+            DrawingPath = PdfAnnotationGeometry.CreatePolylinePath(Vertices);
+        }
 
         PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
         if (lineEndingArray?.Count >= 2)
@@ -38,17 +48,16 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
         StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
         // TODO: [MEDIUM] Not parsed, so the polyline is drawn as a plain line without its measurement:
         // - measurement dictionary for dimension polylines, units and scale (Measure)
-        // - curved outline that replaces Vertices, PDF 2.0 (Path)
     }
 
     /// <summary>
-    /// Gets the starting point for bubble placement, using the first vertex of the polyline.
+    /// Gets the starting point for bubble placement, using the first point of the polyline.
     /// </summary>
-    protected override PdfPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
+    protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <inheritdoc/>
     /// <remarks>
-    /// When there is no appearance stream, this is the bounding box of <see cref="Vertices"/>.
+    /// When there is no appearance stream, this is the bounding box of the polyline.
     /// Otherwise this is the declared /Rect.
     /// </remarks>
     public override PdfRectangle Rectangle
@@ -60,16 +69,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
                 return base.Rectangle;
             }
 
-            PdfRectangle? vertexBounds = PdfRectangle.FromPoints(Vertices);
-
-            if (vertexBounds == null)
-            {
-                return base.Rectangle;
-            }
-
-            PdfRectangle strokeBounds = vertexBounds.Value.Inflate(2f * StrokeStyle.LineWidth);
-
-            return (PdfRectangle.IntersectsWith(base.Rectangle, strokeBounds)) ? base.Rectangle : strokeBounds;
+            return PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
         }
     }
 
@@ -77,6 +77,11 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     /// Gets the vertices array containing coordinates of the polyline vertices.
     /// </summary>
     public PdfPoint[] Vertices { get; }
+
+    /// <summary>
+    /// Gets the polyline built from path operators, PDF 2.0, or null when absent or malformed.
+    /// </summary>
+    public PdfPath? Path { get; }
 
     /// <summary>
     /// Gets the line ending style at the start point.
@@ -98,52 +103,50 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfAnnotationBorderEffect BorderEffect { get; }
 
+    /// <summary>
+    /// Gets the polyline that is drawn: <see cref="Path"/> when present, otherwise <see cref="Vertices"/>.
+    /// Null when neither defines a polyline.
+    /// </summary>
+    internal PdfPath? DrawingPath { get; }
+
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (Vertices.Length < 2)
+        if (DrawingPath == null
+            || !PdfAnnotationGeometry.TryGetPathEnds(DrawingPath, out PdfPoint start, out PdfPoint afterStart, out PdfPoint end, out PdfPoint beforeEnd))
         {
             return false;
         }
 
         PdfColor lineColor = ResolveColor(page, PdfColors.Black);
 
-        PdfPathBuilder path = new();
-
-        path.MoveTo(Vertices[0]);
-
-        for (int i = 1; i < Vertices.Length; i++)
-        {
-            path.LineTo(Vertices[i]);
-        }
-
         PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 
-        processor.Process(new DrawPathCommand(path.ToPath(), linePaint));
+        processor.Process(new DrawPathCommand(DrawingPath, linePaint));
 
         PdfColor interiorColor = ResolveInteriorColor(page);
 
-        if (StartLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 2)
+        if (StartLineEnding != PdfLineEndingStyle.None)
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,
-                Vertices[0].X,
-                Vertices[0].Y,
-                Vertices[1].X,
-                Vertices[1].Y,
+                start.X,
+                start.Y,
+                afterStart.X,
+                afterStart.Y,
                 StartLineEnding,
                 StrokeStyle.LineWidth,
                 lineColor,
                 interiorColor);
         }
 
-        if (EndLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 2)
+        if (EndLineEnding != PdfLineEndingStyle.None)
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,
-                Vertices[Vertices.Length - 1].X,
-                Vertices[Vertices.Length - 1].Y,
-                Vertices[Vertices.Length - 2].X,
-                Vertices[Vertices.Length - 2].Y,
+                end.X,
+                end.Y,
+                beforeEnd.X,
+                beforeEnd.Y,
                 EndLineEnding,
                 StrokeStyle.LineWidth,
                 lineColor,

@@ -1081,7 +1081,12 @@ endobj
 << /Type /Page
    /MediaBox [0 0 1000 1300]
    /Parent 2 0 R
-   /Annots [151 0 R 152 0 R 153 0 R]
+   /Annots [151 0 R 152 0 R 153 0 R
+            155 0 R 156 0 R
+            157 0 R 158 0 R
+            160 0 R 159 0 R
+            162 0 R 161 0 R
+            164 0 R 163 0 R]
 >>
 endobj
 
@@ -1134,11 +1139,133 @@ endobj
    /Contents (Path only, no InkList. Expected: circle with tail. Nothing drawn = Path not supported.) >>
 endobj
 
+% ============================================================
+% Row B: Polygon Path  y=1070-1190
+%   155: Path line, curve, line; no Vertices -> filled D shape, closed back to start
+%   156: Path circle (4 curves), cloudy BE, no Vertices -> scalloped circle
+% ============================================================
+
+155 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [20 1080 160 1180]
+   /Path [[20 1090] [100 1090] [150 1090 150 1170 100 1170] [20 1170]]
+   /C [0 0.6 0.3] /IC [0.8 1 0.9]
+   /BS << /S /S /W 2 >>
+   /T (Polygon - Path)
+   /Contents (Path only, no Vertices: line, curve, line. Expected: filled D shape with a straight left edge closing it. Nothing drawn = Path not supported.) >>
+endobj
+
+156 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [200 1070 320 1190]
+   /Path [[300 1130]
+          [300 1152.09 282.09 1170 260 1170]
+          [237.91 1170 220 1152.09 220 1130]
+          [220 1107.91 237.91 1090 260 1090]
+          [282.09 1090 300 1107.91 300 1130]]
+   /C [0 0.6 0.3] /IC [0.8 1 0.9]
+   /BS << /S /S /W 2 >>
+   /BE << /S /C /I 1 >>
+   /T (Polygon - Path Cloudy)
+   /Contents (Path only, no Vertices: circle of 4 curves with cloudy border effect. Expected: filled scalloped circle. Nothing drawn = Path not supported.) >>
+endobj
+
+% ============================================================
+% Row C: PolyLine Path  y=960-1050
+%   157: Path line up, then curve ending down-right; OpenArrow / ClosedArrow
+%        -> start arrow points straight down, end arrow follows the curve down-right
+%   158: Path curve whose second control point equals its end; ClosedArrow at end
+%        -> end arrow follows the first control point, pointing down-right
+% ============================================================
+
+157 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [20 960 150 1050]
+   /Path [[30 970] [30 1010] [30 1040 90 1040 130 1000]]
+   /LE [/OpenArrow /ClosedArrow]
+   /C [0.5 0 0.5] /IC [0.9 0.8 1]
+   /BS << /W 2 >>
+   /T (PolyLine - Path)
+   /Contents (Path only, no Vertices: line up, then curve. Expected: open arrow at bottom pointing down, closed arrow at right end pointing down-right along the curve. Nothing drawn = Path not supported.) >>
+endobj
+
+158 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [170 960 290 1050]
+   /Path [[180 970] [180 1040 260 1000 260 1000]]
+   /LE [/None /ClosedArrow]
+   /C [0.5 0 0.5] /IC [0.9 0.8 1]
+   /BS << /W 2 >>
+   /T (PolyLine - Path Control At End)
+   /Contents (Path only, no Vertices: curve whose second control point is its end. Expected: closed arrow at right end pointing down-right, in from the top-left control point. Nothing drawn = Path not supported.) >>
+endobj
+
+% ============================================================
+% Row D: Link QuadPoints  y=690-930
+% Each link has a yellow Highlight with the same QuadPoints marking its active strips.
+%   159: Rect around two text lines, QuadPoints inside it -> border per strip, hand cursor only over the strips
+%   161: empty Rect, QuadPoints -> border and hand cursor on the strip
+%   163: QuadPoints sticking out of Rect -> whole Rect active
+% ============================================================
+
+160 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [20 865 300 915]
+   /QuadPoints [150 915 300 915 150 895 300 895
+                20 885 120 885 20 865 120 865]
+   /C [1 1 0]
+   /T (Highlight - Link 159 strips) >>
+endobj
+
+159 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [20 865 300 915]
+   /QuadPoints [150 915 300 915 150 895 300 895
+                20 885 120 885 20 865 120 865]
+   /Border [0 0 1] /C [0 0 1]
+   /A << /S /URI /URI (https://example.com/two-lines) >>
+   /Contents (Link wrapping two lines: QuadPoints inside Rect. Expected: a blue border around each yellow strip, hand cursor only over the strips.) >>
+endobj
+
+162 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [20 790 200 810]
+   /QuadPoints [20 810 200 810 20 790 200 790]
+   /C [1 1 0]
+   /T (Highlight - Link 161 strip) >>
+endobj
+
+161 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [0 0 0 0]
+   /QuadPoints [20 810 200 810 20 790 200 790]
+   /Border [0 0 1] /C [0 0 1]
+   /A << /S /URI /URI (https://example.com/empty-rect) >>
+   /Contents (Link with empty Rect and QuadPoints. Expected: blue border around the yellow strip, hand cursor over it.) >>
+endobj
+
+164 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [150 740 260 755]
+   /QuadPoints [150 755 260 755 150 740 260 740]
+   /C [1 1 0]
+   /T (Highlight - Link 163 strip) >>
+endobj
+
+163 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [20 700 200 760]
+   /QuadPoints [150 755 260 755 150 740 260 740]
+   /Border [0 0 1] /C [0 0 1]
+   /A << /S /URI /URI (https://example.com/outside-rect) >>
+   /Contents (Link whose QuadPoints stick out of Rect. Expected: hand cursor over the whole blue box, not over the yellow part outside it.) >>
+endobj
+
 xref
 0 1
 0000000000 65535 f
 trailer
-<< /Size 155 /Root 1 0 R >>
+<< /Size 165 /Root 1 0 R >>
 startxref
 0
 

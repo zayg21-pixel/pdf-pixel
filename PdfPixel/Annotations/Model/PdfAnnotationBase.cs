@@ -104,7 +104,7 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     /// </summary>
     /// <remarks>
     /// When true, indicates that the annotation has content (like comments) that should
-    /// be accessible through a bubble indicator. The HoverRectangle will be the bubble area only.
+    /// be accessible through a bubble indicator. The hover rectangles will be the bubble area only.
     /// </remarks>
     public virtual bool ShouldDisplayBubble => false;
 
@@ -228,54 +228,28 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }
 
     /// <summary>
-    /// Gets the hover rectangle for interaction purposes (hit testing, popups, etc.).
+    /// Gets the hover rectangles for interaction purposes (hit testing, popups, etc.).
     /// </summary>
     /// <remarks>
     /// If ShouldDisplayBubble is true, this returns a small rectangle for the bubble indicator
     /// positioned just above and to the left of the annotation content. The bubble does not
-    /// overlap the annotation's own Rectangle. Coordinates are in PDF space where the origin
-    /// is at the bottom-left of the page.
+    /// overlap the annotation's own Rectangle. Otherwise this returns the annotation's Rectangle.
+    /// Coordinates are in PDF space where the origin is at the bottom-left of the page.
     /// </remarks>
     /// <param name="page">Owning PDF page to crop margins to.</param>
-    public virtual PdfRectangle GetHoverRectangle(IPdfPage page)
+    public virtual PdfRectangle[] GetHoverRectangles(IPdfPage page)
     {
         if (page == null)
         {
             throw new ArgumentNullException(nameof(page));
         }
 
-        PdfRectangle hoverRect = ShouldDisplayBubble
-            ? new PdfRectangle(ContentStart.X - PdfAnnotationGraphics.DefaultBubbleSize, ContentStart.Y, ContentStart.X, ContentStart.Y + PdfAnnotationGraphics.DefaultBubbleSize)
-            : Rectangle;
-
-        if (hoverRect.Width <= 0 || hoverRect.Height <= 0)
+        if (ShouldDisplayBubble)
         {
-            return PdfRectangle.Empty;
+            return new PdfRectangle[] { GetBubbleRectangle(page) };
         }
 
-        PdfRectangle crop = page.CropBox;
-
-        float dx = 0f;
-        if (hoverRect.Left < crop.Left)
-        {
-            dx = crop.Left - hoverRect.Left;
-        }
-        else if (hoverRect.Right > crop.Right)
-        {
-            dx = crop.Right - hoverRect.Right;
-        }
-
-        float dy = 0f;
-        if (hoverRect.Top < crop.Top)
-        {
-            dy = crop.Top - hoverRect.Top;
-        }
-        else if (hoverRect.Bottom > crop.Bottom)
-        {
-            dy = crop.Bottom - hoverRect.Bottom;
-        }
-
-        return new PdfRectangle(hoverRect.Left + dx, hoverRect.Top + dy, hoverRect.Right + dx, hoverRect.Bottom + dy);
+        return new PdfRectangle[] { MoveIntoCropBox(Rectangle, page) };
     }
 
     /// <summary>
@@ -304,7 +278,7 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
             {
                 PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
                 PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page), borderColor, backgroundColor);
+                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(page), borderColor, backgroundColor);
             }
         }
 
@@ -432,5 +406,48 @@ public abstract class PdfAnnotationBase : IPdfAssociatedFilesHost
         }
 
         return $"{Subtype} Annotation";
+    }
+
+    private PdfRectangle GetBubbleRectangle(IPdfPage page)
+    {
+        PdfRectangle bubbleRectangle = new(
+            ContentStart.X - PdfAnnotationGraphics.DefaultBubbleSize,
+            ContentStart.Y,
+            ContentStart.X,
+            ContentStart.Y + PdfAnnotationGraphics.DefaultBubbleSize);
+
+        return MoveIntoCropBox(bubbleRectangle, page);
+    }
+
+    private static PdfRectangle MoveIntoCropBox(in PdfRectangle rectangle, IPdfPage page)
+    {
+        if (rectangle.Width <= 0 || rectangle.Height <= 0)
+        {
+            return PdfRectangle.Empty;
+        }
+
+        PdfRectangle crop = page.CropBox;
+
+        float dx = 0f;
+        if (rectangle.Left < crop.Left)
+        {
+            dx = crop.Left - rectangle.Left;
+        }
+        else if (rectangle.Right > crop.Right)
+        {
+            dx = crop.Right - rectangle.Right;
+        }
+
+        float dy = 0f;
+        if (rectangle.Top < crop.Top)
+        {
+            dy = crop.Top - rectangle.Top;
+        }
+        else if (rectangle.Bottom > crop.Bottom)
+        {
+            dy = crop.Bottom - rectangle.Bottom;
+        }
+
+        return new PdfRectangle(rectangle.Left + dx, rectangle.Top + dy, rectangle.Right + dx, rectangle.Bottom + dy);
     }
 }

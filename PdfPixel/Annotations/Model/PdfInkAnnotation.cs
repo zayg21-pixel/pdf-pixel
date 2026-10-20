@@ -5,7 +5,6 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using System.Linq;
 
 namespace PdfPixel.Annotations.Model;
 
@@ -26,39 +25,30 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     public PdfInkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Ink)
     {
-        InkList = PdfAnnotationGeometryParser.ParseInkList(annotationObject.Dictionary.GetArray(PdfTokens.InkListKey));
-        Path = PdfAnnotationGeometryParser.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
+        InkList = PdfAnnotationGeometry.ParseInkList(annotationObject.Dictionary.GetArray(PdfTokens.InkListKey));
+        Path = PdfAnnotationGeometry.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
+
+        if (Path != null)
+        {
+            DrawingPath = Path;
+        }
+        else
+        {
+            DrawingPath = CreateInkListPath(InkList);
+        }
 
         StrokeStyle = (BorderStyle?.StrokeStyle ?? new PdfStrokeStyle()).WithLineCap(PdfStrokeCap.Round).WithLineJoin(PdfStrokeJoin.Round);
     }
 
     /// <summary>
-    /// Gets the starting point for bubble placement, using the first point of <see cref="Path"/>, or of the
-    /// first ink path when there is no <see cref="Path"/>.
+    /// Gets the starting point for bubble placement, using the first point of the ink.
     /// </summary>
-    protected override PdfPoint ContentStart
-    {
-        get
-        {
-            if (Path != null)
-            {
-                PdfPathSegmentEnumerator segments = Path.Segments.GetEnumerator();
-
-                if (segments.MoveNext())
-                {
-                    return segments.Current.Points[0];
-                }
-            }
-
-            return (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
-        }
-    }
+    protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <inheritdoc/>
     /// <remarks>
-    /// A declared /Rect that misses <see cref="Path"/>, or <see cref="InkList"/> when there is no
-    /// <see cref="Path"/>, entirely cannot be where the ink is, so the ink bounds are used instead, grown to
-    /// leave room for the stroke around them.
+    /// A declared /Rect that misses the ink entirely cannot be where the ink is, so the ink bounds are used
+    /// instead, grown to leave room for the stroke around them.
     /// </remarks>
     public override PdfRectangle Rectangle
     {
@@ -69,18 +59,7 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
                 return base.Rectangle;
             }
 
-            PdfRectangle? inkBounds = (Path != null)
-                ? Path.GetBounds()
-                : PdfRectangle.FromPoints(InkList.SelectMany(static path => path));
-
-            if (inkBounds == null)
-            {
-                return base.Rectangle;
-            }
-
-            PdfRectangle strokeBounds = inkBounds.Value.Inflate(2f * StrokeStyle.LineWidth);
-
-            return (PdfRectangle.IntersectsWith(base.Rectangle, strokeBounds)) ? base.Rectangle : strokeBounds;
+            return PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
         }
     }
 
@@ -91,8 +70,7 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     public PdfPoint[][] InkList { get; }
 
     /// <summary>
-    /// Gets the ink stroke built from path operators, PDF 2.0. Drawn instead of <see cref="InkList"/> when
-    /// present; null when absent or malformed.
+    /// Gets the ink stroke built from path operators, PDF 2.0, or null when absent or malformed.
     /// </summary>
     public PdfPath? Path { get; }
 
@@ -102,40 +80,47 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfStrokeStyle StrokeStyle { get; }
 
+    /// <summary>
+    /// Gets the ink that is drawn: <see cref="Path"/> when present, otherwise the smoothed strokes of
+    /// <see cref="InkList"/>. Null when neither defines a stroke.
+    /// </summary>
+    internal PdfPath? DrawingPath { get; }
+
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        PdfColor inkColor = ResolveColor(page, PdfColors.Black);
-
-        if (Path != null)
-        {
-            PdfPaint pathPaint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
-            processor.Process(new DrawPathCommand(Path, pathPaint));
-
-            return true;
-        }
-
-        if (InkList == null || InkList.Length == 0)
+        if (DrawingPath == null)
         {
             return false;
         }
 
-        // Render each path in the parsed ink list
-        foreach (PdfPoint[] points in InkList)
+        PdfColor inkColor = ResolveColor(page, PdfColors.Black);
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
+
+        processor.Process(new DrawPathCommand(DrawingPath, paint));
+
+        return true;
+    }
+
+    private static PdfPath? CreateInkListPath(PdfPoint[][] inkList)
+    {
+        PdfPathBuilder path = new();
+
+        foreach (PdfPoint[] points in inkList)
         {
-            if (points == null || points.Length < 2)
+            if (points.Length < 2)
             {
                 continue;
             }
 
-            PdfPathBuilder path = new();
             BuildSmoothPath(path, points);
-
-            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
-
-            processor.Process(new DrawPathCommand(path.ToPath(), paint));
         }
 
-        return true;
+        if (path.IsEmpty)
+        {
+            return null;
+        }
+
+        return path.ToPath();
     }
 
     private static void BuildSmoothPath(PdfPathBuilder path, PdfPoint[] points)

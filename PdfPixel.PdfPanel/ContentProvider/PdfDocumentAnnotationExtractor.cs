@@ -22,7 +22,7 @@ internal static class PdfDocumentAnnotationExtractor
         return page.Popups.FirstOrDefault(x =>
             x.IsInteractive
                 && x.PageAnnotation?.Content.IsHidden != true
-                && page.FromPdfRect(x.HoverRectangle).Contains(pagePosition));
+                && IsInHoverRectangles(page, x, pagePosition));
     }
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this IPdfDocument document, int pageNumber)
@@ -197,5 +197,18 @@ internal static class PdfDocumentAnnotationExtractor
         }
 
         return replies;
+    }
+
+    private static bool IsInHoverRectangles(PdfPanelPage page, PdfAnnotationPopup popup, in PdfPoint pagePosition)
+    {
+        foreach (PdfRectangle hoverRectangle in popup.HoverRectangles)
+        {
+            if (page.FromPdfRect(hoverRectangle).Contains(pagePosition))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

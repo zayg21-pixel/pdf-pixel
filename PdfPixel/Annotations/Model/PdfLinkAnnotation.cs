@@ -21,6 +21,8 @@ namespace PdfPixel.Annotations.Model;
 /// </remarks>
 public class PdfLinkAnnotation : PdfAnnotationBase
 {
+    private readonly PdfRectangle[]? _activeRectangles;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfLinkAnnotation"/> class.
     /// </summary>
@@ -33,8 +35,8 @@ public class PdfLinkAnnotation : PdfAnnotationBase
         Action = PdfAction.GetAction(annotationObject.Dictionary, PdfTokens.AKey);
 
         HighlightMode = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
-        // TODO: [MEDIUM] Not parsed, so the whole rectangle is the active area:
-        // - quadrilaterals the link is active in, e.g. a link spanning two lines of text (QuadPoints)
+        Quadrilaterals = PdfAnnotationGeometry.ParseQuadrilaterals(annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey));
+        _activeRectangles = GetActiveRectangles(Rectangle, Quadrilaterals);
     }
 
     /// <inheritdoc/>
@@ -42,6 +44,27 @@ public class PdfLinkAnnotation : PdfAnnotationBase
 
     /// <inheritdoc/>
     public override bool IsInteractive => true;
+
+    /// <summary>
+    /// Gets the quadrilaterals the link is active in, each as four points, e.g. one per line of a link
+    /// spanning two lines of text. Empty when the link has none.
+    /// </summary>
+    public PdfPoint[][] Quadrilaterals { get; }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// One rectangle per quadrilateral when every quadrilateral lies within <see cref="PdfAnnotationBase.Rectangle"/>.
+    /// Otherwise <see cref="PdfAnnotationBase.Rectangle"/>.
+    /// </remarks>
+    public override PdfRectangle[] GetHoverRectangles(IPdfPage page)
+    {
+        if (_activeRectangles == null)
+        {
+            return base.GetHoverRectangles(page);
+        }
+
+        return _activeRectangles;
+    }
 
     /// <summary>
     /// Gets the destination (/Dest) shown when the annotation is activated, resolved by this document's
@@ -85,41 +108,16 @@ public class PdfLinkAnnotation : PdfAnnotationBase
 
         PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, strokeStyle);
 
-        // A border narrower than the rectangle's shorter side outlines it from the inside and already stays
-        // within it. Anything thicker inverts that inset rectangle and would stroke across the surrounding
-        // page, so only then is the border confined to the annotation.
-        bool confineToRectangle = borderWidth > Math.Min(Rectangle.Width, Rectangle.Height);
-
-        if (confineToRectangle)
+        if (_activeRectangles == null)
         {
-            processor.Process(SaveStateCommand.Instance);
-            processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
-        }
-
-        if (BorderStyle?.StyleType == PdfAnnotationBorderStyleType.Underline)
-        {
-            float y = Rectangle.Top - (borderWidth / 2);
-            PdfPathBuilder linePath = new();
-            linePath.MoveTo(Rectangle.Left, y);
-            linePath.LineTo(Rectangle.Right, y);
-            processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
+            DrawBorder(processor, Rectangle, paint, borderWidth);
         }
         else
         {
-            PdfRectangle rect = new(
-                Rectangle.Left + (borderWidth / 2),
-                Rectangle.Top + (borderWidth / 2),
-                Rectangle.Right - (borderWidth / 2),
-                Rectangle.Bottom - (borderWidth / 2));
-
-            PdfPathBuilder rectPath = new();
-            rectPath.AddRect(rect);
-            processor.Process(new DrawPathCommand(rectPath.ToPath(), paint));
-        }
-
-        if (confineToRectangle)
-        {
-            processor.Process(RestoreStateCommand.Instance);
+            foreach (PdfRectangle activeRectangle in _activeRectangles)
+            {
+                DrawBorder(processor, activeRectangle, paint, borderWidth);
+            }
         }
 
         return true;
@@ -142,5 +140,79 @@ public class PdfLinkAnnotation : PdfAnnotationBase
         }
 
         return "Link Annotation";
+    }
+
+    private void DrawBorder(IPdfCommandProcessor processor, in PdfRectangle area, PdfPaint paint, float borderWidth)
+    {
+        // A border narrower than the rectangle's shorter side outlines it from the inside and already stays
+        // within it. Anything thicker inverts that inset rectangle and would stroke across the surrounding
+        // page, so only then is the border confined to the annotation.
+        bool confineToRectangle = borderWidth > Math.Min(area.Width, area.Height);
+
+        if (confineToRectangle)
+        {
+            processor.Process(SaveStateCommand.Instance);
+            processor.Process(new ClipRectangleCommand(area, PdfClipOperation.Intersect));
+        }
+
+        if (BorderStyle?.StyleType == PdfAnnotationBorderStyleType.Underline)
+        {
+            float y = area.Top - (borderWidth / 2);
+            PdfPathBuilder linePath = new();
+            linePath.MoveTo(area.Left, y);
+            linePath.LineTo(area.Right, y);
+            processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
+        }
+        else
+        {
+            PdfRectangle rect = new(
+                area.Left + (borderWidth / 2),
+                area.Top + (borderWidth / 2),
+                area.Right - (borderWidth / 2),
+                area.Bottom - (borderWidth / 2));
+
+            PdfPathBuilder rectPath = new();
+            rectPath.AddRect(rect);
+            processor.Process(new DrawPathCommand(rectPath.ToPath(), paint));
+        }
+
+        if (confineToRectangle)
+        {
+            processor.Process(RestoreStateCommand.Instance);
+        }
+    }
+
+    /// <summary>
+    /// Returns the bounding box of each quadrilateral when they define the active area: every quadrilateral
+    /// lies within <paramref name="rectangle"/>.
+    /// </summary>
+    /// <returns>The rectangles, or null when <paramref name="rectangle"/> is the active area.</returns>
+    private static PdfRectangle[]? GetActiveRectangles(in PdfRectangle rectangle, PdfPoint[][] quadrilaterals)
+    {
+        if (quadrilaterals.Length == 0)
+        {
+            return null;
+        }
+
+        var rectangles = new PdfRectangle[quadrilaterals.Length];
+
+        for (int index = 0; index < quadrilaterals.Length; index++)
+        {
+            PdfRectangle? bounds = PdfRectangle.FromPoints(quadrilaterals[index]);
+
+            if (bounds == null)
+            {
+                return null;
+            }
+
+            if (!rectangle.Contains(bounds.Value))
+            {
+                return null;
+            }
+
+            rectangles[index] = bounds.Value;
+        }
+
+        return rectangles;
     }
 }

@@ -24,7 +24,7 @@ public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
     protected PdfTextMarkupAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
         : base(annotationObject, subtype)
     {
-        Quadrilaterals = PdfAnnotationGeometryParser.ParseQuadrilaterals(annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey));
+        Quadrilaterals = PdfAnnotationGeometry.ParseQuadrilaterals(annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey));
     }
 
     /// <summary>
