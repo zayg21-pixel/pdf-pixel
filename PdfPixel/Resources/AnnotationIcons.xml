@@ -83,6 +83,78 @@
     <path d="M360-160v-240q-83 0-141.5-58.5T160-600q0-83 58.5-141.5T360-800h360v80h-80v560h-80v-560H440v560h-80Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
   </Icon>
 
+  <!-- Check -->
+  <Icon name="Check" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="Check" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- Circle -->
+  <Icon name="Circle" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="Circle" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- Cross -->
+  <Icon name="Cross" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="Cross" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- CrossHairs -->
+  <Icon name="CrossHairs" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="CrossHairs" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- RightArrow -->
+  <Icon name="RightArrow" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="m480-320 160-160-160-160-56 56 64 64H320v80h168l-64 64 56 56Zm0 240q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="RightArrow" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="m480-320 160-160-160-160-56 56 64 64H320v80h168l-64 64 56 56Zm0 240q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- RightPointer -->
+  <Icon name="RightPointer" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="M320-200v-560l440 280-440 280Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="RightPointer" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="M320-200v-560l440 280-440 280Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- Star -->
+  <Icon name="Star" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="m233-120 65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="Star" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="m233-120 65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- UpArrow -->
+  <Icon name="UpArrow" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="UpArrow" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
+  <!-- UpLeftArrow -->
+  <Icon name="UpLeftArrow" width="24" height="24" viewBox="0 -960 960 960">
+    <path d="M744-160 280-624v264h-80v-400h400v80H336l464 464-56 56Z" fill="exterior" stroke="none" stroke-width="0" />
+  </Icon>
+  <Icon name="UpLeftArrow" width="24" height="24" viewBox="0 -960 960 960" state="Rollover">
+    <path d="M744-160 280-624v264h-80v-400h400v80H336l464 464-56 56Z" fill="exterior" stroke="none" stroke-width="0" fill-opacity="0.75" />
+  </Icon>
+
   <!--
     ═══════════════════════════════════════════════════════
     PdfFileAttachmentIcon

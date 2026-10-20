@@ -3234,6 +3234,13 @@
       "pages": []
     },
     {
+      "name": "issue14203.pdf",
+      "url": "https://github.com/mozilla/pdf.js/files/7428963/pdfcomment.pdf",
+      "sha256": "0560d1327c0755fe9a84948759355ff58064c5ce70bc4f4eaca376312b2007b8",
+      "origin": "https://github.com/mozilla/pdf.js/issues/14203",
+      "pages": []
+    },
+    {
       "name": "issue14256.pdf",
       "url": "https://raw.githubusercontent.com/mozilla/pdf.js/67673ea274faafbbcc70307aaadc3fd2165195f9/test/pdfs/issue14256.pdf",
       "sha256": "6f93d05677c6ceea8d95acd032c19c0e6c88cdb917f73639aa931cd2395d88f9",

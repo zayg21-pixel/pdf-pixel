@@ -24,13 +24,7 @@ Apply to every annotation type.
 
 Files: `PdfPixel/Annotations/Model/PdfAnnotationBase.cs`, `PdfPixel/Annotations/Rendering/PdfAnnotationAppearanceRenderer.cs`
 
-## 3. Non-standard Text icons
-
-Icon names outside the standard set fall back to Note; most viewers draw their own icon for them: `Check`, `Circle`, `Cross`, `CrossHairs`, `RightArrow`, `RightPointer`, `Star`, `UpArrow`, `UpLeftArrow`. Test file: `issue14203.pdf`.
-
-Files: `PdfPixel/Annotations/Model/PdfTextAnnotationIcon.cs`, `PdfPixel/Annotations/Rendering/PdfAnnotationGraphics.cs`
-
-## 4. PDF 2.0 curved paths
+## 3. PDF 2.0 curved paths
 
 `Path` replaces the point list with curves. Today curved strokes are drawn as straight segments. One parser shared by three types:
 
@@ -39,7 +33,7 @@ Files: `PdfPixel/Annotations/Model/PdfTextAnnotationIcon.cs`, `PdfPixel/Annotati
 
 Files: `PdfPixel/Annotations/Model/PdfInkAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`
 
-## 5. Line captions
+## 4. Line captions
 
 Text laid out along the line:
 
@@ -49,7 +43,7 @@ Text laid out along the line:
 
 File: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`
 
-## 6. Measurement
+## 5. Measurement
 
 One shared measurement model (`Measure`: units and scale), used by the dimension annotations:
 
@@ -59,7 +53,7 @@ One shared measurement model (`Measure`: units and scale), used by the dimension
 
 Files: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`, plus a new model type.
 
-## 7. View-dependent flags
+## 6. View-dependent flags
 
 Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel.
 

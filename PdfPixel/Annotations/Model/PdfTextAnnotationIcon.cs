@@ -2,8 +2,6 @@ using PdfPixel.Text;
 
 namespace PdfPixel.Annotations.Model;
 
-// TODO: [MEDIUM] Non-standard icon names (Check, Circle, Cross, CrossHairs, RightArrow, RightPointer, Star, UpArrow,
-// UpLeftArrow) fall back to Note; most viewers draw their own icon for them. See issue14203.pdf.
 /// <summary>
 /// Icon types for Text annotations as allowed by the PDF specification.
 /// </summary>
@@ -51,5 +49,59 @@ public enum PdfTextAnnotationIcon
     /// Insert icon.
     /// </summary>
     [PdfEnumValue("Insert")]
-    Insert
+    Insert,
+
+    /// <summary>
+    /// Check icon.
+    /// </summary>
+    [PdfEnumValue("Check")]
+    Check,
+
+    /// <summary>
+    /// Circle icon.
+    /// </summary>
+    [PdfEnumValue("Circle")]
+    Circle,
+
+    /// <summary>
+    /// Cross icon.
+    /// </summary>
+    [PdfEnumValue("Cross")]
+    Cross,
+
+    /// <summary>
+    /// CrossHairs icon.
+    /// </summary>
+    [PdfEnumValue("CrossHairs")]
+    CrossHairs,
+
+    /// <summary>
+    /// RightArrow icon.
+    /// </summary>
+    [PdfEnumValue("RightArrow")]
+    RightArrow,
+
+    /// <summary>
+    /// RightPointer icon.
+    /// </summary>
+    [PdfEnumValue("RightPointer")]
+    RightPointer,
+
+    /// <summary>
+    /// Star icon.
+    /// </summary>
+    [PdfEnumValue("Star")]
+    Star,
+
+    /// <summary>
+    /// UpArrow icon.
+    /// </summary>
+    [PdfEnumValue("UpArrow")]
+    UpArrow,
+
+    /// <summary>
+    /// UpLeftArrow icon.
+    /// </summary>
+    [PdfEnumValue("UpLeftArrow")]
+    UpLeftArrow
 }

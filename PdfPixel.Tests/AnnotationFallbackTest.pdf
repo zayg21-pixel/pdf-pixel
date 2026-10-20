@@ -27,13 +27,19 @@ endobj
             61 0 R 62 0 R 63 0 R
             64 0 R 65 0 R 66 0 R 67 0 R 68 0 R
             69 0 R 70 0 R 71 0 R 72 0 R
-            73 0 R 74 0 R 75 0 R 76 0 R]
+            73 0 R 74 0 R 75 0 R 76 0 R
+            134 0 R 135 0 R 136 0 R 137 0 R 138 0 R 139 0 R 140 0 R 141 0 R 142 0 R
+            143 0 R 144 0 R 145 0 R 146 0 R 147 0 R 148 0 R 149 0 R 150 0 R]
 >>
 endobj
 
 % ============================================================
 % Row A: Text Annotation Icons  y=955-985
-% 7 icons: Note, Comment, Key, Help, NewParagraph, Paragraph, Insert
+% 7 standard icons: Note, Comment, Key, Help, NewParagraph, Paragraph, Insert
+% 9 non-standard icons (objects 134-142): Check, Circle, Cross, CrossHairs,
+% RightArrow, RightPointer, Star, UpArrow, UpLeftArrow
+% 8 direction probes (objects 143-150): LeftArrow, DownArrow, LeftPointer,
+% UpPointer, DownPointer, UpRightArrow, DownLeftArrow, DownRightArrow
 % 30x30 blocks, 36pt spacing
 % ============================================================
 
@@ -70,6 +76,91 @@ endobj
 10 0 obj
 << /Type /Annot /Subtype /Text /Rect [236 955 266 985]
    /Name /Insert /C [0.4 0 0.6] /T (Text - Insert) >>
+endobj
+
+134 0 obj
+<< /Type /Annot /Subtype /Text /Rect [272 955 302 985]
+   /Name /Check /C [0.4 0 0.6] /T (Text - Check) >>
+endobj
+
+135 0 obj
+<< /Type /Annot /Subtype /Text /Rect [308 955 338 985]
+   /Name /Circle /C [0.4 0 0.6] /T (Text - Circle) >>
+endobj
+
+136 0 obj
+<< /Type /Annot /Subtype /Text /Rect [344 955 374 985]
+   /Name /Cross /C [0.4 0 0.6] /T (Text - Cross) >>
+endobj
+
+137 0 obj
+<< /Type /Annot /Subtype /Text /Rect [380 955 410 985]
+   /Name /CrossHairs /C [0.4 0 0.6] /T (Text - CrossHairs) >>
+endobj
+
+138 0 obj
+<< /Type /Annot /Subtype /Text /Rect [416 955 446 985]
+   /Name /RightArrow /C [0.4 0 0.6] /T (Text - RightArrow) >>
+endobj
+
+139 0 obj
+<< /Type /Annot /Subtype /Text /Rect [452 955 482 985]
+   /Name /RightPointer /C [0.4 0 0.6] /T (Text - RightPointer) >>
+endobj
+
+140 0 obj
+<< /Type /Annot /Subtype /Text /Rect [488 955 518 985]
+   /Name /Star /C [0.4 0 0.6] /T (Text - Star) >>
+endobj
+
+141 0 obj
+<< /Type /Annot /Subtype /Text /Rect [524 955 554 985]
+   /Name /UpArrow /C [0.4 0 0.6] /T (Text - UpArrow) >>
+endobj
+
+142 0 obj
+<< /Type /Annot /Subtype /Text /Rect [560 955 590 985]
+   /Name /UpLeftArrow /C [0.4 0 0.6] /T (Text - UpLeftArrow) >>
+endobj
+
+143 0 obj
+<< /Type /Annot /Subtype /Text /Rect [596 955 626 985]
+   /Name /LeftArrow /C [0.4 0 0.6] /T (Text - LeftArrow) >>
+endobj
+
+144 0 obj
+<< /Type /Annot /Subtype /Text /Rect [632 955 662 985]
+   /Name /DownArrow /C [0.4 0 0.6] /T (Text - DownArrow) >>
+endobj
+
+145 0 obj
+<< /Type /Annot /Subtype /Text /Rect [668 955 698 985]
+   /Name /LeftPointer /C [0.4 0 0.6] /T (Text - LeftPointer) >>
+endobj
+
+146 0 obj
+<< /Type /Annot /Subtype /Text /Rect [704 955 734 985]
+   /Name /UpPointer /C [0.4 0 0.6] /T (Text - UpPointer) >>
+endobj
+
+147 0 obj
+<< /Type /Annot /Subtype /Text /Rect [740 955 770 985]
+   /Name /DownPointer /C [0.4 0 0.6] /T (Text - DownPointer) >>
+endobj
+
+148 0 obj
+<< /Type /Annot /Subtype /Text /Rect [776 955 806 985]
+   /Name /UpRightArrow /C [0.4 0 0.6] /T (Text - UpRightArrow) >>
+endobj
+
+149 0 obj
+<< /Type /Annot /Subtype /Text /Rect [812 955 842 985]
+   /Name /DownLeftArrow /C [0.4 0 0.6] /T (Text - DownLeftArrow) >>
+endobj
+
+150 0 obj
+<< /Type /Annot /Subtype /Text /Rect [848 955 878 985]
+   /Name /DownRightArrow /C [0.4 0 0.6] /T (Text - DownRightArrow) >>
 endobj
 
 % ============================================================
@@ -986,7 +1077,7 @@ xref
 0 1
 0000000000 65535 f
 trailer
-<< /Size 134 /Root 1 0 R >>
+<< /Size 151 /Root 1 0 R >>
 startxref
 0
 
