@@ -10,7 +10,7 @@ endobj
 
 3 0 obj
 << /Type /Page
-   /MediaBox [0 0 1000 1000]
+   /MediaBox [0 0 1000 1300]
    /Parent 2 0 R
    /Annots [4 0 R 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R
             11 0 R 12 0 R 13 0 R 14 0 R
@@ -24,7 +24,10 @@ endobj
             48 0 R 49 0 R 50 0 R 51 0 R 52 0 R
             53 0 R 54 0 R 55 0 R 56 0 R 57 0 R
             58 0 R 59 0 R 60 0 R
-            61 0 R 62 0 R 63 0 R]
+            61 0 R 62 0 R 63 0 R
+            64 0 R 65 0 R 66 0 R 67 0 R 68 0 R
+            69 0 R 70 0 R 71 0 R 72 0 R
+            73 0 R 74 0 R 75 0 R]
 >>
 endobj
 
@@ -534,11 +537,139 @@ endobj
    /T (Square CA=0.6 + BE=Cloudy I=2) >>
 endobj
 
+% ============================================================
+% Row N: Cloudy border effect  y=1170-1280
+% Square I=1, thick Circle I=2, concave Polygon CCW, same Polygon CW,
+% small Square I=2
+% ============================================================
+
+64 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [20 1170 180 1280]
+   /C [0.7 0 0] /IC [1 0.85 0.85]
+   /BS << /W 2 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Square BE=Cloudy I=1) >>
+endobj
+
+65 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [210 1170 370 1280]
+   /C [0 0 0.7] /IC [0.75 0.75 1]
+   /BS << /W 6 /S /S >>
+   /BE << /S /C /I 2 >>
+   /T (Circle W=6 BE=Cloudy I=2) >>
+endobj
+
+66 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [395 1170 565 1280]
+   /Vertices [400 1180 560 1180 560 1270 480 1210 400 1270]
+   /C [0 0.5 0] /IC [0.75 1 0.75]
+   /BS << /W 2 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Polygon CCW BE=Cloudy I=1) >>
+endobj
+
+67 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [585 1170 755 1280]
+   /Vertices [590 1270 670 1210 750 1270 750 1180 590 1180]
+   /C [0 0.5 0] /IC [0.75 1 0.75]
+   /BS << /W 2 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Polygon CW BE=Cloudy I=1) >>
+endobj
+
+68 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [800 1200 830 1230]
+   /C [0.5 0 0.5] /IC [0.9 0.8 1]
+   /BS << /W 1 /S /S >>
+   /BE << /S /C /I 2 >>
+   /T (Small Square BE=Cloudy I=2) >>
+endobj
+
+% ============================================================
+% Row O: Cloudy border effect  y=1030-1140
+% Flat ellipse, dashed Square, unfilled Circle, Square with RD
+% ============================================================
+
+69 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [20 1060 420 1100]
+   /C [0.6 0.3 0] /IC [1 0.9 0.7]
+   /BS << /W 2 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Flat Circle BE=Cloudy I=1) >>
+endobj
+
+70 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [450 1030 600 1140]
+   /C [0 0.4 0.6] /IC [0.8 0.95 1]
+   /BS << /W 2 /S /D /D [6 3] >>
+   /BE << /S /C /I 1 >>
+   /T (Dashed Square BE=Cloudy I=1) >>
+endobj
+
+71 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [630 1030 760 1140]
+   /C [0.3 0.3 0.3]
+   /BS << /W 2 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Unfilled Circle BE=Cloudy I=1) >>
+endobj
+
+72 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [790 1030 950 1140]
+   /RD [8 8 8 8]
+   /C [0.7 0 0] /IC [1 0.85 0.85]
+   /BS << /W 2 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Square RD=8 BE=Cloudy I=1) >>
+endobj
+
+% ============================================================
+% Row N (right): border presence  y=1180-1270
+% Cloudy Square with W=0, cloudy Square with no BS and no Border
+% ============================================================
+
+73 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [850 1180 915 1270]
+   /C [0.7 0.4 0] /IC [1 0.9 0.7]
+   /BS << /W 0 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Square W=0 BE=Cloudy I=1) >>
+endobj
+
+74 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [925 1180 990 1270]
+   /C [0.7 0.4 0] /IC [1 0.9 0.7]
+   /BE << /S /C /I 1 >>
+   /T (Square no BS no Border BE=Cloudy I=1) >>
+endobj
+
+% ============================================================
+% Row J (right): Link with color but no BS and no Border  y=255-310
+% ============================================================
+
+75 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [570 255 650 310]
+   /C [0 0.5 0]
+   /T (Link no BS no Border) >>
+endobj
+
 xref
 0 1
-0000000000 65535 f 
+0000000000 65535 f
 trailer
-<< /Size 64 /Root 1 0 R >>
+<< /Size 76 /Root 1 0 R >>
 startxref
 0
 

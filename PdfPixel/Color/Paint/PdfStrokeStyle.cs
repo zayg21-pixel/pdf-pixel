@@ -17,9 +17,7 @@ public sealed class PdfStrokeStyle
         PdfStrokeJoin lineJoin = PdfStrokeJoin.Miter,
         float miterLimit = 10.0f,
         float[]? dashPattern = null,
-        float dashPhase = 0f,
-        PdfStrokeEffectType effectType = PdfStrokeEffectType.Solid,
-        float effectIntensity = 0f)
+        float dashPhase = 0f)
     {
         LineWidth = lineWidth;
         LineCap = lineCap;
@@ -27,8 +25,6 @@ public sealed class PdfStrokeStyle
         MiterLimit = miterLimit;
         DashPattern = dashPattern;
         DashPhase = dashPhase;
-        EffectType = effectType;
-        EffectIntensity = effectIntensity;
     }
 
     /// <summary>
@@ -62,51 +58,34 @@ public sealed class PdfStrokeStyle
     public float DashPhase { get; }
 
     /// <summary>
-    /// Effect applied to this stroke. Default Solid (no effect).
-    /// </summary>
-    public PdfStrokeEffectType EffectType { get; }
-
-    /// <summary>
-    /// Effect intensity in the range 0–2. Only meaningful when <see cref="EffectType"/>
-    /// is <see cref="PdfStrokeEffectType.Cloudy"/>.
-    /// </summary>
-    public float EffectIntensity { get; }
-
-    /// <summary>
     /// Returns a copy of this style with <see cref="LineWidth"/> replaced.
     /// </summary>
     public PdfStrokeStyle WithLineWidth(float lineWidth)
-        => new(lineWidth, LineCap, LineJoin, MiterLimit, DashPattern, DashPhase, EffectType, EffectIntensity);
+        => new(lineWidth, LineCap, LineJoin, MiterLimit, DashPattern, DashPhase);
 
     /// <summary>
     /// Returns a copy of this style with <see cref="LineCap"/> replaced.
     /// </summary>
     public PdfStrokeStyle WithLineCap(PdfStrokeCap lineCap)
-        => new(LineWidth, lineCap, LineJoin, MiterLimit, DashPattern, DashPhase, EffectType, EffectIntensity);
+        => new(LineWidth, lineCap, LineJoin, MiterLimit, DashPattern, DashPhase);
 
     /// <summary>
     /// Returns a copy of this style with <see cref="LineJoin"/> replaced.
     /// </summary>
     public PdfStrokeStyle WithLineJoin(PdfStrokeJoin lineJoin)
-        => new(LineWidth, LineCap, lineJoin, MiterLimit, DashPattern, DashPhase, EffectType, EffectIntensity);
+        => new(LineWidth, LineCap, lineJoin, MiterLimit, DashPattern, DashPhase);
 
     /// <summary>
     /// Returns a copy of this style with <see cref="MiterLimit"/> replaced.
     /// </summary>
     public PdfStrokeStyle WithMiterLimit(float miterLimit)
-        => new(LineWidth, LineCap, LineJoin, miterLimit, DashPattern, DashPhase, EffectType, EffectIntensity);
+        => new(LineWidth, LineCap, LineJoin, miterLimit, DashPattern, DashPhase);
 
     /// <summary>
     /// Returns a copy of this style with <see cref="DashPattern"/> and <see cref="DashPhase"/> replaced together.
     /// </summary>
     public PdfStrokeStyle WithDash(float[]? dashPattern, float dashPhase)
-        => new(LineWidth, LineCap, LineJoin, MiterLimit, dashPattern, dashPhase, EffectType, EffectIntensity);
-
-    /// <summary>
-    /// Returns a copy of this style with <see cref="EffectType"/> and <see cref="EffectIntensity"/> replaced together.
-    /// </summary>
-    public PdfStrokeStyle WithEffect(PdfStrokeEffectType effectType, float effectIntensity)
-        => new(LineWidth, LineCap, LineJoin, MiterLimit, DashPattern, DashPhase, effectType, effectIntensity);
+        => new(LineWidth, LineCap, LineJoin, MiterLimit, dashPattern, dashPhase);
 
     /// <summary>
     /// Returns a copy of this style with every stroke-related field present in <paramref name="parameters"/>
@@ -133,8 +112,6 @@ public sealed class PdfStrokeStyle
             parameters.LineJoin ?? LineJoin,
             parameters.MiterLimit ?? MiterLimit,
             dashPattern,
-            dashPhase,
-            EffectType,
-            EffectIntensity);
+            dashPhase);
     }
 }

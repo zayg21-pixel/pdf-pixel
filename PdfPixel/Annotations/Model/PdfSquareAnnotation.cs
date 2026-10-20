@@ -1,7 +1,3 @@
-using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
-using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -15,7 +11,7 @@ namespace PdfPixel.Annotations.Model;
 /// Square annotations display a rectangle on the page. When the annotation has no appearance stream,
 /// the rectangle is drawn within the annotation rectangle using the specified color and border style.
 /// </remarks>
-public class PdfSquareAnnotation : PdfAnnotationBase
+public class PdfSquareAnnotation : PdfShapeAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfSquareAnnotation"/> class.
@@ -26,7 +22,6 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     {
         RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
-        BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
     }
 
     /// <summary>
@@ -39,37 +34,15 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
 
-    /// <summary>
-    /// Gets the parsed border effect (BE entry).
-    /// </summary>
-    public PdfAnnotationBorderEffect BorderEffect { get; }
-
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <inheritdoc />
+    internal override PdfPath? CreateShapePath(float lineWidth)
     {
-        PdfColor interiorColor = ResolveInteriorColor(page);
+        float inset = (lineWidth / 2f) + ((RectDifferences == null) ? BorderEffect.GetOutset(lineWidth) : 0f);
 
-        if (interiorColor != PdfColors.Transparent)
-        {
-            PdfPathBuilder fillPath = new();
-            fillPath.AddRect(ContentRectangle);
-            processor.Process(new DrawPathCommand(fillPath.ToPath(), PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
-        }
+        PdfPathBuilder shapePath = new();
+        shapePath.AddRect(ContentRectangle.Inflate(-inset));
 
-        if (BorderStyle != null && BorderStyle.StrokeStyle.LineWidth > 0 && Color?.Length > 0)
-        {
-            PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
-
-            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle.StrokeStyle, BorderEffect);
-
-            float halfBorder = BorderStyle.StrokeStyle.LineWidth / 2f;
-            PdfRectangle adjustedRect = ContentRectangle.Inflate(-halfBorder);
-
-            PdfPathBuilder strokePath = new();
-            strokePath.AddRect(adjustedRect);
-            processor.Process(new DrawPathCommand(strokePath.ToPath(), strokePaint));
-        }
-
-        return true;
+        return shapePath.ToPath();
     }
 
     /// <summary>

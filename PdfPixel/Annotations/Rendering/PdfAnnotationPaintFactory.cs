@@ -70,10 +70,13 @@ internal static class PdfAnnotationPaintFactory
     /// </summary>
     public static PdfPaint CreateStrokePaint(in PdfColor color, PdfStrokeStyle strokeStyle, in PdfAnnotationBorderEffect borderEffect)
     {
-        PdfStrokeEffectType effectType = (borderEffect.Type == PdfAnnotationBorderEffectType.Cloudy)
-            ? PdfStrokeEffectType.Cloudy
-            : PdfStrokeEffectType.Solid;
+        switch (borderEffect.Type)
+        {
+            case PdfAnnotationBorderEffectType.Cloudy when borderEffect.Intensity > 0f:
+                return CreateStrokePaint(color, strokeStyle.WithLineJoin(PdfStrokeJoin.Round));
 
-        return CreateStrokePaint(color, strokeStyle.WithEffect(effectType, borderEffect.Intensity));
+            default:
+                return CreateStrokePaint(color, strokeStyle);
+        }
     }
 }

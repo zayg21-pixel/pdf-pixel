@@ -173,7 +173,7 @@ public static class PdfPathExtensions
         return new PdfPoint(centerX + (radiusX * MathF.Cos(radians)), centerY + (radiusY * MathF.Sin(radians)));
     }
 
-    private static (PdfPoint Control1, PdfPoint Control2, PdfPoint End) ArcSegmentToCubic(
+    internal static (PdfPoint Control1, PdfPoint Control2, PdfPoint End) ArcSegmentToCubic(
         float centerX,
         float centerY,
         float radiusX,

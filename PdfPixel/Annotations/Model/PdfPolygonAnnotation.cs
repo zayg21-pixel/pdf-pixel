@@ -1,7 +1,4 @@
-using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -15,7 +12,7 @@ namespace PdfPixel.Annotations.Model;
 /// Polygon annotations display a closed polygon on the page with multiple vertices.
 /// The polygon can be filled with an interior color and stroked with a border.
 /// </remarks>
-public class PdfPolygonAnnotation : PdfAnnotationBase
+public class PdfPolygonAnnotation : PdfShapeAnnotation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfPolygonAnnotation"/> class.
@@ -40,7 +37,6 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             Vertices = System.Array.Empty<PdfPoint>();
         }
 
-        BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
         // TODO: [MEDIUM] Not parsed, so the polygon is drawn as a plain shape without its cloud or measurement:
         // - intent: cloud outline or area dimension (IT: PolygonCloud, PolygonDimension)
         // - measurement dictionary for dimension polygons, units and scale (Measure)
@@ -85,16 +81,12 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfPoint[] Vertices { get; }
 
-    /// <summary>
-    /// Gets the parsed border effect (BE entry).
-    /// </summary>
-    public PdfAnnotationBorderEffect BorderEffect { get; }
-
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <inheritdoc />
+    internal override PdfPath? CreateShapePath(float lineWidth)
     {
         if (Vertices.Length < 3)
         {
-            return false;
+            return null;
         }
 
         PdfPathBuilder path = new();
@@ -108,25 +100,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
 
         path.Close();
 
-        PdfPath builtPath = path.ToPath();
-
-        PdfColor interiorColor = ResolveInteriorColor(page);
-
-        if (interiorColor != PdfColors.Transparent)
-        {
-            processor.Process(new DrawPathCommand(builtPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
-        }
-
-        if (BorderStyle != null && BorderStyle.StrokeStyle.LineWidth > 0 && Color?.Length > 0)
-        {
-            PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
-
-            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle.StrokeStyle, BorderEffect);
-
-            processor.Process(new DrawPathCommand(builtPath, strokePaint));
-        }
-
-        return true;
+        return path.ToPath();
     }
 
     /// <summary>
