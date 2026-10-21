@@ -109,13 +109,13 @@ public abstract class PdfFontBase
     /// Gets the width of a character/glyph, or <see langword="null"/> when this font defines none for
     /// the code - a width the font defines as zero is a width, not an absent one.
     /// </summary>
-    public abstract float? GetWidth(PdfCharacterCode code);
+    public abstract float? GetWidth(in PdfCharacterCode code);
 
     /// <summary>
     /// Returns the vertical displacement vector for the specified character code.
     /// </summary>
     /// <param name="code">The character code to retrieve vertical metrics for.</param>
-    public abstract PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
+    public abstract PdfVerticalMetric GetVerticalDisplacement(in PdfCharacterCode code);
 
     /// <summary>
     /// Resolves the glyphs <paramref name="characterCode"/> draws as, together with the typeface they
@@ -123,7 +123,7 @@ public abstract class PdfFontBase
     /// </summary>
     /// <param name="characterCode">The character code to resolve glyphs for.</param>
     /// <param name="renderingUnicode">The Unicode text the code stands for, for font types that substitute by Unicode.</param>
-    protected abstract PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode);
+    protected abstract PdfGlyphResolution ResolveGlyphs(in PdfCharacterCode characterCode, string? renderingUnicode);
 
     /// <summary>
     /// Resolves glyphs from this font's own program: the mapping the font defines for the code, and
@@ -132,7 +132,7 @@ public abstract class PdfFontBase
     /// </summary>
     /// <param name="characterCode">The character code to resolve glyphs for.</param>
     /// <param name="renderingUnicode">The Unicode text the code stands for.</param>
-    protected PdfGlyphResolution ResolveFromFontProgram(PdfCharacterCode characterCode, string? renderingUnicode)
+    protected PdfGlyphResolution ResolveFromFontProgram(in PdfCharacterCode characterCode, string? renderingUnicode)
     {
         IPdfTypeface? typeface = Typeface;
 
@@ -177,7 +177,7 @@ public abstract class PdfFontBase
     /// <param name="code">The <see cref="PdfCharacterCode"/> to be converted. Cannot be <see langword="null"/>.</param>
     /// <returns>The Unicode string representation of the specified <see cref="PdfCharacterCode"/>.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="code"/> is <see langword="null"/>.</exception>
-    public virtual string? GetUnicodeString(PdfCharacterCode code)
+    public virtual string? GetUnicodeString(in PdfCharacterCode code)
     {
         if (ToUnicodeCMap != null)
         {
@@ -194,7 +194,7 @@ public abstract class PdfFontBase
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string to shape against, or <see langword="null"/> if none is available.</returns>
-    public virtual string? GetRenderingUnicodeString(PdfCharacterCode code) => GetUnicodeString(code);
+    public virtual string? GetRenderingUnicodeString(in PdfCharacterCode code) => GetUnicodeString(code);
 
     /// <summary>
     /// Extracts character codes from raw bytes for this font.
@@ -208,7 +208,7 @@ public abstract class PdfFontBase
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
     /// <returns>The glyph ID (GID) for the character code, or <see langword="null"/> if not found.</returns>
-    public abstract ushort? GetGid(PdfCharacterCode code);
+    public abstract ushort? GetGid(in PdfCharacterCode code);
 
     /// <summary>
     /// Extracts all resolved information for a single PDF character code.
@@ -217,13 +217,8 @@ public abstract class PdfFontBase
     /// <param name="characterCode">The character code to extract info for.</param>
     /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public PdfCharacterInfo ExtractCharacterInfo(PdfCharacterCode characterCode)
+    public PdfCharacterInfo ExtractCharacterInfo(in PdfCharacterCode characterCode)
     {
-        if (characterCode == null)
-        {
-            throw new ArgumentNullException(nameof(characterCode));
-        }
-
         if (!_characterInfoCache.TryGetValue(characterCode, out PdfCharacterInfo characterInfo))
         {
             characterInfo = ExtractCharacterInfoCore(characterCode);
@@ -240,7 +235,7 @@ public abstract class PdfFontBase
     /// </summary>
     /// <param name="characterCode">The character code to extract info for.</param>
     /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
-    protected PdfCharacterInfo ExtractCharacterInfoCore(PdfCharacterCode characterCode)
+    protected PdfCharacterInfo ExtractCharacterInfoCore(in PdfCharacterCode characterCode)
     {
         string? renderingUnicode = GetRenderingUnicodeString(characterCode);
         PdfGlyphResolution resolution = ResolveGlyphs(characterCode, renderingUnicode);

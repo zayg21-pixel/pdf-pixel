@@ -12,7 +12,7 @@ public struct PdfCharacterInfo
     /// Creates a PdfCharacterInfo for a single Unicode, GID, width, etc..
     /// </summary>
     public PdfCharacterInfo(
-        PdfCharacterCode characterCode,
+        in PdfCharacterCode characterCode,
         IPdfTypeface typeface,
         string? unicode,
         ushort?[] gid,

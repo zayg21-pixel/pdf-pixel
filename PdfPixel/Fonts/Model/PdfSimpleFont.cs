@@ -45,28 +45,20 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
     /// <returns>The glyph ID, or <see langword="null"/> if not found.</returns>
-    public override ushort? GetGid(PdfCharacterCode code)
-    {
-        if (code == null)
-        {
-            return null;
-        }
-
-        return _resolution.Mapper?.GetGid((byte)code);
-    }
+    public override ushort? GetGid(in PdfCharacterCode code) => _resolution.Mapper?.GetGid((byte)code.Value);
 
     /// <summary>
     /// Resolves glyphs for a single-byte code: the embedded program's own mapping first, then a symbol
     /// typeface's built-in encoding, and only then the Unicode the code stands for.
     /// </summary>
-    protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
+    protected override PdfGlyphResolution ResolveGlyphs(in PdfCharacterCode characterCode, string? renderingUnicode)
     {
         if (!IsSubstitutedFont)
         {
             return ResolveFromFontProgram(characterCode, renderingUnicode);
         }
 
-        int code = (byte)(uint)characterCode;
+        int code = (byte)characterCode.Value;
         SfntPdfTypeface? symbolTypeface = Document.FontProvider.GetSymbolTypefaceByCode(SubstitutionInfo, code);
 
         if (symbolTypeface != null)
@@ -78,10 +70,10 @@ public class PdfSimpleFont : PdfSingleByteFont
     }
 
     /// <inheritdoc/>
-    public override string? GetRenderingUnicodeString(PdfCharacterCode code)
+    public override string? GetRenderingUnicodeString(in PdfCharacterCode code)
     {
         if (_resolution.SpaceWidth != null
-            && Encoding.GetNameByCodeOrUndefined((byte)(uint)code) == SingleByteEncodings.UndefinedCharacter)
+            && Encoding.GetNameByCodeOrUndefined((byte)code.Value) ==SingleByteEncodings.UndefinedCharacter)
         {
             return " ";
         }
@@ -94,11 +86,11 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// </summary>
     /// <param name="code">The character code to retrieve the width for.</param>
     /// <returns>The advance width in user space units.</returns>
-    public override float? GetWidth(PdfCharacterCode code)
+    public override float? GetWidth(in PdfCharacterCode code)
     {
         float? width = GetDefinedWidth(code);
 
-        if (width == null && _resolution.SpaceWidth != null && Encoding.GetNameByCode((byte)(uint)code).IsEmpty)
+        if (width == null && _resolution.SpaceWidth != null && Encoding.GetNameByCode((byte)code.Value).IsEmpty)
         {
             return _resolution.SpaceWidth;
         }
@@ -255,7 +247,7 @@ public class PdfSimpleFont : PdfSingleByteFont
             return null;
         }
 
-        float? declaredWidth = base.GetWidth(spaceCode.Value);
+        float? declaredWidth = base.GetWidth(new PdfCharacterCode(spaceCode.Value, 1));
 
         if (declaredWidth != null)
         {
@@ -265,7 +257,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         return mapper?.GetWidth(spaceCode.Value);
     }
 
-    private float? GetDefinedWidth(PdfCharacterCode code) => base.GetWidth(code) ?? _resolution.Mapper?.GetWidth((byte)(code));
+    private float? GetDefinedWidth(in PdfCharacterCode code) => base.GetWidth(code) ?? _resolution.Mapper?.GetWidth((byte)code.Value);
 
     /// <summary>
     /// Result of resolving this font's typeface and glyph-ID mapper: whether it is substituted, and -

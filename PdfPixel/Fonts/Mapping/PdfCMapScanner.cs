@@ -211,7 +211,7 @@ public static class PdfCMapScanner
         while (TryReadHexString(data, ref position, startCode, out int startLength)
             && TryReadHexString(data, ref position, endCode, out int endLength))
         {
-            cmap.AddCodespaceRange(startCode.Slice(0, startLength), endCode.Slice(0, endLength));
+            cmap.AddCodespaceRange(new PdfCharacterCode(startCode.Slice(0, startLength)), new PdfCharacterCode(endCode.Slice(0, endLength)));
         }
     }
 
@@ -223,7 +223,7 @@ public static class PdfCMapScanner
         while (TryReadHexString(data, ref position, code, out int codeLength)
             && TryReadHexString(data, ref position, destination, out int destinationLength))
         {
-            AddUnicodeMapping(cmap, code.Slice(0, codeLength), destination.Slice(0, destinationLength));
+            AddUnicodeMapping(cmap, new PdfCharacterCode(code.Slice(0, codeLength)), destination.Slice(0, destinationLength));
         }
     }
 
@@ -231,7 +231,6 @@ public static class PdfCMapScanner
     {
         Span<byte> startCode = stackalloc byte[MaxCodeLength];
         Span<byte> endCode = stackalloc byte[MaxCodeLength];
-        Span<byte> code = stackalloc byte[MaxCodeLength];
         Span<byte> destination = stackalloc byte[MaxDestinationLength];
 
         while (TryReadHexString(data, ref position, startCode, out int startLength)
@@ -242,12 +241,11 @@ public static class PdfCMapScanner
             if (position < data.Length && data[position] == (byte)'[')
             {
                 position++;
-                uint currentCode = PdfCharacterCode.UnpackBigEndianToUInt(startCode.Slice(0, startLength));
+                uint currentCode = new PdfCharacterCode(startCode.Slice(0, startLength)).Value;
 
                 while (TryReadHexString(data, ref position, destination, out int destinationLength))
                 {
-                    WriteBigEndian(currentCode, code.Slice(0, startLength));
-                    AddUnicodeMapping(cmap, code.Slice(0, startLength), destination.Slice(0, destinationLength));
+                    AddUnicodeMapping(cmap, new PdfCharacterCode(currentCode, startLength), destination.Slice(0, destinationLength));
                     currentCode++;
                 }
 
@@ -262,8 +260,8 @@ public static class PdfCMapScanner
             {
                 AddUnicodeRangeMapping(
                     cmap,
-                    startCode.Slice(0, startLength),
-                    endCode.Slice(0, endLength),
+                    new PdfCharacterCode(startCode.Slice(0, startLength)),
+                    new PdfCharacterCode(endCode.Slice(0, endLength)),
                     destination.Slice(0, destinationLength));
             }
         }
@@ -276,7 +274,7 @@ public static class PdfCMapScanner
         while (TryReadHexString(data, ref position, code, out int codeLength)
             && TryReadInteger(data, ref position, out int cid))
         {
-            cmap.AddCidMapping(new PdfCharacterCode(code.Slice(0, codeLength).ToArray()), cid);
+            cmap.AddCidMapping(new PdfCharacterCode(code.Slice(0, codeLength)), cid);
         }
     }
 
@@ -289,21 +287,21 @@ public static class PdfCMapScanner
             && TryReadHexString(data, ref position, endCode, out int endLength)
             && TryReadInteger(data, ref position, out int firstCid))
         {
-            cmap.AddCidRangeMapping(startCode.Slice(0, startLength), endCode.Slice(0, endLength), firstCid);
+            cmap.AddCidRangeMapping(new PdfCharacterCode(startCode.Slice(0, startLength)), new PdfCharacterCode(endCode.Slice(0, endLength)), firstCid);
         }
     }
 
-    private static void AddUnicodeMapping(PdfCMap cmap, in ReadOnlySpan<byte> code, in ReadOnlySpan<byte> destination)
+    private static void AddUnicodeMapping(PdfCMap cmap, in PdfCharacterCode code, in ReadOnlySpan<byte> destination)
     {
         if (IsSpecialsBlockSentinel(destination))
         {
             return;
         }
 
-        cmap.AddMapping(new PdfCharacterCode(code.ToArray()), DecodeUtf16BE(destination));
+        cmap.AddMapping(code, DecodeUtf16BE(destination));
     }
 
-    private static void AddUnicodeRangeMapping(PdfCMap cmap, in ReadOnlySpan<byte> startCode, in ReadOnlySpan<byte> endCode, in ReadOnlySpan<byte> destination)
+    private static void AddUnicodeRangeMapping(PdfCMap cmap, in PdfCharacterCode startCode, in PdfCharacterCode endCode, in ReadOnlySpan<byte> destination)
     {
         if (IsSpecialsBlockSentinel(destination))
         {
@@ -342,15 +340,6 @@ public static class PdfCMapScanner
         }
 
         return PdfPixel.Text.EncodingExtensions.GetString(Encoding.BigEndianUnicode, span);
-    }
-
-    private static void WriteBigEndian(uint value, in Span<byte> destination)
-    {
-        for (int index = destination.Length - 1; index >= 0; index--)
-        {
-            destination[index] = (byte)(value & 0xFF);
-            value >>= 8;
-        }
     }
 
     private static bool TryReadHexString(in ReadOnlySpan<byte> data, ref int position, in Span<byte> destination, out int length)

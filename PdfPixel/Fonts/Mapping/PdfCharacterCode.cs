@@ -3,100 +3,74 @@ using System;
 namespace PdfPixel.Fonts.Mapping;
 
 /// <summary>
-/// Immutable representation of a PDF character code bytes.
-/// Holds the original byte slice as <c>ReadOnlyMemory&lt;byte&gt;</c> and compares by byte sequence.
+/// Immutable representation of a PDF character code of 1 to 4 bytes.
 /// This is length-aware by design (e.g., 0x41 != 0x00 0x41).
 /// </summary>
-public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
+public readonly struct PdfCharacterCode : IEquatable<PdfCharacterCode>
 {
-    /// <summary>
-    /// Creates a new character code from a read-only byte slice. The data is not copied.
-    /// </summary>
-    public PdfCharacterCode(in ReadOnlyMemory<byte> bytes) => Bytes = bytes;
+    private const int MaxLength = sizeof(uint);
 
     /// <summary>
-    /// Underlying byte sequence for this character code (CID/code bytes).
+    /// Creates a new character code from its big-endian bytes; of a longer sequence the last 4 bytes are kept.
     /// </summary>
-    public ReadOnlyMemory<byte> Bytes { get; }
+    public PdfCharacterCode(in ReadOnlySpan<byte> bytes)
+    {
+        Value = UnpackBigEndianToUInt(bytes);
+        Length = Math.Min(bytes.Length, MaxLength);
+    }
+
+    /// <summary>
+    /// Creates a new character code from its numeric value and byte count.
+    /// </summary>
+    public PdfCharacterCode(uint value, int length)
+    {
+        Value = value;
+        Length = length;
+    }
+
+    /// <summary>
+    /// Numeric value of the code bytes, read as big-endian.
+    /// </summary>
+    public uint Value { get; }
 
     /// <summary>
     /// Number of bytes in this character code.
     /// </summary>
-    public int Length => Bytes.Length;
+    public int Length { get; }
 
     /// <inheritdoc/>
-    public bool Equals(PdfCharacterCode? other)
-    {
-        if (ReferenceEquals(null, other))
-        {
-            return false;
-        }
-
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-
-        return Bytes.Span.SequenceEqual(other.Bytes.Span);
-    }
+    public bool Equals(PdfCharacterCode other) => Value == other.Value && Length == other.Length;
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is PdfCharacterCode other && Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode()
-    {
-        // FNV-1a over bytes plus length to reduce collisions for mixed-length codes
-        unchecked
-        {
-            const uint fnvOffset = 2166136261;
-            const uint fnvPrime = 16777619;
-            uint hash = fnvOffset;
-            ReadOnlySpan<byte> span = Bytes.Span;
-            for (int i = 0; i < span.Length; i++)
-            {
-                hash ^= span[i];
-                hash *= fnvPrime;
-            }
-
-            hash ^= (uint)span.Length;
-            return (int)hash;
-        }
-    }
+    public override int GetHashCode() => HashCode.Combine(Value, Length);
 
     /// <inheritdoc/>
-    public static bool operator ==(PdfCharacterCode? left, PdfCharacterCode? right)
-    {
-        if (ReferenceEquals(left, right))
-        {
-            return true;
-        }
-
-        return left?.Equals(right) ?? false;
-    }
+    public static bool operator ==(in PdfCharacterCode left, in PdfCharacterCode right) => left.Equals(right);
 
     /// <inheritdoc/>
-    public static bool operator !=(PdfCharacterCode? left, PdfCharacterCode? right) => !(left == right);
+    public static bool operator !=(in PdfCharacterCode left, in PdfCharacterCode right) => !left.Equals(right);
 
     /// <summary>
     /// For diagnostics: returns a hex string like "41" or "00-41".
     /// </summary>
     public override string ToString()
     {
-        ReadOnlySpan<byte> span = Bytes.Span;
-        if (span.Length == 0)
+        if (Length == 0)
         {
             return string.Empty;
         }
 
-        var chars = new char[(span.Length * 3) - 1];
+        var chars = new char[(Length * 3) - 1];
         int idx = 0;
-        for (int i = 0; i < span.Length; i++)
+        for (int i = 0; i < Length; i++)
         {
-            byte b = span[i];
+            var b = (byte)(Value >> ((Length - 1 - i) * 8));
             chars[idx++] = GetHexNibble(b >> 4 & 0x0F);
             chars[idx++] = GetHexNibble(b & 0x0F);
-            if (i < span.Length - 1)
+            if (i < Length - 1)
             {
                 chars[idx++] = '-';
             }
@@ -107,82 +81,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
 
     private static char GetHexNibble(int v) => (char)((v < 10) ? '0' + v : 'A' + (v - 10));
 
-    /// <summary>
-    /// Packs a uint into minimal-length big-endian bytes (no leading zero bytes).
-    /// </summary>
-    public static ReadOnlyMemory<byte> PackUIntToMinimalBigEndian(uint value)
-    {
-        if (value == 0u)
-        {
-            // Represent zero as a single 0x00 byte
-            return new byte[] { 0x00 };
-        }
-
-        // Build bytes from least significant to most, then slice
-        var tmp = new byte[4];
-        int index = 4;
-        while (value != 0u)
-        {
-            tmp[--index] = (byte)(value & 0xFF);
-            value >>= 8;
-        }
-
-        int len = 4 - index;
-        var result = new byte[len];
-        Buffer.BlockCopy(tmp, index, result, 0, len);
-        return result;
-    }
-
-    /// <summary>
-    /// Implicit conversion from uint to character code, packing the value into a minimal-length
-    /// big-endian byte sequence. Leading zero bytes are not preserved (e.g. 0x0041 becomes [0x41]).
-    /// </summary>
-    public static implicit operator PdfCharacterCode(uint value) => new(PackUIntToMinimalBigEndian(value));
-
-    /// <summary>
-    /// Implicit conversion from character code to uint.
-    /// Interprets the code bytes as big-endian and returns the numeric value.
-    /// </summary>
-    public static implicit operator uint(PdfCharacterCode code)
-    {
-        if (code == null || code.Bytes.Length == 0)
-        {
-            return 0u;
-        }
-
-        return UnpackBigEndianToUInt(code.Bytes.Span);
-    }
-
-
-    /// <summary>
-    /// Packs a uint into exactly 'length' big-endian bytes (1..4), padding with leading zeros if needed.
-    /// </summary>
-    public static ReadOnlyMemory<byte> PackUIntToBigEndian(uint value, int length)
-    {
-        if (length <= 0)
-        {
-            return PackUIntToMinimalBigEndian(value);
-        }
-
-        if (length > 4)
-        {
-            length = 4;
-        }
-
-        var bytes = new byte[length];
-        for (int i = length - 1; i >= 0; i--)
-        {
-            bytes[i] = (byte)(value & 0xFF);
-            value >>= 8;
-        }
-
-        return bytes;
-    }
-
-    /// <summary>
-    /// Interpret a big-endian byte sequence as an unsigned integer (up to 4 bytes).
-    /// </summary>
-    public static uint UnpackBigEndianToUInt(in ReadOnlySpan<byte> span)
+    private static uint UnpackBigEndianToUInt(in ReadOnlySpan<byte> span)
     {
         uint v = 0u;
         for (int i = 0; i < span.Length; i++)

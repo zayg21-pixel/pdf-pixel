@@ -48,9 +48,7 @@ public static class PdfCmapBinary
                         byte codeLength = span[offset++];
                         uint start = ReadVarUInt(span, ref offset);
                         uint end = ReadVarUInt(span, ref offset);
-                        ReadOnlyMemory<byte> startBytes = PdfCharacterCode.PackUIntToBigEndian(start, codeLength);
-                        ReadOnlyMemory<byte> endBytes = PdfCharacterCode.PackUIntToBigEndian(end, codeLength);
-                        cmap.AddCodespaceRange(startBytes.Span, endBytes.Span);
+                        cmap.AddCodespaceRange(new PdfCharacterCode(start, codeLength), new PdfCharacterCode(end, codeLength));
                     }
 
                     break;
@@ -122,9 +120,7 @@ public static class PdfCmapBinary
                         uint length = ReadVarUInt(span, ref offset);
 
                         uint codeEnd = codeStart + length - 1;
-                            ReadOnlyMemory<byte> startBytes = PdfCharacterCode.PackUIntToBigEndian(codeStart, codeLengthContext);
-                            ReadOnlyMemory<byte> endBytes = PdfCharacterCode.PackUIntToBigEndian(codeEnd, codeLengthContext);
-                        cmap.AddCidRangeMapping(startBytes.Span, endBytes.Span, (int)cidStart);
+                        cmap.AddCidRangeMapping(new PdfCharacterCode(codeStart, codeLengthContext), new PdfCharacterCode(codeEnd, codeLengthContext), (int)cidStart);
 
                         prevCode = codeStart;
                         prevCid = cidStart;
@@ -154,8 +150,7 @@ public static class PdfCmapBinary
                             cidValue = unchecked(prevCid + (uint)cidDelta);
                         }
 
-                            ReadOnlyMemory<byte> codeBytes = PdfCharacterCode.PackUIntToBigEndian(codeValue, codeLengthContext);
-                        cmap.AddCidMapping(new PdfCharacterCode(codeBytes), (int)cidValue);
+                        cmap.AddCidMapping(new PdfCharacterCode(codeValue, codeLengthContext), (int)cidValue);
 
                         prevCode = codeValue;
                         prevCid = cidValue;

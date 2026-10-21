@@ -76,7 +76,7 @@ internal static class CmapClustering
                 signature[codeLength] = columns;
             }
 
-            columns[PdfCharacterCode.UnpackBigEndianToUInt(kvp.Key.Bytes.Span)] = kvp.Value;
+            columns[kvp.Key.Value] = kvp.Value;
         }
 
         return signature;

@@ -47,8 +47,10 @@ Sizes are the share of the run's allocations or samples.
   - Investigated, no change. Each fill makes exactly one copy, owned by `DrawShapedTextCommand` (recordings keep commands); the three `ToArray()` sites are separate branches, never two copies of one run. `PdfCharacter[]` is likewise owned by its `PdfContentCommand`.
   - `TextOperators._glyphBuffer` is created per `RenderContext`, so it regrows for every form and Type 3 glyph (~37 MB). Sharing it is unsafe: a Type 3 glyph renders a nested content stream while the outer run still reads the buffer.
   - Gold renders with the default `ExtractContent = true`, so `PdfCharacter[]`, `PdfContentItem` and the content tree (~160 MB) are built on every page even though Gold only draws.
-- [ ] **4. Soft mask scope per path** — `PathRenderer.DrawPath`. A `SoftMaskDrawingScope` class is allocated for every path drawn, even when there is no soft mask. ~105 MB.
-- [ ] **5. Character codes** — `PdfSingleByteFont.ExtractCharacterCodes`. `PdfCharacterCode` is a sealed class created once per character. ~95 MB.
+- [x] **4. Soft mask scope per path** — `PathRenderer.DrawPath`. A `SoftMaskDrawingScope` class is allocated for every path drawn, even when there is no soft mask. ~105 MB.
+  - Done: `SoftMaskDrawingScope.Begin(...)` returns null when no mask applies; `Dispose` is the only end. All 10 call sites are a single `using` declaration.
+- [x] **5. Character codes** — `PdfSingleByteFont.ExtractCharacterCodes`. `PdfCharacterCode` is a sealed class created once per character. ~95 MB.
+  - Done: `readonly struct PdfCharacterCode` with `uint Value` and `int Length`; implicit conversions and the pack/unpack helpers removed; CMap range methods take `PdfCharacterCode` start/end, so the binary and text CMap readers no longer pack values into bytes for the CMap to unpack.
 - [ ] **6. CID to GID map** — `PdfCidToGidMap.ParseStreamData`. A `Dictionary<uint, ushort>` holds a dense map of at most 65,536 CIDs. ~51 MB.
 
 ### CPU

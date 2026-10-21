@@ -42,9 +42,9 @@ public class PdfSingleByteFontWidths
     /// Gets the width for the given character code. Returns explicit width if defined, otherwise null.
     /// All widths are returned in user space units.
     /// </summary>
-    public float? GetWidth(PdfCharacterCode code)
+    public float? GetWidth(in PdfCharacterCode code)
     {
-        var cid = (uint)code;
+        uint cid = code.Value;
         if (Widths != null && FirstChar.HasValue && LastChar.HasValue && cid >= FirstChar.Value && cid <= LastChar.Value)
         {
             uint index = cid - FirstChar.Value;

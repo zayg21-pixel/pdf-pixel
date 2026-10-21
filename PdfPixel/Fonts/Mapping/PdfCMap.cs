@@ -88,15 +88,15 @@ public class PdfCMap
     /// Adds a codespace range pair. Start and end must have the same length (1..4 bytes).
     /// Values are interpreted as big-endian.
     /// </summary>
-    public void AddCodespaceRange(in ReadOnlySpan<byte> start, in ReadOnlySpan<byte> end)
+    public void AddCodespaceRange(in PdfCharacterCode start, in PdfCharacterCode end)
     {
         if (start.Length == 0 || end.Length == 0 || start.Length != end.Length || start.Length > 4)
         {
             return;
         }
 
-        uint vStart = PdfCharacterCode.UnpackBigEndianToUInt(start);
-        uint vEnd = PdfCharacterCode.UnpackBigEndianToUInt(end);
+        uint vStart = start.Value;
+        uint vEnd = end.Value;
 
         if (vEnd < vStart)
         {
@@ -166,9 +166,9 @@ public class PdfCMap
     /// <summary>
     /// Adds a single mapping for a length-aware code (byte sequence) to Unicode.
     /// </summary>
-    public void AddMapping(PdfCharacterCode code, string unicode)
+    public void AddMapping(in PdfCharacterCode code, string unicode)
     {
-        if (code == null || unicode == null)
+        if (unicode == null)
         {
             return;
         }
@@ -179,22 +179,14 @@ public class PdfCMap
     /// <summary>
     /// Adds a single mapping for a length-aware code (byte sequence) to CID.
     /// </summary>
-    public void AddCidMapping(PdfCharacterCode code, int cid)
-    {
-        if (code == null)
-        {
-            return;
-        }
-
-        _codeToCid[code] = cid;
-    }
+    public void AddCidMapping(in PdfCharacterCode code, int cid) => _codeToCid[code] = cid;
 
     /// <summary>
     /// Adds a sequential range mapping using length-aware start/end codes to Unicode.
     /// Both start and end must be the same length (1..4 bytes), inclusive.
     /// Stored as a compressed range for efficient lookup and memory usage.
     /// </summary>
-    public void AddRangeMapping(in ReadOnlySpan<byte> startCode, in ReadOnlySpan<byte> endCode, int startUnicode)
+    public void AddRangeMapping(in PdfCharacterCode startCode, in PdfCharacterCode endCode, int startUnicode)
     {
         if (startCode.Length == 0 || endCode.Length == 0 || startCode.Length != endCode.Length || startCode.Length > 4)
         {
@@ -202,8 +194,8 @@ public class PdfCMap
         }
 
         int len = startCode.Length;
-        uint vStart = PdfCharacterCode.UnpackBigEndianToUInt(startCode);
-        uint vEnd = PdfCharacterCode.UnpackBigEndianToUInt(endCode);
+        uint vStart = startCode.Value;
+        uint vEnd = endCode.Value;
         if (vEnd < vStart)
         {
             uint temp = vStart;
@@ -220,7 +212,7 @@ public class PdfCMap
     /// Both start and end must be the same length (1..4 bytes), inclusive.
     /// Stored as a compressed range for efficient lookup and memory usage.
     /// </summary>
-    public void AddCidRangeMapping(in ReadOnlySpan<byte> startCode, in ReadOnlySpan<byte> endCode, int startCid)
+    public void AddCidRangeMapping(in PdfCharacterCode startCode, in PdfCharacterCode endCode, int startCid)
     {
         if (startCode.Length == 0 || endCode.Length == 0 || startCode.Length != endCode.Length || startCode.Length > 4)
         {
@@ -228,8 +220,8 @@ public class PdfCMap
         }
 
         int len = startCode.Length;
-        uint vStart = PdfCharacterCode.UnpackBigEndianToUInt(startCode);
-        uint vEnd = PdfCharacterCode.UnpackBigEndianToUInt(endCode);
+        uint vStart = startCode.Value;
+        uint vEnd = endCode.Value;
         if (vEnd < vStart)
         {
             uint temp = vStart;
@@ -244,26 +236,20 @@ public class PdfCMap
     /// <summary>
     /// Looks up the Unicode mapping for a length-aware code.
     /// </summary>
-    public string? GetUnicode(PdfCharacterCode code)
+    public string? GetUnicode(in PdfCharacterCode code)
     {
-        if (code == null)
-        {
-            return null;
-        }
-
         if (_characterCodeToUnicode.TryGetValue(code, out string? unicode))
         {
             return unicode;
         }
 
-        ReadOnlySpan<byte> bytes = code.Bytes.Span;
-        int len = bytes.Length;
+        int len = code.Length;
         if (len < 1 || len > 4)
         {
             return null;
         }
 
-        uint value = PdfCharacterCode.UnpackBigEndianToUInt(bytes);
+        uint value = code.Value;
         List<UnicodeRangeMap>? ranges = _unicodeRangesByLength[len];
         if (ranges == null || ranges.Count == 0)
         {
@@ -288,28 +274,21 @@ public class PdfCMap
     /// <summary>
     /// Looks up the CID mapping for a length-aware code.
     /// </summary>
-    public bool TryGetCid(PdfCharacterCode code, out int cid)
+    public bool TryGetCid(in PdfCharacterCode code, out int cid)
     {
-        if (code == null)
-        {
-            cid = 0;
-            return false;
-        }
-
         if (_codeToCid.TryGetValue(code, out cid))
         {
             return true;
         }
 
-        ReadOnlySpan<byte> bytes = code.Bytes.Span;
-        int len = bytes.Length;
+        int len = code.Length;
         if (len < 1 || len > 4)
         {
             cid = 0;
             return false;
         }
 
-        uint value = PdfCharacterCode.UnpackBigEndianToUInt(bytes);
+        uint value = code.Value;
         List<CidRangeMap>? ranges = _cidRangesByLength[len];
         if (ranges != null && ranges.Count > 0)
         {
@@ -337,7 +316,7 @@ public class PdfCMap
     /// Some encoding CMaps store CID values as byte strings in bfchar/bfrange sections
     /// instead of cidchar/cidrange. The bytes are interpreted as a big-endian integer.
     /// </summary>
-    private bool TryConvertUnicodeToCid(PdfCharacterCode code, out int cid)
+    private bool TryConvertUnicodeToCid(in PdfCharacterCode code, out int cid)
     {
         if (_characterCodeToUnicode.TryGetValue(code, out string? unicode) && unicode != null)
         {

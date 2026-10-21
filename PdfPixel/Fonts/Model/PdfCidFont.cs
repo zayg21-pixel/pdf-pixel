@@ -95,14 +95,14 @@ public class PdfCidFont : PdfFontBase
     /// Gets the character width for a given character code. A CID font always defines one: the "W" entry
     /// for the CID, the font's "DW", or the default the specification gives "DW".
     /// </summary>
-    public override float? GetWidth(PdfCharacterCode code) => GetWidthByCid((uint)code);
+    public override float? GetWidth(in PdfCharacterCode code) => GetWidthByCid(code.Value);
 
     /// <summary>
     /// Returns the vertical displacement metrics for the given character code, mapping it to a CID and delegating to <see cref="GetVerticalDisplacementByCid"/>.
     /// </summary>
     /// <param name="code">The character code to retrieve vertical metrics for.</param>
     /// <returns>The <see cref="PdfVerticalMetric"/> for the character code.</returns>
-    public override PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => VerticalMetrics.GetMetrics((uint)code);
+    public override PdfVerticalMetric GetVerticalDisplacement(in PdfCharacterCode code) => VerticalMetrics.GetMetrics(code.Value);
 
     /// <summary>
     /// Converts a Character ID (CID) to a Glyph ID (GID) through <see cref="CidToGidMap"/>, or the CID
@@ -225,7 +225,7 @@ public class PdfCidFont : PdfFontBase
         for (int index = 0; index < count; index++)
         {
             int offset = index * codeLength;
-            result[index] = new PdfCharacterCode(bytes.Slice(offset, codeLength));
+            result[index] = new PdfCharacterCode(bytes.Span.Slice(offset, codeLength));
         }
 
         return result;
@@ -236,22 +236,13 @@ public class PdfCidFont : PdfFontBase
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
     /// <returns>The glyph ID (GID) for the character code, or <see langword="null"/> if not found.</returns>
-    public override ushort? GetGid(PdfCharacterCode code)
-    {
-        if (code == null)
-        {
-            return null;
-        }
-
-        var cid = (uint)code;
-        return GetGidByCid(cid);
-    }
+    public override ushort? GetGid(in PdfCharacterCode code) => GetGidByCid(code.Value);
 
     /// <summary>
     /// Resolves glyphs for a CID through this font's CIDToGIDMap, falling back to the Unicode the code
     /// stands for once the embedded program is unavailable.
     /// </summary>
-    protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
+    protected override PdfGlyphResolution ResolveGlyphs(in PdfCharacterCode characterCode, string? renderingUnicode)
     {
         PdfGlyphResolution resolution = ResolveFromFontProgram(characterCode, renderingUnicode);
 

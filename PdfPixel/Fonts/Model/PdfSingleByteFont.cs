@@ -40,14 +40,14 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// <summary>
     /// Gets the character width from font metrics.
     /// </summary>
-    public override float? GetWidth(PdfCharacterCode code) => Widths.GetWidth(code);
+    public override float? GetWidth(in PdfCharacterCode code) => Widths.GetWidth(code);
 
     /// <summary>
     /// Single-byte fonts do not support vertical writing; always returns the default (zero) metric.
     /// </summary>
     /// <param name="code">The character code (unused).</param>
     /// <returns>The default <see cref="PdfVerticalMetric"/>.</returns>
-    public override PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => default;
+    public override PdfVerticalMetric GetVerticalDisplacement(in PdfCharacterCode code) => default;
 
     /// <summary>
     /// Converts a character code to its Unicode string representation.
@@ -56,7 +56,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string for the character code, or <see langword="null"/> if no mapping is found.</returns>
-    public override string? GetUnicodeString(PdfCharacterCode code)
+    public override string? GetUnicodeString(in PdfCharacterCode code)
     {
         string? baseResult = base.GetUnicodeString(code);
 
@@ -66,7 +66,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
         }
 
         // Fallback to Adobe Glyph List mapping.
-        PdfFontString name = Encoding.GetNameByCodeOrUndefined((byte)(uint)code);
+        PdfFontString name = Encoding.GetNameByCodeOrUndefined((byte)code.Value);
 
         if (AdobeGlyphList.TryGetUnicode(Encoding.BaseEncoding.ToPdfFontEncoding(), name, out string? aglUnicode))
         {
@@ -74,13 +74,13 @@ public abstract class PdfSingleByteFont : PdfFontBase
         }
 
         // Fallback: treat the character code itself as a Unicode code point.
-        return char.ConvertFromUtf32((int)(uint)code);
+        return char.ConvertFromUtf32((int)code.Value);
     }
 
     /// <inheritdoc/>
-    public override string? GetRenderingUnicodeString(PdfCharacterCode code)
+    public override string? GetRenderingUnicodeString(in PdfCharacterCode code)
     {
-        PdfFontString name = Encoding.GetNameByCodeOrUndefined((byte)(uint)code);
+        PdfFontString name = Encoding.GetNameByCodeOrUndefined((byte)code.Value);
 
         if (AdobeGlyphList.TryGetUnicode(Encoding.BaseEncoding.ToPdfFontEncoding(), name, out string? aglUnicode))
         {
@@ -95,7 +95,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
         }
 
         // Fallback: treat the character code itself as a Unicode code point.
-        return char.ConvertFromUtf32((int)(uint)code);
+        return char.ConvertFromUtf32((int)code.Value);
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
         var result = new PdfCharacterCode[count];
         for (int index = 0; index < count; index++)
         {
-            result[index] = new PdfCharacterCode(bytes.Slice(index, 1));
+            result[index] = new PdfCharacterCode(bytes.Span[index], 1);
         }
 
         return result;

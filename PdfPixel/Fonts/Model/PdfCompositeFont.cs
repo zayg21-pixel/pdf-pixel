@@ -73,7 +73,7 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// Gets the character width, delegated to the appropriate descendant CID font by CID.
     /// </summary>
-    public override float? GetWidth(PdfCharacterCode code)
+    public override float? GetWidth(in PdfCharacterCode code)
     {
         PdfCidFont? descendant = PrimaryDescendant;
         if (descendant == null)
@@ -95,7 +95,7 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     /// <param name="code">The character code to retrieve vertical metrics for.</param>
     /// <returns>The <see cref="PdfVerticalMetric"/> for the character code.</returns>
-    public override PdfVerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
+    public override PdfVerticalMetric GetVerticalDisplacement(in PdfCharacterCode code)
     {
         if (_writingMode == CMapWMode.Horizontal)
         {
@@ -120,7 +120,7 @@ public class PdfCompositeFont : PdfFontBase
     /// Maps a length-aware content code to a numeric CID through <see cref="CodeToCidCMap"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
+    public bool TryMapCodeToCid(in PdfCharacterCode code, out uint cid)
     {
         PdfCMap? map = CodeToCidCMap;
         if (map != null && map.TryGetCid(code, out int mapped))
@@ -193,7 +193,7 @@ public class PdfCompositeFont : PdfFontBase
                     length = 1;
                 }
 
-                characterCodes.Add(new PdfCharacterCode(bytes.Slice(offset, length)));
+                characterCodes.Add(new PdfCharacterCode(bytes.Span.Slice(offset, length)));
                 offset += length;
             }
 
@@ -207,7 +207,7 @@ public class PdfCompositeFont : PdfFontBase
         for (int index = 0; index < count; index++)
         {
             int offset = index * codeLength;
-            result[index] = new PdfCharacterCode(bytes.Slice(offset, codeLength));
+            result[index] = new PdfCharacterCode(bytes.Span.Slice(offset, codeLength));
         }
 
         return result;
@@ -219,13 +219,8 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
     /// <returns>The glyph ID (GID) for the character code, or <see langword="null"/> if not found.</returns>
-    public override ushort? GetGid(PdfCharacterCode code)
+    public override ushort? GetGid(in PdfCharacterCode code)
     {
-        if (code == null)
-        {
-            return null;
-        }
-
         PdfCidFont? descendant = PrimaryDescendant;
         if (descendant == null)
         {
@@ -245,7 +240,7 @@ public class PdfCompositeFont : PdfFontBase
     /// a glyph in the embedded program alone and means nothing to an installed font, so once that
     /// program is unavailable the Unicode the code stands for is the only channel left.
     /// </summary>
-    protected override PdfGlyphResolution ResolveGlyphs(PdfCharacterCode characterCode, string? renderingUnicode)
+    protected override PdfGlyphResolution ResolveGlyphs(in PdfCharacterCode characterCode, string? renderingUnicode)
     {
         PdfGlyphResolution resolution = ResolveFromFontProgram(characterCode, renderingUnicode);
 
@@ -268,7 +263,7 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     /// <param name="characterCode">The character code to resolve a glyph for.</param>
     /// <returns>The resolved glyph, or an empty resolution when this route does not address one.</returns>
-    private PdfGlyphResolution ResolveByInstalledFamilyGlyphIndex(PdfCharacterCode characterCode)
+    private PdfGlyphResolution ResolveByInstalledFamilyGlyphIndex(in PdfCharacterCode characterCode)
     {
         PdfCidFont? descendant = PrimaryDescendant;
 
@@ -325,7 +320,7 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string for the character code, or <see langword="null"/> if no mapping is found.</returns>
-    public override string? GetUnicodeString(PdfCharacterCode code)
+    public override string? GetUnicodeString(in PdfCharacterCode code)
     {
         string? baseCode = base.GetUnicodeString(code);
 
@@ -345,13 +340,13 @@ public class PdfCompositeFont : PdfFontBase
         }
 
         // Fallback: treat the character code itself as a Unicode code point.
-        var codePoint = (int)(uint)code;
+        var codePoint = (int)code.Value;
         return (PdfCMap.IsValidCodePoint(codePoint)) ? char.ConvertFromUtf32(codePoint) : null;
     }
 
     // A /ToUnicode CMap that declares only cidchar/cidrange entries carries its target values as CIDs
     // rather than as the byte strings bfchar/bfrange would use; those values are Unicode code points.
-    private bool TryGetToUnicodeCidAsCodePoint(PdfCharacterCode code, out string? unicode)
+    private bool TryGetToUnicodeCidAsCodePoint(in PdfCharacterCode code, out string? unicode)
     {
         PdfCMap? toUnicodeCMap = ToUnicodeCMap;
 

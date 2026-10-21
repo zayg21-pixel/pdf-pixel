@@ -79,7 +79,7 @@ internal static class CidToUnicodeFromPdfCMapGenerator
         {
             if (kvp.Key.Length > 0)
             {
-                uint code = PdfCharacterCode.UnpackBigEndianToUInt(kvp.Key.Bytes.Span);
+                uint code = kvp.Key.Value;
                 result[code] = kvp.Value;
             }
         }

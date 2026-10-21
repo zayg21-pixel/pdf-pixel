@@ -50,7 +50,7 @@ public static class ShapedGlyphBuilder
             float width = (gid == null) ? 0f : typeface.GetWidth(gid.Value) ?? 0f;
 
             PdfCharacterInfo info = new(
-                (uint)char.ConvertToUtf32(unicode, 0),
+                new Fonts.Mapping.PdfCharacterCode((uint)char.ConvertToUtf32(unicode, 0), sizeof(uint)),
                 typeface,
                 unicode,
                 [gid],
@@ -184,8 +184,7 @@ public static class ShapedGlyphBuilder
 
             // Word spacing applies to the single-byte character code 32, never to a byte 32 that is
             // part of a multi-byte code.
-            ReadOnlySpan<byte> codeBytes = info.CharacterCode.Bytes.Span;
-            bool isSpace = codeBytes.Length == 1 && codeBytes[0] == 0x20;
+            bool isSpace = info.CharacterCode.Length == 1 && info.CharacterCode.Value == 0x20;
             float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
             float advance = spacing / state.FontSize;
 
