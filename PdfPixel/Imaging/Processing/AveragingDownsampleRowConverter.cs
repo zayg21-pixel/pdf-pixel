@@ -1,6 +1,11 @@
 using PdfPixel.Parsing;
 using System;
+using System.Buffers.Binary;
+#if !NETSTANDARD2_0
+using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -140,8 +145,20 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
         _accumulatedRowIndex = rowIndex;
 
-        ReadSourceRowSamples(sourceRow, sourceStartBit);
-        AccumulateSourceRow();
+        if (_sourceBitsPerComponent == 8 && (sourceStartBit & 7) == 0)
+        {
+            AccumulateSourceBytes(sourceRow.Slice(sourceStartBit >> 3));
+        }
+        else if (_sourceBitsPerComponent == 1 && _components == 1)
+        {
+            AccumulateSourceBits(sourceRow, sourceStartBit);
+        }
+        else
+        {
+            ReadSourceRowSamples(sourceRow, sourceStartBit);
+            AccumulateSourceRow();
+        }
+
         _accumulatedSourceRowCount++;
 
         if (_flushAfterSourceRow[rowIndex])
@@ -197,6 +214,103 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
             destinationAccumulatorReference.Sum += sum;
             destinationAccumulatorReference = ref Unsafe.Add(ref destinationAccumulatorReference, 1);
         }
+    }
+
+    // 8-bit samples are summed straight from the source row bytes.
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private void AccumulateSourceBytes(in ReadOnlySpan<byte> sourceRow)
+    {
+        int totalDestinationSamples = _destinationWidth * _components;
+        ref var destinationAccumulatorReference = ref _destinationRowAccumulators[0];
+        ref Range sampleRangeReference = ref _sourceSampleRangeForDestinationSample[0];
+        ref byte sourceReference = ref MemoryMarshal.GetReference(sourceRow);
+
+        for (int destinationIndex = 0; destinationIndex < totalDestinationSamples; destinationIndex++)
+        {
+            ref readonly Range range = ref Unsafe.Add(ref sampleRangeReference, destinationIndex);
+
+            int sum = 0;
+
+            for (int sourceIndex = range.Start; sourceIndex < range.End; sourceIndex += _components)
+            {
+                sum += Unsafe.Add(ref sourceReference, sourceIndex);
+            }
+
+            destinationAccumulatorReference.Sum += sum;
+            destinationAccumulatorReference = ref Unsafe.Add(ref destinationAccumulatorReference, 1);
+        }
+    }
+
+    // Single-component 1-bit samples are summed by counting the set bits of each range.
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private void AccumulateSourceBits(in ReadOnlySpan<byte> sourceRow, int sourceStartBit)
+    {
+        int totalDestinationSamples = _destinationWidth;
+        ref var destinationAccumulatorReference = ref _destinationRowAccumulators[0];
+        ref Range sampleRangeReference = ref _sourceSampleRangeForDestinationSample[0];
+
+        for (int destinationIndex = 0; destinationIndex < totalDestinationSamples; destinationIndex++)
+        {
+            ref readonly Range range = ref Unsafe.Add(ref sampleRangeReference, destinationIndex);
+
+            destinationAccumulatorReference.Sum += CountSetBits(sourceRow, sourceStartBit + range.Start, sourceStartBit + range.End);
+            destinationAccumulatorReference = ref Unsafe.Add(ref destinationAccumulatorReference, 1);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int CountSetBits(in ReadOnlySpan<byte> row, int startBit, int endBit)
+    {
+        int count = 0;
+        int bit = startBit;
+
+        while (bit < endBit)
+        {
+            int byteIndex = bit >> 3;
+            int offset = bit & 7;
+            ulong window;
+
+            if (byteIndex + sizeof(ulong) <= row.Length)
+            {
+                window = BinaryPrimitives.ReadUInt64BigEndian(row.Slice(byteIndex));
+            }
+            else
+            {
+                window = 0;
+                for (int index = byteIndex; index < row.Length; index++)
+                {
+                    window |= (ulong)row[index] << (56 - ((index - byteIndex) * 8));
+                }
+            }
+
+            int take = Math.Min(endBit - bit, 64 - offset);
+            ulong bits = (window << offset) >> (64 - take);
+            count += PopCount(bits);
+            bit += take;
+        }
+
+        return count;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int PopCount(ulong value)
+    {
+#if NETSTANDARD2_0
+        value -= (value >> 1) & 0x5555555555555555UL;
+        value = (value & 0x3333333333333333UL) + ((value >> 2) & 0x3333333333333333UL);
+        value = (value + (value >> 4)) & 0x0F0F0F0F0F0F0F0FUL;
+        return (int)((value * 0x0101010101010101UL) >> 56);
+#else
+        return BitOperations.PopCount(value);
+#endif
     }
 
     // The vertical divisor (source rows accumulated since the last flush) is pure grid geometry
