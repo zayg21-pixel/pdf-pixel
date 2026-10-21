@@ -33,54 +33,61 @@ internal ref struct Type1CharStringReader
     /// <summary>
     /// Reads the next value (operand or operator) from the charstring data.
     /// </summary>
-    /// <returns>The next value, or null if the end of the data has been reached or the data is malformed.</returns>
-    public ICffValue? ReadNextValue()
+    /// <returns>True if a value was read, false if the end of the data has been reached or the data is malformed.</returns>
+    public bool TryReadNextValue(out CffValue value)
     {
+        value = default;
+
         if (!TryReadByte(out byte firstByte))
         {
-            return null;
+            return false;
         }
 
         if (firstByte == CffConstants.DictOperatorEscape)
         {
             if (!TryReadByte(out byte secondByte))
             {
-                return null;
+                return false;
             }
 
-            return new CffValue<byte>(secondByte, CffValueType.EscapedOperator);
+            value = new CffValue(CffValueType.EscapedOperator, secondByte);
+            return true;
         }
 
         if (firstByte <= CffConstants.CharStringOperatorMax)
         {
-            return new CffValue<byte>(firstByte, CffValueType.Operator);
+            value = new CffValue(CffValueType.Operator, firstByte);
+            return true;
         }
 
         if (firstByte >= CffConstants.OperandIntLow && firstByte <= CffConstants.OperandIntHigh)
         {
-            return new CffValue<int>(firstByte - CffConstants.SingleByteIntegerBias, CffValueType.Integer);
+            value = new CffValue(CffValueType.Integer, firstByte - CffConstants.SingleByteIntegerBias);
+            return true;
         }
 
         if (firstByte >= CffConstants.OperandPositiveIntStart && firstByte <= CffConstants.OperandPositiveIntEnd)
         {
             if (!TryReadByte(out byte nextByte))
             {
-                return null;
+                return false;
             }
 
-            int value = ((firstByte - CffConstants.OperandPositiveIntStart) << 8) + nextByte + CffConstants.TwoByteIntegerBias;
-            return new CffValue<int>(value, CffValueType.Integer);
+            int integer = ((firstByte - CffConstants.OperandPositiveIntStart) << 8) + nextByte + CffConstants.TwoByteIntegerBias;
+            value = new CffValue(CffValueType.Integer, integer);
+            return true;
         }
 
         if (firstByte >= CffConstants.OperandNegativeIntStart && firstByte <= CffConstants.OperandNegativeIntEnd)
         {
             if (!TryReadByte(out byte nextByte))
             {
-                return null;
+                return false;
             }
 
-            int value = (-(firstByte - CffConstants.OperandNegativeIntStart) << 8) - nextByte - CffConstants.TwoByteIntegerBias;
-            return new CffValue<int>(value, CffValueType.Integer);
+            int integer = (-(firstByte - CffConstants.OperandNegativeIntStart) << 8) - nextByte - CffConstants.TwoByteIntegerBias;
+            value = new CffValue(CffValueType.Integer, integer);
+            return true;
         }
 
         if (firstByte == CffConstants.CharStringOperandFixed) // 255: plain 32-bit integer in Type1 (not a 16.16 fixed-point real as in Type2).
@@ -90,14 +97,15 @@ internal ref struct Type1CharStringReader
                 || !TryReadByte(out byte thirdOctet)
                 || !TryReadByte(out byte fourthOctet))
             {
-                return null;
+                return false;
             }
 
-            int value = (firstOctet << 24) | (secondOctet << 16) | (thirdOctet << 8) | fourthOctet;
-            return new CffValue<int>(value, CffValueType.Integer);
+            int integer = (firstOctet << 24) | (secondOctet << 16) | (thirdOctet << 8) | fourthOctet;
+            value = new CffValue(CffValueType.Integer, integer);
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     private bool TryReadByte(out byte value)

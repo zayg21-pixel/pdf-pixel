@@ -94,8 +94,7 @@ public class CffCharStringEvaluator
         }
 
         CffCharStringReader reader = new(data);
-        ICffValue? value = reader.ReadNextValue();
-        while (!context.Finished && value != null)
+        while (!context.Finished && reader.TryReadNextValue(out CffValue value))
         {
             switch (value.Type)
             {
@@ -107,7 +106,7 @@ public class CffCharStringEvaluator
                     }
                 case CffValueType.Operator:
                     {
-                        byte operatorCode = ((CffValue<byte>)value).Value;
+                        var operatorCode = (byte)value.Value;
                         if (!ApplyOperator(ref reader, context, operatorCode, depth))
                         {
                             return;
@@ -117,13 +116,11 @@ public class CffCharStringEvaluator
                     }
                 case CffValueType.EscapedOperator:
                     {
-                        byte operatorCode = ((CffValue<byte>)value).Value;
+                        var operatorCode = (byte)value.Value;
                         ApplyEscapedOperator(context, operatorCode);
                         break;
                     }
             }
-
-            value = reader.ReadNextValue();
         }
     }
 

@@ -27,10 +27,9 @@ public class CffTopDictReader
     {
         CffTopDict result = new();
         CffDictionaryReader reader = new(topDictData);
-        List<ICffValue> operands = new(capacity: 6);
+        List<CffValue> operands = new(capacity: 6);
 
-        ICffValue? value = reader.ReadNextValue();
-        while (value != null)
+        while (reader.TryReadNextValue(out CffValue value))
         {
             switch (value.Type)
             {
@@ -53,16 +52,14 @@ public class CffTopDictReader
                         break;
                     }
             }
-
-            value = reader.ReadNextValue();
         }
 
         return result;
     }
 
-    private void ApplyOperator(CffTopDict result, ICffValue operatorValue, List<ICffValue> operands)
+    private void ApplyOperator(CffTopDict result, in CffValue operatorValue,List<CffValue> operands)
     {
-        byte operatorCode = ((CffValue<byte>)operatorValue).Value;
+        var operatorCode = (byte)operatorValue.Value;
 
         switch (operatorCode)
         {
@@ -116,9 +113,9 @@ public class CffTopDictReader
         }
     }
 
-    private void ApplyEscapedOperator(CffTopDict result, ICffValue operatorValue, List<ICffValue> operands)
+    private void ApplyEscapedOperator(CffTopDict result, in CffValue operatorValue,List<CffValue> operands)
     {
-        byte operatorCode = ((CffValue<byte>)operatorValue).Value;
+        var operatorCode = (byte)operatorValue.Value;
 
         switch (operatorCode)
         {

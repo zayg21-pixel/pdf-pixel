@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -22,69 +23,77 @@ internal ref struct CffDictionaryReader
     /// <summary>
     /// Reads the next value (operand or operator) from the DICT data.
     /// </summary>
-    /// <returns>The next value, or null if the end of the data has been reached or the data is malformed.</returns>
-    public ICffValue? ReadNextValue()
+    /// <returns>True if a value was read, false if the end of the data has been reached or the data is malformed.</returns>
+    public bool TryReadNextValue(out CffValue value)
     {
+        value = default;
+
         if (!TryReadByte(out byte firstByte))
         {
-            return null;
+            return false;
         }
 
         if (firstByte == CffConstants.DictOperatorEscape)
         {
             if (!TryReadByte(out byte secondByte))
             {
-                return null;
+                return false;
             }
 
-            return new CffValue<byte>(secondByte, CffValueType.EscapedOperator);
+            value = new CffValue(CffValueType.EscapedOperator, secondByte);
+            return true;
         }
 
         if (firstByte <= CffConstants.DictOperatorMax)
         {
-            return new CffValue<byte>(firstByte, CffValueType.Operator);
+            value = new CffValue(CffValueType.Operator, firstByte);
+            return true;
         }
 
         if (firstByte >= CffConstants.OperandIntLow && firstByte <= CffConstants.OperandIntHigh)
         {
-            return new CffValue<int>(firstByte - CffConstants.SingleByteIntegerBias, CffValueType.Integer);
+            value = new CffValue(CffValueType.Integer, firstByte - CffConstants.SingleByteIntegerBias);
+            return true;
         }
 
         if (firstByte >= CffConstants.OperandPositiveIntStart && firstByte <= CffConstants.OperandPositiveIntEnd)
         {
             if (!TryReadByte(out byte nextByte))
             {
-                return null;
+                return false;
             }
 
-            int value = ((firstByte - CffConstants.OperandPositiveIntStart) << 8)
+            int integer = ((firstByte - CffConstants.OperandPositiveIntStart) << 8)
                 + nextByte
                 + CffConstants.TwoByteIntegerBias;
-            return new CffValue<int>(value, CffValueType.Integer);
+            value = new CffValue(CffValueType.Integer, integer);
+            return true;
         }
 
         if (firstByte >= CffConstants.OperandNegativeIntStart && firstByte <= CffConstants.OperandNegativeIntEnd)
         {
             if (!TryReadByte(out byte nextByte))
             {
-                return null;
+                return false;
             }
 
-            int value = (-(firstByte - CffConstants.OperandNegativeIntStart) << 8)
+            int integer = (-(firstByte - CffConstants.OperandNegativeIntStart) << 8)
                 - nextByte
                 - CffConstants.TwoByteIntegerBias;
-            return new CffValue<int>(value, CffValueType.Integer);
+            value = new CffValue(CffValueType.Integer, integer);
+            return true;
         }
 
         if (firstByte == CffConstants.OperandShortInt)
         {
             if (!TryReadByte(out byte highByte) || !TryReadByte(out byte lowByte))
             {
-                return null;
+                return false;
             }
 
-            var value = (short)((highByte << 8) | lowByte);
-            return new CffValue<int>(value, CffValueType.Integer);
+            var integer = (short)((highByte << 8) | lowByte);
+            value = new CffValue(CffValueType.Integer, integer);
+            return true;
         }
 
         if (firstByte == CffConstants.OperandLongInt)
@@ -94,19 +103,22 @@ internal ref struct CffDictionaryReader
                 || !TryReadByte(out byte thirdOctet)
                 || !TryReadByte(out byte fourthOctet))
             {
-                return null;
+                return false;
             }
 
-            int value = (firstOctet << 24) | (secondOctet << 16) | (thirdOctet << 8) | fourthOctet;
-            return new CffValue<int>(value, CffValueType.Integer);
+            int integer = (firstOctet << 24) | (secondOctet << 16) | (thirdOctet << 8) | fourthOctet;
+            value = new CffValue(CffValueType.Integer, integer);
+            return true;
         }
 
         if (firstByte == CffConstants.OperandRealNumber)
         {
-            return new CffValue<float>(ReadRealNumber(), CffValueType.Real);
+            float realValue = ReadRealNumber();
+            value = new CffValue(CffValueType.Real, Unsafe.As<float, int>(ref realValue));
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     private bool TryReadByte(out byte value)

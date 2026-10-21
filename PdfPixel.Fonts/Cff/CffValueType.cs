@@ -1,9 +1,9 @@
 namespace PdfPixel.Fonts.Cff;
 
 /// <summary>
-/// Specifies the type of value produced while reading a CFF DICT or charstring.
+/// Type of a CFF DICT or charstring token.
 /// </summary>
-public enum CffValueType
+internal enum CffValueType : byte
 {
     /// <summary>
     /// Represents an integer operand.

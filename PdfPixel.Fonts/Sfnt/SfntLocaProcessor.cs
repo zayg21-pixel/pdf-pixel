@@ -107,18 +107,27 @@ public class SfntLocaProcessor
         }
 
         var indicesByOffset = new int[offsets.Length];
+        var ascending = true;
         for (int index = 0; index < offsets.Length; index++)
         {
             indicesByOffset[index] = index;
+
+            if (index > 0 && offsets[index] < offsets[index - 1])
+            {
+                ascending = false;
+            }
         }
 
-        Array.Sort(
-            indicesByOffset,
-            (left, right) =>
-            {
-                int comparison = offsets[left].CompareTo(offsets[right]);
-                return (comparison != 0) ? comparison : left.CompareTo(right);
-            });
+        if (!ascending)
+        {
+            Array.Sort(
+                indicesByOffset,
+                (left, right) =>
+                {
+                    int comparison = offsets[left].CompareTo(offsets[right]);
+                    return (comparison != 0) ? comparison : left.CompareTo(right);
+                });
+        }
 
         // Sized like offsets (numGlyphs + 1): the trailing entry doesn't correspond to a real glyph,
         // but since its offset participates in the sort like any other, it can land at any sorted
