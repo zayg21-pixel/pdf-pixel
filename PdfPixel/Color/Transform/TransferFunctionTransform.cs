@@ -1,6 +1,5 @@
 using PdfPixel.Functions;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -11,7 +10,7 @@ namespace PdfPixel.Color.Transform;
 /// Supports a single function applied to all RGB components or an array of per-component functions.
 /// The input and output component ranges are expected to be [0,1].
 /// </summary>
-public sealed class TransferFunctionTransform : IColorTransform
+internal sealed class TransferFunctionTransform : IColorTransform
 {
     private readonly PdfFunction _fx;
     private readonly PdfFunction _fy;

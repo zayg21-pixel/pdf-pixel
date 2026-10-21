@@ -29,3 +29,9 @@ Files: `PdfPixel/Annotations/Model/PdfAnnotationFlags.cs`, `PdfPixel/Models/PdfR
 
 - Check name consistency: every property name in the public API expanded, matching C# property naming conventions.
 - Analyze moving models from `Model` folders to the root and parsers into subfolders instead, matching the common rules for where models are usually stored.
+- `PdfDecodeParameters` is one super model holding the `/DecodeParms` entries of every filter. Split it per usage with proper inheritance, one type per filter. Its summary is also wrong: `/DecodeParms` belongs to any stream's filters, not only to image streams.
+  File: `PdfPixel/Streams/PdfDecodeParameters.cs`
+- Drop the renderer interfaces (`IPdfRenderer`, `IFormRenderer`, `IImageRenderer`, `IPathRenderer`, `IShadingRenderer`, `IPdfTextRenderer`). They were meant for testing during early implementation; each has a single implementation and nothing substitutes them.
+  Folder: `PdfPixel/Rendering`
+- Probably make the renderer interfaces (`I*Renderer`) internal, whether or not they are dropped. Nothing outside the core library uses them or their implementations.
+  Folder: `PdfPixel/Rendering`

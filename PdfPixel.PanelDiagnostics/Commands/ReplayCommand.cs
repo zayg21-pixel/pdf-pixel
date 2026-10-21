@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Models;
 using PdfPixel.PanelDiagnostics.Utilities;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Execution;

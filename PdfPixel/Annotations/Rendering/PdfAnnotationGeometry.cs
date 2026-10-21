@@ -1,5 +1,5 @@
 using PdfPixel.Geometry;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using System;
 
 namespace PdfPixel.Annotations.Rendering;

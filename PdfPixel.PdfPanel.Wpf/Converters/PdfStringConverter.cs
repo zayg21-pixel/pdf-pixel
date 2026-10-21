@@ -1,5 +1,4 @@
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
 using System;
 using System.Globalization;
 using System.Windows;

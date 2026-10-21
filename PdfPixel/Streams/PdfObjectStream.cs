@@ -1,7 +1,7 @@
+using PdfPixel.Commands;
+using PdfPixel.Encryption;
 using PdfPixel.Encryption.Decryption;
-using PdfPixel.Encryption.Model;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,7 +17,7 @@ public sealed class PdfObjectStream
     private readonly byte[]? _inlineData;
     private readonly PdfObjectStreamReference? _streamReference;
     private readonly BufferedStream? _documentStream;
-    private readonly BasePdfDecryptor? _decryptor;
+    private readonly PdfDecryptor? _decryptor;
     private readonly PdfCryptFilter _cryptFilter = PdfCryptFilter.Identity;
     private readonly PdfReference _objectReference;
 
@@ -39,7 +39,7 @@ public sealed class PdfObjectStream
         List<PdfDecodeParameters?> decodeParameters,
         PdfObjectStreamReference streamReference,
         BufferedStream documentStream,
-        BasePdfDecryptor? decryptor,
+        PdfDecryptor? decryptor,
         PdfCryptFilter cryptFilter,
         in PdfReference objectReference)
     {

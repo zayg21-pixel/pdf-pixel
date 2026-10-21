@@ -1,5 +1,4 @@
 using PdfPixel.Encryption.Cryptography;
-using PdfPixel.Encryption.Model;
 using System;
 
 namespace PdfPixel.Encryption.Decryption;
@@ -7,7 +6,7 @@ namespace PdfPixel.Encryption.Decryption;
 /// <summary>
 /// Standard security handler implementation for revisions R=3 and R=4 (RC4 or AESV2, 40..128 bit keys).
 /// </summary>
-internal sealed class R3R4Decryptor : BasePdfDecryptor
+internal sealed class R3R4Decryptor : PdfDecryptor
 {
     private const int DefaultKeyBits = 128;
     private const int KeyHashIterations = 50;

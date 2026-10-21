@@ -1,5 +1,4 @@
 using PdfPixel.Commands;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Requests;

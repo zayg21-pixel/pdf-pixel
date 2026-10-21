@@ -1,9 +1,8 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.Parsing;
-using PdfPixel.Shading.Model;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using System;

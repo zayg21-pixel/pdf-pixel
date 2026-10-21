@@ -1,7 +1,6 @@
-using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
-using PdfPixel.Tagging.Model;
+using PdfPixel.Objects;
+using PdfPixel.Tagging;
 
 namespace PdfPixel.Content;
 

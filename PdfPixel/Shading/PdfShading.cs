@@ -1,0 +1,235 @@
+using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Sampling;
+using PdfPixel.Functions;
+using PdfPixel.Geometry;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
+using PdfPixel.Rendering;
+using PdfPixel.Streams;
+using System;
+using System.Collections.Generic;
+
+namespace PdfPixel.Shading;
+
+/// <summary>
+/// Parsed shading model extracted from a shading dictionary (PDF spec 8.7 Shadings).
+/// Provides strongly-typed access to common keys for axial (type 2) and radial (type 3) shadings
+/// and simple function based color interpolation.
+/// </summary>
+public sealed class PdfShading
+{
+    private readonly Dictionary<ColorTransformSampler, PdfShadingContent> _contentBySampler = [];
+
+    private PdfShading(PdfObject pdfObject)
+    {
+        PdfDictionary rawDictionary = pdfObject.Dictionary;
+        SourceReference = pdfObject.Reference;
+
+        if (rawDictionary == null)
+        {
+            ShadingType = PdfShadingType.Unknown;
+            Functions = Array.Empty<PdfFunction>();
+            return;
+        }
+
+        ShadingType = (PdfShadingType)rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
+        Coords = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
+        float[]? domainArray = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        Domain = (domainArray != null) ? PdfRange.FromArray(domainArray) : null;
+
+        PdfArray? extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
+        if (extendArr?.Count >= 2)
+        {
+            ExtendStart = extendArr.GetBooleanOrDefault(0);
+            ExtendEnd = extendArr.GetBooleanOrDefault(1);
+        }
+
+        ColorSpaceReference = PdfColorSpaceReference.FromDictionary(rawDictionary, PdfTokens.ColorSpaceKey);
+        List<PdfFunction> functions = [];
+
+        PdfFunction? singleFunction = PdfFunctions.GetFunction(rawDictionary, PdfTokens.FunctionKey);
+        if (singleFunction != null)
+        {
+            functions.Add(singleFunction);
+        }
+        else
+        {
+            PdfArray? functionArray = rawDictionary.GetArray(PdfTokens.FunctionKey);
+            if (functionArray != null)
+            {
+                for (int index = 0; index < functionArray.Count; index++)
+                {
+                    PdfFunction? function = PdfFunctions.GetFunction(functionArray, index);
+                    if (function != null)
+                    {
+                        functions.Add(function);
+                    }
+                }
+            }
+        }
+
+        Functions = functions.ToArray();
+
+        BoundingBox = PdfRectangle.FromArray(rawDictionary.GetArray(PdfTokens.BBoxKey));
+        Background = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
+        AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
+
+        switch (ShadingType)
+        {
+            case PdfShadingType.FunctionBased:
+            {
+                Matrix = PdfMatrix.FromArray(rawDictionary.GetArray(PdfTokens.MatrixKey));
+                break;
+            }
+            case PdfShadingType.FreeFormGouraud:
+            case PdfShadingType.LatticeFormGouraud:
+            case PdfShadingType.CoonsPatchMesh:
+            case PdfShadingType.TensorProductPatchMesh:
+            {
+                Stream = pdfObject.Stream;
+                BitsPerCoordinate = rawDictionary.GetInteger(PdfTokens.BitsPerCoordinateKey);
+                BitsPerComponent = rawDictionary.GetInteger(PdfTokens.BitsPerComponentKey);
+                BitsPerFlag = rawDictionary.GetInteger(PdfTokens.BitsPerFlagKey);
+                float[]? decodeArray = rawDictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+                Decode = (decodeArray != null) ? PdfRange.FromArray(decodeArray) : null;
+                VerticesPerRow = rawDictionary.GetInteger(PdfTokens.VerticesPerRowKey);
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Source object reference, or <see langword="null"/> when it is a direct object.
+    /// </summary>
+    public PdfReference? SourceReference { get; }
+
+    /// <summary>
+    /// Returns the shading held by <paramref name="key"/> of <paramref name="dictionary"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="dictionary">Dictionary holding the shading entry.</param>
+    /// <param name="key">Key of the shading entry.</param>
+    /// <returns>PdfShading instance, or <see langword="null"/> when absent.</returns>
+    internal static PdfShading? GetShading(PdfDictionary dictionary, in PdfString key)
+        => dictionary.Document.ObjectCache.GetOrCreate(dictionary, key, FromObject);
+
+    /// <summary>
+    /// Creates a <see cref="PdfShading"/> from a PDF shading object.
+    /// </summary>
+    /// <param name="pdfObject">PDF shading object.</param>
+    /// <returns>Newly parsed PdfShading instance.</returns>
+    private static PdfShading FromObject(PdfObject pdfObject)
+    {
+        if (pdfObject == null)
+        {
+            throw new ArgumentNullException(nameof(pdfObject));
+        }
+
+        return new PdfShading(pdfObject);
+    }
+
+    /// <summary>
+    /// Returns the rendering primitives for this shading drawn from the given state, using the shading's cache if available.
+    /// </summary>
+    /// <param name="state">Graphics state the shading is drawn from.</param>
+    /// <returns>Shading content, resolved from cache or newly built.</returns>
+    internal PdfShadingContent GetContent(PdfGraphicsState state)
+    {
+        PdfColorSpaceConverter converter = state.Host.Resources.ResolveColorSpace(ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
+        ColorTransformSampler sampler = converter.GetRgbaSampler(new PdfColorConversionParameters(state, state.Host.Resources.DeviceColorMapping));
+
+        if (_contentBySampler.TryGetValue(sampler, out PdfShadingContent? cachedContent))
+        {
+            return cachedContent;
+        }
+
+        PdfShadingContent content = PdfShadingContent.Build(this, sampler, state);
+        _contentBySampler[sampler] = content;
+
+        return content;
+    }
+
+    /// <summary>
+    /// Gets the self-contained stream source for mesh shading types (4-7). Null for non-mesh shadings.
+    /// </summary>
+    public PdfObjectStream? Stream { get; }
+
+    /// <summary>
+    /// Shading type (1 - 7 types).
+    /// </summary>
+    public PdfShadingType ShadingType { get; }
+
+    /// <summary>
+    /// Coordinates array (/Coords). Axial: [x0 y0 x1 y1]. Radial: [x0 y0 r0 x1 y1 r1], type 2, 3 specific.
+    /// </summary>
+    public float[]? Coords { get; }
+
+    /// <summary>
+    /// Domain (/Domain) defining parameter range for function evaluation (Type 1 - 3 specific).
+    /// </summary>
+    public PdfRange[]? Domain { get; }
+
+    /// <summary>
+    /// Start extension flag (/Extend[0]), type 2, 3 specific.
+    /// </summary>
+    public bool ExtendStart { get; }
+
+    /// <summary>
+    /// End extension flag (/Extend[1]), type 2, 3 specific.
+    /// </summary>
+    public bool ExtendEnd { get; }
+
+    /// <summary>
+    /// Colour space (/ColorSpace) as written, resolved on demand.
+    /// </summary>
+    internal PdfColorSpaceReference ColorSpaceReference { get; }
+
+    /// <summary>
+    /// List of resolved PdfFunction(s) for function-based color evaluation.
+    /// </summary>
+    public PdfFunction[] Functions { get; }
+
+    /// <summary>
+    /// Shading background color (/Background), if defined.
+    /// </summary>
+    public float[]? Background { get; }
+
+    /// <summary>
+    /// Gets the optional bbox (/BBox) for this shading, if defined.
+    /// </summary>
+    public PdfRectangle? BoundingBox { get; }
+
+    /// <summary>
+    /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.
+    /// </summary>
+    public bool AntiAlias { get; }
+
+    /// <summary>
+    /// Bits per coordinate value (/BitsPerCoordinate), mesh shading types 4-7.
+    /// </summary>
+    public int? BitsPerCoordinate { get; }
+
+    /// <summary>
+    /// Bits per color component (/BitsPerComponent), mesh shading types 4-7.
+    /// </summary>
+    public int? BitsPerComponent { get; }
+
+    /// <summary>
+    /// Bits per flag (/BitsPerFlag), mesh shading types 4-7.
+    /// </summary>
+    public int? BitsPerFlag { get; }
+
+    /// <summary>
+    /// Decode (/Decode), mesh shading types 4-7.
+    /// </summary>
+    public PdfRange[]? Decode { get; }
+
+    /// <summary>
+    /// Vertices per row (/VerticesPerRow), lattice-form Gouraud type 5 only.
+    /// </summary>
+    public int? VerticesPerRow { get; }
+
+    /// <summary>
+    /// Shading matrix (/Matrix), function-based shading type 1.
+    /// </summary>
+    public PdfMatrix? Matrix { get; }
+}

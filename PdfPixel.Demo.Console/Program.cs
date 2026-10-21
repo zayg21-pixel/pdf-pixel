@@ -1,16 +1,14 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Commands;
 using PdfPixel.Skia;
-using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Substitution;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
-using PdfPixel.OptionalContent.Model;
 using SkiaSharp;
 using System.Diagnostics;
-using PdfPixel.Commands.Context;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands.Execution;
+using PdfPixel.OptionalContent;
 
 namespace PdfPixel.Console.Demo
 {

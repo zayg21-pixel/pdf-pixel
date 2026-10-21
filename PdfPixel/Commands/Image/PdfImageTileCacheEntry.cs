@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 
@@ -11,7 +10,7 @@ namespace PdfPixel.Commands.Image;
 /// <summary>
 /// Caches decoded tiles for one PDF image across repeated renders (e.g. scrolling). <see cref="Initialize"/>
 /// </summary>
-public sealed class PdfImageTileCacheEntry
+internal sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
     private readonly PdfImageTileDecodingPass _pass;

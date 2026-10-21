@@ -1,14 +1,14 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
-using PdfPixel.Shading.Model;
-using PdfPixel.Transparency.Model;
 using PdfPixel.Skia.Converters;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
+using PdfPixel.Imaging;
+using PdfPixel.Commands;
+using PdfPixel.Shading;
+using PdfPixel.Transparency;
 
 namespace PdfPixel.Skia;
 
@@ -223,7 +223,7 @@ public static class PdfToSkiaExtensions
     /// <summary>
     /// Builds the shader for an axial (Type 2) gradient.
     /// </summary>
-    public static SKShader ToSkiaShader(this PdfLinearGradient gradient)
+    public static SKShader ToSkiaShader(this PdfAxialGradient gradient)
     {
         if (gradient == null)
         {

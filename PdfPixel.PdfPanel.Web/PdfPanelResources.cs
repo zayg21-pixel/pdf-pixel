@@ -1,6 +1,5 @@
-﻿using PdfPixel.Encryption.Model;
+﻿using PdfPixel.Encryption;
 using PdfPixel.Files;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Mvvm;

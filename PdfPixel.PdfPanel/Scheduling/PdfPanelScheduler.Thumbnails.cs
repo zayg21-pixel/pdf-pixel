@@ -1,5 +1,5 @@
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
+using PdfPixel.Imaging;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Thumbnails;

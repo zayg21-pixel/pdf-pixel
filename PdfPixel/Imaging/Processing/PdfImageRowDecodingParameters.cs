@@ -3,8 +3,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Image;
 using System;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -14,24 +13,8 @@ namespace PdfPixel.Imaging.Processing;
 /// and apply any format-specific overrides (e.g. component count or bit depth derived from
 /// a JPEG or JPX stream header) before constructing the row processor.
 /// </summary>
-public sealed class PdfImageRowDecodingParameters
+internal sealed class PdfImageRowDecodingParameters
 {
-    /// <summary>
-    /// Initializes a complete set of row-decoding parameters.
-    /// </summary>
-    /// <param name="context">Rendering context for the current decode pass.</param>
-    /// <param name="width">Width of the source image in samples.</param>
-    /// <param name="height">Height of the source image in samples.</param>
-    /// <param name="bitsPerComponent">Bit depth of each color component in the source stream.</param>
-    /// <param name="colorConversionParameters">Parameters applied during color conversion.</param>
-    /// <param name="colorSpaceConverter">Converter that maps raw sample values to output colors.</param>
-    /// <param name="hasImageMask">True when the image is a stencil mask (PDF /ImageMask).</param>
-    /// <param name="colorKeyMask">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
-    /// <param name="decode">Sample remapping table from the PDF /Decode entry, or null for the default.</param>
-    /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
-    /// <param name="alphaType">How the alpha accompanying the color samples relates to them, or Opaque when there is none.</param>
-    /// <param name="isAlphaInterleaved">True when alpha is the last component of each packed sample, false when it arrives as a separate 8-bit plane.</param>
-    /// <param name="matte">Backdrop components from the soft mask's /Matte, required when <paramref name="alphaType"/> is Premultiplied and null otherwise.</param>
     public PdfImageRowDecodingParameters(
         ImageDecodingContext context,
         int width,

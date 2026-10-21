@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
 

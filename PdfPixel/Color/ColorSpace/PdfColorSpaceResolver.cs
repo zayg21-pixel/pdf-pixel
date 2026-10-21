@@ -1,5 +1,6 @@
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
+using PdfPixel.Resources;
 
 namespace PdfPixel.Color.ColorSpace;
 

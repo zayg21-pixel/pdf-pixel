@@ -1,10 +1,10 @@
 using PdfPixel.Color;
-using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.Skia;
+using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

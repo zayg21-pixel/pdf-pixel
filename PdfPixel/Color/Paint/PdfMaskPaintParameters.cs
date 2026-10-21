@@ -1,5 +1,5 @@
 using PdfPixel.Color.Transform;
-using PdfPixel.Transparency.Model;
+using PdfPixel.Transparency;
 
 namespace PdfPixel.Color.Paint;
 
@@ -16,7 +16,7 @@ public sealed class PdfMaskPaintParameters
     /// </summary>
     /// <param name="subtype">The soft mask subtype (/S): Alpha or Luminosity.</param>
     /// <param name="transferFunction">The soft mask's transfer function (/TR), or null when absent/identity.</param>
-    public PdfMaskPaintParameters(PdfSoftMaskSubtype subtype, TransferFunctionTransform? transferFunction)
+    internal PdfMaskPaintParameters(PdfSoftMaskSubtype subtype, TransferFunctionTransform? transferFunction)
     {
         Subtype = subtype;
         TransferFunction = transferFunction;
@@ -30,5 +30,5 @@ public sealed class PdfMaskPaintParameters
     /// <summary>
     /// Gets the soft mask's transfer function (/TR), or null when absent/identity.
     /// </summary>
-    public TransferFunctionTransform? TransferFunction { get; }
+    internal TransferFunctionTransform? TransferFunction { get; }
 }

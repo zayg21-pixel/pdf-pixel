@@ -1,0 +1,75 @@
+using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
+using PdfPixel.Geometry;
+using PdfPixel.Objects;
+
+namespace PdfPixel.Annotations;
+
+/// <summary>
+/// Represents a PDF highlight annotation.
+/// </summary>
+/// <remarks>
+/// Highlight annotations mark text with a semi-transparent colored background,
+/// typically yellow, to draw attention to specific content.
+/// </remarks>
+public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfHighlightAnnotation"/> class.
+    /// </summary>
+    /// <param name="annotationObject">The PDF object representing this highlight annotation.</param>
+    public PdfHighlightAnnotation(PdfObject annotationObject)
+        : base(annotationObject, PdfAnnotationSubType.Highlight)
+    {
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The Multiply blend needs the marked content as its backdrop, which a layer would hide, so the
+    /// highlight paints its opacity directly instead.
+    /// </remarks>
+    protected override bool UsesOpacityLayer => false;
+
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    {
+        PdfPoint[][] quads = Quadrilaterals;
+        if (quads.Length == 0)
+        {
+            return false;
+        }
+
+        PdfColor color = ResolveColor(page, PdfColors.Yellow);
+
+        foreach (PdfPoint[] quad in quads)
+        {
+            PdfPathBuilder path = new();
+            path.MoveTo(quad[0]);
+            path.LineTo(quad[1]);
+            path.LineTo(quad[2]);
+            path.LineTo(quad[3]);
+            path.Close();
+
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color, Opacity);
+
+            processor.Process(new DrawPathCommand(path.ToPath(), paint));
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Returns a string representation of this highlight annotation.
+    /// </summary>
+    /// <returns>A string containing the annotation type.</returns>
+    public override string ToString()
+    {
+        if (Contents != null)
+        {
+            return $"Highlight Annotation: {Contents}";
+        }
+
+        return "Highlight Annotation";
+    }
+}

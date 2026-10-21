@@ -7,7 +7,7 @@ namespace PdfPixel.Imaging.Processing;
 /// Precomputed tile grid metrics for a PDF image: tile dimensions clamped to the image boundary,
 /// and the total tile counts in each axis.
 /// </summary>
-public sealed class PdfTileInfo
+internal sealed class PdfTileInfo
 {
     /// <summary>
     /// Computes the tile grid for an image of <paramref name="imageSize"/> divided into tiles of

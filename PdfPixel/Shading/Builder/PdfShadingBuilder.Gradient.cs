@@ -4,12 +4,11 @@ using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
-using PdfPixel.Shading.Model;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Shading;
+namespace PdfPixel.Shading.Builder;
 
 internal partial class PdfShadingBuilder
 {
@@ -20,7 +19,7 @@ internal partial class PdfShadingBuilder
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="colorStops">Pre-computed color and position stops.</param>
     /// <returns>The gradient model, or null on failure.</returns>
-    public PdfLinearGradient? BuildLinearGradient(PdfShading shading, PdfShadingColorStops colorStops)
+    public PdfAxialGradient? BuilAxialGradient(PdfShading shading, PdfShadingColorStops colorStops)
     {
         if (shading.Coords?.Length != 4)
         {
@@ -31,7 +30,7 @@ internal partial class PdfShadingBuilder
         PdfPoint start = new(shading.Coords[0], shading.Coords[1]);
         PdfPoint end = new(shading.Coords[2], shading.Coords[3]);
 
-        return new PdfLinearGradient(start, end, colorStops.Colors, colorStops.Positions);
+        return new PdfAxialGradient(start, end, colorStops.Colors, colorStops.Positions);
     }
 
     /// <summary>

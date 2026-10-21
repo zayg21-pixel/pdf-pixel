@@ -1,8 +1,8 @@
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Color.Paint;
-using PdfPixel.Models;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering.Operators;
-using PdfPixel.Text;
 
 namespace PdfPixel.Annotations.Rendering;
 

@@ -1,6 +1,5 @@
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
 
 namespace PdfPixel.Rendering.Operators;
 

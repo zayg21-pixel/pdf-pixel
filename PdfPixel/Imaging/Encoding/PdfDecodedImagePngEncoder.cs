@@ -1,5 +1,4 @@
 using PdfPixel.Color.Structures;
-using PdfPixel.Imaging.Model;
 using PdfPixel.Png.Encoding;
 using PdfPixel.Png.Model;
 using System;

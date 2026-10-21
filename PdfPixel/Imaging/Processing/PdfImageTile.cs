@@ -1,12 +1,11 @@
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
 
 namespace PdfPixel.Imaging.Processing;
 
 /// <summary>
 /// A single decoded region of a PDF image, positioned in original image coordinates.
 /// </summary>
-public sealed class PdfImageTile
+internal sealed class PdfImageTile
 {
     /// <summary>
     /// Creates a tile descriptor with all decoded results.

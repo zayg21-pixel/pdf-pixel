@@ -1,4 +1,4 @@
-using PdfPixel.OptionalContent.Model;
+using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.ContentProvider;
 using System.Collections.Generic;
 

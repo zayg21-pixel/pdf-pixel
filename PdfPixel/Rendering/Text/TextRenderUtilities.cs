@@ -1,6 +1,6 @@
-﻿using PdfPixel.Fonts.Model;
+﻿using PdfPixel.Fonts;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
-using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using System;
 using System.Runtime.CompilerServices;

@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
 using PdfPixel.Forms;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
+using PdfPixel.Imaging;
+using PdfPixel.Objects;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
-using PdfPixel.Shading.Model;
-using PdfPixel.Tagging.Model;
+using PdfPixel.Resources;
+using PdfPixel.Shading;
+using PdfPixel.Tagging;
 using PdfPixel.Text;
 using System;
 

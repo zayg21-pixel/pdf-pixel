@@ -1,5 +1,5 @@
 using PdfPixel.Color;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Rendering;

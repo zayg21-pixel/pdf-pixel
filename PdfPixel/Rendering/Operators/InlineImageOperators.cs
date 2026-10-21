@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands.Model;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
+using PdfPixel.Commands;
+using PdfPixel.Imaging;
+using PdfPixel.Objects;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 
 namespace PdfPixel.Rendering.Operators;

@@ -1,5 +1,5 @@
 using System;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Text;
 
@@ -39,5 +39,5 @@ public readonly struct PdfText
     }
 
     /// <inheritdoc/>
-    public override string ToString() => EncodingExtensions.PdfDefault.GetString(RawBytes);
+    public override string ToString() => PdfEncodingExtensions.PdfDefault.GetString(RawBytes);
 }

@@ -1,6 +1,6 @@
-using PdfPixel.Content.Model;
+using PdfPixel.Content;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
+using PdfPixel.Imaging;
 
 namespace PdfPixel.PdfPanel.Content;
 

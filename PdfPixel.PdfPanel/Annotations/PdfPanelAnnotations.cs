@@ -1,4 +1,4 @@
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.PdfPanel.Input;
 using System;
 

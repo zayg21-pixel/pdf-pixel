@@ -1,6 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Geometry;
-using PdfPixel.Shading.Model;
+using PdfPixel.Shading;
 using SkiaSharp;
 
 namespace PdfPixel.Skia.Converters;
@@ -35,7 +35,7 @@ internal static class PdfShadingConverter
     /// <summary>
     /// Builds the shader for an axial (Type 2) gradient.
     /// </summary>
-    internal static SKShader ToSkiaShader(PdfLinearGradient gradient)
+    internal static SKShader ToSkiaShader(PdfAxialGradient gradient)
     {
         return SKShader.CreateLinearGradient(
             gradient.Start.ToSkPoint(),

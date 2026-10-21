@@ -1,13 +1,12 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Actions.Model;
+using PdfPixel.Actions;
 using PdfPixel.Demo.Wpf.ViewModels;
 using PdfPixel.Demo.Wpf.Views;
 using PdfPixel.Files;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Wpf;
-using PdfPixel.Text;
 using System;
 using System.Diagnostics;
 using System.IO;

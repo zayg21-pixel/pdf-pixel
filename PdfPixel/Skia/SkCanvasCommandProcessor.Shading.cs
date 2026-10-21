@@ -1,5 +1,5 @@
-using PdfPixel.Commands.Model;
-using PdfPixel.Shading.Model;
+using PdfPixel.Commands;
+using PdfPixel.Shading;
 using PdfPixel.Skia.Cache;
 using PdfPixel.Skia.Converters;
 using SkiaSharp;

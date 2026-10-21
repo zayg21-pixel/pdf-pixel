@@ -1,4 +1,4 @@
-using PdfPixel.Navigation.Model;
+using PdfPixel.Navigation;
 using PdfPixel.PdfPanel.Actions;
 using System;
 using System.Collections.Generic;

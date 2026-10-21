@@ -1,4 +1,4 @@
-using PdfPixel.Text;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Rendering.Operators;
 

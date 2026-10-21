@@ -1,6 +1,7 @@
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
-using PdfPixel.Rendering.State;
+using PdfPixel.Objects;
+using PdfPixel.Rendering;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -50,7 +51,7 @@ public static class ShapedGlyphBuilder
             float width = (gid == null) ? 0f : typeface.GetWidth(gid.Value) ?? 0f;
 
             PdfCharacterInfo info = new(
-                new Fonts.Mapping.PdfCharacterCode((uint)char.ConvertToUtf32(unicode, 0), sizeof(uint)),
+                new PdfCharacterCode((uint)char.ConvertToUtf32(unicode, 0), sizeof(uint)),
                 typeface,
                 unicode,
                 [gid],
@@ -83,7 +84,7 @@ public static class ShapedGlyphBuilder
 
         buffer.Clear();
 
-        PdfFontBase? font = state.CurrentFont;
+        PdfFont? font = state.CurrentFont;
         if (font == null)
         {
             return;
@@ -152,7 +153,7 @@ public static class ShapedGlyphBuilder
 
         buffer.Clear();
 
-        PdfFontBase? font = state.CurrentFont;
+        PdfFont? font = state.CurrentFont;
         if (font == null)
         {
             return;
@@ -173,9 +174,9 @@ public static class ShapedGlyphBuilder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private static void AddShapedGlyphsForText(in PdfText pdfText, PdfFontBase font, PdfGraphicsState state, ShapedGlyphBuffer output, ref float x, ref float y)
+    private static void AddShapedGlyphsForText(in PdfText pdfText, PdfFont font, PdfGraphicsState state, ShapedGlyphBuffer output, ref float x, ref float y)
     {
-        Fonts.Mapping.PdfCharacterCode[] codes = font.ExtractCharacterCodes(pdfText.RawBytes);
+        PdfCharacterCode[] codes = font.ExtractCharacterCodes(pdfText.RawBytes);
         bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
 
         for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)

@@ -1,0 +1,393 @@
+using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Substitution;
+using PdfPixel.Geometry;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+
+namespace PdfPixel.Fonts;
+
+/// <summary>
+/// Base class for all PDF font types with common properties.
+/// </summary>
+public abstract class PdfFont
+{
+    private readonly Dictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = [];
+
+    /// <summary>
+    /// Constructor for all PDF fonts. Parses the subtype, base font name, /ToUnicode CMap, font
+    /// descriptor and substitution info from <paramref name="fontObject"/>'s dictionary.
+    /// </summary>
+    /// <param name="fontObject">PDF object containing the font definition</param>
+    protected PdfFont(PdfObject fontObject)
+    {
+        FontObject = fontObject ?? throw new ArgumentNullException(nameof(fontObject));
+        Dictionary = fontObject.Dictionary ?? throw new ArgumentNullException(nameof(fontObject));
+
+        Type = Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+        BaseFont = Dictionary.GetString(PdfTokens.BaseFontKey);
+        ToUnicodeCMap = PdfCMap.GetCMap(Dictionary, PdfTokens.ToUnicodeKey);
+        FontDescriptor = PdfFontDescriptor.GetFontDescriptor(Dictionary, PdfTokens.FontDescriptorKey);
+
+
+        SubstitutionInfo = PdfSubstitutionInfo.Parse(BaseFont, FontDescriptor);
+    }
+
+    /// <summary>
+    /// Returns the typeface for this PDF font.
+    /// </summary>
+    protected internal abstract IPdfTypeface? Typeface { get; }
+
+    /// <summary>
+    /// Writing mode for this font's CMap (horizontal/vertical).
+    /// </summary>
+    protected internal virtual CMapWMode WritingMode { get; } = CMapWMode.Horizontal;
+
+    /// <summary>
+    /// Information required for font substitution.
+    /// </summary>
+    protected internal virtual PdfSubstitutionInfo SubstitutionInfo { get; }
+
+    /// <summary>
+    /// <see langword="true"/> when glyphs of this font may be shaped against more than one substitute typeface,
+    /// so rendering must group and switch fonts per glyph instead of assuming a single shared typeface.
+    /// </summary>
+    protected internal virtual bool IsSubstitutedFont => Typeface == null;
+
+    /// <summary>
+    /// <see langword="true"/> when this font declares (or derives) explicit per-code advance widths,
+    /// as distinct from relying entirely on a substitute typeface's own metrics.
+    /// </summary>
+    protected internal abstract bool HasWidths { get; }
+
+    /// <summary>
+    /// <see langword="true"/> when a substitute glyph's own shaped width should be rescaled to match this
+    /// font's declared advance width, rather than trusted as-is.
+    /// </summary>
+    protected internal bool ShouldRescale => IsSubstitutedFont && HasWidths;
+
+    /// <summary>
+    /// Original PDF font object.
+    /// </summary>
+    public PdfObject FontObject { get; }
+
+    /// <summary>
+    /// Font dictionary.
+    /// </summary>
+    public PdfDictionary Dictionary { get; }
+
+    /// <summary>
+    /// PDF font type (Type1, TrueType, Type3, Type0, CIDFontType0, CIDFontType2, etc.)
+    /// </summary>
+    public PdfFontSubType Type { get; }
+
+    /// <summary>
+    /// Base font name (PostScript name)
+    /// </summary>
+    public PdfString? BaseFont { get; }
+
+    /// <summary>
+    /// PDF document containing this font (convenience property)
+    /// </summary>
+    internal IPdfDocumentInternal Document => Dictionary.Document;
+
+    /// <summary>
+    /// Loaded ToUnicode CMap for character-to-Unicode mapping.
+    /// </summary>
+    public PdfCMap? ToUnicodeCMap { get; }
+
+    /// <summary>
+    /// Gets the font descriptor (contains metrics and embedding info)
+    /// May be direct or inherited from descendant fonts
+    /// </summary>
+    public virtual PdfFontDescriptor? FontDescriptor { get; }
+
+    /// <summary>
+    /// Gets the width of a character/glyph, or <see langword="null"/> when this font defines none for
+    /// the code - a width the font defines as zero is a width, not an absent one.
+    /// </summary>
+    public abstract float? GetWidth(in PdfCharacterCode code);
+
+    /// <summary>
+    /// Returns the vertical displacement vector for the specified character code.
+    /// </summary>
+    /// <param name="code">The character code to retrieve vertical metrics for.</param>
+    public abstract PdfVerticalMetric GetVerticalDisplacement(in PdfCharacterCode code);
+
+    /// <summary>
+    /// Resolves the glyphs <paramref name="characterCode"/> draws as, together with the typeface they
+    /// belong to. Implemented per font type.
+    /// </summary>
+    /// <param name="characterCode">The character code to resolve glyphs for.</param>
+    /// <param name="renderingUnicode">The Unicode text the code stands for, for font types that substitute by Unicode.</param>
+    protected abstract PdfGlyphResolution ResolveGlyphs(in PdfCharacterCode characterCode, string? renderingUnicode);
+
+    /// <summary>
+    /// Resolves glyphs from this font's own program: the mapping the font defines for the code, and
+    /// failing that the program's own "cmap" for the character the code stands for. Empty when no font
+    /// program is available.
+    /// </summary>
+    /// <param name="characterCode">The character code to resolve glyphs for.</param>
+    /// <param name="renderingUnicode">The Unicode text the code stands for.</param>
+    protected PdfGlyphResolution ResolveFromFontProgram(in PdfCharacterCode characterCode, string? renderingUnicode)
+    {
+        IPdfTypeface? typeface = Typeface;
+
+        if (IsSubstitutedFont || typeface == null)
+        {
+            return default;
+        }
+
+        ushort? gid = GetGid(characterCode);
+
+        if (gid != null)
+        {
+            return new PdfGlyphResolution(typeface, [gid], isMappedByFont: true);
+        }
+
+        // The program is embedded but maps nothing to this code; its own "cmap" is still the best
+        // source for the character the code stands for.
+        return (renderingUnicode?.Length > 0)
+            ? new PdfGlyphResolution(typeface, typeface.GetGlyphs(renderingUnicode), isMappedByFont: false)
+            : default;
+    }
+
+    /// <summary>
+    /// Resolves glyphs for the Unicode a character code stands for against a substitute typeface.
+    /// Whether to reach it at all stays with each <see cref="ResolveGlyphs"/> implementation.
+    /// </summary>
+    /// <param name="renderingUnicode">The Unicode text to shape against a substitute.</param>
+    protected PdfGlyphResolution SubstituteByUnicode(string? renderingUnicode)
+    {
+        if (renderingUnicode == null || renderingUnicode.Length == 0)
+        {
+            return default;
+        }
+
+        IPdfTypeface substitute = Document.FontProvider.GetTypefaceByUnicode(SubstitutionInfo, renderingUnicode);
+        return new PdfGlyphResolution(substitute, substitute.GetGlyphs(renderingUnicode), isMappedByFont: false);
+    }
+
+    /// <summary>
+    /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.
+    /// </summary>
+    /// <param name="code">The <see cref="PdfCharacterCode"/> to be converted. Cannot be <see langword="null"/>.</param>
+    /// <returns>The Unicode string representation of the specified <see cref="PdfCharacterCode"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="code"/> is <see langword="null"/>.</exception>
+    public virtual string? GetUnicodeString(in PdfCharacterCode code)
+    {
+        if (ToUnicodeCMap != null)
+        {
+            return ToUnicodeCMap?.GetUnicode(code);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Converts a character code to the Unicode string used to select and shape a substitute glyph
+    /// when the font has no direct code-to-GID mapping of its own. Never consults the font's
+    /// /ToUnicode CMap.
+    /// </summary>
+    /// <param name="code">The character code to convert.</param>
+    /// <returns>The Unicode string to shape against, or <see langword="null"/> if none is available.</returns>
+    public virtual string? GetRenderingUnicodeString(in PdfCharacterCode code) => GetUnicodeString(code);
+
+    /// <summary>
+    /// Extracts character codes from raw bytes for this font.
+    /// </summary>
+    /// <param name="bytes">Raw bytes to extract character codes from.</param>
+    /// <returns>Array of extracted PdfCharacterCode items.</returns>
+    public abstract PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes);
+
+    /// <summary>
+    /// Gets the glyph ID (GID) for the specified character code.
+    /// </summary>
+    /// <param name="code">The character code to map to a glyph ID.</param>
+    /// <returns>The glyph ID (GID) for the character code, or <see langword="null"/> if not found.</returns>
+    public abstract ushort? GetGid(in PdfCharacterCode code);
+
+    /// <summary>
+    /// Extracts all resolved information for a single PDF character code.
+    /// Caches results for each character code.
+    /// </summary>
+    /// <param name="characterCode">The character code to extract info for.</param>
+    /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public PdfCharacterInfo ExtractCharacterInfo(in PdfCharacterCode characterCode)
+    {
+        if (!_characterInfoCache.TryGetValue(characterCode, out PdfCharacterInfo characterInfo))
+        {
+            characterInfo = ExtractCharacterInfoCore(characterCode);
+            _characterInfoCache[characterCode] = characterInfo;
+        }
+
+        return characterInfo;
+    }
+
+    /// <summary>
+    /// Turns the glyphs <see cref="ResolveGlyphs"/> found for a character code into its full rendering
+    /// information, applying the metrics this font declares for the code to whatever typeface supplied
+    /// those glyphs.
+    /// </summary>
+    /// <param name="characterCode">The character code to extract info for.</param>
+    /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
+    protected PdfCharacterInfo ExtractCharacterInfoCore(in PdfCharacterCode characterCode)
+    {
+        string? renderingUnicode = GetRenderingUnicodeString(characterCode);
+        PdfGlyphResolution resolution = ResolveGlyphs(characterCode, renderingUnicode);
+        string? unicode = GetUnicodeString(characterCode);
+
+        if (resolution.Typeface == null || resolution.GlyphIds == null)
+        {
+            IPdfTypeface fallbackTypeface = Document.FontProvider.GetFallbackTypeface(SubstitutionInfo);
+            return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [null], 0, [0], 1, PdfPoint.Empty, default);
+        }
+
+        IPdfTypeface typeface = resolution.Typeface;
+        ushort?[] glyphIds = resolution.GlyphIds;
+        float? declaredWidth = GetWidth(characterCode);
+        PdfVerticalMetric displacement = GetVerticalDisplacement(characterCode);
+        bool shouldRescale = ShouldRescale;
+
+        // A glyph the font mapped itself is described by the font's own advance width; a substitute's
+        // glyph has to be measured, since nothing ties its advance to the width declared here.
+        float[] widths;
+        if (declaredWidth.HasValue && resolution.IsMappedByFont && !shouldRescale)
+        {
+            widths = new float[] { declaredWidth.Value };
+        }
+        else
+        {
+            widths = typeface.GetWidths(glyphIds);
+        }
+
+        float originalWidth = declaredWidth ?? widths.Sum();
+
+        (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(renderingUnicode, displacement, originalWidth, widths, shouldRescale);
+
+        return new PdfCharacterInfo(characterCode, typeface, unicode, glyphIds, originalWidth, widths, xScale, origin, advancement);
+    }
+
+    private (float xScale, PdfPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in PdfVerticalMetric verticalMetric, float originalWidth, float[] widths, bool shouldRescale)
+    {
+        float totalWidth = widths.Sum();
+        float xScale;
+        float offsetX;
+        float offsetY;
+        float advancement;
+
+        if (WritingMode == CMapWMode.Vertical)
+        {
+            offsetX = -(verticalMetric.V1X ?? totalWidth / 2f);
+            offsetY = verticalMetric.V1;
+            xScale = 1;
+            advancement = verticalMetric.W1;
+        }
+        else
+        {
+            bool isLetterOrDigit = unicode?.Length > 0 && char.IsLetterOrDigit(unicode[0]);
+
+            if (shouldRescale && isLetterOrDigit && totalWidth > originalWidth)
+            {
+                // Shaped glyphs wider than the declared advance are condensed to fit it.
+                xScale = originalWidth / totalWidth;
+                offsetX = 0;
+            }
+            else if (!shouldRescale && isLetterOrDigit)
+            {
+                // The shaped glyphs carry their own trusted metrics, so they are left where they fall.
+                xScale = 1;
+                offsetX = 0;
+            }
+            else
+            {
+                // Center the shaped glyphs within the OriginalWidth block when they differ.
+                offsetX = (originalWidth - totalWidth) / 2f;
+                xScale = 1;
+            }
+
+            offsetY = 0;
+            advancement = originalWidth;
+        }
+
+        return (xScale, new PdfPoint(offsetX, offsetY), advancement);
+    }
+
+    /// <summary>
+    /// Determines whether a PdfDictionary is a font dictionary by inspecting its Type/Subtype.
+    /// </summary>
+    public static bool IsFont(PdfDictionary pdfDictionary)
+    {
+        if (pdfDictionary == null)
+        {
+            return false;
+        }
+
+        if (pdfDictionary.GetName(PdfTokens.TypeKey) == PdfTokens.FontKey)
+        {
+            return true;
+        }
+
+        PdfFontSubType subtype = pdfDictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+
+        return subtype != PdfFontSubType.Unknown;
+    }
+
+    /// <summary>
+    /// Returns the font held by <paramref name="key"/> of <paramref name="owner"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="owner">Dictionary holding the font entry.</param>
+    /// <param name="key">Key of the font entry.</param>
+    /// <returns>The font, or <see langword="null"/> when absent or not a supported font.</returns>
+    internal static PdfFont? GetFont(PdfDictionary owner, in PdfString key)
+        => owner.Document.ObjectCache.GetOrCreate(owner, key, CreateFont);
+
+    /// <summary>
+    /// Returns the font at <paramref name="index"/> of <paramref name="array"/>, using the document's cache if available.
+    /// </summary>
+    /// <param name="array">Array holding the font entry.</param>
+    /// <param name="index">Index of the font entry.</param>
+    /// <returns>The font, or <see langword="null"/> when absent or not a supported font.</returns>
+    internal static PdfFont? GetFont(PdfArray array, int index)
+        => array.Document.ObjectCache.GetOrCreate(array, index, CreateFont);
+
+    /// <summary>
+    /// Creates a font object based on the specified PDF object.
+    /// </summary>
+    /// <remarks>The method determines the font subtype from the dictionary and returns an appropriate
+    /// font object instance. Supported font subtypes include Type0, CIDFontType0, CIDFontType2,  Type1, TrueType,
+    /// Type3, and MMType1.</remarks>
+    /// <param name="fontObject">The PDF object containing font metadata and properties. Must represent a valid font
+    /// object.</param>
+    private static PdfFont? CreateFont(PdfObject? fontObject)
+    {
+        if (fontObject == null)
+        {
+            return null;
+        }
+
+        if (!IsFont(fontObject.Dictionary))
+        {
+            return null;
+        }
+
+        PdfFontSubType subtype = fontObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+
+        return subtype switch
+        {
+            PdfFontSubType.Type0 => new PdfCompositeFont(fontObject),
+            PdfFontSubType.CidFontType0 => new PdfCidFont(fontObject),
+            PdfFontSubType.CidFontType2 => new PdfCidFont(fontObject),
+            PdfFontSubType.Type1 => new PdfSimpleFont(fontObject),
+            PdfFontSubType.TrueType => new PdfSimpleFont(fontObject),
+            PdfFontSubType.Type3 => new PdfType3Font(fontObject),
+            PdfFontSubType.MMType1 => new PdfSimpleFont(fontObject),
+            _ => null
+        };
+    }
+}

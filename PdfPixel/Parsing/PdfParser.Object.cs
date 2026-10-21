@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
 
 namespace PdfPixel.Parsing;
 

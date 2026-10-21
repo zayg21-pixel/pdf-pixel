@@ -1,4 +1,4 @@
-using PdfPixel.Actions.Model;
+using PdfPixel.Actions;
 using System;
 
 namespace PdfPixel.PdfPanel.Actions;

@@ -2,7 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.ResourceGenerator.Encodings;
 

@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Fonts.Mapping;
 
@@ -339,7 +339,7 @@ public static class PdfCMapScanner
             span = span.Slice(2);
         }
 
-        return PdfPixel.Text.EncodingExtensions.GetString(Encoding.BigEndianUnicode, span);
+        return Objects.PdfEncodingExtensions.GetString(Encoding.BigEndianUnicode, span);
     }
 
     private static bool TryReadHexString(in ReadOnlySpan<byte> data, ref int position, in Span<byte> destination, out int length)

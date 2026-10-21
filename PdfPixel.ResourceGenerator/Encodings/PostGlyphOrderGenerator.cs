@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.ResourceGenerator.Encodings;
 

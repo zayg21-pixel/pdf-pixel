@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Mapping;
 
 namespace PdfPixel.ResourceGenerator.Cmaps;

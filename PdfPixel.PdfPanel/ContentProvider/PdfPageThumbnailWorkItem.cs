@@ -1,9 +1,8 @@
-using PdfPixel.Commands.Context;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
+using PdfPixel.Commands.Execution;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
-using PdfPixel.OptionalContent.Model;
+using PdfPixel.Imaging;
+using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.WorkQueue;
 using SkiaSharp;

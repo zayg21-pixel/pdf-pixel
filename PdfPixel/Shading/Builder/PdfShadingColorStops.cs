@@ -1,12 +1,12 @@
 using PdfPixel.Color;
 
-namespace PdfPixel.Shading;
+namespace PdfPixel.Shading.Builder;
 
 /// <summary>
 /// Holds the color and position arrays produced by evaluating a shading's
 /// functions across its domain range.
 /// </summary>
-public sealed class PdfShadingColorStops
+internal sealed class PdfShadingColorStops
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfShadingColorStops"/> class.

@@ -2,9 +2,8 @@ using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
-using PdfPixel.Rendering.State;
+using PdfPixel.Imaging;
+using PdfPixel.Rendering;
 using System;
 
 namespace PdfPixel.Commands.Image;
@@ -14,7 +13,7 @@ namespace PdfPixel.Commands.Image;
 /// <see cref="PdfImage"/>. Captured at command creation time so the command can later re-decode with
 /// an updated <see cref="PdfCommandExecutionParameters"/> at execution time.
 /// </summary>
-public sealed class ImageDecodingContext
+internal sealed class ImageDecodingContext
 {
     /// <summary>
     /// Creates a decoding context by capturing the relevant values from a <see cref="PdfGraphicsState"/>
@@ -46,7 +45,7 @@ public sealed class ImageDecodingContext
     /// Creates a context for decoding <paramref name="image"/> on its own, as a single tile, resolving its
     /// color space against <paramref name="host"/> with the values of <paramref name="parameters"/>.
     /// </summary>
-    internal ImageDecodingContext(PdfImage image, IPdfContentHost host, PdfImageDecodingParameters parameters)
+    public ImageDecodingContext(PdfImage image, IPdfContentHost host, PdfImageDecodingParameters parameters)
     {
         if (image == null)
         {

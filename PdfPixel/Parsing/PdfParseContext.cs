@@ -1,5 +1,4 @@
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +9,7 @@ namespace PdfPixel.Parsing;
 /// <summary>
 /// High-performance PDF parse context over one or many memory chunks treated uniformly.
 /// </summary>
-public ref struct PdfParseContext
+internal ref struct PdfParseContext
 {
     /// <summary>
     /// Number of content stream operand values a content stream context holds.
@@ -193,7 +192,7 @@ public ref struct PdfParseContext
     internal readonly ReadOnlySpan<byte> Slice(int start, int length) => _data.Slice(start, length);
 
     /// <inheritdoc/>
-    public override string ToString() => Text.EncodingExtensions.PdfDefault.GetString(_data);
+    public override string ToString() => PdfEncodingExtensions.PdfDefault.GetString(_data);
 
     private static PdfValue[] CreateValues(int capacity)
     {

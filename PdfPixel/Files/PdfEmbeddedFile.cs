@@ -1,7 +1,6 @@
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
-using PdfPixel.Text;
 using System;
 
 namespace PdfPixel.Files;

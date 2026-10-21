@@ -1,7 +1,6 @@
-using PdfPixel.Models;
-using PdfPixel.Navigation.Model;
-using PdfPixel.Tagging.Model;
-using PdfPixel.Text;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
+using PdfPixel.Tagging;
 using System;
 using System.Collections.Generic;
 

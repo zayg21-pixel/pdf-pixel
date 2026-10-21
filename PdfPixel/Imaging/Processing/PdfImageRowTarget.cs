@@ -1,4 +1,3 @@
-using PdfPixel.Imaging.Model;
 using System;
 using System.Runtime.CompilerServices;
 

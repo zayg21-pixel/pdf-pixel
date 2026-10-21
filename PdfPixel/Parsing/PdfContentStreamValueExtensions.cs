@@ -1,4 +1,4 @@
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;

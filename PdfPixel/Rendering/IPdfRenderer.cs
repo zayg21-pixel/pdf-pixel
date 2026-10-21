@@ -1,11 +1,10 @@
 ﻿using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Model;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Commands;
+using PdfPixel.Fonts;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Rendering.State;
-using PdfPixel.Shading.Model;
+using PdfPixel.Imaging;
+using PdfPixel.Shading;
 using PdfPixel.Text;
 using System;
 
@@ -59,5 +58,5 @@ public interface IPdfRenderer
     /// <param name="state">The current graphics state for rendering.</param>
     /// <param name="font">The font to use for rendering the text.</param>
     /// <returns>The total advancement of the text sequence.</returns>
-    PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
+    PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFont font);
 }

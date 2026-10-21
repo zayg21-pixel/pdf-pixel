@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Models;
-using PdfPixel.Resources;
+using PdfPixel.EmbeddedData;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
 

@@ -1,9 +1,9 @@
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
+using PdfPixel.EmbeddedData;
 using PdfPixel.Geometry;
-using PdfPixel.Resources;
 using System;
 using System.Collections.Generic;
 using System.IO;

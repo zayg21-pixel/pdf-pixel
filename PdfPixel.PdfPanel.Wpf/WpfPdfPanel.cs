@@ -9,7 +9,7 @@ using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
 using PdfPixel.Geometry;
-using PdfPixel.Navigation.Model;
+using PdfPixel.Navigation;
 using SkiaSharp;
 using System;
 using System.Collections.ObjectModel;

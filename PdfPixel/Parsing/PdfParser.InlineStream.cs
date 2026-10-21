@@ -1,8 +1,7 @@
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Streams;
-using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;

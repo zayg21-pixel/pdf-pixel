@@ -1,5 +1,6 @@
-using PdfPixel.Actions.Model;
-using PdfPixel.Navigation.Model;
+using PdfPixel.Actions;
+using PdfPixel.Navigation;
+using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
@@ -7,7 +8,6 @@ using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Web.Dto.Model;
-using PdfPixel.Text;
 using System.Collections.Generic;
 using System.Runtime.Versioning;
 using System.Text.Json;

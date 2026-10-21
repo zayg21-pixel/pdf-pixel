@@ -1,4 +1,4 @@
-using PdfPixel.Navigation.Model;
+using PdfPixel.Navigation;
 using SkiaSharp;
 using System;
 

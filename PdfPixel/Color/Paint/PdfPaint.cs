@@ -1,7 +1,7 @@
 using System;
-using PdfPixel.Pattern.Model;
-using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
+using PdfPixel.Pattern;
+using PdfPixel.Rendering;
+using PdfPixel.Transparency;
 
 namespace PdfPixel.Color.Paint;
 

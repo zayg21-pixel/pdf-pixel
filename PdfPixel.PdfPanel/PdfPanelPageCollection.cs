@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Execution;

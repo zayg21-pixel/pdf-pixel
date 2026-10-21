@@ -5,7 +5,6 @@ using PdfPixel.Fonts.Typeface;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
-using PdfPixel.Commands.Model;
 
 namespace PdfPixel.Skia;
 

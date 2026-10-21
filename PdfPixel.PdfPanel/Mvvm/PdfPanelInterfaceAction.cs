@@ -36,7 +36,7 @@ public enum PdfPanelInterfaceAction
     RequestPresent,
 
     /// <summary>
-    /// Scroll to a <see cref="Navigation.Model.PdfDestination"/>.
+    /// Scroll to a <see cref="Navigation.PdfDestination"/>.
     /// </summary>
     ScrollToDestination
 }

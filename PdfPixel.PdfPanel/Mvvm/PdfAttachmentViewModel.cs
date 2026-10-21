@@ -1,5 +1,5 @@
 using PdfPixel.Files;
-using PdfPixel.Text;
+using PdfPixel.Objects;
 
 namespace PdfPixel.PdfPanel.Mvvm;
 

@@ -1,4 +1,4 @@
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
 using PdfPixel.Content;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;

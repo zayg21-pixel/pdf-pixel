@@ -1,6 +1,6 @@
 using System;
 using Microsoft.Extensions.Logging;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Parsing;
 

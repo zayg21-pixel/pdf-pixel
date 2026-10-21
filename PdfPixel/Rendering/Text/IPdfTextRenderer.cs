@@ -1,7 +1,6 @@
-﻿using PdfPixel.Commands.Model;
-using PdfPixel.Fonts.Model;
+﻿using PdfPixel.Commands;
+using PdfPixel.Fonts;
 using PdfPixel.Geometry;
-using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using System;
 
@@ -22,5 +21,5 @@ public interface IPdfTextRenderer
     /// <param name="state">The current graphics state.</param>
     /// <param name="font">The font to use for rendering.</param>
     /// <returns>The total advancement after drawing the text array.</returns>
-    PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
+    PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFont font);
 }

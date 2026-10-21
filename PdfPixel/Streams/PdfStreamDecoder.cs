@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Commands;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
 using PdfPixel.Tiff.Streams;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 
 namespace PdfPixel.Streams;
 

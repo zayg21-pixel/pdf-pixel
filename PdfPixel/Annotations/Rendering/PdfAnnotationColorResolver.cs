@@ -1,4 +1,3 @@
-using PdfPixel.Models;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using System;

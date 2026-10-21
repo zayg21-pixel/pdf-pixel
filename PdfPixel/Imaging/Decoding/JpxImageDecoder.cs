@@ -1,14 +1,13 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Jpx.Decoding;
 using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
-using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 

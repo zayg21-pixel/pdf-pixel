@@ -1,7 +1,7 @@
 ﻿using System;
 using PdfPixel.Functions;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
 
 namespace PdfPixel.Color.ColorSpace;
 

@@ -1,5 +1,5 @@
 using PdfPixel.Color.Transform;
-using PdfPixel.Rendering.State;
+using PdfPixel.Rendering;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -15,7 +15,7 @@ public readonly struct PdfColorConversionParameters : IEquatable<PdfColorConvers
     /// <summary>
     /// Initializes a new <see cref="PdfColorConversionParameters"/> from its parameters.
     /// </summary>
-    public PdfColorConversionParameters(PdfRenderingIntent renderingIntent, TransferFunctionTransform? transferFunction, bool useBlackPointCompensation)
+    internal PdfColorConversionParameters(PdfRenderingIntent renderingIntent, TransferFunctionTransform? transferFunction, bool useBlackPointCompensation)
         : this(renderingIntent, transferFunction, useBlackPointCompensation, PdfDeviceColorMapping.None)
     {
     }
@@ -47,7 +47,7 @@ public readonly struct PdfColorConversionParameters : IEquatable<PdfColorConvers
     /// <summary>
     /// Transfer function applied after conversion, or <see langword="null"/> when none.
     /// </summary>
-    public TransferFunctionTransform? TransferFunction { get; }
+    internal TransferFunctionTransform? TransferFunction { get; }
 
     /// <summary>
     /// Whether black point compensation is applied.

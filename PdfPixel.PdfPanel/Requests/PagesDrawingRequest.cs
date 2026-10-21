@@ -1,5 +1,5 @@
 using PdfPixel.Color;
-using PdfPixel.OptionalContent.Model;
+using PdfPixel.OptionalContent;
 using System;
 
 namespace PdfPixel.PdfPanel.Requests;

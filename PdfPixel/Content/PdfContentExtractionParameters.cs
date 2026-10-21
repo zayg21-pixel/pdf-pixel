@@ -1,4 +1,4 @@
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
 using System.Collections.Generic;
 
 namespace PdfPixel.Content;

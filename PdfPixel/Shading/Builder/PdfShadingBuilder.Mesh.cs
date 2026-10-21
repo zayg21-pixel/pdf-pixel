@@ -1,15 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Color.Sampling;
+using PdfPixel.Commands;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.Shading.Builder;
 using PdfPixel.Shading.Decoding;
-using PdfPixel.Shading.Model;
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Shading;
+namespace PdfPixel.Shading.Builder;
 
 /// <summary>
 /// Provides mesh patch rendering for PDF Type 4–7 shading.

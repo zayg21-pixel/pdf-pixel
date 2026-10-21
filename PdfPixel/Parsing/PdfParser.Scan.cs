@@ -1,5 +1,5 @@
 using System;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Parsing;
 

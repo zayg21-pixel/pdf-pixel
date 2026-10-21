@@ -1,5 +1,5 @@
 using PdfPixel.Commands.Cache;
-using PdfPixel.Shading.Model;
+using PdfPixel.Shading;
 using System;
 using System.Runtime.CompilerServices;
 

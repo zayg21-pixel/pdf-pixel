@@ -1,11 +1,10 @@
-using PdfPixel.Models;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Parsing;
-using PdfPixel.Pattern.Model;
-using PdfPixel.Rendering.State;
 using PdfPixel.Color.Transform;
 using System;
+using PdfPixel.Objects;
+using PdfPixel.Pattern;
 
 namespace PdfPixel.Rendering.Operators;
 
@@ -234,7 +233,7 @@ internal class ColorOperators : IOperatorProcessor
             {
                 PdfColor tintColor = PdfColors.Black;
 
-                if (tilingPattern.PaintTypeKind == PdfTilingPaintType.Uncolored)
+                if (tilingPattern.PaintType == PdfTilingPaintType.Uncolored)
                 {
                     ReadOnlySpan<float> tintComponents = ExtractTintComponents(operands);
                     tintColor = state.FillRgbaSampler.Sample(tintComponents).ToPdfColor();
@@ -279,7 +278,7 @@ internal class ColorOperators : IOperatorProcessor
             {
                 PdfColor tintColor = PdfColors.Black;
 
-                if (tilingPattern.PaintTypeKind == PdfTilingPaintType.Uncolored)
+                if (tilingPattern.PaintType == PdfTilingPaintType.Uncolored)
                 {
                     ReadOnlySpan<float> tintComponents = ExtractTintComponents(operands);
                     tintColor = state.StrokeRgbaSampler.Sample(tintComponents).ToPdfColor();

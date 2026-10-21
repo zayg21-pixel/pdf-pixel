@@ -1,9 +1,8 @@
 ﻿using PdfPixel.Color;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.Shading.Decoding;
-using PdfPixel.Shading.Model;
 using System;
 using System.Collections.Generic;
 using System.Numerics;

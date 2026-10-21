@@ -1,4 +1,4 @@
-using PdfPixel.Content.Model;
+using PdfPixel.Content;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.PdfPanel.Content;

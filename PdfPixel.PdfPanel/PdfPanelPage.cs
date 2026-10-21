@@ -1,5 +1,4 @@
 ﻿using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using System;

@@ -1,7 +1,7 @@
-using PdfPixel.Content;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.Text;
 using System;
 
 namespace PdfPixel.PdfPanel.Scheduling;

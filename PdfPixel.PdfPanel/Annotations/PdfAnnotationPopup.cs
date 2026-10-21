@@ -1,6 +1,6 @@
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Geometry;
-using PdfPixel.OptionalContent.Model;
+using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.ContentProvider;
 using System;
 using System.Collections.Generic;
@@ -37,7 +37,7 @@ public class PdfAnnotationPopup
     {
         get
         {
-            PdfAnnotationBase annotation = PageAnnotation.Content;
+            PdfAnnotation annotation = PageAnnotation.Content;
             PdfOptionalContentStates? optionalContentStates = _panelDocument.OptionalContentStates;
 
             return annotation.IsInteractive

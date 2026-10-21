@@ -1,14 +1,12 @@
 ﻿using PdfPixel.Commands;
-using PdfPixel.Commands.Context;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands.Execution;
 using PdfPixel.Content;
-using PdfPixel.Content.Model;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Threading.Tasks;

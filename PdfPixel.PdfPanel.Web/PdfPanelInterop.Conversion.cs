@@ -1,8 +1,7 @@
 using PdfPixel.Color;
-using PdfPixel.Encryption.Model;
+using PdfPixel.Encryption;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
-using PdfPixel.Navigation.Model;
+using PdfPixel.Navigation;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.PdfPanel.Web.Dto.Converters;

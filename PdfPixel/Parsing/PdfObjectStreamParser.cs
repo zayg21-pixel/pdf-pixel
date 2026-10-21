@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
 
 namespace PdfPixel.Parsing;
 

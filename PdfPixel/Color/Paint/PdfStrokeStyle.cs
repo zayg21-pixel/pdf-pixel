@@ -1,4 +1,4 @@
-using PdfPixel.Rendering.State;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Color.Paint;
 

@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Commands;
-using PdfPixel.Commands.Context;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands.Execution;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System;

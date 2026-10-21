@@ -1,16 +1,16 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Model;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Commands;
+using PdfPixel.Fonts;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
+using PdfPixel.Imaging;
 using PdfPixel.Rendering.Form;
 using PdfPixel.Rendering.Image;
 using PdfPixel.Rendering.Path;
 using PdfPixel.Rendering.Shading;
-using PdfPixel.Rendering.State;
-using PdfPixel.Shading.Model;
+using PdfPixel.Rendering.Text;
+using PdfPixel.Shading;
 using PdfPixel.Text;
 using System;
 
@@ -27,10 +27,10 @@ public class PdfRenderer : IPdfRenderer
     private readonly ILogger _logger;
 
     private readonly PdfTextRenderer _textRenderer;
-    private readonly PathRenderer _pathRenderer;
-    private readonly ImageRenderer _imageRenderer;
-    private readonly FormRenderer _formRenderer;
-    private readonly ShadingRenderer _shadingRenderer;
+    private readonly PdfPathRenderer _pathRenderer;
+    private readonly PdfImageRenderer _imageRenderer;
+    private readonly PdfFormRenderer _formRenderer;
+    private readonly PdfShadingRenderer _shadingRenderer;
 
     internal PdfRenderer(ILoggerFactory loggerFactory)
     {
@@ -38,17 +38,17 @@ public class PdfRenderer : IPdfRenderer
         _logger = _loggerFactory.CreateLogger<PdfRenderer>();
 
         _textRenderer = new PdfTextRenderer(this, _loggerFactory);
-        _pathRenderer = new PathRenderer(this, _loggerFactory);
-        _imageRenderer = new ImageRenderer(this, _loggerFactory);
-        _formRenderer = new FormRenderer(this, _loggerFactory);
-        _shadingRenderer = new ShadingRenderer(this, _loggerFactory);
+        _pathRenderer = new PdfPathRenderer(this, _loggerFactory);
+        _imageRenderer = new PdfImageRenderer(this, _loggerFactory);
+        _formRenderer = new PdfFormRenderer(this, _loggerFactory);
+        _shadingRenderer = new PdfShadingRenderer(this, _loggerFactory);
     }
 
 
     /// <summary>
     /// Draw text with positioning adjustments (if any) and return total advancement.
     /// </summary>
-    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFont font)
         => _textRenderer.DrawTextSequence(processor, glyphs, state, font);
 
     /// <summary>

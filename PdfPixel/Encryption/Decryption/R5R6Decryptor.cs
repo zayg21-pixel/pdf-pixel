@@ -1,7 +1,6 @@
 using System;
 using System.Text;
 using PdfPixel.Encryption.Cryptography;
-using PdfPixel.Encryption.Model;
 
 namespace PdfPixel.Encryption.Decryption;
 
@@ -14,7 +13,7 @@ namespace PdfPixel.Encryption.Decryption;
 /// Object keys for AESV3 are the file encryption key itself; unlike RC4/AESV2, no per-object
 /// key derivation is performed.
 /// </summary>
-internal sealed class R5R6Decryptor : BasePdfDecryptor
+internal sealed class R5R6Decryptor : PdfDecryptor
 {
     private const int MaxPasswordBytes = 127;
     private const int UEntryLength = 48;

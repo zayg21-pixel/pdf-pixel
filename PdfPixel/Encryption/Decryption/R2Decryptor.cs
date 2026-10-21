@@ -1,5 +1,4 @@
 using PdfPixel.Encryption.Cryptography;
-using PdfPixel.Encryption.Model;
 using System;
 
 namespace PdfPixel.Encryption.Decryption;
@@ -9,7 +8,7 @@ namespace PdfPixel.Encryption.Decryption;
 /// Implements Algorithm 3.2 (encryption key), user password validation (Algorithm 3.4) and
 /// owner password validation (Algorithm 3.7) from PDF spec.
 /// </summary>
-internal sealed class R2Decryptor : BasePdfDecryptor
+internal sealed class R2Decryptor : PdfDecryptor
 {
     private const int DefaultKeyBits = 40;
 

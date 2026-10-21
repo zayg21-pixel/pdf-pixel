@@ -1,8 +1,7 @@
-using PdfPixel.Actions.Model;
-using PdfPixel.Annotations.Model;
+using PdfPixel.Actions;
+using PdfPixel.Annotations;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
-using PdfPixel.Navigation.Model;
+using PdfPixel.Navigation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
@@ -306,7 +305,7 @@ public sealed class PdfPanelActions
     {
         lock (_panelDocument.DocumentLocker)
         {
-            foreach (PdfAnnotationBase annotation in action.GetAnnotations())
+            foreach (PdfAnnotation annotation in action.GetAnnotations())
             {
                 annotation.IsHidden = action.Hide;
             }

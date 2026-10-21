@@ -1,10 +1,9 @@
-using PdfPixel.Content.Model;
-using PdfPixel.Models;
-using PdfPixel.OptionalContent.Model;
+using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.Threading;

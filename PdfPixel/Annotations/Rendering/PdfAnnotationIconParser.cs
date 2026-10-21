@@ -1,4 +1,4 @@
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;

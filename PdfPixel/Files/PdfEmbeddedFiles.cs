@@ -1,9 +1,8 @@
-using PdfPixel.Actions.Model;
-using PdfPixel.Annotations.Model;
-using PdfPixel.Models;
-using PdfPixel.Navigation.Model;
+using PdfPixel.Actions;
+using PdfPixel.Annotations;
+using PdfPixel.Navigation;
+using PdfPixel.Objects;
 using PdfPixel.Parsing;
-using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 
@@ -61,7 +60,7 @@ public sealed class PdfEmbeddedFiles
             return null;
         }
 
-        PdfAnnotationBase? annotation = ResolveAnnotation(page, step);
+        PdfAnnotation? annotation = ResolveAnnotation(page, step);
 
         return (annotation as PdfFileAttachmentAnnotation)?.FileSpecification;
     }
@@ -98,7 +97,7 @@ public sealed class PdfEmbeddedFiles
         return _document.Pages[pageIndex.Value];
     }
 
-    private static PdfAnnotationBase? ResolveAnnotation(IPdfPage page, PdfEmbeddedPathStep step)
+    private static PdfAnnotation? ResolveAnnotation(IPdfPage page, PdfEmbeddedPathStep step)
     {
         IReadOnlyList<PdfPageAnnotation> annotations = page.GetAnnotations();
 

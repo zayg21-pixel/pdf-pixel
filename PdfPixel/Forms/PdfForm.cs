@@ -1,10 +1,11 @@
 using PdfPixel.Geometry;
-using PdfPixel.Measures.Model;
-using PdfPixel.Models;
-using PdfPixel.Rendering.State;
+using PdfPixel.Measures;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
+using PdfPixel.Rendering;
+using PdfPixel.Resources;
 using PdfPixel.Streams;
-using PdfPixel.Text;
-using PdfPixel.Transparency.Model;
+using PdfPixel.Transparency;
 using System.Collections.Generic;
 
 namespace PdfPixel.Forms;

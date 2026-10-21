@@ -1,7 +1,6 @@
 using System.Collections.Generic;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
 
 namespace PdfPixel.Fonts.Mapping;
 

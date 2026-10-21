@@ -1,9 +1,8 @@
-﻿using PdfPixel.Annotations.Model;
+﻿using PdfPixel.Annotations;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;

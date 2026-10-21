@@ -1,5 +1,5 @@
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
+using PdfPixel.Commands;
+using PdfPixel.Imaging;
 using PdfPixel.PdfPanel.Content;
 using System;
 using System.IO;

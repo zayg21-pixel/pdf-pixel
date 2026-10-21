@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.Text;
 
 namespace PdfPixel.Functions;

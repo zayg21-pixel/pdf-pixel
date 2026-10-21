@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Models;
 
 namespace PdfPixel.ResourceGenerator.Encodings;
 

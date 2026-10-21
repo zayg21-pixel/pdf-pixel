@@ -1,6 +1,5 @@
 using PdfPixel.Geometry;
 using PdfPixel.Parsing;
-using PdfPixel.Shading.Model;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Shading.Decoding;

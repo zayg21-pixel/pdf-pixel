@@ -1,5 +1,5 @@
-﻿using PdfPixel.Commands.Image;
-using PdfPixel.Commands.Model;
+﻿using PdfPixel.Commands;
+using PdfPixel.Commands.Image;
 using PdfPixel.Commands.Processing;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;

@@ -1,7 +1,7 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Geometry;
-using PdfPixel.Transparency.Model;
+using PdfPixel.Transparency;
 using SkiaSharp;
 using System;
 using System.Numerics;

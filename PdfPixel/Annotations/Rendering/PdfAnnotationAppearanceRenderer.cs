@@ -1,11 +1,9 @@
-using PdfPixel.Annotations.Model;
-using PdfPixel.Commands.Model;
+using PdfPixel.Annotations;
+using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.Rendering;
-using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
+using PdfPixel.Transparency;
 using System.Collections.Generic;
 
 namespace PdfPixel.Annotations.Rendering;
@@ -28,7 +26,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     public static bool RenderAppearanceStream(
         IPdfCommandProcessor processor,
-        PdfAnnotationBase annotation,
+        PdfAnnotation annotation,
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,

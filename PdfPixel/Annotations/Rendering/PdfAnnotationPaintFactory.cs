@@ -1,7 +1,7 @@
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
-using PdfPixel.Transparency.Model;
+using PdfPixel.Transparency;
 
 namespace PdfPixel.Annotations.Rendering;
 

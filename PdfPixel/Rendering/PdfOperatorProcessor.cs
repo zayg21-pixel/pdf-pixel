@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.Operators;
-using PdfPixel.Rendering.State;
 
 namespace PdfPixel.Rendering;
 

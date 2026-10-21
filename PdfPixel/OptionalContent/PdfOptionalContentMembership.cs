@@ -1,0 +1,126 @@
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
+using System.Collections.Generic;
+
+namespace PdfPixel.OptionalContent;
+
+/// <summary>
+/// Represents optional content membership — a set of optional content group references
+/// combined with a visibility policy.
+/// </summary>
+public class PdfOptionalContentMembership
+{
+    /// <summary>
+    /// Initializes a new <see cref="PdfOptionalContentMembership"/> with
+    /// the specified group references and visibility policy.
+    /// </summary>
+    public PdfOptionalContentMembership(
+        PdfOptionalContentType type,
+        IReadOnlyList<PdfReference> groups,
+        PdfOptionalContentVisibilityPolicy visibilityPolicy,
+        PdfVisibilityExpression? visibilityExpression = null)
+    {
+        Type = type;
+        Groups = groups;
+        VisibilityPolicy = visibilityPolicy;
+        VisibilityExpression = visibilityExpression;
+    }
+
+    /// <summary>
+    /// Whether the content refers to a single optional content group or to a membership dictionary.
+    /// </summary>
+    public PdfOptionalContentType Type { get; }
+
+    /// <summary>
+    /// References to the optional content groups in this membership.
+    /// </summary>
+    public IReadOnlyList<PdfReference> Groups { get; }
+
+    /// <summary>
+    /// Policy used to determine visibility from the group states.
+    /// </summary>
+    public PdfOptionalContentVisibilityPolicy VisibilityPolicy { get; }
+
+    /// <summary>
+    /// Parsed /VE visibility expression, when present. Per spec, this takes precedence over
+    /// <see cref="Groups"/> and <see cref="VisibilityPolicy"/> when evaluating visibility.
+    /// </summary>
+    public PdfVisibilityExpression? VisibilityExpression { get; }
+
+    /// <summary>
+    /// Parses an optional content entry from a parent dictionary containing an /OC key.
+    /// Returns <c>null</c> if the /OC entry is not present.
+    /// </summary>
+    internal static PdfOptionalContentMembership? FromDictionary(PdfDictionary dictionary)
+    {
+        PdfObject? optionalContentObject = dictionary.GetObject(PdfTokens.OptionalContentKey);
+        if (optionalContentObject == null)
+        {
+            return null;
+        }
+
+        return FromObject(optionalContentObject);
+    }
+
+    /// <summary>
+    /// Parses an OCG or OCMD object directly into a membership.
+    /// </summary>
+    internal static PdfOptionalContentMembership? FromObject(PdfObject optionalContentObject)
+    {
+        PdfOptionalContentType type = optionalContentObject.Dictionary
+            .GetNameOrDefault(PdfTokens.TypeKey)
+            .AsEnum<PdfOptionalContentType>();
+
+        if (type == PdfOptionalContentType.Membership)
+        {
+            return FromMembershipDictionary(optionalContentObject.Dictionary);
+        }
+
+        return FromGroupObject(optionalContentObject);
+    }
+
+    private static PdfOptionalContentMembership FromGroupObject(PdfObject groupObject)
+    {
+        if (groupObject.Reference == null)
+        {
+            return new PdfOptionalContentMembership(PdfOptionalContentType.Group, [], PdfOptionalContentVisibilityPolicy.AllOn);
+        }
+
+        return new PdfOptionalContentMembership(PdfOptionalContentType.Group, [groupObject.Reference.Value], PdfOptionalContentVisibilityPolicy.AllOn);
+    }
+
+    private static PdfOptionalContentMembership FromMembershipDictionary(PdfDictionary membershipDictionary)
+    {
+        PdfOptionalContentVisibilityPolicy policy = membershipDictionary
+            .GetNameOrDefault(PdfTokens.VisibilityPolicyKey)
+            .AsEnum<PdfOptionalContentVisibilityPolicy>();
+
+        PdfArray? visibilityExpressionArray = membershipDictionary.GetArray(PdfTokens.VisibilityExpressionKey);
+        PdfVisibilityExpression? visibilityExpression = (visibilityExpressionArray != null)
+            ? PdfVisibilityExpression.Parse(visibilityExpressionArray)
+            : null;
+
+        if (visibilityExpression != null)
+        {
+            return new PdfOptionalContentMembership(PdfOptionalContentType.Membership, [], policy, visibilityExpression);
+        }
+
+        // /OCGs can be a single OCG reference or an array of OCG references.
+        List<PdfObject>? groupObjects = membershipDictionary.GetObjects(PdfTokens.OptionalContentGroupsKey);
+        if (groupObjects == null || groupObjects.Count == 0)
+        {
+            return new PdfOptionalContentMembership(PdfOptionalContentType.Membership, [], policy);
+        }
+
+        List<PdfReference> groups = new(groupObjects.Count);
+        foreach (PdfObject groupObject in groupObjects)
+        {
+            if (groupObject.Reference != null)
+            {
+                groups.Add(groupObject.Reference.Value);
+            }
+        }
+
+        return new PdfOptionalContentMembership(PdfOptionalContentType.Membership, groups, policy);
+    }
+}

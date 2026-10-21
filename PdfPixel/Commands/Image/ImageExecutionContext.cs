@@ -1,8 +1,7 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging;
 using PdfPixel.Imaging.Decoding;
-using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using System;
 
@@ -11,7 +10,7 @@ namespace PdfPixel.Commands.Image;
 /// <summary>
 /// Constructed context for a <see cref="DrawImageTileCommand"/>: an image drawn tile by tile.
 /// </summary>
-public sealed class ImageExecutionContext
+internal sealed class ImageExecutionContext
 {
     private ImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
     {

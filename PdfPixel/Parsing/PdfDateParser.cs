@@ -1,6 +1,6 @@
 using System;
 using System.Globalization;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Parsing;
 

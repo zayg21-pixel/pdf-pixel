@@ -1,10 +1,9 @@
 using PdfPixel.Color;
-using PdfPixel.Encryption.Model;
+using PdfPixel.Encryption;
 using PdfPixel.Files;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Web.Dto.Model;
-using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

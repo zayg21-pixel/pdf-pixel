@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Encryption.Model;
+using PdfPixel.Commands;
+using PdfPixel.Encryption;
 using PdfPixel.Files;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
-using PdfPixel.Navigation.Model;
+using PdfPixel.Imaging;
+using PdfPixel.Navigation;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Execution;

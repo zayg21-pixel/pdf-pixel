@@ -1,13 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace PdfPixel.Shading;
+namespace PdfPixel.Shading.Builder;
 
 
 /// <summary>
 /// Provides methods for building rendering primitives from PDF shading models.
 /// Supports function-based (type 1), axial (type 2), radial (type 3),
 /// Gouraud (type 4/5), Coons (type 6), and tensor-product (type 7) shadings.
-/// Methods are called by <see cref="Model.PdfShadingContent"/> while a shading's content is built.
+/// Methods are called by <see cref="Shading.PdfShadingContent"/> while a shading's content is built.
 /// </summary>
 internal partial class PdfShadingBuilder
 {

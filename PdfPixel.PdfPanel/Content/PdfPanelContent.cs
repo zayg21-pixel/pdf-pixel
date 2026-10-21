@@ -1,9 +1,9 @@
 using PdfPixel.Color;
+using PdfPixel.Objects;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.Skia;
-using PdfPixel.Text;
 using SkiaSharp;
 using System;
 

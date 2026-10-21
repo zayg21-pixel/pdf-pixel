@@ -1,4 +1,4 @@
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts;
 
 namespace PdfPixel.Text;
 

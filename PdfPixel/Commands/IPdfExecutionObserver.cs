@@ -1,0 +1,20 @@
+using System.Threading.Tasks;
+
+namespace PdfPixel.Commands;
+
+/// <summary>
+/// Interface that notifies that some chunk of work has been completed, new command parsed,
+/// processed, image row processed, etc.
+/// </summary>
+public interface IPdfExecutionObserver
+{
+    /// <summary>
+    /// Notifies that some work chunk has been done.
+    /// </summary>
+    void Notify();
+
+    /// <summary>
+    /// Yields the thread before the next work chunk starts.
+    /// </summary>
+    ValueTask YieldAsync();
+}

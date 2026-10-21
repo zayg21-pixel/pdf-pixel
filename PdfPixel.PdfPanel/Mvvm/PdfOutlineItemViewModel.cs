@@ -1,6 +1,6 @@
 using PdfPixel.Color;
-using PdfPixel.Navigation.Model;
-using PdfPixel.Text;
+using PdfPixel.Navigation;
+using PdfPixel.Objects;
 using System.Collections.Generic;
 using System.ComponentModel;
 

@@ -2,10 +2,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Rendering.Operators;
 

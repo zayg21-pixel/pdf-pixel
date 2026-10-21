@@ -1,0 +1,43 @@
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
+using PdfPixel.Streams;
+
+namespace PdfPixel;
+
+/// <summary>
+/// Metadata stream (/Metadata) holding XMP metadata of a document or an object.
+/// </summary>
+public sealed class PdfMetadata
+{
+    internal PdfMetadata(PdfObject metadataObject, in PdfReference reference)
+    {
+        Reference = reference;
+        Stream = metadataObject.Stream;
+    }
+
+    /// <summary>
+    /// Reference of the object holding <see cref="Stream"/>.
+    /// </summary>
+    public PdfReference Reference { get; }
+
+    /// <summary>
+    /// Stream holding the XMP packet.
+    /// </summary>
+    public PdfObjectStream Stream { get; }
+
+    /// <summary>
+    /// The metadata stream stored under /Metadata in <paramref name="dictionary"/>, or <see langword="null"/>
+    /// when there is none.
+    /// </summary>
+    /// <param name="dictionary">Dictionary owning the /Metadata entry.</param>
+    internal static PdfMetadata? FromDictionary(PdfDictionary dictionary)
+    {
+        PdfObject? metadataObject = dictionary.GetObject(PdfTokens.MetadataKey);
+        if (metadataObject == null || metadataObject.Reference == null || !metadataObject.HasStream)
+        {
+            return null;
+        }
+
+        return new PdfMetadata(metadataObject, metadataObject.Reference.Value);
+    }
+}

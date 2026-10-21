@@ -1,18 +1,17 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Skia;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
-using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using PdfPixel.Commands.Context;
-using PdfPixel.Commands.Model;
-using PdfPixel.Content.Model;
-using PdfPixel.Imaging.Model;
 using PdfPixel.PdfPanel.Content;
+using PdfPixel.Commands.Execution;
+using PdfPixel.Commands;
+using PdfPixel.Content;
+using PdfPixel.Imaging;
+using PdfPixel.Objects;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 

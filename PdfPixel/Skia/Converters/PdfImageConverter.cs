@@ -1,4 +1,4 @@
-using PdfPixel.Imaging.Model;
+using PdfPixel.Imaging;
 using SkiaSharp;
 using System;
 using System.Runtime.InteropServices;

@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Fonts.Mapping;
 

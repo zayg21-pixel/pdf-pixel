@@ -2,18 +2,17 @@
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
+using PdfPixel.Imaging;
 using PdfPixel.Rendering.Operators;
-using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Shading;
+namespace PdfPixel.Shading.Builder;
 
 internal partial class PdfShadingBuilder
 {
@@ -26,11 +25,11 @@ internal partial class PdfShadingBuilder
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <param name="observer">Execution observer for progress and cancellation.</param>
-    /// <returns>A <see cref="FunctionShadingResult"/> containing the image and matrix, or <see langword="null"/> on failure.</returns>
+    /// <returns>A <see cref="PdfShadingImage"/> containing the image and matrix, or <see langword="null"/> on failure.</returns>
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    public FunctionShadingResult? BuildFunctionBased(
+    public PdfShadingImage? BuildFunctionBased(
         PdfShading shading,
         ColorTransformSampler sampler,
         int defaultFunctionSamples,
@@ -104,6 +103,6 @@ internal partial class PdfShadingBuilder
             ? PdfMatrix.Concat(shadingMatrix.Value, pixelToDomain)
             : pixelToDomain;
 
-        return new FunctionShadingResult(decodedImage, finalMatrix);
+        return new PdfShadingImage(decodedImage, finalMatrix);
     }
 }

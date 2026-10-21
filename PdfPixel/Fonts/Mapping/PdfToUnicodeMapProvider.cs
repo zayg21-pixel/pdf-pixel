@@ -1,6 +1,4 @@
-﻿using PdfPixel.Fonts.Model;
-using PdfPixel.Resources;
-using PdfPixel.Text;
+﻿using PdfPixel.EmbeddedData;
 using System;
 using System.Collections.Generic;
 

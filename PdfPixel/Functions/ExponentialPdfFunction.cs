@@ -1,8 +1,8 @@
 using System;
 using System.Runtime.CompilerServices;
 using PdfPixel.Color.Functions;
-using PdfPixel.Models;
-using PdfPixel.Text;
+using PdfPixel.Objects;
+using PdfPixel.Parsing;
 
 namespace PdfPixel.Functions;
 

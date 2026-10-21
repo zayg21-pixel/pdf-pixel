@@ -1,11 +1,9 @@
-using PdfPixel.Commands.Model;
+using PdfPixel.Commands;
 using PdfPixel.Files;
-using PdfPixel.Models;
-using PdfPixel.OptionalContent.Model;
+using PdfPixel.Objects;
+using PdfPixel.OptionalContent;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
-using PdfPixel.Tagging.Model;
-using PdfPixel.Text;
+using PdfPixel.Tagging;
 using System;
 using System.Collections.Generic;
 

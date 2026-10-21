@@ -1,20 +1,17 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Annotations.Model;
+using PdfPixel.Annotations;
 using PdfPixel.Commands;
-using PdfPixel.Encryption.Model;
 using PdfPixel.Skia;
-using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Substitution;
 using PdfPixel.Skia.Fonts;
 using PdfPixel.Geometry;
-using PdfPixel.Models;
 using SkiaSharp;
 using System.CommandLine;
 using System.Diagnostics;
 using System.Linq;
-using PdfPixel.Commands.Model;
-using PdfPixel.Commands.Context;
-using PdfPixel.Content;
-using PdfPixel.Content.Model;
+using PdfPixel.Commands.Execution;
+using PdfPixel.Text;
+using PdfPixel.Encryption;
 
 namespace PdfPixel.Diagnostics;
 

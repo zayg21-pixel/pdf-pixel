@@ -1,7 +1,7 @@
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
-using PdfPixel.Models;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Color.ColorSpace;
 
