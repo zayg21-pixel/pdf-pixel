@@ -14,7 +14,7 @@ namespace PdfPixel.Transparency;
 /// </summary>
 internal sealed class SoftMaskDrawingScope : IDisposable
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfSoftMask _softMask;
     private readonly PdfGraphicsState _graphicsState;
@@ -25,7 +25,7 @@ internal sealed class SoftMaskDrawingScope : IDisposable
     private bool _disposed;
 
     private SoftMaskDrawingScope(
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         IPdfCommandProcessor processor,
         PdfSoftMask softMask,
         PdfGraphicsState graphicsState,
@@ -55,7 +55,7 @@ internal sealed class SoftMaskDrawingScope : IDisposable
     /// </param>
     /// <returns>The scope, or <see langword="null"/> when no soft mask applies to the content.</returns>
     public static SoftMaskDrawingScope? Begin(
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         IPdfCommandProcessor processor,
         PdfGraphicsState graphicsState,
         in PdfRectangle contentBounds)

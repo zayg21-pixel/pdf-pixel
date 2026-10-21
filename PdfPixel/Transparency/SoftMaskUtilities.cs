@@ -23,7 +23,7 @@ internal static class SoftMaskUtilities
     /// being drawn further up the stack.
     /// </summary>
     public static PdfCommandRecorder? GetMaskFormRecording(
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         PdfSoftMask softMask,
         PdfForm maskForm,
         PdfGraphicsState sourceState,

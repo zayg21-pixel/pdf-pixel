@@ -18,13 +18,13 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class MiscellaneousOperators : IOperatorProcessor
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(IPdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public MiscellaneousOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;

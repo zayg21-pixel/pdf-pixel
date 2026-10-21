@@ -29,7 +29,7 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfAnnotation annotation,
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
@@ -58,7 +58,7 @@ internal static class PdfAnnotationAppearanceRenderer
         in PdfRectangle annotationRect,
         PdfBlendMode? blendMode,
         IPdfPageInternal page,
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {

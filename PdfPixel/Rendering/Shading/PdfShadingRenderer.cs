@@ -14,15 +14,15 @@ namespace PdfPixel.Rendering.Shading;
 /// Draws shadings using parsed <see cref="PdfShading"/> model.
 /// Applies soft mask scope once per shading draw.
 /// </summary>
-public class PdfShadingRenderer : IPdfShadingRenderer
+internal class PdfShadingRenderer
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly ILogger<PdfShadingRenderer> _logger;
 
     /// <summary>
     /// Initializes the renderer with the PDF renderer pipeline and logger factory.
     /// </summary>
-    public PdfShadingRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
+    public PdfShadingRenderer(PdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _logger = loggerFactory.CreateLogger<PdfShadingRenderer>();

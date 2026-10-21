@@ -13,16 +13,16 @@ namespace PdfPixel.Rendering.Path;
 /// and soft mask application. Uses PathPatternPaintTarget to derive an outline path for pattern
 /// rendering in both fill and stroke scenarios.
 /// </summary>
-public class PdfPathRenderer : IPdfPathRenderer
+internal class PdfPathRenderer
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly ILoggerFactory _factory;
     private readonly ILogger<PdfPathRenderer> _logger;
 
     /// <summary>
     /// Initializes the renderer with the PDF renderer pipeline and logger factory.
     /// </summary>
-    public PdfPathRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
+    public PdfPathRenderer(PdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _factory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));

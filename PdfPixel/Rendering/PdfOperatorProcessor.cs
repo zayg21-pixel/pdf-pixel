@@ -14,7 +14,7 @@ namespace PdfPixel.Rendering;
 /// </summary>
 internal class PdfOperatorProcessor
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfOperandStack _operandStack;
@@ -30,7 +30,7 @@ internal class PdfOperatorProcessor
     private readonly ILogger<PdfOperatorProcessor> _logger;
 
     public PdfOperatorProcessor(
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         IPdfContentHost host,
         IPdfCommandProcessor processor,
         PdfOperandStack operandStack,

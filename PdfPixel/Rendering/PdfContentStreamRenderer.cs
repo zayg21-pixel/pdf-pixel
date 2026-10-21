@@ -18,9 +18,9 @@ internal class PdfContentStreamRenderer
 {
     private readonly IPdfContentHost _host;
     private readonly ILogger<PdfContentStreamRenderer> _logger;
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
 
-    public PdfContentStreamRenderer(IPdfRenderer renderer, IPdfContentHost host)
+    public PdfContentStreamRenderer(PdfRenderer renderer, IPdfContentHost host)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _host = host ?? throw new ArgumentNullException(nameof(host));

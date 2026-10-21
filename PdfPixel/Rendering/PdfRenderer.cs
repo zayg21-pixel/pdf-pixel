@@ -21,7 +21,7 @@ namespace PdfPixel.Rendering;
 /// Acts as a facade for the various specialized rendering components.
 /// Updated to use PdfFontBase hierarchy.
 /// </summary>
-public class PdfRenderer : IPdfRenderer
+internal class PdfRenderer
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;

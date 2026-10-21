@@ -1,6 +1,6 @@
 # Great file migration
 
-Folder and namespace layout across the solution, measured against the .NET Framework Design Guidelines. Decisions are made folder by folder; nothing here is moved yet.
+Folder and namespace layout across the solution, measured against the .NET Framework Design Guidelines. Decisions are made folder by folder. The core library (`PdfPixel`) is done; the support assemblies, codecs, panels and tools are still open.
 
 ## Pattern
 
@@ -14,6 +14,13 @@ Folder and namespace layout across the solution, measured against the .NET Frame
 
 Rule of thumb: a folder name that answers "what kind of type is this?" merges up; a folder name that answers "what does this do?" may stay.
 
+Rules settled during the core library pass:
+
+- There is no size rule. A small namespace stays when it is a standalone feature (`Commands.Cache`) or readable internal machinery (`Imaging.Encoding`); it is never merged only for being small.
+- The `PdfPixel` root holds only the document and page model. Everything else is a feature or a sub-feature.
+- A type goes to the feature it describes, not to the dictionary it is stored in (`PdfPermissions` → `Encryption`, `PdfTabOrder` → `Annotations`, output intents → `Color`).
+- Inheritance follows the `PdfAction` shape: the base class carries no `Base` suffix and is also the factory (`PdfAction.GetAction`, `PdfFont.GetFont`, `PdfDecryptor.GetDecryptor`). A factory that is large on its own may stay a separate class (`PdfStructureAttributeFactory`).
+
 References: `PdfPixel/Geometry` (model in the root, `PathOperations` by job) and `PdfPixel.Ccitt` (one namespace, no subfolders).
 
 ## Workflow per folder
@@ -23,63 +30,59 @@ References: `PdfPixel/Geometry` (model in the root, `PathOperations` by job) and
 3. Sync namespaces and references in one pass (Visual Studio "Sync namespaces"). Changing namespaces without updating references breaks the build, so these two always land together.
 4. Build the changed projects, one feature per commit.
 
+Visual Studio runs "Sync namespaces" once per target framework and merges the results, leaving `<<<<<<< TODO: Unmerged change` blocks in files where the runs disagree. Set `<TargetFrameworks>` in `Directory.Build.props` to a single framework while syncing and restore the full list afterwards.
+
 ## Order
 
-1. Core library (`PdfPixel`), folder by folder.
-2. `PdfPixel.Color` and `PdfPixel.Fonts`, next to or right after the core `Color` and `Fonts` folders (namespace collision, see below).
+1. Core library (`PdfPixel`), folder by folder. **Done.**
+2. `PdfPixel.Color` and `PdfPixel.Fonts` (namespace collision, see below).
 3. Codec libraries, one at a time.
 4. Panel projects, tools, demos, tests.
 
-## 1. Core library (`PdfPixel`)
+## 1. Core library (`PdfPixel`) — done
 
-### Root
+All `Model`, `Models` and `Utilities` folders are gone. The core library, the panel libraries and every tool, demo and test project build with no warnings or errors, and the short Gold run matches.
 
-Target: `PdfDocumentReader`, document-wide exceptions (`PdfInvalidDocumentException`), and the document and page model. Exceptions that belong to one feature stay with that feature (`PdfAuthenticationException` → `Encryption`).
+### Final layout
 
-### `Models` (61 files)
-
-Splits into four groups:
-
-| Group | Types | Target |
-|---|---|---|
-| Document and page | `PdfDocument`, `PdfPage`, `IPdfDocument`, `IPdfPage`, `PdfDocumentInformation`, `PdfMetadata`, `PdfPageLayout`, `PdfPageMode`, `PdfPermissions`, `PdfVersion`, `PdfTabOrder`, `PdfMarkInformation`, `PdfSignatureFlags`, `PdfRenderingParameters`, `PageLabelStyle` | root |
-| Object model | `PdfObject`, `PdfDictionary`, `PdfArray`, all `*Value` types, `PdfValue`, `PdfReference`, `PdfString`, `PdfKeyword`, `PdfOperator`, `PdfTrailer`, `PdfCrossReference`, `PdfCrossReferenceSection`, `PdfFileHeader`, `PdfFileIdentifier`, `PdfObjectInfo`, `PdfObjectStreamReference` | new namespace, e.g. `PdfPixel.Objects` (open) |
-| Execution | `PdfClipOperation`, `PdfClipRectangleSource`, `PdfCommandExecutionParameters`, `IPdfExecutionObserver`, `PdfCancellationExecutionObserver` | `Commands` or `Rendering` (open) |
-| Resources | `PdfPageResources`, `PdfResourceDictionary`, `PdfResourceNode`, `PdfXObject`, `PdfXObjectSubtype` | open (name collision with `Resources`, see below) |
-
-Not yet assigned: `IPdfContentHost`, `PdfContentHost`, `IPdfDocumentInternal`, `IPdfPageInternal`, `PdfDocumentObjectCache`, `PdfDeveloperExtension`, `PdfRange`, `PdfArrayExtensions`, `PdfValueExtension`.
-
-### Feature folders
-
-| Today | Target |
+| Namespace | Holds |
 |---|---|
-| `Annotations/Model` (41 public types) | → `Annotations` |
-| `Annotations/Rendering` (all internal) | stays |
-| `Actions/Model` | → `Actions` |
-| `Navigation/Model` | → `Navigation` |
-| `Measures/Model` | → `Measures` |
-| `OptionalContent/Model` | → `OptionalContent` |
-| `Encryption/Model` | → `Encryption`; `Cryptography`, `Decryption` stay |
-| `Content/Model` | → `Content` |
-| `Fonts/Model` | → `Fonts`; `Management`, `Mapping` stay |
-| `Imaging/Model` | → `Imaging`; `Decoding`, `Encoding`, `Processing` stay |
-| `Shading/Model` | → `Shading`; `Builder`, `Decoding` stay |
-| `Pattern/Model` | → `Pattern` |
-| `Pattern/Utilities` (`PdfPatternParser`, `TilingPatternShaderBuilder`, internal) | → `Pattern` root, or a job-named sub-namespace |
-| `Tagging/Model` | → `Tagging` |
-| `Tagging/Model/Attributes` (33 types) | → `Tagging.Attributes`, together with `PdfStructureAttributeFactory` |
-| `Transparency/Model` | → `Transparency` |
-| `Transparency/Utilities` | `SoftMaskDrawingScope` is public → `Transparency`; `SoftMaskUtilities` (internal) → job name or root |
-| `Commands/Model` (30 types) | → `Commands`; `Cache`, `Context`, `Image`, `Processing` stay |
-| `Geometry` | done |
-| `Color`, `Files`, `Forms`, `Functions`, `Streams`, `Rendering`, `Skia` | no `Model` level; review contents only |
+| `PdfPixel` | `PdfDocumentReader`, `PdfInvalidDocumentException`, document and page model (`PdfDocument`, `PdfPage`, their interfaces, `PdfDocumentInformation`, `PdfMetadata`, `PdfMarkInformation`, `PdfVersion`, `PdfDeveloperExtension`, `PdfPageLayout`, `PdfPageMode`, `PageLabelStyle`, `PdfPageLabelResolver`, `PdfRenderingParameters`), content hosts |
+| `Objects` | object model (`PdfObject`, `PdfValue` and every `*Value`, `PdfDictionary`, `PdfArray`, `PdfReference`, `PdfString`, `PdfRange`), file structure (header, trailer, cross-reference, file identifier), `PdfEnum*` attributes, `PdfEncodingExtensions` |
+| `Parsing` | parser, cross-reference and object-stream parsers, content-stream tokens, `PdfTokens` |
+| `Resources` | resource dictionaries and XObjects |
+| `EmbeddedData` | embedded data (`AnnotationIcons.xml`, CMaps, `PdfResourceLoader`, `PdfTextResourceConverter`) |
+| `Actions`, `Annotations`, `Measures`, `Navigation`, `OptionalContent`, `Tagging`, `Transparency`, `Pattern` | model in the feature root |
+| `Annotations.Rendering`, `Tagging.Attributes` | sub-namespaces |
+| `Color` | `PdfColor`, `PdfColors`, output intents, `PdfRenderingIntent`; sub-namespaces `ColorSpace`, `Paint`, `Transform` (all internal) |
+| `Commands` | commands, processors, execution observers and parameters; sub-namespaces `Cache`, `Execution`, `Image`, `Processing` |
+| `Content` | content tree, `PdfContentTreeBuilder`, content extraction |
+| `Text` | text extraction (`PdfTextExtractor`, `PdfWord`, …), text showing (`PdfText`, shaped glyphs), `PdfRichTextContentParser` |
+| `Encryption` | credentials, crypt filters, security handler, `PdfPermissions`; sub-namespaces `Cryptography`, `Decryption` (with `PdfDecryptorParameters`) |
+| `Fonts` | font model, `PdfCharacterCode`, `PdfStandardFontName`, `PdfFontEncodingInfo`; sub-namespaces `Mapping`, `Substitution` |
+| `Imaging` | image model; sub-namespaces `Decoding`, `Encoding`, `Processing` |
+| `Shading` | shading model, `PdfShadingImage`; sub-namespaces `Builder`, `Decoding` |
+| `Rendering` | renderers, `PdfGraphicsState`, `PdfGraphicsStateParameters`; sub-namespaces `Form`, `Image`, `Operators`, `Path`, `Shading`, `Text` |
+| `Streams` | stream filters, `PdfObjectStream`, `PdfStreamDecoder`, `PdfStreamFilter`, the per-filter `PdfDecodeParameters` types |
+| `Files`, `Forms`, `Functions`, `Geometry`, `Skia` | unchanged |
 
-### Open questions
+### Renames made along the way
 
-- **Internal parsers.** `Pattern/Utilities` and `Annotations/Rendering` both hold parsers. Either keep internal parsers in the feature root or give each feature a `Parsing` sub-namespace; one rule everywhere.
-- **`Resources`.** The folder holds embedded data (`AnnotationIcons.xml`, CMaps, `PdfResourceLoader`). The PDF resource dictionary types cannot share the name; one of the two is renamed (e.g. `EmbeddedData` for the data).
-- **`Text`.** Holds `PdfTokens` and the `PdfEnum*` attributes, which are parsing infrastructure, not text.
-- **`Parsing`.** Holds `PdfPageLabelResolver` and `PdfDateParser`, which are not object parsing.
+- `PdfFontBase` → `PdfFont` (absorbs `PdfFontFactory`), `BasePdfDecryptor` → `PdfDecryptor` (absorbs `PdfDecryptorFactory`), `PdfStructureAttributeBase` → `PdfStructureAttribute`.
+- `FunctionShadingResult` → `PdfShadingImage`, `PdfLinearGradient` → `PdfAxialGradient`.
+- `Fonts/Management` → `Fonts/Substitution`, `Commands/Context` → `Commands/Execution`.
+- Pattern: `PatternMatrix` → `Matrix`, `CellResources` → `Resources`, `PaintTypeKind` → `PaintType`, `TilingTypeKind` → `TilingType`, `PdfTilingSpacingType` → `PdfTilingType`, `TilingPatternShaderBuilder` → `TilingPatternCellRenderer`. `PaintType` and `TilingType` are nullable; `Unknown` is never produced.
+
+### Resolved questions
+
+- **Internal parsers** stay with their feature (`PdfPatternParser` in the `Pattern` root, annotation parsers in `Annotations.Rendering`).
+- **`Resources`** now holds the PDF resource dictionaries; the embedded data moved to `EmbeddedData`.
+- **`Text`** holds text extraction and text showing; `PdfTokens` moved to `Parsing`, the `PdfEnum*` types to `Objects`.
+- **`Parsing`** holds only parsing; `PdfPageLabelResolver` moved to the root. `PdfDateParser` stays: parsing the date format is parsing.
+
+### Placed differently from the first proposal
+
+- `PdfSignatureFlags` is in `Forms`.
 
 ## 2. `PdfPixel.Color` and `PdfPixel.Fonts`
 
@@ -87,11 +90,9 @@ The core library references both, and they share namespaces with it:
 
 | Namespace | In `PdfPixel` | Also in |
 |---|---|---|
-| `PdfPixel.Color.Transform` | 3 files | `PdfPixel.Color` (8 files) |
-| `PdfPixel.Fonts.Model` | 20 files | `PdfPixel.Fonts` (10 files) |
+| `PdfPixel.Color.Transform` | 3 files, all internal | `PdfPixel.Color` (8 files) |
+| `PdfPixel.Fonts.Model` | none (merged into `PdfPixel.Fonts`) | `PdfPixel.Fonts` (10 files) |
 | `PdfPixel.Color`, `PdfPixel.Fonts` | feature folders | assembly names |
-
-Once core `Fonts/Model` merges into `PdfPixel.Fonts`, the assembly's `PdfPixel.Fonts.Model` still remains under the old name.
 
 Options:
 

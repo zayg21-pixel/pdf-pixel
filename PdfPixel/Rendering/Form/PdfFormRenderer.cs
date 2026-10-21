@@ -13,15 +13,15 @@ namespace PdfPixel.Rendering.Form;
 /// <summary>
 /// Standard implementation of Form renderer for rendering PDF Form XObjects.
 /// </summary>
-public class PdfFormRenderer : IPdfFormRenderer
+internal class PdfFormRenderer
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly ILoggerFactory _loggerFactory;
 
     /// <summary>
     /// Initializes the renderer with the PDF renderer pipeline and logger factory.
     /// </summary>
-    public PdfFormRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
+    public PdfFormRenderer(PdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer;
         _loggerFactory = loggerFactory;

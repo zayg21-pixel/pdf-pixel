@@ -14,12 +14,12 @@ namespace PdfPixel.Rendering.Text;
 /// <summary>
 /// Manages text drawing with proper selection and positioning.
 /// </summary>
-public class PdfTextRenderer : IPdfTextRenderer
+internal class PdfTextRenderer
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly ILogger<PdfTextRenderer> _logger;
 
-    internal PdfTextRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
+    public PdfTextRenderer(PdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         if (loggerFactory == null)

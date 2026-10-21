@@ -284,7 +284,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
@@ -339,7 +339,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
@@ -410,7 +410,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
-        IPdfRenderer renderer,
+        PdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {

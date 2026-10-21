@@ -14,12 +14,12 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class InlineImageOperators : IOperatorProcessor
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
 
-    public InlineImageOperators(IPdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public InlineImageOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;

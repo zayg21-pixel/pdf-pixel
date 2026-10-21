@@ -14,7 +14,7 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class PathOperators : IOperatorProcessor
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfPathBuilder _currentPath;
@@ -24,7 +24,7 @@ internal class PathOperators : IOperatorProcessor
     private PdfPoint _lastPoint;
     private PdfPoint _subPathStart;
 
-    public PathOperators(IPdfRenderer renderer, PdfOperandStack operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfContentHost host)
+    public PathOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfContentHost host)
     {
         _renderer = renderer;
         _operandStack = operandStack;

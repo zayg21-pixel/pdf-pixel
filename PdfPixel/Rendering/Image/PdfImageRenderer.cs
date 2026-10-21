@@ -11,15 +11,15 @@ namespace PdfPixel.Rendering.Image;
 /// Standard PDF image renderer supporting normal images, image masks, and soft masks.
 /// Delegates rendering to <see cref="PdfImageFillRenderTarget"/> which handles decoding, shader creation, and blending.
 /// </summary>
-public class PdfImageRenderer : IPdfImageRenderer
+internal class PdfImageRenderer
 {
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly ILoggerFactory _factory;
 
     /// <summary>
     /// Initializes the renderer with the PDF renderer pipeline and logger factory.
     /// </summary>
-    public PdfImageRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
+    public PdfImageRenderer(PdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _factory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));

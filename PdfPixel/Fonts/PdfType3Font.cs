@@ -112,7 +112,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// <param name="renderer">Renderer executing the glyph description.</param>
     /// <param name="sourceState">Graphics state of the text-showing operator.</param>
     /// <returns>The glyph recorded in glyph space, or null when the character is undefined or recursive.</returns>
-    internal PdfCommandRecorder? RecordCharacter(PdfType3CharacterInfo info, IPdfRenderer renderer, PdfGraphicsState sourceState)
+    internal PdfCommandRecorder? RecordCharacter(PdfType3CharacterInfo info, PdfRenderer renderer, PdfGraphicsState sourceState)
     {
         if (!info.IsDefined || sourceState.RecursionGuard.Contains(info.ObjectNumber))
         {

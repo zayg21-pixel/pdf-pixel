@@ -17,13 +17,13 @@ internal class TextOperators : IOperatorProcessor
 {
     private readonly ShapedGlyphBuffer _glyphBuffer = new();
 
-    private readonly IPdfRenderer _renderer;
+    private readonly PdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfOperandStack _operandStack;
     private readonly ILogger<TextOperators> _logger;
 
-    public TextOperators(IPdfRenderer renderer, IPdfContentHost host, IPdfCommandProcessor processor, PdfOperandStack operandStack)
+    public TextOperators(PdfRenderer renderer, IPdfContentHost host, IPdfCommandProcessor processor, PdfOperandStack operandStack)
     {
         _renderer = renderer;
         _host = host;
