@@ -589,7 +589,49 @@ internal static class PdfTokens
     public static readonly PdfString UserNameKey = (PdfString)"Name"u8;                 // Usage user name text string or array
     public static readonly PdfString PageElementKey = (PdfString)"PageElement"u8;
 
+    // Viewport dictionary keys
+    public static readonly PdfString ViewportNameKey = (PdfString)"Name"u8;             // Viewport title text string
+    public static readonly PdfString PointDataKey = (PdfString)"PtData"u8;              // Point data dictionary or array
+
+    // Measure dictionary keys
+    public static readonly PdfString ScaleRatioKey = (PdfString)"R"u8;                  // Rectilinear scale ratio text
+    public static readonly PdfString MeasureXKey = (PdfString)"X"u8;                    // Number formats along the x axis
+    public static readonly PdfString MeasureYKey = (PdfString)"Y"u8;                    // Number formats along the y axis
+    public static readonly PdfString DistanceFormatKey = (PdfString)"D"u8;              // Number formats for distance
+    public static readonly PdfString AreaFormatKey = (PdfString)"A"u8;                  // Number formats for area
+    public static readonly PdfString AngleFormatKey = (PdfString)"T"u8;                 // Number formats for angles
+    public static readonly PdfString SlopeFormatKey = (PdfString)"S"u8;                 // Number formats for slope
+    public static readonly PdfString MeasureOriginKey = (PdfString)"O"u8;               // Measuring coordinate system origin
+    public static readonly PdfString YToXFactorKey = (PdfString)"CYX"u8;                // Y units to x units factor
+    public static readonly PdfString CoordinateSystemKey = (PdfString)"GCS"u8;          // Geographic or projected coordinate system
+    public static readonly PdfString DisplayCoordinateSystemKey = (PdfString)"DCS"u8;   // Display coordinate system
+    public static readonly PdfString PreferredDisplayUnitsKey = (PdfString)"PDU"u8;     // Linear, area and angular display units
+    public static readonly PdfString GeographicPointsKey = (PdfString)"GPTS"u8;         // Geographic or projected point coordinates
+    public static readonly PdfString LocalPointsKey = (PdfString)"LPTS"u8;              // Unit square point coordinates
+    public static readonly PdfString ProjectedCoordinateSystemMatrixKey = (PdfString)"PCSM"u8; // 12-element projection matrix
+
+    // Number format dictionary keys
+    public static readonly PdfString UnitLabelKey = (PdfString)"U"u8;                   // Unit label text
+    public static readonly PdfString ConversionFactorKey = (PdfString)"C"u8;            // Conversion factor
+    public static readonly PdfString FractionFormatKey = (PdfString)"F"u8;              // Fractional value display (D, F, R, T)
+    public static readonly PdfString PrecisionKey = (PdfString)"D"u8;                   // Decimal precision or fraction denominator
+    public static readonly PdfString FixedDenominatorKey = (PdfString)"FD"u8;           // Fraction not reduced, zeros not truncated
+    public static readonly PdfString ThousandsSeparatorKey = (PdfString)"RT"u8;         // Text between orders of thousands
+    public static readonly PdfString DecimalSeparatorKey = (PdfString)"RD"u8;           // Text at the decimal position
+    public static readonly PdfString LabelPrefixKey = (PdfString)"PS"u8;                // Text before the unit label
+    public static readonly PdfString LabelSuffixKey = (PdfString)"SS"u8;                // Text after the unit label
+    public static readonly PdfString LabelPositionKey = (PdfString)"O"u8;               // Unit label position (S, P)
+
+    // Coordinate system dictionary keys
+    public static readonly PdfString EpsgKey = (PdfString)"EPSG"u8;                     // EPSG reference code
+    public static readonly PdfString WellKnownTextKey = (PdfString)"WKT"u8;             // Well Known Text description
+
+    // Point data dictionary keys
+    public static readonly PdfString PointDataNamesKey = (PdfString)"Names"u8;          // Names of the point tuple members
+    public static readonly PdfString PointsKey = (PdfString)"XPTS"u8;                   // Point tuples
+
     // Page object keys
+    public static readonly PdfString ViewportsKey = (PdfString)"VP"u8;
     public static readonly PdfString LastModifiedKey = (PdfString)"LastModified"u8;
     public static readonly PdfString DurKey = (PdfString)"Dur"u8;
     public static readonly PdfString TabsKey = (PdfString)"Tabs"u8;

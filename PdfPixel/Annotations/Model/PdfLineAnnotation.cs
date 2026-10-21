@@ -3,6 +3,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
+using PdfPixel.Measures.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -44,12 +45,12 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
         LeaderLineLength = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineKey);
         LeaderLineExtension = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineExtensionKey);
         LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
+        Measure = PdfMeasure.GetMeasure(annotationObject.Dictionary, PdfTokens.MeasureKey);
         StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
-        // TODO: [MEDIUM] Not parsed, so the line is drawn without its caption or measurement:
+        // TODO: [MEDIUM] Not parsed, so the line is drawn without its caption:
         // - whether the Contents text is shown as a caption on the line (Cap)
         // - caption position, centered inside the line or on top of it (CP)
         // - caption offset from its default position (CO)
-        // - measurement dictionary for dimension lines, units and scale (Measure)
     }
 
     /// <summary>
@@ -123,6 +124,11 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// Gets the leader line offset.
     /// </summary>
     public float? LeaderLineOffset { get; }
+
+    /// <summary>
+    /// Gets the scale and units that apply to the line (/Measure), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfMeasure? Measure { get; }
 
     /// <summary>
     /// Gets the stroke style used to draw the line, falling back to defaults when no BS/Border entry is present.

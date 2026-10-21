@@ -4,6 +4,7 @@ using PdfPixel.Annotations;
 using PdfPixel.Annotations.Model;
 using PdfPixel.Files;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Measures.Model;
 using PdfPixel.Navigation.Model;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
@@ -92,6 +93,7 @@ internal class PdfPage : IPdfPageInternal
         _transparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(pageObject.Dictionary, PdfTokens.GroupKey);
         Thumbnail = PdfImage.GetImage(pageDictionary, PdfTokens.ThumbnailKey);
         Beads = PdfBead.FromPage(pageDictionary);
+        Viewports = PdfViewport.FromPage(pageDictionary);
 
         UserUnit = pageDictionary.GetFloat(PdfTokens.UserUnitKey) ?? 1f;
         StructParents = pageDictionary.GetInteger(PdfTokens.StructParentsKey);
@@ -168,6 +170,9 @@ internal class PdfPage : IPdfPageInternal
 
     /// <inheritdoc/>
     public IReadOnlyList<PdfBead> Beads { get; }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<PdfViewport> Viewports { get; }
 
     PdfResourceNode IPdfContentHost.Resources => _resources;
 

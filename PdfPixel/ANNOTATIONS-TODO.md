@@ -16,17 +16,7 @@ Text laid out along the line:
 
 File: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`
 
-## 2. Measurement
-
-One shared measurement model (`Measure`: units and scale), used by the dimension annotations:
-
-- Line: `IT /LineDimension`
-- Polygon: `IT /PolygonDimension`
-- PolyLine: `IT /PolyLineDimension`
-
-Files: `PdfPixel/Annotations/Model/PdfLineAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolygonAnnotation.cs`, `PdfPixel/Annotations/Model/PdfPolyLineAnnotation.cs`, plus a new model type.
-
-## 3. View-dependent flags
+## 2. View-dependent flags
 
 Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel. Hover rectangles have to follow the same view state.
 

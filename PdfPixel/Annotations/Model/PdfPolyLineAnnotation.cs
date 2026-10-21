@@ -3,6 +3,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
+using PdfPixel.Measures.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -25,7 +26,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     public PdfPolyLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.PolyLine)
     {
-        Vertices = PdfAnnotationGeometry.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
+        Vertices = PdfPoint.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
         Path = PdfAnnotationGeometry.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
 
         if (Path != null)
@@ -46,8 +47,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
 
         BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
         StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
-        // TODO: [MEDIUM] Not parsed, so the polyline is drawn as a plain line without its measurement:
-        // - measurement dictionary for dimension polylines, units and scale (Measure)
+        Measure = PdfMeasure.GetMeasure(annotationObject.Dictionary, PdfTokens.MeasureKey);
     }
 
     /// <summary>
@@ -102,6 +102,11 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     /// Gets the parsed border effect (BE entry).
     /// </summary>
     public PdfAnnotationBorderEffect BorderEffect { get; }
+
+    /// <summary>
+    /// Gets the scale and units that apply to the polyline (/Measure), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfMeasure? Measure { get; }
 
     /// <summary>
     /// Gets the polyline that is drawn: <see cref="Path"/> when present, otherwise <see cref="Vertices"/>.

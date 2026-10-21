@@ -1,6 +1,7 @@
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
+using PdfPixel.Measures.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -22,7 +23,7 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
     public PdfPolygonAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Polygon)
     {
-        Vertices = PdfAnnotationGeometry.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
+        Vertices = PdfPoint.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
         Path = PdfAnnotationGeometry.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
 
         if (Path != null)
@@ -34,8 +35,7 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
             DrawingPath = PdfAnnotationGeometry.CreatePolygonPath(Vertices);
         }
 
-        // TODO: [MEDIUM] Not parsed, so the polygon is drawn as a plain shape without its measurement:
-        // - measurement dictionary for dimension polygons, units and scale (Measure)
+        Measure = PdfMeasure.GetMeasure(annotationObject.Dictionary, PdfTokens.MeasureKey);
     }
 
     /// <summary>
@@ -72,6 +72,11 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
     /// Gets the polygon outline built from path operators, PDF 2.0, or null when absent or malformed.
     /// </summary>
     public PdfPath? Path { get; }
+
+    /// <summary>
+    /// Gets the scale and units that apply to the polygon (/Measure), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfMeasure? Measure { get; }
 
     /// <summary>
     /// Gets the closed outline that is drawn: <see cref="Path"/> when present, otherwise <see cref="Vertices"/>.

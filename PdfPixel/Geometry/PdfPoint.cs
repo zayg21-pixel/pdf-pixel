@@ -54,6 +54,29 @@ public readonly struct PdfPoint : IEquatable<PdfPoint>
         return new PdfPoint(array.GetFloatOrDefault(0), array.GetFloatOrDefault(1));
     }
 
+    /// <summary>
+    /// Parses an array of alternating x and y coordinates into points.
+    /// </summary>
+    /// <param name="pointArray">The coordinate array, or null.</param>
+    /// <returns>The parsed points, or an empty array if <paramref name="pointArray"/> is null. A trailing unpaired coordinate is ignored.</returns>
+    public static PdfPoint[] ParsePoints(PdfArray? pointArray)
+    {
+        if (pointArray == null)
+        {
+            return Array.Empty<PdfPoint>();
+        }
+
+        float[] coordinates = pointArray.GetFloatArray();
+        var points = new PdfPoint[coordinates.Length / 2];
+
+        for (int index = 0; index < points.Length; index++)
+        {
+            points[index] = new PdfPoint(coordinates[index * 2], coordinates[(index * 2) + 1]);
+        }
+
+        return points;
+    }
+
     /// <inheritdoc/>
     public bool Equals(PdfPoint other) => X == other.X && Y == other.Y;
 

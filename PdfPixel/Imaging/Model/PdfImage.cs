@@ -3,6 +3,7 @@ using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Encoding;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Measures.Model;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
@@ -17,10 +18,14 @@ namespace PdfPixel.Imaging.Model;
 /// </summary>
 public class PdfImage : PdfXObject
 {
+    private readonly PdfDictionary _dictionary;
+    private List<PdfPointData>? _pointData;
+
     internal PdfImage(PdfObject imageXObject, in PdfReference reference, bool isInlineImage)
         : base(imageXObject, reference, PdfXObjectSubtype.Image)
     {
         PdfDictionary dictionary = imageXObject.Dictionary;
+        _dictionary = dictionary;
         IsInlineImage = isInlineImage;
         Stream = imageXObject.Stream;
 
@@ -91,6 +96,7 @@ public class PdfImage : PdfXObject
         }
 
         SoftMask = GetImage(dictionary, PdfTokens.SoftMaskKey);
+        Measure = PdfMeasure.GetMeasure(dictionary, PdfTokens.MeasureKey);
     }
 
     /// <summary>
@@ -182,6 +188,24 @@ public class PdfImage : PdfXObject
     /// Null when /Mask is not an image XObject reference.
     /// </summary>
     public PdfImage? Mask { get; }
+
+    /// <summary>
+    /// Scale and units that apply to the image (/Measure), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfMeasure? Measure { get; }
+
+    /// <summary>
+    /// Returns the extended geospatial data of the image (/PtData). Empty when absent.
+    /// </summary>
+    public IReadOnlyList<PdfPointData> GetPointData()
+    {
+        if (_pointData == null)
+        {
+            _pointData = PdfPointData.FromOwner(_dictionary);
+        }
+
+        return _pointData;
+    }
 
     /// <summary>
     /// Decodes the whole image to 8-bit pixels at its stored size, or reduced to fit within

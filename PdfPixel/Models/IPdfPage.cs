@@ -4,6 +4,7 @@ using PdfPixel.Commands.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Files;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Measures.Model;
 using PdfPixel.Navigation.Model;
 using System;
 using System.Collections.Generic;
@@ -116,6 +117,11 @@ public interface IPdfPage : IPdfAssociatedFilesHost
     /// Article beads on the page (/B) in drawing order. Empty if the page has none.
     /// </summary>
     IReadOnlyList<PdfBead> Beads { get; }
+
+    /// <summary>
+    /// Viewports on the page (/VP) in drawing order. Empty if the page has none.
+    /// </summary>
+    IReadOnlyList<PdfViewport> Viewports { get; }
 
     /// <summary>
     /// Returns the annotations of the page (/Annots) in array order, each bound to the page.

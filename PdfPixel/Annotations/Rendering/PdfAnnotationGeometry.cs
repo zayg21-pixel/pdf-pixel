@@ -5,34 +5,11 @@ using System;
 namespace PdfPixel.Annotations.Rendering;
 
 /// <summary>
-/// Annotation geometry: parses point lists (Vertices, InkList), quadrilaterals (QuadPoints) and path operator
+/// Annotation geometry: parses stroke lists (InkList), quadrilaterals (QuadPoints) and path operator
 /// arrays (Path), and measures the paths built from them.
 /// </summary>
 internal static class PdfAnnotationGeometry
 {
-    /// <summary>
-    /// Parses an array of alternating x and y coordinates into points.
-    /// </summary>
-    /// <param name="pointArray">The coordinate array, or null.</param>
-    /// <returns>The parsed points, or an empty array if <paramref name="pointArray"/> is null. A trailing unpaired coordinate is ignored.</returns>
-    public static PdfPoint[] ParsePoints(PdfArray? pointArray)
-    {
-        if (pointArray == null)
-        {
-            return Array.Empty<PdfPoint>();
-        }
-
-        float[] coordinates = pointArray.GetFloatArray();
-        var points = new PdfPoint[coordinates.Length / 2];
-
-        for (int index = 0; index < points.Length; index++)
-        {
-            points[index] = new PdfPoint(coordinates[index * 2], coordinates[(index * 2) + 1]);
-        }
-
-        return points;
-    }
-
     /// <summary>
     /// Parses an array of point arrays (InkList entry) into one point list per stroke.
     /// </summary>
@@ -49,7 +26,7 @@ internal static class PdfAnnotationGeometry
 
         for (int index = 0; index < inkList.Count; index++)
         {
-            strokes[index] = ParsePoints(inkList.GetArray(index));
+            strokes[index] = PdfPoint.ParsePoints(inkList.GetArray(index));
         }
 
         return strokes;

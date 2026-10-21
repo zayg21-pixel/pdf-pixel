@@ -1,9 +1,11 @@
 using PdfPixel.Geometry;
+using PdfPixel.Measures.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
+using System.Collections.Generic;
 
 namespace PdfPixel.Forms;
 
@@ -12,10 +14,14 @@ namespace PdfPixel.Forms;
 /// </summary>
 public sealed class PdfForm : PdfXObject
 {
+    private readonly PdfDictionary _dictionary;
+    private List<PdfPointData>? _pointData;
+
     internal PdfForm(PdfObject xObject, in PdfReference reference)
         : base(xObject, reference, PdfXObjectSubtype.Form)
     {
         PdfDictionary dictionary = xObject.Dictionary;
+        _dictionary = dictionary;
         Matrix = PdfMatrix.FromArray(dictionary.GetArray(PdfTokens.MatrixKey)) ?? PdfMatrix.Identity;
         BBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey)) ?? PdfRectangle.Empty;
         TransparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(dictionary, PdfTokens.GroupKey);
@@ -26,6 +32,7 @@ public sealed class PdfForm : PdfXObject
         }
 
         StructParents = dictionary.GetInteger(PdfTokens.StructParentsKey);
+        Measure = PdfMeasure.GetMeasure(dictionary, PdfTokens.MeasureKey);
         Stream = xObject.Stream;
     }
 
@@ -45,6 +52,11 @@ public sealed class PdfForm : PdfXObject
     public PdfTransparencyGroup? TransparencyGroup { get; }
 
     /// <summary>
+    /// Scale and units that apply to the form (/Measure), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfMeasure? Measure { get; }
+
+    /// <summary>
     /// The form's resource dictionary (/Resources), or <see langword="null"/> when absent.
     /// </summary>
     internal PdfResourceNode? Resources { get; }
@@ -58,6 +70,19 @@ public sealed class PdfForm : PdfXObject
     /// The form's content stream.
     /// </summary>
     internal PdfObjectStream Stream { get; }
+
+    /// <summary>
+    /// Returns the extended geospatial data of the form (/PtData). Empty when absent.
+    /// </summary>
+    public IReadOnlyList<PdfPointData> GetPointData()
+    {
+        if (_pointData == null)
+        {
+            _pointData = PdfPointData.FromOwner(_dictionary);
+        }
+
+        return _pointData;
+    }
 
     /// <summary>
     /// Creates a <see cref="PdfContentHost"/> for this form's content stream, resolving against the form's own
