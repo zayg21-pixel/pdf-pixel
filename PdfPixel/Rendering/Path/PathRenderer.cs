@@ -87,28 +87,23 @@ public class PathRenderer : IPathRenderer
             {
                 PathStrokeRenderTarget target = new(path, state);
 
-                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, target.Bounds);
-                softMaskScope.BeginDrawContent();
+                using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, target.Bounds);
                 target.Render(processor);
-                softMaskScope.EndDrawContent();
                 break;
             }
             case PdfPaintOperation.Fill:
             {
                 PathFillRenderTarget target = new(path, state);
 
-                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, target.Bounds);
-                softMaskScope.BeginDrawContent();
+                using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, target.Bounds);
                 target.Render(processor);
-                softMaskScope.EndDrawContent();
                 break;
             }
             case PdfPaintOperation.FillAndStroke:
             {
                 PathStrokeRenderTarget strokeTarget = new(path, state);
 
-                using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, strokeTarget.Bounds);
-                softMaskScope.BeginDrawContent();
+                using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, strokeTarget.Bounds);
 
                 bool overlapAffectsCompositing = state.FillPaint.RequiresComposition
                     || state.StrokePaint.RequiresComposition;
@@ -130,7 +125,6 @@ public class PathRenderer : IPathRenderer
                 }
 
                 strokeTarget.Render(processor);
-                softMaskScope.EndDrawContent();
                 break;
             }
         }

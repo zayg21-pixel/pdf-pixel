@@ -94,8 +94,7 @@ public class FormRenderer : IFormRenderer
     {
         PdfRectangle contentBounds = formXObject.Matrix.MapRect(formXObject.BoundingBox);
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, graphicsState, contentBounds);
-        softMaskScope.BeginDrawContent();
+        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, graphicsState, contentBounds);
 
         processor.Process(SaveStateCommand.Instance);
 
@@ -151,7 +150,5 @@ public class FormRenderer : IFormRenderer
         }
 
         processor.Process(RestoreStateCommand.Instance);
-
-        softMaskScope.EndDrawContent();
     }
 }

@@ -19,19 +19,35 @@ public sealed class SoftMaskDrawingScope : IDisposable
 {
     private readonly IPdfRenderer _renderer;
     private readonly IPdfCommandProcessor _processor;
-    private readonly PdfSoftMask? _softMask;
+    private readonly PdfSoftMask _softMask;
     private readonly PdfGraphicsState _graphicsState;
-    private readonly PdfRectangle _contentBounds;
+    private readonly PdfRectangle _layerBounds;
+    private readonly PdfMatrix _maskMatrix;
+    private readonly PdfMatrix _worldToMaskForm;
 
-    private PdfRectangle _layerBounds;
-    private PdfMatrix _maskMatrix;
-    private PdfMatrix _worldToMaskForm;
-    private bool _began;
-    private bool _shouldApplyMask;
     private bool _disposed;
 
+    private SoftMaskDrawingScope(
+        IPdfRenderer renderer,
+        IPdfCommandProcessor processor,
+        PdfSoftMask softMask,
+        PdfGraphicsState graphicsState,
+        in PdfRectangle layerBounds,
+        in PdfMatrix maskMatrix,
+        in PdfMatrix worldToMaskForm)
+    {
+        _renderer = renderer;
+        _processor = processor;
+        _softMask = softMask;
+        _graphicsState = graphicsState;
+        _layerBounds = layerBounds;
+        _maskMatrix = maskMatrix;
+        _worldToMaskForm = worldToMaskForm;
+    }
+
     /// <summary>
-    /// Create a new soft mask drawing scope.
+    /// Begins a drawing scope that applies the soft mask of the graphics state to the content drawn until
+    /// the scope is disposed.
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="processor">Command processor to emit drawing commands through.</param>
@@ -40,7 +56,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
     /// Area the content about to be drawn can reach, in current user space, which the mask layers are
     /// confined to. Content with no extent of its own passes <see cref="PdfGraphicsState.GetUserSpaceClipBounds"/>.
     /// </param>
-    public SoftMaskDrawingScope(
+    /// <returns>The scope, or <see langword="null"/> when no soft mask applies to the content.</returns>
+    public static SoftMaskDrawingScope? Begin(
         IPdfRenderer renderer,
         IPdfCommandProcessor processor,
         PdfGraphicsState graphicsState,
@@ -51,68 +68,40 @@ public sealed class SoftMaskDrawingScope : IDisposable
             throw new ArgumentNullException(nameof(graphicsState));
         }
 
-        _renderer = renderer;
-        _processor = processor;
-        _softMask = graphicsState.SoftMask;
-        _graphicsState = graphicsState;
-        _contentBounds = contentBounds;
+        PdfSoftMask? softMask = graphicsState.SoftMask;
+
+        if (processor == null || softMask == null || !graphicsState.RenderingParameters.RenderContent)
+        {
+            return null;
+        }
+
+        PdfMatrix inverseCtm = graphicsState.CTM.Invert();
+        PdfMatrix worldToMaskForm = PdfMatrix.Concat(graphicsState.SoftMaskCTM, softMask.MaskForm.Matrix);
+        PdfMatrix maskMatrix = PdfMatrix.Concat(inverseCtm, worldToMaskForm);
+        PdfRectangle layerBounds = PdfRectangle.Intersect(inverseCtm.MapRect(graphicsState.ClipBounds), contentBounds);
+
+        if (layerBounds.IsEmpty)
+        {
+            return null;
+        }
+
+        processor.Process(new SaveLayerCommand(layerBounds));
+
+        return new SoftMaskDrawingScope(renderer, processor, softMask, graphicsState, layerBounds, maskMatrix, worldToMaskForm);
     }
 
     /// <summary>
-    /// Begins the drawing scope. If a valid soft mask is provided, creates a layer to capture content.
+    /// Composites the soft mask onto the content drawn since <see cref="Begin"/> and restores the layers
+    /// the scope opened.
     /// </summary>
-    public void BeginDrawContent()
+    public void Dispose()
     {
-        if (_began)
+        if (_disposed)
         {
             return;
         }
 
-        _began = true;
-
-        if (_processor == null)
-        {
-            return;
-        }
-
-        _shouldApplyMask = true;
-
-        if (_softMask == null || !_graphicsState.RenderingParameters.RenderContent)
-        {
-            _shouldApplyMask = false;
-            return;
-        }
-
-        PdfMatrix inverseCtm = _graphicsState.CTM.Invert();
-
-        _worldToMaskForm = PdfMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
-        _maskMatrix = PdfMatrix.Concat(inverseCtm, _worldToMaskForm);
-        _layerBounds = PdfRectangle.Intersect(inverseCtm.MapRect(_graphicsState.ClipBounds), _contentBounds);
-
-        if (_layerBounds.IsEmpty)
-        {
-            _shouldApplyMask = false;
-            return;
-        }
-
-        _processor.Process(new SaveLayerCommand(_layerBounds));
-    }
-
-    /// <summary>
-    /// Ends the drawing scope. When a soft mask is active, composites it onto the content drawn since
-    /// <see cref="BeginDrawContent"/> and restores the layers it opened.
-    /// </summary>
-    public void EndDrawContent()
-    {
-        if (!_began)
-        {
-            return;
-        }
-
-        if (!_shouldApplyMask || _softMask == null)
-        {
-            return;
-        }
+        _disposed = true;
 
         PdfCommandRecorder recorder = new();
         recorder.Process(SaveStateCommand.Instance);
@@ -153,23 +142,5 @@ public sealed class SoftMaskDrawingScope : IDisposable
         _processor.Process(RestoreLayerCommand.Instance);
 
         _processor.Process(RestoreLayerCommand.Instance);
-        _shouldApplyMask = false;
-    }
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-
-        // Ensure proper teardown if the caller forgot to call EndDrawContent.
-        if (_began && _shouldApplyMask)
-        {
-            EndDrawContent();
-        }
     }
 }

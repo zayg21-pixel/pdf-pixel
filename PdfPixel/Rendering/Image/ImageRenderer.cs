@@ -80,8 +80,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, target.Bounds);
-        softMaskScope.BeginDrawContent();
+        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, target.Bounds);
 
         target.Render(processor);
     }

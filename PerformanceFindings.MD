@@ -43,7 +43,10 @@ Sizes are the share of the run's allocations or samples.
   - Done: `internal readonly struct CffValue` (type + one `int`, reals as bits), modeled on `PdfContentStreamValue`; all three readers use `TryReadNextValue(out CffValue)`; `ICffValue` and `CffValue<T>` removed.
   - Short `analyze` after a warm-up run: baseline 26.8 / 27.1 / 27.2 s, change 26.8 / 27.6 / 28.4 s. No gain beyond run-to-run noise.
   - SFNT checked: `GlyphPoint`, `SfntGlyphRange` and `SfntGlyfSource` are already structs; its allocations are per-glyph and per-font arrays. Only side finding: `SfntLocaProcessor.ResolveRanges` always sorts the loca indices with a comparison lambda, even when the offsets are already ascending (~0.7% CPU).
-- [ ] **3. Shaped glyph copies** — `PdfTextRenderer`. `shapingResult.ToArray()` at three call sites, plus the `ShapedGlyph[]` and `PdfCharacter[]` arrays built per draw. ~226 MB of `ShapedGlyph[]`, ~61 MB of `PdfCharacter[]`.
+- [x] **3. Shaped glyph copies** — `PdfTextRenderer`. `shapingResult.ToArray()` at three call sites, plus the `ShapedGlyph[]` and `PdfCharacter[]` arrays built per draw. ~226 MB of `ShapedGlyph[]`, ~61 MB of `PdfCharacter[]`.
+  - Investigated, no change. Each fill makes exactly one copy, owned by `DrawShapedTextCommand` (recordings keep commands); the three `ToArray()` sites are separate branches, never two copies of one run. `PdfCharacter[]` is likewise owned by its `PdfContentCommand`.
+  - `TextOperators._glyphBuffer` is created per `RenderContext`, so it regrows for every form and Type 3 glyph (~37 MB). Sharing it is unsafe: a Type 3 glyph renders a nested content stream while the outer run still reads the buffer.
+  - Gold renders with the default `ExtractContent = true`, so `PdfCharacter[]`, `PdfContentItem` and the content tree (~160 MB) are built on every page even though Gold only draws.
 - [ ] **4. Soft mask scope per path** — `PathRenderer.DrawPath`. A `SoftMaskDrawingScope` class is allocated for every path drawn, even when there is no soft mask. ~105 MB.
 - [ ] **5. Character codes** — `PdfSingleByteFont.ExtractCharacterCodes`. `PdfCharacterCode` is a sealed class created once per character. ~95 MB.
 - [ ] **6. CID to GID map** — `PdfCidToGidMap.ParseStreamData`. A `Dictionary<uint, ushort>` holds a dense map of at most 65,536 CIDs. ~51 MB.

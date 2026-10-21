@@ -103,8 +103,7 @@ public class PdfTextRenderer : IPdfTextRenderer
 
             PdfRectangle contentBounds = TextRenderUtilities.GetType3Bounds(glyphsSpan, type3Font, fullTextMatrix) ?? state.GetUserSpaceClipBounds();
 
-            using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, contentBounds);
-            softMaskScope.BeginDrawContent();
+            using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, contentBounds);
 
             // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
             processor.Process(SaveStateCommand.Instance);
@@ -129,8 +128,6 @@ public class PdfTextRenderer : IPdfTextRenderer
             }
 
             processor.Process(RestoreStateCommand.Instance);
-
-            softMaskScope.EndDrawContent();
         }
 
         if (state.RenderingParameters.ExtractContent)
@@ -235,10 +232,8 @@ public class PdfTextRenderer : IPdfTextRenderer
     {
         TextFillRenderTarget textFillTarget = new(shapingResult.ToArray(), state);
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textFillTarget.Bounds);
-        softMaskScope.BeginDrawContent();
+        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, textFillTarget.Bounds);
         textFillTarget.Render(processor);
-        softMaskScope.EndDrawContent();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -246,10 +241,8 @@ public class PdfTextRenderer : IPdfTextRenderer
     {
         TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textStrokeTarget.Bounds);
-        softMaskScope.BeginDrawContent();
+        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, textStrokeTarget.Bounds);
         textStrokeTarget.Render(processor);
-        softMaskScope.EndDrawContent();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -257,8 +250,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     {
         TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, textStrokeTarget.Bounds);
-        softMaskScope.BeginDrawContent();
+        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, textStrokeTarget.Bounds);
 
         bool overlapAffectsCompositing = state.FillPaint.RequiresComposition
             || state.StrokePaint.RequiresComposition;
@@ -282,7 +274,6 @@ public class PdfTextRenderer : IPdfTextRenderer
         }
 
         textStrokeTarget.Render(processor);
-        softMaskScope.EndDrawContent();
     }
 
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]

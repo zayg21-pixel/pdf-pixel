@@ -68,8 +68,7 @@ public class ShadingRenderer : IShadingRenderer
 
         PdfShadingContent content = shading.GetContent(state);
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state, content.GetBounds() ?? state.GetUserSpaceClipBounds());
-        softMaskScope.BeginDrawContent();
+        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, content.GetBounds() ?? state.GetUserSpaceClipBounds());
 
         DrawShadingCore(processor, shading, state, content);
     }
