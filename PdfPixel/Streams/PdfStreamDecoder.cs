@@ -30,6 +30,7 @@ public sealed class PdfStreamDecoder
     /// </summary>
     public ReadOnlyMemory<byte> DecodeContentStream(
         Stream rawStream,
+        int rawLength,
         IReadOnlyList<PdfFilterType> filters,
         IReadOnlyList<PdfDecodeParameters?> decodeParameters,
         IPdfExecutionObserver? observer)
@@ -41,16 +42,29 @@ public sealed class PdfStreamDecoder
 
         using Stream final = DecodeContentAsStream(rawStream, filters, decodeParameters);
 
-        using MemoryStream memoryStream = new();
-        var buffer = new byte[StreamChunkSize];
+        var buffer = new byte[(rawLength > 0) ? rawLength : StreamChunkSize];
+        int length = 0;
         int read;
-        while ((read = final.Read(buffer, 0, buffer.Length)) > 0)
+        while ((read = final.Read(buffer, length, Math.Min(buffer.Length - length, StreamChunkSize))) > 0)
         {
-            memoryStream.Write(buffer, 0, read);
+            length += read;
             observer?.Notify();
+
+            if (length == buffer.Length)
+            {
+                int nextByte = final.ReadByte();
+                if (nextByte < 0)
+                {
+                    break;
+                }
+
+                Array.Resize(ref buffer, Math.Max(buffer.Length * 2, StreamChunkSize));
+                buffer[length] = (byte)nextByte;
+                length++;
+            }
         }
 
-        return memoryStream.ToArray();
+        return new ReadOnlyMemory<byte>(buffer, 0, length);
     }
 
     /// <summary>

@@ -53,16 +53,24 @@ public ref struct PdfParseContext
             throw new ArgumentNullException(nameof(chunks));
         }
 
-        Memory<byte> total = new byte[chunks.Sum(x => x.Length + 1) - 1];
-        int start = 0;
-        for (int i = 0; i < chunks.Count; i++)
+        if (chunks.Count == 1)
         {
-            ReadOnlyMemory<byte> chunk = chunks[i];
-            chunk.CopyTo(total.Slice(start, chunk.Length));
-            start += chunk.Length + 1; // add 1 padding byte between chunks to set correct /0 separator between chunks
+            _data = chunks[0].Span;
+        }
+        else
+        {
+            Memory<byte> total = new byte[chunks.Sum(x => x.Length + 1) - 1];
+            int start = 0;
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                ReadOnlyMemory<byte> chunk = chunks[i];
+                chunk.CopyTo(total.Slice(start, chunk.Length));
+                start += chunk.Length + 1; // add 1 padding byte between chunks to set correct /0 separator between chunks
+            }
+
+            _data = total.Span;
         }
 
-        _data = total.Span;
         Values = CreateValues(valuesCapacity);
     }
 
@@ -175,6 +183,14 @@ public ref struct PdfParseContext
 
         _position = newPosition;
     }
+
+    /// <summary>
+    /// Get the bytes of the logical stream in the given range.
+    /// </summary>
+    /// <param name="start">Absolute position of the first byte.</param>
+    /// <param name="length">Number of bytes.</param>
+    /// <returns>The bytes in the range.</returns>
+    internal readonly ReadOnlySpan<byte> Slice(int start, int length) => _data.Slice(start, length);
 
     /// <inheritdoc/>
     public override string ToString() => Text.EncodingExtensions.PdfDefault.GetString(_data);

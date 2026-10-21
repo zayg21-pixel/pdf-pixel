@@ -14,7 +14,7 @@ namespace PdfPixel.Streams;
 public sealed class PdfObjectStream
 {
     private readonly PdfStreamDecoder _streamDecoder;
-    private readonly ReadOnlyMemory<byte> _embeddedStream;
+    private readonly byte[]? _inlineData;
     private readonly PdfObjectStreamReference? _streamReference;
     private readonly BufferedStream? _documentStream;
     private readonly BasePdfDecryptor? _decryptor;
@@ -25,12 +25,12 @@ public sealed class PdfObjectStream
         PdfStreamDecoder streamDecoder,
         List<PdfFilterType> filters,
         List<PdfDecodeParameters?> decodeParameters,
-        in ReadOnlyMemory<byte> embeddedStream)
+        byte[]? inlineData)
     {
         _streamDecoder = streamDecoder;
         Filters = filters;
         DecodeParameters = decodeParameters;
-        _embeddedStream = embeddedStream;
+        _inlineData = inlineData;
     }
 
     private PdfObjectStream(
@@ -78,13 +78,13 @@ public sealed class PdfObjectStream
             cryptFilter = document.Decryptor.GetStreamCryptFilter(pdfObject.Dictionary, filters);
         }
 
-        if (!pdfObject.EmbaddedStream.IsEmpty)
+        if (pdfObject.InlineData != null)
         {
             return new PdfObjectStream(
                 document.StreamDecoder,
                 filters,
                 decodeParameters,
-                pdfObject.EmbaddedStream);
+                pdfObject.InlineData);
         }
 
         if (pdfObject.StreamInfo.HasValue && pdfObject.Reference != null)
@@ -104,7 +104,7 @@ public sealed class PdfObjectStream
             document.StreamDecoder,
             filters,
             decodeParameters,
-            ReadOnlyMemory<byte>.Empty);
+            inlineData: null);
     }
 
     /// <summary>
@@ -114,8 +114,8 @@ public sealed class PdfObjectStream
     {
         get
         {
-            return !_embeddedStream.IsEmpty
-                || (_streamReference.HasValue && _streamReference.Value.Length != 0 && _documentStream != null);
+            return (_inlineData != null && _inlineData.Length != 0)
+                ||(_streamReference.HasValue && _streamReference.Value.Length != 0 && _documentStream != null);
         }
     }
 
@@ -124,9 +124,9 @@ public sealed class PdfObjectStream
     /// </summary>
     public Stream GetRawStream()
     {
-        if (!_embeddedStream.IsEmpty)
+        if (_inlineData != null)
         {
-            return new MemoryStream(_embeddedStream.ToArray());
+            return new MemoryStream(_inlineData, writable: false);
         }
 
         if (!_streamReference.HasValue || _streamReference.Value.Length == 0 || _documentStream == null)
@@ -168,6 +168,8 @@ public sealed class PdfObjectStream
             return ReadOnlyMemory<byte>.Empty;
         }
 
-        return _streamDecoder.DecodeContentStream(GetRawStream(), Filters, DecodeParameters, observer);
+        int rawLength = (_inlineData != null) ? _inlineData.Length : _streamReference.GetValueOrDefault().Length;
+
+        return _streamDecoder.DecodeContentStream(GetRawStream(), rawLength, Filters, DecodeParameters, observer);
     }
 }

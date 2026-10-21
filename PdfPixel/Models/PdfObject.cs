@@ -39,15 +39,15 @@ public class PdfObject
     }
 
     /// <summary>
-    /// Initializes a new direct instance of the <see cref="PdfObject"/> class with embedded stream data.
+    /// Initializes a new direct instance of the <see cref="PdfObject"/> class with inline data.
     /// </summary>
     /// <param name="document">The owning PDF document.</param>
     /// <param name="value">The value of the PDF object.</param>
-    /// <param name="embeddedStream">The stream data.</param>
-    internal PdfObject(IPdfDocumentInternal document, PdfValue value, in ReadOnlyMemory<byte> embeddedStream)
+    /// <param name="inlineData">The inline data.</param>
+    internal PdfObject(IPdfDocumentInternal document, PdfValue value, byte[] inlineData)
         : this(null, document, value)
     {
-        EmbaddedStream = embeddedStream;
+        InlineData = inlineData;
     }
 
     /// <summary>
@@ -78,12 +78,12 @@ public class PdfObject
     /// <summary>
     /// Gets a value indicating whether this object has an associated stream.
     /// </summary>
-    public bool HasStream => StreamInfo.HasValue || !EmbaddedStream.IsEmpty;
+    public bool HasStream => StreamInfo.HasValue || InlineData != null;
 
     /// <summary>
-    /// Embedded stream data, if available.
+    /// Inline data, if available.
     /// </summary>
-    internal ReadOnlyMemory<byte> EmbaddedStream { get; }
+    internal byte[]? InlineData { get; }
 
     /// <summary>
     /// Gets the self-contained stream source for this object, created lazily on first access.

@@ -64,19 +64,20 @@ internal partial struct PdfParser
             Advance(1);
         }
 
-        _localBuffer.Clear();
+        int dataStart = Position;
 
         PdfDictionary imageDictionary = BuildImageDictionary();
         List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(imageDictionary);
         PdfFilterType? filter = (filters.Count > 0) ? filters[0] : null;
 
+        int dataEnd;
         bool endFound = filter switch
         {
-            PdfFilterType.ASCII85Decode => TryReadUntilAscii85Eod(),
-            PdfFilterType.ASCIIHexDecode => TryReadUntilAsciiHexEod(),
-            PdfFilterType.DCTDecode => TryReadUntilJpegEoi(),
-            null => TryReadRawImageData(imageDictionary) || TryScanEi(),
-            _ => TryScanEi()
+            PdfFilterType.ASCII85Decode => TryReadUntilAscii85Eod(out dataEnd),
+            PdfFilterType.ASCIIHexDecode => TryReadUntilAsciiHexEod(out dataEnd),
+            PdfFilterType.DCTDecode => TryReadUntilJpegEoi(out dataEnd),
+            null => TryReadRawImageData(imageDictionary, out dataEnd) || TryScanEi(out dataEnd),
+            _ => TryScanEi(out dataEnd)
         };
 
         if (!endFound)
@@ -85,7 +86,7 @@ internal partial struct PdfParser
             return null;
         }
 
-        PdfObject inlineObject = new(_document, new PdfDictionaryValue(imageDictionary), new PdfString([.. _localBuffer]).Value);
+        PdfObject inlineObject = new(_document, new PdfDictionaryValue(imageDictionary), _parseContext.Slice(dataStart, dataEnd - dataStart).ToArray());
 
         return new PdfInlineImageValue(inlineObject);
     }
@@ -179,12 +180,11 @@ internal partial struct PdfParser
         }
     }
 
-    private bool TryReadUntilAscii85Eod()
+    private bool TryReadUntilAscii85Eod(out int dataEnd)
     {
         while (!IsAtEnd)
         {
             byte current = ReadByte();
-            _localBuffer.Add(current);
 
             if (current != (byte)'~')
             {
@@ -201,26 +201,28 @@ internal partial struct PdfParser
                 Advance(1);
             }
 
-            _localBuffer.Add((byte)'>');
+            dataEnd = Position;
             return SkipToEiOperator();
         }
 
+        dataEnd = Position;
         return false;
     }
 
-    private bool TryReadUntilAsciiHexEod()
+    private bool TryReadUntilAsciiHexEod(out int dataEnd)
     {
         while (!IsAtEnd)
         {
             byte current = ReadByte();
-            _localBuffer.Add(current);
 
             if (current == (byte)'>')
             {
+                dataEnd = Position;
                 return SkipToEiOperator();
             }
         }
 
+        dataEnd = Position;
         return false;
     }
 
@@ -229,12 +231,13 @@ internal partial struct PdfParser
     /// length-prefixed segments such as APPn (which may embed a full nested JPEG thumbnail) can otherwise
     /// contain a coincidental 0xFFD9 byte pair that is not the real end of the image.
     /// </summary>
-    private bool TryReadUntilJpegEoi()
+    private bool TryReadUntilJpegEoi(out int dataEnd)
     {
+        dataEnd = Position;
+
         while (!IsAtEnd)
         {
             byte current = ReadByte();
-            _localBuffer.Add(current);
 
             if (current != (byte)0xFF || IsAtEnd)
             {
@@ -246,7 +249,7 @@ internal partial struct PdfParser
             if (marker == 0x00)
             {
                 // Byte-stuffed literal 0xFF within entropy-coded scan data, not a marker.
-                _localBuffer.Add(ReadByte());
+                Advance(1);
                 continue;
             }
 
@@ -258,18 +261,19 @@ internal partial struct PdfParser
 
             if (marker == (byte)0xD9)
             {
-                _localBuffer.Add(ReadByte());
+                Advance(1);
+                dataEnd = Position;
                 return SkipToEiOperator();
             }
 
             if ((marker >= 0xD0 && marker <= 0xD8) || marker == 0x01)
             {
                 // Standalone marker (RST0-7, SOI, TEM): no length-prefixed payload follows.
-                _localBuffer.Add(ReadByte());
+                Advance(1);
                 continue;
             }
 
-            _localBuffer.Add(ReadByte());
+            Advance(1);
 
             if (Position + 1 >= Length)
             {
@@ -282,15 +286,12 @@ internal partial struct PdfParser
                 return false;
             }
 
-            for (int index = 0; index < segmentLength; index++)
+            if (Position + segmentLength > Length)
             {
-                if (IsAtEnd)
-                {
-                    return false;
-                }
-
-                _localBuffer.Add(ReadByte());
+                return false;
             }
+
+            Advance(segmentLength);
         }
 
         return false;
@@ -318,29 +319,28 @@ internal partial struct PdfParser
     /// coincidentally contain a whitespace-delimited "EI" sequence, so the length must be computed instead of
     /// found by scanning.
     /// </summary>
-    private bool TryReadRawImageData(PdfDictionary imageDictionary)
+    private bool TryReadRawImageData(PdfDictionary imageDictionary, out int dataEnd)
     {
+        int dataStart = Position;
+        dataEnd = dataStart;
+
         int? dataLength = ComputeRawDataLength(imageDictionary);
         if (dataLength == null)
         {
             return false;
         }
 
-        int dataStart = Position;
         if (dataStart + dataLength.Value > Length)
         {
             return false;
         }
 
-        for (int index = 0; index < dataLength.Value; index++)
-        {
-            _localBuffer.Add(ReadByte());
-        }
+        Advance(dataLength.Value);
+        dataEnd = Position;
 
         if (!SkipToEiOperator())
         {
             SetPosition(dataStart);
-            _localBuffer.Clear();
             return false;
         }
 
@@ -404,7 +404,7 @@ internal partial struct PdfParser
         }
     }
 
-    private bool TryScanEi()
+    private bool TryScanEi(out int dataEnd)
     {
         int previousByte = -1;
 
@@ -424,15 +424,16 @@ internal partial struct PdfParser
                     if (precedingWhitespace && followingDelimiter)
                     {
                         SetPosition(Position - 1);
+                        dataEnd = Position;
                         return true;
                     }
                 }
             }
 
-            _localBuffer.Add(current);
             previousByte = current;
         }
 
+        dataEnd = Position;
         return false;
     }
 }
