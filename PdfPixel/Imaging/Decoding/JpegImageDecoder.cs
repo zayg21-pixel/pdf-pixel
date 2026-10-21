@@ -8,6 +8,7 @@ using PdfPixel.Jpg.Color;
 using PdfPixel.Jpg.Decoding;
 using PdfPixel.Jpg.Model;
 using PdfPixel.Jpg.Readers;
+using PdfPixel.Streams;
 using System;
 using System.Collections.Generic;
 
@@ -110,7 +111,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         int descaleFactor,
         IReadOnlyList<JpgRectangle>? regionsOfInterest)
     {
-        int? colorTransform = Image.DecodeParms?.ColorTransform;
+        int? colorTransform = (Image.DecodeParms as PdfDctDecodeParameters)?.ColorTransform;
 
         JpgYuvMode yuvMode = colorTransform switch
         {

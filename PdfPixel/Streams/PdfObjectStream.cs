@@ -23,20 +23,17 @@ public sealed class PdfObjectStream
 
     private PdfObjectStream(
         PdfStreamDecoder streamDecoder,
-        List<PdfFilterType> filters,
-        List<PdfDecodeParameters?> decodeParameters,
+        List<PdfStreamFilter> filters,
         byte[]? inlineData)
     {
         _streamDecoder = streamDecoder;
         Filters = filters;
-        DecodeParameters = decodeParameters;
         _inlineData = inlineData;
     }
 
     private PdfObjectStream(
         PdfStreamDecoder streamDecoder,
-        List<PdfFilterType> filters,
-        List<PdfDecodeParameters?> decodeParameters,
+        List<PdfStreamFilter> filters,
         PdfObjectStreamReference streamReference,
         BufferedStream documentStream,
         PdfDecryptor? decryptor,
@@ -45,7 +42,6 @@ public sealed class PdfObjectStream
     {
         _streamDecoder = streamDecoder;
         Filters = filters;
-        DecodeParameters = decodeParameters;
         _streamReference = streamReference;
         _documentStream = documentStream;
         _decryptor = decryptor;
@@ -54,14 +50,9 @@ public sealed class PdfObjectStream
     }
 
     /// <summary>
-    /// Gets the filter chain for this stream.
+    /// Gets the filter chain for this stream, each filter with its decode parameters.
     /// </summary>
-    public IReadOnlyList<PdfFilterType> Filters { get; }
-
-    /// <summary>
-    /// Gets the decode parameters for this stream.
-    /// </summary>
-    public IReadOnlyList<PdfDecodeParameters?> DecodeParameters { get; }
+    public IReadOnlyList<PdfStreamFilter> Filters { get; }
 
     /// <summary>
     /// Creates a <see cref="PdfObjectStream"/> from a <see cref="PdfObject"/>.
@@ -69,8 +60,7 @@ public sealed class PdfObjectStream
     internal static PdfObjectStream FromPdfObject(PdfObject pdfObject)
     {
         IPdfDocumentInternal document = pdfObject.Document;
-        List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(pdfObject.Dictionary);
-        List<PdfDecodeParameters?> decodeParameters = PdfStreamDecoder.GetDecodeParameters(pdfObject.Dictionary);
+        List<PdfStreamFilter> filters = PdfStreamDecoder.GetStreamFilters(pdfObject.Dictionary);
 
         PdfCryptFilter cryptFilter = PdfCryptFilter.Identity;
         if (document.Decryptor != null)
@@ -83,7 +73,6 @@ public sealed class PdfObjectStream
             return new PdfObjectStream(
                 document.StreamDecoder,
                 filters,
-                decodeParameters,
                 pdfObject.InlineData);
         }
 
@@ -92,7 +81,6 @@ public sealed class PdfObjectStream
             return new PdfObjectStream(
                 document.StreamDecoder,
                 filters,
-                decodeParameters,
                 pdfObject.StreamInfo.Value,
                 document.Stream,
                 document.Decryptor,
@@ -103,7 +91,6 @@ public sealed class PdfObjectStream
         return new PdfObjectStream(
             document.StreamDecoder,
             filters,
-            decodeParameters,
             inlineData: null);
     }
 
@@ -155,7 +142,7 @@ public sealed class PdfObjectStream
             return Stream.Null;
         }
 
-        return new BufferedStream(_streamDecoder.DecodeContentAsStream(GetRawStream(), Filters, DecodeParameters), PdfStreamDecoder.StreamChunkSize);
+        return new BufferedStream(_streamDecoder.DecodeContentAsStream(GetRawStream(), Filters), PdfStreamDecoder.StreamChunkSize);
     }
 
     /// <summary>
@@ -170,6 +157,6 @@ public sealed class PdfObjectStream
 
         int rawLength = (_inlineData != null) ? _inlineData.Length : _streamReference.GetValueOrDefault().Length;
 
-        return _streamDecoder.DecodeContentStream(GetRawStream(), rawLength, Filters, DecodeParameters, observer);
+        return _streamDecoder.DecodeContentStream(GetRawStream(), rawLength, Filters, observer);
     }
 }

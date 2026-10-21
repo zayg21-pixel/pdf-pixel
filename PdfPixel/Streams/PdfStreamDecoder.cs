@@ -30,8 +30,7 @@ public sealed class PdfStreamDecoder
     public ReadOnlyMemory<byte> DecodeContentStream(
         Stream rawStream,
         int rawLength,
-        IReadOnlyList<PdfFilterType> filters,
-        IReadOnlyList<PdfDecodeParameters?> decodeParameters,
+        IReadOnlyList<PdfStreamFilter> filters,
         IPdfExecutionObserver? observer)
     {
         if (rawStream == null)
@@ -39,7 +38,7 @@ public sealed class PdfStreamDecoder
             throw new ArgumentNullException(nameof(rawStream));
         }
 
-        using Stream final = DecodeContentAsStream(rawStream, filters, decodeParameters);
+        using Stream final = DecodeContentAsStream(rawStream, filters);
 
         var buffer = new byte[(rawLength > 0) ? rawLength : StreamChunkSize];
         int length = 0;
@@ -71,22 +70,17 @@ public sealed class PdfStreamDecoder
     /// </summary>
     public Stream DecodeContentAsStream(
         Stream current,
-        IReadOnlyList<PdfFilterType> filters,
-        IReadOnlyList<PdfDecodeParameters?> decodeParameters)
+        IReadOnlyList<PdfStreamFilter> filters)
     {
         if (filters == null)
         {
             throw new ArgumentNullException(nameof(filters));
         }
 
-        if (decodeParameters == null)
-        {
-            throw new ArgumentNullException(nameof(decodeParameters));
-        }
-
         for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
         {
-            PdfFilterType filter = filters[filterIndex];
+            PdfStreamFilter streamFilter = filters[filterIndex];
+            PdfFilterType filter = streamFilter.Filter;
 
             switch (filter)
             {
@@ -118,8 +112,7 @@ public sealed class PdfStreamDecoder
                 }
                 case PdfFilterType.LZWDecode:
                 {
-                    PdfDecodeParameters? parameters = GetDecodeParmsForIndex(filterIndex, decodeParameters);
-                    bool earlyChange = parameters?.EarlyChange != 0;
+                    bool earlyChange = streamFilter.GetParameters<PdfLzwDecodeParameters>()?.EarlyChange != 0;
                     current = new LzwDecodeStream(current, leaveOpen: false, earlyChange: earlyChange);
                     break;
                 }
@@ -139,10 +132,10 @@ public sealed class PdfStreamDecoder
                 }
             }
 
-            PdfDecodeParameters? parametersForFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
-            if (parametersForFilter != null && (filter == PdfFilterType.FlateDecode || filter == PdfFilterType.LZWDecode))
+            PdfFlateDecodeParameters? predictorParameters = streamFilter.GetParameters<PdfFlateDecodeParameters>();
+            if (predictorParameters != null)
             {
-                current = ApplyPredictorIfNeeded(current, parametersForFilter);
+                current = ApplyPredictorIfNeeded(current, predictorParameters);
             }
         }
 
@@ -199,68 +192,49 @@ public sealed class PdfStreamDecoder
     }
 
     /// <summary>
-    /// Extracts and parses decode parameters from a stream dictionary into strongly-typed instances.
+    /// Extracts the filter chain of a stream dictionary, pairing every filter with its /DecodeParms entry
+    /// parsed as the parameters type of that filter.
+    /// A single dictionary declared for a chain of several filters is parsed once for every filter.
+    /// An array declared for a single filter name is ignored.
     /// </summary>
-    public static List<PdfDecodeParameters?> GetDecodeParameters(PdfDictionary dictionary)
+    public static List<PdfStreamFilter> GetStreamFilters(PdfDictionary dictionary)
     {
         if (dictionary == null)
         {
             throw new ArgumentNullException(nameof(dictionary));
         }
 
-        List<PdfDecodeParameters?> list = [];
+        List<PdfFilterType> filters = GetFilters(dictionary);
+        List<PdfStreamFilter> streamFilters = new(filters.Count);
 
-        if (!dictionary.HasKey(PdfTokens.DecodeParmsKey))
-        {
-            return list;
-        }
-
-        PdfArray? filterArray = dictionary.GetArray(PdfTokens.FilterKey);
+        PdfDictionary? sharedParms = dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
         PdfArray? parmsArray = null;
-
-        if (filterArray != null)
+        if (dictionary.GetArray(PdfTokens.FilterKey) != null)
         {
             parmsArray = dictionary.GetArray(PdfTokens.DecodeParmsKey);
         }
 
-        if (parmsArray == null)
+        if (sharedParms == null && parmsArray != null && parmsArray.Count == 1 && filters.Count > 1)
         {
-            PdfDictionary? singleParms = dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
-            list.Add(PdfDecodeParameters.FromDictionary(singleParms));
-
-            return list;
+            sharedParms = parmsArray.GetDictionary(0);
         }
 
-        for (int index = 0; index < parmsArray.Count; index++)
+        for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
         {
-            PdfDictionary? chainedParms = parmsArray.GetDictionary(index);
-            list.Add(PdfDecodeParameters.FromDictionary(chainedParms));
+            PdfDictionary? filterParms = sharedParms;
+            if (filterParms == null && parmsArray != null && filterIndex < parmsArray.Count)
+            {
+                filterParms = parmsArray.GetDictionary(filterIndex);
+            }
+
+            PdfFilterType filter = filters[filterIndex];
+            streamFilters.Add(new PdfStreamFilter(filter, PdfDecodeParameters.FromDictionary(filter, filterParms)));
         }
 
-        return list;
+        return streamFilters;
     }
 
-    private static PdfDecodeParameters? GetDecodeParmsForIndex(int filterIndex, IReadOnlyList<PdfDecodeParameters?> decodeParameters)
-    {
-        if (decodeParameters.Count == 0)
-        {
-            return null;
-        }
-
-        if (decodeParameters.Count == 1)
-        {
-            return decodeParameters[0];
-        }
-
-        if (filterIndex >= 0 && filterIndex < decodeParameters.Count)
-        {
-            return decodeParameters[filterIndex];
-        }
-
-        return null;
-    }
-
-    private Stream ApplyPredictorIfNeeded(Stream decoded, PdfDecodeParameters decodeParameters)
+    private Stream ApplyPredictorIfNeeded(Stream decoded, PdfFlateDecodeParameters decodeParameters)
     {
         int predictor = decodeParameters.Predictor ?? 1;
         if (predictor <= 1)

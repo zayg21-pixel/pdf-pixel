@@ -131,7 +131,7 @@ public abstract class PdfDecryptor
     /// <summary>
     /// Selects the crypt filter for a stream from its dictionary and filter chain.
     /// </summary>
-    internal PdfCryptFilter GetStreamCryptFilter(PdfDictionary streamDictionary, List<PdfFilterType> filters)
+    internal PdfCryptFilter GetStreamCryptFilter(PdfDictionary streamDictionary, IReadOnlyList<PdfStreamFilter> filters)
     {
         if (streamDictionary == null)
         {
@@ -143,12 +143,9 @@ public abstract class PdfDecryptor
             throw new ArgumentNullException(nameof(filters));
         }
 
-        if (filters.Count > 0 && filters[0] == PdfFilterType.Crypt)
+        if (filters.Count > 0 && filters[0].Filter == PdfFilterType.Crypt)
         {
-            PdfDictionary? cryptParameters = streamDictionary.GetArray(PdfTokens.DecodeParmsKey)?.GetDictionary(0)
-                ?? streamDictionary.GetDictionary(PdfTokens.DecodeParmsKey);
-
-            return Parameters.GetCryptFilter(cryptParameters?.GetName(PdfTokens.NameKey));
+            return Parameters.GetCryptFilter(filters[0].GetParameters<PdfCryptDecodeParameters>()?.Name);
         }
 
         PdfString? type = streamDictionary.GetName(PdfTokens.TypeKey);

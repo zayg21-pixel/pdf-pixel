@@ -70,33 +70,15 @@ public class PdfImage : PdfXObject
         RenderingIntent = dictionary.GetNameOrDefault(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
         var type = PdfImageType.Raw;
-        IReadOnlyList<PdfFilterType> filters = imageXObject.Stream.Filters;
+        IReadOnlyList<PdfStreamFilter> filters = imageXObject.Stream.Filters;
         if (filters.Count > 0)
         {
-            type = MapImageType(filters[filters.Count - 1]);
+            PdfStreamFilter imageFilter = filters[filters.Count - 1];
+            type = MapImageType(imageFilter.Filter);
+            DecodeParms = imageFilter.DecodeParameters;
         }
 
         Type = type;
-
-        PdfDictionary? decodeParmsDict = dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
-        if (decodeParmsDict != null)
-        {
-            DecodeParms = PdfDecodeParameters.FromDictionary(decodeParmsDict);
-        }
-        else
-        {
-            PdfArray? decodeParmsArray = dictionary.GetArray(PdfTokens.DecodeParmsKey);
-            if (decodeParmsArray != null)
-            {
-                // image DecodeParms corresponds to the last entry in the array
-                PdfDictionary? imageDecodeParamsDictionary = decodeParmsArray.GetDictionary(decodeParmsArray.Count - 1);
-
-                if (imageDecodeParamsDictionary != null)
-                {
-                    DecodeParms = PdfDecodeParameters.FromDictionary(imageDecodeParamsDictionary);
-                }
-            }
-        }
 
         SoftMask = GetImage(dictionary, PdfTokens.SoftMaskKey);
         Measure = PdfMeasure.GetMeasure(dictionary, PdfTokens.MeasureKey);
@@ -139,7 +121,8 @@ public class PdfImage : PdfXObject
     public PdfImageType Type { get; }
 
     /// <summary>
-    /// Parsed /DecodeParms entries (single dictionary or first image-related entry when array) used by certain filters and predictors.
+    /// Parsed /DecodeParms entry of the last filter in the chain, the one that decodes the image samples,
+    /// or null when that filter has none.
     /// </summary>
     public PdfDecodeParameters? DecodeParms { get; }
 

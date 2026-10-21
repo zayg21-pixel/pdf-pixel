@@ -1,135 +1,42 @@
 using PdfPixel.Objects;
-using PdfPixel.Parsing;
 
 namespace PdfPixel.Streams;
 
 /// <summary>
-/// Parsed /DecodeParms for an image stream.
-/// Contains optional parameters used by specific filters and predictors.
-/// Values are read-only from outside and are populated by <see cref="FromDictionary(PdfDictionary)"/>.
+/// Base class for the parsed /DecodeParms entry of one filter in a stream's filter chain.
+/// The derived type is decided by the filter the entry belongs to.
 /// </summary>
-public class PdfDecodeParameters
+public abstract class PdfDecodeParameters
 {
     /// <summary>
-    /// PNG/TIFF predictor method used for post-decompression sample reconstruction.
-    /// 2 = TIFF predictor; 10–15 = PNG predictors.
-    /// Applies to FlateDecode and LZWDecode.
+    /// Initializes a new instance of the <see cref="PdfDecodeParameters"/> class.
     /// </summary>
-    public int? Predictor { get; private set; }
-
-    /// <summary>
-    /// Number of interleaved color components used by the predictor (not necessarily the color space components).
-    /// </summary>
-    public int? Colors { get; private set; }
-
-    /// <summary>
-    /// Bits per component expected by the predictor (can differ from /BitsPerComponent in some edge cases).
-    /// </summary>
-    public int? BitsPerComponent { get; private set; }
-
-    /// <summary>
-    /// Number of columns (pixels per row) used by the predictor algorithms.
-    /// </summary>
-    public int? Columns { get; private set; }
-
-    /// <summary>
-    /// CCITT parameter K indicating the compression scheme: 0 = Group 3 1-D, &gt;0 = Group 3 2-D, &lt;0 = Group 4 2-D.
-    /// </summary>
-    public int? K { get; private set; }
-
-    /// <summary>
-    /// If true, each row ends with an end-of-line (EOL) marker (CCITT).
-    /// </summary>
-    public bool? EndOfLine { get; private set; }
-
-    /// <summary>
-    /// If true, end-of-line is byte-aligned (CCITT).
-    /// </summary>
-    public bool? EncodedByteAlign { get; private set; }
-
-    /// <summary>
-    /// Number of rows in the image (CCITT). If absent, defaults to /Height.
-    /// </summary>
-    public int? Rows { get; private set; }
-
-    /// <summary>
-    /// If true, a special end-of-block (EOFB) marker is present (CCITT).
-    /// </summary>
-    public bool? EndOfBlock { get; private set; }
-
-    /// <summary>
-    /// If true, black pixels are represented by 1 and white by 0 (CCITT). Default is false.
-    /// </summary>
-    public bool? BlackIs1 { get; private set; }
-
-    /// <summary>
-    /// Maximum number of damaged rows tolerated before an error is reported (CCITT).
-    /// </summary>
-    public int? DamagedRowsBeforeError { get; private set; }
-
-    /// <summary>
-    /// LZW parameter controlling early code size change (usually 1).
-    /// </summary>
-    public int? EarlyChange { get; private set; }
-
-    /// <summary>
-    /// JPEG (DCTDecode) parameter indicating color transform (e.g., 1 for YCbCr to RGB).
-    /// </summary>
-    public int? ColorTransform { get; private set; }
-
-    /// <summary>
-    /// JBIG2 globals stream (JBIG2Decode), holding the shared symbol dictionaries defined outside the
-    /// page stream. Null when no /JBIG2Globals is declared.
-    /// </summary>
-    public PdfObjectStream? Jbig2Globals { get; private set; }
-
-    /// <summary>
-    /// Reference of the object the JBIG2 globals stream was read from, under which its decoded segments
-    /// are cached for every image sharing it.
-    /// </summary>
-    public PdfReference? Jbig2GlobalsReference { get; private set; }
-
-    /// <summary>
-    /// Parse a /DecodeParms dictionary to a strongly-typed <see cref="PdfDecodeParameters"/> instance.
-    /// Unrecognized keys are ignored.
-    /// </summary>
-    internal static PdfDecodeParameters FromDictionary(PdfDictionary? dictionary)
+    private protected PdfDecodeParameters()
     {
-        PdfDecodeParameters parameters = new();
+    }
+
+    /// <summary>
+    /// Parses the /DecodeParms dictionary of <paramref name="filter"/> into the parameters type of that filter.
+    /// </summary>
+    /// <param name="filter">Filter the dictionary belongs to.</param>
+    /// <param name="dictionary">The /DecodeParms dictionary, or null when absent.</param>
+    /// <returns>The parameters, or null when the dictionary is absent or the filter takes no parameters.</returns>
+    internal static PdfDecodeParameters? FromDictionary(PdfFilterType filter, PdfDictionary? dictionary)
+    {
         if (dictionary == null)
         {
-            return parameters;
+            return null;
         }
 
-        // Predictor related
-        parameters.Predictor = dictionary.GetInteger(PdfTokens.PredictorKey);
-        parameters.Colors = dictionary.GetInteger(PdfTokens.ColorsKey);
-        parameters.BitsPerComponent = dictionary.GetInteger(PdfTokens.BitsPerComponentKey);
-        parameters.Columns = dictionary.GetInteger(PdfTokens.ColumnsKey);
-
-        // CCITT related
-        parameters.K = dictionary.GetInteger(PdfTokens.KKey);
-        parameters.EndOfLine = dictionary.GetBoolean(PdfTokens.EndOfLineKey);
-        parameters.EncodedByteAlign = dictionary.GetBoolean(PdfTokens.EncodedByteAlignKey);
-        parameters.Rows = dictionary.GetInteger(PdfTokens.RowsKey);
-        parameters.EndOfBlock = dictionary.GetBoolean(PdfTokens.EndOfBlockKey);
-        parameters.BlackIs1 = dictionary.GetBoolean(PdfTokens.BlackIs1Key);
-        parameters.DamagedRowsBeforeError = dictionary.GetInteger(PdfTokens.DamagedRowsBeforeErrorKey);
-
-        // LZW
-        parameters.EarlyChange = dictionary.GetInteger(PdfTokens.EarlyChangeKey);
-
-        // DCT
-        parameters.ColorTransform = dictionary.GetInteger(PdfTokens.ColorTransformKey);
-
-        // JBIG2
-        PdfObject? jbig2GlobalsObject = dictionary.GetObject(PdfTokens.Jbig2GlobalsKey);
-        if (jbig2GlobalsObject != null)
+        return filter switch
         {
-            parameters.Jbig2Globals = jbig2GlobalsObject.Stream;
-            parameters.Jbig2GlobalsReference = jbig2GlobalsObject.Reference;
-        }
-
-        return parameters;
+            PdfFilterType.FlateDecode => new PdfFlateDecodeParameters(dictionary),
+            PdfFilterType.LZWDecode => new PdfLzwDecodeParameters(dictionary),
+            PdfFilterType.CCITTFaxDecode => new PdfCcittFaxDecodeParameters(dictionary),
+            PdfFilterType.JBIG2Decode => new PdfJbig2DecodeParameters(dictionary),
+            PdfFilterType.DCTDecode => new PdfDctDecodeParameters(dictionary),
+            PdfFilterType.Crypt => new PdfCryptDecodeParameters(dictionary),
+            _ => null
+        };
     }
 }
