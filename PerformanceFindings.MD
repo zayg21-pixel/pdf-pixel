@@ -51,12 +51,16 @@ Sizes are the share of the run's allocations or samples.
   - Done: `SoftMaskDrawingScope.Begin(...)` returns null when no mask applies; `Dispose` is the only end. All 10 call sites are a single `using` declaration.
 - [x] **5. Character codes** — `PdfSingleByteFont.ExtractCharacterCodes`. `PdfCharacterCode` is a sealed class created once per character. ~95 MB.
   - Done: `readonly struct PdfCharacterCode` with `uint Value` and `int Length`; implicit conversions and the pack/unpack helpers removed; CMap range methods take `PdfCharacterCode` start/end, so the binary and text CMap readers no longer pack values into bytes for the CMap to unpack.
-- [ ] **6. CID to GID map** — `PdfCidToGidMap.ParseStreamData`. A `Dictionary<uint, ushort>` holds a dense map of at most 65,536 CIDs. ~51 MB.
+- [x] **6. CID to GID map** — `PdfCidToGidMap.ParseStreamData`. A `Dictionary<uint, ushort>` holds a dense map of at most 65,536 CIDs. ~51 MB.
+  - Done: stream maps are an exact `ushort[]`; CFF maps keep a presized dictionary; a private kind enum selects the storage; `PdfCidToGidMap.Identity` replaces `CreateIdentityMapping()`.
+  - Left as is: `FromCffFont` builds an empty inverse for an `Identity` map (unused).
 
 ### CPU
 
-- [ ] **7. Path conversion** — `PdfPathConverter.ToSkPath`. One native call per path segment, plus a new `SKPathBuilder` per path. ~4% inclusive.
-- [ ] **8. AES** — `AesCbc` (`MixColumns`, `EncryptBlock`, `AddRoundKey`, `SubBytes`). Hand-written AES instead of the hardware-backed `System.Security.Cryptography.Aes`, which is not available in the browser. Needs a decision first. ~1.5%.
+- [x] **7. Path conversion** — `PdfPathConverter.ToSkPath`. One native call per path segment, plus a new `SKPathBuilder` per path. ~4% inclusive.
+  - Investigated, no change. SkiaSharp 4.150.1 has no bulk verbs-and-points API; the only batch call is `AddPoly`, for line runs, and the segment buffer interleaves type headers with points, so a run would need copying first. Segment enumeration already allocates nothing.
+- [x] **8. AES** — `AesCbc` (`MixColumns`, `EncryptBlock`, `AddRoundKey`, `SubBytes`). Hand-written AES instead of the hardware-backed `System.Security.Cryptography.Aes`, which is not available in the browser. Needs a decision first. ~1.5%.
+  - Decided: no change. The hand-written AES stays; `System.Security.Cryptography.Aes` is not used.
 - [ ] **9. Averaging downsample** — `AveragingDownsampleRowConverter.TryConvertRow`. The largest single PdfPixel function at 5.3% of samples in its own code; may be worth vectorizing.
 - [ ] **10. Glyph list lookups** — `AdobeGlyphList.TryGetUnicode`, with `PdfFontString` hashed through XxHash32. ~0.4%.
 

@@ -10,22 +10,33 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public sealed class PdfCidToGidMap
 {
-    private readonly Dictionary<uint, ushort> _cidToGidMap = [];
+    private readonly PdfCidToGidMapKind _kind;
+    private readonly ushort[] _gidsByCid = Array.Empty<ushort>();
+    private readonly Dictionary<uint, ushort> _cffGidsByCid = [];
+
+    private PdfCidToGidMap(PdfCidToGidMapKind kind) => _kind = kind;
+
+    private PdfCidToGidMap(ushort[] gidsByCid)
+    {
+        _kind = PdfCidToGidMapKind.Stream;
+        _gidsByCid = gidsByCid;
+    }
+
+    private PdfCidToGidMap(Dictionary<uint, ushort> cffGidsByCid)
+    {
+        _kind = PdfCidToGidMapKind.Cff;
+        _cffGidsByCid = cffGidsByCid;
+    }
 
     /// <summary>
-    /// Creates an identity mapping (CID == GID).
+    /// The identity mapping (CID == GID).
     /// </summary>
-    public static PdfCidToGidMap CreateIdentityMapping() => new(true);
+    public static PdfCidToGidMap Identity { get; } = new(PdfCidToGidMapKind.Identity);
 
     /// <summary>
     /// Creates a mapping from stream data.
     /// </summary>
-    public static PdfCidToGidMap FromStreamData(in ReadOnlyMemory<byte> streamData)
-    {
-        PdfCidToGidMap map = new(false);
-        map.ParseStreamData(streamData);
-        return map;
-    }
+    public static PdfCidToGidMap FromStreamData(in ReadOnlyMemory<byte> streamData) => new(ParseStreamData(streamData.Span));
 
     /// <summary>
     /// Creates a <see cref="PdfCidToGidMap"/> from the specified CFF font's charset, which lists the CID
@@ -46,11 +57,11 @@ public sealed class PdfCidToGidMap
                 return cidToGidMap;
             }
 
-            return new PdfCidToGidMap(true);
+            return Identity;
         }
 
         Dictionary<ushort, uint>? gidToCid = cidToGidMap?.BuildInverse();
-        PdfCidToGidMap map = new(false);
+        Dictionary<uint, ushort> gidsByCid = new(gidToSid.Length);
 
         for (uint gid = 0; gid < gidToSid.Length; gid++)
         {
@@ -62,62 +73,59 @@ public sealed class PdfCidToGidMap
                 cid = mappedCid;
             }
 
-            map._cidToGidMap[cid] = (ushort)gid;
+            gidsByCid[cid] = (ushort)gid;
         }
 
-        return map;
+        return new PdfCidToGidMap(gidsByCid);
     }
-
-    private PdfCidToGidMap(bool isIdentity) => IsIdentityMapping = isIdentity;
 
     /// <summary>
-    /// Parses CIDToGIDMap stream data.
-    /// The stream contains a sequence of 2-byte glyph indices, where the CID is the index position
+    /// Gets whether this is an identity mapping.
     /// </summary>
-    private void ParseStreamData(in ReadOnlyMemory<byte> data)
-    {
-        if (data.Length < 2)
-        {
-            return;
-        }
-
-        ReadOnlySpan<byte> bytes = data.Span;
-
-        for (uint cid = 0; cid < bytes.Length / 2; cid++)
-        {
-            int byteIndex = (int)cid * 2;
-
-            if (byteIndex + 1 < bytes.Length)
-            {
-                var gid = (ushort)(bytes[byteIndex] << 8 | bytes[byteIndex + 1]);
-
-                _cidToGidMap[cid] = gid;
-            }
-        }
-    }
+    public bool IsIdentityMapping => _kind == PdfCidToGidMapKind.Identity;
 
     /// <summary>
     /// Gets the GID for a given CID, or null if not defined.
     /// </summary>
     public ushort? GetGID(uint cid)
     {
-        if (IsIdentityMapping)
+        switch (_kind)
         {
-            return (ushort)cid; // Identity mapping: GID = CID
+            case PdfCidToGidMapKind.Identity:
+            {
+                return (ushort)cid;
+            }
+            case PdfCidToGidMapKind.Stream:
+            {
+                return (cid < (uint)_gidsByCid.Length) ? _gidsByCid[cid] : null;
+            }
+            case PdfCidToGidMapKind.Cff:
+            {
+                return (_cffGidsByCid.TryGetValue(cid, out ushort gid)) ? gid : null;
+            }
+            default:
+            {
+                return null;
+            }
         }
-
-        if (_cidToGidMap.TryGetValue(cid, out ushort gid))
-        {
-            return gid;
-        }
-
-        return null;
     }
 
     /// <summary>
-    /// Gets whether this is an identity mapping.
+    /// Parses CIDToGIDMap stream data.
+    /// The stream contains a sequence of 2-byte glyph indices, where the CID is the index position
     /// </summary>
-    public bool IsIdentityMapping { get; }
+    private static ushort[] ParseStreamData(in ReadOnlySpan<byte> bytes)
+    {
+        var gidsByCid = new ushort[bytes.Length / 2];
+
+        for (int cid = 0; cid < gidsByCid.Length; cid++)
+        {
+            int byteIndex = cid * 2;
+            gidsByCid[cid] = (ushort)(bytes[byteIndex] << 8 | bytes[byteIndex + 1]);
+        }
+
+        return gidsByCid;
+    }
 
     /// <summary>
     /// Builds the reverse lookup from GID to CID. Entries mapping to GID 0 are left out: .notdef carries
@@ -125,16 +133,47 @@ public sealed class PdfCidToGidMap
     /// </summary>
     private Dictionary<ushort, uint> BuildInverse()
     {
-        Dictionary<ushort, uint> inverse = new(_cidToGidMap.Count);
-
-        foreach (KeyValuePair<uint, ushort> entry in _cidToGidMap)
+        switch (_kind)
         {
-            if (entry.Value != 0)
+            case PdfCidToGidMapKind.Stream:
             {
-                inverse[entry.Value] = entry.Key;
+                Dictionary<ushort, uint> inverse = new(_gidsByCid.Length);
+
+                for (uint cid = 0; cid < _gidsByCid.Length; cid++)
+                {
+                    if (_gidsByCid[cid] != 0)
+                    {
+                        inverse[_gidsByCid[cid]] = cid;
+                    }
+                }
+
+                return inverse;
+            }
+            case PdfCidToGidMapKind.Cff:
+            {
+                Dictionary<ushort, uint> inverse = new(_cffGidsByCid.Count);
+
+                foreach (KeyValuePair<uint, ushort> entry in _cffGidsByCid)
+                {
+                    if (entry.Value != 0)
+                    {
+                        inverse[entry.Value] = entry.Key;
+                    }
+                }
+
+                return inverse;
+            }
+            default:
+            {
+                return new Dictionary<ushort, uint>();
             }
         }
+    }
 
-        return inverse;
+    private enum PdfCidToGidMapKind
+    {
+        Identity,
+        Stream,
+        Cff
     }
 }

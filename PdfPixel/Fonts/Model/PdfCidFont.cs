@@ -189,7 +189,7 @@ public class PdfCidFont : PdfFontBase
         // Check if CIDToGIDMap is specified as "Identity" in the font dictionary
         if (Dictionary.GetName(PdfTokens.CidToGidMapKey) == PdfTokens.IdentityKey)
         {
-            return PdfCidToGidMap.CreateIdentityMapping();
+            return PdfCidToGidMap.Identity;
         }
 
         PdfObject? cidToGidObj = Dictionary.GetObject(PdfTokens.CidToGidMapKey);
