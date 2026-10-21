@@ -11,6 +11,7 @@ public sealed class PdfNumberFormat
 {
     private const int DefaultDecimalPrecision = 100;
     private const int DefaultFractionDenominator = 16;
+    private const float DefaultConversionFactor = 1f;
 
     private static readonly PdfString DefaultThousandsSeparator = (PdfString)","u8;
     private static readonly PdfString DefaultDecimalSeparator = (PdfString)"."u8;
@@ -52,15 +53,15 @@ public sealed class PdfNumberFormat
     }
 
     /// <summary>
-    /// Label of the unit (/U), or <see langword="null"/> when absent.
+    /// Label of the unit (/U). Empty when absent.
     /// </summary>
-    public PdfString? Unit { get; }
+    public PdfString Unit { get; }
 
     /// <summary>
     /// Factor converting a value in the previous format's units, or in the measure's base units for the
-    /// first format of an array, to this format's units (/C), or <see langword="null"/> when absent.
+    /// first format of an array, to this format's units (/C). Default 1.
     /// </summary>
-    public float? ConversionFactor { get; }
+    public float ConversionFactor { get; }
 
     /// <summary>
     /// Display of the fractional part of a value (/F). Default <see cref="PdfNumberFractionFormat.Decimal"/>.

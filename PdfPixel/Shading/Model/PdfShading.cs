@@ -70,7 +70,7 @@ public sealed class PdfShading
 
         Functions = functions.ToArray();
 
-        BBox = PdfRectangle.FromArray(rawDictionary.GetArray(PdfTokens.BBoxKey));
+        BoundingBox = PdfRectangle.FromArray(rawDictionary.GetArray(PdfTokens.BBoxKey));
         Background = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
         AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
 
@@ -196,7 +196,7 @@ public sealed class PdfShading
     /// <summary>
     /// Gets the optional bbox (/BBox) for this shading, if defined.
     /// </summary>
-    public PdfRectangle? BBox { get; }
+    public PdfRectangle? BoundingBox { get; }
 
     /// <summary>
     /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.

@@ -13,7 +13,7 @@ public sealed class PdfArtifactAttribute : PdfStructureAttributeBase
         : base(PdfStructureAttributeOwner.Artifact, revision)
     {
         Type = dictionary.GetName(PdfTokens.TypeKey)?.AsEnum<PdfArtifactType>();
-        BBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
+        BoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
         RawSubtype = dictionary.GetName(PdfTokens.SubtypeKey);
         Subtype = RawSubtype?.AsEnum<PdfArtifactSubtype>();
     }
@@ -26,7 +26,7 @@ public sealed class PdfArtifactAttribute : PdfStructureAttributeBase
     /// <summary>
     /// Bounding box of the artifact's visible extent (BBox), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfRectangle? BBox { get; }
+    public PdfRectangle? BoundingBox { get; }
 
     /// <summary>
     /// Subtype of artifact (Subtype), or <see langword="null"/> when absent.

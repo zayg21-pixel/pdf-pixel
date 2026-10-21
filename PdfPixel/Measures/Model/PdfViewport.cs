@@ -20,7 +20,7 @@ public sealed class PdfViewport
     internal PdfViewport(PdfDictionary dictionary)
     {
         _dictionary = dictionary;
-        BBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
+        BoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
         Name = dictionary.GetString(PdfTokens.ViewportNameKey);
         Measure = PdfMeasure.GetMeasure(dictionary, PdfTokens.MeasureKey);
     }
@@ -28,7 +28,7 @@ public sealed class PdfViewport
     /// <summary>
     /// Location of the viewport on the page in default user space (/BBox), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfRectangle? BBox { get; }
+    public PdfRectangle? BoundingBox { get; }
 
     /// <summary>
     /// Title of the viewport (/Name), or <see langword="null"/> when absent.

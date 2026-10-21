@@ -47,7 +47,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         FontMatrix = PdfMatrix.FromArray(Dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? PdfMatrix.CreateScale(0.001f, 0.001f);
 
-        FontBBox = PdfRectangle.FromArray(Dictionary.GetArray(PdfTokens.FontBBoxKey));
+        FontBoundingBox = PdfRectangle.FromArray(Dictionary.GetArray(PdfTokens.FontBBoxKey));
         Widths.RescaleWidths(FontMatrix.ScaleX / PdfSingleByteFontWidths.WidthToUserSpaceCoeff);
 
         if (Encoding.BaseEncoding == PdfEncoding.Unknown)
@@ -86,7 +86,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// Font bounding box in glyph coordinate space (required for Type3 fonts per PDF spec §9.6.5, Table 110).
     /// Used as the recording bounds for d0 glyphs that do not define a per-glyph bounding box via d1.
     /// </summary>
-    public PdfRectangle? FontBBox { get; }
+    public PdfRectangle? FontBoundingBox { get; }
 
     /// <summary>
     /// Gets the character procedure and the d0/d1 metrics of a Type 3 character. They do not depend on the
@@ -138,7 +138,7 @@ public class PdfType3Font : PdfSingleByteFont
         // IContentRenderCommand with Bounds on every Draw*Command (render targets already compute them, outer space,
         // independent of the command's own matrix), a general bounds walker over recordings, then take glyph bounds
         // live from the recording when d1 bbox is absent.
-        PdfRectangle? glyphBounds = info.BBox ?? FontBBox;
+        PdfRectangle? glyphBounds = info.BoundingBox ?? FontBoundingBox;
         if (glyphBounds != null)
         {
             charState.ClipBounds = glyphBounds.Value;

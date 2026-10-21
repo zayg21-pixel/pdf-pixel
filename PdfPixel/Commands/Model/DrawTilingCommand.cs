@@ -13,10 +13,10 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with the matrix, the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
     /// </summary>
-    public DrawTilingCommand(in PdfMatrix matrix, in PdfRectangle bounds, in PdfRectangle bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
+    public DrawTilingCommand(in PdfMatrix matrix, in PdfRectangle bounds, in PdfRectangle boundingBox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
     {
         Matrix = matrix;
-        BBox = bbox;
+        BoundingBox = boundingBox;
         XStep = xStep;
         YStep = yStep;
         RecordingCommand = recordingCommand;
@@ -30,10 +30,10 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         CellGrid = ComputeCellGrid(TilingArea);
 
         PaintedArea = new PdfRectangle(
-            (CellGrid.Left * xStep) + bbox.Left,
-            (CellGrid.Top * yStep) + bbox.Top,
-            (CellGrid.Right * xStep) + bbox.Right,
-            (CellGrid.Bottom * yStep) + bbox.Bottom);
+            (CellGrid.Left * xStep) + boundingBox.Left,
+            (CellGrid.Top * yStep) + boundingBox.Top,
+            (CellGrid.Right * xStep) + boundingBox.Right,
+            (CellGrid.Bottom * yStep) + boundingBox.Bottom);
     }
 
     /// <inheritdoc />
@@ -42,7 +42,7 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Gets the pattern cell's bounding box, in pattern space, that each tile is clipped to.
     /// </summary>
-    public PdfRectangle BBox { get; }
+    public PdfRectangle BoundingBox { get; }
 
     /// <summary>
     /// Gets the pattern-space area to cover with tiles, expanded to whole steps.
@@ -97,8 +97,8 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 
         if (XStep > 0)
         {
-            firstColumn = (int)MathF.Floor((area.Left - BBox.Right) / XStep) + 1;
-            lastColumn = (int)MathF.Ceiling((area.Right - BBox.Left) / XStep) - 1;
+            firstColumn = (int)MathF.Floor((area.Left - BoundingBox.Right) / XStep) + 1;
+            lastColumn = (int)MathF.Ceiling((area.Right - BoundingBox.Left) / XStep) - 1;
         }
 
         int firstRow = 0;
@@ -106,8 +106,8 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 
         if (YStep > 0)
         {
-            firstRow = (int)MathF.Floor((area.Top - BBox.Bottom) / YStep) + 1;
-            lastRow = (int)MathF.Ceiling((area.Bottom - BBox.Top) / YStep) - 1;
+            firstRow = (int)MathF.Floor((area.Top - BoundingBox.Bottom) / YStep) + 1;
+            lastRow = (int)MathF.Ceiling((area.Bottom - BoundingBox.Top) / YStep) - 1;
         }
 
         return new PdfIntegerRectangle(firstColumn, firstRow, lastColumn, lastRow);

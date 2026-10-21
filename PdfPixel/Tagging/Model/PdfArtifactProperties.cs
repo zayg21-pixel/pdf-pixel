@@ -13,7 +13,7 @@ public sealed class PdfArtifactProperties
     internal PdfArtifactProperties(PdfDictionary dictionary)
     {
         Type = dictionary.GetName(PdfTokens.TypeKey)?.AsEnum<PdfArtifactType>();
-        BBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
+        BoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
         Attached = ReadAttached(dictionary.GetArray(PdfTokens.AttachedKey));
         RawSubtype = dictionary.GetName(PdfTokens.SubtypeKey);
         Subtype = RawSubtype?.AsEnum<PdfArtifactSubtype>();
@@ -27,7 +27,7 @@ public sealed class PdfArtifactProperties
     /// <summary>
     /// Bounding box of the artifact's visible extent (BBox), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfRectangle? BBox { get; }
+    public PdfRectangle? BoundingBox { get; }
 
     /// <summary>
     /// Page edges the artifact is logically attached to (Attached), or <see langword="null"/> when absent.

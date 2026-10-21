@@ -73,7 +73,7 @@ public class FormRenderer : IFormRenderer
 
         if (graphicsState.RenderingParameters.ExtractContent)
         {
-            processor.Process(new PdfContentCommand<PdfForm>(PdfContentKind.Form, formXObject.Matrix, formXObject.BBox, formXObject));
+            processor.Process(new PdfContentCommand<PdfForm>(PdfContentKind.Form, formXObject.Matrix, formXObject.BoundingBox, formXObject));
         }
 
         processor.Process(new BeginScopeCommand(contentStreamScope));
@@ -92,7 +92,7 @@ public class FormRenderer : IFormRenderer
 
     private void DrawFormContent(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
-        PdfRectangle contentBounds = formXObject.Matrix.MapRect(formXObject.BBox);
+        PdfRectangle contentBounds = formXObject.Matrix.MapRect(formXObject.BoundingBox);
 
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, graphicsState, contentBounds);
         softMaskScope.BeginDrawContent();
@@ -103,7 +103,7 @@ public class FormRenderer : IFormRenderer
         processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
         // Clip to /BBox
-        processor.Process(new ClipRectangleCommand(formXObject.BBox, PdfClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(formXObject.BoundingBox, PdfClipOperation.Intersect));
 
         bool needsGroupLayer = graphicsState.RenderingParameters.RenderContent
             && formXObject.TransparencyGroup != null
@@ -113,7 +113,7 @@ public class FormRenderer : IFormRenderer
         if (needsGroupLayer)
         {
             PdfPaint formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
-            processor.Process(new SaveLayerCommand(formXObject.BBox, formPaint));
+            processor.Process(new SaveLayerCommand(formXObject.BoundingBox, formPaint));
         }
 
         // Decode and render content with a cloned state that clears parent soft mask
@@ -128,7 +128,7 @@ public class FormRenderer : IFormRenderer
             localGs.SoftMask = null;
             localGs.TextClipPath = null;
             localGs.CTM = formXObject.Matrix;
-            localGs.ClipBounds = localGs.CTM.MapRect(formXObject.BBox);
+            localGs.ClipBounds = localGs.CTM.MapRect(formXObject.BoundingBox);
 
             if (needsGroupLayer)
             {

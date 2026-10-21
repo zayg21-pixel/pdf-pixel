@@ -129,7 +129,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         }
 
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
-        recorder.Process(new ClipRectangleCommand(_softMask.MaskForm.BBox, PdfClipOperation.Intersect));
+        recorder.Process(new ClipRectangleCommand(_softMask.MaskForm.BoundingBox, PdfClipOperation.Intersect));
 
         PdfCommandRecorder? maskFormRecording = SoftMaskUtilities.GetMaskFormRecording(
             _renderer,

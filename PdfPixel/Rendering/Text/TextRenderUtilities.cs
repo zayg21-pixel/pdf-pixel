@@ -140,14 +140,14 @@ internal static class TextRenderUtilities
                 continue;
             }
 
-            PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
+            PdfRectangle? glyphBoundingBox = charInfo.BoundingBox ?? type3Font.FontBoundingBox;
 
-            if (glyphBBox == null)
+            if (glyphBoundingBox == null)
             {
                 return null;
             }
 
-            PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
+            PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBoundingBox.Value);
 
             if (mapped.Width <= 0 || mapped.Height <= 0)
             {

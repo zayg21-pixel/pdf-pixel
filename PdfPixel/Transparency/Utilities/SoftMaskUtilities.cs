@@ -48,7 +48,7 @@ internal static class SoftMaskUtilities
         sourceState.RecursionGuard.Add(maskFormReference.ObjectNumber);
 
         PdfContentHost maskHost = maskForm.GetFormHost(sourceState);
-        PdfRectangle maskClipBounds = worldToMaskForm.MapRect(maskForm.BBox);
+        PdfRectangle maskClipBounds = worldToMaskForm.MapRect(maskForm.BoundingBox);
         PdfGraphicsState maskState = (softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
             ? CreateLuminosityMaskGraphicsState(maskHost, maskClipBounds, sourceState)
             : CreateAlphaMaskGraphicsState(maskHost, maskClipBounds, sourceState);

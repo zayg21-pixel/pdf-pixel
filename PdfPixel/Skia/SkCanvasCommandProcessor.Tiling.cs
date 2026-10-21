@@ -133,7 +133,7 @@ public sealed partial class SkCanvasCommandProcessor
                 childContext.Frames.OnConcatMatrix(translation);
 
                 // do not apply AA to clip BBox to avoid seams
-                canvas.ClipRect(command.BBox.ToSkRect(), SKClipOperation.Intersect);
+                canvas.ClipRect(command.BoundingBox.ToSkRect(), SKClipOperation.Intersect);
                 childProcessor.ExecuteDrawRecording(command.RecordingCommand);
 
                 canvas.Restore();
@@ -147,11 +147,11 @@ public sealed partial class SkCanvasCommandProcessor
     private SKPicture RecordPatternCell(DrawTilingCommand command)
     {
         using SKPictureRecorder recorder = new();
-        using SKCanvas canvas = recorder.BeginRecording(command.BBox.ToSkRect());
+        using SKCanvas canvas = recorder.BeginRecording(command.BoundingBox.ToSkRect());
         using PdfCommandExecutionContext childContext = CreateCellContext();
 
         // do not apply AA to clip BBox to avoid seams
-        canvas.ClipRect(command.BBox.ToSkRect(), SKClipOperation.Intersect);
+        canvas.ClipRect(command.BoundingBox.ToSkRect(), SKClipOperation.Intersect);
 
         SkCanvasCommandProcessor childProcessor = new(canvas, childContext, _logger);
         childProcessor.ExecuteDrawRecording(command.RecordingCommand);

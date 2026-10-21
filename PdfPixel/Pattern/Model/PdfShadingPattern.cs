@@ -62,19 +62,19 @@ public sealed class PdfShadingPattern : PdfPattern
         recorder.Process(SaveStateCommand.Instance);
         recorder.Process(new ConcatMatrixCommand(matrix));
 
-        if (Shading.BBox.HasValue)
+        if (Shading.BoundingBox.HasValue)
         {
-            recorder.Process(new ClipRectangleCommand(Shading.BBox.Value, PdfClipOperation.Intersect));
+            recorder.Process(new ClipRectangleCommand(Shading.BoundingBox.Value, PdfClipOperation.Intersect));
         }
 
-        if (Shading.Background != null && Shading.BBox.HasValue)
+        if (Shading.Background != null && Shading.BoundingBox.HasValue)
         {
             PdfColorSpaceConverter? colorSpace = shadingState.Host.Resources.ResolveColorSpace(Shading.ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
             PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, new PdfColorConversionParameters(shadingState, shadingState.Host.Resources.DeviceColorMapping));
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             PdfPathBuilder rectPath = new();
-            rectPath.AddRect(Shading.BBox.Value);
+            rectPath.AddRect(Shading.BoundingBox.Value);
 
             recorder.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }

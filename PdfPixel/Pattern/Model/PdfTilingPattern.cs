@@ -19,7 +19,7 @@ public sealed class PdfTilingPattern : PdfPattern
         in PdfReference sourceReference,
         PdfObjectStream sourceStream,
         PdfDictionary? cellResources,
-        in PdfRectangle bbox,
+        in PdfRectangle boundingBox,
         float xStep,
         float yStep,
         PdfTilingPaintType paintTypeKind,
@@ -30,7 +30,7 @@ public sealed class PdfTilingPattern : PdfPattern
         SourceReference = sourceReference;
         SourceStream = sourceStream;
         CellResources = cellResources;
-        BBox = bbox;
+        BoundingBox = boundingBox;
         XStep = xStep;
         YStep = yStep;
         PaintTypeKind = paintTypeKind;
@@ -57,7 +57,7 @@ public sealed class PdfTilingPattern : PdfPattern
     /// <summary>
     /// Gets the bounding box of the pattern cell.
     /// </summary>
-    public PdfRectangle BBox { get; }
+    public PdfRectangle BoundingBox { get; }
 
     /// <summary>
     /// Gets the horizontal spacing between pattern cells.
@@ -117,7 +117,7 @@ public sealed class PdfTilingPattern : PdfPattern
         PdfRectangle bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
         DrawRecordingCommand recordingCommand = new(tileRecorder, tintColor);
-        DrawTilingCommand tilingCommand = new(matrix, bounds, BBox, XStep, YStep, recordingCommand);
+        DrawTilingCommand tilingCommand = new(matrix, bounds, BoundingBox, XStep, YStep, recordingCommand);
 
         renderTarget.BeforePatternRender(processor, matrix.MapRect(tilingCommand.PaintedArea));
         processor.Process(tilingCommand);

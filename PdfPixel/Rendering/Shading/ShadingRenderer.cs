@@ -57,7 +57,7 @@ public class ShadingRenderer : IShadingRenderer
 
         if (state.RenderingParameters.ExtractContent)
         {
-            PdfRectangle shadingBounds = shading.BBox ?? state.GetUserSpaceClipBounds();
+            PdfRectangle shadingBounds = shading.BoundingBox ?? state.GetUserSpaceClipBounds();
             processor.Process(new PdfContentCommand<PdfShading>(PdfContentKind.Shading, PdfMatrix.Identity, shadingBounds, shading));
         }
 
@@ -80,12 +80,12 @@ public class ShadingRenderer : IShadingRenderer
     /// </summary>
     private static void DrawShadingCore(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state, PdfShadingContent content)
     {
-        if (shading.BBox.HasValue)
+        if (shading.BoundingBox.HasValue)
         {
-            processor.Process(new ClipRectangleCommand(shading.BBox.Value, PdfClipOperation.Intersect));
+            processor.Process(new ClipRectangleCommand(shading.BoundingBox.Value, PdfClipOperation.Intersect));
         }
 
-        if (shading.Background != null && shading.BBox.HasValue)
+        if (shading.Background != null && shading.BoundingBox.HasValue)
         {
             PdfColorSpaceConverter colorSpace = state.Host.Resources.ResolveColorSpace(shading.ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
             PdfColor backgroundColor = colorSpace.ToSrgb(shading.Background, new PdfColorConversionParameters(state, state.Host.Resources.DeviceColorMapping));
@@ -93,7 +93,7 @@ public class ShadingRenderer : IShadingRenderer
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             PdfPathBuilder rectPath = new();
-            rectPath.AddRect(shading.BBox.Value);
+            rectPath.AddRect(shading.BoundingBox.Value);
 
             processor.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }

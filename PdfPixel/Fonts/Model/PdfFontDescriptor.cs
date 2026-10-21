@@ -46,10 +46,10 @@ public class PdfFontDescriptor
         Descent = metrics.Descent * GlyphSpaceUnitsPerEm;
         CapHeight = metrics.CapHeight * GlyphSpaceUnitsPerEm;
         XHeight = metrics.XHeight * GlyphSpaceUnitsPerEm;
-        AvgWidth = metrics.AvgWidth * GlyphSpaceUnitsPerEm;
+        AverageWidth = metrics.AvgWidth * GlyphSpaceUnitsPerEm;
         FontWeight = metrics.Weight;
         Panose = metrics.Panose;
-        FontBBox = new PdfRectangle(
+        FontBoundingBox = new PdfRectangle(
             metrics.BoundingBoxLeft * GlyphSpaceUnitsPerEm,
             metrics.BoundingBoxBottom * GlyphSpaceUnitsPerEm,
             metrics.BoundingBoxRight * GlyphSpaceUnitsPerEm,
@@ -69,20 +69,20 @@ public class PdfFontDescriptor
         Descent = dictionary.GetFloatOrDefault(PdfTokens.DescentKey);
         CapHeight = dictionary.GetFloatOrDefault(PdfTokens.CapHeightKey);
         XHeight = dictionary.GetFloatOrDefault(PdfTokens.XHeightKey);
-        StemV = dictionary.GetFloatOrDefault(PdfTokens.StemVKey);
-        StemH = dictionary.GetFloatOrDefault(PdfTokens.StemHKey);
-        AvgWidth = dictionary.GetFloatOrDefault(PdfTokens.AvgWidthKey);
+        VerticalStemThickness = dictionary.GetFloatOrDefault(PdfTokens.StemVKey);
+        HorizontalStemThickness = dictionary.GetFloatOrDefault(PdfTokens.StemHKey);
+        AverageWidth = dictionary.GetFloatOrDefault(PdfTokens.AvgWidthKey);
         MaxWidth = dictionary.GetFloatOrDefault(PdfTokens.MaxWidthKey);
         MissingWidth = dictionary.GetFloatOrDefault(PdfTokens.MissingWidthKey);
         FontFamily = dictionary.GetString(PdfTokens.FontFamilyKey);
         FontStretch = dictionary.GetString(PdfTokens.FontStretchKey);
         FontWeight = dictionary.GetInteger(PdfTokens.FontWeightKey);
         Leading = dictionary.GetFloatOrDefault(PdfTokens.LeadingKey);
-        CharSet = dictionary.GetString(PdfTokens.CharSetKey);
+        CharacterSet = dictionary.GetString(PdfTokens.CharSetKey);
 
         // Optional arrays
-        StemSnapH = dictionary.GetArray(PdfTokens.StemSnapHKey)?.GetFloatArray();
-        StemSnapV = dictionary.GetArray(PdfTokens.StemSnapVKey)?.GetFloatArray();
+        HorizontalStemSnapThicknesses = dictionary.GetArray(PdfTokens.StemSnapHKey)?.GetFloatArray();
+        VerticalStemSnapThicknesses = dictionary.GetArray(PdfTokens.StemSnapVKey)?.GetFloatArray();
 
         // PANOSE (string or hex string)
         Panose = dictionary.GetValue(PdfTokens.PanoseKey).AsString()?.Value.ToArray();
@@ -90,7 +90,7 @@ public class PdfFontDescriptor
         FontFile = PdfFontFile.GetFontFile(dictionary);
 
         // Parse FontBBox array
-        FontBBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.FontBBoxKey)) ?? PdfRectangle.Empty;
+        FontBoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.FontBBoxKey)) ?? PdfRectangle.Empty;
     }
 
     /// <summary>
@@ -106,7 +106,7 @@ public class PdfFontDescriptor
     /// <summary>
     /// The font bounding box (/FontBBox) in glyph design units.
     /// </summary>
-    public PdfRectangle FontBBox { get; }
+    public PdfRectangle FontBoundingBox { get; }
 
     /// <summary>
     /// Italic angle of the font (/ItalicAngle).
@@ -136,17 +136,17 @@ public class PdfFontDescriptor
     /// <summary>
     /// Vertical stem thickness (/StemV).
     /// </summary>
-    public float StemV { get; }
+    public float VerticalStemThickness { get; }
 
     /// <summary>
     /// Horizontal stem thickness (/StemH).
     /// </summary>
-    public float StemH { get; }
+    public float HorizontalStemThickness { get; }
 
     /// <summary>
     /// Average glyph width (/AvgWidth).
     /// </summary>
-    public float AvgWidth { get; }
+    public float AverageWidth { get; }
 
     /// <summary>
     /// Maximum glyph width (/MaxWidth).
@@ -181,17 +181,17 @@ public class PdfFontDescriptor
     /// <summary>
     /// Character set description (PDF 1.5+, /CharSet).
     /// </summary>
-    public PdfString? CharSet { get; }
+    public PdfString? CharacterSet { get; }
 
     /// <summary>
     /// Array of horizontal stem thicknesses (PDF 1.5+, /StemSnapH).
     /// </summary>
-    public IReadOnlyList<float>? StemSnapH { get; }
+    public IReadOnlyList<float>? HorizontalStemSnapThicknesses { get; }
 
     /// <summary>
     /// Array of vertical stem thicknesses (PDF 1.5+, /StemSnapV).
     /// </summary>
-    public IReadOnlyList<float>? StemSnapV { get; }
+    public IReadOnlyList<float>? VerticalStemSnapThicknesses { get; }
 
     /// <summary>
     /// PANOSE classification bytes (PDF 1.5+, /Panose).

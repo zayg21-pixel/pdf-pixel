@@ -44,7 +44,7 @@ internal sealed class TilingPatternShaderBuilder
         IPdfDocumentInternal document = sourceState.Host.Document;
         PdfResourceNode cellResources = (pattern.CellResources == null) ? PdfResourceNode.CreateEmpty(document) : new PdfResourceNode(document, new PdfResourceDictionary(pattern.CellResources), null);
         PdfContentHost patternHost = new(document, cellResources, null);
-        PdfGraphicsState cellState = new(patternHost, pattern.BBox, sourceState);
+        PdfGraphicsState cellState = new(patternHost, pattern.BoundingBox, sourceState);
         PdfRenderer cellRenderer = new(document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(cellRenderer, patternHost);
         PdfParseContext parseContext = new(streamData, PdfParseContext.ContentStreamValuesCapacity);

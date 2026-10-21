@@ -11,15 +11,15 @@ namespace PdfPixel.Shading.Model;
 /// </summary>
 public sealed class PdfShadingContent
 {
-    private readonly PdfRectangle? _bbox;
+    private readonly PdfRectangle? _boundingBox;
 
     private PdfRectangle? _bounds;
     private bool _boundsCalculated;
 
-    private PdfShadingContent(PdfShadingType shadingType, PdfRectangle? bbox)
+    private PdfShadingContent(PdfShadingType shadingType, PdfRectangle? boundingBox)
     {
         ShadingType = shadingType;
-        _bbox = bbox;
+        _boundingBox = boundingBox;
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public sealed class PdfShadingContent
     {
         PdfShadingBuilder builder = new(state.Host.Document.LoggerFactory);
         int functionSamples = state.RenderingParameters.DefaultFunctionSamples;
-        PdfShadingContent content = new(shading.ShadingType, shading.BBox);
+        PdfShadingContent content = new(shading.ShadingType, shading.BoundingBox);
 
         switch (shading.ShadingType)
         {
@@ -119,7 +119,7 @@ public sealed class PdfShadingContent
 
     private PdfRectangle? CalculateBounds()
     {
-        PdfRectangle? bounds = _bbox;
+        PdfRectangle? bounds = _boundingBox;
         PdfRectangle? primitiveBounds = GetPrimitiveBounds();
 
         if (primitiveBounds != null)

@@ -20,13 +20,13 @@ public sealed class PdfType3CharacterInfo
     /// </summary>
     /// <param name="content">Decoded CharProc content stream; empty when not defined.</param>
     /// <param name="objectNumber">Object number of the CharProc stream, guarding against recursive glyphs.</param>
-    /// <param name="bbox">Bounding box parsed by d1 (llx, lly, urx, ury). Null when not provided.</param>
+    /// <param name="boundingBox">Bounding box parsed by d1 (llx, lly, urx, ury). Null when not provided.</param>
     /// <param name="advancement">Glyph advancement vector parsed by d0/d1 (wx, wy). If not provided, use <see cref="PdfSize.Empty"/>.</param>
-    internal PdfType3CharacterInfo(in ReadOnlyMemory<byte> content, uint objectNumber, PdfRectangle? bbox, in PdfSize advancement)
+    internal PdfType3CharacterInfo(in ReadOnlyMemory<byte> content, uint objectNumber, PdfRectangle? boundingBox, in PdfSize advancement)
     {
         Content = content;
         ObjectNumber = objectNumber;
-        BBox = bbox;
+        BoundingBox = boundingBox;
         Advancement = advancement;
     }
 
@@ -38,7 +38,7 @@ public sealed class PdfType3CharacterInfo
     /// <summary>
     /// Gets the character bounding box from d1 if provided; otherwise null.
     /// </summary>
-    public PdfRectangle? BBox { get; }
+    public PdfRectangle? BoundingBox { get; }
 
     /// <summary>
     /// Gets the glyph advancement vector (wx, wy) from d0/d1. Defaults to <see cref="PdfSize.Empty"/> when not provided.
@@ -46,9 +46,9 @@ public sealed class PdfType3CharacterInfo
     public PdfSize Advancement { get; }
 
     /// <summary>
-    /// Gets a value indicating whether the character is colored. Defined as BBox being provided.
+    /// Gets a value indicating whether the character is colored. Defined as BoundingBox being absent.
     /// </summary>
-    public bool IsColored => !BBox.HasValue;
+    public bool IsColored => !BoundingBox.HasValue;
 
     /// <summary>
     /// Gets the decoded CharProc content stream.

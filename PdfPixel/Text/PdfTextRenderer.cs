@@ -141,12 +141,12 @@ public class PdfTextRenderer : IPdfTextRenderer
             {
                 ShapedGlyph glyph = glyphsSpan[i];
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode);
-                PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
+                PdfRectangle? glyphBoundingBox = charInfo.BoundingBox ?? type3Font.FontBoundingBox;
                 PdfRectangle bounds;
 
-                if (glyphBBox.HasValue)
+                if (glyphBoundingBox.HasValue)
                 {
-                    PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
+                    PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBoundingBox.Value);
                     bounds = new PdfRectangle(glyph.X + mapped.Left, glyph.Y + mapped.Top, glyph.X + mapped.Right, glyph.Y + mapped.Bottom);
                 }
                 else

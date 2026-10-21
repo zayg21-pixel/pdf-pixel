@@ -64,11 +64,11 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfRectangle appearanceBBox = formXObject.BBox;
+        PdfRectangle appearanceBoundingBox = formXObject.BoundingBox;
         PdfMatrix matrix = formXObject.Matrix;
 
-        PdfRectangle transformedBBox = matrix.MapRect(appearanceBBox);
-        PdfMatrix alignmentMatrix = ComputeAlignmentMatrix(transformedBBox, annotationRect);
+        PdfRectangle transformedBoundingBox = matrix.MapRect(appearanceBoundingBox);
+        PdfMatrix alignmentMatrix = ComputeAlignmentMatrix(transformedBoundingBox, annotationRect);
 
         processor.Process(new ConcatMatrixCommand(alignmentMatrix));
 
@@ -87,13 +87,13 @@ internal static class PdfAnnotationAppearanceRenderer
     /// Computes matrix A that scales and translates the transformed appearance box
     /// to align with the annotation's rectangle.
     /// </summary>
-    private static PdfMatrix ComputeAlignmentMatrix(in PdfRectangle transformedBBox, in PdfRectangle annotationRect)
+    private static PdfMatrix ComputeAlignmentMatrix(in PdfRectangle transformedBoundingBox, in PdfRectangle annotationRect)
     {
-        float scaleX = annotationRect.Width / transformedBBox.Width;
-        float scaleY = annotationRect.Height / transformedBBox.Height;
+        float scaleX = annotationRect.Width / transformedBoundingBox.Width;
+        float scaleY = annotationRect.Height / transformedBoundingBox.Height;
 
-        float translateX = annotationRect.Left - (transformedBBox.Left * scaleX);
-        float translateY = annotationRect.Top - (transformedBBox.Top * scaleY);
+        float translateX = annotationRect.Left - (transformedBoundingBox.Left * scaleX);
+        float translateY = annotationRect.Top - (transformedBoundingBox.Top * scaleY);
 
         return PdfMatrix.CreateScaleTranslation(scaleX, scaleY, translateX, translateY);
     }

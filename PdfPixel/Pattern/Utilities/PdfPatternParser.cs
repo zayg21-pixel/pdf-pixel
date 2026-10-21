@@ -38,8 +38,8 @@ internal static class PdfPatternParser
 
         PdfDictionary dictionary = patternObject.Dictionary;
 
-        PdfArray? bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
-        PdfRectangle bbox = PdfRectangle.FromArray(bboxArray) ?? PdfRectangle.Empty;
+        PdfArray? boundingBoxArray = dictionary.GetArray(PdfTokens.BBoxKey);
+        PdfRectangle boundingBox = PdfRectangle.FromArray(boundingBoxArray) ?? PdfRectangle.Empty;
 
         float xStep = dictionary.GetFloatOrDefault(PdfTokens.XStepKey);
         float yStep = dictionary.GetFloatOrDefault(PdfTokens.YStepKey);
@@ -61,7 +61,7 @@ internal static class PdfPatternParser
             patternObject.Reference.Value,
             patternObject.Stream,
             dictionary.GetDictionary(PdfTokens.ResourcesKey),
-            bbox,
+            boundingBox,
             xStep,
             yStep,
             paintTypeKind,

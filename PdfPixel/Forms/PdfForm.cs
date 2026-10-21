@@ -23,7 +23,7 @@ public sealed class PdfForm : PdfXObject
         PdfDictionary dictionary = xObject.Dictionary;
         _dictionary = dictionary;
         Matrix = PdfMatrix.FromArray(dictionary.GetArray(PdfTokens.MatrixKey)) ?? PdfMatrix.Identity;
-        BBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey)) ?? PdfRectangle.Empty;
+        BoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey)) ?? PdfRectangle.Empty;
         TransparencyGroup = PdfTransparencyGroup.GetTransparencyGroup(dictionary, PdfTokens.GroupKey);
         PdfResourceDictionary? resources = PdfResourceDictionary.GetResourceDictionary(dictionary, PdfTokens.ResourcesKey);
         if (resources != null)
@@ -44,7 +44,7 @@ public sealed class PdfForm : PdfXObject
     /// <summary>
     /// The bounding box (/BBox) for the form. Empty if not specified.
     /// </summary>
-    public PdfRectangle BBox { get; }
+    public PdfRectangle BoundingBox { get; }
 
     /// <summary>
     /// The transparency group (/Group) for the form, if present.
@@ -97,5 +97,5 @@ public sealed class PdfForm : PdfXObject
     /// Gets the bounding rectangle of the object after applying the current transformation matrix.
     /// </summary>
     /// <returns>A <see cref="PdfRectangle"/> representing the transformed bounding rectangle.</returns>
-    public PdfRectangle GetTransformedBounds() => Matrix.MapRect(BBox);
+    public PdfRectangle GetTransformedBounds() => Matrix.MapRect(BoundingBox);
 }

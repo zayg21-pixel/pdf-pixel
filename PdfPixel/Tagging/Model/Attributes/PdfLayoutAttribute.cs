@@ -28,7 +28,7 @@ public sealed class PdfLayoutAttribute : PdfStructureAttributeBase
         EndIndent = dictionary.GetFloat(PdfTokens.EndIndentKey);
         TextIndent = dictionary.GetFloat(PdfTokens.TextIndentKey);
         TextAlign = dictionary.GetName(PdfTokens.TextAlignKey)?.AsEnum<PdfStructureTextAlign>();
-        BBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
+        BoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.BBoxKey));
         Width = ReadLength(dictionary, PdfTokens.WidthKey);
         Height = ReadLength(dictionary, PdfTokens.HeightKey);
         BlockAlign = dictionary.GetName(PdfTokens.BlockAlignKey)?.AsEnum<PdfStructureBlockAlign>();
@@ -125,7 +125,7 @@ public sealed class PdfLayoutAttribute : PdfStructureAttributeBase
     /// <summary>
     /// Bounding box of the element's visible content (BBox), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfRectangle? BBox { get; }
+    public PdfRectangle? BoundingBox { get; }
 
     /// <summary>
     /// Width of the content rectangle (Width), or <see langword="null"/> when absent.
