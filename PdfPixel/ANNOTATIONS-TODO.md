@@ -24,3 +24,8 @@ Rendering does not know the view zoom or the viewer's rotation. Both have to be 
 - **NoRotate**: stay upright, pivoting on the upper-left corner of the annotation rectangle. The rotation to cancel is the page's `/Rotate` plus the viewer's own rotation.
 - **ToggleNoView**: show a `NoView` annotation while the pointer is over it or it is selected.
 Files: `PdfPixel/Annotations/Model/PdfAnnotationFlags.cs`, `PdfPixel/Models/PdfRenderingParameters.cs`, `PdfPixel.PdfPanel`
+
+## Random
+
+- Check name consistency: every property name in the public API expanded, matching C# property naming conventions.
+- Analyze moving models from `Model` folders to the root and parsers into subfolders instead, matching the common rules for where models are usually stored.
