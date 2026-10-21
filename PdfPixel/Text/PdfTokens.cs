@@ -102,7 +102,6 @@ internal static class PdfTokens
     public static readonly PdfString CharProcsKey = (PdfString)"CharProcs"u8;
     public static readonly PdfString FontMatrixKey = (PdfString)"FontMatrix"u8;
     public static readonly PdfString ToUnicodeKey = (PdfString)"ToUnicode"u8;
-    public static readonly PdfString CidFontTypeKey = (PdfString)"CIDFontType"u8;
     public static readonly PdfString CidSystemInfoKey = (PdfString)"CIDSystemInfo"u8;
     public static readonly PdfString RegistryKey = (PdfString)"Registry"u8;
     public static readonly PdfString OrderingKey = (PdfString)"Ordering"u8;
@@ -119,24 +118,6 @@ internal static class PdfTokens
     public static readonly PdfString Length1 = (PdfString)"Length1"u8;
     public static readonly PdfString Length2 = (PdfString)"Length2"u8;
     public static readonly PdfString Length3 = (PdfString)"Length3"u8;
-
-    // Font Types
-    public static readonly PdfString Type1FontKey = (PdfString)"Type1"u8;
-    public static readonly PdfString TrueTypeFontKey = (PdfString)"TrueType"u8;
-    public static readonly PdfString Type3FontKey = (PdfString)"Type3"u8;
-    public static readonly PdfString Type0FontKey = (PdfString)"Type0"u8;
-    public static readonly PdfString CidFontType0Key = (PdfString)"CIDFontType0"u8;
-    public static readonly PdfString CidFontType2Key = (PdfString)"CIDFontType2"u8;
-    public static readonly PdfString MMType1FontKey = (PdfString)"MMType1"u8;
-
-    // Font descriptor type
-    public static readonly PdfString FontDescriptorTypeKey = (PdfString)"FontDescriptor"u8;
-
-    // Standard Encodings
-    public static readonly PdfString StandardEncodingKey = (PdfString)"StandardEncoding"u8;
-    public static readonly PdfString MacRomanEncodingKey = (PdfString)"MacRomanEncoding"u8;
-    public static readonly PdfString WinAnsiEncodingKey = (PdfString)"WinAnsiEncoding"u8;
-    public static readonly PdfString MacExpertEncodingKey = (PdfString)"MacExpertEncoding"u8;
 
     // CID Font Encodings (CMaps)
     public static readonly PdfString IdentityKey = (PdfString)"Identity";      // Identity CMap for CID fonts
@@ -160,7 +141,6 @@ internal static class PdfTokens
     public static readonly PdfString ColorSpaceKey = (PdfString)"ColorSpace"u8;
     public static readonly PdfString ExtGStateKey = (PdfString)"ExtGState"u8;
     public static readonly PdfString XObjectKey = (PdfString)"XObject"u8;
-    public static readonly PdfString ProcSetKey = (PdfString)"ProcSet"u8;
     public static readonly PdfString ShadingKey = (PdfString)"Shading"u8;
 
     // XObject Dictionary Keys
@@ -196,8 +176,6 @@ internal static class PdfTokens
 
     // XObject Subtypes
     public static readonly PdfString ImageSubtype = (PdfString)"Image"u8;
-    public static readonly PdfString FormSubtype = (PdfString)"Form"u8;
-    public static readonly PdfString PSSubtype = (PdfString)"PS"u8;
 
     // Extended Graphics State Dictionary Keys (transparency)
     public static readonly PdfString SoftMaskKey = (PdfString)"SMask"u8;
@@ -208,7 +186,6 @@ internal static class PdfTokens
     public static readonly PdfString OverprintFillKey = (PdfString)"op"u8;
     public static readonly PdfString StateIntentKey = (PdfString)"RI"u8;
     public static readonly PdfString UseBlackPtCompKey = (PdfString)"UseBlackPtComp"u8;
-    public static readonly PdfString AlphaConstantKey = (PdfString)"AIS"u8;
     public static readonly PdfString GroupSubtypeKey = (PdfString)"S"u8;
     public static readonly PdfString GroupColorSpaceKey = (PdfString)"CS"u8;
     public static readonly PdfString GroupIsolatedKey = (PdfString)"I"u8;
@@ -221,15 +198,7 @@ internal static class PdfTokens
     public static readonly PdfString TransferFunctionKey = (PdfString)"TR"u8;
     public static readonly PdfString TransferFunction2Key = (PdfString)"TR2"u8;
 
-    // Transparency Group Subtypes
-    public static readonly PdfString TransparencyGroupValue = (PdfString)"Transparency"u8;
-
-    // Soft Mask Subtypes
-    public static readonly PdfString AlphaSoftMask = (PdfString)"Alpha"u8;
-    public static readonly PdfString LuminositySoftMask = (PdfString)"Luminosity"u8;
-
     // Object Stream Dictionary Keys
-    public static readonly PdfString ObjStmKey = (PdfString)"ObjStm"u8;
     public static readonly PdfString NKey = (PdfString)"N"u8; // object stream key; do not use for functions
     public static readonly PdfString FirstKey = (PdfString)"First"u8;
 
@@ -284,10 +253,8 @@ internal static class PdfTokens
 
     // Function related
     public static readonly PdfString BitsPerSampleKey = (PdfString)"BitsPerSample"u8; // Function type 0 sampled function BPS
-    public static readonly PdfString TintTransformKey = (PdfString)"TintTransform"u8; // Separation/DeviceN attribute (when dictionary form used)
 
     // Annotation-related Dictionary Keys
-    public static readonly PdfString AnnotationKey = (PdfString)"Annot"u8;            // Annotation type
     public static readonly PdfString AnnotsKey = (PdfString)"Annots"u8;               // Page annotations array
     public static readonly PdfString RectKey = (PdfString)"Rect"u8;                   // Annotation rectangle
     public static readonly PdfString ModificationDateKey = (PdfString)"M"u8;          // Modification date
@@ -392,7 +359,6 @@ internal static class PdfTokens
     public static readonly PdfString HighlightModeKey = (PdfString)"H"u8;             // Highlight mode
     public static readonly PdfString PAKey = (PdfString)"PA"u8;                       // URI action dictionary
     public static readonly PdfString URIKey = (PdfString)"URI"u8;                     // URI string
-    public static readonly PdfString SActionKey = (PdfString)"S"u8;                   // Action subtype (alias for SKey)
     public static readonly PdfString NextKey = (PdfString)"Next"u8;                   // Next action
     public static readonly PdfString IsMapKey = (PdfString)"IsMap"u8;                 // URI action IsMap flag
     public static readonly PdfString StructureDestinationKey = (PdfString)"SD"u8;     // Structure destination (GoTo and GoToR actions, PDF 2.0)

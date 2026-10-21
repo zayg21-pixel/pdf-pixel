@@ -53,7 +53,7 @@ public class PdfTransparencyGroup
     {
         PdfDictionary groupDictionary = groupObject.Dictionary;
 
-        if (groupDictionary.GetName(PdfTokens.GroupSubtypeKey) != PdfTokens.TransparencyGroupValue)
+        if (groupDictionary.GetNameOrDefault(PdfTokens.GroupSubtypeKey).AsEnum<PdfGroupSubtype>() != PdfGroupSubtype.Transparency)
         {
             return null;
         }
