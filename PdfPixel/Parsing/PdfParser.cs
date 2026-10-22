@@ -34,7 +34,6 @@ internal ref partial struct PdfParser
 
     private readonly List<byte> _localBuffer = [];
     private readonly List<PdfValue> _values = [];
-    private readonly List<PdfValue> _inlineImageParameters = [];
     private readonly Stack<CollectionFrame> _frames = [];
     private readonly BufferedStream? _stream;
     private readonly bool _streamMode;
@@ -45,9 +44,6 @@ internal ref partial struct PdfParser
     private readonly bool _decrypt;
 
     private int _lastSetPostion = 0;
-    private bool _inlineImagePending;
-    private bool _clearValuesOnNextRead;
-    private int _valueCount;
     private PdfParseContext _parseContext;
     private PdfReference? _currentReference;
 
@@ -193,14 +189,8 @@ internal ref partial struct PdfParser
                 }
                 case PdfTokenType.InlineStreamStart:
                 {
-                    PdfValue? streamValue = ReadInlineStream();
-                    if (streamValue == null)
-                    {
-                        return null;
-                    }
-
-                    values.Add(streamValue);
-                    break;
+                    // Inline images are read only by TryReadContentStreamValue; no value holds one.
+                    return null;
                 }
             }
 

@@ -31,7 +31,7 @@ internal enum PdfContentStreamValueKind : byte
     Operator,
 
     /// <summary>
-    /// A name, string, array, dictionary or inline image, held in <see cref="PdfParseContext.Values"/>.
+    /// A name, string, array or dictionary, held as its extent in the data of the <see cref="PdfParseContext"/>.
     /// </summary>
     Value
 }

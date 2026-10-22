@@ -1,6 +1,7 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Encryption.Decryption;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Imaging.Decoding;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
 using System.Collections.Generic;

@@ -1,4 +1,5 @@
 using PdfPixel.Objects;
+using System;
 
 namespace PdfPixel.Color.ColorSpace;
 
@@ -29,6 +30,11 @@ public readonly struct PdfColorSpaceReference
     /// True when a color space was written at all.
     /// </summary>
     public bool IsPresent => Reference != null || Value != null;
+
+    /// <summary>
+    /// Creates a reference to the color space <paramref name="value"/> describes directly, such as a device color space name.
+    /// </summary>
+    internal static PdfColorSpaceReference FromValue(PdfValue value) => new(null, value ?? throw new ArgumentNullException(nameof(value)));
 
     /// <summary>
     /// Reads the color space a dictionary holds under a key, resolving nothing it points at.

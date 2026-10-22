@@ -7,30 +7,21 @@ namespace PdfPixel.Parsing;
 internal partial struct PdfParser
 {
     /// <summary>
-    /// Reads the next token of a content stream. Numbers, booleans, null and operators are read by value;
-    /// every other value is parsed into <see cref="PdfParseContext.Values"/>, which is filled again from its first
-    /// slot on the read that follows an operator. Once every slot is taken, further values replace the last one.
+    /// Reads the next token of a content stream. Numbers, booleans, null and operators are read by value; names, strings,
+    /// arrays and dictionaries are only measured and held as their extent, for <see cref="ReadContentValue"/> to parse when an
+    /// operator needs them. The data that follows an ID operator is left for the operator, which reads it from the context
+    /// and sets <see cref="PdfContentStreamCursor.SkipPositions"/> to the bytes it read; they are skipped before the next token.
     /// </summary>
     /// <param name="value">The token read.</param>
     /// <returns>False at the end of the content stream.</returns>
     public bool TryReadContentStreamValue(out PdfContentStreamValue value)
     {
-        if (_clearValuesOnNextRead)
-        {
-            _clearValuesOnNextRead = false;
-            _valueCount = 0;
-        }
+        PdfContentStreamCursor? cursor = _parseContext.Cursor;
 
-        if (_inlineImagePending)
+        if (cursor != null && cursor.SkipPositions > 0)
         {
-            _inlineImagePending = false;
-
-            PdfValue? inlineImage = ReadInlineImage();
-            if (inlineImage != null)
-            {
-                value = AddValue(inlineImage);
-                return true;
-            }
+            Advance(cursor.SkipPositions);
+            cursor.SkipPositions = 0;
         }
 
         while (true)
@@ -55,58 +46,67 @@ internal partial struct PdfParser
                 }
                 case PdfTokenType.Name:
                 {
-                    value = AddValue(ReadName());
+                    SkipRegularCharacters();
+                    value = new PdfContentStreamValue(PdfContentStreamValueKind.Value, start, Position - start);
                     return true;
                 }
                 case PdfTokenType.String:
                 {
-                    value = AddValue(ReadString());
+                    SkipString();
+                    value = new PdfContentStreamValue(PdfContentStreamValueKind.Value, start, Position - start);
                     return true;
                 }
                 case PdfTokenType.HexString:
                 {
-                    value = AddValue(ReadHexString());
+                    SkipHexString();
+                    value = new PdfContentStreamValue(PdfContentStreamValueKind.Value, start, Position - start);
                     return true;
                 }
                 case PdfTokenType.ArrayStart:
                 case PdfTokenType.DictionaryStart:
                 {
-                    Position = start;
-                    PdfValue? collection = ReadNextValue();
-
-                    if (collection == null)
-                    {
-                        value = default;
-                        return false;
-                    }
-
-                    value = AddValue(collection);
+                    SkipCollection();
+                    value = new PdfContentStreamValue(PdfContentStreamValueKind.Value, start, Position - start);
                     return true;
                 }
                 case PdfTokenType.Operator:
                 {
                     value = ReadOperatorValue();
 
-                    if (value.Kind == PdfContentStreamValueKind.Operator)
+                    if (cursor != null && value.Kind == PdfContentStreamValueKind.Operator)
                     {
-                        _clearValuesOnNextRead = true;
-                        _inlineImagePending = (PdfOperator)value.Value == PdfOperator.BeginInlineImage;
+                        switch ((PdfOperator)value.Value)
+                        {
+                            case PdfOperator.BeginInlineImage:
+                            {
+                                cursor.InlineImageStart = Position;
+                                break;
+                            }
+                            case PdfOperator.EndInlineImage:
+                            {
+                                cursor.InlineImageStart = -1;
+                                break;
+                            }
+                        }
                     }
 
                     return true;
                 }
                 case PdfTokenType.InlineStreamStart:
                 {
-                    // ID without BI: the image has no dictionary entries.
-                    PdfInlineImageValue? inlineImage = ReadInlineStream();
-                    if (inlineImage != null)
+                    if (cursor != null)
                     {
-                        value = AddValue(inlineImage);
-                        return true;
+                        // ID without BI: the image has no dictionary entries.
+                        if (cursor.InlineImageStart < 0)
+                        {
+                            cursor.InlineImageStart = start;
+                        }
+
+                        cursor.InlineImageDataStart = Position;
                     }
 
-                    value = default;
-                    return false;
+                    value = new PdfContentStreamValue(PdfContentStreamValueKind.Operator, (int)PdfOperator.InlineImageData);
+                    return true;
                 }
                 case PdfTokenType.ContextEnd:
                 {
@@ -117,15 +117,26 @@ internal partial struct PdfParser
         }
     }
 
-    private PdfContentStreamValue AddValue(PdfValue value)
+    /// <summary>
+    /// Parses the name, string, array or dictionary of the content stream <paramref name="context"/> reads
+    /// in the <paramref name="length"/> bytes at <paramref name="start"/>.
+    /// </summary>
+    /// <returns>The value, or null when the bytes hold none.</returns>
+    public static PdfValue? ReadContentValue(PdfParseContext context, int start, int length)
     {
-        PdfValue[] values = _parseContext.Values;
-        int index = Math.Min(_valueCount, values.Length - 1);
+        IPdfDocumentInternal document = context.Document
+            ?? throw new InvalidOperationException("Content stream values are parsed only from a content stream context.");
+        ReadOnlySpan<byte> data = context.Slice(start, length);
 
-        values[index] = value;
-        _valueCount = index + 1;
+        // Names, the most common operands, need no parser unless they hold #-escapes.
+        if (data.Length > 0 && data[0] == ForwardSlash && data.IndexOf((byte)'#') < 0)
+        {
+            return new PdfNameValue(new PdfString(data.Slice(1).ToArray()));
+        }
 
-        return new PdfContentStreamValue(PdfContentStreamValueKind.Value, index);
+        PdfParser parser = new(new PdfParseContext(data, document), document, PdfParserMode.ContentStream);
+
+        return parser.ReadNextValue();
     }
 
     /// <summary>

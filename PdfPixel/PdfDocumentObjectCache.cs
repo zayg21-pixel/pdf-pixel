@@ -36,6 +36,11 @@ internal class PdfDocumentObjectCache : IDisposable
     public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; private set; } = [];
 
     /// <summary>
+    /// Inline images read from the content streams of the document, shared by every occurrence of the same bytes.
+    /// </summary>
+    public PdfContentStreamInlineImages InlineImages { get; } = new();
+
+    /// <summary>
     /// Takes <paramref name="objectIndex"/> as the object index. Until called, no object resolves.
     /// </summary>
     /// <param name="objectIndex">Object index of the document.</param>
@@ -52,6 +57,7 @@ internal class PdfDocumentObjectCache : IDisposable
     {
         DisposeCachedObjects();
         _objectsByType.Clear();
+        InlineImages.Clear();
         _pdfObjectParser = new PdfObjectParser(_document);
         ObjectIndex = new Dictionary<PdfReference, PdfObjectInfo>();
         _isLoaded = false;

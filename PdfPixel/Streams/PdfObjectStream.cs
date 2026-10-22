@@ -55,6 +55,12 @@ public sealed class PdfObjectStream
     public IReadOnlyList<PdfStreamFilter> Filters { get; }
 
     /// <summary>
+    /// Creates a <see cref="PdfObjectStream"/> over the data of an inline image, encoded with <paramref name="filters"/>.
+    /// </summary>
+    internal static PdfObjectStream FromInlineData(IPdfDocumentInternal document, List<PdfStreamFilter> filters, byte[] inlineData)
+        => new(document.StreamDecoder, filters, inlineData);
+
+    /// <summary>
     /// Creates a <see cref="PdfObjectStream"/> from a <see cref="PdfObject"/>.
     /// </summary>
     internal static PdfObjectStream FromPdfObject(PdfObject pdfObject)

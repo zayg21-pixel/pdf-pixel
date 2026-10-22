@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Parsing;
 
 /// <summary>
-/// Resolves content stream tokens, against the content stream they were read from when held in its values.
+/// Resolves content stream tokens, parsing names, strings, arrays and dictionaries from the content stream they were read from.
 /// </summary>
 internal static class PdfContentStreamValueExtensions
 {
@@ -40,7 +40,7 @@ internal static class PdfContentStreamValueExtensions
             }
             case PdfContentStreamValueKind.Value:
             {
-                return context.Values[value.Value];
+                return PdfParser.ReadContentValue(context, value.Value, value.Length);
             }
             default:
             {

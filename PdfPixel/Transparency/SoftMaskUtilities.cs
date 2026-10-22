@@ -55,7 +55,7 @@ internal static class SoftMaskUtilities
 
         PdfCommandRecorder recorder = new();
         PdfContentStreamRenderer contentRenderer = new(renderer, maskHost);
-        PdfParseContext parseContext = new(contentData, PdfParseContext.ContentStreamValuesCapacity);
+        PdfParseContext parseContext = new(contentData, maskHost.Document);
         PdfContentStreamScope contentStreamScope = new(PdfContentStreamType.SoftMask);
         recorder.Process(new BeginScopeCommand(contentStreamScope));
         contentRenderer.RenderContext(recorder, ref parseContext, maskState);

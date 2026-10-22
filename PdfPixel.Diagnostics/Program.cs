@@ -85,6 +85,11 @@ internal sealed class Program
             Description = "Renders only a centered square of this many pixels of the scaled page, the way a viewer draws its visible area."
         };
 
+        Option<bool> cacheTilesOption = new("--cache-tiles")
+        {
+            Description = "Keeps decoded image tiles across draws, the way a viewer records pages, instead of dropping each tile once drawn."
+        };
+
         RootCommand rootCommand = new("Records and replays a PDF page, reporting decode and rasterization timings.")
         {
             pdfArgument,
@@ -98,7 +103,8 @@ internal sealed class Program
             passwordOption,
             profileOption,
             textOnlyOption,
-            viewportOption
+            viewportOption,
+            cacheTilesOption
         };
 
         rootCommand.SetAction(parseResult =>
@@ -115,7 +121,8 @@ internal sealed class Program
                 parseResult.GetValue(passwordOption),
                 parseResult.GetValue(profileOption),
                 parseResult.GetValue(textOnlyOption),
-                parseResult.GetValue(viewportOption));
+                parseResult.GetValue(viewportOption),
+                parseResult.GetValue(cacheTilesOption));
 
             return 0;
         });
@@ -135,7 +142,8 @@ internal sealed class Program
         string? password,
         ProfileMode profile,
         bool textOnly,
-        int? viewport)
+        int? viewport,
+        bool cacheTiles)
     {
         if (pdfFile == null)
         {
@@ -200,6 +208,7 @@ internal sealed class Program
                     profile,
                     textOnly,
                     viewport,
+                    cacheTiles,
                     decodeMilliseconds,
                     rasterMilliseconds);
             }
@@ -259,6 +268,7 @@ internal sealed class Program
         ProfileMode profile,
         bool textOnly,
         int? viewport,
+        bool cacheTiles,
         double[][] decodeMilliseconds,
         double[][] rasterMilliseconds)
     {
@@ -278,7 +288,10 @@ internal sealed class Program
         IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
         // Text-only suppresses everything that draws and keeps text extraction alone.
-        PdfRenderingParameters renderingParameters = new();
+        PdfRenderingParameters renderingParameters = new()
+        {
+            CacheDecodedTiles = cacheTiles
+        };
 
         if (textOnly)
         {

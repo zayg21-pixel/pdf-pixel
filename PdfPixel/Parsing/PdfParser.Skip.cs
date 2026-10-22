@@ -11,7 +11,7 @@ internal partial struct PdfParser
     /// <param name="b">The byte to check.</param>
     /// <returns>True if the byte is a whitespace character; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsWhitespace(byte b)
+    internal static bool IsWhitespace(byte b)
     {
         return b == Separator
             ||    // space
@@ -134,7 +134,7 @@ internal partial struct PdfParser
     /// <param name="b">The byte to check.</param>
     /// <returns>True if the byte terminates a PDF token; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsTokenTerminator(byte b)
+    internal static bool IsTokenTerminator(byte b)
     {
         switch (b)
         {
@@ -158,6 +158,108 @@ internal partial struct PdfParser
 
             default:
                 return false;
+        }
+    }
+
+    /// <summary>
+    /// Advances past the regular characters of a name, number or keyword, up to the next token terminator.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SkipRegularCharacters()
+    {
+        while (!IsAtEnd && !IsTokenTerminator(PeekByte()))
+        {
+            Advance(1);
+        }
+    }
+
+    /// <summary>
+    /// Advances past a literal string whose opening parenthesis was consumed, counting nested parentheses
+    /// the way <see cref="ReadString"/> does and passing over escaped bytes.
+    /// </summary>
+    private void SkipString()
+    {
+        int parenCount = 1;
+
+        while (!IsAtEnd && parenCount > 0)
+        {
+            switch (ReadByte())
+            {
+                case LeftParen:
+                {
+                    parenCount++;
+                    break;
+                }
+                case RightParen:
+                {
+                    parenCount--;
+                    break;
+                }
+                case Backslash:
+                {
+                    Advance(1);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Advances past a hexadecimal string whose opening angle bracket was consumed.
+    /// </summary>
+    private void SkipHexString()
+    {
+        while (!IsAtEnd && ReadByte() != RightAngle)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Advances past an array or dictionary whose opening token was consumed, including the arrays, dictionaries
+    /// and strings nested in it, or to the end of the data when it is not closed.
+    /// </summary>
+    private void SkipCollection()
+    {
+        int depth = 1;
+
+        while (depth > 0)
+        {
+            switch (ReadToken())
+            {
+                case PdfTokenType.ArrayStart:
+                case PdfTokenType.DictionaryStart:
+                {
+                    depth++;
+                    break;
+                }
+                case PdfTokenType.ArrayEnd:
+                case PdfTokenType.DictionaryEnd:
+                {
+                    depth--;
+                    break;
+                }
+                case PdfTokenType.Name:
+                case PdfTokenType.Number:
+                case PdfTokenType.Operator:
+                {
+                    SkipRegularCharacters();
+                    break;
+                }
+                case PdfTokenType.String:
+                {
+                    SkipString();
+                    break;
+                }
+                case PdfTokenType.HexString:
+                {
+                    SkipHexString();
+                    break;
+                }
+                case PdfTokenType.ContextEnd:
+                {
+                    return;
+                }
+            }
         }
     }
 }

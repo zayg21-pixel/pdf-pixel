@@ -9,6 +9,7 @@ using PdfPixel.Files;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Substitution;
 using PdfPixel.Forms;
+using PdfPixel.Imaging.Decoding;
 using PdfPixel.Navigation;
 using PdfPixel.Objects;
 using PdfPixel.OptionalContent;

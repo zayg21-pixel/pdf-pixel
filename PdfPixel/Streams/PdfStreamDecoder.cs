@@ -204,14 +204,24 @@ public sealed class PdfStreamDecoder
             throw new ArgumentNullException(nameof(dictionary));
         }
 
-        List<PdfFilterType> filters = GetFilters(dictionary);
+        return GetStreamFilters(dictionary.GetValue(PdfTokens.FilterKey), dictionary.GetValue(PdfTokens.DecodeParmsKey));
+    }
+
+    /// <summary>
+    /// Extracts the filter chain a <c>/Filter</c> value declares, pairing every filter with its entry of the
+    /// <c>/DecodeParms</c> value parsed as the parameters type of that filter, the way
+    /// <see cref="GetStreamFilters(PdfDictionary)"/> reads them from a stream dictionary.
+    /// </summary>
+    public static List<PdfStreamFilter> GetStreamFilters(PdfValue? filterValue, PdfValue? decodeParmsValue)
+    {
+        List<PdfFilterType> filters = GetFilters(filterValue);
         List<PdfStreamFilter> streamFilters = new(filters.Count);
 
-        PdfDictionary? sharedParms = dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
+        PdfDictionary? sharedParms = decodeParmsValue.AsDictionary();
         PdfArray? parmsArray = null;
-        if (dictionary.GetArray(PdfTokens.FilterKey) != null)
+        if (filterValue is PdfArrayValue)
         {
-            parmsArray = dictionary.GetArray(PdfTokens.DecodeParmsKey);
+            parmsArray = decodeParmsValue.AsArray();
         }
 
         if (sharedParms == null && parmsArray != null && parmsArray.Count == 1 && filters.Count > 1)

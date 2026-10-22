@@ -124,7 +124,7 @@ public class PdfType3Font : PdfSingleByteFont
         IPdfContentHost sourceHost = sourceState.Host;
         PdfContentHost glyphHost = new(sourceHost.Document, _resources ?? sourceHost.Resources, null);
         PdfContentStreamRenderer contentRenderer = new(renderer, glyphHost);
-        PdfParseContext parseContext = new(info.Content, PdfParseContext.ContentStreamValuesCapacity);
+        PdfParseContext parseContext = new(info.Content, sourceHost.Document);
         PdfGraphicsState charState = sourceState.CloneForType3Glyph(glyphHost);
 
         // TODO: [MEDIUM] Type3 text not selectable (issue19624.pdf): d0 glyphs without d1 bbox and FontBBox [0 0 0 0]
@@ -174,7 +174,7 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(new PdfParseContext(streamData, PdfParseContext.ContentStreamValuesCapacity));
+        (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(new PdfParseContext(streamData, Document));
 
         return new PdfType3CharacterInfo(streamData, charObject.Reference.Value.ObjectNumber, boundingBox, advancement);
     }

@@ -8,9 +8,8 @@ using PdfPixel.Text;
 namespace PdfPixel.Rendering.Operators;
 
 /// <summary>
-/// Handles inline image operators (BI / ID / EI). Parameter collection, dictionary expansion and image data
-/// scanning happen once in <see cref="PdfPixel.Parsing.PdfParser"/> while the ID token is processed; by the
-/// time EI fires, the fully parsed image is already sitting on the operand stack.
+/// Handles inline image operators (BI / ID / EI). ID reads the image, from the entries on the operand stack and the data
+/// that follows in the content stream, with <see cref="PdfImage.FromInline"/>; EI draws it.
 /// </summary>
 internal class InlineImageOperators : IOperatorProcessor
 {
@@ -18,6 +17,7 @@ internal class InlineImageOperators : IOperatorProcessor
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
+    private PdfImage? _inlineImage;
 
     public InlineImageOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
@@ -33,17 +33,18 @@ internal class InlineImageOperators : IOperatorProcessor
         {
             case PdfOperator.BeginInlineImage:
             {
-                // Begin Inline Image - no action needed, parameters will be collected on stack
+                _inlineImage = null;
                 break;
             }
             case PdfOperator.InlineImageData:
             {
-                // Inline Image - comsumed by EI operator, so no action needed here
+                // The data is read even when images are not processed, so the stream resumes past it.
+                _inlineImage = PdfImage.FromInline(context, _operandStack);
                 break;
             }
             case PdfOperator.EndInlineImage:
             {
-                ProcessEndInlineImage(context, ref graphicsState);
+                ProcessEndInlineImage(ref graphicsState);
                 break;
             }
             default:
@@ -55,24 +56,18 @@ internal class InlineImageOperators : IOperatorProcessor
         return true;
     }
 
-    private void ProcessEndInlineImage(PdfParseContext context, ref PdfGraphicsState graphicsState)
+    private void ProcessEndInlineImage(ref PdfGraphicsState graphicsState)
     {
-        PdfContentStreamValue value = _operandStack.Pop();
-        _operandStack.Clear();
+        PdfImage? inlineImage = _inlineImage;
+        _inlineImage = null;
 
-        if (!graphicsState.RenderingParameters.ProcessImages
+        if (inlineImage == null
+            || !graphicsState.RenderingParameters.ProcessImages
             || (!graphicsState.RenderingParameters.RenderContent && !graphicsState.RenderingParameters.ExtractContent))
         {
             return;
         }
 
-        PdfObject? inlineObject = value.GetPdfValue(context).AsInlineImage();
-        if (inlineObject == null)
-        {
-            return;
-        }
-
-        PdfImage pdfImage = PdfImage.FromInlineObject(inlineObject);
-        _renderer.DrawImage(_processor, pdfImage, graphicsState);
+        _renderer.DrawImage(_processor, inlineImage, graphicsState);
     }
 }

@@ -8,6 +8,7 @@ using PdfPixel.Imaging.Processing;
 using PdfPixel.Measures;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering.Operators;
 using PdfPixel.Resources;
 using PdfPixel.Streams;
 using System;
@@ -21,32 +22,79 @@ namespace PdfPixel.Imaging;
 /// </summary>
 public class PdfImage : PdfXObject
 {
-    private readonly PdfDictionary _dictionary;
+    private const int DefaultInlineBitsPerComponent = 8;
+
+    private static readonly PdfNameValue DefaultInlineColorSpace = new(PdfColorSpaceType.DeviceGray.AsPdfString());
+
+    private readonly PdfDictionary? _dictionary;
     private List<PdfPointData>? _pointData;
 
-    internal PdfImage(PdfObject imageXObject, in PdfReference reference, bool isInlineImage)
-        : base(imageXObject, reference, PdfXObjectSubtype.Image)
+    internal PdfImage(PdfObject imageXObject, in PdfReference reference)
+        : this(
+            imageXObject.Document,
+            imageXObject.Dictionary,
+            reference,
+            imageXObject.Stream,
+            imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey),
+            imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
+            imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey),
+            PdfColorSpaceReference.FromDictionary(imageXObject.Dictionary, PdfTokens.ColorSpaceKey),
+            imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey),
+            imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey),
+            imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey),
+            imageXObject.Dictionary.GetName(PdfTokens.IntentKey))
     {
-        PdfDictionary dictionary = imageXObject.Dictionary;
-        _dictionary = dictionary;
-        IsInlineImage = isInlineImage;
-        Stream = imageXObject.Stream;
+    }
 
-        int bitsPerComponent = dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
-        if (bitsPerComponent == 0)
+    /// <summary>
+    /// Initializes a new <see cref="PdfImage"/> from the entries read from its dictionary, or from the operand stack for an
+    /// inline image, which has no <paramref name="dictionary"/> and so none of the entries only an image XObject may have.
+    /// </summary>
+    private PdfImage(
+        IPdfDocumentInternal document,
+        PdfDictionary? dictionary,
+        in PdfReference reference,
+        PdfObjectStream stream,
+        int width,
+        int height,
+        int bitsPerComponent,
+        in PdfColorSpaceReference colorSpaceReference,
+        bool hasImageMask,
+        bool interpolate,
+        PdfArray? decode,
+        PdfString? intent)
+        : base(document, dictionary, reference, PdfXObjectSubtype.Image)
+    {
+        _dictionary = dictionary;
+        IsInlineImage = dictionary == null;
+        Stream = stream;
+        Width = width;
+        Height = height;
+
+        // allowed for 1 bit images.
+        BitsPerComponent = (bitsPerComponent == 0) ? 1 : bitsPerComponent;
+        ColorSpaceReference = colorSpaceReference;
+        HasImageMask = hasImageMask;
+        Interpolate = interpolate;
+        float[]? decodeArray = decode?.GetFloatArray();
+        Decode = (decodeArray != null) ? PdfRange.FromArray(decodeArray) : null;
+        RenderingIntent = (intent != null) ? intent.Value.AsEnum<PdfRenderingIntent>() : PdfRenderingIntent.RelativeColorimetric;
+
+        var type = PdfImageType.Raw;
+        IReadOnlyList<PdfStreamFilter> filters = stream.Filters;
+        if (filters.Count > 0)
         {
-            // allowed for 1 bit images.
-            bitsPerComponent = 1;
+            PdfStreamFilter imageFilter = filters[filters.Count - 1];
+            type = MapImageType(imageFilter.Filter);
+            DecodeParms = imageFilter.DecodeParameters;
         }
 
-        BitsPerComponent = bitsPerComponent;
-        Width = dictionary.GetIntegerOrDefault(PdfTokens.WidthKey);
-        Height = dictionary.GetIntegerOrDefault(PdfTokens.HeightKey);
-        ColorSpaceReference = PdfColorSpaceReference.FromDictionary(dictionary, PdfTokens.ColorSpaceKey);
-        HasImageMask = dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey);
-        Interpolate = dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey);
-        float[]? decodeArray = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
-        Decode = (decodeArray != null) ? PdfRange.FromArray(decodeArray) : null;
+        Type = type;
+
+        if (dictionary == null)
+        {
+            return;
+        }
 
         PdfArray? maskArray = dictionary.GetArray(PdfTokens.MaskKey);
         if (maskArray != null)
@@ -67,19 +115,6 @@ public class PdfImage : PdfXObject
 
         Matte = dictionary.GetArray(PdfTokens.MatteKey)?.GetFloatArray();
         SoftMaskInData = MapSoftMaskInData(dictionary.GetIntegerOrDefault(PdfTokens.SoftMaskInDataKey));
-        RenderingIntent = dictionary.GetNameOrDefault(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
-
-        var type = PdfImageType.Raw;
-        IReadOnlyList<PdfStreamFilter> filters = imageXObject.Stream.Filters;
-        if (filters.Count > 0)
-        {
-            PdfStreamFilter imageFilter = filters[filters.Count - 1];
-            type = MapImageType(imageFilter.Filter);
-            DecodeParms = imageFilter.DecodeParameters;
-        }
-
-        Type = type;
-
         SoftMask = GetImage(dictionary, PdfTokens.SoftMaskKey);
         Measure = PdfMeasure.GetMeasure(dictionary, PdfTokens.MeasureKey);
     }
@@ -187,7 +222,7 @@ public class PdfImage : PdfXObject
     {
         if (_pointData == null)
         {
-            _pointData = PdfPointData.FromOwner(_dictionary);
+            _pointData = (_dictionary != null) ? PdfPointData.FromOwner(_dictionary) : [];
         }
 
         return _pointData;
@@ -259,10 +294,158 @@ public class PdfImage : PdfXObject
         => owner.Document.ObjectCache.GetOrCreate<PdfXObject>(owner, key, FromImageEntryObject, requiresStream: true) as PdfImage;
 
     /// <summary>
-    /// Creates an image from an inline image object (BI/ID/EI).
+    /// Reads the inline image whose ID operator was just read from the content stream <paramref name="context"/> reads. When the
+    /// bytes from where the image starts repeat an inline image the document read before, that image is returned without reading
+    /// anything else. Otherwise its entries are read from the <paramref name="operands"/> written between its BI and ID
+    /// operators, under their full or abbreviated keys, and its data from the context up to its EI operator; an image that is
+    /// not a stencil mask and declares no /BitsPerComponent or /ColorSpace is read as 8-bit DeviceGray, and the document keeps
+    /// the image under its bytes. Either way the parser is told, through <see cref="PdfContentStreamCursor.SkipPositions"/>,
+    /// to resume at the EI operator.
     /// </summary>
-    /// <param name="inlineObject">The inline image object.</param>
-    internal static PdfImage FromInlineObject(PdfObject inlineObject) => new(inlineObject, new PdfReference(0), isInlineImage: true);
+    /// <returns>The image, or null when the end of its data is not found, in which case the rest of the stream is skipped.</returns>
+    internal static PdfImage? FromInline(PdfParseContext context, PdfOperandStack operands)
+    {
+        if (operands == null)
+        {
+            throw new ArgumentNullException(nameof(operands));
+        }
+
+        PdfContentStreamCursor cursor = context.Cursor ?? throw new InvalidOperationException("Inline images are read only from a content stream context.");
+        IPdfDocumentInternal document = context.Document ?? throw new InvalidOperationException("Inline images are read only from a content stream context.");
+        PdfContentStreamInlineImages inlineImages = document.ObjectCache.InlineImages;
+        int imageStart = cursor.InlineImageStart;
+        int dataStart = cursor.InlineImageDataStart;
+
+        PdfImage? repeatedImage = inlineImages.Find(context.Slice(imageStart, context.Length - imageStart), out int repeatedLength);
+        int? repeatedOperatorStart = (repeatedImage != null)
+            ? PdfInlineImageDataScanner.FindEiOperator(context.Slice(dataStart, context.Length - dataStart), imageStart + repeatedLength - dataStart)
+            : null;
+
+        if (repeatedImage != null && repeatedOperatorStart != null)
+        {
+            cursor.SkipPositions = repeatedOperatorStart.Value;
+
+            return repeatedImage;
+        }
+
+        int? width = null;
+        int? height = null;
+        int? bitsPerComponent = null;
+        bool? imageMask = null;
+        bool? interpolate = null;
+        PdfValue? colorSpace = null;
+        PdfValue? decode = null;
+        PdfValue? filter = null;
+        PdfValue? decodeParms = null;
+        PdfValue? intent = null;
+        ReadOnlySpan<PdfContentStreamValue> entries = operands.AsSpan();
+
+        for (int index = 0; index + 1 < entries.Length; index += 2)
+        {
+            PdfString? key = entries[index].GetPdfValue(context).AsName();
+
+            if (key == null)
+            {
+                break;
+            }
+
+            PdfValue? value = entries[index + 1].GetPdfValue(context);
+
+            switch (key.Value.AsEnum<PdfInlineImageProperty>())
+            {
+                case PdfInlineImageProperty.Width:
+                {
+                    width ??= value.AsInteger();
+                    break;
+                }
+                case PdfInlineImageProperty.Height:
+                {
+                    height ??= value.AsInteger();
+                    break;
+                }
+                case PdfInlineImageProperty.BitsPerComponent:
+                {
+                    bitsPerComponent ??= value.AsInteger();
+                    break;
+                }
+                case PdfInlineImageProperty.ColorSpace:
+                {
+                    colorSpace ??= value;
+                    break;
+                }
+                case PdfInlineImageProperty.Decode:
+                {
+                    decode ??= value;
+                    break;
+                }
+                case PdfInlineImageProperty.DecodeParms:
+                {
+                    decodeParms ??= value;
+                    break;
+                }
+                case PdfInlineImageProperty.Filter:
+                {
+                    filter ??= value;
+                    break;
+                }
+                case PdfInlineImageProperty.ImageMask:
+                {
+                    imageMask ??= value.AsBoolean();
+                    break;
+                }
+                case PdfInlineImageProperty.Interpolate:
+                {
+                    interpolate ??= value.AsBoolean();
+                    break;
+                }
+                case PdfInlineImageProperty.Intent:
+                {
+                    intent ??= value;
+                    break;
+                }
+            }
+        }
+
+        bool hasImageMask = imageMask ?? false;
+        int resolvedBitsPerComponent = bitsPerComponent ?? (hasImageMask ? 1 : DefaultInlineBitsPerComponent);
+
+        List<PdfStreamFilter> filters = PdfStreamDecoder.GetStreamFilters(filter, decodeParms);
+        PdfFilterType? firstFilter = (filters.Count > 0) ? filters[0].Filter : null;
+        int? rawDataLength = (firstFilter == null)
+            ? ComputeRawDataLength(width ?? 0, height ?? 0, hasImageMask ? 1 : resolvedBitsPerComponent, (hasImageMask || colorSpace == null) ? 1 : GetComponentCount(colorSpace))
+            : null;
+
+        ReadOnlySpan<byte> content = context.Slice(dataStart, context.Length - dataStart);
+
+        if (!PdfInlineImageDataScanner.TryFindData(content, firstFilter, rawDataLength, out int dataOffset, out int dataEnd, out int operatorStart))
+        {
+            cursor.SkipPositions = content.Length;
+
+            return null;
+        }
+
+        PdfValue? resolvedColorSpace = colorSpace ?? (hasImageMask ? null : DefaultInlineColorSpace);
+        byte[] data = content.Slice(dataOffset, dataEnd - dataOffset).ToArray();
+
+        PdfImage image = new(
+            document,
+            null,
+            new PdfReference(0),
+            PdfObjectStream.FromInlineData(document, filters, data),
+            width ?? 0,
+            height ?? 0,
+            resolvedBitsPerComponent,
+            (resolvedColorSpace != null) ? PdfColorSpaceReference.FromValue(resolvedColorSpace) : default,
+            hasImageMask,
+            interpolate ?? false,
+            decode.AsArray(),
+            intent.AsName());
+
+        inlineImages.Add(context.Slice(imageStart, dataStart + operatorStart - imageStart), image);
+        cursor.SkipPositions = operatorStart;
+
+        return image;
+    }
 
     private static PdfXObject? FromImageEntryObject(PdfObject imageObject)
     {
@@ -271,7 +454,56 @@ public class PdfImage : PdfXObject
             return FromObject(imageObject);
         }
 
-        return new PdfImage(imageObject, imageObject.Reference.Value, isInlineImage: false);
+        return new PdfImage(imageObject, imageObject.Reference.Value);
+    }
+
+    /// <summary>
+    /// Returns the length of unfiltered inline image data of the given size and sample layout,
+    /// or null when the size or layout is not known.
+    /// </summary>
+    private static int? ComputeRawDataLength(int width, int height, int bitsPerComponent, int? components)
+    {
+        if (width <= 0 || height <= 0 || bitsPerComponent <= 0 || components == null || components.Value <= 0)
+        {
+            return null;
+        }
+
+        long bitsPerRow = (long)width * bitsPerComponent * components.Value;
+        long rowBytes = (bitsPerRow + 7) / 8;
+        long totalBytes = rowBytes * height;
+
+        return (totalBytes > 0 && totalBytes <= int.MaxValue) ? (int)totalBytes : null;
+    }
+
+    /// <summary>
+    /// Returns the number of components of the device or indexed color space an inline image names,
+    /// or null for any other color space.
+    /// </summary>
+    private static int? GetComponentCount(PdfValue colorSpace)
+    {
+        PdfString? colorSpaceName = colorSpace.AsName();
+        if (colorSpaceName == null)
+        {
+            return null;
+        }
+
+        switch (colorSpaceName.Value.AsEnum<PdfColorSpaceType>())
+        {
+            case PdfColorSpaceType.DeviceGray:
+                return 1;
+
+            case PdfColorSpaceType.DeviceRGB:
+                return 3;
+
+            case PdfColorSpaceType.DeviceCMYK:
+                return 4;
+
+            case PdfColorSpaceType.Indexed:
+                return 1;
+
+            default:
+                return null;
+        }
     }
 
     private static PdfImageSoftMaskInData MapSoftMaskInData(int value)

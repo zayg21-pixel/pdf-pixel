@@ -5,6 +5,7 @@ using PdfPixel.Color.Transform;
 using PdfPixel.Imaging;
 using PdfPixel.Rendering;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands.Image;
 
@@ -13,7 +14,7 @@ namespace PdfPixel.Commands.Image;
 /// <see cref="PdfImage"/>. Captured at command creation time so the command can later re-decode with
 /// an updated <see cref="PdfCommandExecutionParameters"/> at execution time.
 /// </summary>
-internal sealed class ImageDecodingContext
+internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
 {
     /// <summary>
     /// Creates a decoding context by capturing the relevant values from a <see cref="PdfGraphicsState"/>
@@ -150,6 +151,40 @@ internal sealed class ImageDecodingContext
     /// Whether the image's mask (/SMask, /SMaskInData or /Mask) is applied as alpha.
     /// </summary>
     public bool ApplyMask { get; }
+
+    /// <summary>
+    /// Returns whether <paramref name="other"/> decodes an image into the same tiles: the same host, color space converter,
+    /// transfer function and fill paint instances, and the same tiling, masking and compositing settings.
+    /// </summary>
+    public bool Equals(ImageDecodingContext? other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return ReferenceEquals(Host, other.Host)
+            && ReferenceEquals(ColorSpaceConverter, other.ColorSpaceConverter)
+            && ReferenceEquals(TransferFunction, other.TransferFunction)
+            && ReferenceEquals(FillPaint, other.FillPaint)
+            && DefaultTileSize == other.DefaultTileSize
+            && CacheDecodedTiles == other.CacheDecodedTiles
+            && UseBlackPointCompensation == other.UseBlackPointCompensation
+            && IsStencilMaskComposite == other.IsStencilMaskComposite
+            && ApplyMask == other.ApplyMask;
+    }
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => Equals(obj as ImageDecodingContext);
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+        => HashCode.Combine(RuntimeHelpers.GetHashCode(Host), RuntimeHelpers.GetHashCode(FillPaint), DefaultTileSize, IsStencilMaskComposite, ApplyMask);
 
     private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Host.Resources.ResolveColorSpace(image.ColorSpaceReference, defaultComponents: -1);
 }

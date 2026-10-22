@@ -11,11 +11,6 @@ namespace PdfPixel.Parsing;
 /// </summary>
 internal ref struct PdfParseContext
 {
-    /// <summary>
-    /// Number of content stream operand values a content stream context holds.
-    /// </summary>
-    internal const int ContentStreamValuesCapacity = 4;
-
     private readonly ReadOnlySpan<byte> _data;
     private int _position;
 
@@ -23,29 +18,37 @@ internal ref struct PdfParseContext
     /// Construct context from a single memory block (wrapped as one chunk).
     /// </summary>
     /// <param name="memory">The memory block to parse.</param>
-    public PdfParseContext(in ReadOnlyMemory<byte> memory)
-    {
-        _data = memory.Span;
-        Values = Array.Empty<PdfValue>();
-    }
+    public PdfParseContext(in ReadOnlyMemory<byte> memory) => _data = memory.Span;
 
     /// <summary>
     /// Construct a content stream context from a single memory block.
     /// </summary>
     /// <param name="memory">The memory block to parse.</param>
-    /// <param name="valuesCapacity">Number of operand values the context holds.</param>
-    internal PdfParseContext(in ReadOnlyMemory<byte> memory, int valuesCapacity)
+    /// <param name="document">Document the content stream belongs to, which its values are parsed for.</param>
+    internal PdfParseContext(in ReadOnlyMemory<byte> memory, IPdfDocumentInternal document)
     {
         _data = memory.Span;
-        Values = CreateValues(valuesCapacity);
+        Document = document ?? throw new ArgumentNullException(nameof(document));
+        Cursor = new PdfContentStreamCursor();
+    }
+
+    /// <summary>
+    /// Construct a content stream context over <paramref name="data"/>, such as the extent of a single value of another context.
+    /// </summary>
+    /// <param name="data">The data to parse.</param>
+    /// <param name="document">Document the content stream belongs to, which its values are parsed for.</param>
+    internal PdfParseContext(in ReadOnlySpan<byte> data, IPdfDocumentInternal document)
+    {
+        _data = data;
+        Document = document ?? throw new ArgumentNullException(nameof(document));
     }
 
     /// <summary>
     /// Construct a content stream context from a list of memory chunks.
     /// </summary>
     /// <param name="chunks">The list of chunks representing one logical stream.</param>
-    /// <param name="valuesCapacity">Number of operand values the context holds.</param>
-    internal PdfParseContext(List<ReadOnlyMemory<byte>> chunks, int valuesCapacity)
+    /// <param name="document">Document the content stream belongs to, which its values are parsed for.</param>
+    internal PdfParseContext(List<ReadOnlyMemory<byte>> chunks, IPdfDocumentInternal document)
     {
         if (chunks == null)
         {
@@ -70,14 +73,20 @@ internal ref struct PdfParseContext
             _data = total.Span;
         }
 
-        Values = CreateValues(valuesCapacity);
+        Document = document ?? throw new ArgumentNullException(nameof(document));
+        Cursor = new PdfContentStreamCursor();
     }
 
     /// <summary>
-    /// Values of the content stream operands read since the last operator, other than numbers, booleans and null;
-    /// empty for a context that does not read a content stream.
+    /// Document of the content stream the context reads, which its names, strings, arrays, dictionaries and inline images
+    /// are parsed for; <see langword="null"/> for a context that does not read a content stream.
     /// </summary>
-    internal PdfValue[] Values { get; }
+    internal IPdfDocumentInternal? Document { get; }
+
+    /// <summary>
+    /// Positions shared by every copy of the context of a whole content stream; <see langword="null"/> for any other context.
+    /// </summary>
+    internal PdfContentStreamCursor? Cursor { get; }
 
     /// <summary>
     /// Current absolute position in the logical stream.
@@ -193,16 +202,4 @@ internal ref struct PdfParseContext
 
     /// <inheritdoc/>
     public override string ToString() => PdfEncodingExtensions.PdfDefault.GetString(_data);
-
-    private static PdfValue[] CreateValues(int capacity)
-    {
-        var values = new PdfValue[capacity];
-
-        for (int index = 0; index < values.Length; index++)
-        {
-            values[index] = PdfNullValue.Instance;
-        }
-
-        return values;
-    }
 }

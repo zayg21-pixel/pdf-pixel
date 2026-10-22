@@ -63,4 +63,6 @@ internal sealed class PdfOperandStack
     /// Removes every operand.
     /// </summary>
     public void Clear() => _count = 0;
+
+    public ReadOnlySpan<PdfContentStreamValue> AsSpan() => _items.AsSpan(0, _count);
 }

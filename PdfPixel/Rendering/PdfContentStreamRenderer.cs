@@ -51,7 +51,7 @@ internal class PdfContentStreamRenderer
         }
 
         // Create unified context that treats all streams as one continuous stream
-        PdfParseContext parseContext = new(contentStreams, PdfParseContext.ContentStreamValuesCapacity);
+        PdfParseContext parseContext = new(contentStreams, _host.Document);
 
         PdfGraphicsState state = new(_host, clipBounds, new HashSet<uint>(), observer, renderingParameters);
 

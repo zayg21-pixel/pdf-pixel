@@ -133,7 +133,7 @@ internal class PdfFormRenderer
             }
 
             PdfContentStreamRenderer renderer = new(_renderer, formHost);
-            PdfParseContext parseContext = new(content, PdfParseContext.ContentStreamValuesCapacity);
+            PdfParseContext parseContext = new(content, formHost.Document);
 
             renderer.RenderContext(recorder, ref parseContext, localGs);
         }

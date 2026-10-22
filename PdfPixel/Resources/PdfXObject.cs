@@ -17,14 +17,29 @@ public abstract class PdfXObject : IPdfAssociatedFilesHost
     /// Initializes a new <see cref="PdfXObject"/> from the given source object.
     /// </summary>
     private protected PdfXObject(PdfObject xObject, in PdfReference reference, PdfXObjectSubtype subtype)
+        : this(xObject.Document, xObject.Dictionary, reference, subtype)
     {
-        Document = xObject.Document;
+    }
+
+    /// <summary>
+    /// Initializes a new <see cref="PdfXObject"/> from its dictionary, or with no dictionary for an XObject that has no object
+    /// of its own, such as an inline image, and so no optional content, structure parent, associated files or metadata.
+    /// </summary>
+    private protected PdfXObject(IPdfDocumentInternal document, PdfDictionary? dictionary, in PdfReference reference, PdfXObjectSubtype subtype)
+    {
+        Document = document;
         Reference = reference;
         Subtype = subtype;
-        OptionalContent = PdfOptionalContentMembership.FromDictionary(xObject.Dictionary);
-        StructParent = xObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
-        AssociatedFiles = PdfFileSpecification.GetFileSpecifications(xObject.Dictionary.GetArray(PdfTokens.AssociatedFilesKey));
-        Metadata = PdfMetadata.FromDictionary(xObject.Dictionary);
+
+        if (dictionary == null)
+        {
+            return;
+        }
+
+        OptionalContent = PdfOptionalContentMembership.FromDictionary(dictionary);
+        StructParent = dictionary.GetInteger(PdfTokens.StructParentKey);
+        AssociatedFiles = PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.AssociatedFilesKey));
+        Metadata = PdfMetadata.FromDictionary(dictionary);
     }
 
     /// <summary>
@@ -85,7 +100,7 @@ public abstract class PdfXObject : IPdfAssociatedFilesHost
 
         return subtype switch
         {
-            PdfXObjectSubtype.Image => new PdfImage(xObject, xObject.Reference.Value, isInlineImage: false),
+            PdfXObjectSubtype.Image => new PdfImage(xObject, xObject.Reference.Value),
             PdfXObjectSubtype.Form => new PdfForm(xObject, xObject.Reference.Value),
             _ => null
         };

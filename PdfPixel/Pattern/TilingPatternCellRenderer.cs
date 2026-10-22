@@ -45,7 +45,7 @@ internal sealed class TilingPatternCellRenderer
         PdfGraphicsState cellState = new(patternHost, pattern.BoundingBox, sourceState);
         PdfRenderer cellRenderer = new(document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(cellRenderer, patternHost);
-        PdfParseContext parseContext = new(streamData, PdfParseContext.ContentStreamValuesCapacity);
+        PdfParseContext parseContext = new(streamData, document);
         contentRenderer.RenderContext(recorder, ref parseContext, cellState);
 
         sourceState.RecursionGuard.Remove(patternReference.ObjectNumber);
