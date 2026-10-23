@@ -1,6 +1,8 @@
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace PdfPixel.Imaging;
@@ -27,14 +29,43 @@ internal static class PdfStencilOutline
     /// </summary>
     public const int MaximumPoints = 20000;
 
-    // Directions a crack runs along the corner grid, rows downwards, ordered clockwise so that turning right is the next one.
-    private const int East = 0;
-    private const int South = 1;
-    private const int West = 2;
-    private const int North = 3;
+    // Directions a crack runs along the corner grid, rows downwards, are numbered clockwise from east (east 0, south 1,
+    // west 2, north 3), so that turning right is the next one; a set of cracks has one bit per direction.
 
-    private static readonly int[] ColumnSteps = [1, 0, -1, 0];
-    private static readonly int[] RowSteps = [0, 1, 0, -1];
+    // Samples of the 2x2 neighborhood of a corner, as the bits of its index into CornerCracks.
+    private const int TopLeft = 1 << 0;
+    private const int BottomLeft = 1 << 2;
+
+    private static ReadOnlySpan<sbyte> ColumnSteps => [1, 0, -1, 0];
+
+    private static ReadOnlySpan<sbyte> RowSteps => [0, 1, 0, -1];
+
+    /// <summary>
+    /// The cracks leaving a corner, by its 2x2 neighborhood: top-left, top-right, bottom-left and bottom-right sample in
+    /// bits 0 to 3, set when painted. A crack runs east under a painted bottom-right sample, south after a painted
+    /// bottom-left one, west over a painted top-left one and north before a painted top-right one, each where its
+    /// neighbor across the crack is unpainted.
+    /// </summary>
+    private static ReadOnlySpan<byte> CornerCracks => [0, 4, 8, 4, 2, 2, 10, 2, 1, 5, 8, 4, 1, 1, 8, 0];
+
+    /// <summary>
+    /// The direction to leave a corner by, indexed by the direction arrived along in bits 4 and 5 and the cracks still
+    /// leaving the corner in bits 0 to 3. A corner where two painted samples touch only diagonally has two cracks leaving
+    /// it, and the contour turns right there; any pairing of the cracks fills the same, since every crack is used once with
+    /// the painted sample on its right.
+    /// </summary>
+    private static ReadOnlySpan<byte> NextDirections =>
+    [
+        3, 0, 1, 1, 3, 0, 1, 1, 3, 0, 1, 1, 3, 0, 1, 1,
+        0, 0, 1, 1, 2, 2, 2, 2, 0, 0, 1, 1, 2, 2, 2, 2,
+        1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
+        2, 0, 2, 0, 2, 0, 2, 0, 3, 0, 3, 0, 3, 0, 3, 0,
+    ];
+
+    /// <summary>
+    /// The first of the cracks leaving a corner in direction order, indexed by those cracks.
+    /// </summary>
+    private static ReadOnlySpan<byte> FirstDirections => [0, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0];
 
     /// <summary>
     /// Returns the outline of the painted samples of <paramref name="image"/>, or null when the image is not a stencil mask,
@@ -59,9 +90,27 @@ internal static class PdfStencilOutline
         PdfDecodedImage? samples = DecodeSamples(image);
 
         if (samples == null
-            || samples.ColorFormat != PdfImageColorFormat.Alpha
             || samples.Width != image.Width
             || samples.Height != image.Height)
+        {
+            return null;
+        }
+
+        return Trace(samples);
+    }
+
+    /// <summary>
+    /// Returns the outline of the painted samples of decoded stencil mask <paramref name="samples"/>, or null when they are
+    /// not alpha samples or need more than <see cref="MaximumPoints"/> points.
+    /// </summary>
+    internal static PdfPath? Trace(PdfDecodedImage samples)
+    {
+        if (samples == null)
+        {
+            throw new ArgumentNullException(nameof(samples));
+        }
+
+        if (samples.ColorFormat != PdfImageColorFormat.Alpha || samples.Width <= 0 || samples.Height <= 0)
         {
             return null;
         }
@@ -73,7 +122,7 @@ internal static class PdfStencilOutline
 
     /// <summary>
     /// Marks, for every corner of the sample grid, the cracks that leave it: one bit per direction, as the corner a crack
-    /// starts from with the painted sample on its right.
+    /// starts from with the painted sample on its right. The cracks of a corner depend only on the 2x2 samples around it.
     /// </summary>
     private static byte[] FindCracks(PdfDecodedImage samples)
     {
@@ -81,49 +130,31 @@ internal static class PdfStencilOutline
         int height = samples.Height;
         int cornerColumns = width + 1;
         var outgoingCracks = new byte[cornerColumns * (height + 1)];
-        ReadOnlySpan<byte> previousRow = default;
+        var unpaintedRow = new byte[width];
+        ReadOnlySpan<byte> cornerCracks = CornerCracks;
+        ref byte cornerCracksStart = ref MemoryMarshal.GetReference(cornerCracks);
+        ref byte cracksStart = ref MemoryMarshal.GetReference(outgoingCracks.AsSpan());
+        ReadOnlySpan<byte> rowAbove = unpaintedRow;
 
         for (int row = 0; row <= height; row++)
         {
-            ReadOnlySpan<byte> currentRow = (row < height) ? samples.GetPixelRow(row) : default;
-            int cornerRow = row * cornerColumns;
+            ReadOnlySpan<byte> rowBelow = (row < height) ? samples.GetPixelRow(row) : unpaintedRow;
+            ref byte above = ref MemoryMarshal.GetReference(rowAbove);
+            ref byte below = ref MemoryMarshal.GetReference(rowBelow);
+            ref byte cracks = ref Unsafe.Add(ref cracksStart, row * cornerColumns);
+            int neighborhood = 0;
 
             for (int column = 0; column < width; column++)
             {
-                bool paintedAbove = row > 0 && IsPainted(previousRow[column]);
-                bool paintedBelow = row < height && IsPainted(currentRow[column]);
-
-                if (paintedBelow && !paintedAbove)
-                {
-                    outgoingCracks[cornerRow + column] |= 1 << East;
-                }
-                else if (paintedAbove && !paintedBelow)
-                {
-                    outgoingCracks[cornerRow + column + 1] |= 1 << West;
-                }
+                neighborhood = ((neighborhood >> 1) & (TopLeft | BottomLeft))
+                    | ((Unsafe.Add(ref above, column) >> 7) << 1)
+                    | ((Unsafe.Add(ref below, column) >> 7) << 3);
+                Unsafe.Add(ref cracks, column) = Unsafe.Add(ref cornerCracksStart, neighborhood);
             }
 
-            if (row == height)
-            {
-                break;
-            }
-
-            for (int column = 0; column <= width; column++)
-            {
-                bool paintedLeft = column > 0 && IsPainted(currentRow[column - 1]);
-                bool paintedRight = column < width && IsPainted(currentRow[column]);
-
-                if (paintedRight && !paintedLeft)
-                {
-                    outgoingCracks[cornerRow + cornerColumns + column] |= 1 << North;
-                }
-                else if (paintedLeft && !paintedRight)
-                {
-                    outgoingCracks[cornerRow + column] |= 1 << South;
-                }
-            }
-
-            previousRow = currentRow;
+            neighborhood = (neighborhood >> 1) & (TopLeft | BottomLeft);
+            Unsafe.Add(ref cracks, width) = Unsafe.Add(ref cornerCracksStart, neighborhood);
+            rowAbove = rowBelow;
         }
 
         return outgoingCracks;
@@ -138,88 +169,92 @@ internal static class PdfStencilOutline
         int cornerColumns = width + 1;
         PdfMatrix sampleToUnitSquare = new(1f / width, 0, 0, 0, -1f / height, 1);
         PdfPathBuilder builder = new(sampleToUnitSquare);
+        Span<int> cornerSteps = stackalloc int[] { 1, cornerColumns, -1, -cornerColumns };
+        ref int cornerStepsStart = ref MemoryMarshal.GetReference(cornerSteps);
+        ref sbyte columnStepsStart = ref MemoryMarshal.GetReference(ColumnSteps);
+        ref sbyte rowStepsStart = ref MemoryMarshal.GetReference(RowSteps);
+        ref byte nextDirectionsStart = ref MemoryMarshal.GetReference(NextDirections);
+        ref byte firstDirectionsStart = ref MemoryMarshal.GetReference(FirstDirections);
+        ref byte cracksStart = ref MemoryMarshal.GetReference(outgoingCracks.AsSpan());
         int pointCount = 0;
+        int startCorner = 0;
 
-        for (int startCorner = 0; startCorner < outgoingCracks.Length; startCorner++)
+        while (true)
         {
-            while (outgoingCracks[startCorner] != 0)
+            int nextStart = FindCornerWithCracks(outgoingCracks, startCorner);
+
+            if (nextStart < 0)
             {
-                int column = startCorner % cornerColumns;
-                int row = startCorner / cornerColumns;
-                int direction = GetFirstDirection(outgoingCracks[startCorner]);
-                int corner = startCorner;
+                break;
+            }
 
-                builder.MoveTo(column, row);
-                pointCount++;
+            startCorner = nextStart;
+            byte startCracks = Unsafe.Add(ref cracksStart, startCorner);
+            int column = startCorner % cornerColumns;
+            int row = startCorner / cornerColumns;
+            int direction = Unsafe.Add(ref firstDirectionsStart, startCracks);
+            int corner = startCorner;
 
-                while (true)
+            builder.MoveTo(column, row);
+            pointCount++;
+
+            while (true)
+            {
+                ref byte cornerCracks = ref Unsafe.Add(ref cracksStart, corner);
+                cornerCracks &= (byte)~(1 << direction);
+                corner += Unsafe.Add(ref cornerStepsStart, direction);
+                column += Unsafe.Add(ref columnStepsStart, direction);
+                row += Unsafe.Add(ref rowStepsStart, direction);
+
+                int cracks = Unsafe.Add(ref cracksStart, corner);
+
+                if (corner == startCorner || cracks == 0)
                 {
-                    outgoingCracks[corner] &= (byte)~(1 << direction);
-                    column += ColumnSteps[direction];
-                    row += RowSteps[direction];
-                    corner = (row * cornerColumns) + column;
+                    break;
+                }
 
-                    if (corner == startCorner || outgoingCracks[corner] == 0)
+                int nextDirection = Unsafe.Add(ref nextDirectionsStart, (direction << 4) | cracks);
+
+                if (nextDirection != direction)
+                {
+                    if (++pointCount > MaximumPoints)
                     {
-                        break;
+                        return null;
                     }
 
-                    int nextDirection = ChooseNextDirection(outgoingCracks[corner], direction);
-
-                    if (nextDirection != direction)
-                    {
-                        builder.LineTo(column, row);
-                        pointCount++;
-                    }
-
+                    builder.LineTo(column, row);
                     direction = nextDirection;
                 }
-
-                builder.Close();
-
-                if (pointCount > MaximumPoints)
-                {
-                    return null;
-                }
             }
+
+            builder.Close();
         }
 
-        return builder.ToPath(PdfPathFillType.Winding);
+        return builder.Detach(PdfPathFillType.Winding);
     }
 
     /// <summary>
-    /// Returns the direction to leave a corner by after arriving along <paramref name="direction"/>. A corner where two
-    /// painted samples touch only diagonally has two cracks leaving it, and the contour turns right there; any pairing of
-    /// the cracks fills the same, since every crack is used once with the painted sample on its right.
+    /// Returns the first corner from <paramref name="start"/> on that still has a crack leaving it, or -1 when none has.
     /// </summary>
-    private static int ChooseNextDirection(byte cracks, int direction)
+    private static int FindCornerWithCracks(byte[] outgoingCracks, int start)
     {
-        int right = (direction + 1) & 3;
+        ReadOnlySpan<byte> remaining = outgoingCracks.AsSpan(start);
+#if NET8_0_OR_GREATER
+        int index = remaining.IndexOfAnyExcept((byte)0);
+#else
+        int index = -1;
 
-        if ((cracks & (1 << right)) != 0)
+        for (int position = 0; position < remaining.Length; position++)
         {
-            return right;
-        }
-
-        if ((cracks & (1 << direction)) != 0)
-        {
-            return direction;
-        }
-
-        return (direction + 3) & 3;
-    }
-
-    private static int GetFirstDirection(byte cracks)
-    {
-        for (int direction = East; direction <= North; direction++)
-        {
-            if ((cracks & (1 << direction)) != 0)
+            if (remaining[position] != 0)
             {
-                return direction;
+                index = position;
+                break;
             }
         }
+#endif
 
-        throw new ArgumentOutOfRangeException(nameof(cracks), "A corner without cracks has no direction to leave by.");
+        return (index < 0) ? -1 : start + index;
     }
 
     private static PdfDecodedImage? DecodeSamples(PdfImage image)

@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.4" />
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.150.1" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
