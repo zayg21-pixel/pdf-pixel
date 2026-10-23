@@ -75,12 +75,11 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
     /// </summary>
     /// <param name="source">The context to derive shared values (content host, tile sizing, transfer function) from.</param>
     /// <param name="image">The image this context resolves a color space converter for.</param>
-    /// <param name="fillPaint">Fill paint override.</param>
-    /// <param name="isStencilMaskComposite">
-    /// True to composite via destination-in (Porter-Duff) regardless of the paint's blend mode, for
-    /// the internal stencil-mask alpha application pass. Has no PDF spec equivalent.
+    /// <param name="fillPaint">
+    /// Fill paint override. A mask paint (<see cref="PdfPaint.MaskParameters"/>) draws the image as the mask of what is
+    /// already painted beneath it.
     /// </param>
-    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, PdfPaint fillPaint, bool isStencilMaskComposite)
+    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, PdfPaint fillPaint)
     {
         if (source == null)
         {
@@ -99,7 +98,6 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
         TransferFunction = source.TransferFunction;
         UseBlackPointCompensation = source.UseBlackPointCompensation;
         FillPaint = fillPaint ?? throw new ArgumentNullException(nameof(fillPaint));
-        IsStencilMaskComposite = isStencilMaskComposite;
         ApplyMask = source.ApplyMask;
     }
 
@@ -137,15 +135,9 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
 
     /// <summary>
     /// Fill paint from the graphics state. Its color is used for stencil mask rendering, and its blend
-    /// mode is superseded by destination-in compositing when <see cref="IsStencilMaskComposite"/> is true.
+    /// mode is superseded by destination-in compositing when it is a mask paint (<see cref="PdfPaint.MaskParameters"/>).
     /// </summary>
     public PdfPaint FillPaint { get; }
-
-    /// <summary>
-    /// True when this context is for the internal stencil-mask alpha application pass, which composites
-    /// via destination-in (Porter-Duff) regardless of <see cref="FillPaint"/>'s blend mode.
-    /// </summary>
-    public bool IsStencilMaskComposite { get; }
 
     /// <summary>
     /// Whether the image's mask (/SMask, /SMaskInData or /Mask) is applied as alpha.
@@ -154,7 +146,7 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
 
     /// <summary>
     /// Returns whether <paramref name="other"/> decodes an image into the same tiles: the same host, color space converter,
-    /// transfer function and fill paint instances, and the same tiling, masking and compositing settings.
+    /// transfer function and fill paint instances, and the same tiling and masking settings.
     /// </summary>
     public bool Equals(ImageDecodingContext? other)
     {
@@ -175,7 +167,6 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
             && DefaultTileSize == other.DefaultTileSize
             && CacheDecodedTiles == other.CacheDecodedTiles
             && UseBlackPointCompensation == other.UseBlackPointCompensation
-            && IsStencilMaskComposite == other.IsStencilMaskComposite
             && ApplyMask == other.ApplyMask;
     }
 
@@ -184,7 +175,7 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
 
     /// <inheritdoc />
     public override int GetHashCode()
-        => HashCode.Combine(RuntimeHelpers.GetHashCode(Host), RuntimeHelpers.GetHashCode(FillPaint), DefaultTileSize, IsStencilMaskComposite, ApplyMask);
+        => HashCode.Combine(RuntimeHelpers.GetHashCode(Host), RuntimeHelpers.GetHashCode(FillPaint), DefaultTileSize, ApplyMask);
 
     private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Host.Resources.ResolveColorSpace(image.ColorSpaceReference, defaultComponents: -1);
 }

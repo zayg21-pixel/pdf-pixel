@@ -300,10 +300,15 @@ public class PdfImage : PdfXObject
     /// operators, under their full or abbreviated keys, and its data from the context up to its EI operator; an image that is
     /// not a stencil mask and declares no /BitsPerComponent or /ColorSpace is read as 8-bit DeviceGray, and the document keeps
     /// the image under its bytes. Either way the parser is told, through <see cref="PdfContentStreamCursor.SkipPositions"/>,
-    /// to resume at the EI operator.
+    /// to resume at the EI operator. A small stencil mask is kept with its outline, traced by <see cref="PdfStencilOutline"/>.
     /// </summary>
-    /// <returns>The image, or null when the end of its data is not found, in which case the rest of the stream is skipped.</returns>
-    internal static PdfImage? FromInline(PdfParseContext context, PdfOperandStack operands)
+    /// <param name="context">The content stream the image is read from.</param>
+    /// <param name="operands">The entries written between the BI and ID operators.</param>
+    /// <returns>
+    /// The inline image as the document keeps it, or null when the end of its data is not found, in which case the rest of
+    /// the stream is skipped.
+    /// </returns>
+    internal static PdfInlineImage? FromInline(PdfParseContext context, PdfOperandStack operands)
     {
         if (operands == null)
         {
@@ -316,16 +321,16 @@ public class PdfImage : PdfXObject
         int imageStart = cursor.InlineImageStart;
         int dataStart = cursor.InlineImageDataStart;
 
-        PdfImage? repeatedImage = inlineImages.Find(context.Slice(imageStart, context.Length - imageStart), out int repeatedLength);
-        int? repeatedOperatorStart = (repeatedImage != null)
-            ? PdfInlineImageDataScanner.FindEiOperator(context.Slice(dataStart, context.Length - dataStart), imageStart + repeatedLength - dataStart)
+        PdfInlineImage? cachedInlineImage = inlineImages.Find(context.Slice(imageStart, context.Length - imageStart), out int cachedBytesLength);
+        int? cachedOperatorStart = (cachedInlineImage != null)
+            ? PdfInlineImageDataScanner.FindEiOperator(context.Slice(dataStart, context.Length - dataStart), imageStart + cachedBytesLength - dataStart)
             : null;
 
-        if (repeatedImage != null && repeatedOperatorStart != null)
+        if (cachedInlineImage != null && cachedOperatorStart != null)
         {
-            cursor.SkipPositions = repeatedOperatorStart.Value;
+            cursor.SkipPositions = cachedOperatorStart.Value;
 
-            return repeatedImage;
+            return cachedInlineImage;
         }
 
         int? width = null;
@@ -441,10 +446,11 @@ public class PdfImage : PdfXObject
             decode.AsArray(),
             intent.AsName());
 
-        inlineImages.Add(context.Slice(imageStart, dataStart + operatorStart - imageStart), image);
+        PdfInlineImage inlineImage = new(image, PdfStencilOutline.Trace(image));
+        inlineImages.Add(context.Slice(imageStart, dataStart + operatorStart - imageStart), inlineImage);
         cursor.SkipPositions = operatorStart;
 
-        return image;
+        return inlineImage;
     }
 
     private static PdfXObject? FromImageEntryObject(PdfObject imageObject)

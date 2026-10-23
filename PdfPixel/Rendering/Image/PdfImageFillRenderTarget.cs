@@ -11,7 +11,7 @@ namespace PdfPixel.Rendering.Image;
 
 internal class PdfImageFillRenderTarget : IRenderTarget
 {
-    private static readonly PdfPaint OpaqueWhiteFill = PdfPaint.Solid(PdfColors.White, PdfPaintStyle.Fill);
+    private static readonly PdfPaint ShapeMaskFill = PdfPaintFactory.CreateShapeMaskPaint();
 
     private readonly PdfImage _image;
     private readonly PdfGraphicsState _state;
@@ -49,7 +49,7 @@ internal class PdfImageFillRenderTarget : IRenderTarget
     {
         if (_image.HasImageMask)
         {
-            ImageDecodingContext maskContext = new(_context, _image, OpaqueWhiteFill, isStencilMaskComposite: true);
+            ImageDecodingContext maskContext = new(_context, _image, ShapeMaskFill);
             processor.Process(SaveStateCommand.Instance);
             ProcessTileCommands(processor, _image, maskContext);
             processor.Process(RestoreStateCommand.Instance);

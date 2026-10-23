@@ -29,5 +29,4 @@ Files: `PdfPixel/Annotations/Model/PdfAnnotationFlags.cs`, `PdfPixel/Models/PdfR
 
 - Check name consistency: every property name in the public API expanded, matching C# property naming conventions.
 - Check constructors/methods inconsistencies. All that created from PdfObject/Array shall be internal, same for constructor, object parsing can go to constructors instead of get/set
-- stencil cache. Currently all fonts/shadings that are using 1bit CCITT and JBIG2 often re-evailated, that hurts performance, we can make stencil cache there. Techincally, it can be per usage, say, Type3 fonts can use it for better alignment of graphics, page can have it's own for small images. Big stencils can be rejectect by cache. Cache shall work for both image and inline image, we'd need to distinguish index in content stream for inlines. Images stored in original resolution and only decoding step is skipped. Not yet descided who will own the cache and how it would be propagated, probably via image target in ImageDecodingContext. Image cache implementation can then go to context and stored on document level. Even in initial implementation cache can already be universal for images, not only "stencil".
-- yield between tile renders
+- instead of hardcoded values add parameters to max outline from stencil and shall we cache path or not

@@ -20,12 +20,12 @@ internal sealed class PdfContentStreamInlineImages
     private readonly Dictionary<ulong, InlineImageSource> _sources = [];
 
     /// <summary>
-    /// Returns the image read from bytes equal to those <paramref name="content"/> starts with, with the length of those bytes,
-    /// or null when none was.
+    /// Returns the inline image read from bytes equal to those <paramref name="content"/> starts with, with the length of
+    /// those bytes, or null when none was.
     /// </summary>
     /// <param name="content">The content stream from where an inline image starts, after its BI operator.</param>
     /// <param name="length">The length of the bytes the image was read from.</param>
-    public PdfImage? Find(in ReadOnlySpan<byte> content, out int length)
+    public PdfInlineImage? Find(in ReadOnlySpan<byte> content, out int length)
     {
         length = 0;
 
@@ -40,14 +40,14 @@ internal sealed class PdfContentStreamInlineImages
             {
                 length = source.Bytes.Length;
 
-                return source.Image;
+                return source.InlineImage;
             }
         }
 
         return null;
     }
 
-    private PdfImage? Get(in ReadOnlySpan<byte> bytes)
+    private PdfInlineImage? Get(in ReadOnlySpan<byte> bytes)
     {
         if (!_sources.TryGetValue(HashPrefix(bytes), out InlineImageSource? source))
         {
@@ -58,7 +58,7 @@ internal sealed class PdfContentStreamInlineImages
         {
             if (bytes.SequenceEqual(source.Bytes))
             {
-                return source.Image;
+                return source.InlineImage;
             }
         }
 
@@ -66,13 +66,14 @@ internal sealed class PdfContentStreamInlineImages
     }
 
     /// <summary>
-    /// Keeps <paramref name="image"/> as read from <paramref name="bytes"/>, unless an image read from equal bytes is kept already.
+    /// Keeps <paramref name="inlineImage"/> as read from <paramref name="bytes"/>, unless an image read from equal bytes is
+    /// kept already.
     /// </summary>
-    public void Add(in ReadOnlySpan<byte> bytes, PdfImage image)
+    public void Add(in ReadOnlySpan<byte> bytes, PdfInlineImage inlineImage)
     {
-        if (image == null)
+        if (inlineImage == null)
         {
-            throw new ArgumentNullException(nameof(image));
+            throw new ArgumentNullException(nameof(inlineImage));
         }
 
         if (Get(bytes) != null)
@@ -82,7 +83,7 @@ internal sealed class PdfContentStreamInlineImages
 
         ulong prefixHash = HashPrefix(bytes);
         _sources.TryGetValue(prefixHash, out InlineImageSource? next);
-        _sources[prefixHash] = new InlineImageSource(bytes.ToArray(), image, next);
+        _sources[prefixHash] = new InlineImageSource(bytes.ToArray(), inlineImage, next);
     }
 
     /// <summary>
@@ -95,11 +96,11 @@ internal sealed class PdfContentStreamInlineImages
     /// <summary>
     /// Bytes an inline image was read from, chained to the other sources whose prefix hashes the same.
     /// </summary>
-    private sealed class InlineImageSource(byte[] bytes, PdfImage image, InlineImageSource? next)
+    private sealed class InlineImageSource(byte[] bytes, PdfInlineImage inlineImage, InlineImageSource? next)
     {
         public byte[] Bytes { get; } = bytes;
 
-        public PdfImage Image { get; } = image;
+        public PdfInlineImage InlineImage { get; } = inlineImage;
 
         public InlineImageSource? Next { get; } = next;
     }

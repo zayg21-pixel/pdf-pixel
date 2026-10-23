@@ -1,4 +1,5 @@
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Pattern;
@@ -15,7 +16,7 @@ internal class TextFillRenderTarget : IRenderTarget
     private readonly ReadOnlyMemory<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
-    private readonly PdfPath? _clipPath;
+    private PdfRectangle _layerBounds;
 
     public TextFillRenderTarget(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
@@ -25,13 +26,9 @@ internal class TextFillRenderTarget : IRenderTarget
         if (state.FillPaint.IsPattern)
         {
             _pattern = state.FillPaint.Pattern;
-            _clipPath = TextRenderUtilities.GetTextPath(shapingResult.Span, state);
-            Bounds = _clipPath.GetBounds();
         }
-        else
-        {
-            Bounds = TextRenderUtilities.GetTextBounds(shapingResult.Span, state) ?? state.GetUserSpaceClipBounds();
-        }
+
+        Bounds = TextRenderUtilities.GetTextBounds(shapingResult.Span, state) ?? state.GetUserSpaceClipBounds();
     }
 
     public PdfRectangle Bounds { get; }
@@ -40,23 +37,19 @@ internal class TextFillRenderTarget : IRenderTarget
 
     public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {
-        processor.Process(SaveStateCommand.Instance);
-        if (_clipPath != null)
-        {
-            processor.Process(new ClipPathCommand(_clipPath, PdfClipOperation.Intersect));
-            PdfRectangle layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
-            processor.Process(new SaveLayerCommand(layerBounds));
-        }
+        _layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
+        processor.Process(new SaveLayerCommand(_layerBounds));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
     {
-        if (_clipPath != null)
-        {
-            processor.Process(RestoreLayerCommand.Instance);
-        }
-
-        processor.Process(RestoreStateCommand.Instance);
+        // The pattern is kept within the glyphs by masking it with the text drawn as text, as a solid fill draws it,
+        // instead of clipping it to an outline built from the glyphs.
+        PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
+        processor.Process(new SaveLayerCommand(_layerBounds, PdfPaintFactory.CreateShapeMaskPaint()));
+        processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, PdfPaintFactory.CreateMaskShapePaint(_state.FillPaint)));
+        processor.Process(RestoreLayerCommand.Instance);
+        processor.Process(RestoreLayerCommand.Instance);
     }
 
     public void Render(IPdfCommandProcessor processor)

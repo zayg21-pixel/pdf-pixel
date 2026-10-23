@@ -1,4 +1,5 @@
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Pattern;
@@ -13,6 +14,7 @@ internal class PathFillRenderTarget : IRenderTarget
     private readonly PdfPath _path;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
+    private PdfRectangle _layerBounds;
 
     public PathFillRenderTarget(PdfPath path, PdfGraphicsState state)
     {
@@ -32,16 +34,17 @@ internal class PathFillRenderTarget : IRenderTarget
 
     public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {
-        processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipPathCommand(_path, PdfClipOperation.Intersect));
-        PdfRectangle layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
-        processor.Process(new SaveLayerCommand(layerBounds));
+        _layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
+        processor.Process(new SaveLayerCommand(_layerBounds));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
     {
+        // The pattern is kept within the path by masking it with the path's shape instead of clipping it to the path.
+        processor.Process(new SaveLayerCommand(_layerBounds, PdfPaintFactory.CreateShapeMaskPaint()));
+        processor.Process(new DrawPathCommand(_path, PdfPaintFactory.CreateMaskShapePaint(_state.FillPaint)));
         processor.Process(RestoreLayerCommand.Instance);
-        processor.Process(RestoreStateCommand.Instance);
+        processor.Process(RestoreLayerCommand.Instance);
     }
 
     public void Render(IPdfCommandProcessor processor)

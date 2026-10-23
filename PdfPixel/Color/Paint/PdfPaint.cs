@@ -80,8 +80,9 @@ public sealed class PdfPaint
     public PdfStrokeStyle? StrokeStyle { get; }
 
     /// <summary>
-    /// Gets the soft-mask compositing parameters (subtype and transfer function) when this paint
-    /// composites a previously-rendered soft-mask layer onto content; null for every other paint.
+    /// Gets the mask compositing parameters (kind, subtype and transfer function) when this paint composites a
+    /// previously-rendered mask layer onto content, a soft mask or the shape a pattern is painted within; null for every
+    /// other paint.
     /// </summary>
     public PdfMaskPaintParameters? MaskParameters { get; }
 

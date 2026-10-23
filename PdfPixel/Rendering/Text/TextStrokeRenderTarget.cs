@@ -1,4 +1,5 @@
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Pattern;
@@ -15,6 +16,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
     private readonly PdfPath _path;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
+    private PdfRectangle _layerBounds;
 
     public TextStrokeRenderTarget(in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
@@ -35,24 +37,18 @@ internal class TextStrokeRenderTarget : IRenderTarget
 
     public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {
-        processor.Process(SaveStateCommand.Instance);
-
-        if (_pattern != null)
-        {
-            processor.Process(new ClipPathCommand(_path, PdfClipOperation.Intersect, _state.StrokePaint));
-            PdfRectangle layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
-            processor.Process(new SaveLayerCommand(layerBounds));
-        }
+        _layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
+        processor.Process(new SaveLayerCommand(_layerBounds));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
     {
-        if (_pattern != null)
-        {
-            processor.Process(RestoreLayerCommand.Instance);
-        }
-
-        processor.Process(RestoreStateCommand.Instance);
+        // The pattern is kept within the stroke by masking it with the stroke drawn as a stroke, instead of clipping it to
+        // the stroke's outline.
+        processor.Process(new SaveLayerCommand(_layerBounds, PdfPaintFactory.CreateShapeMaskPaint()));
+        processor.Process(new DrawPathCommand(_path, PdfPaintFactory.CreateMaskShapePaint(_state.StrokePaint)));
+        processor.Process(RestoreLayerCommand.Instance);
+        processor.Process(RestoreLayerCommand.Instance);
     }
 
     public void Render(IPdfCommandProcessor processor)

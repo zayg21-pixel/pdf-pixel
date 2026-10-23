@@ -83,7 +83,7 @@ internal sealed class ImageExecutionContext
         }
 
         ImageDecodingContext context = decoder.Context;
-        ImageDecodingContext maskContext = new(context, mask, context.FillPaint, isStencilMaskComposite: false);
+        ImageDecodingContext maskContext = new(context, mask, context.FillPaint);
         PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(mask, maskContext, loggerFactory);
 
         if (maskDecoder == null)

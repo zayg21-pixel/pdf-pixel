@@ -13,6 +13,7 @@ public sealed class PdfPath
     internal const int PointSizeBytes = sizeof(float) * 2;
 
     private readonly ReadOnlyMemory<byte> _buffer;
+    private PdfPathInfo? _pathInfo;
 
     /// <summary>
     /// Initializes a new <see cref="PdfPath"/> from an already-encoded segment buffer.
@@ -45,48 +46,28 @@ public sealed class PdfPath
     internal ReadOnlyMemory<byte> Buffer => _buffer;
 
     /// <summary>
-    /// Computes the smallest rectangle containing every point of every segment, including control points
-    /// of curve segments. <see cref="PdfRectangle.Empty"/> when the path has no segments. Recomputed on
-    /// every call by walking all segments.
+    /// Returns the smallest rectangle containing every point of every segment, including control points
+    /// of curve segments. <see cref="PdfRectangle.Empty"/> when the path has no segments. Taken from
+    /// <see cref="GetPathInfo"/>, so the segments are walked once for both.
     /// </summary>
-    public PdfRectangle GetBounds()
-    {
-        var hasPoint = false;
-        float minX = 0;
-        float minY = 0;
-        float maxX = 0;
-        float maxY = 0;
-
-        foreach (PdfPathSegment segment in Segments)
-        {
-            foreach (PdfPoint point in segment.Points)
-            {
-                if (!hasPoint)
-                {
-                    minX = point.X;
-                    maxX = point.X;
-                    minY = point.Y;
-                    maxY = point.Y;
-                    hasPoint = true;
-                    continue;
-                }
-
-                minX = Math.Min(minX, point.X);
-                minY = Math.Min(minY, point.Y);
-                maxX = Math.Max(maxX, point.X);
-                maxY = Math.Max(maxY, point.Y);
-            }
-        }
-
-        return hasPoint ? new PdfRectangle(minX, minY, maxX, maxY) : PdfRectangle.Empty;
-    }
+    public PdfRectangle GetBounds() => GetPathInfo().Bounds;
 
     /// <summary>
-    /// Walks every segment once and reports what that walk found. Recomputed on every call, so that a
-    /// page holding a great many paths pays for the geometry of the ones it draws rather than carrying
-    /// it on all of them.
+    /// Walks every segment once and reports what that walk found. Computed on the first call and kept,
+    /// since the path never changes, so that a path drawn many times, such as one recorded in a Type3
+    /// glyph, is walked once; a path never asked about carries nothing.
     /// </summary>
     public PdfPathInfo GetPathInfo()
+    {
+        if (_pathInfo == null)
+        {
+            _pathInfo = ComputePathInfo();
+        }
+
+        return _pathInfo.Value;
+    }
+
+    private PdfPathInfo ComputePathInfo()
     {
         var hasPoint = false;
         float minX = 0;
