@@ -91,7 +91,7 @@ public sealed class PdfShadingContent
             case PdfShadingType.Axial:
             {
                 PdfShadingColorStops axialColorStops = builder.BuildShadingColorsAndStops(shading, sampler, functionSamples);
-                content.Axial = builder.BuilAxialGradient(shading, axialColorStops);
+                content.Axial = builder.BuildAxialGradient(shading, axialColorStops);
                 break;
             }
             case PdfShadingType.Radial:

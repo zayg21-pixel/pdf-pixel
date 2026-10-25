@@ -33,7 +33,7 @@ public sealed class PdfShading
         }
 
         ShadingType = (PdfShadingType)rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
-        Coords = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
+        Coordinates = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
         float[]? domainArray = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
         Domain = (domainArray != null) ? PdfRange.FromArray(domainArray) : null;
 
@@ -161,7 +161,7 @@ public sealed class PdfShading
     /// <summary>
     /// Coordinates array (/Coords). Axial: [x0 y0 x1 y1]. Radial: [x0 y0 r0 x1 y1 r1], type 2, 3 specific.
     /// </summary>
-    public float[]? Coords { get; }
+    public float[]? Coordinates { get; }
 
     /// <summary>
     /// Domain (/Domain) defining parameter range for function evaluation (Type 1 - 3 specific).

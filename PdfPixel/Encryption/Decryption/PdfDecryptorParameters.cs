@@ -18,10 +18,10 @@ public class PdfDecryptorParameters
     /// <param name="fileId">The trailer /ID array, or <see langword="null"/> when absent.</param>
     internal PdfDecryptorParameters(PdfDictionary encryptDictionary, PdfArray? fileId)
     {
-        V = encryptDictionary.GetIntegerOrDefault(PdfTokens.VKey);
-        R = encryptDictionary.GetIntegerOrDefault(PdfTokens.RKey);
+        Version = encryptDictionary.GetIntegerOrDefault(PdfTokens.VKey);
+        Revision = encryptDictionary.GetIntegerOrDefault(PdfTokens.RKey);
         LengthBits = encryptDictionary.GetIntegerOrDefault(PdfTokens.LengthKey);
-        Permissions = encryptDictionary.GetIntegerOrDefault(PdfTokens.PKey);
+        UserAccessPermissions = (PdfPermissions)encryptDictionary.GetIntegerOrDefault(PdfTokens.PKey);
 
         PdfString? filter = encryptDictionary.GetName(PdfTokens.FilterKey);
         Filter = (filter.HasValue) ? filter.Value.AsEnum<PdfSecurityHandler>() : PdfSecurityHandler.Standard;
@@ -30,14 +30,14 @@ public class PdfDecryptorParameters
         OwnerEntry = encryptDictionary.GetValue(PdfTokens.OKey).AsString()?.Value.ToArray();
         UserEntry = encryptDictionary.GetValue(PdfTokens.UKey).AsString()?.Value.ToArray();
 
-        if (R >= 5)
+        if (Revision >= 5)
         {
             OwnerEncryptedKey = encryptDictionary.GetValue(PdfTokens.OEKey).AsString()?.Value.ToArray();
             UserEncryptedKey = encryptDictionary.GetValue(PdfTokens.UEKey).AsString()?.Value.ToArray();
-            Perms = encryptDictionary.GetValue(PdfTokens.PermsKey).AsString()?.Value.ToArray();
+            EncryptedPermissions = encryptDictionary.GetValue(PdfTokens.PermsKey).AsString()?.Value.ToArray();
         }
 
-        if (V >= 4)
+        if (Version >= 4)
         {
             CryptFilters = ReadCryptFilters(encryptDictionary.GetDictionary(PdfTokens.CFKey));
 
@@ -82,12 +82,12 @@ public class PdfDecryptorParameters
     /// <summary>
     /// Encryption algorithm version (/V).
     /// </summary>
-    public int V { get; }
+    public int Version { get; }
 
     /// <summary>
     /// Security handler revision (/R).
     /// </summary>
-    public int R { get; }
+    public int Revision { get; }
 
     /// <summary>
     /// Key length in bits (/Length). May be 0 if absent (defaults apply later).
@@ -95,9 +95,9 @@ public class PdfDecryptorParameters
     public int LengthBits { get; }
 
     /// <summary>
-    /// Permissions (/P) raw integer.
+    /// User access permissions (/P).
     /// </summary>
-    public int Permissions { get; }
+    public PdfPermissions UserAccessPermissions { get; }
 
     /// <summary>
     /// Indicates if metadata is encrypted (/EncryptMetadata, default true when absent).
@@ -135,9 +135,9 @@ public class PdfDecryptorParameters
     public byte[]? UserEncryptedKey { get; }
 
     /// <summary>
-    /// Permissions block (/Perms) - R>=5.
+    /// Encrypted copy of the user access permissions (/Perms) - R>=5.
     /// </summary>
-    public byte[]? Perms { get; }
+    public byte[]? EncryptedPermissions { get; }
 
     /// <summary>
     /// Crypt filters declared in the /CF dictionary, keyed by name.

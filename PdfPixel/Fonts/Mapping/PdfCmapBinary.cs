@@ -92,7 +92,7 @@ public static class PdfCmapBinary
                 case CMapBinaryBlockId.WMode:
                 {
                     uint wmode = ReadVarUInt(span, ref offset);
-                    cmap.WMode = (CMapWMode)wmode;
+                    cmap.WritingMode = (CMapWritingMode)wmode;
                     break;
                 }
                 case CMapBinaryBlockId.Ranges:

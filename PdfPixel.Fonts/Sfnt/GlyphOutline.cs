@@ -81,11 +81,11 @@ public sealed class GlyphOutline
     {
         if (transform.ScaleX == 1f && transform.ScaleY == 1f && transform.SkewX == 0f && transform.SkewY == 0f)
         {
-            return GlyphPoint.Clamped(point.X + (int)transform.TransX, point.Y + (int)transform.TransY);
+            return GlyphPoint.Clamped(point.X + (int)transform.TranslateX, point.Y + (int)transform.TranslateY);
         }
 
-        float x = (transform.ScaleX * point.X) + (transform.SkewX * point.Y) + transform.TransX;
-        float y = (transform.SkewY * point.X) + (transform.ScaleY * point.Y) + transform.TransY;
+        float x = (transform.ScaleX * point.X) + (transform.SkewX * point.Y) + transform.TranslateX;
+        float y = (transform.SkewY * point.X) + (transform.ScaleY * point.Y) + transform.TranslateY;
 
         return GlyphPoint.Clamped(Round(x), Round(y));
     }

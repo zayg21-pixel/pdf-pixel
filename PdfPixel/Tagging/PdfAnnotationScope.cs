@@ -14,16 +14,16 @@ public sealed class PdfAnnotationScope : PdfContentScope
         PdfOptionalContentMembership? optionalContent,
         IReadOnlyList<PdfFileSpecification>? associatedFiles,
         PdfStructureElement? structureElement,
-        int? structParent)
+        int? structuralParent)
         : base(optionalContent, associatedFiles, structureElement)
     {
-        StructParent = structParent;
+        StructuralParent = structuralParent;
     }
 
     /// <summary>
     /// Key of the annotation's entry in the structural parent tree (/StructParent), or <see langword="null"/> when absent.
     /// </summary>
-    public int? StructParent { get; }
+    public int? StructuralParent { get; }
 
     /// <inheritdoc />
     public override PdfScopeType ScopeType => PdfScopeType.Annotation;

@@ -14,16 +14,16 @@ public sealed class PdfXObjectScope : PdfContentScope
         PdfOptionalContentMembership? optionalContent,
         IReadOnlyList<PdfFileSpecification>? associatedFiles,
         PdfStructureElement? structureElement,
-        int? structParent)
+        int? structuralParent)
         : base(optionalContent, associatedFiles, structureElement)
     {
-        StructParent = structParent;
+        StructuralParent = structuralParent;
     }
 
     /// <summary>
     /// Key of the XObject's entry in the structural parent tree (/StructParent), or <see langword="null"/> when absent.
     /// </summary>
-    public int? StructParent { get; }
+    public int? StructuralParent { get; }
 
     /// <inheritdoc />
     public override PdfScopeType ScopeType => PdfScopeType.XObject;
@@ -36,18 +36,18 @@ public sealed class PdfXObjectScope : PdfContentScope
     /// <param name="structureTree">Structure tree the structural parent is resolved in, or <see langword="null"/> to leave it unresolved.</param>
     internal static PdfXObjectScope? FromXObject(PdfXObject xObject, PdfStructureTree? structureTree)
     {
-        if (xObject.OptionalContent == null && xObject.AssociatedFiles == null && xObject.StructParent == null)
+        if (xObject.OptionalContent == null && xObject.AssociatedFiles == null && xObject.StructuralParent == null)
         {
             return null;
         }
 
         PdfStructureElement? structureElement = null;
-        if (xObject.StructParent != null && structureTree != null)
+        if (xObject.StructuralParent != null && structureTree != null)
         {
-            structureElement = structureTree.FindParent(xObject.StructParent.Value);
+            structureElement = structureTree.FindParent(xObject.StructuralParent.Value);
         }
 
-        return new PdfXObjectScope(xObject.OptionalContent, xObject.AssociatedFiles, structureElement, xObject.StructParent);
+        return new PdfXObjectScope(xObject.OptionalContent, xObject.AssociatedFiles, structureElement, xObject.StructuralParent);
     }
 
     /// <inheritdoc />

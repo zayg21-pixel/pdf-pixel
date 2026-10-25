@@ -90,7 +90,7 @@ public static class ShapedGlyphBuilder
             return;
         }
 
-        bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
+        bool isVertical = font.WritingMode == Fonts.Mapping.CMapWritingMode.Vertical;
 
         PdfArray? array = arrayOperand.AsArray();
         float x = 0f;
@@ -177,7 +177,7 @@ public static class ShapedGlyphBuilder
     private static void AddShapedGlyphsForText(in PdfText pdfText, PdfFont font, PdfGraphicsState state, ShapedGlyphBuffer output, ref float x, ref float y)
     {
         PdfCharacterCode[] codes = font.ExtractCharacterCodes(pdfText.RawBytes);
-        bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
+        bool isVertical = font.WritingMode == Fonts.Mapping.CMapWritingMode.Vertical;
 
         for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)
         {

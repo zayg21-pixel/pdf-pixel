@@ -45,7 +45,7 @@ public abstract class PdfFont
     /// <summary>
     /// Writing mode for this font's CMap (horizontal/vertical).
     /// </summary>
-    protected internal virtual CMapWMode WritingMode { get; } = CMapWMode.Horizontal;
+    protected internal virtual CMapWritingMode WritingMode { get; } = CMapWritingMode.Horizontal;
 
     /// <summary>
     /// Information required for font substitution.
@@ -281,7 +281,7 @@ public abstract class PdfFont
         float offsetY;
         float advancement;
 
-        if (WritingMode == CMapWMode.Vertical)
+        if (WritingMode == CMapWritingMode.Vertical)
         {
             offsetX = -(verticalMetric.V1X ?? totalWidth / 2f);
             offsetY = verticalMetric.V1;

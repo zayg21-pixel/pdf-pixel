@@ -26,7 +26,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
         TypeNamespace = typeNamespace;
         PageReference = dictionary.GetReference(PdfTokens.PgKey);
         Id = dictionary.GetString(PdfTokens.IdKey);
-        Lang = dictionary.GetString(PdfTokens.LangKey);
+        Language = dictionary.GetString(PdfTokens.LangKey);
         ActualText = dictionary.GetString(PdfTokens.ActualTextKey);
         AlternateDescription = dictionary.GetString(PdfTokens.AltKey);
         ExpandedForm = dictionary.GetString(PdfTokens.ExpandedFormKey);
@@ -84,7 +84,7 @@ public sealed class PdfStructureElement : IPdfStructureNode, IPdfAssociatedFiles
     /// <summary>
     /// Language (/Lang), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString? Lang { get; }
+    public PdfString? Language { get; }
 
     /// <summary>
     /// Replacement text (/ActualText), or <see langword="null"/> when absent.

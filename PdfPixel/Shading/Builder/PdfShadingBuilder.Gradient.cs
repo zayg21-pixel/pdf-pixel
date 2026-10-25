@@ -19,16 +19,16 @@ internal partial class PdfShadingBuilder
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="colorStops">Pre-computed color and position stops.</param>
     /// <returns>The gradient model, or null on failure.</returns>
-    public PdfAxialGradient? BuilAxialGradient(PdfShading shading, PdfShadingColorStops colorStops)
+    public PdfAxialGradient? BuildAxialGradient(PdfShading shading, PdfShadingColorStops colorStops)
     {
-        if (shading.Coords?.Length != 4)
+        if (shading.Coordinates?.Length != 4)
         {
             _logger.LogWarning("Axial shading requires exactly 4 coordinates");
             return null;
         }
 
-        PdfPoint start = new(shading.Coords[0], shading.Coords[1]);
-        PdfPoint end = new(shading.Coords[2], shading.Coords[3]);
+        PdfPoint start = new(shading.Coordinates[0], shading.Coordinates[1]);
+        PdfPoint end = new(shading.Coordinates[2], shading.Coordinates[3]);
 
         return new PdfAxialGradient(start, end, colorStops.Colors, colorStops.Positions);
     }
@@ -42,16 +42,16 @@ internal partial class PdfShadingBuilder
     /// <returns>The gradient model, or null on failure.</returns>
     public PdfRadialGradient? BuildRadialGradient(PdfShading shading, PdfShadingColorStops colorStops)
     {
-        if (shading.Coords?.Length != 6)
+        if (shading.Coordinates?.Length != 6)
         {
             _logger.LogWarning("Radial shading requires exactly 6 coordinates");
             return null;
         }
 
-        PdfPoint center0 = new(shading.Coords[0], shading.Coords[1]);
-        PdfPoint center1 = new(shading.Coords[3], shading.Coords[4]);
-        float r0 = shading.Coords[2];
-        float r1 = shading.Coords[5];
+        PdfPoint center0 = new(shading.Coordinates[0], shading.Coordinates[1]);
+        PdfPoint center1 = new(shading.Coordinates[3], shading.Coordinates[4]);
+        float r0 = shading.Coordinates[2];
+        float r1 = shading.Coordinates[5];
 
         return new PdfRadialGradient(center0, r0, center1, r1, colorStops.Colors, colorStops.Positions);
     }

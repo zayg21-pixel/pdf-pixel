@@ -181,7 +181,7 @@ internal static class PdfOptionalContentEvaluator
             }
             case PdfOptionalContentUsageCategory.Language:
             {
-                if (usage.Lang == null)
+                if (usage.Language == null)
                 {
                     return null;
                 }
@@ -211,12 +211,12 @@ internal static class PdfOptionalContentEvaluator
 
         foreach (PdfReference group in application.Groups)
         {
-            if (!groups.TryGetValue(group, out PdfOptionalContentGroup? optionalContentGroup) || optionalContentGroup.Usage?.Lang == null)
+            if (!groups.TryGetValue(group, out PdfOptionalContentGroup? optionalContentGroup) || optionalContentGroup.Usage?.Language == null)
             {
                 continue;
             }
 
-            string lang = optionalContentGroup.Usage.Lang.Value.ToString();
+            string lang = optionalContentGroup.Usage.Language.Value.ToString();
             if (string.Equals(lang, requested, StringComparison.OrdinalIgnoreCase))
             {
                 exactMatches.Add(group);

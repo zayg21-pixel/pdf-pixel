@@ -3,7 +3,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// <summary>
 /// Specifies the writing mode (WMode) of a CMap, as defined in the PDF specification.
 /// </summary>
-public enum CMapWMode
+public enum CMapWritingMode
 {
     /// <summary>
     /// Horizontal writing mode (WMode 0). The default for most Latin and CJK scripts written left-to-right or right-to-left.

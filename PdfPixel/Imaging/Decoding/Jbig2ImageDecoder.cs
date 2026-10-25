@@ -96,7 +96,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     private Jbig2SegmentCache? ResolveGlobalsCache()
     {
-        var decodeParameters = Image.DecodeParms as PdfJbig2DecodeParameters;
+        var decodeParameters = Image.DecodeParameters as PdfJbig2DecodeParameters;
         if (decodeParameters == null)
         {
             return null;

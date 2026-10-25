@@ -18,14 +18,14 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// <summary>
     /// Initializes a new <see cref="PdfMatrix"/> from its 6 operands.
     /// </summary>
-    public PdfMatrix(float scaleX, float skewX, float transX, float skewY, float scaleY, float transY)
+    public PdfMatrix(float scaleX, float skewX, float translateX, float skewY, float scaleY, float translateY)
     {
         ScaleX = scaleX;
         SkewY = skewY;
         SkewX = skewX;
         ScaleY = scaleY;
-        TransX = transX;
-        TransY = transY;
+        TranslateX = translateX;
+        TranslateY = translateY;
     }
 
     /// <summary>
@@ -51,12 +51,12 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// <summary>
     /// Horizontal translation.
     /// </summary>
-    public float TransX { get; }
+    public float TranslateX { get; }
 
     /// <summary>
     /// Vertical translation.
     /// </summary>
-    public float TransY { get; }
+    public float TranslateY { get; }
 
     /// <summary>
     /// The identity matrix.
@@ -74,8 +74,8 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
                 && ScaleY == 1f
                 && SkewX == 0f
                 && SkewY == 0f
-                && TransX == 0f
-                && TransY == 0f;
+                && TranslateX == 0f
+                && TranslateY == 0f;
         }
     }
 
@@ -268,10 +268,10 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     {
         return ScaleX == other.ScaleX
             && SkewX == other.SkewX
-            && TransX == other.TransX
+            && TranslateX == other.TranslateX
             && SkewY == other.SkewY
             && ScaleY == other.ScaleY
-            && TransY == other.TransY;
+            && TranslateY == other.TranslateY;
     }
 
     /// <inheritdoc/>
@@ -279,7 +279,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     public override bool Equals(object? obj) => obj is PdfMatrix other && Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(ScaleX, SkewX, TransX, SkewY, ScaleY, TransY);
+    public override int GetHashCode() => HashCode.Combine(ScaleX, SkewX, TranslateX, SkewY, ScaleY, TranslateY);
 
     /// <summary>
     /// Determines whether two matrices have the same operands.
@@ -293,7 +293,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
 
     /// <inheritdoc/>
     public override string ToString()
-        => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TransX.ToString(CultureInfo.InvariantCulture)} {TransY.ToString(CultureInfo.InvariantCulture)}]";
+        => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TranslateX.ToString(CultureInfo.InvariantCulture)} {TranslateY.ToString(CultureInfo.InvariantCulture)}]";
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Matrix3x2 AsMatrix3x2(in PdfMatrix matrix) => Unsafe.As<PdfMatrix, Matrix3x2>(ref Unsafe.AsRef(in matrix));

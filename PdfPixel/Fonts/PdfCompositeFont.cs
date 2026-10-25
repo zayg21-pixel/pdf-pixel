@@ -17,7 +17,7 @@ namespace PdfPixel.Fonts;
 /// </summary>
 public class PdfCompositeFont : PdfFont
 {
-    private readonly CMapWMode _writingMode;
+    private readonly CMapWritingMode _writingMode;
     private readonly Dictionary<uint, string>? _toUnicode;
 
     internal PdfCompositeFont(PdfObject fontObject)
@@ -25,7 +25,7 @@ public class PdfCompositeFont : PdfFont
     {
         DescendantFonts = LoadDescendantFonts();
         CodeToCidCMap = PdfCMap.GetCMap(Dictionary, PdfTokens.EncodingKey);
-        _writingMode = CodeToCidCMap?.WMode ?? CMapWMode.Horizontal;
+        _writingMode = CodeToCidCMap?.WritingMode ?? CMapWritingMode.Horizontal;
         _toUnicode = PdfToUnicodeMapProvider.GetToUnicodeMap(PrimaryDescendant?.CidSystemInfo);
     }
 
@@ -42,7 +42,7 @@ public class PdfCompositeFont : PdfFont
     /// <summary>
     /// The writing mode (horizontal or vertical) determined from the CMap's WMode entry.
     /// </summary>
-    protected internal override CMapWMode WritingMode => _writingMode;
+    protected internal override CMapWritingMode WritingMode => _writingMode;
 
     /// <summary>
     /// The substitution info inherited from the primary descendant CID font, or the default value when no descendant is present.
@@ -98,7 +98,7 @@ public class PdfCompositeFont : PdfFont
     /// <returns>The <see cref="PdfVerticalMetric"/> for the character code.</returns>
     public override PdfVerticalMetric GetVerticalDisplacement(in PdfCharacterCode code)
     {
-        if (_writingMode == CMapWMode.Horizontal)
+        if (_writingMode == CMapWritingMode.Horizontal)
         {
             return default;
         }

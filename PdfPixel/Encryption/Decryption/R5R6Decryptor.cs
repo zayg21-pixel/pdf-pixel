@@ -79,7 +79,7 @@ internal sealed class R5R6Decryptor : PdfDecryptor
     /// Password hash: SHA-256 for R5 (Adobe Extension Level 3), Algorithm 2.B for R6.
     /// </summary>
     private byte[] ComputeHash(byte[] password, byte[] salt, byte[]? userKey)
-        => (Parameters.R == 5) ? Sha256.ComputeHash(Concat(password, salt, userKey)) : Hash2B(password, salt, userKey);
+        => (Parameters.Revision == 5) ? Sha256.ComputeHash(Concat(password, salt, userKey)) : Hash2B(password, salt, userKey);
 
     /// <summary>
     /// Implements ISO 32000-2 Algorithm 2.B (the R6 hardened hash).

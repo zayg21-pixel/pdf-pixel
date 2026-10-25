@@ -196,13 +196,13 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private PdfStructureElement? FindStructureParent(int mcid)
     {
-        int? structParents = _host.StructParents;
-        if (structParents == null)
+        int? structuralParents = _host.StructuralParents;
+        if (structuralParents == null)
         {
             return null;
         }
 
-        return _structureTree.FindParent(structParents.Value, mcid);
+        return _structureTree.FindParent(structuralParents.Value, mcid);
     }
 
     private PdfDictionary? ResolvePropertiesDictionary(PdfValue propertiesOperand)

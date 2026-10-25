@@ -304,26 +304,26 @@ public abstract class PdfDecryptor
         }
 
         // V3 is an unpublished algorithm; it takes the RC4 path of V2, as PDFium does.
-        if (parameters.V < 1 || parameters.V > 5)
+        if (parameters.Version < 1 || parameters.Version > 5)
         {
-            throw new NotSupportedException($"Unsupported encryption algorithm (V={parameters.V} R={parameters.R}).");
+            throw new NotSupportedException($"Unsupported encryption algorithm (V={parameters.Version} R={parameters.Revision}).");
         }
 
-        if (parameters.R <= 2)
+        if (parameters.Revision <= 2)
         {
             return new R2Decryptor(parameters, onCredentialRequested);
         }
 
-        if (parameters.R == 3 || parameters.R == 4)
+        if (parameters.Revision == 3 || parameters.Revision == 4)
         {
             return new R3R4Decryptor(parameters, onCredentialRequested);
         }
 
-        if (parameters.R == 5 || parameters.R == 6)
+        if (parameters.Revision == 5 || parameters.Revision == 6)
         {
             return new R5R6Decryptor(parameters, onCredentialRequested);
         }
 
-        throw new NotSupportedException($"Unsupported encryption revision (V={parameters.V} R={parameters.R}).");
+        throw new NotSupportedException($"Unsupported encryption revision (V={parameters.Version} R={parameters.Revision}).");
     }
 }

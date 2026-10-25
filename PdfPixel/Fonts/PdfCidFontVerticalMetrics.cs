@@ -20,25 +20,25 @@ public class PdfCidFontVerticalMetrics
     /// <summary>
     /// Initializes a new <see cref="PdfCidFontVerticalMetrics"/> instance with the given default metrics and per-CID overrides.
     /// </summary>
-    /// <param name="defaultW1">Default vertical advance (W1y) applied to CIDs without an explicit W2 entry.</param>
-    /// <param name="defaultV1">Default vertical origin Y displacement (V1y) applied to CIDs without an explicit W2 entry.</param>
+    /// <param name="defaultVerticalAdvance">Default vertical advance (W1y) applied to CIDs without an explicit W2 entry.</param>
+    /// <param name="defaultVerticalOrigin">Default vertical origin Y displacement (V1y) applied to CIDs without an explicit W2 entry.</param>
     /// <param name="cidVerticalMetrics">Dictionary mapping CID values to their specific vertical metrics.</param>
-    public PdfCidFontVerticalMetrics(float defaultW1, float defaultV1, Dictionary<uint, PdfVerticalMetric> cidVerticalMetrics)
+    public PdfCidFontVerticalMetrics(float defaultVerticalAdvance, float defaultVerticalOrigin, Dictionary<uint, PdfVerticalMetric> cidVerticalMetrics)
     {
-        DefaultW1 = defaultW1;
-        DefaultV1 = defaultV1;
+        DefaultVerticalAdvance = defaultVerticalAdvance;
+        DefaultVerticalOrigin = defaultVerticalOrigin;
         CidVerticalMetrics = cidVerticalMetrics;
     }
 
     /// <summary>
     /// Default vertical advance (W1y). Set from DW2 or falls back to -1000 * 0.001.
     /// </summary>
-    public float DefaultW1 { get; }
+    public float DefaultVerticalAdvance { get; }
 
     /// <summary>
     /// Default vertical origin Y displacement (V1y). Set from DW2 or falls back to 880 * 0.001.
     /// </summary>
-    public float DefaultV1 { get; }
+    public float DefaultVerticalOrigin { get; }
 
     /// <summary>
     /// Per-CID vertical metrics map. Stores W1y, V1y and optional V1x when provided by W2.
@@ -55,7 +55,7 @@ public class PdfCidFontVerticalMetrics
             return m;
         }
 
-        return new PdfVerticalMetric(DefaultW1, DefaultV1);
+        return new PdfVerticalMetric(DefaultVerticalAdvance, DefaultVerticalOrigin);
     }
 
     /// <summary>

@@ -54,7 +54,7 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Gets a value indicating whether this is a combo box.
     /// </summary>
-    public bool IsCombo => (Flags & PdfFormFieldFlags.Combo) != 0;
+    public bool IsComboBox =>(Flags & PdfFormFieldFlags.Combo) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this combo box is editable.
@@ -168,7 +168,7 @@ public class PdfChoiceFormField : PdfFormField
             return false;
         }
 
-        if (IsCombo)
+        if (IsComboBox)
         {
             _isDropdownOpen = !_isDropdownOpen;
 
@@ -212,7 +212,7 @@ public class PdfChoiceFormField : PdfFormField
         {
             SelectOption(clickedIndex, false);
 
-            if (IsCombo)
+            if (IsComboBox)
             {
                 _isDropdownOpen = false;
             }
@@ -267,7 +267,7 @@ public class PdfChoiceFormField : PdfFormField
                 }
             case FormFieldKey.Down:
                 {
-                    if (IsCombo && !_isDropdownOpen)
+                    if (IsComboBox &&!_isDropdownOpen)
                     {
                         _isDropdownOpen = true;
                     }
@@ -295,7 +295,7 @@ public class PdfChoiceFormField : PdfFormField
                     {
                         SelectOption(_highlightedIndex, (modifiers & FormFieldKeyModifiers.Control) != 0);
 
-                        if (IsCombo)
+                        if (IsComboBox)
                         {
                             _isDropdownOpen = false;
                         }
@@ -305,7 +305,7 @@ public class PdfChoiceFormField : PdfFormField
                 }
             case FormFieldKey.Escape:
                 {
-                    if (IsCombo && _isDropdownOpen)
+                    if (IsComboBox &&_isDropdownOpen)
                     {
                         _isDropdownOpen = false;
                         return true;
@@ -315,7 +315,7 @@ public class PdfChoiceFormField : PdfFormField
                 }
             case FormFieldKey.Tab:
                 {
-                    if (IsCombo && _isDropdownOpen)
+                    if (IsComboBox &&_isDropdownOpen)
                     {
                         _isDropdownOpen = false;
                     }

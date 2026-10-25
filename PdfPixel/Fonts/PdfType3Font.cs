@@ -36,7 +36,7 @@ public class PdfType3Font : PdfSingleByteFont
             throw new ArgumentException("Font dictionary must be Type3");
         }
 
-        CharProcs = Dictionary.GetDictionary(PdfTokens.CharProcsKey);
+        CharacterProcedures = Dictionary.GetDictionary(PdfTokens.CharProcsKey);
 
         PdfResourceDictionary? resources = PdfResourceDictionary.GetResourceDictionary(Dictionary, PdfTokens.ResourcesKey);
         if (resources != null)
@@ -73,7 +73,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// Each entry maps a character name to a content stream that draws the glyph
     /// Set during construction - lightweight operation
     /// </summary>
-    public PdfDictionary? CharProcs { get; }
+    public PdfDictionary? CharacterProcedures { get; }
 
     /// <summary>
     /// Font transformation matrix (required for Type3 fonts)
@@ -151,7 +151,7 @@ public class PdfType3Font : PdfSingleByteFont
 
     private PdfType3CharacterInfo ReadCharacterInfo(in PdfCharacterCode charCode)
     {
-        if (CharProcs == null)
+        if (CharacterProcedures == null)
         {
             return PdfType3CharacterInfo.Undefined;
         }
@@ -162,7 +162,7 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        PdfObject? charObject = CharProcs.GetObject(charName);
+        PdfObject? charObject = CharacterProcedures.GetObject(charName);
         if (charObject == null || charObject.Reference == null)
         {
             return PdfType3CharacterInfo.Undefined;

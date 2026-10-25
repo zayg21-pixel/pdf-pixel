@@ -69,9 +69,9 @@ public class PdfCMap
     public PdfCidSystemInfo? CidSystemInfo { get; internal set; }
 
     /// <summary>
-    /// WMode for this CMap (horizontal/vertical).
+    /// Writing mode (/WMode) for this CMap (horizontal/vertical).
     /// </summary>
-    public CMapWMode WMode { get; internal set; }
+    public CMapWritingMode WritingMode { get; internal set; }
 
     /// <summary>
     /// A read-only view of the explicit character-code-to-CID mapping entries stored in this CMap.
@@ -487,12 +487,12 @@ public class PdfCMap
             CidSystemInfo = new PdfCidSystemInfo(cidSystemInfo);
         }
 
-        if (WMode == CMapWMode.Horizontal)
+        if (WritingMode == CMapWritingMode.Horizontal)
         {
             int? writingMode = cmapDictionary.GetInteger(PdfTokens.WModeKey);
             if (writingMode != null)
             {
-                WMode = (CMapWMode)writingMode.Value;
+                WritingMode = (CMapWritingMode)writingMode.Value;
             }
         }
     }

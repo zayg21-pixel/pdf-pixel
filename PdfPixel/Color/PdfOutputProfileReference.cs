@@ -14,10 +14,10 @@ public sealed class PdfOutputProfileReference
     {
         CheckSum = dictionary.GetString(PdfTokens.CheckSumKey);
         ColorantTable = ReadColorantTable(dictionary.GetArray(PdfTokens.ColorantTableKey));
-        ICCVersion = dictionary.GetString(PdfTokens.ICCVersionKey);
-        ProfileCS = dictionary.GetString(PdfTokens.ProfileCSKey);
+        IccVersion = dictionary.GetString(PdfTokens.ICCVersionKey);
+        ProfileColorSpace = dictionary.GetString(PdfTokens.ProfileCSKey);
         ProfileName = dictionary.GetString(PdfTokens.ProfileNameKey);
-        URLs = PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.URLsKey));
+        Urls =PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.URLsKey));
     }
 
     /// <summary>
@@ -35,12 +35,12 @@ public sealed class PdfOutputProfileReference
     /// ICC profile version number from bytes 8 to 11 of the profile header (/ICCVersion),
     /// or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString? ICCVersion { get; }
+    public PdfString? IccVersion { get; }
 
     /// <summary>
     /// Four-byte color space signature of the profile (/ProfileCS), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString? ProfileCS { get; }
+    public PdfString? ProfileColorSpace { get; }
 
     /// <summary>
     /// Value of the profile's profileDescriptionTag (/ProfileName), or <see langword="null"/> when absent.
@@ -50,7 +50,7 @@ public sealed class PdfOutputProfileReference
     /// <summary>
     /// Embedded file or URL specifications locating the profile (/URLs), or <see langword="null"/> when absent.
     /// </summary>
-    public IReadOnlyList<PdfFileSpecification>? URLs { get; }
+    public IReadOnlyList<PdfFileSpecification>? Urls { get; }
 
     private static List<PdfString>? ReadColorantTable(PdfArray? array)
     {

@@ -17,7 +17,7 @@ internal sealed class DocumentResultDto
 
     public string? PageLayout { get; set; }
 
-    public string? Lang { get; set; }
+    public string? Language { get; set; }
 
     public DocumentInformationDto? Information { get; set; }
 

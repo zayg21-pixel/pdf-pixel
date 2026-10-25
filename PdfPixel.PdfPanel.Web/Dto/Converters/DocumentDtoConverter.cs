@@ -41,7 +41,7 @@ internal static class DocumentDtoConverter
             Version = document.Version?.ToString(),
             PageMode = ToString(document.PageMode),
             PageLayout = ToString(document.PageLayout),
-            Lang = document.Lang?.DecodePdfString(),
+            Language = document.Language?.DecodePdfString(),
             Information = (document.Information != null) ? CreateDocumentInformation(document.Information) : null,
             Permissions = (document.Permissions != null) ? CreatePermissions(document.Permissions.Value) : null,
             Pages = CreatePages(resources.Pages),

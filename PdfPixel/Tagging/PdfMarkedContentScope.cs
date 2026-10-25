@@ -34,12 +34,12 @@ public sealed class PdfMarkedContentScope : PdfContentScope
     internal PdfMarkedContentScope(
         in PdfString tagName,
         PdfMarkedContentTag tagType,
-        int? mcid,
+        int? markedContentId,
         PdfDictionary? propertiesDictionary,
         PdfStructureElement? structureElement)
         : this(tagName, tagType, optionalContent: null, associatedFiles: null, structureElement)
     {
-        Mcid = mcid;
+        MarkedContentId = markedContentId;
 
         if (propertiesDictionary == null)
         {
@@ -55,7 +55,7 @@ public sealed class PdfMarkedContentScope : PdfContentScope
             ActualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
             AlternateDescription = propertiesDictionary.GetString(PdfTokens.AltKey);
             ExpandedForm = propertiesDictionary.GetString(PdfTokens.ExpandedFormKey);
-            Lang = propertiesDictionary.GetString(PdfTokens.LangKey);
+            Language = propertiesDictionary.GetString(PdfTokens.LangKey);
         }
     }
 
@@ -72,7 +72,7 @@ public sealed class PdfMarkedContentScope : PdfContentScope
     /// <summary>
     /// Marked content identifier (/MCID), or <see langword="null"/> when absent.
     /// </summary>
-    public int? Mcid { get; }
+    public int? MarkedContentId { get; }
 
     /// <summary>
     /// Whether the marked content is an artifact (Artifact tag).
@@ -103,7 +103,7 @@ public sealed class PdfMarkedContentScope : PdfContentScope
     /// <summary>
     /// Language tag (/Lang) of a Span sequence, or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString? Lang { get; }
+    public PdfString? Language { get; }
 
     /// <inheritdoc />
     public override PdfScopeType ScopeType => PdfScopeType.MarkedContent;

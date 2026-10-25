@@ -70,10 +70,10 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"CCITT image data is empty (Reference={Image.Reference}).");
         }
 
-        var parameters = Image.DecodeParms as PdfCcittFaxDecodeParameters;
+        var parameters = Image.DecodeParameters as PdfCcittFaxDecodeParameters;
         int columns = parameters?.Columns ?? Image.Width;
         int rows = parameters?.Rows ?? Image.Height;
-        int k = parameters?.K ?? 0;
+        int k = parameters?.CompressionScheme ?? 0;
         bool endOfLine = parameters?.EndOfLine ?? false;
         bool byteAlign = parameters?.EncodedByteAlign ?? false;
         bool blackIs1 = parameters?.BlackIs1 ?? false;

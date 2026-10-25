@@ -24,7 +24,7 @@ public static class PdfToSkiaExtensions
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKMatrix ToSkMatrix(this in PdfMatrix matrix)
-        => new(matrix.ScaleX, matrix.SkewX, matrix.TransX, matrix.SkewY, matrix.ScaleY, matrix.TransY, 0, 0, 1);
+        => new(matrix.ScaleX, matrix.SkewX, matrix.TranslateX, matrix.SkewY, matrix.ScaleY, matrix.TranslateY, 0, 0, 1);
 
     /// <summary>
     /// Converts a <see cref="PdfPoint"/> to an <see cref="SKPoint"/>.

@@ -37,7 +37,7 @@ public abstract class PdfXObject : IPdfAssociatedFilesHost
         }
 
         OptionalContent = PdfOptionalContentMembership.FromDictionary(dictionary);
-        StructParent = dictionary.GetInteger(PdfTokens.StructParentKey);
+        StructuralParent = dictionary.GetInteger(PdfTokens.StructParentKey);
         AssociatedFiles = PdfFileSpecification.GetFileSpecifications(dictionary.GetArray(PdfTokens.AssociatedFilesKey));
         Metadata = PdfMetadata.FromDictionary(dictionary);
     }
@@ -65,7 +65,7 @@ public abstract class PdfXObject : IPdfAssociatedFilesHost
     /// <summary>
     /// Key of the XObject's entry in the structural parent tree (/StructParent), or <see langword="null"/> when absent.
     /// </summary>
-    public int? StructParent { get; }
+    public int? StructuralParent { get; }
 
     /// <inheritdoc />
     public IReadOnlyList<PdfFileSpecification>? AssociatedFiles { get; }

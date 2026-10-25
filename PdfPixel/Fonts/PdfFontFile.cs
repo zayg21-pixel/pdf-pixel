@@ -16,9 +16,9 @@ public sealed class PdfFontFile : IDisposable
     {
         Format = format;
         Stream = fontFileObject.Stream;
-        Length1 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
-        Length2 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
-        Length3 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
+        ClearTextLength = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
+        EncryptedLength = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
+        FixedContentLength = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
     }
 
     /// <summary>
@@ -35,17 +35,17 @@ public sealed class PdfFontFile : IDisposable
     /// <summary>
     /// Type1 font stream segment length for the clear-text portion (/Length1).
     /// </summary>
-    public int Length1 { get; }
+    public int ClearTextLength { get; }
 
     /// <summary>
     /// Type1 font stream segment length for the binary portion (/Length2).
     /// </summary>
-    public int Length2 { get; }
+    public int EncryptedLength { get; }
 
     /// <summary>
     /// Type1 font stream segment length for the fixed-content trailer (/Length3).
     /// </summary>
-    public int Length3 { get; }
+    public int FixedContentLength { get; }
 
     /// <summary>
     /// Typeface the font program is loaded as, or <see langword="null"/> before it is loaded.

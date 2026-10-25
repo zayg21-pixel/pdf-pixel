@@ -86,7 +86,7 @@ public class PdfImage : PdfXObject
         {
             PdfStreamFilter imageFilter = filters[filters.Count - 1];
             type = MapImageType(imageFilter.Filter);
-            DecodeParms = imageFilter.DecodeParameters;
+            DecodeParameters = imageFilter.DecodeParameters;
         }
 
         Type = type;
@@ -159,7 +159,7 @@ public class PdfImage : PdfXObject
     /// Parsed /DecodeParms entry of the last filter in the chain, the one that decodes the image samples,
     /// or null when that filter has none.
     /// </summary>
-    public PdfDecodeParameters? DecodeParms { get; }
+    public PdfDecodeParameters? DecodeParameters { get; }
 
     /// <summary>
     /// True when explicit image masking is enabled (/ImageMask true).

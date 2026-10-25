@@ -81,7 +81,7 @@ public interface IPdfPage : IPdfAssociatedFilesHost
     /// <summary>
     /// Key of the page's entry in the structural parent tree (/StructParents), or <see langword="null"/> when absent.
     /// </summary>
-    int? StructParents { get; }
+    int? StructuralParents { get; }
 
     /// <summary>
     /// Tab order used for annotations on the page (/Tabs), or <see langword="null"/> when absent.

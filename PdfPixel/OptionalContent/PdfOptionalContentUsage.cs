@@ -23,7 +23,7 @@ public sealed class PdfOptionalContentUsage
         PdfDictionary? language = dictionary.GetDictionary(PdfTokens.LanguageKey);
         if (language != null)
         {
-            Lang = language.GetString(PdfTokens.LangKey);
+            Language = language.GetString(PdfTokens.LangKey);
             IsLanguagePreferred = ReadState(language, PdfTokens.PreferredKey);
         }
 
@@ -75,7 +75,7 @@ public sealed class PdfOptionalContentUsage
     /// <summary>
     /// Language and locale of the content (/Language /Lang), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfString? Lang { get; }
+    public PdfString? Language { get; }
 
     /// <summary>
     /// Whether the group is preferred on a partial language match (/Language /Preferred), or <see langword="null"/> when absent.

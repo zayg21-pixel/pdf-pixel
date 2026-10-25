@@ -96,7 +96,7 @@ internal class PdfPage : IPdfPageInternal
         Viewports = PdfViewport.FromPage(pageDictionary);
 
         UserUnit = pageDictionary.GetFloat(PdfTokens.UserUnitKey) ?? 1f;
-        StructParents = pageDictionary.GetInteger(PdfTokens.StructParentsKey);
+        StructuralParents = pageDictionary.GetInteger(PdfTokens.StructParentsKey);
         LastModified = PdfDateParser.ParsePdfDate(pageDictionary.GetString(PdfTokens.LastModifiedKey));
         Metadata = PdfMetadata.FromDictionary(pageDictionary);
         AssociatedFiles = PdfFileSpecification.GetFileSpecifications(pageDictionary.GetArray(PdfTokens.AssociatedFilesKey));
@@ -139,7 +139,7 @@ internal class PdfPage : IPdfPageInternal
     public float UserUnit { get; }
 
     /// <inheritdoc/>
-    public int? StructParents { get; }
+    public int? StructuralParents { get; }
 
     /// <inheritdoc/>
     public DateTime? LastModified { get; }
@@ -180,7 +180,7 @@ internal class PdfPage : IPdfPageInternal
 
     PdfReference? IPdfPageInternal.PageReference => _pageReference;
 
-    int? IPdfContentHost.StructParents => StructParents;
+    int? IPdfContentHost.StructuralParents => StructuralParents;
 
     IReadOnlyList<PdfObjectStream> IPdfPageInternal.ContentStreams => _contentStreams;
 

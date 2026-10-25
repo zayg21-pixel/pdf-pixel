@@ -143,7 +143,7 @@ public static class CmapCompressor
         }
 
         stream.WriteByte((byte)BlockId.WMode);
-        WriteVarUInt(stream, (uint)cmap.WMode);
+        WriteVarUInt(stream, (uint)cmap.WritingMode);
 
         Dictionary<byte, Dictionary<uint, int>> allEntries = CmapClustering.BuildCMapSignature(cmap);
 

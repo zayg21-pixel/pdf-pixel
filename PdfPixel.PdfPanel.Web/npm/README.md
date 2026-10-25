@@ -168,7 +168,7 @@ The document data returned by `setDocument` includes:
 | `pages` | Per page in page order, `{ label, cropBox, rotation }`, the shape of the frame page `info`. |
 | `version` | Version the document conforms to, such as `1.7`, or `null`. |
 | `pageMode`, `pageLayout` | How the document is displayed and laid out when opened, as PDF names (`UseOutlines`, `TwoColumnLeft`, …), `Unknown` for an unrecognized value, or `null`. |
-| `lang` | Natural language of the document, or `null`. |
+| `language` | Natural language of the document, or `null`. |
 | `information` | `{ title, author, subject, keywords, creator, producer, creationDate, modificationDate, isTrapped, customEntries }`, the dates in ISO 8601, or `null`. |
 | `permissions` | `{ print, modify, copy, annotate, fillForms, assemble, highQualityPrint }`, or `null` when the document is not encrypted. |
 | `outlines` | Outline tree, `{ handle, title, isBold, isItalic, color, isExpanded, children }`. |

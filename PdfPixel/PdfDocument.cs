@@ -99,8 +99,8 @@ internal class PdfDocument : IPdfDocumentInternal
 
         Decryptor?.AuthenticateOnOpen();
 
-        Lang = catalog.GetString(PdfTokens.LangKey);
-        OptionalContentProperties = new PdfOptionalContentProperties(catalog.GetDictionary(PdfTokens.OCPropertiesKey), Lang);
+        Language = catalog.GetString(PdfTokens.LangKey);
+        OptionalContentProperties = new PdfOptionalContentProperties(catalog.GetDictionary(PdfTokens.OCPropertiesKey), Language);
         StructureTree = PdfStructureTree.FromCatalog(catalog, _treeReader);
         EmbeddedFiles = PdfEmbeddedFiles.FromCatalog(catalog, _treeReader);
 
@@ -129,7 +129,7 @@ internal class PdfDocument : IPdfDocumentInternal
         OpenAction = PdfOpenAction.FromCatalog(catalog, Destinations);
         Outlines = PdfOutlines.FromCatalog(catalog, Destinations, StructureTree);
         Threads = PdfThreads.FromCatalog(catalog);
-        Permissions = GetPermissions(Decryptor?.Parameters.Permissions);
+        Permissions = Decryptor?.Parameters.UserAccessPermissions;
         SignatureFlags = GetSignatureFlags(catalog);
     }
 
@@ -184,7 +184,7 @@ internal class PdfDocument : IPdfDocumentInternal
     public PdfFileIdentifier? Id { get; }
 
     /// <inheritdoc />
-    public PdfString? Lang { get; }
+    public PdfString? Language { get; }
 
     /// <inheritdoc />
     public PdfMarkInformation? MarkInformation { get; }
@@ -233,7 +233,7 @@ internal class PdfDocument : IPdfDocumentInternal
         {
             if (_contentHost == null)
             {
-                _contentHost = new PdfContentHost(this, PdfResourceNode.CreateEmpty(this), structParents: null);
+                _contentHost = new PdfContentHost(this, PdfResourceNode.CreateEmpty(this), structuralParents: null);
             }
 
             return _contentHost;
@@ -276,24 +276,6 @@ internal class PdfDocument : IPdfDocumentInternal
         }
 
         return PdfVersion.Parse(catalogVersionName.Value.Value.Span);
-    }
-
-    private static PdfPermissions? GetPermissions(int? permissions)
-    {
-        if (permissions == null)
-        {
-            return null;
-        }
-
-        PdfPermissions definedPermissions = PdfPermissions.Print
-            | PdfPermissions.Modify
-            | PdfPermissions.Copy
-            | PdfPermissions.Annotate
-            | PdfPermissions.FillForms
-            | PdfPermissions.Assemble
-            | PdfPermissions.HighQualityPrint;
-
-        return (PdfPermissions)permissions.Value & definedPermissions;
     }
 
     private static PdfSignatureFlags GetSignatureFlags(PdfDictionary catalog)

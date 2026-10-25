@@ -64,7 +64,7 @@ internal class PdfTextRenderer
 
         ProcessGlyphs(processor, glyphs, state, font);
 
-        if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
+        if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWritingMode.Vertical)
         {
             return new PdfSize(0, -TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
         }

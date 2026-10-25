@@ -74,7 +74,7 @@ public interface IPdfDocument : IPdfAssociatedFilesHost, IDisposable
     /// <summary>
     /// Gets the natural language of the document (/Lang), or <see langword="null"/> when absent.
     /// </summary>
-    PdfString? Lang { get; }
+    PdfString? Language { get; }
 
     /// <summary>
     /// Gets the document-level embedded files (/Names /EmbeddedFiles).

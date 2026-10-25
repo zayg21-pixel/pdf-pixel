@@ -32,7 +32,7 @@ public sealed class PdfForm : PdfXObject
             Resources = new PdfResourceNode(Document, resources, null);
         }
 
-        StructParents = dictionary.GetInteger(PdfTokens.StructParentsKey);
+        StructuralParents = dictionary.GetInteger(PdfTokens.StructParentsKey);
         Measure = PdfMeasure.GetMeasure(dictionary, PdfTokens.MeasureKey);
         Stream = xObject.Stream;
     }
@@ -65,7 +65,7 @@ public sealed class PdfForm : PdfXObject
     /// <summary>
     /// Key of the form's content in the structural parent tree (/StructParents), or <see langword="null"/> when absent.
     /// </summary>
-    internal int? StructParents { get; }
+    internal int? StructuralParents { get; }
 
     /// <summary>
     /// The form's content stream.
@@ -92,7 +92,7 @@ public sealed class PdfForm : PdfXObject
     /// <param name="state">Graphics state the form is drawn in.</param>
     /// <returns>A <see cref="PdfContentHost"/> instance.</returns>
     internal PdfContentHost GetFormHost(PdfGraphicsState state)
-        => new(Document, Resources ?? state.Host.Resources, StructParents);
+        => new(Document, Resources ?? state.Host.Resources, StructuralParents);
 
     /// <summary>
     /// Gets the bounding rectangle of the object after applying the current transformation matrix.

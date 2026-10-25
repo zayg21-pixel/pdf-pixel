@@ -16,7 +16,7 @@ internal interface IPdfContentHost
     /// <summary>
     /// Structural parent key (/StructParents) of the content streams, or null when absent.
     /// </summary>
-    int? StructParents { get; }
+    int? StructuralParents { get; }
 
     /// <summary>
     /// Owning document instance.

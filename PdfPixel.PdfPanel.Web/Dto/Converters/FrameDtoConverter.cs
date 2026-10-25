@@ -58,5 +58,5 @@ internal static class FrameDtoConverter
     /// Returns the <c>DOMMatrix</c> component order <c>[a, b, c, d, e, f]</c> of <paramref name="matrix"/>.
     /// </summary>
     private static float[] ToDomMatrix(in PdfMatrix matrix)
-        => [matrix.ScaleX, matrix.SkewY, matrix.SkewX, matrix.ScaleY, matrix.TransX, matrix.TransY];
+        => [matrix.ScaleX, matrix.SkewY, matrix.SkewX, matrix.ScaleY, matrix.TranslateX, matrix.TranslateY];
 }

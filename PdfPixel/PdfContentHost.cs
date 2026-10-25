@@ -13,19 +13,19 @@ internal sealed class PdfContentHost : IPdfContentHost
     /// </summary>
     /// <param name="document">Owning document.</param>
     /// <param name="resources">Resources the stream's names resolve against.</param>
-    /// <param name="structParents">Structural parent key (/StructParents) of the stream, or null when absent.</param>
-    public PdfContentHost(IPdfDocumentInternal document, PdfResourceNode resources, int? structParents)
+    /// <param name="structuralParents">Structural parent key (/StructParents) of the stream, or null when absent.</param>
+    public PdfContentHost(IPdfDocumentInternal document, PdfResourceNode resources, int? structuralParents)
     {
         Document = document;
         Resources = resources;
-        StructParents = structParents;
+        StructuralParents = structuralParents;
     }
 
     /// <inheritdoc/>
     public PdfResourceNode Resources { get; }
 
     /// <inheritdoc/>
-    public int? StructParents { get; }
+    public int? StructuralParents { get; }
 
     /// <inheritdoc/>
     public IPdfDocumentInternal Document { get; }

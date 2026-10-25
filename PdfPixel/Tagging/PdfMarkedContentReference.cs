@@ -11,10 +11,10 @@ public sealed class PdfMarkedContentReference : IPdfStructureNode, IEquatable<Pd
 {
     private readonly PdfStructureElement _parent;
 
-    internal PdfMarkedContentReference(PdfStructureElement parent, int mcid, PdfReference? pageReference, PdfReference? streamReference, PdfReference? streamOwner)
+    internal PdfMarkedContentReference(PdfStructureElement parent, int markedContentId, PdfReference? pageReference, PdfReference? streamReference, PdfReference? streamOwner)
     {
         _parent = parent;
-        Mcid = mcid;
+        MarkedContentId = markedContentId;
         PageReference = pageReference;
         StreamReference = streamReference;
         StreamOwner = streamOwner;
@@ -23,7 +23,7 @@ public sealed class PdfMarkedContentReference : IPdfStructureNode, IEquatable<Pd
     /// <summary>
     /// Marked content identifier (/MCID).
     /// </summary>
-    public int Mcid { get; }
+    public int MarkedContentId { get; }
 
     /// <summary>
     /// Page (/Pg) the marked content appears on, falling back to the parent element's page,
@@ -60,7 +60,7 @@ public sealed class PdfMarkedContentReference : IPdfStructureNode, IEquatable<Pd
             return false;
         }
 
-        return Mcid == other.Mcid
+        return MarkedContentId == other.MarkedContentId
             && Nullable.Equals(PageReference, other.PageReference)
             && Nullable.Equals(StreamReference, other.StreamReference);
     }
@@ -69,7 +69,7 @@ public sealed class PdfMarkedContentReference : IPdfStructureNode, IEquatable<Pd
     public override bool Equals(object? obj) => Equals(obj as PdfMarkedContentReference);
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Mcid, PageReference, StreamReference);
+    public override int GetHashCode() => HashCode.Combine(MarkedContentId,PageReference, StreamReference);
 
     /// <summary>
     /// Determines whether two references name the same marked content.

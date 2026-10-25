@@ -20,24 +20,24 @@ public class PdfCircleAnnotation : PdfShapeAnnotation
     internal PdfCircleAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Circle)
     {
-        RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
-        ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
+        RectangleDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        ContentRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
     }
 
     /// <summary>
     /// Gets the rectangle differences that inset the drawn ellipse from the annotation rectangle.
     /// </summary>
-    public PdfRectangle? RectDifferences { get; }
+    public PdfRectangle? RectangleDifferences { get; }
 
     /// <summary>
-    /// Gets the effective drawing rectangle after applying <see cref="RectDifferences"/>.
+    /// Gets the effective drawing rectangle after applying <see cref="RectangleDifferences"/>.
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
 
     /// <inheritdoc />
     internal override PdfPath? CreateShapePath(float lineWidth)
     {
-        float inset = (lineWidth / 2f) + ((RectDifferences == null) ? BorderEffect.GetOutset(lineWidth) : 0f);
+        float inset = (lineWidth / 2f) + ((RectangleDifferences == null) ? BorderEffect.GetOutset(lineWidth) : 0f);
 
         PdfPathBuilder shapePath = new();
         shapePath.AddOval(ContentRectangle.Inflate(-inset));

@@ -39,7 +39,7 @@ internal sealed class R3R4Decryptor : PdfDecryptor
             return null;
         }
 
-        if (Parameters.V == 4 && fileKey.Length < MinV4KeyLength)
+        if (Parameters.Version == 4 &&fileKey.Length < MinV4KeyLength)
         {
             // Undocumented: Acrobat zero-pads V4 file keys shorter than 16 bytes.
             var paddedKey = new byte[MinV4KeyLength];

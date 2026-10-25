@@ -53,7 +53,7 @@ internal static class StandardKeyDerivation
     {
         byte[] fileId = GetFileId(parameters);
         byte[] ownerEntry = GetOwnerEntry(parameters);
-        bool appendMetadataMarker = parameters.R >= 4 && !parameters.EncryptMetadata;
+        bool appendMetadataMarker = parameters.Revision >= 4 &&!parameters.EncryptMetadata;
 
         var input = new byte[PasswordPadLength + ownerEntry.Length + 4 + fileId.Length + (appendMetadataMarker ? 4 : 0)];
         paddedPassword.CopyTo(input, 0);
@@ -61,7 +61,7 @@ internal static class StandardKeyDerivation
         Span<byte> remaining = input.AsSpan(PasswordPadLength);
         ownerEntry.CopyTo(remaining);
         remaining = remaining.Slice(ownerEntry.Length);
-        BinaryPrimitives.WriteInt32LittleEndian(remaining, parameters.Permissions);
+        BinaryPrimitives.WriteInt32LittleEndian(remaining, (int)parameters.UserAccessPermissions);
         remaining = remaining.Slice(4);
         fileId.CopyTo(remaining);
         remaining = remaining.Slice(fileId.Length);

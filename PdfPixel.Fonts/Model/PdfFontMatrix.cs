@@ -16,14 +16,14 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
     /// <summary>
     /// Initializes a new <see cref="PdfFontMatrix"/> from its 6 operands.
     /// </summary>
-    public PdfFontMatrix(float scaleX, float skewX, float transX, float skewY, float scaleY, float transY)
+    public PdfFontMatrix(float scaleX, float skewX, float translateX, float skewY, float scaleY, float translateY)
     {
         ScaleX = scaleX;
         SkewY = skewY;
         SkewX = skewX;
         ScaleY = scaleY;
-        TransX = transX;
-        TransY = transY;
+        TranslateX = translateX;
+        TranslateY = translateY;
     }
 
     /// <summary>
@@ -49,12 +49,12 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
     /// <summary>
     /// Horizontal translation.
     /// </summary>
-    public float TransX { get; }
+    public float TranslateX { get; }
 
     /// <summary>
     /// Vertical translation.
     /// </summary>
-    public float TransY { get; }
+    public float TranslateY { get; }
 
     /// <summary>
     /// The identity matrix.
@@ -78,8 +78,8 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
                 && ScaleY == 1f
                 && SkewX == 0f
                 && SkewY == 0f
-                && TransX == 0f
-                && TransY == 0f;
+                && TranslateX == 0f
+                && TranslateY == 0f;
         }
     }
 
@@ -106,7 +106,7 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
     /// <summary>
     /// Converts this matrix back to a CFF FontMatrix operand array ([a b c d e f]).
     /// </summary>
-    public float[] ToArray() => [ScaleX, SkewY, SkewX, ScaleY, TransX, TransY];
+    public float[] ToArray() => [ScaleX, SkewY, SkewX, ScaleY, TranslateX, TranslateY];
 
     /// <summary>
     /// Combines two matrices, equivalent to applying <paramref name="second"/> first and then <paramref name="first"/>.
@@ -158,10 +158,10 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
     {
         return ScaleX == other.ScaleX
             && SkewX == other.SkewX
-            && TransX == other.TransX
+            && TranslateX == other.TranslateX
             && SkewY == other.SkewY
             && ScaleY == other.ScaleY
-            && TransY == other.TransY;
+            && TranslateY == other.TranslateY;
     }
 
     /// <inheritdoc/>
@@ -169,7 +169,7 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
     public override bool Equals(object? obj) => obj is PdfFontMatrix other && Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(ScaleX, SkewX, TransX, SkewY, ScaleY, TransY);
+    public override int GetHashCode() => HashCode.Combine(ScaleX, SkewX, TranslateX, SkewY, ScaleY, TranslateY);
 
     /// <summary>
     /// Determines whether two matrices have the same operands.
@@ -183,7 +183,7 @@ public readonly struct PdfFontMatrix : IEquatable<PdfFontMatrix>
 
     /// <inheritdoc/>
     public override string ToString()
-        => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {TransX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TransY.ToString(CultureInfo.InvariantCulture)}]";
+        => $"[{ScaleX.ToString(CultureInfo.InvariantCulture)} {SkewX.ToString(CultureInfo.InvariantCulture)} {TranslateX.ToString(CultureInfo.InvariantCulture)} {SkewY.ToString(CultureInfo.InvariantCulture)} {ScaleY.ToString(CultureInfo.InvariantCulture)} {TranslateY.ToString(CultureInfo.InvariantCulture)}]";
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Matrix3x2 AsMatrix3x2(in PdfFontMatrix matrix) => Unsafe.As<PdfFontMatrix, Matrix3x2>(ref Unsafe.AsRef(in matrix));

@@ -194,9 +194,9 @@ public sealed class PdfTypefaceLoader
 
         Type1RawFontProgram rawProgram = new(
             fontProgram,
-            _fontFile.Length1,
-            _fontFile.Length2,
-            _fontFile.Length3);
+            _fontFile.ClearTextLength,
+            _fontFile.EncryptedLength,
+            _fontFile.FixedContentLength);
 
         CffTypeface? cffTypeface = Type1ToCffConverter.GetCffFont(rawProgram, _loggerFactory);
 

@@ -90,7 +90,7 @@ public static class PdfCMapScanner
                 {
                     if (TryReadInteger(data, ref position, out int writingMode))
                     {
-                        cmap.WMode = (CMapWMode)writingMode;
+                        cmap.WritingMode = (CMapWritingMode)writingMode;
                     }
                 }
                 else if (name.SequenceEqual(CMapNameEntry))

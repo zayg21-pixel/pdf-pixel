@@ -22,12 +22,12 @@ public sealed class PdfOutputIntent
         OutputConditionIdentifier = dictionary.GetString(PdfTokens.OutputConditionIdentifierKey);
         RegistryName = dictionary.GetString(PdfTokens.RegistryNameKey);
         Info = dictionary.GetString(PdfTokens.OutputIntentInfoKey);
-        DestOutputProfile = ReadProfile(dictionary.GetObject(PdfTokens.DestOutputProfileKey));
+        DestinationOutputProfile = ReadProfile(dictionary.GetObject(PdfTokens.DestOutputProfileKey));
 
         PdfDictionary? profileReference = dictionary.GetDictionary(PdfTokens.DestOutputProfileRefKey);
         if (profileReference != null)
         {
-            DestOutputProfileRef = new PdfOutputProfileReference(profileReference);
+            DestinationOutputProfileReference = new PdfOutputProfileReference(profileReference);
         }
     }
 
@@ -69,12 +69,12 @@ public sealed class PdfOutputIntent
     /// <summary>
     /// ICC profile of the output device (/DestOutputProfile), or <see langword="null"/> when absent or unreadable.
     /// </summary>
-    public IccProfile? DestOutputProfile { get; }
+    public IccProfile? DestinationOutputProfile { get; }
 
     /// <summary>
     /// Information about referenced ICC profiles (/DestOutputProfileRef, PDF 2.0), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfOutputProfileReference? DestOutputProfileRef { get; }
+    public PdfOutputProfileReference? DestinationOutputProfileReference { get; }
 
     /// <summary>
     /// The output intents in <paramref name="array"/>, or <see langword="null"/> when it is absent.
@@ -115,7 +115,7 @@ public sealed class PdfOutputIntent
 
         foreach (PdfOutputIntent outputIntent in outputIntents)
         {
-            IccProfile? profile = outputIntent.DestOutputProfile;
+            IccProfile? profile = outputIntent.DestinationOutputProfile;
             if (profile == null || profile.ChannelsCount == 0)
             {
                 continue;

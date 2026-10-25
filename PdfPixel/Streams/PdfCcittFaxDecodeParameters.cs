@@ -14,7 +14,7 @@ public sealed class PdfCcittFaxDecodeParameters : PdfDecodeParameters
     /// <param name="dictionary">The /DecodeParms dictionary.</param>
     internal PdfCcittFaxDecodeParameters(PdfDictionary dictionary)
     {
-        K = dictionary.GetInteger(PdfTokens.KKey);
+        CompressionScheme = dictionary.GetInteger(PdfTokens.KKey);
         EndOfLine = dictionary.GetBoolean(PdfTokens.EndOfLineKey);
         EncodedByteAlign = dictionary.GetBoolean(PdfTokens.EncodedByteAlignKey);
         Columns = dictionary.GetInteger(PdfTokens.ColumnsKey);
@@ -27,7 +27,7 @@ public sealed class PdfCcittFaxDecodeParameters : PdfDecodeParameters
     /// <summary>
     /// Compression scheme (/K): 0 = Group 3 1-D, &gt;0 = Group 3 2-D, &lt;0 = Group 4 2-D. Null when absent.
     /// </summary>
-    public int? K { get; }
+    public int? CompressionScheme { get; }
 
     /// <summary>
     /// Whether each row ends with an end-of-line marker (/EndOfLine), or null when absent.

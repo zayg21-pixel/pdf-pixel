@@ -699,7 +699,7 @@ export function unregisterPanel(id) {
  * @param {string} id View id.
  * @param {Uint8Array} documentData PDF file bytes.
  * @returns {Promise<object>} The result of loading the document: on success `ok: true` with the document data
- * (`pageCount`, `version`, `pageMode`, `pageLayout`, `lang`, `information`, `permissions`, `pages`, `outlines`,
+ * (`pageCount`, `version`, `pageMode`, `pageLayout`, `language`, `information`, `permissions`, `pages`, `outlines`,
  * `layerConfigurations`, `attachments`), otherwise `{ ok: false, reason, message }` with `reason` one of `empty`,
  * `encrypted`, `unsupported`, `invalid` and `error`.
  */

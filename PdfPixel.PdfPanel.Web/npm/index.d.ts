@@ -312,7 +312,7 @@ export interface PdfPixelDocument {
     version: string | null;
     pageMode: PdfPixelPageMode | null;
     pageLayout: PdfPixelPageLayout | null;
-    lang: string | null;
+    language: string | null;
     information: PdfPixelDocumentInformation | null;
     /** `null` when the document is not encrypted. */
     permissions: PdfPixelPermissions | null;

@@ -18,8 +18,8 @@ public sealed class PdfRectilinearMeasure : PdfMeasure
         : base(PdfMeasureType.Rectilinear)
     {
         ScaleRatio = measureDictionary.GetString(PdfTokens.ScaleRatioKey);
-        X = PdfNumberFormat.FromArray(measureDictionary.GetArray(PdfTokens.MeasureXKey)) ?? Array.Empty<PdfNumberFormat>();
-        Y = PdfNumberFormat.FromArray(measureDictionary.GetArray(PdfTokens.MeasureYKey));
+        XAxis = PdfNumberFormat.FromArray(measureDictionary.GetArray(PdfTokens.MeasureXKey)) ?? Array.Empty<PdfNumberFormat>();
+        YAxis = PdfNumberFormat.FromArray(measureDictionary.GetArray(PdfTokens.MeasureYKey));
         Distance = PdfNumberFormat.FromArray(measureDictionary.GetArray(PdfTokens.DistanceFormatKey)) ?? Array.Empty<PdfNumberFormat>();
         Area = PdfNumberFormat.FromArray(measureDictionary.GetArray(PdfTokens.AreaFormatKey)) ?? Array.Empty<PdfNumberFormat>();
         Angle = PdfNumberFormat.FromArray(measureDictionary.GetArray(PdfTokens.AngleFormatKey));
@@ -34,15 +34,15 @@ public sealed class PdfRectilinearMeasure : PdfMeasure
     public PdfString? ScaleRatio { get; }
 
     /// <summary>
-    /// Number formats for change along the x axis, and along the y axis when <see cref="Y"/> is absent (/X).
+    /// Number formats for change along the x axis, and along the y axis when <see cref="YAxis"/> is absent (/X).
     /// Empty when absent.
     /// </summary>
-    public PdfNumberFormat[] X { get; }
+    public PdfNumberFormat[] XAxis { get; }
 
     /// <summary>
     /// Number formats for change along the y axis (/Y), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfNumberFormat[]? Y { get; }
+    public PdfNumberFormat[]? YAxis { get; }
 
     /// <summary>
     /// Number formats for distance in any direction (/D). Empty when absent.

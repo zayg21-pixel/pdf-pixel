@@ -109,7 +109,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         int descaleFactor,
         IReadOnlyList<JpgRectangle>? regionsOfInterest)
     {
-        int? colorTransform = (Image.DecodeParms as PdfDctDecodeParameters)?.ColorTransform;
+        int? colorTransform = (Image.DecodeParameters as PdfDctDecodeParameters)?.ColorTransform;
 
         JpgYuvMode yuvMode = colorTransform switch
         {
