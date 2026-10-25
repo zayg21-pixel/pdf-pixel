@@ -17,16 +17,6 @@ namespace PdfPixel.Imaging;
 /// </remarks>
 internal static class PdfStencilOutline
 {
-    /// <summary>
-    /// Largest width or height, in samples, of a stencil mask that is traced.
-    /// </summary>
-    public const int MaximumSize = 1000;
-
-    /// <summary>
-    /// Largest number of points a traced outline is made of; a mask needing more is left an image.
-    /// </summary>
-    public const int MaximumPoints = 20000;
-
     // Directions a crack runs along the corner grid, rows downwards, ordered clockwise so that turning right is the next one.
     private const int East = 0;
     private const int South = 1;
@@ -37,10 +27,36 @@ internal static class PdfStencilOutline
     private static readonly int[] RowSteps = [0, 1, 0, -1];
 
     /// <summary>
-    /// Returns the outline of the painted samples of <paramref name="image"/>, or null when the image is not a stencil mask,
-    /// is larger than <see cref="MaximumSize"/>, needs more than <see cref="MaximumPoints"/> points, or cannot be decoded.
+    /// Returns the outline <see cref="Trace"/> traces for <paramref name="image"/>, kept by the document once traced.
     /// </summary>
-    public static PdfPath? Trace(PdfImage image)
+    public static PdfPath? GetOutline(PdfImage image)
+    {
+        if (image == null)
+        {
+            throw new ArgumentNullException(nameof(image));
+        }
+
+        PdfImageCache imageCache = image.Document.ObjectCache.Images;
+        PdfPath? outline = imageCache.GetStencilOutline(image);
+
+        if (outline == null)
+        {
+            outline = Trace(image);
+
+            if (outline != null)
+            {
+                imageCache.AddStencilOutline(image, outline);
+            }
+        }
+
+        return outline;
+    }
+
+    /// <summary>
+    /// Returns the outline of the painted samples of <paramref name="image"/>, or null when the image is not a stencil mask
+    /// or cannot be decoded.
+    /// </summary>
+    private static PdfPath? Trace(PdfImage image)
     {
         if (image == null)
         {
@@ -49,9 +65,7 @@ internal static class PdfStencilOutline
 
         if (!image.HasImageMask
             || image.Width <= 0
-            || image.Height <= 0
-            || image.Width > MaximumSize
-            || image.Height > MaximumSize)
+            || image.Height <= 0)
         {
             return null;
         }
@@ -133,12 +147,11 @@ internal static class PdfStencilOutline
     /// Follows the cracks into closed contours, each started from the first corner in row order that still has a crack
     /// leaving it, which is always a corner the contour turns at. Consumes <paramref name="outgoingCracks"/>.
     /// </summary>
-    private static PdfPath? TraceContours(byte[] outgoingCracks, int width, int height)
+    private static PdfPath TraceContours(byte[] outgoingCracks, int width, int height)
     {
         int cornerColumns = width + 1;
         PdfMatrix sampleToUnitSquare = new(1f / width, 0, 0, 0, -1f / height, 1);
         PdfPathBuilder builder = new(sampleToUnitSquare);
-        int pointCount = 0;
 
         for (int startCorner = 0; startCorner < outgoingCracks.Length; startCorner++)
         {
@@ -150,7 +163,6 @@ internal static class PdfStencilOutline
                 int corner = startCorner;
 
                 builder.MoveTo(column, row);
-                pointCount++;
 
                 while (true)
                 {
@@ -169,18 +181,12 @@ internal static class PdfStencilOutline
                     if (nextDirection != direction)
                     {
                         builder.LineTo(column, row);
-                        pointCount++;
                     }
 
                     direction = nextDirection;
                 }
 
                 builder.Close();
-
-                if (pointCount > MaximumPoints)
-                {
-                    return null;
-                }
             }
         }
 

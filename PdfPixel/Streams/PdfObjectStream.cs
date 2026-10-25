@@ -74,14 +74,6 @@ public sealed class PdfObjectStream
             cryptFilter = document.Decryptor.GetStreamCryptFilter(pdfObject.Dictionary, filters);
         }
 
-        if (pdfObject.InlineData != null)
-        {
-            return new PdfObjectStream(
-                document.StreamDecoder,
-                filters,
-                pdfObject.InlineData);
-        }
-
         if (pdfObject.StreamInfo.HasValue && pdfObject.Reference != null)
         {
             return new PdfObjectStream(

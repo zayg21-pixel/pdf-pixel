@@ -39,18 +39,6 @@ public class PdfObject
     }
 
     /// <summary>
-    /// Initializes a new direct instance of the <see cref="PdfObject"/> class with inline data.
-    /// </summary>
-    /// <param name="document">The owning PDF document.</param>
-    /// <param name="value">The value of the PDF object.</param>
-    /// <param name="inlineData">The inline data.</param>
-    internal PdfObject(IPdfDocumentInternal document, PdfValue value, byte[] inlineData)
-        : this(null, document, value)
-    {
-        InlineData = inlineData;
-    }
-
-    /// <summary>
     /// Gets the PDF reference for this object, or <see langword="null"/> when it is a direct object.
     /// </summary>
     public PdfReference? Reference { get; }
@@ -78,12 +66,7 @@ public class PdfObject
     /// <summary>
     /// Gets a value indicating whether this object has an associated stream.
     /// </summary>
-    public bool HasStream => StreamInfo.HasValue || InlineData != null;
-
-    /// <summary>
-    /// Inline data, if available.
-    /// </summary>
-    internal byte[]? InlineData { get; }
+    public bool HasStream => StreamInfo.HasValue;
 
     /// <summary>
     /// Gets the self-contained stream source for this object, created lazily on first access.

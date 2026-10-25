@@ -28,6 +28,17 @@ public class PdfRenderingParameters
     public int MaxTessellationVertices { get; set; } = 32;
 
     /// <summary>
+    /// When true, stencil masks of at most <see cref="MaxStencilMaskSizeForPathConversion"/> samples are converted to
+    /// paths and drawn as filled paths instead of images.
+    /// </summary>
+    public bool ConvertStencilMasksToPaths { get; set; } = true;
+
+    /// <summary>
+    /// Largest number of samples, width times height, of a stencil mask converted to a path.
+    /// </summary>
+    public int MaxStencilMaskSizeForPathConversion { get; set; } = 100000;
+
+    /// <summary>
     /// When false, paths are neither rendered nor extracted.
     /// </summary>
     public bool ProcessPaths { get; set; } = true;

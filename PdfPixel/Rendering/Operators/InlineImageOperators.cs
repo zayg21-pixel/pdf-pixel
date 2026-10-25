@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Imaging;
 using PdfPixel.Objects;
@@ -18,7 +17,7 @@ internal class InlineImageOperators : IOperatorProcessor
     private readonly PdfOperandStack _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
-    private PdfInlineImage? _inlineImage;
+    private PdfImage? _inlineImage;
 
     public InlineImageOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
@@ -59,7 +58,7 @@ internal class InlineImageOperators : IOperatorProcessor
 
     private void ProcessEndInlineImage(ref PdfGraphicsState graphicsState)
     {
-        PdfInlineImage? inlineImage = _inlineImage;
+        PdfImage? inlineImage = _inlineImage;
         _inlineImage = null;
 
         if (inlineImage == null
@@ -69,14 +68,6 @@ internal class InlineImageOperators : IOperatorProcessor
             return;
         }
 
-        // A small stencil mask painted with a color is filled as the shape of its painted samples, antialiased at the size it
-        // is drawn. A pattern fill stays on the image path, which Skia draws far cheaper than a pattern masked by a path.
-        if (inlineImage.StencilOutline != null && !graphicsState.FillPaint.IsPattern)
-        {
-            _renderer.DrawPath(_processor, inlineImage.StencilOutline, graphicsState, PdfPaintOperation.Fill);
-            return;
-        }
-
-        _renderer.DrawImage(_processor, inlineImage.Image, graphicsState);
+        _renderer.DrawImage(_processor, inlineImage, graphicsState);
     }
 }

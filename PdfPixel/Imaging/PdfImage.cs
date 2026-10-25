@@ -315,13 +315,13 @@ public class PdfImage : PdfXObject
         => owner.Document.ObjectCache.GetOrCreate<PdfXObject>(owner, key, FromImageEntryObject, requiresStream: true) as PdfImage;
 
     /// <summary>
-    /// Reads the inline image whose ID operator was just read from the content stream <paramref name="context"/> reads. When the
-    /// bytes from where the image starts repeat an inline image the document read before, that image is returned without reading
-    /// anything else. Otherwise its entries are read from the <paramref name="operands"/> written between its BI and ID
-    /// operators, under their full or abbreviated keys, and its data from the context up to its EI operator; an image that is
-    /// not a stencil mask and declares no /BitsPerComponent or /ColorSpace is read as 8-bit DeviceGray, and the document keeps
-    /// the image under its bytes. Either way the parser is told, through <see cref="PdfContentStreamCursor.SkipPositions"/>,
-    /// to resume at the EI operator. A small stencil mask is kept with its outline, traced by <see cref="PdfStencilOutline"/>.
+    /// Reads the inline image whose ID operator was just read from the content stream <paramref name="context"/> reads. Its
+    /// entries are read from the <paramref name="operands"/> written between its BI and ID operators, under their full or
+    /// abbreviated keys, and its data from the context up to its EI operator; an image that is not a stencil mask and declares
+    /// no /BitsPerComponent or /ColorSpace is read as 8-bit DeviceGray. When the entries and data repeat an inline image the
+    /// document read before, that image is returned; otherwise the document keeps the image under its
+    /// <see cref="InlineImageKey"/>. Either way the parser is told, through <see cref="PdfContentStreamCursor.SkipPositions"/>,
+    /// to resume at the EI operator.
     /// </summary>
     /// <param name="context">The content stream the image is read from.</param>
     /// <param name="operands">The entries written between the BI and ID operators.</param>
@@ -329,7 +329,7 @@ public class PdfImage : PdfXObject
     /// The inline image as the document keeps it, or null when the end of its data is not found, in which case the rest of
     /// the stream is skipped.
     /// </returns>
-    internal static PdfInlineImage? FromInline(PdfParseContext context, PdfOperandStack operands)
+    internal static PdfImage? FromInline(PdfParseContext context, PdfOperandStack operands)
     {
         if (operands == null)
         {
@@ -338,21 +338,9 @@ public class PdfImage : PdfXObject
 
         PdfContentStreamCursor cursor = context.Cursor ?? throw new InvalidOperationException("Inline images are read only from a content stream context.");
         IPdfDocumentInternal document = context.Document ?? throw new InvalidOperationException("Inline images are read only from a content stream context.");
-        PdfContentStreamInlineImages inlineImages = document.ObjectCache.InlineImages;
+        PdfImageCache imageCache = document.ObjectCache.Images;
         int imageStart = cursor.InlineImageStart;
         int dataStart = cursor.InlineImageDataStart;
-
-        PdfInlineImage? cachedInlineImage = inlineImages.Find(context.Slice(imageStart, context.Length - imageStart), out int cachedBytesLength);
-        int? cachedOperatorStart = (cachedInlineImage != null)
-            ? PdfInlineImageDataScanner.FindEiOperator(context.Slice(dataStart, context.Length - dataStart), imageStart + cachedBytesLength - dataStart)
-            : null;
-
-        if (cachedInlineImage != null && cachedOperatorStart != null)
-        {
-            cursor.SkipPositions = cachedOperatorStart.Value;
-
-            return cachedInlineImage;
-        }
 
         int? width = null;
         int? height = null;
@@ -450,28 +438,34 @@ public class PdfImage : PdfXObject
             return null;
         }
 
-        PdfValue? resolvedColorSpace = colorSpace ?? (hasImageMask ? null : DefaultInlineColorSpace);
         byte[] data = content.Slice(dataOffset, dataEnd - dataOffset).ToArray();
+        InlineImageKey inlineImageKey = new(context.Slice(imageStart, dataStart - imageStart), data);
+        PdfImage? image = imageCache.GetInlineImage(inlineImageKey);
 
-        PdfImage image = new(
-            document,
-            null,
-            new PdfReference(0),
-            PdfObjectStream.FromInlineData(document, filters, data),
-            width ?? 0,
-            height ?? 0,
-            resolvedBitsPerComponent,
-            (resolvedColorSpace != null) ? PdfColorSpaceReference.FromValue(resolvedColorSpace) : default,
-            hasImageMask,
-            interpolate ?? false,
-            decode.AsArray(),
-            intent.AsName());
+        if (image == null)
+        {
+            PdfValue? resolvedColorSpace = colorSpace ?? (hasImageMask ? null : DefaultInlineColorSpace);
 
-        PdfInlineImage inlineImage = new(image, PdfStencilOutline.Trace(image));
-        inlineImages.Add(context.Slice(imageStart, dataStart + operatorStart - imageStart), inlineImage);
+            image = new PdfImage(
+                document,
+                null,
+                new PdfReference(0),
+                PdfObjectStream.FromInlineData(document, filters, data),
+                width ?? 0,
+                height ?? 0,
+                resolvedBitsPerComponent,
+                (resolvedColorSpace != null) ? PdfColorSpaceReference.FromValue(resolvedColorSpace) : default,
+                hasImageMask,
+                interpolate ?? false,
+                decode.AsArray(),
+                intent.AsName());
+
+            imageCache.AddInlineImage(inlineImageKey, image);
+        }
+
         cursor.SkipPositions = operatorStart;
 
-        return inlineImage;
+        return image;
     }
 
     private static PdfXObject? FromImageEntryObject(PdfObject imageObject)

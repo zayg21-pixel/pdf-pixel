@@ -55,17 +55,6 @@ internal static class PdfInlineImageDataScanner
         return endFound;
     }
 
-    /// <summary>
-    /// Returns the offset of the EI operator in <paramref name="content"/> when only whitespace separates it from
-    /// <paramref name="offset"/>, or null when no EI operator follows.
-    /// </summary>
-    public static int? FindEiOperator(in ReadOnlySpan<byte> content, int offset)
-    {
-        int position = offset;
-
-        return (SkipToEiOperator(content, ref position)) ? position : null;
-    }
-
     private static bool TryReadUntilAscii85Eod(in ReadOnlySpan<byte> content, ref int position, out int dataEnd)
     {
         while (position < content.Length)

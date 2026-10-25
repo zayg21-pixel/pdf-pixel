@@ -240,18 +240,12 @@ public class PdfGraphicsState
         }
     }
 
-    // --------------------------------------------------------------------------------------
-    // Path rendering state (see PDF 2.0 spec 8.4 Graphics State)
-    // --------------------------------------------------------------------------------------
     /// <summary>
     /// Flatness tolerance (i operator). Controls curve flattening accuracy for path rendering.
     /// Default is 1.0 per PDF specification.
     /// </summary>
     public float FlatnessTolerance { get; set; } = 1.0f;
 
-    // --------------------------------------------------------------------------------------
-    // Transparency state (see PDF 2.0 spec 11 Transparency)
-    // --------------------------------------------------------------------------------------
     /// <summary>
     /// Active soft mask (SMask entry in ExtGState) or null when none.
     /// </summary>

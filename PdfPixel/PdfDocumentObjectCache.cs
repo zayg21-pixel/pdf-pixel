@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Imaging;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Text;
@@ -36,9 +37,9 @@ internal class PdfDocumentObjectCache : IDisposable
     public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; private set; } = [];
 
     /// <summary>
-    /// Inline images read from the content streams of the document, shared by every occurrence of the same bytes.
+    /// Images the document keeps for reuse, among them the inline images read from its content streams.
     /// </summary>
-    public PdfContentStreamInlineImages InlineImages { get; } = new();
+    public PdfImageCache Images { get; } = new();
 
     /// <summary>
     /// Takes <paramref name="objectIndex"/> as the object index. Until called, no object resolves.
@@ -57,7 +58,7 @@ internal class PdfDocumentObjectCache : IDisposable
     {
         DisposeCachedObjects();
         _objectsByType.Clear();
-        InlineImages.Clear();
+        Images.Clear();
         _pdfObjectParser = new PdfObjectParser(_document);
         ObjectIndex = new Dictionary<PdfReference, PdfObjectInfo>();
         _isLoaded = false;
