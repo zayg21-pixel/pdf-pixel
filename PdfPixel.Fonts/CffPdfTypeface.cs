@@ -1,11 +1,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Cff;
-using PdfPixel.Fonts.Model;
 using System;
 using System.IO;
 
-namespace PdfPixel.Fonts.Typeface;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// An <see cref="IPdfTypeface"/> backed by a bare CFF font program.

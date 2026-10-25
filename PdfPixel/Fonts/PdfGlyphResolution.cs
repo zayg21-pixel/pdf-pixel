@@ -1,5 +1,3 @@
-using PdfPixel.Fonts.Model;
-
 namespace PdfPixel.Fonts;
 
 /// <summary>

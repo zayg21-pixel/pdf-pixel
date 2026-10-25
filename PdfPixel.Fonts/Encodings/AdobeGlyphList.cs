@@ -1,8 +1,8 @@
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.EmbeddedData;
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Fonts.Resources;
+namespace PdfPixel.Fonts.Encodings;
 
 /// <summary>
 /// Represents Adobe Glyph list as map of characters.

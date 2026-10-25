@@ -1,4 +1,4 @@
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts.Encodings;
 
 /// <summary>
 /// Single-byte glyph-name encoding table used by simple fonts (Type1, TrueType, ...).

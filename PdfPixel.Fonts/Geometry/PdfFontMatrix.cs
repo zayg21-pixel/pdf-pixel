@@ -4,7 +4,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts.Geometry;
 
 /// <summary>
 /// A 2D affine transformation matrix with 6 operands, in the same [a b c d e f] operand order as a

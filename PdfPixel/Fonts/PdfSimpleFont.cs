@@ -1,9 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.Encodings;
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Resources;
-using PdfPixel.Fonts.Typeface;
 using PdfPixel.Objects;
 using System;
 

@@ -1,4 +1,3 @@
-using PdfPixel.Fonts.Model;
 using System;
 
 namespace PdfPixel.Fonts.Cff;

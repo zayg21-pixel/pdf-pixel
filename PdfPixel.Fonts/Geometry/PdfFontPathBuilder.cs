@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts.Geometry;
 
 /// <summary>
 /// Builds a glyph outline incrementally into a growable binary buffer, then detaches it as a

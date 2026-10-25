@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Model;
 using System;
 
 namespace PdfPixel.Fonts.Cff;

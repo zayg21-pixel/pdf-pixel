@@ -1,4 +1,3 @@
-using PdfPixel.Fonts.Model;
 using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Sfnt;

@@ -1,4 +1,4 @@
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts.Geometry;
 
 /// <summary>
 /// Tag byte written into a <see cref="PdfFontPathBuilder"/>'s encoded buffer ahead of each

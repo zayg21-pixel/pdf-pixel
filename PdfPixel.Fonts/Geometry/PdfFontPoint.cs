@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts.Geometry;
 
 /// <summary>
 /// A point in font space, defined by its X and Y coordinates.

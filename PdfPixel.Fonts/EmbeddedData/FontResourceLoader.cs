@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace PdfPixel.Fonts.Resources;
+namespace PdfPixel.Fonts.EmbeddedData;
 
 /// <summary>
 /// Loads embedded font resources from the assembly.
@@ -15,7 +15,7 @@ internal static class FontResourceLoader
     public static byte[] GetResource(string resourceName)
     {
         System.Reflection.Assembly assembly = typeof(FontResourceLoader).Assembly;
-        using Stream? stream = assembly.GetManifestResourceStream($"{nameof(PdfPixel)}.{nameof(Fonts)}.{nameof(Resources)}.{resourceName}");
+        using Stream? stream = assembly.GetManifestResourceStream($"{nameof(PdfPixel)}.{nameof(Fonts)}.{nameof(EmbeddedData)}.{resourceName}");
 
         if (stream == null)
         {

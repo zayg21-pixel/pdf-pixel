@@ -1,5 +1,4 @@
 using PdfPixel.Fonts;
-using PdfPixel.Fonts.Model;
 using PdfPixel.Objects;
 using PdfPixel.Rendering;
 using System;

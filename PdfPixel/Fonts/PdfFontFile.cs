@@ -1,4 +1,3 @@
-using PdfPixel.Fonts.Model;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;

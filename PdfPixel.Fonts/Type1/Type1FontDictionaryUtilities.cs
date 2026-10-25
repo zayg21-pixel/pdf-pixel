@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using PdfPixel.PostScript.Tokens;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Resources;
+using PdfPixel.Fonts.Encodings;
 
 namespace PdfPixel.Fonts.Type1;
 

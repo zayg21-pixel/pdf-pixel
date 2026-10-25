@@ -4,7 +4,6 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Substitution;
-using PdfPixel.Fonts.Typeface;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;

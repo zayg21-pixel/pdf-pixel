@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
-using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Text;
 using PdfPixel.Transparency;

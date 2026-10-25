@@ -1,6 +1,6 @@
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.EmbeddedData;
 
-namespace PdfPixel.Fonts.Resources;
+namespace PdfPixel.Fonts.Encodings;
 
 /// <summary>
 /// Utility for converting single-byte codes with base encodings to standard glyph names.

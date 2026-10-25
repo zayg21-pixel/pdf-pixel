@@ -1,4 +1,4 @@
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Encodings;
 using System;
 
 namespace PdfPixel.Fonts.Sfnt;

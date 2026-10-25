@@ -1,4 +1,4 @@
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// Font metrics and style information, expressed in terms found in real font formats

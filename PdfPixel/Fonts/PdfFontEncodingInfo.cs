@@ -1,6 +1,5 @@
 using System.Collections.Generic;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Resources;
+using PdfPixel.Fonts.Encodings;
 using PdfPixel.Objects;
 
 namespace PdfPixel.Fonts;

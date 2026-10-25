@@ -2,7 +2,7 @@ using PdfPixel.Fonts.Sfnt;
 using System;
 using System.IO;
 
-namespace PdfPixel.Fonts.Typeface;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// A read-only passthrough view over a seekable stream, with its own independent position so

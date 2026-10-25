@@ -1,8 +1,7 @@
 using PdfPixel.Color;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Execution;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Typeface;
+using PdfPixel.Fonts;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Skia.Cache;
 using PdfPixel.Skia.Fonts;

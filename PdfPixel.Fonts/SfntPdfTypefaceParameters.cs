@@ -1,6 +1,6 @@
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Sfnt;
 
-namespace PdfPixel.Fonts.Typeface;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// Optional construction parameters for <see cref="SfntPdfTypeface"/>.
@@ -30,7 +30,7 @@ public sealed class SfntPdfTypefaceParameters
     /// The glyph subset and character mapping the repack writes. Null repacks the font as it stands.
     /// Ignored when <see cref="RepackTypeface"/> is <see langword="false"/>.
     /// </summary>
-    public SfntPdfTypefaceRepackParameters? Repack { get; set; }
+    public SfntRepackParameters? Repack { get; set; }
 
     /// <summary>
     /// Gets the default parameters: <see cref="RepackTypeface"/> = <see langword="true"/>,

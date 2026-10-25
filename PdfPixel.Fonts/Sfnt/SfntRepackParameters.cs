@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 
-namespace PdfPixel.Fonts.Typeface;
+namespace PdfPixel.Fonts.Sfnt;
 
 /// <summary>
 /// The glyph subset and character mapping a repack writes into the font it produces.
 /// </summary>
-public sealed class SfntPdfTypefaceRepackParameters
+public sealed class SfntRepackParameters
 {
     /// <summary>
     /// The source glyph ids to keep, in the order the repacked font numbers them: the glyph written at

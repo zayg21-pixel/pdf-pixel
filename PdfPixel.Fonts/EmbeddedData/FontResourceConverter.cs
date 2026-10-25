@@ -1,10 +1,9 @@
-using PdfPixel.Fonts.Model;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
 
-namespace PdfPixel.Fonts.Resources;
+namespace PdfPixel.Fonts.EmbeddedData;
 
 /// <summary>
 /// Provides helpers to deserialize resource blobs used by PdfPixel.Fonts.

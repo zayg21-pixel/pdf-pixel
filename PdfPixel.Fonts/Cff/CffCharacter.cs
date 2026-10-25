@@ -1,4 +1,4 @@
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Geometry;
 using System;
 
 namespace PdfPixel.Fonts.Cff;
@@ -24,7 +24,7 @@ public class CffCharacter
     }
 
     /// <summary>
-    /// Gets or sets the glyph outline, encoded in <see cref="PdfPixel.Fonts.Model.PdfFontPathBuilder"/>'s
+    /// Gets or sets the glyph outline, encoded in <see cref="PdfPixel.Fonts.Geometry.PdfFontPathBuilder"/>'s
     /// format. Empty until built on demand from <see cref="CharString"/>.
     /// </summary>
     public ReadOnlyMemory<byte> Path { get; set; }

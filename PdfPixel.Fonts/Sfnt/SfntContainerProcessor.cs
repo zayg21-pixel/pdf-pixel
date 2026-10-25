@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
 using System.IO;

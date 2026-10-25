@@ -2,7 +2,7 @@ using System;
 using System.IO.Hashing;
 using System.Text;
 
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// Represents a byte string used within font data (glyph names, CFF strings, Type1 dictionary values).

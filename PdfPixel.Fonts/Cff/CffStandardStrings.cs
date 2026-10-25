@@ -1,5 +1,4 @@
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Resources;
+using PdfPixel.Fonts.EmbeddedData;
 using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Cff;

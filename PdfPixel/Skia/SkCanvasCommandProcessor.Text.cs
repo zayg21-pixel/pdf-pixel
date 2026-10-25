@@ -1,7 +1,6 @@
 ﻿using PdfPixel.Skia.Converters;
 using PdfPixel.Commands;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Typeface;
+using PdfPixel.Fonts;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;

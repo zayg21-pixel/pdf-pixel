@@ -1,4 +1,4 @@
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// Represents the set of standard Latin font families (the "Standard 14" fonts).

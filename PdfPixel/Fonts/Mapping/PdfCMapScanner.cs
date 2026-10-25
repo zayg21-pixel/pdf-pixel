@@ -1,6 +1,5 @@
 using System;
 using System.Text;
-using PdfPixel.Fonts.Model;
 using PdfPixel.Objects;
 
 namespace PdfPixel.Fonts.Mapping;

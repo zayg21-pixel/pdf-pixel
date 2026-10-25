@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Cff;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Resources;
+using PdfPixel.Fonts.Encodings;
+using PdfPixel.Fonts.Geometry;
 using PdfPixel.PostScript.Tokens;
 using System;
 using System.Collections.Generic;

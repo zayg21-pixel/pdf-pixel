@@ -1,7 +1,5 @@
 using PdfPixel.Fonts.Mapping;
-using PdfPixel.Fonts.Model;
 using PdfPixel.Fonts.Substitution;
-using PdfPixel.Fonts.Typeface;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using System;

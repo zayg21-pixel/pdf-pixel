@@ -12,8 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\**\*.bin" />
-    <EmbeddedResource Include="Resources\Standard14Fonts\*.otf" />
+    <EmbeddedResource Include="EmbeddedData\**\*.bin" />
+    <EmbeddedResource Include="EmbeddedData\Standard14Fonts\*.otf" />
     <None Include="NOTICE.txt" Pack="true" PackagePath="notices\PdfPixel.Fonts.txt" />
   </ItemGroup>
 

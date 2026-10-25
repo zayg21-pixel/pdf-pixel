@@ -1,7 +1,8 @@
+using PdfPixel.Fonts.Geometry;
 using System;
 using System.IO;
 
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// Reads glyph existence, widths, unicode mapping, outlines, and metrics directly from a font

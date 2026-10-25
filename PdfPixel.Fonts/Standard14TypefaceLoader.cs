@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Typeface;
+using PdfPixel.Fonts.EmbeddedData;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 
-namespace PdfPixel.Fonts.Resources;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// Serves the Standard 14 font programs this assembly embeds. Each one is parsed the first time it is

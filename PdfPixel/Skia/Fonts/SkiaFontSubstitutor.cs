@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Substitution;
-using PdfPixel.Fonts.Typeface;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

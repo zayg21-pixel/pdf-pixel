@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Fonts.Model;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// Glyph-containment helpers for <see cref="IPdfTypeface"/>.

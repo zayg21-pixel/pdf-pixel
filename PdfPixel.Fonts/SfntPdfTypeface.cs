@@ -1,13 +1,14 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfPixel.Fonts.Cff;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Encodings;
+using PdfPixel.Fonts.Geometry;
 using PdfPixel.Fonts.Sfnt;
 using System;
 using System.IO;
 using System.Text;
 
-namespace PdfPixel.Fonts.Typeface;
+namespace PdfPixel.Fonts;
 
 /// <summary>
 /// An <see cref="IPdfTypeface"/> backed by an SFNT font program, with either TrueType ("glyf") or

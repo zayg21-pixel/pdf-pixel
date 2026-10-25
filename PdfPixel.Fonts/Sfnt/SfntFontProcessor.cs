@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Fonts.Model;
-using PdfPixel.Fonts.Typeface;
+using PdfPixel.Fonts.Geometry;
 using System;
 using System.Collections.Generic;
 
@@ -298,7 +297,7 @@ public class SfntFontProcessor
     /// <param name="font">The font to write.</param>
     /// <param name="sourceStream">The stream <paramref name="font"/> was read from, read for the source glyph bytes.</param>
     /// <param name="repackParameters">The glyph subset and character mapping to write. Null writes every glyph at the id it already had, and no character mapping.</param>
-    public byte[] Write(SfntFont font, ReadOnlyFontStream sourceStream, SfntPdfTypefaceRepackParameters? repackParameters = null)
+    public byte[] Write(SfntFont font, ReadOnlyFontStream sourceStream, SfntRepackParameters? repackParameters = null)
     {
         if (font == null)
         {
@@ -389,7 +388,7 @@ public class SfntFontProcessor
     /// Writes the "cmap" <paramref name="repackParameters"/> states, or an empty placeholder when it
     /// states none.
     /// </summary>
-    private static byte[] WriteCmap(SfntPdfTypefaceRepackParameters? repackParameters)
+    private static byte[] WriteCmap(SfntRepackParameters? repackParameters)
     {
         IReadOnlyDictionary<int, ushort>? codeToGid = repackParameters?.CodeToGid;
 

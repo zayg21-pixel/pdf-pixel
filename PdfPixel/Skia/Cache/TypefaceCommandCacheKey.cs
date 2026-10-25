@@ -1,5 +1,5 @@
 using PdfPixel.Commands.Cache;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts;
 using System;
 using System.Runtime.CompilerServices;
 

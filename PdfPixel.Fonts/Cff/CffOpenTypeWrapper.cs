@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Geometry;
 using PdfPixel.Fonts.Sfnt;
-using PdfPixel.Fonts.Typeface;
 using System;
 using System.Collections.Generic;
 

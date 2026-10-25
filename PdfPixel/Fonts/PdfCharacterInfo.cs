@@ -1,4 +1,3 @@
-using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Fonts;
