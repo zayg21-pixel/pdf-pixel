@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Tiff.Streams;

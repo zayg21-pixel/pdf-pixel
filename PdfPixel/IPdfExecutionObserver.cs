@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace PdfPixel.Commands;
+namespace PdfPixel;
 
 /// <summary>
 /// Interface that notifies that some chunk of work has been completed, new command parsed,

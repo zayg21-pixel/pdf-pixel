@@ -1,4 +1,3 @@
-using PdfPixel.Commands;
 using PdfPixel.Imaging;
 using PdfPixel.PdfPanel.Content;
 using System;

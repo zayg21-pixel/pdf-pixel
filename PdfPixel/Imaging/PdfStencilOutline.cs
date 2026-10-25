@@ -1,4 +1,3 @@
-using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using System;
 using System.Threading;

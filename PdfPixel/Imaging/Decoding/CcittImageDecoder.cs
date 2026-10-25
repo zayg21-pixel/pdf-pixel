@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Ccitt;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Streams;

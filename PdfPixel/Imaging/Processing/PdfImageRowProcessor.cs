@@ -3,7 +3,6 @@ using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
-using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using System;

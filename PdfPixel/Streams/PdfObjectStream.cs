@@ -1,4 +1,3 @@
-using PdfPixel.Commands;
 using PdfPixel.Encryption;
 using PdfPixel.Encryption.Decryption;
 using PdfPixel.Objects;

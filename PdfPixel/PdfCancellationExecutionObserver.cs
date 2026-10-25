@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PdfPixel.Commands;
+namespace PdfPixel;
 
 /// <summary>
 /// Calls <see cref="CancellationToken.ThrowIfCancellationRequested"/> on notify.

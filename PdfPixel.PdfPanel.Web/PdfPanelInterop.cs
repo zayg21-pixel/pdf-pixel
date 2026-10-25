@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
 using PdfPixel.Encryption;
 using PdfPixel.Files;
 using PdfPixel.Geometry;

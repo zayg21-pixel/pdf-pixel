@@ -29,6 +29,3 @@ Files: `PdfPixel/Annotations/Model/PdfAnnotationFlags.cs`, `PdfPixel/Models/PdfR
 
 - Check name consistency: every property name in the public API expanded, matching C# property naming conventions.
 - Check constructors/methods inconsistencies. All that created from PdfObject/Array shall be internal, same for constructor, object parsing can go to constructors instead of get/set
-- instead of hardcoded values add parameters to max outline from stencil and shall we cache path or not
-(maybe drop path cache)
-- currently cache is bad, it shall not be pure "inline image cache" as it's for normal and inline images and path generated from 1 bit images
