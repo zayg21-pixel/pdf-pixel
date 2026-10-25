@@ -122,7 +122,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>PostScriptPdfFunction instance, or null if invalid.</returns>
-    public static PostScriptPdfFunction? FromObject(PdfObject functionObject)
+    internal static PostScriptPdfFunction? FromObject(PdfObject functionObject)
     {
         if (functionObject == null)
         {

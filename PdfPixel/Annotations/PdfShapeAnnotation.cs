@@ -20,7 +20,7 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
     /// <param name="annotationObject">The PDF object representing this annotation.</param>
     /// <param name="subtype">The annotation subtype.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="annotationObject"/> is null.</exception>
-    protected PdfShapeAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
+    private protected PdfShapeAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
         : base(annotationObject, subtype)
     {
         if (annotationObject == null)

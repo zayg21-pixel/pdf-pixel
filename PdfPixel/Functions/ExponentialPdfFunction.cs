@@ -71,7 +71,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>ExponentialPdfFunction instance, or null if invalid.</returns>
-    public static ExponentialPdfFunction? FromObject(PdfObject functionObject)
+    internal static ExponentialPdfFunction? FromObject(PdfObject functionObject)
     {
         if (functionObject == null)
         {

@@ -39,7 +39,7 @@ public readonly struct PdfColorSpaceReference
     /// <summary>
     /// Reads the color space a dictionary holds under a key, resolving nothing it points at.
     /// </summary>
-    public static PdfColorSpaceReference FromDictionary(PdfDictionary? dictionary, in PdfString key)
+    internal static PdfColorSpaceReference FromDictionary(PdfDictionary? dictionary, in PdfString key)
     {
         if (dictionary == null)
         {

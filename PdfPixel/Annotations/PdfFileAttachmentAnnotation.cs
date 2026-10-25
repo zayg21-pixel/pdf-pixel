@@ -22,7 +22,7 @@ public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfFileAttachmentAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this file attachment annotation.</param>
-    public PdfFileAttachmentAnnotation(PdfObject annotationObject)
+    internal PdfFileAttachmentAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FileAttachment)
     {
         FileSpecification = PdfFileSpecification.GetFileSpecification(annotationObject.Dictionary, PdfTokens.FSKey);

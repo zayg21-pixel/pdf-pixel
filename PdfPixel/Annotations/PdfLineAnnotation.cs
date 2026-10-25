@@ -22,7 +22,7 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfLineAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this line annotation.</param>
-    public PdfLineAnnotation(PdfObject annotationObject)
+    internal PdfLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Line)
     {
         PdfArray? lineArray = annotationObject.Dictionary.GetArray(PdfTokens.LKey);

@@ -21,7 +21,7 @@ public class PdfCaretAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfCaretAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this caret annotation.</param>
-    public PdfCaretAnnotation(PdfObject annotationObject)
+    internal PdfCaretAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Caret)
     {
         Symbol = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.SymbolKey).AsEnum<PdfCaretSymbol>();

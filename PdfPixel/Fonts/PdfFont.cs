@@ -23,7 +23,7 @@ public abstract class PdfFont
     /// descriptor and substitution info from <paramref name="fontObject"/>'s dictionary.
     /// </summary>
     /// <param name="fontObject">PDF object containing the font definition</param>
-    protected PdfFont(PdfObject fontObject)
+    private protected PdfFont(PdfObject fontObject)
     {
         FontObject = fontObject ?? throw new ArgumentNullException(nameof(fontObject));
         Dictionary = fontObject.Dictionary ?? throw new ArgumentNullException(nameof(fontObject));
@@ -321,7 +321,7 @@ public abstract class PdfFont
     /// <summary>
     /// Determines whether a PdfDictionary is a font dictionary by inspecting its Type/Subtype.
     /// </summary>
-    public static bool IsFont(PdfDictionary pdfDictionary)
+    internal static bool IsFont(PdfDictionary pdfDictionary)
     {
         if (pdfDictionary == null)
         {

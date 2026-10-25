@@ -21,7 +21,7 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfSquigglyAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this squiggly annotation.</param>
-    public PdfSquigglyAnnotation(PdfObject annotationObject)
+    internal PdfSquigglyAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Squiggly)
     {
     }

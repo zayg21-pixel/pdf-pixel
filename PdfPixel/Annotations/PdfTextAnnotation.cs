@@ -21,7 +21,7 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfTextAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this text annotation.</param>
-    public PdfTextAnnotation(PdfObject annotationObject)
+    internal PdfTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Text)
     {
         // Initialize all text annotation specific properties

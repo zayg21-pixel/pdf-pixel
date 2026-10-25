@@ -20,7 +20,7 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
     /// Initializes a new instance of the <see cref="PdfPolygonAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this polygon annotation.</param>
-    public PdfPolygonAnnotation(PdfObject annotationObject)
+    internal PdfPolygonAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Polygon)
     {
         Vertices = PdfPoint.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));

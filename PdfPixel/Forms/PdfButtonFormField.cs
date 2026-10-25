@@ -19,7 +19,7 @@ public class PdfButtonFormField : PdfFormField
     /// Initializes a new instance of the <see cref="PdfButtonFormField"/> class.
     /// </summary>
     /// <param name="fieldObject">The PDF object representing this button field.</param>
-    public PdfButtonFormField(PdfObject fieldObject)
+    internal PdfButtonFormField(PdfObject fieldObject)
         : base(fieldObject, PdfFormFieldType.Button)
     {
     }

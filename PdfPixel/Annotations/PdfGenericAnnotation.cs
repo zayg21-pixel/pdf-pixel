@@ -19,7 +19,7 @@ public class PdfGenericAnnotation : PdfAnnotation
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this annotation.</param>
     /// <param name="subtype">The annotation subtype.</param>
-    public PdfGenericAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
+    internal PdfGenericAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
         : base(annotationObject, subtype)
     {
     }

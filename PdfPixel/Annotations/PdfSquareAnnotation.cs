@@ -17,7 +17,7 @@ public class PdfSquareAnnotation : PdfShapeAnnotation
     /// Initializes a new instance of the <see cref="PdfSquareAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this square annotation.</param>
-    public PdfSquareAnnotation(PdfObject annotationObject)
+    internal PdfSquareAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Square)
     {
         RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));

@@ -62,7 +62,7 @@ public sealed class StitchingPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>StitchingPdfFunction instance, or null if invalid.</returns>
-    public static StitchingPdfFunction? FromObject(PdfObject functionObject)
+    internal static StitchingPdfFunction? FromObject(PdfObject functionObject)
     {
         if (functionObject == null)
         {

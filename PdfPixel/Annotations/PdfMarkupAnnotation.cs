@@ -16,7 +16,7 @@ public abstract class PdfMarkupAnnotation : PdfAnnotation
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this markup annotation.</param>
     /// <param name="subtype">The markup annotation subtype.</param>
-    protected PdfMarkupAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
+    private protected PdfMarkupAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
         : base(annotationObject, subtype)
     {
         if (annotationObject == null)

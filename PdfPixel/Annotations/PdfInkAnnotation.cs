@@ -22,7 +22,7 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfInkAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this ink annotation.</param>
-    public PdfInkAnnotation(PdfObject annotationObject)
+    internal PdfInkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Ink)
     {
         InkList = PdfAnnotationGeometry.ParseInkList(annotationObject.Dictionary.GetArray(PdfTokens.InkListKey));

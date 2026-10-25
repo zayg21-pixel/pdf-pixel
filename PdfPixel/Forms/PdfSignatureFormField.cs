@@ -15,7 +15,7 @@ public class PdfSignatureFormField : PdfFormField
     /// Initializes a new instance of the <see cref="PdfSignatureFormField"/> class.
     /// </summary>
     /// <param name="fieldObject">The PDF object representing this signature field.</param>
-    public PdfSignatureFormField(PdfObject fieldObject)
+    internal PdfSignatureFormField(PdfObject fieldObject)
         : base(fieldObject, PdfFormFieldType.Signature)
     {
     }

@@ -17,7 +17,7 @@ public class PdfCircleAnnotation : PdfShapeAnnotation
     /// Initializes a new instance of the <see cref="PdfCircleAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this circle annotation.</param>
-    public PdfCircleAnnotation(PdfObject annotationObject)
+    internal PdfCircleAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Circle)
     {
         RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));

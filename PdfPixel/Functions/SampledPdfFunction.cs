@@ -73,7 +73,7 @@ public sealed class SampledPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>SampledPdfFunction instance, or null if invalid.</returns>
-    public static SampledPdfFunction? FromObject(PdfObject functionObject)
+    internal static SampledPdfFunction? FromObject(PdfObject functionObject)
     {
         if (functionObject == null)
         {

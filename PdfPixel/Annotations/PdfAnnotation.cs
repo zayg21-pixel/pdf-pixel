@@ -30,7 +30,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <param name="annotationObject">The PDF object representing this annotation.</param>
     /// <param name="subtype">The annotation subtype.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="annotationObject"/> is null.</exception>
-    protected PdfAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
+    private protected PdfAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
     {
         if (annotationObject == null)
         {

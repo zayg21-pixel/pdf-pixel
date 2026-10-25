@@ -20,7 +20,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfHighlightAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this highlight annotation.</param>
-    public PdfHighlightAnnotation(PdfObject annotationObject)
+    internal PdfHighlightAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Highlight)
     {
     }

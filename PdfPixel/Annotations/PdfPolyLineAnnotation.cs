@@ -23,7 +23,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfPolyLineAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this polyline annotation.</param>
-    public PdfPolyLineAnnotation(PdfObject annotationObject)
+    internal PdfPolyLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.PolyLine)
     {
         Vertices = PdfPoint.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));

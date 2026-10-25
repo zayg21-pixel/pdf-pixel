@@ -48,7 +48,7 @@ public abstract class PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>Function type enum value.</returns>
-    public static PdfFunctionType GetFunctionType(PdfObject functionObject)
+    internal static PdfFunctionType GetFunctionType(PdfObject functionObject)
     {
         if (functionObject == null || functionObject.Dictionary == null)
         {

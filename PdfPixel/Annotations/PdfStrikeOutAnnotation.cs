@@ -20,7 +20,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfStrikeOutAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this strikeout annotation.</param>
-    public PdfStrikeOutAnnotation(PdfObject annotationObject)
+    internal PdfStrikeOutAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.StrikeOut)
     {
     }

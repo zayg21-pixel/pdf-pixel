@@ -20,7 +20,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="fieldObject">The PDF object representing this form field.</param>
     /// <param name="fieldType">The field type.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="fieldObject"/> is null.</exception>
-    protected PdfFormField(PdfObject fieldObject, PdfFormFieldType fieldType)
+    private protected PdfFormField(PdfObject fieldObject, PdfFormFieldType fieldType)
     {
         if (fieldObject == null)
         {

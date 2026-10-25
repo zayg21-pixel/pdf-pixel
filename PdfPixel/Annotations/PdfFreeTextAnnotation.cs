@@ -15,7 +15,7 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfFreeTextAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this free text annotation.</param>
-    public PdfFreeTextAnnotation(PdfObject annotationObject)
+    internal PdfFreeTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FreeText)
     {
         // TODO: [MEDIUM] Not parsed, so a FreeText without an appearance stream is not drawn:

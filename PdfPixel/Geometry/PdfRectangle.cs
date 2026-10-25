@@ -107,7 +107,7 @@ public readonly struct PdfRectangle : IEquatable<PdfRectangle>
     /// Creates a <see cref="PdfRectangle"/> from a PDF bounding box array.
     /// Returns null if the array is not defined or has insufficient elements.
     /// </summary>
-    public static PdfRectangle? FromArray(PdfArray? array)
+    internal static PdfRectangle? FromArray(PdfArray? array)
     {
         if (array == null || array.Count < 4)
         {

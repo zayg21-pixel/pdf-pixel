@@ -20,7 +20,7 @@ public class PdfWidgetAnnotation : PdfAnnotation
     /// Initializes a new instance of the <see cref="PdfWidgetAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this widget annotation.</param>
-    public PdfWidgetAnnotation(PdfObject annotationObject)
+    internal PdfWidgetAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Widget)
     {
         PdfDictionary dictionary = annotationObject.Dictionary;

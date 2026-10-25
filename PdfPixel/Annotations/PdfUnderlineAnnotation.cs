@@ -19,7 +19,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfUnderlineAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this underline annotation.</param>
-    public PdfUnderlineAnnotation(PdfObject annotationObject)
+    internal PdfUnderlineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Underline)
     {
     }

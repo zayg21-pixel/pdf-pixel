@@ -144,7 +144,7 @@ public sealed class PdfStreamDecoder
     /// <summary>
     /// Extracts the filter chain from a stream dictionary.
     /// </summary>
-    public static List<PdfFilterType> GetFilters(PdfDictionary dictionary)
+    internal static List<PdfFilterType> GetFilters(PdfDictionary dictionary)
     {
         if (dictionary == null)
         {
@@ -157,7 +157,7 @@ public sealed class PdfStreamDecoder
     /// <summary>
     /// Expands a <c>/Filter</c> value (a single name or an array of names) into the ordered filter chain.
     /// </summary>
-    public static List<PdfFilterType> GetFilters(PdfValue? filterValue)
+    internal static List<PdfFilterType> GetFilters(PdfValue? filterValue)
     {
         List<PdfFilterType> filters = [];
 
@@ -196,7 +196,7 @@ public sealed class PdfStreamDecoder
     /// A single dictionary declared for a chain of several filters is parsed once for every filter.
     /// An array declared for a single filter name is ignored.
     /// </summary>
-    public static List<PdfStreamFilter> GetStreamFilters(PdfDictionary dictionary)
+    internal static List<PdfStreamFilter> GetStreamFilters(PdfDictionary dictionary)
     {
         if (dictionary == null)
         {
@@ -211,7 +211,7 @@ public sealed class PdfStreamDecoder
     /// <c>/DecodeParms</c> value parsed as the parameters type of that filter, the way
     /// <see cref="GetStreamFilters(PdfDictionary)"/> reads them from a stream dictionary.
     /// </summary>
-    public static List<PdfStreamFilter> GetStreamFilters(PdfValue? filterValue, PdfValue? decodeParmsValue)
+    internal static List<PdfStreamFilter> GetStreamFilters(PdfValue? filterValue, PdfValue? decodeParmsValue)
     {
         List<PdfFilterType> filters = GetFilters(filterValue);
         List<PdfStreamFilter> streamFilters = new(filters.Count);

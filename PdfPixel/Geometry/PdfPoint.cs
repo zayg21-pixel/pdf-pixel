@@ -44,7 +44,7 @@ public readonly struct PdfPoint : IEquatable<PdfPoint>
     /// Creates a <see cref="PdfPoint"/> from a 2-element PDF array.
     /// Returns null if the array is not defined or has insufficient elements.
     /// </summary>
-    public static PdfPoint? FromArray(PdfArray? array)
+    internal static PdfPoint? FromArray(PdfArray? array)
     {
         if (array == null || array.Count < 2)
         {
@@ -59,7 +59,7 @@ public readonly struct PdfPoint : IEquatable<PdfPoint>
     /// </summary>
     /// <param name="pointArray">The coordinate array, or null.</param>
     /// <returns>The parsed points, or an empty array if <paramref name="pointArray"/> is null. A trailing unpaired coordinate is ignored.</returns>
-    public static PdfPoint[] ParsePoints(PdfArray? pointArray)
+    internal static PdfPoint[] ParsePoints(PdfArray? pointArray)
     {
         if (pointArray == null)
         {

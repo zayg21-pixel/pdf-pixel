@@ -36,7 +36,7 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfStampAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this stamp annotation.</param>
-    public PdfStampAnnotation(PdfObject annotationObject)
+    internal PdfStampAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Stamp)
     {
         PdfString? stampName = annotationObject.Dictionary.GetName(PdfTokens.NameKey);

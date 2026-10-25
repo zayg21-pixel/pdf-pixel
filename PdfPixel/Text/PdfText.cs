@@ -26,7 +26,7 @@ public readonly struct PdfText
     /// <summary>
     /// Creates a <see cref="PdfText"/> from a PDF string operand.
     /// </summary>
-    public static PdfText FromOperand(PdfValue operand)
+    internal static PdfText FromOperand(PdfValue operand)
     {
         PdfString? value = operand.AsString();
 

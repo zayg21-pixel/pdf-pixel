@@ -22,7 +22,7 @@ public class PdfTextFormField : PdfFormField
     /// Initializes a new instance of the <see cref="PdfTextFormField"/> class.
     /// </summary>
     /// <param name="fieldObject">The PDF object representing this text field.</param>
-    public PdfTextFormField(PdfObject fieldObject)
+    internal PdfTextFormField(PdfObject fieldObject)
         : base(fieldObject, PdfFormFieldType.Text)
     {
         PdfDictionary dictionary = fieldObject.Dictionary;

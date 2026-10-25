@@ -88,7 +88,7 @@ public readonly struct PdfMatrix : IEquatable<PdfMatrix>
     /// Creates a <see cref="PdfMatrix"/> from a strongly-typed PdfArray of operands.
     /// Returns null if the array is not defined or has insufficient elements.
     /// </summary>
-    public static PdfMatrix? FromArray(PdfArray? array)
+    internal static PdfMatrix? FromArray(PdfArray? array)
     {
         if (array == null || array.Count < 6)
         {

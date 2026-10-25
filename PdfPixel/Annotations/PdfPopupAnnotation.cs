@@ -38,7 +38,7 @@ public class PdfPopupAnnotation : PdfAnnotation
     /// Initializes a new instance of the <see cref="PdfPopupAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this popup annotation.</param>
-    public PdfPopupAnnotation(PdfObject annotationObject)
+    internal PdfPopupAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Popup)
     {
         Parent = annotationObject.Dictionary.GetReference(PdfTokens.ParentKey);

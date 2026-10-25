@@ -15,26 +15,48 @@ public class PdfSingleByteFontWidths
     public const float WidthToUserSpaceCoeff = 0.001f;
 
     /// <summary>
+    /// Parses font widths for a single-byte font from a PDF dictionary.
+    /// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
+    /// </summary>
+    /// <param name="fontDictionary">PDF dictionary containing the font definition.</param>
+    internal PdfSingleByteFontWidths(PdfDictionary fontDictionary)
+    {
+        FirstChar = (uint?)fontDictionary.GetInteger(PdfTokens.FirstCharKey);
+        LastChar = (uint?)fontDictionary.GetInteger(PdfTokens.LastCharKey);
+        float[]? rawWidthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
+
+        if (rawWidthsArray != null)
+        {
+            Widths = new float?[rawWidthsArray.Length];
+            for (int i = 0; i < rawWidthsArray.Length; i++)
+            {
+                Widths[i] = rawWidthsArray[i] * WidthToUserSpaceCoeff;
+            }
+
+            HasWidths = rawWidthsArray.Length > 0;
+        }
+    }
+
+    /// <summary>
     /// First character code for single-byte fonts. Null if not defined.
     /// </summary>
-    public uint? FirstChar { get; private set; }
+    public uint? FirstChar { get; }
 
     /// <summary>
     /// Last character code for single-byte fonts. Null if not defined.
     /// </summary>
-    public uint? LastChar { get; private set; }
+    public uint? LastChar { get; }
 
     /// <summary>
     /// Widths array for single-byte fonts. Null if not defined. An individual entry is null when that
     /// code has no assigned width, as distinct from a code whose width is genuinely zero.
     /// </summary>
-    public float?[]? Widths { get; private set; }
+    public float?[]? Widths { get; }
 
     /// <summary>
     /// <see langword="true"/> when at least one code in <see cref="Widths"/> has an assigned width.
-    /// Computed once by <see cref="Parse"/> alongside the array itself.
     /// </summary>
-    public bool HasWidths { get; private set; }
+    public bool HasWidths { get; }
 
     /// <summary>
     /// Gets the width for the given character code. Returns explicit width if defined, otherwise null.
@@ -59,7 +81,7 @@ public class PdfSingleByteFontWidths
     /// Applies a scaling factor to all defined widths.
     /// </summary>
     /// <param name="scale">Scale factor to apply.</param>
-    public void RescaleWidths(float scale)
+    internal void RescaleWidths(float scale)
     {
         if (Widths != null)
         {
@@ -68,38 +90,5 @@ public class PdfSingleByteFontWidths
                 Widths[i] *= scale;
             }
         }
-    }
-
-    /// <summary>
-    /// Parses font widths for a single-byte font from a PDF dictionary.
-    /// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
-    /// </summary>
-    /// <param name="fontDictionary">PDF dictionary containing the font definition.</param>
-    /// <returns>Parsed SingleByteFontWidths instance.</returns>
-    internal static PdfSingleByteFontWidths Parse(PdfDictionary fontDictionary)
-    {
-        var firstChar = (uint?)fontDictionary.GetInteger(PdfTokens.FirstCharKey);
-        var lastChar = (uint?)fontDictionary.GetInteger(PdfTokens.LastCharKey);
-        float[]? rawWidthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
-
-        float?[]? widthsArray = null;
-        var hasWidths = false;
-        if (rawWidthsArray != null)
-        {
-            widthsArray = new float?[rawWidthsArray.Length];
-            for (int i = 0; i < rawWidthsArray.Length; i++)
-            {
-                widthsArray[i] = rawWidthsArray[i] * WidthToUserSpaceCoeff;
-                hasWidths = true;
-            }
-        }
-
-        return new PdfSingleByteFontWidths
-        {
-            FirstChar = firstChar,
-            LastChar = lastChar,
-            Widths = widthsArray,
-            HasWidths = hasWidths
-        };
     }
 }

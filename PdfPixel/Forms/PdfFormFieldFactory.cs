@@ -6,7 +6,7 @@ namespace PdfPixel.Forms;
 /// <summary>
 /// Factory class for creating PDF form field instances from PDF objects.
 /// </summary>
-public static class PdfFormFieldFactory
+internal static class PdfFormFieldFactory
 {
     /// <summary>
     /// Creates a form field instance from a PDF object.

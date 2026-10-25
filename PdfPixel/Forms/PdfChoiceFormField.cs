@@ -23,7 +23,7 @@ public class PdfChoiceFormField : PdfFormField
     /// Initializes a new instance of the <see cref="PdfChoiceFormField"/> class.
     /// </summary>
     /// <param name="fieldObject">The PDF object representing this choice field.</param>
-    public PdfChoiceFormField(PdfObject fieldObject)
+    internal PdfChoiceFormField(PdfObject fieldObject)
         : base(fieldObject, PdfFormFieldType.Choice)
     {
         PdfDictionary dictionary = fieldObject.Dictionary;
