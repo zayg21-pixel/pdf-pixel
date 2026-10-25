@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace PdfPixel.Color.Icc.Utilities;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Minimal big-endian reader for ICC parsing. ICC uses big-endian for multi-byte numbers.

@@ -1,5 +1,3 @@
-using PdfPixel.Color.Sampling;
-using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
 using System;
 using System.Collections.Generic;

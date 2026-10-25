@@ -3,7 +3,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Sampling;
+namespace PdfPixel.Color;
 
 /// <summary>
 /// Pre-processes a span of color components before they enter a color transform pipeline.

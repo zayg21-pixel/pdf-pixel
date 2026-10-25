@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
-using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;

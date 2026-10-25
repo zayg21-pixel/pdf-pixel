@@ -1,9 +1,8 @@
-using PdfPixel.Color.Icc.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Partial class containing ICC profile parsing logic (tag table + selected tag decoders).

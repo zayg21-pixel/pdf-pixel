@@ -1,6 +1,4 @@
-using PdfPixel.Color.Icc.Utilities;
-
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Represents a single ICC tag directory entry (signature, file offset and byte size).

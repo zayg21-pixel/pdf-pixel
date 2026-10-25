@@ -1,6 +1,4 @@
 using PdfPixel.Color.Icc;
-using PdfPixel.Color.Profiles;
-using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 
 namespace PdfPixel.Color.ColorSpace;
@@ -20,7 +18,7 @@ public sealed class PdfDeviceCmykColorSpaceConverter : PdfColorSpaceConverter
 
     static PdfDeviceCmykColorSpaceConverter()
     {
-        Icc.Model.IccProfile cmykProfile = ProfileRespources.GetCmykProfile();
+        IccProfile cmykProfile = ProfileResources.GetCmykProfile();
         _iccTransform = new IccProfileTransform(cmykProfile);
     }
 

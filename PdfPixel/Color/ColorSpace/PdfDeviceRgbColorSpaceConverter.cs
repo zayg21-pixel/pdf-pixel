@@ -1,4 +1,3 @@
-using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 
 namespace PdfPixel.Color.ColorSpace;

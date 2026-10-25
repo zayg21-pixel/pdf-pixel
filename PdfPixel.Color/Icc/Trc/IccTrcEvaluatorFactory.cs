@@ -1,5 +1,4 @@
 using PdfPixel.Color.Functions;
-using PdfPixel.Color.Icc.Model;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Icc.Trc;

@@ -1,10 +1,9 @@
-﻿using PdfPixel.Color.Icc.Transform;
-using PdfPixel.Color.Transform;
+﻿using PdfPixel.Color.Transform;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Represents a parsed ICC LUT pipeline (AToB style) consisting of optional curve, matrix and CLUT stages.

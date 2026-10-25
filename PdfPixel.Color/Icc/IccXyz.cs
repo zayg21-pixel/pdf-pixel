@@ -1,4 +1,4 @@
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Immutable triple of floating-point XYZ tristimulus values used in ICC profile parsing and color conversion.

@@ -1,5 +1,4 @@
 using PdfPixel.Color;
-using PdfPixel.Color.Sampling;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;

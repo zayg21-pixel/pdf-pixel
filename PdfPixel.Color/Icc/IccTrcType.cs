@@ -1,4 +1,4 @@
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Represents a tone reproduction curve (TRC) abstraction for an ICC profile channel (Gray or RGB).

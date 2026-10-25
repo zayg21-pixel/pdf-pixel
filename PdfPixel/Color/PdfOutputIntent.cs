@@ -1,5 +1,5 @@
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Icc.Model;
+using PdfPixel.Color.Icc;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using System;

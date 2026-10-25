@@ -1,4 +1,4 @@
-﻿namespace PdfPixel.Color.Icc.Model;
+﻿namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// ICC color space signatures (4CC codes) used in profile headers to identify both

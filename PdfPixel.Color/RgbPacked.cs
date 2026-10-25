@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace PdfPixel.Color.Structures;
+namespace PdfPixel.Color;
 
 /// <summary>
 /// Represents an RGB color as three tightly-packed bytes in R, G, B order, with no alpha.

@@ -1,4 +1,4 @@
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Encapsulates named parameters for ICC parametric tone reproduction curves (TRC).

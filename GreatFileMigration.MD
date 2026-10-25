@@ -1,6 +1,6 @@
 # Great file migration
 
-Folder and namespace layout across the solution, measured against the .NET Framework Design Guidelines. `PdfPixel` and `PdfPixel.Fonts` follow it; the projects listed under "Remaining work" do not yet.
+Folder and namespace layout across the solution, measured against the .NET Framework Design Guidelines. `PdfPixel`, `PdfPixel.Fonts` and `PdfPixel.Color` follow it; the projects listed under "Remaining work" do not yet.
 
 ## Rules
 
@@ -37,11 +37,7 @@ Visual Studio runs "Sync namespaces" once per target framework and merges the re
 
 ## Remaining work
 
-Order: `PdfPixel.Color`, then the codec libraries one at a time, then panels, then tools, demos and tests.
-
-### `PdfPixel.Color`
-
-- `Icc/Model`, `Icc/Utilities` and `Structures` are kind folders: merge them into their features.
+Order: the codec libraries one at a time, then panels, then tools, demos and tests.
 
 ### Codec libraries
 

@@ -1,4 +1,4 @@
-﻿namespace PdfPixel.Color.Icc.Model;
+﻿namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Rendering intent defined in <see cref="IccProfileHeader"/>.

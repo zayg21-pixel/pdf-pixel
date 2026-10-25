@@ -1,10 +1,9 @@
-﻿using PdfPixel.Color.Transform;
-using System;
+﻿using System;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Icc.Transform;
+namespace PdfPixel.Color.Transform;
 
 /// <summary>
 /// Performs color look-up table (CLUT) transformations with efficient multi-dimensional interpolation for ICC color profiles.

@@ -1,4 +1,4 @@
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Partial ICC profile implementation: tag lookup helpers.

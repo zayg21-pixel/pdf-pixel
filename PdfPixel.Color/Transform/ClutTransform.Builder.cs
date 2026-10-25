@@ -1,9 +1,8 @@
-using PdfPixel.Color.Sampling;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Icc.Transform;
+namespace PdfPixel.Color.Transform;
 
 public sealed partial class ClutTransform
 {

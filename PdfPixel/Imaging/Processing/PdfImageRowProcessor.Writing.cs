@@ -1,4 +1,4 @@
-using PdfPixel.Color.Structures;
+using PdfPixel.Color;
 using PdfPixel.Color.Transform;
 using PdfPixel.Parsing;
 using System;

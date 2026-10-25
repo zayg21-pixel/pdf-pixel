@@ -1,7 +1,6 @@
-﻿using PdfPixel.Color.Icc.Utilities;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Partial ICC profile implementation: parsing of LUT-based A2B and B2A pipelines (lut8 / lut16, mAB, mBA).

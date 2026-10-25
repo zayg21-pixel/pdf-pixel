@@ -1,5 +1,4 @@
-﻿using PdfPixel.Color.Icc.Model;
-using PdfPixel.Color.Transform;
+﻿using PdfPixel.Color.Transform;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;

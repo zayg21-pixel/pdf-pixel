@@ -1,7 +1,6 @@
-using PdfPixel.Color.Icc.Utilities;
 using System;
 
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Represents the fixed 128-byte ICC profile header (only the subset of fields required by the PDF color workflows).

@@ -4,7 +4,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Sampling;
+namespace PdfPixel.Color;
 
 /// <summary>
 /// Samples a <see cref="ChainedColorTransform"/> into a <see cref="Vector4"/> color value.

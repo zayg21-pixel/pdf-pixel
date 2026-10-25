@@ -1,4 +1,4 @@
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// ICC profile/device class signatures (4CC codes) used in profile headers.

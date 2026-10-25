@@ -1,4 +1,3 @@
-using PdfPixel.Color.Icc.Model;
 using System;
 
 namespace PdfPixel.Color.Icc;

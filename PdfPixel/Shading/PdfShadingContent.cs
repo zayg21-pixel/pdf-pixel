@@ -1,4 +1,4 @@
-using PdfPixel.Color.Sampling;
+using PdfPixel.Color;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering;
 using PdfPixel.Shading.Builder;

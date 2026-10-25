@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// Minimal ICC profile object model exposing only the subset of metadata required for PDF color handling.

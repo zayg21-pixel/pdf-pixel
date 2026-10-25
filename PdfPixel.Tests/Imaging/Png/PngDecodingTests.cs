@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using PdfPixel.Color.Profiles;
+using PdfPixel.Color;
 using PdfPixel.Png.Decoding;
 using PdfPixel.Png.Model;
 using PdfPixel.Png.Parsing;
@@ -169,7 +169,7 @@ public class PngDecodingTests
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, "rgb8-metadata.png"));
         PngImageInfo info = PngReader.Read(data);
 
-        using Stream? profileStream = typeof(ProfileRespources).Assembly.GetManifestResourceStream("PdfPixel.Color.Profiles.CompactCmyk.icc");
+        using Stream? profileStream = typeof(ProfileResources).Assembly.GetManifestResourceStream("PdfPixel.Color.EmbeddedData.CompactCmyk.icc");
         Assert.NotNull(profileStream);
 
         using MemoryStream expectedProfile = new();

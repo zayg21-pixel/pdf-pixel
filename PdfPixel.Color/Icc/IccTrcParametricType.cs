@@ -1,4 +1,4 @@
-namespace PdfPixel.Color.Icc.Model;
+namespace PdfPixel.Color.Icc;
 
 /// <summary>
 /// ICC parametric curve type identifiers per ICC spec (0..4 currently supported).
@@ -16,22 +16,22 @@ public enum IccTrcParametricType
     Gamma = 0,
 
     /// <summary>
-    /// y = (a穢 + b)^g for x ? ?b/a; else 0
+    /// y = (a路x + b)^g for x ? ?b/a; else 0
     /// </summary>
     PowerWithOffset = 1,
 
     /// <summary>
-    /// y = (a穢 + b)^g + c for x ? ?b/a; else c
+    /// y = (a路x + b)^g + c for x ? ?b/a; else c
     /// </summary>
     PowerWithOffsetAndC = 2,
 
     /// <summary>
-    /// y = (a穢 + b)^g for x ? d; else c穢
+    /// y = (a路x + b)^g for x ? d; else c路x
     /// </summary>
     PowerWithLinearSegment = 3,
 
     /// <summary>
-    /// y = (a穢 + b)^g + e for x ? d; else c穢 + f
+    /// y = (a路x + b)^g + e for x ? d; else c路x + f
     /// </summary>
     PowerWithLinearSegmentAndOffset = 4
 }
