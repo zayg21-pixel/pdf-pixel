@@ -201,8 +201,8 @@ public static class JpxReader
                         break;
                     }
                 // TODO: [MEDIUM] Parse the pclr and cmap boxes so palette-indexed images can be
-                // expanded to their colour components. Without them an indexed image's samples
-                // are treated as colour values rather than as palette entries.
+                // expanded to their color components. Without them an indexed image's samples
+                // are treated as color values rather than as palette entries.
                 default:
                     break; // Skip unrecognised child boxes
             }
@@ -621,7 +621,7 @@ public static class JpxReader
 
     /// <summary>
     /// Parses the Channel Definition box (cdef) to identify which components carry
-    /// colour or alpha/opacity data (ISO/IEC 15444-1 Table I-11).
+    /// color or alpha/opacity data (ISO/IEC 15444-1 Table I-11).
     /// </summary>
     private static void ParseChannelDefinitionBox(in ReadOnlySpan<byte> data, JpxHeader header)
     {

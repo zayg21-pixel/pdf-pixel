@@ -109,7 +109,7 @@ internal sealed partial class PdfImageRowProcessor
         _colorKeyMask = parameters.ColorKeyMask ?? Array.Empty<int>();
         _stages = GetRowStages(parameters);
 
-        // Anything that has to reach a colour space converter rules out the direct routes, which do
+        // Anything that has to reach a color space converter rules out the direct routes, which do
         // nothing but relayout their samples. Selecting the route also builds what it needs to run.
         bool requiresColorConversion = (_stages & PaletteFoldedStages) != 0 || RequiresColorTransform(parameters);
 
@@ -188,7 +188,7 @@ internal sealed partial class PdfImageRowProcessor
         }
         else
         {
-            // Colour key masking and the folded palette write zero alpha into buffers with no alpha source.
+            // Color key masking and the folded palette write zero alpha into buffers with no alpha source.
             _colorFormat = PdfImageColorFormat.Rgba;
             _alphaType = PdfImageAlphaType.Unpremultiplied;
 

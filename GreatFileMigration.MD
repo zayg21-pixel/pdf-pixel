@@ -84,6 +84,10 @@ All `Model`, `Models` and `Utilities` folders are gone. The core library, the pa
 
 - `PdfSignatureFlags` is in `Forms`.
 
+### Open correction
+
+- `IPdfExecutionObserver` was placed in `Commands` as if it were command-specific. Stream decoding, image decoding, shading building, annotation rendering and the panel all take it, so it is one of the most general types in the library. It moves to the `PdfPixel` root together with its implementation `PdfCancellationExecutionObserver`, as an exception to the document-and-page rule.
+
 ## 2. `PdfPixel.Color` and `PdfPixel.Fonts`
 
 The core library references both, and they share namespaces with it:

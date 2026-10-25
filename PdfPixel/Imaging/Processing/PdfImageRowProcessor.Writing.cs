@@ -53,7 +53,7 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     /// <summary>
-    /// Resamples at the source bit depth, converts the result through the colour space, and merges
+    /// Resamples at the source bit depth, converts the result through the color space, and merges
     /// the alpha plane over the output grid the resampler brought it to.
     /// </summary>
 #if NETSTANDARD2_0
@@ -173,7 +173,7 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     /// <summary>
-    /// Resamples the three colour channels and lays them out according to the alpha stage in effect.
+    /// Resamples the three color channels and lays them out according to the alpha stage in effect.
     /// </summary>
 #if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -485,7 +485,7 @@ internal sealed partial class PdfImageRowProcessor
 
     /// <summary>
     /// Takes the alpha plane into <paramref name="destRow"/> over <paramref name="pixelCount"/>
-    /// pixels of the output grid both arrive on. Samples already cleared — a colour
+    /// pixels of the output grid both arrive on. Samples already cleared — a color
     /// key match, or a stencil's blank palette entry — stay clear; nothing else carries alpha of its
     /// own here, because an interleaved source excludes a plane.
     /// </summary>

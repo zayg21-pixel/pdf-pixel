@@ -73,4 +73,49 @@ internal sealed class PdfTileInfo
         int height = Math.Min(TileHeight, ImageSize.Height - y);
         return new PdfIntegerRectangle(x, y, x + width, y + height);
     }
+
+    /// <summary>
+    /// Returns the columns and rows of the tiles covering <paramref name="imageRegion"/>, as an end-exclusive
+    /// rectangle in tile units; empty when the region is empty.
+    /// </summary>
+    /// <param name="imageRegion">Region in original image coordinates.</param>
+    public PdfIntegerRectangle GetTileRange(in PdfIntegerRectangle imageRegion)
+    {
+        if (imageRegion.IsEmpty)
+        {
+            return PdfIntegerRectangle.Empty;
+        }
+        else
+        {
+            int columnStart = imageRegion.Left / TileWidth;
+            int columnEnd = (imageRegion.Right - 1) / TileWidth;
+            int rowStart = imageRegion.Top / TileHeight;
+            int rowEnd = (imageRegion.Bottom - 1) / TileHeight;
+
+            return new PdfIntegerRectangle(columnStart, rowStart, columnEnd + 1, rowEnd + 1);
+        }
+    }
+
+    /// <summary>
+    /// Returns whether the tile at <paramref name="tileIndex"/> lies inside <paramref name="tileRange"/>.
+    /// </summary>
+    /// <param name="tileIndex">Zero-based index of the tile in row-major order.</param>
+    /// <param name="tileRange">End-exclusive range of tile columns and rows, as returned by <see cref="GetTileRange"/>.</param>
+    public bool IsTileInRange(int tileIndex, in PdfIntegerRectangle tileRange)
+    {
+        int column = tileIndex % TilesHorizontal;
+        int row = tileIndex / TilesHorizontal;
+
+        return column >= tileRange.Left
+            && column < tileRange.Right
+            && row >= tileRange.Top
+            && row < tileRange.Bottom;
+    }
+
+    /// <summary>
+    /// Returns the zero-based row-major index of the tile at <paramref name="column"/> and <paramref name="row"/>.
+    /// </summary>
+    /// <param name="column">Zero-based tile column.</param>
+    /// <param name="row">Zero-based tile row.</param>
+    public int GetTileIndex(int column, int row) => (row * TilesHorizontal) + column;
 }

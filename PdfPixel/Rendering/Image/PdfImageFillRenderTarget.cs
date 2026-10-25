@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
+using PdfPixel.Imaging.Decoding;
 using PdfPixel.Pattern;
 
 namespace PdfPixel.Rendering.Image;
@@ -71,11 +72,10 @@ internal class PdfImageFillRenderTarget : IRenderTarget
 
     private void ProcessTileCommands(IPdfCommandProcessor processor, PdfImage image, ImageDecodingContext context)
     {
-        ImageExecutionContext ctx = ImageExecutionContext.Create(image, context, _loggerFactory);
-        processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
-        for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+        PdfImageTileCacheEntry tileCache = PdfImageTileCacheEntry.Create(image, context, _loggerFactory);
+        for (int tileIndex = 0; tileIndex < tileCache.TileInfo.TotalTiles; tileIndex++)
         {
-            processor.Process(new DrawImageTileCommand(ctx, i));
+            processor.Process(new DrawImageTileCommand(tileCache, tileIndex));
         }
     }
 }

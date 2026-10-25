@@ -38,7 +38,7 @@ public readonly struct JpxDecodingParameters
     /// <summary>
     /// Whether the component the cdef box declares as opacity is reconstructed. When false it is
     /// left out of the component selection entirely, so it is never entropy decoded, transformed,
-    /// or allocated, and the produced rows carry colour components only.
+    /// or allocated, and the produced rows carry color components only.
     /// </summary>
     public bool IncludeOpacityComponent { get; }
 

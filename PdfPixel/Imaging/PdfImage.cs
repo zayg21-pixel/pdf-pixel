@@ -3,6 +3,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Encoding;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Measures;
@@ -146,7 +147,7 @@ public class PdfImage : PdfXObject
     public int BitsPerComponent { get; }
 
     /// <summary>
-    /// Colour space (/ColorSpace) as written, resolved on demand.
+    /// Color space (/ColorSpace) as written, resolved on demand.
     /// </summary>
     internal PdfColorSpaceReference ColorSpaceReference { get; }
 
@@ -254,19 +255,39 @@ public class PdfImage : PdfXObject
         }
 
         ImageDecodingContext context = new(this, Document.ContentHost, parameters);
-        ImageExecutionContext executionContext = ImageExecutionContext.Create(this, context, Document.LoggerFactory);
-        PdfImageTileCacheEntry tileCache = executionContext.TileCache;
+        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(this, context, Document.LoggerFactory);
 
-        PdfImage? mask = tileCache.Decoder.AppliedMask;
+        if (decoder == null)
+        {
+            throw new ArgumentException($"Decoder for image {Type} is not defined.");
+        }
+
+        PdfTileInfo tileInfo = new(new PdfIntegerSize(Width, Height), new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
+        PdfImageTileDecodingPass pass = new(decoder, tileInfo, Document.LoggerFactory);
+        MaskAlphaRowSource? alphaRowSource = MaskAlphaRowSource.Create(decoder, tileInfo, Document.LoggerFactory);
+
+        PdfImage? mask = decoder.AppliedMask;
         PdfIntegerSize sampleSize = new(
             Math.Max(Width, mask?.Width ?? 0),
             Math.Max(Height, mask?.Height ?? 0));
 
-        tileCache.Initialize(GetDecodingMatrix(sampleSize, parameters.MaximumSize), new PdfIntegerRectangle(0, 0, Width, Height), observer);
+        PdfMatrix decodingMatrix = GetDecodingMatrix(sampleSize, parameters.MaximumSize);
+        PdfIntegerSize outputSize = PdfImageCommandUtilities.GetScaledSize(decodingMatrix, sampleSize) ?? sampleSize;
 
-        PdfImageTile tile = tileCache.GetTile(0, observer);
+        pass.Begin(decodingMatrix, outputSize, tileIndexesToDecode: null, observer);
+        alphaRowSource?.Initialize(outputSize, tileIndexesToDecode: null, observer);
 
-        return tile.Image ?? throw new InvalidOperationException($"Image {Reference} produced no pixels.");
+        PdfImageTile[]? tiles = pass.DecodeNextTiles(alphaRowSource, observer);
+
+        pass.End();
+        alphaRowSource?.Cleanup();
+
+        if (tiles == null)
+        {
+            throw new InvalidOperationException($"Image {Reference} produced no pixels.");
+        }
+
+        return tiles[0].Image ?? throw new InvalidOperationException($"Image {Reference} produced no pixels.");
     }
 
     /// <summary>

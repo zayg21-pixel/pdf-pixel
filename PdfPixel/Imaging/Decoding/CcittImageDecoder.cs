@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Ccitt;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
-using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Streams;
@@ -15,7 +14,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 {
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    private CcittRowDecoder? _rowDecoder;
+    private CcittBitmap? _cachedBitmap;
     private int _currentImageRow;
 
     public CcittImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
@@ -30,6 +29,41 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         in PdfMatrix ctm,
         IPdfExecutionObserver? observer)
     {
+        CcittBitmap bitmap = EnsureBitmapDecoded(observer);
+
+        PdfImageRowDecodingParameters rowDecodingParameters = CreateRowDecodingParameters(
+            ctm,
+            new PdfIntegerSize(bitmap.Width, bitmap.Height),
+            Image.BitsPerComponent,
+            _colorSpaceConverter);
+
+        _currentImageRow = 0;
+
+        return rowDecodingParameters;
+    }
+
+    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
+    {
+        if (_cachedBitmap == null || _currentImageRow >= _cachedBitmap.DecodedRowCount)
+        {
+            return false;
+        }
+
+        _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(destination);
+        _currentImageRow++;
+
+        return true;
+    }
+
+    public override void Cleanup() => _currentImageRow = 0;
+
+    private CcittBitmap EnsureBitmapDecoded(IPdfExecutionObserver? observer)
+    {
+        if (_cachedBitmap != null)
+        {
+            return _cachedBitmap;
+        }
+
         ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
 
         if (encodedData.IsEmpty)
@@ -46,39 +80,49 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         bool blackIs1 = parameters?.BlackIs1 ?? false;
         bool endOfBlock = parameters?.EndOfBlock ?? true;
 
-        PdfImageRowDecodingParameters rowDecodingParameters = CreateRowDecodingParameters(
-            ctm,
-            new PdfIntegerSize(columns, rows),
-            Image.BitsPerComponent,
-            _colorSpaceConverter);
+        CcittRowDecoder rowDecoder = new(encodedData, columns, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);
+        int rowStride = rowDecoder.RowStride;
+        var data = new byte[rowStride * rows];
+        int decodedRowCount = 0;
 
-        _rowDecoder = new CcittRowDecoder(encodedData, columns, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);
-        _currentImageRow = 0;
-
-        return rowDecodingParameters;
-    }
-
-    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
-    {
-        if (_rowDecoder == null)
+        while (decodedRowCount < rows
+            && rowDecoder.DecodeNextRow(data.AsSpan(decodedRowCount * rowStride, rowStride)))
         {
-            return false;
+            decodedRowCount++;
+            observer?.Notify();
         }
 
-        Span<byte> buffer = destination;
-        if (!_rowDecoder.DecodeNextRow(buffer))
+        if (decodedRowCount < rows)
         {
-            Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Reference={Reference}).", _currentImageRow, Image.Reference);
-            return false;
+            Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Reference={Reference}).", decodedRowCount, Image.Reference);
         }
 
-        _currentImageRow++;
-        return true;
+        _cachedBitmap = new CcittBitmap(columns, rows, rowStride, decodedRowCount, data);
+
+        return _cachedBitmap;
     }
 
-    public override void Cleanup()
+    private sealed class CcittBitmap
     {
-        _rowDecoder = null;
-        _currentImageRow = 0;
+        private readonly byte[] _data;
+
+        public CcittBitmap(int width, int height, int rowStride, int decodedRowCount, byte[] data)
+        {
+            Width = width;
+            Height = height;
+            RowStride = rowStride;
+            DecodedRowCount = decodedRowCount;
+            _data = data;
+        }
+
+        public int Width { get; }
+
+        public int Height { get; }
+
+        public int RowStride { get; }
+
+        public int DecodedRowCount { get; }
+
+        public ReadOnlySpan<byte> GetRowReadOnly(int row) => _data.AsSpan(row * RowStride, RowStride);
     }
 }

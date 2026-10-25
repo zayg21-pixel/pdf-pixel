@@ -159,6 +159,29 @@ internal sealed class MaskAlphaRowSource : IAlphaRowSource
         }
     }
 
+    /// <summary>
+    /// Creates the alpha source for the mask <paramref name="decoder"/> applies, or null when it applies none.
+    /// </summary>
+    public static MaskAlphaRowSource? Create(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
+    {
+        PdfImage? mask = decoder.AppliedMask;
+        if (mask == null)
+        {
+            return null;
+        }
+
+        ImageDecodingContext context = decoder.Context;
+        ImageDecodingContext maskContext = new(context, mask, context.FillPaint);
+        PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(mask, maskContext, loggerFactory);
+
+        if (maskDecoder == null)
+        {
+            throw new ArgumentException($"Mask decoder for image {mask.Type} is not defined.");
+        }
+
+        return new MaskAlphaRowSource(maskDecoder, tileInfo, loggerFactory);
+    }
+
 #if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #else

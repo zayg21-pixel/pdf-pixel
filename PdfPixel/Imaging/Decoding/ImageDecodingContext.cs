@@ -2,12 +2,12 @@ using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
-using PdfPixel.Imaging;
+using PdfPixel.Commands;
 using PdfPixel.Rendering;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Commands.Image;
+namespace PdfPixel.Imaging.Decoding;
 
 /// <summary>
 /// Immutable snapshot of the graphics state values needed for image decoding, resolved for a specific
@@ -71,7 +71,7 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
     /// <summary>
     /// Creates a context derived from <paramref name="source"/> but resolved for <paramref name="image"/>
     /// and with explicit compositing overrides. Used for cases such as pattern-layer masking, where the
-    /// target image and the desired blend mode and fill colour differ from the original graphics state.
+    /// target image and the desired blend mode and fill color differ from the original graphics state.
     /// </summary>
     /// <param name="source">The context to derive shared values (content host, tile sizing, transfer function) from.</param>
     /// <param name="image">The image this context resolves a color space converter for.</param>

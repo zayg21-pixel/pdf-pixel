@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands.Execution;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Processing;
 using System;
@@ -8,20 +10,22 @@ using System.Collections.Generic;
 namespace PdfPixel.Commands.Image;
 
 /// <summary>
-/// Caches decoded tiles for one PDF image across repeated renders (e.g. scrolling). <see cref="Initialize"/>
+/// Caches decoded tiles for one PDF image across repeated renders (e.g. scrolling).
 /// </summary>
 internal sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
     private readonly PdfImageTileDecodingPass _pass;
     private readonly MaskAlphaRowSource? _alphaRowSource;
-
+    private PdfMatrix? _totalMatrix;
+    private PdfRectangle? _pageRegionOfInterest;
     private PdfIntegerSize? _outputSize;
+    private PdfIntegerRectangle _regionTiles;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfImageTileCacheEntry"/> class.
     /// </summary>
-    internal PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory, MaskAlphaRowSource? alphaRowSource = null)
+    public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory, MaskAlphaRowSource? alphaRowSource)
     {
         TileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
         _pass = new PdfImageTileDecodingPass(decoder, tileInfo, loggerFactory);
@@ -45,51 +49,37 @@ internal sealed class PdfImageTileCacheEntry
     public PdfTileInfo TileInfo { get; }
 
     /// <summary>
-    /// Marks in-viewport tiles without a decoded image as pending and starts decoding them, dropping
-    /// tiles whose decode size has changed and evicting tiles outside <paramref name="imageRegion"/>.
+    /// Returns the tile at <paramref name="tileIndex"/> as drawn under the transformation and region of interest of
+    /// <paramref name="executionContext"/>, decoding it first when it is inside that region and not decoded yet.
     /// </summary>
-    public void Initialize(in PdfMatrix ctm, in PdfIntegerRectangle imageRegion, IPdfExecutionObserver observer)
+    public PdfImageTile GetTile(PdfCommandExecutionContext executionContext, int tileIndex)
     {
-        FinishDecoding();
-
-        PdfIntegerSize outputSize = ComputeOutputSize(ctm);
-        if (!Equals(outputSize, _outputSize))
+        if (executionContext == null)
         {
-            foreach (CachedTile cachedTile in _tiles)
-            {
-                cachedTile.Clear();
-            }
-
-            _outputSize = outputSize;
+            throw new ArgumentNullException(nameof(executionContext));
         }
 
-        HashSet<int> regionTileIndexes = ComputeRegionTileIndexes(imageRegion);
-        EvictTilesOutsideRegion(regionTileIndexes);
-
-        HashSet<int>? tileIndexesToDecode = MarkTileIndexesToDecode(regionTileIndexes);
-
-        if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
-        {
-            _pass.Begin(ctm, outputSize, tileIndexesToDecode, observer);
-            _alphaRowSource?.Initialize(outputSize, tileIndexesToDecode, observer);
-        }
-    }
-
-    /// <summary>
-    /// Returns the tile at <paramref name="tileIndex"/>, decoding it first if it is pending an update.
-    /// </summary>
-    public PdfImageTile GetTile(int tileIndex, IPdfExecutionObserver observer)
-    {
         if (tileIndex < 0 || tileIndex >= TileInfo.TotalTiles)
         {
             throw new ArgumentOutOfRangeException(nameof(tileIndex), $"Tile index {tileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
         }
 
+        if (_totalMatrix != executionContext.Frames.TotalMatrix
+            || _pageRegionOfInterest != executionContext.PageRegionOfInterest)
+        {
+            UpdateRegion(executionContext);
+        }
+
         CachedTile cachedTile = _tiles[tileIndex];
 
-        if (_pass.IsActive && cachedTile.IsPendingUpdate)
+        if (!cachedTile.HasImage && TileInfo.IsTileInRange(tileIndex, _regionTiles))
         {
-            DecodeUntilProduced(tileIndex, observer);
+            if (!_pass.IsActive || !cachedTile.IsPendingUpdate)
+            {
+                BeginDecoding(executionContext);
+            }
+
+            DecodeUntilProduced(tileIndex, executionContext.ExecutionObserver);
         }
 
         PdfImageTile tile = cachedTile.GetTile();
@@ -187,55 +177,99 @@ internal sealed class PdfImageTileCacheEntry
         return false;
     }
 
-    private HashSet<int> ComputeRegionTileIndexes(in PdfIntegerRectangle imageRegion)
+    /// <summary>
+    /// Drops tiles whose decode size has changed under the transformation of <paramref name="executionContext"/>
+    /// and evicts tiles outside its region of interest.
+    /// </summary>
+    private void UpdateRegion(PdfCommandExecutionContext executionContext)
     {
-        HashSet<int> regionTileIndexes = [];
+        FinishDecoding();
 
-        if (!imageRegion.IsEmpty)
+        PdfMatrix totalMatrix = executionContext.Frames.TotalMatrix;
+        PdfIntegerSize outputSize = ComputeOutputSize(PdfImageCommandUtilities.GetImageCtm(totalMatrix));
+        if (!Equals(outputSize, _outputSize))
         {
-            int columnStart = imageRegion.Left / TileInfo.TileWidth;
-            int columnEnd = (imageRegion.Right - 1) / TileInfo.TileWidth;
-            int rowStart = imageRegion.Top / TileInfo.TileHeight;
-            int rowEnd = (imageRegion.Bottom - 1) / TileInfo.TileHeight;
-
-            for (int row = rowStart; row <= rowEnd; row++)
+            foreach (CachedTile cachedTile in _tiles)
             {
-                for (int column = columnStart; column <= columnEnd; column++)
-                {
-                    regionTileIndexes.Add((row * TileInfo.TilesHorizontal) + column);
-                }
+                cachedTile.Clear();
             }
+
+            _outputSize = outputSize;
         }
 
-        return regionTileIndexes;
-    }
+        PdfIntegerRectangle imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(TileInfo.ImageSize, executionContext);
+        _regionTiles = TileInfo.GetTileRange(imageRegion);
 
-    private HashSet<int>? MarkTileIndexesToDecode(HashSet<int> regionTileIndexes)
-    {
-        HashSet<int> tileIndexesToDecode = [];
-
-        foreach (int tileIndex in regionTileIndexes)
-        {
-            CachedTile cachedTile = _tiles[tileIndex];
-            if (!cachedTile.HasImage)
-            {
-                cachedTile.IsPendingUpdate = true;
-                tileIndexesToDecode.Add(tileIndex);
-            }
-        }
-
-        return (tileIndexesToDecode.Count == TileInfo.TotalTiles) ? null : tileIndexesToDecode;
-    }
-
-    private void EvictTilesOutsideRegion(HashSet<int> regionTileIndexes)
-    {
         for (int tileIndex = 0; tileIndex < _tiles.Length; tileIndex++)
         {
-            if (!regionTileIndexes.Contains(tileIndex))
+            if (!TileInfo.IsTileInRange(tileIndex, _regionTiles))
             {
                 _tiles[tileIndex].Clear();
             }
         }
+
+        _totalMatrix = totalMatrix;
+        _pageRegionOfInterest = executionContext.PageRegionOfInterest;
+    }
+
+    /// <summary>
+    /// Starts a pass decoding every tile inside the region of interest that has no decoded image.
+    /// </summary>
+    private void BeginDecoding(PdfCommandExecutionContext executionContext)
+    {
+        HashSet<int> tileIndexesToDecode = [];
+
+        for (int row = _regionTiles.Top; row < _regionTiles.Bottom; row++)
+        {
+            for (int column = _regionTiles.Left; column < _regionTiles.Right; column++)
+            {
+                int tileIndex = TileInfo.GetTileIndex(column, row);
+                if (!_tiles[tileIndex].HasImage)
+                {
+                    tileIndexesToDecode.Add(tileIndex);
+                }
+            }
+        }
+
+        HashSet<int>? passTileIndexes = (tileIndexesToDecode.Count == TileInfo.TotalTiles) ? null : tileIndexesToDecode;
+        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(executionContext.Frames.TotalMatrix);
+        PdfIntegerSize outputSize = ComputeOutputSize(ctm);
+
+        _pass.Begin(ctm, outputSize, passTileIndexes, executionContext.ExecutionObserver);
+        _alphaRowSource?.Initialize(outputSize, passTileIndexes, executionContext.ExecutionObserver);
+
+        foreach (int tileIndex in tileIndexesToDecode)
+        {
+            _tiles[tileIndex].IsPendingUpdate = true;
+        }
+    }
+
+    /// <summary>
+    /// Creates the tile cache for <paramref name="pdfImage"/>, resolving its decoder and the alpha source of its mask.
+    /// </summary>
+    public static PdfImageTileCacheEntry Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
+    {
+        if (pdfImage == null)
+        {
+            throw new ArgumentNullException(nameof(pdfImage));
+        }
+
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
+
+        if (decoder == null)
+        {
+            throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
+        }
+
+        PdfTileInfo tileInfo = new(new PdfIntegerSize(pdfImage.Width, pdfImage.Height), new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
+        MaskAlphaRowSource? alphaRowSource = MaskAlphaRowSource.Create(decoder, tileInfo, loggerFactory);
+
+        return new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory, alphaRowSource);
     }
 
     private sealed class CachedTile

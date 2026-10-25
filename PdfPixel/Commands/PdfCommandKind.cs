@@ -67,11 +67,6 @@ public enum PdfCommandKind
     EndScope,
 
     /// <summary>
-    /// <see cref="InitializeTileCacheCommand"/>.
-    /// </summary>
-    InitializeTileCache,
-
-    /// <summary>
     /// <see cref="RestoreLayerCommand"/>.
     /// </summary>
     RestoreLayer,

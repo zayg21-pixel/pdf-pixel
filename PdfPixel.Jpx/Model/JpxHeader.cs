@@ -123,7 +123,7 @@ public sealed class JpxHeader
 
     /// <summary>
     /// Gets the channel definitions declared in the cdef box, if present.
-    /// Each entry describes the role (colour / alpha) of one component.
+    /// Each entry describes the role (color / alpha) of one component.
     /// </summary>
     public List<JpxChannelDefinition> ChannelDefinitions { get; } = [];
 

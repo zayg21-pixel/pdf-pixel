@@ -42,12 +42,12 @@ internal sealed partial class PdfColorSpaceResolver
     }
 
     /// <summary>
-    /// Resolves the converter for a colour space as it was written. An indirect colour space is
+    /// Resolves the converter for a color space as it was written. An indirect color space is
     /// answered from the document cache by its reference, so the object it names is resolved only the
     /// first time any user of it asks.
     /// </summary>
-    /// <param name="colorSpaceReference">The colour space as written.</param>
-    /// <param name="defaultComponents">Component count to assume when no colour space was written.</param>
+    /// <param name="colorSpaceReference">The color space as written.</param>
+    /// <param name="defaultComponents">Component count to assume when no color space was written.</param>
     public PdfColorSpaceConverter? Resolve(in PdfColorSpaceReference colorSpaceReference, int defaultComponents = 3)
     {
         if (colorSpaceReference.Reference != null)

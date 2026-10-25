@@ -183,11 +183,6 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
                 _executionContext.ContentTree.Pop();
                 break;
             }
-            case PdfCommandKind.InitializeTileCache:
-            {
-                ExecuteInitializeTileCache((InitializeTileCacheCommand)command);
-                break;
-            }
             case PdfCommandKind.RestoreLayer:
             {
                 _canvas.Restore();

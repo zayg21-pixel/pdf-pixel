@@ -58,11 +58,11 @@ internal sealed partial class PdfImageRowProcessor
 
     /// <summary>
     /// Rebuilds the palette so that a raw sample read from the row selects its final pixel directly, with the
-    /// /Decode mapping and the colour key mask already applied. The result is indexed by sample value and so
+    /// /Decode mapping and the color key mask already applied. The result is indexed by sample value and so
     /// spans the whole sample domain rather than the source palette's entry count. Returns the source palette
     /// unchanged when neither stage applies.
     /// </summary>
-    /// <param name="palette">The palette built from the image's colour space.</param>
+    /// <param name="palette">The palette built from the image's color space.</param>
     private RgbaPacked[] FoldDecodeAndMaskIntoPalette(RgbaPacked[] palette)
     {
         bool applyDecode = (_stages & RowStages.Decode) != 0;
@@ -143,7 +143,7 @@ internal sealed partial class PdfImageRowProcessor
     /// <summary>
     /// Collects the stages a row has to run. Matte is added later by the constructor, which is where
     /// the backdrop it needs is resolved. A stencil mask carries its /Decode in its own palette, so it
-    /// reports none of the colour stages.
+    /// reports none of the color stages.
     /// </summary>
     private static RowStages GetRowStages(PdfImageRowDecodingParameters parameters)
     {
@@ -179,7 +179,7 @@ internal sealed partial class PdfImageRowProcessor
     }
 
     /// <summary>
-    /// Whether the samples have to reach a colour space converter at all, which is what rules out the
+    /// Whether the samples have to reach a color space converter at all, which is what rules out the
     /// direct routes even when no other stage applies.
     /// </summary>
     private static bool RequiresColorTransform(PdfImageRowDecodingParameters parameters)

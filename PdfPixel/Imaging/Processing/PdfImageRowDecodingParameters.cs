@@ -1,6 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands.Image;
+using PdfPixel.Imaging.Decoding;
 using System;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;

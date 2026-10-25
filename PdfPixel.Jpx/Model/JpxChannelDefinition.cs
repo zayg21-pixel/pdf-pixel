@@ -13,14 +13,14 @@ public sealed class JpxChannelDefinition
 
     /// <summary>
     /// Gets or sets the channel type.
-    /// 0 = colour channel, 1 = unassociated (straight) alpha, 2 = pre-multiplied alpha,
-    /// 65535 = channel not associated with any colour/alpha.
+    /// 0 = color channel, 1 = unassociated (straight) alpha, 2 = pre-multiplied alpha,
+    /// 65535 = channel not associated with any color/alpha.
     /// </summary>
     public ushort ChannelType { get; set; }
 
     /// <summary>
     /// Gets or sets the association value.
-    /// 0 = applies to the whole image, 1..N = specific colour channel, 65535 = no association.
+    /// 0 = applies to the whole image, 1..N = specific color channel, 65535 = no association.
     /// </summary>
     public ushort Association { get; set; }
 

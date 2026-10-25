@@ -179,7 +179,7 @@ public sealed class PdfShading
     public bool ExtendEnd { get; }
 
     /// <summary>
-    /// Colour space (/ColorSpace) as written, resolved on demand.
+    /// Color space (/ColorSpace) as written, resolved on demand.
     /// </summary>
     internal PdfColorSpaceReference ColorSpaceReference { get; }
 

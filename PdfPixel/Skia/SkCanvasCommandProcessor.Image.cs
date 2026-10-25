@@ -1,7 +1,6 @@
 ﻿using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
 using PdfPixel.Commands.Processing;
-using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 
@@ -9,18 +8,10 @@ namespace PdfPixel.Skia;
 
 public sealed partial class SkCanvasCommandProcessor
 {
-    private void ExecuteInitializeTileCache(InitializeTileCacheCommand command)
-    {
-        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(_executionContext.Frames.TotalMatrix);
-        PdfIntegerRectangle imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(command.ImageSize, _executionContext);
-
-        command.TileCache.Initialize(ctm, imageRegion, _executionContext.ExecutionObserver);
-    }
-
     private void ExecuteDrawImageTile(DrawImageTileCommand command)
     {
-        ImageExecutionContext context = command.Context;
-        PdfImageTile tile = context.TileCache.GetTile(command.TileIndex, _executionContext.ExecutionObserver);
+        PdfImageTileCacheEntry tileCache = command.TileCache;
+        PdfImageTile tile = tileCache.GetTile(_executionContext, command.TileIndex);
 
         if (tile.IsSkipped || tile.Image == null)
         {
@@ -28,10 +19,10 @@ public sealed partial class SkCanvasCommandProcessor
         }
 
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
-            _executionContext, context.ImageSize, tile.TilePosition, context.Interpolate);
+            _executionContext, tileCache.TileInfo.ImageSize, tile.TilePosition, tileCache.Decoder.Image.Interpolate);
 
         using SKImage skImage = tile.Image.ToSkImage();
-        using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(context.DecodingContext);
+        using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(tileCache.Decoder.Context);
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
 
         _canvas.Save();

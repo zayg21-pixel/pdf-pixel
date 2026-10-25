@@ -4,20 +4,20 @@ using System.Globalization;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Draws one tile of an image, using the fill paint and compositing captured in its context.
+/// Draws one tile of an image, using the fill paint and compositing captured in its decoding context.
 /// </summary>
 public sealed class DrawImageTileCommand : PdfCommand
 {
-    internal DrawImageTileCommand(ImageExecutionContext context, int tileIndex)
+    internal DrawImageTileCommand(PdfImageTileCacheEntry tileCache, int tileIndex)
     {
-        Context = context;
+        TileCache = tileCache;
         TileIndex = tileIndex;
     }
 
     /// <summary>
-    /// The context this command was constructed with.
+    /// The tile cache producing the tile this command draws.
     /// </summary>
-    internal ImageExecutionContext Context { get; }
+    internal PdfImageTileCacheEntry TileCache { get; }
 
     /// <summary>
     /// The index of the tile this command draws.
