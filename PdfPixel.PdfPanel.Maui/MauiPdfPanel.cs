@@ -3,7 +3,6 @@ using Microsoft.Maui.Devices;
 using PdfPixel.Geometry;
 using PdfPixel.Navigation;
 using PdfPixel.PdfPanel.Actions;
-using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;

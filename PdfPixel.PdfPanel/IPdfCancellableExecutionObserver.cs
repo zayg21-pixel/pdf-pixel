@@ -1,0 +1,20 @@
+using System;
+
+namespace PdfPixel.PdfPanel;
+
+/// <summary>
+/// An <see cref="IPdfExecutionObserver"/> that can be cancelled and disposed.
+/// Implementations are created by <see cref="IPdfExecutionObserverFactory"/>.
+/// </summary>
+public interface IPdfCancellableExecutionObserver : IPdfExecutionObserver, IDisposable
+{
+    /// <summary>
+    /// Whether cancellation was signaled or the observer was disposed.
+    /// </summary>
+    bool IsCancelled { get; }
+
+    /// <summary>
+    /// Signals cancellation without releasing resources.
+    /// </summary>
+    void Cancel();
+}

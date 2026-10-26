@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.PanelDiagnostics.Utilities;
 using PdfPixel.PdfPanel;
-using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;

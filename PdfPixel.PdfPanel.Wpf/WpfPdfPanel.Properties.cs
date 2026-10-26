@@ -1,6 +1,5 @@
 ﻿using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Text;

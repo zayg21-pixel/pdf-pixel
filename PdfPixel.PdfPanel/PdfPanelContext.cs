@@ -1,13 +1,12 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Caching;
 using PdfPixel.PdfPanel.Content;
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Layers;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Scheduling;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Thumbnails;

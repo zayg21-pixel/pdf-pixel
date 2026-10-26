@@ -1,7 +1,6 @@
 using PdfPixel.Commands.Processing;
 using PdfPixel.Geometry;
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Caching;
 using PdfPixel.Skia;
 using SkiaSharp;
 using System;

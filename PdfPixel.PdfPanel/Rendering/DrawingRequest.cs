@@ -1,0 +1,83 @@
+using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Input;
+using System;
+using System.Linq;
+
+namespace PdfPixel.PdfPanel.Rendering;
+
+/// <summary>
+/// Base class for all rendering requests sent to <see cref="PdfPanelRenderer"/>.
+/// </summary>
+internal abstract class DrawingRequest
+{
+    /// <summary>
+    /// Current zoom scale factor.
+    /// </summary>
+    public float Scale { get; set; }
+
+    /// <summary>
+    /// Horizontal and vertical scroll offset in scaled panel space.
+    /// </summary>
+    public PdfPoint Offset { get; set; }
+
+    /// <summary>
+    /// Width and height of the drawing surface in device pixels.
+    /// </summary>
+    public PdfSize PanelSize { get; set; }
+
+    /// <summary>
+    /// Target that receives the rendered surface for display.
+    /// </summary>
+    public IPdfPanelRenderTarget? RenderTarget { get; set; }
+
+    /// <summary>
+    /// The annotation currently under the pointer, or <see langword="null"/> if none.
+    /// </summary>
+    public PdfAnnotationPopup? ActiveAnnotation { get; set; }
+
+    /// <summary>
+    /// Interaction state of <see cref="ActiveAnnotation"/>.
+    /// </summary>
+    public PdfPanelPointerState ActiveAnnotationState { get; set; }
+
+    /// <summary>
+    /// Pages of the request, in render order.
+    /// </summary>
+    public RequestPageInfo[] Pages { get; set; } = [];
+
+    /// <summary>
+    /// Whether the annotations of the visible pages are recorded again even when the request is otherwise unchanged.
+    /// </summary>
+    public bool ForceAnnotationUpdate { get; set; }
+
+    /// <summary>
+    /// Whether the request is drawn even when it is otherwise unchanged.
+    /// </summary>
+    public bool Force => ForceAnnotationUpdate;
+
+    /// <summary>
+    /// Returns the page of the request with the given page number.
+    /// </summary>
+    public RequestPageInfo GetPage(int pageNumber) => Pages.First(page => page.PageNumber == pageNumber);
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj)
+    {
+        if (obj is DrawingRequest request)
+        {
+            return Scale == request.Scale
+                && ActiveAnnotation == request.ActiveAnnotation
+                && ActiveAnnotationState == request.ActiveAnnotationState
+                && Offset == request.Offset
+                && PanelSize == request.PanelSize
+                && RenderTarget == request.RenderTarget
+                && Pages.SequenceEqual(request.Pages);
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(Scale, Offset, PanelSize, RenderTarget, ActiveAnnotation, ActiveAnnotationState, Pages);
+}

@@ -1,6 +1,4 @@
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Execution;
-using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.PdfPanel.Caching;
 using PdfPixel.Text;
 using System;
 

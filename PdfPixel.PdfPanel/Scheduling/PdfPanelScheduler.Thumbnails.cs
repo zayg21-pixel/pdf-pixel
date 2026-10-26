@@ -1,7 +1,6 @@
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Execution;
+using PdfPixel.PdfPanel.Caching;
 using PdfPixel.PdfPanel.Thumbnails;
 using System;
 using System.Collections.Generic;

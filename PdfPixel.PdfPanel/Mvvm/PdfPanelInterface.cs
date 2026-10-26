@@ -1,4 +1,5 @@
 using PdfPixel.Navigation;
+using PdfPixel.PdfPanel.Rendering;
 using SkiaSharp;
 using System;
 

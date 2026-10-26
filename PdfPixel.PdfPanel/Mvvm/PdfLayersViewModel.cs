@@ -1,4 +1,5 @@
 using PdfPixel.OptionalContent;
+using PdfPixel.PdfPanel.Layers;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;

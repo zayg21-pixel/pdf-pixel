@@ -1,5 +1,4 @@
 using PdfPixel.Geometry;
-using PdfPixel.PdfPanel.Extensions;
 using System;
 using System.Collections.Generic;
 

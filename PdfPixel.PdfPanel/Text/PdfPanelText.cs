@@ -1,6 +1,5 @@
 using PdfPixel.Color;
 using PdfPixel.Geometry;
-using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.Skia;

@@ -10,6 +10,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Mvvm;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf;
 using PdfPixel.Skia.Fonts;

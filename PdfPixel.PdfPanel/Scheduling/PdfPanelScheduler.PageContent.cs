@@ -1,7 +1,7 @@
 using PdfPixel.Commands;
 using PdfPixel.Content;
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Caching;
+using PdfPixel.PdfPanel.Rendering;
 using System;
 using System.Collections.Generic;
 using System.Linq;

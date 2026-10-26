@@ -1,0 +1,19 @@
+using System;
+
+namespace PdfPixel.PdfPanel;
+
+/// <summary>
+/// Data for <see cref="PdfPanelDocument.PageThumbnailRendered"/>.
+/// </summary>
+internal sealed class PageThumbnailRenderedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Initializes the arguments for the given 1-based page number.
+    /// </summary>
+    public PageThumbnailRenderedEventArgs(int pageNumber) => PageNumber = pageNumber;
+
+    /// <summary>
+    /// 1-based page number whose thumbnail was produced.
+    /// </summary>
+    public int PageNumber { get; }
+}

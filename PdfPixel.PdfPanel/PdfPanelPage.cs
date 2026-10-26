@@ -1,7 +1,7 @@
 ﻿using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Caching;
 using System;
 
 namespace PdfPixel.PdfPanel;

@@ -3,8 +3,7 @@ using PdfPixel.Annotations;
 using PdfPixel.Geometry;
 using PdfPixel.Navigation;
 using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Layers;
 using System;
 using System.Collections.Generic;
 

@@ -3,7 +3,6 @@ using PdfPixel.Encryption;
 using PdfPixel.Files;
 using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Mvvm;
-using PdfPixel.PdfPanel.Web.Dto.Model;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

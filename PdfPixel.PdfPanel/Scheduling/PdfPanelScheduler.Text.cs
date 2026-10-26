@@ -1,5 +1,3 @@
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Execution;
 using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Scheduling;

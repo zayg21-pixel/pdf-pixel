@@ -1,7 +1,5 @@
 using PdfPixel.PdfPanel.Animation;
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Caching;
 using PdfPixel.PdfPanel.Scheduling;
 using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.Skia;

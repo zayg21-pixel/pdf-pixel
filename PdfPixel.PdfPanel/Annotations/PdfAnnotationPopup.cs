@@ -1,7 +1,6 @@
 using PdfPixel.Annotations;
 using PdfPixel.Geometry;
 using PdfPixel.OptionalContent;
-using PdfPixel.PdfPanel.ContentProvider;
 using System;
 using System.Collections.Generic;
 

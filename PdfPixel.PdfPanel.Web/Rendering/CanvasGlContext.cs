@@ -2,7 +2,7 @@ using PdfPixel.PdfPanel.Web.Emscripten;
 using SkiaSharp;
 using System;
 
-namespace PdfPixel.PdfPanel.Web;
+namespace PdfPixel.PdfPanel.Web.Rendering;
 
 /// <summary>
 /// Encapsulates per-canvas WebGL handles.

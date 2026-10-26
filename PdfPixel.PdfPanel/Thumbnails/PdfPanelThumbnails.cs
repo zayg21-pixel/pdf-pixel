@@ -1,6 +1,5 @@
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
-using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Scheduling;
 using System;
 

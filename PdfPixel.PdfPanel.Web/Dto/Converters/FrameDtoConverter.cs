@@ -1,5 +1,5 @@
 using PdfPixel.Geometry;
-using PdfPixel.PdfPanel.Web.Dto.Model;
+using PdfPixel.PdfPanel.Rendering;
 using System.Collections.Generic;
 using System.Text.Json;
 

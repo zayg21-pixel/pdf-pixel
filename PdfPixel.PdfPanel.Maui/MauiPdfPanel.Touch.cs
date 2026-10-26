@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Input;
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
 using System;
