@@ -26,17 +26,17 @@ internal static class JpegComponentMapper
             throw new ArgumentNullException(nameof(scan));
         }
 
-        if (header.Components == null || header.Components.Count == 0)
+        if (header.Components == null || header.Components.Length == 0)
         {
             throw new InvalidOperationException("SOF contains no components to map.");
         }
 
-        if (scan.Components == null || scan.Components.Count == 0)
+        if (scan.Components == null || scan.Components.Length == 0)
         {
             throw new InvalidOperationException("SOS scan specifies no components.");
         }
 
-        int scanCount = scan.Components.Count;
+        int scanCount = scan.Components.Length;
         var mappingIndices = new int[scanCount];
 
         for (int scanComponentIndex = 0; scanComponentIndex < scanCount; scanComponentIndex++)
@@ -56,7 +56,7 @@ internal static class JpegComponentMapper
 
     private static int FindComponentIndexById(JpegHeader header, byte componentId)
     {
-        for (int componentIndex = 0; componentIndex < header.Components.Count; componentIndex++)
+        for (int componentIndex = 0; componentIndex < header.Components.Length; componentIndex++)
         {
             if (header.Components[componentIndex].Id == componentId)
             {

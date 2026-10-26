@@ -1,3 +1,5 @@
+using PdfPixel.Jpx.Parsing;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Jpx;
@@ -6,7 +8,7 @@ namespace PdfPixel.Jpx;
 /// Represents parsed JPEG 2000 (JPX) header metadata required for decoding and color handling.
 /// Contains structural and metadata information from main and tile-part headers.
 /// </summary>
-public sealed partial class JpxHeader
+public sealed class JpxHeader
 {
     /// <summary>
     /// Gets or sets the image width in pixels (from SIZ marker segment).
@@ -26,7 +28,7 @@ public sealed partial class JpxHeader
     /// <summary>
     /// Gets the list of image components described in the SIZ segment.
     /// </summary>
-    public List<JpxComponent> Components { get; } = [];
+    public JpxComponent[] Components { get; internal set; } = [];
 
     /// <summary>
     /// Gets or sets the reference grid origin X offset (XOsiz from SIZ marker segment).
@@ -76,12 +78,12 @@ public sealed partial class JpxHeader
     /// <summary>
     /// Gets the list of component coding style overrides (COC marker segments).
     /// </summary>
-    public List<JpxComponentCodingStyle> ComponentCodingStyles { get; } = [];
+    public IReadOnlyList<JpxComponentCodingStyle> ComponentCodingStyles { get; internal set; } = [];
 
     /// <summary>
     /// Gets the list of component quantization overrides (QCC marker segments).
     /// </summary>
-    public List<JpxComponentQuantization> ComponentQuantizations { get; } = [];
+    public IReadOnlyList<JpxComponentQuantization> ComponentQuantizations { get; internal set; } = [];
 
     /// <summary>
     /// Gets the quantization a component is coded with: the QCC override the codestream carries
@@ -109,7 +111,7 @@ public sealed partial class JpxHeader
     /// <summary>
     /// Gets the list of comments from COM marker segments.
     /// </summary>
-    public List<JpxComment> Comments { get; } = [];
+    public IReadOnlyList<JpxComment> Comments { get; internal set; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether color specification boxes are present.
@@ -119,13 +121,13 @@ public sealed partial class JpxHeader
     /// <summary>
     /// Gets the list of color specifications from colr boxes.
     /// </summary>
-    public List<JpxColorSpecification> ColorSpecifications { get; } = [];
+    public IReadOnlyList<JpxColorSpecification> ColorSpecifications { get; internal set; } = [];
 
     /// <summary>
     /// Gets the channel definitions declared in the cdef box, if present.
     /// Each entry describes the role (color / alpha) of one component.
     /// </summary>
-    public List<JpxChannelDefinition> ChannelDefinitions { get; } = [];
+    public IReadOnlyList<JpxChannelDefinition> ChannelDefinitions { get; internal set; } = [];
 
     /// <summary>
     /// Gets the zero-based index of the first opacity component declared in the cdef box,
@@ -176,5 +178,11 @@ public sealed partial class JpxHeader
     /// <summary>
     /// Gets the list of compatible brands from the ftyp box.
     /// </summary>
-    public List<string> CompatibleBrands { get; } = [];
+    public IReadOnlyList<string> CompatibleBrands { get; internal set; } = [];
+
+    /// <summary>
+    /// Parses JPEG 2000 header from the provided data.
+    /// Automatically detects JP2 wrapper vs raw codestream format.
+    /// </summary>
+    public static JpxHeader Parse(in ReadOnlySpan<byte> data) => JpxHeaderParser.Parse(data);
 }

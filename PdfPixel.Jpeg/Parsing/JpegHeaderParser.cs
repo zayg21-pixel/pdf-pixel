@@ -5,12 +5,13 @@ using System.IO;
 namespace PdfPixel.Jpeg.Parsing;
 
 /// <summary>
-/// Parses JPEG marker segment payloads into <see cref="JpegHeader"/> data.
+/// Parses a JPEG header and its marker segment payloads.
 /// </summary>
-internal static class JpegSegmentParser
+internal static class JpegHeaderParser
 {
     // JPEG markers
     private const byte MarkerPrefix = 0xFF;
+    private const byte SOI = 0xD8;
     private const byte EOI = 0xD9;
     private const byte SOS = 0xDA;
     private const byte DQT = 0xDB;
@@ -40,53 +41,86 @@ internal static class JpegSegmentParser
     ];
 
     /// <summary>
-    /// Parses one marker segment other than SOI, EOI and SOS into <paramref name="header"/>.
-    /// Segments of other markers are skipped.
+    /// Parses a JPEG header from <paramref name="bytes"/>, collecting frame, component, quantization,
+    /// Huffman, and APP metadata up to and including the first SOS marker.
     /// </summary>
-    /// <param name="marker">Marker byte following the 0xFF prefix.</param>
-    /// <param name="payload">Segment payload bytes (excluding the 2-byte length field).</param>
-    /// <param name="header">Header receiving the parsed data.</param>
-    public static void ParseSegment(byte marker, in ReadOnlySpan<byte> payload, JpegHeader header)
+    /// <param name="bytes">Complete JPEG byte span.</param>
+    /// <returns>
+    /// Populated <see cref="JpegHeader"/> with <see cref="JpegHeader.ContentOffset"/> pointing at the entropy-coded data.
+    /// </returns>
+    public static JpegHeader Parse(in ReadOnlySpan<byte> bytes)
     {
-        if (marker == DQT)
+        JpegHeader header = new();
+        JpegSpanReader reader = new(bytes);
+        List<JpegQuantizationTable> quantizationTables = [];
+        List<JpegHuffmanTable> huffmanTables = [];
+        List<JpegScanSpec> scans = [];
+        List<JpegIccSegmentInfo> iccProfileSegments = [];
+
+        if (reader.ReadByte() != MarkerPrefix || reader.ReadByte() != SOI)
         {
-            header.HasQuantizationTables = true;
-            List<JpegQuantizationTable> qTables = ParseDqtPayload(payload);
-            header.QuantizationTables.AddRange(qTables);
+            throw new InvalidDataException("Invalid JPEG: missing SOI marker");
         }
-        else if (marker == DHT)
+
+        while (!reader.EndOfSpan)
         {
-            header.HasHuffmanTables = true;
-            List<JpegHuffmanTable> hTables = ParseDhtPayload(payload);
-            header.HuffmanTables.AddRange(hTables);
-        }
-        else if (marker == DRI)
-        {
-            if (payload.Length >= 2)
+            byte prefix = reader.ReadToNextMarker();
+            if (prefix != MarkerPrefix)
             {
-                header.RestartInterval = ReadUInt16BE(payload);
+                throw new InvalidDataException("Invalid JPEG: expected marker prefix 0xFF");
             }
+
+            byte marker = reader.ReadByte();
+            if (marker == EOI)
+            {
+                break;
+            }
+
+            if (marker == SOS)
+            {
+                ushort len = reader.ReadUInt16BE();
+                int sosPayload = len - 2;
+                if (sosPayload < 0 || reader.Remaining < sosPayload)
+                {
+                    throw new InvalidDataException("Invalid SOS length");
+                }
+
+                JpegScanSpec scan = ParseSos(reader.ReadBytes(sosPayload));
+                scans.Add(scan);
+
+                header.ContentOffset = reader.Position;
+
+                if (header.FrameType == JpegFrameType.ExtendedSequentialDct)
+                {
+                    header.HasMultipleScans = HasFurtherScan(bytes, header.ContentOffset);
+                }
+
+                break;
+            }
+
+            if (marker == SOI)
+            {
+                continue;
+            }
+
+            ushort length = reader.ReadUInt16BE();
+            if (length < 2 || reader.Remaining < length - 2)
+            {
+                throw new InvalidDataException("Invalid JPEG: segment length out of range");
+            }
+
+            int payloadLen = length - 2;
+            ReadOnlySpan<byte> payload = reader.ReadBytes(payloadLen);
+
+            ParseSegment(marker, payload, header, quantizationTables, huffmanTables, iccProfileSegments);
         }
-        else if (SofMarkers.Contains(marker))
-        {
-            ParseSof(marker, payload, header);
-        }
-        else if (marker == APP0)
-        {
-            ParseApp0(payload, header);
-        }
-        else if (marker == APP1)
-        {
-            ParseApp1(payload, header);
-        }
-        else if (marker == APP2)
-        {
-            ParseApp2Icc(payload, header);
-        }
-        else if (marker == APP14)
-        {
-            ParseApp14Adobe(payload, header);
-        }
+
+        header.QuantizationTables = quantizationTables;
+        header.HuffmanTables = huffmanTables;
+        header.Scans = scans;
+        header.IccProfileSegments = iccProfileSegments;
+
+        return header;
     }
 
     /// <summary>
@@ -169,6 +203,7 @@ internal static class JpegSegmentParser
         int ns = payload[0];
         int offset = 1;
         JpegScanSpec scan = new();
+        var components = new JpegScanComponentSpec[ns];
         for (int i = 0; i < ns; i++)
         {
             if (offset + 2 >= payload.Length)
@@ -180,13 +215,15 @@ internal static class JpegSegmentParser
             byte tdTa = payload[offset + 1];
             offset += 2;
 
-            scan.Components.Add(new JpegScanComponentSpec
+            components[i] = new JpegScanComponentSpec
             {
                 ComponentId = cs,
                 DcTableId = tdTa >> 4 & 0x0F,
                 AcTableId = tdTa & 0x0F
-            });
+            };
         }
+
+        scan.Components = components;
 
         if (offset + 3 > payload.Length)
         {
@@ -318,7 +355,7 @@ internal static class JpegSegmentParser
     /// Returns null if segments are missing, inconsistent, invalid, or if length overflows.
     /// </summary>
     /// <param name="segments">ICC profile segments in the order they appear in the file.</param>
-    public static byte[]? AssembleIccProfile(List<JpegIccSegmentInfo> segments)
+    public static byte[]? AssembleIccProfile(IReadOnlyList<JpegIccSegmentInfo> segments)
     {
         if (segments.Count == 0)
         {
@@ -405,6 +442,65 @@ internal static class JpegSegmentParser
     /// </summary>
     public static ushort ReadUInt16BE(in ReadOnlySpan<byte> span) => (ushort)(span[0] << 8 | span[1]);
 
+    /// <summary>
+    /// Parses one marker segment other than SOI, EOI and SOS into <paramref name="header"/>.
+    /// Segments of other markers are skipped.
+    /// </summary>
+    /// <param name="marker">Marker byte following the 0xFF prefix.</param>
+    /// <param name="payload">Segment payload bytes (excluding the 2-byte length field).</param>
+    /// <param name="header">Header receiving the parsed data.</param>
+    /// <param name="quantizationTables">Receives the tables of DQT segments.</param>
+    /// <param name="huffmanTables">Receives the tables of DHT segments.</param>
+    /// <param name="iccProfileSegments">Receives the APP2 ICC_PROFILE segments.</param>
+    private static void ParseSegment(
+        byte marker,
+        in ReadOnlySpan<byte> payload,
+        JpegHeader header,
+        List<JpegQuantizationTable> quantizationTables,
+        List<JpegHuffmanTable> huffmanTables,
+        List<JpegIccSegmentInfo> iccProfileSegments)
+    {
+        if (marker == DQT)
+        {
+            header.HasQuantizationTables = true;
+            List<JpegQuantizationTable> qTables = ParseDqtPayload(payload);
+            quantizationTables.AddRange(qTables);
+        }
+        else if (marker == DHT)
+        {
+            header.HasHuffmanTables = true;
+            List<JpegHuffmanTable> hTables = ParseDhtPayload(payload);
+            huffmanTables.AddRange(hTables);
+        }
+        else if (marker == DRI)
+        {
+            if (payload.Length >= 2)
+            {
+                header.RestartInterval = ReadUInt16BE(payload);
+            }
+        }
+        else if (SofMarkers.Contains(marker))
+        {
+            ParseSof(marker, payload, header);
+        }
+        else if (marker == APP0)
+        {
+            ParseApp0(payload, header);
+        }
+        else if (marker == APP1)
+        {
+            ParseApp1(payload, header);
+        }
+        else if (marker == APP2)
+        {
+            ParseApp2Icc(payload, header, iccProfileSegments);
+        }
+        else if (marker == APP14)
+        {
+            ParseApp14Adobe(payload, header);
+        }
+    }
+
     private static void ParseSof(byte marker, in ReadOnlySpan<byte> payload, JpegHeader header)
     {
         if (payload.Length < 6)
@@ -420,7 +516,7 @@ internal static class JpegSegmentParser
         header.ComponentCount = components;
 
         int offset = 6;
-        header.Components.Clear();
+        var frameComponents = new JpegComponent[components];
 
         for (int i = 0; i < components; i++)
         {
@@ -436,9 +532,11 @@ internal static class JpegSegmentParser
                 VerticalSamplingFactor = (byte)(payload[offset + 1] & 0x0F),
                 QuantizationTableId = payload[offset + 2]
             };
-            header.Components.Add(comp);
+            frameComponents[i] = comp;
             offset += 3;
         }
+
+        header.Components = frameComponents;
     }
 
     private static void ParseApp0(in ReadOnlySpan<byte> payload, JpegHeader header)
@@ -464,7 +562,7 @@ internal static class JpegSegmentParser
         }
     }
 
-    private static void ParseApp2Icc(in ReadOnlySpan<byte> payload, JpegHeader header)
+    private static void ParseApp2Icc(in ReadOnlySpan<byte> payload, JpegHeader header, List<JpegIccSegmentInfo> iccProfileSegments)
     {
         const string ICC = "ICC_PROFILE\0";
         if (payload.Length >= 14)
@@ -485,12 +583,13 @@ internal static class JpegSegmentParser
                 int seq = payload[12];
                 int total = payload[13];
                 byte[] data = payload.Slice(14).ToArray();
-                header.IccProfileSegments.Add(new JpegIccSegmentInfo
+                JpegIccSegmentInfo segment = new()
                 {
                     SequenceNumber = seq,
                     TotalSegments = total,
                     Data = data
-                });
+                };
+                iccProfileSegments.Add(segment);
             }
         }
     }

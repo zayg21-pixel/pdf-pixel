@@ -66,7 +66,7 @@ public sealed class JpegProgressiveDecoder : IJpegDecoder
             throw new NotSupportedException($"JpegProgressiveDecoder supports progressive JPEG (SOF2) only. Got {header.FrameType.ToString()}.");
         }
 
-        if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
+        if (header.ComponentCount <= 0 || header.Components == null || header.Components.Length != header.ComponentCount)
         {
             throw new ArgumentException("Invalid header components.", nameof(header));
         }
@@ -341,13 +341,13 @@ public sealed class JpegProgressiveDecoder : IJpegDecoder
             {
                 case 0xDB: // DQT
                 {
-                        List<JpegQuantizationTable> newQuantTables = JpegSegmentParser.ParseDqtPayload(payload);
+                        List<JpegQuantizationTable> newQuantTables = JpegHeaderParser.ParseDqtPayload(payload);
                     quantTables.AddRange(newQuantTables);
                     break;
                 }
                 case 0xC4: // DHT
                 {
-                        List<JpegHuffmanTable> newHuffTables = JpegSegmentParser.ParseDhtPayload(payload);
+                        List<JpegHuffmanTable> newHuffTables = JpegHeaderParser.ParseDhtPayload(payload);
                     huffTables.AddRange(newHuffTables);
                     break;
                 }
@@ -355,14 +355,14 @@ public sealed class JpegProgressiveDecoder : IJpegDecoder
                 {
                     if (payload.Length >= 2)
                     {
-                        restartInterval = JpegSegmentParser.ReadUInt16BE(payload);
+                        restartInterval = JpegHeaderParser.ReadUInt16BE(payload);
                     }
 
                     break;
                 }
                 case 0xDA: // SOS
                 {
-                    currentScan = JpegSegmentParser.ParseSos(payload);
+                    currentScan = JpegHeaderParser.ParseSos(payload);
                     ProcessCurrentScan(header, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
                     break;
                 }
@@ -400,7 +400,7 @@ public sealed class JpegProgressiveDecoder : IJpegDecoder
         int successiveApproxLow = currentScan.SuccessiveApproxLow;
         int successiveApproxHigh = currentScan.SuccessiveApproxHigh;
 
-        int scanComponentCount = currentScan.Components.Count;
+        int scanComponentCount = currentScan.Components.Length;
         int[] scanToComponent = JpegComponentMapper.MapScanToSofIndices(header, currentScan)
             ?? throw new InvalidOperationException("Failed to map scan components to SOF indices.");
 
@@ -517,7 +517,7 @@ public sealed class JpegProgressiveDecoder : IJpegDecoder
             int vSamp = header.Components[componentIndex].VerticalSamplingFactor;
             int hMax = 1;
             int vMax = 1;
-            for (int ci = 0; ci < header.Components.Count; ci++)
+            for (int ci = 0; ci < header.Components.Length; ci++)
             {
                 if (header.Components[ci].HorizontalSamplingFactor > hMax)
                 {

@@ -102,7 +102,7 @@ internal sealed class JpegHuffmanDecoderManager
             throw new ArgumentNullException(nameof(scan));
         }
 
-        for (int scanComponentIndex = 0; scanComponentIndex < scan.Components.Count; scanComponentIndex++)
+        for (int scanComponentIndex = 0; scanComponentIndex < scan.Components.Length; scanComponentIndex++)
         {
             JpegScanComponentSpec scanComponent = scan.Components[scanComponentIndex];
             int dcTableId = scanComponent.DcTableId;

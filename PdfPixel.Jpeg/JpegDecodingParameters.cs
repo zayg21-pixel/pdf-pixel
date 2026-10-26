@@ -27,7 +27,7 @@ public sealed class JpegDecodingParameters
             throw new ArgumentNullException(nameof(header));
         }
 
-        if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
+        if (header.ComponentCount <= 0 || header.Components == null || header.Components.Length != header.ComponentCount)
         {
             throw new ArgumentException("Invalid header components.", nameof(header));
         }
@@ -44,7 +44,7 @@ public sealed class JpegDecodingParameters
         bool singleComponent = header.ComponentCount == 1;
         if (!singleComponent)
         {
-            for (int i = 0; i < header.Components.Count; i++)
+            for (int i = 0; i < header.Components.Length; i++)
             {
                 JpegComponent c = header.Components[i];
                 if (c.HorizontalSamplingFactor > hMax)

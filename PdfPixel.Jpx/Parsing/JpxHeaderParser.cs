@@ -12,9 +12,41 @@ internal static class JpxHeaderParser
     private const uint JP2_SIGNATURE_BOX_SIZE = 12;
 
     /// <summary>
+    /// Parses JPEG 2000 header from the provided data.
+    /// Automatically detects JP2 wrapper vs raw codestream format.
+    /// </summary>
+    public static JpxHeader Parse(in ReadOnlySpan<byte> data)
+    {
+        if (data.Length < 8)
+        {
+            throw new InvalidDataException("Insufficient data for JPEG 2000 header.");
+        }
+
+        JpxHeader header = new();
+        List<JpxColorSpecification> colorSpecifications = [];
+        List<JpxChannelDefinition> channelDefinitions = [];
+
+        // Check if this is a JP2 file (with box structure) or raw codestream
+        if (IsJp2Format(data))
+        {
+            ParseJp2Format(data, header, colorSpecifications, channelDefinitions);
+        }
+        else
+        {
+            header.IsRawCodestream = true;
+            ParseRawCodestream(data, 0, header);
+        }
+
+        header.ColorSpecifications = colorSpecifications;
+        header.ChannelDefinitions = channelDefinitions;
+
+        return header;
+    }
+
+    /// <summary>
     /// Determines if the data represents JP2 format (with box structure).
     /// </summary>
-    public static bool IsJp2Format(in ReadOnlySpan<byte> data)
+    private static bool IsJp2Format(in ReadOnlySpan<byte> data)
     {
         if (data.Length < 12)
         {
@@ -32,7 +64,11 @@ internal static class JpxHeaderParser
     /// <summary>
     /// Parses JP2 file format with box structure.
     /// </summary>
-    public static void ParseJp2Format(in ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseJp2Format(
+        in ReadOnlySpan<byte> data,
+        JpxHeader header,
+        List<JpxColorSpecification> colorSpecifications,
+        List<JpxChannelDefinition> channelDefinitions)
     {
         JpxSpanReader reader = new(data);
 
@@ -88,7 +124,7 @@ internal static class JpxHeaderParser
                 case JpxMarkers.HEADER_BOX:
                     {
                         // jp2h is a superbox; parse its child boxes (ihdr, colr, etc.)
-                        ParseJp2HeaderSuperBox(reader.ReadBytes((int)contentLength), header);
+                        ParseJp2HeaderSuperBox(reader.ReadBytes((int)contentLength), header, colorSpecifications, channelDefinitions);
                         break;
                     }
                 case JpxMarkers.CONTIGUOUS_CODESTREAM_BOX:
@@ -102,7 +138,7 @@ internal static class JpxHeaderParser
                     }
                 case JpxMarkers.COLOR_SPECIFICATION_BOX:
                     {
-                        ParseColorSpecificationBox(reader.ReadBytes((int)contentLength), header);
+                        ParseColorSpecificationBox(reader.ReadBytes((int)contentLength), header, colorSpecifications);
                         break;
                     }
                 default:
@@ -119,7 +155,11 @@ internal static class JpxHeaderParser
     /// Parses the JP2 Header superbox (jp2h) and its child boxes.
     /// Handles at minimum the Image Header Box (ihdr) and Color Specification Box (colr).
     /// </summary>
-    private static void ParseJp2HeaderSuperBox(in ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseJp2HeaderSuperBox(
+        in ReadOnlySpan<byte> data,
+        JpxHeader header,
+        List<JpxColorSpecification> colorSpecifications,
+        List<JpxChannelDefinition> channelDefinitions)
     {
         int offset = 0;
 
@@ -162,12 +202,12 @@ internal static class JpxHeaderParser
                     }
                 case JpxMarkers.COLOR_SPECIFICATION_BOX:
                     {
-                        ParseColorSpecificationBox(subBoxContent, header);
+                        ParseColorSpecificationBox(subBoxContent, header, colorSpecifications);
                         break;
                     }
                 case JpxMarkers.CHANNEL_DEFINITION_BOX:
                     {
-                        ParseChannelDefinitionBox(subBoxContent, header);
+                        ParseChannelDefinitionBox(subBoxContent, channelDefinitions);
                         break;
                     }
                 // TODO: [MEDIUM] Parse the pclr and cmap boxes so palette-indexed images can be
@@ -218,9 +258,12 @@ internal static class JpxHeaderParser
     /// <summary>
     /// Parses raw JPEG 2000 codestream (without JP2 wrapper).
     /// </summary>
-    public static void ParseRawCodestream(in ReadOnlySpan<byte> data, int initialOffset, JpxHeader header)
+    private static void ParseRawCodestream(in ReadOnlySpan<byte> data, int initialOffset, JpxHeader header)
     {
         JpxSpanReader reader = new(data);
+        List<JpxComponentCodingStyle> componentCodingStyles = [];
+        List<JpxComponentQuantization> componentQuantizations = [];
+        List<JpxComment> comments = [];
 
         // Check for SOC marker
         ushort socMarker = reader.ReadUInt16BE();
@@ -255,14 +298,24 @@ internal static class JpxHeaderParser
             }
 
             // Parse marker segment
-            ParseMarkerSegment(marker, ref reader, header);
+            ParseMarkerSegment(marker, ref reader, header, componentCodingStyles, componentQuantizations, comments);
         }
+
+        header.ComponentCodingStyles = componentCodingStyles;
+        header.ComponentQuantizations = componentQuantizations;
+        header.Comments = comments;
     }
 
     /// <summary>
     /// Parses a single marker segment.
     /// </summary>
-    private static void ParseMarkerSegment(ushort marker, ref JpxSpanReader reader, JpxHeader header)
+    private static void ParseMarkerSegment(
+        ushort marker,
+        ref JpxSpanReader reader,
+        JpxHeader header,
+        List<JpxComponentCodingStyle> componentCodingStyles,
+        List<JpxComponentQuantization> componentQuantizations,
+        List<JpxComment> comments)
     {
         switch (marker)
         {
@@ -283,17 +336,17 @@ internal static class JpxHeaderParser
                 }
             case JpxMarkers.COC:
                 {
-                    ParseCocSegment(ref reader, header);
+                    ParseCocSegment(ref reader, header, componentCodingStyles);
                     break;
                 }
             case JpxMarkers.QCC:
                 {
-                    ParseQccSegment(ref reader, header);
+                    ParseQccSegment(ref reader, header, componentQuantizations);
                     break;
                 }
             case JpxMarkers.COM:
                 {
-                    ParseComSegment(ref reader, header);
+                    ParseComSegment(ref reader, header, comments);
                     break;
                 }
             // TODO: [HIGH] Parse and apply POC (progression order change). Skipping it leaves the
@@ -336,6 +389,7 @@ internal static class JpxHeaderParser
         header.ComponentCount = reader.ReadUInt16BE();
 
         // Parse component parameters
+        var components = new JpxComponent[header.ComponentCount];
         for (int i = 0; i < header.ComponentCount; i++)
         {
             JpxComponent component = new()
@@ -344,8 +398,10 @@ internal static class JpxHeaderParser
                 HorizontalSeparation = reader.ReadByte(),
                 VerticalSeparation = reader.ReadByte()
             };
-            header.Components.Add(component);
+            components[i] = component;
         }
+
+        header.Components = components;
     }
 
     /// <summary>
@@ -451,7 +507,7 @@ internal static class JpxHeaderParser
     /// <summary>
     /// Parses COC (Coding style component) marker segment.
     /// </summary>
-    private static void ParseCocSegment(ref JpxSpanReader reader, JpxHeader header)
+    private static void ParseCocSegment(ref JpxSpanReader reader, JpxHeader header, List<JpxComponentCodingStyle> componentCodingStyles)
     {
         ushort segmentLength = reader.ReadUInt16BE();
 
@@ -509,13 +565,13 @@ internal static class JpxHeaderParser
         }
 
         componentCodingStyle.CodingStyle = codingStyle;
-        header.ComponentCodingStyles.Add(componentCodingStyle);
+        componentCodingStyles.Add(componentCodingStyle);
     }
 
     /// <summary>
     /// Parses QCC (Quantization component) marker segment.
     /// </summary>
-    private static void ParseQccSegment(ref JpxSpanReader reader, JpxHeader header)
+    private static void ParseQccSegment(ref JpxSpanReader reader, JpxHeader header, List<JpxComponentQuantization> componentQuantizations)
     {
         ushort segmentLength = reader.ReadUInt16BE();
 
@@ -563,13 +619,13 @@ internal static class JpxHeaderParser
             }
         }
 
-        header.ComponentQuantizations.Add(new JpxComponentQuantization(componentIndex, quantization));
+        componentQuantizations.Add(new JpxComponentQuantization(componentIndex, quantization));
     }
 
     /// <summary>
     /// Parses COM (Comment) marker segment.
     /// </summary>
-    private static void ParseComSegment(ref JpxSpanReader reader, JpxHeader header)
+    private static void ParseComSegment(ref JpxSpanReader reader, JpxHeader header, List<JpxComment> comments)
     {
         ushort segmentLength = reader.ReadUInt16BE();
 
@@ -585,7 +641,7 @@ internal static class JpxHeaderParser
             comment.Data = Array.Empty<byte>();
         }
 
-        header.Comments.Add(comment);
+        comments.Add(comment);
         header.HasComments = true;
     }
 
@@ -593,7 +649,7 @@ internal static class JpxHeaderParser
     /// Parses the Channel Definition box (cdef) to identify which components carry
     /// color or alpha/opacity data (ISO/IEC 15444-1 Table I-11).
     /// </summary>
-    private static void ParseChannelDefinitionBox(in ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseChannelDefinitionBox(in ReadOnlySpan<byte> data, List<JpxChannelDefinition> channelDefinitions)
     {
         // cdef content: N (2 bytes) followed by N × 3 × 2-byte entries (i, typ, asoc)
         if (data.Length < 2)
@@ -619,14 +675,14 @@ internal static class JpxHeaderParser
                 Association    = (ushort)((data[offset + 4] << 8) | data[offset + 5])
             };
 
-            header.ChannelDefinitions.Add(definition);
+            channelDefinitions.Add(definition);
         }
     }
 
     /// <summary>
     /// Parses color specification box from JP2 format.
     /// </summary>
-    private static void ParseColorSpecificationBox(in ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseColorSpecificationBox(in ReadOnlySpan<byte> data, JpxHeader header, List<JpxColorSpecification> colorSpecifications)
     {
         if (data.Length < 3)
         {
@@ -649,7 +705,7 @@ internal static class JpxHeaderParser
             colorSpec.IccProfile = data.Slice(3).ToArray();
         }
 
-        header.ColorSpecifications.Add(colorSpec);
+        colorSpecifications.Add(colorSpec);
         header.HasColorSpecification = true;
     }
 
@@ -670,7 +726,7 @@ internal static class JpxHeaderParser
         header.MinorVersion = ReadUInt32BE(data.Slice(4));
 
         // Extract compatible brands (remaining bytes in groups of 4)
-        header.CompatibleBrands.Clear();
+        List<string> compatibleBrands = [];
         for (int i = 8; i < data.Length; i += 4)
         {
             if (i + 4 <= data.Length)
@@ -679,10 +735,12 @@ internal static class JpxHeaderParser
                 string trimmedBrand = compatibleBrand.Trim('\0', ' ');
                 if (!string.IsNullOrWhiteSpace(trimmedBrand))
                 {
-                    header.CompatibleBrands.Add(trimmedBrand);
+                    compatibleBrands.Add(trimmedBrand);
                 }
             }
         }
+
+        header.CompatibleBrands = compatibleBrands;
     }
 
     /// <summary>

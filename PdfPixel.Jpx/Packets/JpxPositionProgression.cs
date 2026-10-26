@@ -153,10 +153,10 @@ internal static class JpxPositionProgression
     }
 
     private static int GetHorizontalSeparation(JpxHeader header, int component)
-        => (component < header.Components.Count) ? Math.Max((int)header.Components[component].HorizontalSeparation, 1) : 1;
+        => (component < header.Components.Length) ? Math.Max((int)header.Components[component].HorizontalSeparation, 1) : 1;
 
     private static int GetVerticalSeparation(JpxHeader header, int component)
-        => (component < header.Components.Count) ? Math.Max((int)header.Components[component].VerticalSeparation, 1) : 1;
+        => (component < header.Components.Length) ? Math.Max((int)header.Components[component].VerticalSeparation, 1) : 1;
 
     private static long CeilDivide(long value, long divisor) => (value + divisor - 1) / divisor;
 

@@ -66,7 +66,7 @@ internal static class JpegColorConverterFactory
 
     private static bool LikelyRgb(JpegHeader header)
     {
-        if (header.Components == null || header.Components.Count != 3)
+        if (header.Components == null || header.Components.Length != 3)
         {
             return false;
         }

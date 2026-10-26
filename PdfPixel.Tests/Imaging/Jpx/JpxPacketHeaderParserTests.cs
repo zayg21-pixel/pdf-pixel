@@ -62,10 +62,9 @@ public class JpxPacketHeaderParserTests
             TileWidth = 64,
             TileHeight = 64,
             ComponentCount = 1,
+            Components = [component],
             CodingStyle = codingStyle
         };
-
-        header.Components.Add(component);
 
         return header;
     }

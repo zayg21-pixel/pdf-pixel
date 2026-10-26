@@ -144,7 +144,7 @@ public sealed class JpxTileToRowConverter
 
         // Use the JPX header's precision (per spec, ignore PDF BitsPerComponent for JPX).
         int headerBpc = 0;
-        for (int i = 0; i < header.Components.Count; i++)
+        for (int i = 0; i < header.Components.Length; i++)
         {
             headerBpc = Math.Max(headerBpc, header.Components[i].PrecisionBits);
         }

@@ -1,12 +1,15 @@
 using PdfPixel.Png.Decoding;
+using PdfPixel.Png.Parsing;
+using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace PdfPixel.Png;
 
 /// <summary>
 /// Image header, palette, transparency, ICC profile and informational chunks of a PNG image.
 /// </summary>
-public sealed partial class PngImageInfo
+public sealed class PngImageInfo
 {
     /// <summary>
     /// Gets or sets the image width in pixels (IHDR).
@@ -97,4 +100,12 @@ public sealed partial class PngImageInfo
     /// Gets or sets the compressed image data, or null when the image was not read from a file.
     /// </summary>
     internal List<PngDataSegment>? ImageData { get; set; }
+
+    /// <summary>
+    /// Reads every chunk of a PNG file up to IEND, without decompressing the image data.
+    /// </summary>
+    /// <param name="data">Complete PNG file.</param>
+    /// <returns>The image header and the data of every other chunk.</returns>
+    /// <exception cref="InvalidDataException">The file is not a PNG file, or a critical chunk is missing, damaged or unknown.</exception>
+    public static PngImageInfo Parse(in ReadOnlySpan<byte> data) => PngChunkParser.Parse(data);
 }

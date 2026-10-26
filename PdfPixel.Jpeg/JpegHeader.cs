@@ -1,5 +1,6 @@
 using PdfPixel.Jpeg.Parsing;
 
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Jpeg;
@@ -8,7 +9,7 @@ namespace PdfPixel.Jpeg;
 /// Represents parsed JPEG header metadata required for custom decoding and color handling.
 /// Contains structural and metadata information from header segments, excluding entropy-coded scan data.
 /// </summary>
-public sealed partial class JpegHeader
+public sealed class JpegHeader
 {
     /// <summary>
     /// Gets or sets the JPEG frame type determined by the SOF marker (e.g. baseline, extended sequential, progressive).
@@ -44,7 +45,7 @@ public sealed partial class JpegHeader
     /// <summary>
     /// Gets the list of image components described by the SOF segment.
     /// </summary>
-    public List<JpegComponent> Components { get; } = [];
+    public JpegComponent[] Components { get; internal set; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether Huffman tables are present (DHT segment).
@@ -59,12 +60,12 @@ public sealed partial class JpegHeader
     /// <summary>
     /// Gets the list of Huffman tables parsed from DHT segments.
     /// </summary>
-    public List<JpegHuffmanTable> HuffmanTables { get; } = [];
+    public IReadOnlyList<JpegHuffmanTable> HuffmanTables { get; internal set; } = [];
 
     /// <summary>
     /// Gets the list of quantization tables parsed from DQT segments.
     /// </summary>
-    public List<JpegQuantizationTable> QuantizationTables { get; } = [];
+    public IReadOnlyList<JpegQuantizationTable> QuantizationTables { get; internal set; } = [];
 
     /// <summary>
     /// Gets or sets the restart interval (from DRI segment); 0 means no restart markers.
@@ -74,7 +75,7 @@ public sealed partial class JpegHeader
     /// <summary>
     /// Gets the list of scan specifications parsed from SOS segments.
     /// </summary>
-    public List<JpegScanSpec> Scans { get; } = [];
+    public IReadOnlyList<JpegScanSpec> Scans { get; internal set; } = [];
 
     /// <summary>
     /// Gets or sets the offset of entropy-coded data following the first SOS header.
@@ -129,11 +130,21 @@ public sealed partial class JpegHeader
     /// <summary>
     /// Gets the list of ICC profile segments (APP2 ICC_PROFILE).
     /// </summary>
-    public List<JpegIccSegmentInfo> IccProfileSegments { get; } = [];
+    public IReadOnlyList<JpegIccSegmentInfo> IccProfileSegments { get; internal set; } = [];
 
     /// <summary>
     /// Reassembles the ICC profile from <see cref="IccProfileSegments"/>.
     /// </summary>
     /// <returns>The profile bytes, or null when the segments are absent, incomplete or inconsistent.</returns>
-    public byte[]? GetIccProfile() => JpegSegmentParser.AssembleIccProfile(IccProfileSegments);
+    public byte[]? GetIccProfile() => JpegHeaderParser.AssembleIccProfile(IccProfileSegments);
+
+    /// <summary>
+    /// Parses a JPEG header from <paramref name="bytes"/>, collecting frame, component, quantization,
+    /// Huffman, and APP metadata up to and including the first SOS marker.
+    /// </summary>
+    /// <param name="bytes">Complete JPEG byte span.</param>
+    /// <returns>
+    /// Populated <see cref="JpegHeader"/> with <see cref="ContentOffset"/> pointing at the entropy-coded data.
+    /// </returns>
+    public static JpegHeader Parse(in ReadOnlySpan<byte> bytes) => JpegHeaderParser.Parse(bytes);
 }

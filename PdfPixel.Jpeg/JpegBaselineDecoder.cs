@@ -58,7 +58,7 @@ public sealed class JpegBaselineDecoder : IJpegDecoder
             throw new NotSupportedException("Extended sequential JPEG (SOF1) with multiple scans is not supported.");
         }
 
-        if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
+        if (header.ComponentCount <= 0 || header.Components == null || header.Components.Length != header.ComponentCount)
         {
             throw new ArgumentException("Invalid header components.", nameof(header));
         }
@@ -78,7 +78,7 @@ public sealed class JpegBaselineDecoder : IJpegDecoder
         _decoderManager = JpegHuffmanDecoderManager.CreateFromHeader(_header);
         _quantizationManager = JpegQuantizationManager.CreateFromHeader(_header);
         _decoderManager.ValidateTablesForScan(_scan);
-        for (int componentIndex = 0; componentIndex < _header.Components.Count; componentIndex++)
+        for (int componentIndex = 0; componentIndex < _header.Components.Length; componentIndex++)
         {
             int quantTableId = _header.Components[componentIndex].QuantizationTableId;
             _quantizationManager.ValidateTableExists(quantTableId, componentIndex);
@@ -208,7 +208,7 @@ public sealed class JpegBaselineDecoder : IJpegDecoder
                 && mcuColumnIndex >= firstReconstructedColumn
                 && mcuColumnIndex < reconstructedColumnLimit;
 
-            for (int scanComponentIndex = 0; scanComponentIndex < _scan.Components.Count; scanComponentIndex++)
+            for (int scanComponentIndex = 0; scanComponentIndex < _scan.Components.Length; scanComponentIndex++)
             {
                 int componentIndex = _scanToSofIndex[scanComponentIndex];
                 JpegScanComponentSpec scanComponent = _scan.Components[scanComponentIndex];
