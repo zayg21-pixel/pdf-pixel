@@ -2,8 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Jbig2.Decoding;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2;
 using PdfPixel.Objects;
 using PdfPixel.Streams;
 using System;
@@ -118,7 +117,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         return pageDecoder.DecodeGlobalCache(globalsData.Span);
     }
 
-    private sealed class Jbig2Observer : IJBig2ExectionObserver
+    private sealed class Jbig2Observer : IJbig2ExecutionObserver
     {
         private readonly IPdfExecutionObserver? _pdfObserver;
 

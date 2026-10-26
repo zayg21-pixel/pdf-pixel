@@ -7,7 +7,7 @@ namespace PdfPixel.Jbig2.Decoding;
 /// A JBIG2 Huffman table consisting of ordered entries.
 /// Tables can be standard (predefined in the spec) or user-defined (from Table segments).
 /// </summary>
-public sealed partial class Jbig2HuffmanTable
+internal sealed partial class Jbig2HuffmanTable
 {
     /// <summary>
     /// Ordered list of Huffman entries (sorted by prefix length then code).

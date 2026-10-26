@@ -1,9 +1,9 @@
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// JBIG2 segment types as defined in ITU-T T.88 Table 2.
 /// </summary>
-public enum Jbig2SegmentType
+internal enum Jbig2SegmentType
 {
     /// <summary>
     /// Symbol dictionary segment (type 0).

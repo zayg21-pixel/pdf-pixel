@@ -1,4 +1,6 @@
-namespace PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Decoding;
+
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Page information parsed from a JBIG2 page information segment (type 48).

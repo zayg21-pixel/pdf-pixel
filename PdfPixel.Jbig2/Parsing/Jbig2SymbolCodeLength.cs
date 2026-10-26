@@ -1,4 +1,4 @@
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Computes the SYMCODELEN value used throughout JBIG2 arithmetic coding contexts

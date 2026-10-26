@@ -1,4 +1,4 @@
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Parsed flag bits from the JBIG2 text region segment Huffman table selection word

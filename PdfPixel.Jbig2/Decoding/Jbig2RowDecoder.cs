@@ -1,4 +1,3 @@
-using PdfPixel.Jbig2.Model;
 using System;
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;

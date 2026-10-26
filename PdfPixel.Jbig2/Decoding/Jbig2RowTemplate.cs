@@ -1,4 +1,4 @@
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// Pre-computed template layout for the sliding-window fast decoder.

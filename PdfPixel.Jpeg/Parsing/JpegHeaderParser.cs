@@ -124,71 +124,6 @@ internal static class JpegHeaderParser
     }
 
     /// <summary>
-    /// Reports whether a further scan follows the entropy-coded data starting at <paramref name="start"/>,
-    /// by walking forward to the next marker that is not part of that data.
-    /// </summary>
-    /// <param name="bytes">Complete JPEG byte span.</param>
-    /// <param name="start">Offset of the entropy-coded data following the first SOS header.</param>
-    public static bool HasFurtherScan(in ReadOnlySpan<byte> bytes, int start)
-    {
-        int position = start;
-
-        while (position + 1 < bytes.Length)
-        {
-            if (bytes[position++] != MarkerPrefix)
-            {
-                continue;
-            }
-
-            while (position < bytes.Length && bytes[position] == MarkerPrefix)
-            {
-                position++;
-            }
-
-            if (position >= bytes.Length)
-            {
-                return false;
-            }
-
-            byte code = bytes[position++];
-
-            // A stuffed zero and a restart marker both belong to the entropy-coded data.
-            if (code == 0x00 || (code >= RST0 && code <= RST7))
-            {
-                continue;
-            }
-
-            if (code == SOS)
-            {
-                return true;
-            }
-
-            if (code == EOI)
-            {
-                return false;
-            }
-
-            if (position + 2 > bytes.Length)
-            {
-                return false;
-            }
-
-            var segmentLength = (ushort)((bytes[position] << 8) | bytes[position + 1]);
-            int payloadLength = segmentLength - 2;
-            position += 2;
-
-            if (payloadLength < 0 || position + payloadLength > bytes.Length)
-            {
-                return false;
-            }
-
-            position += payloadLength;
-        }
-
-        return false;
-    }
-
-    /// <summary>
     /// Parses an SOS (Start of Scan) segment payload into a <see cref="JpegScanSpec"/>.
     /// </summary>
     /// <param name="payload">Segment payload bytes (excluding the 2-byte length field).</param>
@@ -441,6 +376,71 @@ internal static class JpegHeaderParser
     /// Reads a big-endian 16-bit value from the start of <paramref name="span"/>.
     /// </summary>
     public static ushort ReadUInt16BE(in ReadOnlySpan<byte> span) => (ushort)(span[0] << 8 | span[1]);
+
+    /// <summary>
+    /// Reports whether a further scan follows the entropy-coded data starting at <paramref name="start"/>,
+    /// by walking forward to the next marker that is not part of that data.
+    /// </summary>
+    /// <param name="bytes">Complete JPEG byte span.</param>
+    /// <param name="start">Offset of the entropy-coded data following the first SOS header.</param>
+    private static bool HasFurtherScan(in ReadOnlySpan<byte> bytes, int start)
+    {
+        int position = start;
+
+        while (position + 1 < bytes.Length)
+        {
+            if (bytes[position++] != MarkerPrefix)
+            {
+                continue;
+            }
+
+            while (position < bytes.Length && bytes[position] == MarkerPrefix)
+            {
+                position++;
+            }
+
+            if (position >= bytes.Length)
+            {
+                return false;
+            }
+
+            byte code = bytes[position++];
+
+            // A stuffed zero and a restart marker both belong to the entropy-coded data.
+            if (code == 0x00 || (code >= RST0 && code <= RST7))
+            {
+                continue;
+            }
+
+            if (code == SOS)
+            {
+                return true;
+            }
+
+            if (code == EOI)
+            {
+                return false;
+            }
+
+            if (position + 2 > bytes.Length)
+            {
+                return false;
+            }
+
+            var segmentLength = (ushort)((bytes[position] << 8) | bytes[position + 1]);
+            int payloadLength = segmentLength - 2;
+            position += 2;
+
+            if (payloadLength < 0 || position + payloadLength > bytes.Length)
+            {
+                return false;
+            }
+
+            position += payloadLength;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Parses one marker segment other than SOI, EOI and SOS into <paramref name="header"/>.

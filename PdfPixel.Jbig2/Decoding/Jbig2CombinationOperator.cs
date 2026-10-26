@@ -1,10 +1,10 @@
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// JBIG2 combination (compositing) operators used for combining region bitmaps onto the page buffer.
 /// Defined in ITU-T T.88 Table 5.
 /// </summary>
-public enum Jbig2CombinationOperator
+internal enum Jbig2CombinationOperator
 {
     /// <summary>
     /// OR: dst = dst | src.

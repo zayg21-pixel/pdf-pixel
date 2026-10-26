@@ -1,7 +1,8 @@
+using PdfPixel.Jbig2.Decoding;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2;
 
 /// <summary>
 /// Represents a JBIG2 bitmap (bi-level image buffer).
@@ -14,7 +15,7 @@ public sealed class Jbig2Bitmap
     /// <summary>
     /// Shared 1×1 empty placeholder bitmap for invalid/missing symbols.
     /// </summary>
-    public static Jbig2Bitmap Empty { get; } = new(1, 1);
+    internal static Jbig2Bitmap Empty { get; } = new(1, 1);
 
     /// <summary>
     /// Width of the bitmap in pixels.
@@ -37,7 +38,7 @@ public sealed class Jbig2Bitmap
     /// <param name="width">Width in pixels.</param>
     /// <param name="height">Height in pixels.</param>
     /// <param name="defaultPixel">Default pixel value (0 or 1).</param>
-    public Jbig2Bitmap(int width, int height, byte defaultPixel = 0)
+    internal Jbig2Bitmap(int width, int height, byte defaultPixel = 0)
     {
         if (width < 0)
         {
@@ -63,7 +64,7 @@ public sealed class Jbig2Bitmap
     /// <summary>
     /// Gets a span over the underlying packed bitmap data.
     /// </summary>
-    public Span<byte> Data => _data;
+    internal Span<byte> Data => _data;
 
     /// <summary>
     /// Gets a read-only span over the underlying packed bitmap data.
@@ -75,7 +76,7 @@ public sealed class Jbig2Bitmap
     /// </summary>
     /// <param name="row">Zero-based row index.</param>
     /// <returns>Span covering the row's bytes.</returns>
-    public Span<byte> GetRow(int row) => _data.AsSpan(row * Stride, Stride);
+    internal Span<byte> GetRow(int row) => _data.AsSpan(row * Stride, Stride);
 
     /// <summary>
     /// Gets a read-only span for a single row of packed pixel data.
@@ -110,7 +111,7 @@ public sealed class Jbig2Bitmap
     /// <param name="y">Row index.</param>
     /// <param name="value">Pixel value (0 or 1).</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetPixel(int x, int y, int value)
+    internal void SetPixel(int x, int y, int value)
     {
         if ((uint)x >= (uint)Width || (uint)y >= (uint)Height)
         {
@@ -137,7 +138,7 @@ public sealed class Jbig2Bitmap
     /// <param name="x">Horizontal offset on this bitmap.</param>
     /// <param name="y">Vertical offset on this bitmap.</param>
     /// <param name="op">Combination operator.</param>
-    public void Composite(Jbig2Bitmap source, int x, int y, Jbig2CombinationOperator op)
+    internal void Composite(Jbig2Bitmap source, int x, int y, Jbig2CombinationOperator op)
         => Composite(source, x, y, op, 0, 0, Width, Height);
 
     /// <summary>
@@ -150,7 +151,7 @@ public sealed class Jbig2Bitmap
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    public void Composite(
+    internal void Composite(
         Jbig2Bitmap source,
         int x,
         int y,

@@ -1,6 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Parsing;
 
 namespace PdfPixel.Jbig2.Decoding;
 
@@ -37,7 +37,7 @@ internal static class Jbig2RefinementRegionDecoder
 
         Jbig2RefinementRegionFlags flags = new(data[0]);
         int atCount = flags.AtPixelCount;
-        Jbig2AtPixels atPixels = Jbig2Templates.ReadAtPixelPairs(data.Slice(1), atCount);
+        Jbig2AtPixels atPixels = Jbig2SegmentParser.ReadAtPixelPairs(data.Slice(1), atCount);
         int offset = 1 + (atCount * 2);
 
         if (reference == null)

@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using PdfPixel.Ccitt;
-using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
 
@@ -26,7 +25,7 @@ internal static class Jbig2MmrDecoder
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed, IJBig2ExectionObserver? observer = null)
+    internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed, IJbig2ExecutionObserver? observer = null)
     {
         Jbig2Bitmap bitmap = new(width, height);
         CcittBitReader reader = new(in data, 0, 0, 0);

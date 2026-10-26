@@ -1,4 +1,4 @@
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// How the rows of a <see cref="Jbig2RowTemplate"/> are decoded.

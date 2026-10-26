@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Decoding;
+using PdfPixel.Jbig2.Parsing;
 
-namespace PdfPixel.Jbig2.Decoding;
+namespace PdfPixel.Jbig2;
 
 /// <summary>
 /// Holds all decoded JBIG2 segment artifacts accumulated during stream processing.
@@ -19,7 +20,7 @@ public sealed class Jbig2SegmentCache
     /// <summary>
     /// Registers a parsed segment header.
     /// </summary>
-    public void AddSegment(Jbig2SegmentHeader segment)
+    internal void AddSegment(Jbig2SegmentHeader segment)
     {
         if (segment == null)
         {
@@ -32,13 +33,13 @@ public sealed class Jbig2SegmentCache
     /// <summary>
     /// Stores a decoded symbol dictionary under the given segment number.
     /// </summary>
-    public void AddSymbolDictionary(uint segmentNumber, Jbig2Bitmap[] symbols) => _symbolDictionaries[segmentNumber] = symbols;
+    internal void AddSymbolDictionary(uint segmentNumber, Jbig2Bitmap[] symbols) => _symbolDictionaries[segmentNumber] = symbols;
 
     /// <summary>
     /// Collects all symbol bitmaps from segments referred to by <paramref name="segment"/>,
     /// in referral order.
     /// </summary>
-    public List<Jbig2Bitmap> CollectReferredSymbols(Jbig2SegmentHeader segment)
+    internal List<Jbig2Bitmap> CollectReferredSymbols(Jbig2SegmentHeader segment)
     {
         if (segment == null)
         {
@@ -61,13 +62,13 @@ public sealed class Jbig2SegmentCache
     /// <summary>
     /// Stores a decoded pattern dictionary under the given segment number.
     /// </summary>
-    public void AddPatternDictionary(uint segmentNumber, Jbig2Bitmap[] patterns) => _patternDictionaries[segmentNumber] = patterns;
+    internal void AddPatternDictionary(uint segmentNumber, Jbig2Bitmap[] patterns) => _patternDictionaries[segmentNumber] = patterns;
 
     /// <summary>
     /// Returns the pattern array from the first referred-to pattern dictionary segment,
     /// or <c>null</c> if none is found.
     /// </summary>
-    public Jbig2Bitmap[]? CollectReferredPatterns(Jbig2SegmentHeader segment)
+    internal Jbig2Bitmap[]? CollectReferredPatterns(Jbig2SegmentHeader segment)
     {
         if (segment == null)
         {
@@ -88,14 +89,14 @@ public sealed class Jbig2SegmentCache
     /// <summary>
     /// Stores a parsed user-defined Huffman table under the given segment number.
     /// </summary>
-    public void AddUserTable(uint segmentNumber, Jbig2HuffmanTable table) => _userTables[segmentNumber] = table;
+    internal void AddUserTable(uint segmentNumber, Jbig2HuffmanTable table) => _userTables[segmentNumber] = table;
 
     /// <summary>
     /// Collects user-defined Huffman tables from referred-to segments, in referral order.
     /// Only segments that are Table segments (and present in the cache) are returned.
     /// Used by symbol dictionary and text region decoders to resolve custom table selections.
     /// </summary>
-    public List<Jbig2HuffmanTable> CollectReferredUserTables(Jbig2SegmentHeader segment)
+    internal List<Jbig2HuffmanTable> CollectReferredUserTables(Jbig2SegmentHeader segment)
     {
         if (segment == null)
         {
@@ -118,7 +119,7 @@ public sealed class Jbig2SegmentCache
     /// <summary>
     /// Stores an intermediate region bitmap for later reference by other segments.
     /// </summary>
-    public void AddIntermediateRegion(uint segmentNumber, Jbig2Bitmap bitmap) => _intermediateRegions[segmentNumber] = bitmap;
+    internal void AddIntermediateRegion(uint segmentNumber, Jbig2Bitmap bitmap) => _intermediateRegions[segmentNumber] = bitmap;
 
     /// <summary>
     /// Resolves the primary reference bitmap for a refinement region from the segment's
@@ -126,7 +127,7 @@ public sealed class Jbig2SegmentCache
     /// symbol in a referred symbol dictionary.
     /// Returns <c>null</c> when no referred segment can supply a bitmap.
     /// </summary>
-    public Jbig2Bitmap? ResolveReferenceBitmap(Jbig2SegmentHeader segment)
+    internal Jbig2Bitmap? ResolveReferenceBitmap(Jbig2SegmentHeader segment)
     {
         if (segment == null)
         {
@@ -158,7 +159,7 @@ public sealed class Jbig2SegmentCache
     /// Existing entries with the same segment number are overwritten.
     /// Used to incorporate globals into a page-level cache.
     /// </summary>
-    public void MergeFrom(Jbig2SegmentCache? source)
+    internal void MergeFrom(Jbig2SegmentCache? source)
     {
         if (source == null)
         {

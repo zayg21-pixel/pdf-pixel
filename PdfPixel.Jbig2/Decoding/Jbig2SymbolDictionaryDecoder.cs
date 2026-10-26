@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Parsing;
 
 namespace PdfPixel.Jbig2.Decoding;
 
@@ -29,7 +29,7 @@ internal static class Jbig2SymbolDictionaryDecoder
             return Array.Empty<Jbig2Bitmap>();
         }
 
-        var info = Jbig2SymbolDictionarySegmentInfo.Parse(segmentData);
+        Jbig2SymbolDictionarySegmentInfo info = Jbig2SegmentParser.ParseSymbolDictionaryInfo(segmentData);
 
         // TODO: [LOW] ContextUsed/ContextRetained (ITU-T T.88 Section 7.4.2.2 steps 3/7) is NYI
         if (info.Flags.ContextUsed || info.Flags.ContextRetained)

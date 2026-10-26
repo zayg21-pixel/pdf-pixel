@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Parsing;
 
 namespace PdfPixel.Jbig2.Decoding;
 
@@ -127,28 +127,6 @@ internal static class Jbig2Templates
     /// Template 0 uses 4 AT pixels; templates 1–3 use 1.
     /// </summary>
     public static int AtPixelCount(int templateId) => (templateId == 0) ? 4 : 1;
-
-    /// <summary>
-    /// Reads <paramref name="count"/> (X, Y) adaptive template pixel pairs from the front of
-    /// <paramref name="data"/>. Pairs that fall outside the available data are left as zero.
-    /// </summary>
-    public static Jbig2AtPixels ReadAtPixelPairs(in ReadOnlySpan<byte> data, int count)
-    {
-        var atX = new sbyte[count];
-        var atY = new sbyte[count];
-
-        for (int i = 0; i < count; i++)
-        {
-            int byteIndex = i * 2;
-            if (byteIndex + 1 < data.Length)
-            {
-                atX[i] = (sbyte)data[byteIndex];
-                atY[i] = (sbyte)data[byteIndex + 1];
-            }
-        }
-
-        return new Jbig2AtPixels(atX, atY);
-    }
 
     /// <summary>
     /// Returns the default AT pixels for generic region arithmetic decoding.

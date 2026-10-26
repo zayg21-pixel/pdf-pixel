@@ -1,11 +1,11 @@
 using System.Threading;
 
-namespace PdfPixel.Jbig2.Decoding;
+namespace PdfPixel.Jbig2;
 
 /// <summary>
 /// Calls <see cref="CancellationToken.ThrowIfCancellationRequested"/> on notify.
 /// </summary>
-public sealed class Jbig2CancellationExecutionObserver : IJBig2ExectionObserver
+public sealed class Jbig2CancellationExecutionObserver : IJbig2ExecutionObserver
 {
     private readonly CancellationTokenSource _cancellationTokenSource;
 

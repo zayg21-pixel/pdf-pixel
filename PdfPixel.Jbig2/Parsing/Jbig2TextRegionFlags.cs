@@ -1,6 +1,7 @@
 using System;
+using PdfPixel.Jbig2.Decoding;
 
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Parsed flag bits from a JBIG2 text region segment header (ITU-T T.88 Section 7.4.3.1.1).
@@ -9,7 +10,7 @@ namespace PdfPixel.Jbig2.Model;
 /// <remarks>
 /// Refinement adaptive template (AT) pixel coordinates are not flag bits; they are a
 /// data-dependent byte sequence that follows any Huffman table flags in the segment header.
-/// Read them via <c>Jbig2Templates.ReadAtPixelPairs</c> and advance the offset by 4 when
+/// Read them via <c>Jbig2SegmentParser.ReadAtPixelPairs</c> and advance the offset by 4 when
 /// <see cref="UseRefinement"/> is <see langword="true"/> and <see cref="RefinementTemplate"/> is 0.
 /// </remarks>
 internal readonly struct Jbig2TextRegionFlags

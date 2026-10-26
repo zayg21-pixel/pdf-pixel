@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// A pixel position within a context template, with its pre-assigned bit shift.

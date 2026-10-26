@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Parsing;
 
 namespace PdfPixel.Jbig2.Decoding;
 
@@ -36,7 +36,7 @@ internal static class Jbig2TextRegionDecoder
                 symbolCombinationOperator: Jbig2CombinationOperator.Or);
         }
 
-        var info = Jbig2TextRegionSegmentInfo.Parse(segmentData, symbols.Count);
+        Jbig2TextRegionSegmentInfo info = Jbig2SegmentParser.ParseTextRegionInfo(segmentData, symbols.Count);
 
         if (info.Flags.UseHuffman)
         {

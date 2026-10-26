@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using PdfPixel.Jbig2.Model;
 
 namespace PdfPixel.Jbig2.Decoding;
 

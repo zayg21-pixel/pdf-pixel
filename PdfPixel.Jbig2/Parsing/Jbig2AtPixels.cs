@@ -1,6 +1,6 @@
 using System;
 
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// A pair of adaptive template (AT) pixel coordinate arrays used in JBIG2 arithmetic coding contexts.

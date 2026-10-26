@@ -1,6 +1,4 @@
-using PdfPixel.Jbig2.Decoding;
-
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// Holds the Huffman tables required for text region refinement decoding

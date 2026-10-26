@@ -2,10 +2,10 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Jbig2.Parsing;
 
-namespace PdfPixel.Jbig2.Decoding;
+namespace PdfPixel.Jbig2;
 
 /// <summary>
 /// Top-level JBIG2 page decoder. Processes segment headers and dispatches to appropriate
@@ -78,7 +78,7 @@ public sealed class Jbig2PageDecoder
         int expectedWidth,
         int expectedHeight,
         Jbig2SegmentCache? globalCache = null,
-        IJBig2ExectionObserver? observer = default,
+        IJbig2ExecutionObserver? observer = default,
         int? pageNumber = null)
     {
         Jbig2SegmentCache cache = new();
@@ -109,7 +109,7 @@ public sealed class Jbig2PageDecoder
         {
             if (segment.Type == Jbig2SegmentType.PageInformation)
             {
-                pageInfo = ParsePageInformation(segment, pageData);
+                pageInfo = Jbig2SegmentParser.ParsePageInformation(segment, pageData);
                 break;
             }
         }
@@ -194,7 +194,7 @@ public sealed class Jbig2PageDecoder
         return maxHeight;
     }
 
-    private void ProcessSegments(List<Jbig2SegmentHeader> segments, in ReadOnlySpan<byte> data, Jbig2Bitmap? pageBitmap, Jbig2SegmentCache cache, IJBig2ExectionObserver? observer = default)
+    private void ProcessSegments(List<Jbig2SegmentHeader> segments, in ReadOnlySpan<byte> data, Jbig2Bitmap? pageBitmap, Jbig2SegmentCache cache, IJbig2ExecutionObserver? observer = default)
     {
         foreach (Jbig2SegmentHeader segment in segments)
         {
@@ -291,7 +291,7 @@ public sealed class Jbig2PageDecoder
 
     private void ProcessTextRegion(Jbig2SegmentHeader segment, in ReadOnlySpan<byte> segmentData, Jbig2Bitmap? pageBitmap, Jbig2SegmentCache cache)
     {
-        var regionHeader = Jbig2RegionHeader.Parse(segment, segmentData);
+        Jbig2RegionHeader regionHeader = Jbig2SegmentParser.ParseRegionHeader(segment, segmentData);
         List<Jbig2Bitmap> symbols = cache.CollectReferredSymbols(segment);
         List<Jbig2HuffmanTable> customTables = cache.CollectReferredUserTables(segment);
 
@@ -314,7 +314,7 @@ public sealed class Jbig2PageDecoder
 
     private void ProcessRefinementRegion(Jbig2SegmentHeader segment, in ReadOnlySpan<byte> segmentData, Jbig2Bitmap? pageBitmap, Jbig2SegmentCache cache)
     {
-        var regionHeader = Jbig2RegionHeader.Parse(segment, segmentData);
+        Jbig2RegionHeader regionHeader = Jbig2SegmentParser.ParseRegionHeader(segment, segmentData);
         Jbig2Bitmap regionBitmap = DecodeRefinementRegion(segment, segmentData, regionHeader, pageBitmap, cache);
 
         if (regionBitmap == null)
@@ -370,7 +370,7 @@ public sealed class Jbig2PageDecoder
 
     private void ProcessHalftoneRegion(Jbig2SegmentHeader segment, in ReadOnlySpan<byte> segmentData, Jbig2Bitmap? pageBitmap, Jbig2SegmentCache cache)
     {
-        var regionHeader = Jbig2RegionHeader.Parse(segment, segmentData);
+        Jbig2RegionHeader regionHeader = Jbig2SegmentParser.ParseRegionHeader(segment, segmentData);
 
         Jbig2Bitmap[]? patterns = cache.CollectReferredPatterns(segment);
 
@@ -399,9 +399,9 @@ public sealed class Jbig2PageDecoder
         }
     }
 
-    private void ProcessGenericRegion(Jbig2SegmentHeader segment, in ReadOnlySpan<byte> segmentData, Jbig2Bitmap? pageBitmap, Jbig2SegmentCache cache, IJBig2ExectionObserver? observer = null)
+    private void ProcessGenericRegion(Jbig2SegmentHeader segment, in ReadOnlySpan<byte> segmentData, Jbig2Bitmap? pageBitmap, Jbig2SegmentCache cache, IJbig2ExecutionObserver? observer = null)
     {
-        var regionHeader = Jbig2RegionHeader.Parse(segment, segmentData);
+        Jbig2RegionHeader regionHeader = Jbig2SegmentParser.ParseRegionHeader(segment, segmentData);
 
         // Flags byte and coded data follow the region header; Jbig2GenericRegionDecoder reads flags internally.
         ReadOnlySpan<byte> codedData = segmentData.Slice(Jbig2RegionHeader.Jbig2RegionHeaderLength);
@@ -417,33 +417,6 @@ public sealed class Jbig2PageDecoder
         {
             pageBitmap.Composite(regionBitmap, regionHeader.X, regionHeader.Y, regionHeader.CombinationOperator);
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Jbig2PageInfo? ParsePageInformation(Jbig2SegmentHeader segment, in ReadOnlySpan<byte> data)
-    {
-        ReadOnlySpan<byte> segData = data.Slice(segment.DataOffset, (int)segment.DataLength);
-
-        if (segData.Length < 19)
-        {
-            return null;
-        }
-
-
-        Jbig2PageInfo info = new()
-        {
-            Width = BinaryPrimitives.ReadInt32BigEndian(segData.Slice(0, 4)),
-            Height = BinaryPrimitives.ReadInt32BigEndian(segData.Slice(4, 4)),
-            XResolution = BinaryPrimitives.ReadInt32BigEndian(segData.Slice(8, 4)),
-            YResolution = BinaryPrimitives.ReadInt32BigEndian(segData.Slice(12, 4))
-        };
-
-        byte flags = segData[16];
-        info.DefaultPixelValue = (byte)((flags >> 2) & 1);
-        info.CombinationOperator = (Jbig2CombinationOperator)((flags >> 3) & 0x03);
-        info.RequiresBuffer = (flags & 0x20) == 0;
-
-        return info;
     }
 
     /// <summary>

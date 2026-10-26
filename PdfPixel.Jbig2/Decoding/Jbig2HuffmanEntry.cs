@@ -3,7 +3,7 @@ namespace PdfPixel.Jbig2.Decoding;
 /// <summary>
 /// Represents a single entry in a JBIG2 Huffman table.
 /// </summary>
-public sealed class Jbig2HuffmanEntry
+internal sealed class Jbig2HuffmanEntry
 {
     /// <summary>
     /// Prefix code value.

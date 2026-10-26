@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
-using PdfPixel.Jbig2.Decoding;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2;
 using System;
 using System.IO;
 

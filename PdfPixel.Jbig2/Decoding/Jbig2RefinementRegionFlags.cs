@@ -1,4 +1,4 @@
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// Decoded flags byte for a generic refinement region segment (ITU-T T.88 Section 7.4.7.2).

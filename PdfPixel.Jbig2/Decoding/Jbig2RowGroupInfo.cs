@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// Metadata for a single row group (all template pixels sharing the same dy).

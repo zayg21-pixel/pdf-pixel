@@ -1,8 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using PdfPixel.Jbig2.Decoding;
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2;
 using PdfPixel.Png;
 
 namespace PdfPixel.Examples;

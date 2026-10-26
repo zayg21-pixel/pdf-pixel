@@ -1,11 +1,11 @@
 using System;
 
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Represents a parsed JBIG2 segment header (ITU-T T.88 Section 7.2.1).
 /// </summary>
-public sealed class Jbig2SegmentHeader
+internal sealed class Jbig2SegmentHeader
 {
     /// <summary>
     /// Segment number (unique identifier within the stream).

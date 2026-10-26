@@ -3,7 +3,7 @@ namespace PdfPixel.Jbig2.Decoding;
 /// <summary>
 /// A single line definition used to build a Huffman table.
 /// </summary>
-public readonly struct Jbig2HuffmanLine
+internal readonly struct Jbig2HuffmanLine
 {
     /// <summary>
     /// Initializes a Huffman table line entry.

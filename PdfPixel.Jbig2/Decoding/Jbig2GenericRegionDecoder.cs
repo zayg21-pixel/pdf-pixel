@@ -1,4 +1,4 @@
-using PdfPixel.Jbig2.Model;
+using PdfPixel.Jbig2.Parsing;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -18,7 +18,7 @@ internal static class Jbig2GenericRegionDecoder
     /// <param name="regionHeader">Region header carrying dimensions and placement metadata.</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, Jbig2RegionHeader regionHeader, IJBig2ExectionObserver? observer = null)
+    internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, Jbig2RegionHeader regionHeader, IJbig2ExecutionObserver? observer = null)
     {
         if (data.IsEmpty)
         {
@@ -40,7 +40,7 @@ internal static class Jbig2GenericRegionDecoder
     /// <param name="height">Region height in pixels.</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(in Jbig2GenericRegionFlags flags, in ReadOnlySpan<byte> codedData, int width, int height, IJBig2ExectionObserver? observer = null)
+    internal static Jbig2Bitmap Decode(in Jbig2GenericRegionFlags flags, in ReadOnlySpan<byte> codedData, int width, int height, IJbig2ExecutionObserver? observer = null)
     {
         if (flags.UseMmr)
         {
@@ -48,7 +48,7 @@ internal static class Jbig2GenericRegionDecoder
         }
 
         int atCount = Jbig2Templates.AtPixelCount(flags.TemplateId);
-        Jbig2AtPixels atPixels = Jbig2Templates.ReadAtPixelPairs(codedData, atCount);
+        Jbig2AtPixels atPixels = Jbig2SegmentParser.ReadAtPixelPairs(codedData, atCount);
         int offset = atCount * 2;
 
         return DecodeArithmeticWithAt(flags.TemplateId, flags.TypicalPrediction, codedData.Slice(offset), width, height, atPixels, observer);
@@ -94,7 +94,7 @@ internal static class Jbig2GenericRegionDecoder
         int width,
         int height,
         in Jbig2AtPixels atPixels,
-        IJBig2ExectionObserver? observer = null)
+        IJbig2ExecutionObserver? observer = null)
     {
         Jbig2Bitmap bitmap = new(width, height);
         scoped var decoder = new Jbig2ArithmeticReader(codedData);

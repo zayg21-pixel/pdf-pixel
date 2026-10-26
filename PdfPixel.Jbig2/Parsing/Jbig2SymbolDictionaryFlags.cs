@@ -1,6 +1,6 @@
 using System;
 
-namespace PdfPixel.Jbig2.Model;
+namespace PdfPixel.Jbig2.Parsing;
 
 /// <summary>
 /// Parsed flag bits from a JBIG2 symbol dictionary segment header (ITU-T T.88 Section 7.4.2.1).
@@ -9,7 +9,7 @@ namespace PdfPixel.Jbig2.Model;
 /// <remarks>
 /// Adaptive template (AT) pixel coordinates and refinement AT pixel coordinates are not flag bits;
 /// they are data-dependent byte sequences that follow the flags word in the segment header.
-/// Read them via <c>Jbig2Templates.ReadAtPixelPairs</c> and advance the offset by <c>count * 2</c>.
+/// Read them via <c>Jbig2SegmentParser.ReadAtPixelPairs</c> and advance the offset by <c>count * 2</c>.
 /// </remarks>
 internal readonly struct Jbig2SymbolDictionaryFlags
 {
