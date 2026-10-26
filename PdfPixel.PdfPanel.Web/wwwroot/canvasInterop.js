@@ -879,39 +879,25 @@ export function getThumbnail(id, pageNumber) {
 }
 
 /**
- * Request the thumbnail of a page of the specified view that has none. Its PNG is passed to the `setOnThumbnailUpdated`
- * callback when it is ready, and again whenever it is produced anew while it stays requested. Does nothing for a page
- * whose thumbnail is already produced; read it with `getThumbnail`.
+ * Set whether the thumbnail of a page of the specified view is shown. While it is visible, the thumbnail is kept and its
+ * PNG is passed to the `setOnThumbnailUpdated` callback when it is ready, at once when it is already produced, and again
+ * whenever it is produced anew. A thumbnail that is no longer visible may be evicted.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
- * @returns {boolean} True if the view has a document and the thumbnail was requested.
+ * @param {boolean} visible Whether the thumbnail is shown.
+ * @returns {boolean} True if the view has a document with the page.
  */
-export function requestThumbnail(id, pageNumber) {
+export function setThumbnailVisible(id, pageNumber, visible) {
     if (!views.has(id)) {
         console.error(`View not found for id '${id}'`);
         return false;
     }
-    return interop.RequestThumbnail(id, pageNumber);
-}
-
-/**
- * Cancel the thumbnail request of a page of the specified view; no PNG of it is passed until it is requested again.
- * Does nothing for a page whose thumbnail is not requested.
- * @param {string} id View id.
- * @param {number} pageNumber 1-based page number.
- * @returns {boolean} True if the view has a document and the request was canceled.
- */
-export function cancelThumbnail(id, pageNumber) {
-    if (!views.has(id)) {
-        console.error(`View not found for id '${id}'`);
-        return false;
-    }
-    return interop.CancelThumbnail(id, pageNumber);
+    return interop.SetThumbnailVisible(id, pageNumber, visible);
 }
 
 /**
  * Subscribe to thumbnail updates of the specified view. The callback receives `{ pageNumber, png }`
- * for each requested thumbnail that is ready.
+ * for each visible thumbnail that is ready.
  * @param {string} id View id.
  * @param {(update: { pageNumber: number, png: Uint8Array }) => void} callback Called with each update.
  * @returns {boolean} True if the view was found and the callback was registered.

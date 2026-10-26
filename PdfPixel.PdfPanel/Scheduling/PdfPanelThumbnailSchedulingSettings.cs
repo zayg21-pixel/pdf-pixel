@@ -20,11 +20,12 @@ internal struct PdfPanelThumbnailSchedulingSettings
 
     /// <summary>
     /// Maximum number of thumbnails kept, the ones nearest to the first visible page.
+    /// Pinned thumbnails, and the thumbnails of visible pages while there are placeholders, are kept beyond it.
     /// </summary>
     public int MaximumCount { get; set; }
 
     /// <summary>
-    /// Pages whose thumbnails are produced without being requested.
+    /// Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet.
     /// </summary>
-    public PdfPanelThumbnailPreloadMode PreloadMode { get; set; }
+    public PdfPanelThumbnailPlaceholderMode PlaceholderMode { get; set; }
 }

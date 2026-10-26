@@ -79,7 +79,7 @@ public sealed class PdfThumbnailsViewModel
         }
     }
 
-    private void OnThumbnailReady(object? sender, PdfPanelThumbnailEventArgs args) => _items[args.PageNumber - 1].OnThumbnailReady(args.Png);
+    private void OnThumbnailReady(object? sender, PdfPanelThumbnailEventArgs args) => _items[args.PageNumber - 1].OnThumbnailReady();
 
     private void OnCleared(object? sender, EventArgs args)
     {

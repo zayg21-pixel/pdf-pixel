@@ -18,8 +18,8 @@ export interface PdfPixelSize {
 /** Automatic scaling mode of a panel. */
 export type PdfPixelAutoScaleMode = 'noAutoScale' | 'scaleToWidth' | 'scaleToHeight';
 
-/** Pages whose thumbnails are produced without being requested. */
-export type PdfPixelThumbnailPreloadMode = 'none' | 'visiblePages' | 'nearestPages';
+/** Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet. */
+export type PdfPixelThumbnailPlaceholderMode = 'none' | 'visiblePages' | 'nearestPages';
 
 /** Fit type of a destination (ISO 32000 Table 149). */
 export type PdfPixelFitType = 'XYZ' | 'Fit' | 'FitH' | 'FitV' | 'FitR' | 'FitB' | 'FitBH' | 'FitBV';
@@ -62,20 +62,19 @@ export interface PdfPixelConfiguration {
     usePageThumbnails?: boolean;
     /** Size in pixels a rendered page thumbnail is fitted within, keeping its aspect ratio. */
     thumbnailRenderMaximumSize?: Partial<PdfPixelSize>;
-    /** Maximum number of page thumbnails kept, the ones nearest to the first visible page. */
+    /** Maximum number of page thumbnails kept, the ones nearest to the first visible page; visible thumbnails, and the thumbnails of visible pages while there are placeholders, are kept beyond it. */
     thumbnailMaximumCount?: number;
-    thumbnailPreloadMode?: PdfPixelThumbnailPreloadMode;
-    /** Draw the thumbnail of a page that has no decoded content yet in place of the page. */
-    useThumbnailsAsPlaceholders?: boolean;
+    /** With 'none', no thumbnail is drawn in place of a page, even when it exists. */
+    thumbnailPlaceholderMode?: PdfPixelThumbnailPlaceholderMode;
     antialias?: boolean;
     /** Snap rectangles and image tiles to whole device pixels. */
     snapToDevicePixels?: boolean;
     /** Edge length of a single content tile, in device pixels. */
     tileSize?: number;
     animationFps?: number;
-    /** Time in milliseconds a scrolled view waits before page content decoding starts. */
+    /** Time in milliseconds a scrolled view waits before the content of the pages that stayed visible is decoded again; a page that comes into view is decoded at once. */
     scrollContentUpdateDelay?: number;
-    /** Time in milliseconds a zoomed view waits before page content decoding starts. */
+    /** Time in milliseconds a zoomed view waits before the content of the pages that stayed visible is decoded again; a page that comes into view is decoded at once. */
     zoomContentUpdateDelay?: number;
     /** Number of pages ahead of the visible pages in the scroll direction whose content is decoded after them; 0 decodes no pages ahead. */
     lookAheadPageCount?: number;
@@ -404,6 +403,5 @@ export function getFileBytes(id: string, handle: number): Promise<Uint8Array | n
 export function setOnActionRequested(id: string, callback: (request: PdfPixelActionRequest) => void): boolean;
 export function getThumbnailLayout(id: string): PdfPixelThumbnailLayout[] | null;
 export function getThumbnail(id: string, pageNumber: number): Uint8Array | null;
-export function requestThumbnail(id: string, pageNumber: number): boolean;
-export function cancelThumbnail(id: string, pageNumber: number): boolean;
+export function setThumbnailVisible(id: string, pageNumber: number, visible: boolean): boolean;
 export function setOnThumbnailUpdated(id: string, callback: (update: PdfPixelThumbnailUpdate) => void): boolean;

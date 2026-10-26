@@ -81,7 +81,6 @@ export {
     setOnCredentialRequested,
     getThumbnailLayout,
     getThumbnail,
-    requestThumbnail,
-    cancelThumbnail,
+    setThumbnailVisible,
     setOnThumbnailUpdated
 } from './canvasInterop.js';

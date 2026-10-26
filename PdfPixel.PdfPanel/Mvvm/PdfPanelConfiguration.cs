@@ -40,8 +40,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private bool _usePageThumbnails = PdfPanelThumbnails.DefaultUsePageThumbnails;
     private PdfIntegerSize _thumbnailRenderMaximumSize = PdfPanelThumbnails.DefaultRenderMaximumSize;
     private int _thumbnailMaximumCount = PdfPanelThumbnails.DefaultMaximumCount;
-    private PdfPanelThumbnailPreloadMode _thumbnailPreloadMode = PdfPanelThumbnails.DefaultPreloadMode;
-    private bool _useThumbnailsAsPlaceholders = PdfPanelRenderer.DefaultUseThumbnailsAsPlaceholders;
+    private PdfPanelThumbnailPlaceholderMode _thumbnailPlaceholderMode = PdfPanelThumbnails.DefaultPlaceholderMode;
     private bool _antialias = PdfPanelRenderer.DefaultAntialias;
     private bool _snapToDevicePixels = PdfPanelRenderer.DefaultSnapToDevicePixels;
     private int _tileSize = PdfPanelRenderer.DefaultTileSize;
@@ -269,6 +268,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
 
     /// <summary>
     /// Maximum number of page thumbnails kept, the ones nearest to the first visible page.
+    /// Visible thumbnails, and the thumbnails of visible pages while there are placeholders, are kept beyond it.
     /// </summary>
     public int ThumbnailMaximumCount
     {
@@ -277,21 +277,12 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Pages whose thumbnails are produced without being requested.
+    /// Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet.
     /// </summary>
-    public PdfPanelThumbnailPreloadMode ThumbnailPreloadMode
+    public PdfPanelThumbnailPlaceholderMode ThumbnailPlaceholderMode
     {
-        get => _thumbnailPreloadMode;
-        set => SetProperty(ref _thumbnailPreloadMode, value, nameof(ThumbnailPreloadMode));
-    }
-
-    /// <summary>
-    /// Whether the thumbnail of a page that has no decoded content yet is drawn in place of the page.
-    /// </summary>
-    public bool UseThumbnailsAsPlaceholders
-    {
-        get => _useThumbnailsAsPlaceholders;
-        set => SetProperty(ref _useThumbnailsAsPlaceholders, value, nameof(UseThumbnailsAsPlaceholders));
+        get => _thumbnailPlaceholderMode;
+        set => SetProperty(ref _thumbnailPlaceholderMode, value, nameof(ThumbnailPlaceholderMode));
     }
 
     /// <summary>
@@ -331,7 +322,8 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Time a scrolled view waits before page content decoding starts.
+    /// Time a scrolled view waits before the content of the pages that stayed visible is decoded again.
+    /// A page that comes into view is decoded at once.
     /// </summary>
     public TimeSpan ScrollContentUpdateDelay
     {
@@ -340,7 +332,8 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Time a zoomed view waits before page content decoding starts.
+    /// Time a zoomed view waits before the content of the pages that stayed visible is decoded again.
+    /// A page that comes into view is decoded at once.
     /// </summary>
     public TimeSpan ZoomContentUpdateDelay
     {
@@ -409,8 +402,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Thumbnails.UsePageThumbnails = UsePageThumbnails;
         context.Thumbnails.RenderMaximumSize = ThumbnailRenderMaximumSize;
         context.Thumbnails.MaximumCount = ThumbnailMaximumCount;
-        context.Thumbnails.PreloadMode = ThumbnailPreloadMode;
-        context.Renderer.UseThumbnailsAsPlaceholders = UseThumbnailsAsPlaceholders;
+        context.Thumbnails.PlaceholderMode = ThumbnailPlaceholderMode;
         context.Renderer.Antialias = Antialias;
         context.Renderer.SnapToDevicePixels = SnapToDevicePixels;
         context.Renderer.TileSize = TileSize;

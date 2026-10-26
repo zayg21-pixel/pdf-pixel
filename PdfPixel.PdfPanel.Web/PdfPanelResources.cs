@@ -182,7 +182,7 @@ internal sealed class PdfPanelResources
     public void OnLayersPropertyChanged(object? sender, PropertyChangedEventArgs args) => LayersChanged = true;
 
     /// <summary>
-    /// Passes the PNG of a requested thumbnail to JS when it is ready.
+    /// Passes the PNG of a visible thumbnail to JS when it is ready.
     /// </summary>
     public void OnThumbnailPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
@@ -193,7 +193,7 @@ internal sealed class PdfPanelResources
 
         byte[]? png = thumbnail.Png;
 
-        if (!thumbnail.IsRequested || png == null)
+        if (png == null)
         {
             return;
         }

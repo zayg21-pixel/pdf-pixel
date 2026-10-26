@@ -524,20 +524,28 @@ function onThumbnailsIntersected(entries) {
     for (const entry of entries) {
         const pageNumber = Number(entry.target.dataset.pageNumber);
         if (!entry.isIntersecting) {
-            pdfPixel.cancelThumbnail(containerId, pageNumber);
-        } else if (!thumbnailImageUrls[pageNumber - 1]) {
-            const png = pdfPixel.getThumbnail(containerId, pageNumber);
-
-            if (png) {
-                showThumbnail(pageNumber, png);
-            } else {
-                pdfPixel.requestThumbnail(containerId, pageNumber);
-            }
+            hideThumbnail(pageNumber);
         }
+
+        pdfPixel.setThumbnailVisible(containerId, pageNumber, entry.isIntersecting);
     }
 }
 
 pdfPixel.setOnThumbnailUpdated(containerId, ({ pageNumber, png }) => showThumbnail(pageNumber, png));
+
+function hideThumbnail(pageNumber) {
+    const url = thumbnailImageUrls[pageNumber - 1];
+    if (!url) {
+        return;
+    }
+
+    URL.revokeObjectURL(url);
+    thumbnailImageUrls[pageNumber - 1] = null;
+
+    const image = thumbnailItems[pageNumber - 1].querySelector('img');
+    image.removeAttribute('src');
+    image.hidden = true;
+}
 
 function showThumbnail(pageNumber, png) {
     const item = thumbnailItems[pageNumber - 1];

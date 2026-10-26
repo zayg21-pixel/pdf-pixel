@@ -39,6 +39,7 @@ internal sealed partial class PdfPanelScheduler : IDisposable
     {
         _panelDocument.NotifyExtractedContentCleared(contentTypes);
         EnqueueNextTextExtraction();
+        RequestPinnedThumbnails();
         EnqueueNextThumbnail();
     }
 

@@ -13,6 +13,7 @@ internal sealed partial class PdfPanelScheduler
 {
     private readonly object _thumbnailLocker = new();
     private readonly Dictionary<int, IPdfCancellableExecutionObserver?> _thumbnailRequestsObservers = [];
+    private readonly HashSet<int> _pinnedThumbnailPageNumbers = [];
     private IPdfCancellableExecutionObserver? _thumbnailPreloadObserver;
     private PdfPanelThumbnailSchedulingSettings _thumbnailSettings;
     private int[] _thumbnailVisiblePageNumbers = [];
@@ -43,13 +44,21 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Starts producing the thumbnail of the specified 1-based page number; <see cref="PdfPanelDocument.PageThumbnailRendered"/> is raised when it is produced.
+    /// Starts producing the thumbnail of the specified 1-based page number unless it is ready or pending;
+    /// <see cref="PdfPanelDocument.PageThumbnailRendered"/> is raised when it is produced.
+    /// A pinned thumbnail is never evicted and is produced again after it is cleared, until it is released.
     /// </summary>
-    public void RequestThumbnail(int pageNumber)
+    public void RequestThumbnail(int pageNumber, bool pin)
     {
         lock (_thumbnailLocker)
         {
-            if (_thumbnailRequestsObservers.ContainsKey(pageNumber))
+            if (pin)
+            {
+                _pinnedThumbnailPageNumbers.Add(pageNumber);
+            }
+
+            if (_thumbnailRequestsObservers.ContainsKey(pageNumber)
+                || _panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.HasContent)
             {
                 return;
             }
@@ -59,20 +68,22 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Cancels producing the thumbnail of the specified 1-based page number.
+    /// Cancels producing the thumbnail of the specified 1-based page number and unpins it; a ready thumbnail is kept until it is evicted.
     /// </summary>
-    public void CancelThumbnail(int pageNumber)
+    public void ReleaseThumbnail(int pageNumber)
     {
         lock (_thumbnailLocker)
         {
-            if (!_thumbnailRequestsObservers.TryGetValue(pageNumber, out IPdfCancellableExecutionObserver? observer))
+            _pinnedThumbnailPageNumbers.Remove(pageNumber);
+
+            if (_thumbnailRequestsObservers.TryGetValue(pageNumber, out IPdfCancellableExecutionObserver? observer))
             {
-                return;
+                _thumbnailRequestsObservers.Remove(pageNumber);
+                observer?.Cancel();
+                observer?.Dispose();
             }
 
-            _thumbnailRequestsObservers.Remove(pageNumber);
-            observer?.Cancel();
-            observer?.Dispose();
+            EnforceThumbnailLimit();
         }
     }
 
@@ -158,7 +169,7 @@ internal sealed partial class PdfPanelScheduler
             return;
         }
 
-        byte[]? png = null;
+        var isRendered = false;
 
         lock (_thumbnailLocker)
         {
@@ -166,17 +177,15 @@ internal sealed partial class PdfPanelScheduler
                 && observer == complete.Observer)
             {
                 _thumbnailRequestsObservers.Remove(complete.PageNumber);
-
-                using LockedContent<byte[]> lockedThumbnail = _panelDocument.Pages[complete.PageNumber - 1].CacheEntry.Thumbnail.GetContent();
-                png = lockedThumbnail.Content;
+                isRendered = _panelDocument.Pages[complete.PageNumber - 1].CacheEntry.Thumbnail.HasContent;
             }
 
             EnforceThumbnailLimit();
         }
 
-        if (png != null)
+        if (isRendered)
         {
-            _panelDocument.NotifyPageThumbnailRendered(new PageThumbnailRenderedEventArgs(complete.PageNumber, png));
+            _panelDocument.NotifyPageThumbnailRendered(new PageThumbnailRenderedEventArgs(complete.PageNumber));
         }
     }
 
@@ -196,6 +205,37 @@ internal sealed partial class PdfPanelScheduler
                 EnqueueThumbnailRequest(pageNumber, GetPageThumbnail(pageNumber));
             }
         }
+    }
+
+    /// <summary>
+    /// Starts producing the pinned thumbnails that are neither ready nor pending.
+    /// </summary>
+    private void RequestPinnedThumbnails()
+    {
+        lock (_thumbnailLocker)
+        {
+            foreach (int pageNumber in _pinnedThumbnailPageNumbers)
+            {
+                if (!_thumbnailRequestsObservers.ContainsKey(pageNumber)
+                    && !_panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.HasContent)
+                {
+                    EnqueueThumbnailRequest(pageNumber, GetPageThumbnail(pageNumber));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether the thumbnail at the 0-based <paramref name="index"/> is pinned or drawn in place of its visible page,
+    /// so it is never evicted.
+    /// </summary>
+    private bool IsThumbnailKept(int index)
+    {
+        int pageNumber = index + 1;
+
+        return _pinnedThumbnailPageNumbers.Contains(pageNumber)
+            || (_thumbnailSettings.PlaceholderMode != PdfPanelThumbnailPlaceholderMode.None
+                && Array.IndexOf(_thumbnailVisiblePageNumbers, pageNumber) >= 0);
     }
 
     private void OnThumbnailPreloadCompleted(BackgroundWorkItemComplete complete)
@@ -224,7 +264,7 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Clears the thumbnails farthest from the thumbnail center page beyond the maximum count.
+    /// Clears the evictable thumbnails farthest from the thumbnail center page beyond the maximum count.
     /// </summary>
     private void EnforceThumbnailLimit()
     {
@@ -237,37 +277,45 @@ internal sealed partial class PdfPanelScheduler
 
         IReadOnlyList<PdfPanelPage> pages = _panelDocument.Pages;
         int centerIndex = centerPageNumber.Value - 1;
-        List<int> storedIndexes = [];
+        int storedCount = 0;
+        List<int> evictableIndexes = [];
 
         for (int index = 0; index < pages.Count; index++)
         {
-            if (pages[index].CacheEntry.Thumbnail.HasContent)
+            if (!pages[index].CacheEntry.Thumbnail.HasContent)
             {
-                storedIndexes.Add(index);
+                continue;
+            }
+
+            storedCount++;
+
+            if (!IsThumbnailKept(index))
+            {
+                evictableIndexes.Add(index);
             }
         }
 
-        int excessCount = storedIndexes.Count - _thumbnailSettings.MaximumCount;
+        int excessCount = storedCount - _thumbnailSettings.MaximumCount;
 
         if (excessCount <= 0)
         {
             return;
         }
 
-        foreach (int index in storedIndexes.OrderByDescending(storedIndex => Math.Abs(storedIndex - centerIndex)).Take(excessCount))
+        foreach (int index in evictableIndexes.OrderByDescending(evictableIndex => Math.Abs(evictableIndex - centerIndex)).Take(excessCount))
         {
             pages[index].CacheEntry.Clear(CachedContentType.Thumbnail);
         }
     }
 
     /// <summary>
-    /// Returns the next page without a thumbnail selected by the preload mode, or <see langword="null"/>.
+    /// Returns the next page without a thumbnail selected by the placeholder mode, or <see langword="null"/>.
     /// </summary>
     private PdfPanelPage? FindNextPageWithoutThumbnail(int centerPageNumber)
     {
-        PdfPanelThumbnailPreloadMode preloadMode = _thumbnailSettings.PreloadMode;
+        PdfPanelThumbnailPlaceholderMode placeholderMode = _thumbnailSettings.PlaceholderMode;
 
-        if (preloadMode == PdfPanelThumbnailPreloadMode.None)
+        if (placeholderMode == PdfPanelThumbnailPlaceholderMode.None)
         {
             return null;
         }
@@ -286,13 +334,18 @@ internal sealed partial class PdfPanelScheduler
 
             storedCount++;
 
+            if (IsThumbnailKept(index))
+            {
+                continue;
+            }
+
             if (farthestIndex == null || Math.Abs(index - centerIndex) > Math.Abs(farthestIndex.Value - centerIndex))
             {
                 farthestIndex = index;
             }
         }
 
-        if (preloadMode == PdfPanelThumbnailPreloadMode.VisiblePages)
+        if (placeholderMode == PdfPanelThumbnailPlaceholderMode.VisiblePages)
         {
             foreach (int pageNumber in _thumbnailVisiblePageNumbers)
             {
@@ -329,11 +382,11 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Returns the page at <paramref name="index"/> when its thumbnail fits within the maximum count, otherwise <see langword="null"/>.
+    /// Returns the page at <paramref name="index"/> when its thumbnail is kept or fits within the maximum count, otherwise <see langword="null"/>.
     /// </summary>
     private PdfPanelPage? SelectThumbnailPage(int index, int centerIndex, int storedCount, int? farthestIndex)
     {
-        if (storedCount < _thumbnailSettings.MaximumCount)
+        if (storedCount < _thumbnailSettings.MaximumCount || IsThumbnailKept(index))
         {
             return _panelDocument.Pages[index];
         }

@@ -147,8 +147,8 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `setOnActionRequested(id, callback)` | Calls `callback({ source, action })` for each action the panel does not perform itself, after the render during which it was requested (see below). |
 | `getThumbnailLayout(id)` | Returns `{ pageNumber, width, height, rotation }` per page: the thumbnail size in pixels before rotation, and the page rotation. Call it again after rotating pages or changing the thumbnail configuration. |
 | `getThumbnail(id, pageNumber)` | Returns the PNG of a thumbnail that is already produced, or `null`. |
-| `requestThumbnail(id, pageNumber)`, `cancelThumbnail(id, pageNumber)` | Requests the thumbnail of a page that has none, or cancels a pending request; each does nothing otherwise. The PNG of a requested thumbnail is passed to the `setOnThumbnailUpdated` callback when it is ready, and again whenever it is produced anew. |
-| `setOnThumbnailUpdated(id, callback)` | Calls `callback({ pageNumber, png })` for each requested thumbnail that is ready. |
+| `setThumbnailVisible(id, pageNumber, visible)` | Sets whether the thumbnail of a page is shown. A visible thumbnail is kept and its PNG is passed to the `setOnThumbnailUpdated` callback when it is ready, at once when it is already produced, and again whenever it is produced anew. A thumbnail that is no longer visible may be evicted; drop your copy of it. |
+| `setOnThumbnailUpdated(id, callback)` | Calls `callback({ pageNumber, png })` for each visible thumbnail that is ready. |
 | `requestRedraw(id)` | Renders the panel. |
 | `setPage(id, pageNumber)` | Scrolls to a 1-based page. |
 | `setScale(id, scale)` | Zooms to a scale (`1.0` = 100%) around the panel center. |

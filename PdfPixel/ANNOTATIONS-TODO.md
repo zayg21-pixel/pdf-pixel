@@ -24,15 +24,3 @@ Rendering does not know the view zoom or the viewer's rotation. Both have to be 
 - **NoRotate**: stay upright, pivoting on the upper-left corner of the annotation rectangle. The rotation to cancel is the page's `/Rotate` plus the viewer's own rotation.
 - **ToggleNoView**: show a `NoView` annotation while the pointer is over it or it is selected.
 Files: `PdfPixel/Annotations/Model/PdfAnnotationFlags.cs`, `PdfPixel/Models/PdfRenderingParameters.cs`, `PdfPixel.PdfPanel`
-
-## Random
-
-### Panel thumbnails: limit and cancel semantics
-
-Needs its own investigation before any fix.
-
-- `thumbnailMaximumCount` is likely broken: check whether `EnforceThumbnailLimit` actually bounds the context's thumbnail cache under preload plus explicit requests.
-- `PdfThumbnailViewModel` keeps its own copy of the PNG (`_png`), a second store beside the context cache that the context's limit does not govern.
-- Cancel only cancels a pending request and keeps the view model's PNG. Releasing thumbnails needs its own Clear-shaped API, separate from Cancel.
-
-Files: `PdfPixel.PdfPanel/Thumbnails/PdfPanelThumbnails.cs`, `PdfPixel.PdfPanel/Scheduling/PdfPanelScheduler.Thumbnails.cs`, `PdfPixel.PdfPanel/Mvvm/PdfThumbnailViewModel.cs`, `PdfPixel.PdfPanel.Web/PdfPanelInterop.cs`

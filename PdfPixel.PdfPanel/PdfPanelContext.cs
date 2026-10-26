@@ -357,7 +357,7 @@ public sealed class PdfPanelContext : IDisposable
             BackgroundColor = Renderer.BackgroundColor,
             PageCornerRadius = Renderer.PageCornerRadius,
             ShowPageLoadingAnimation = Renderer.ShowPageLoadingAnimation,
-            UseThumbnailsAsPlaceholders = Renderer.UseThumbnailsAsPlaceholders,
+            ThumbnailPlaceholderMode = Thumbnails.PlaceholderMode,
             OptionalContentStates = Layers.Configuration?.ToStates(),
             ForceAnnotationUpdate = Actions.IsAnnotationUpdateRequested
         };

@@ -40,8 +40,7 @@ internal static partial class PdfPanelInterop
         target.ShowSearchHighlights = ReadBoolean(source, "showSearchHighlights", target.ShowSearchHighlights);
         target.UsePageThumbnails = ReadBoolean(source, "usePageThumbnails", target.UsePageThumbnails);
         target.ThumbnailMaximumCount = ReadInt32(source, "thumbnailMaximumCount", target.ThumbnailMaximumCount);
-        target.ThumbnailPreloadMode = ReadThumbnailPreloadMode(source, "thumbnailPreloadMode", target.ThumbnailPreloadMode);
-        target.UseThumbnailsAsPlaceholders = ReadBoolean(source, "useThumbnailsAsPlaceholders", target.UseThumbnailsAsPlaceholders);
+        target.ThumbnailPlaceholderMode = ReadThumbnailPlaceholderMode(source, "thumbnailPlaceholderMode", target.ThumbnailPlaceholderMode);
         target.Antialias = ReadBoolean(source, "antialias", target.Antialias);
         target.SnapToDevicePixels = ReadBoolean(source, "snapToDevicePixels", target.SnapToDevicePixels);
         target.TileSize = ReadInt32(source, "tileSize", target.TileSize);
@@ -222,7 +221,7 @@ internal static partial class PdfPanelInterop
     private static TimeSpan ReadMilliseconds(JSObject source, string name, in TimeSpan currentValue)
         => (source.HasProperty(name)) ? TimeSpan.FromMilliseconds(source.GetPropertyAsDouble(name)) : currentValue;
 
-    private static PdfPanelThumbnailPreloadMode ReadThumbnailPreloadMode(JSObject source, string name, PdfPanelThumbnailPreloadMode currentValue)
+    private static PdfPanelThumbnailPlaceholderMode ReadThumbnailPlaceholderMode(JSObject source, string name, PdfPanelThumbnailPlaceholderMode currentValue)
     {
         if (!source.HasProperty(name))
         {
@@ -231,9 +230,9 @@ internal static partial class PdfPanelInterop
 
         return source.GetPropertyAsString(name) switch
         {
-            "none" => PdfPanelThumbnailPreloadMode.None,
-            "visiblePages" => PdfPanelThumbnailPreloadMode.VisiblePages,
-            "nearestPages" => PdfPanelThumbnailPreloadMode.NearestPages,
+            "none" => PdfPanelThumbnailPlaceholderMode.None,
+            "visiblePages" => PdfPanelThumbnailPlaceholderMode.VisiblePages,
+            "nearestPages" => PdfPanelThumbnailPlaceholderMode.NearestPages,
             _ => currentValue
         };
     }

@@ -43,7 +43,7 @@ public partial class DocumentTabView : UserControl
     {
         if (((FrameworkElement)sender).DataContext is PdfThumbnailViewModel item)
         {
-            item.IsRequested = true;
+            item.IsVisible = true;
         }
     }
 
@@ -51,7 +51,7 @@ public partial class DocumentTabView : UserControl
     {
         if (((FrameworkElement)sender).DataContext is PdfThumbnailViewModel item)
         {
-            item.IsRequested = false;
+            item.IsVisible = false;
         }
     }
 

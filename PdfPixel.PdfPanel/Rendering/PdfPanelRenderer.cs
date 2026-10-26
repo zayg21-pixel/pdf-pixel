@@ -3,6 +3,7 @@ using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Scheduling;
+using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.Skia;
 using SkiaSharp;
 using System;
@@ -219,7 +220,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
                 _tiler.UpdateTiles(pictures.Content, in page, request, forceClearVisible: false);
             }
 
-            surface.Canvas.DrawPage(page, request, pictures, _tiler, _graphics, GetPageDrawFlags(PageDrawFlags.AllContent, pictures, request), animation);
+            surface.Canvas.DrawPage(page, request, pictures, _tiler, _graphics, GetPageDrawFlags(PageDrawFlags.AllContent, request), animation);
         }
 
         Present(surface, request);
@@ -299,22 +300,15 @@ public sealed partial class PdfPanelRenderer : IDisposable
     private static bool IsPageLoading(PdfContentPictures pictures, PagesDrawingRequest request)
     {
         return pictures.Content?.HasContent != true
-            && (!request.UseThumbnailsAsPlaceholders || pictures.Thumbnail?.HasContent != true);
+            && (request.ThumbnailPlaceholderMode == PdfPanelThumbnailPlaceholderMode.None || pictures.Thumbnail?.HasContent != true);
     }
 
     /// <summary>
-    /// Returns <paramref name="flags"/> without <see cref="PageDrawFlags.Thumbnail"/> when the page has no decoded content
-    /// and <paramref name="request"/> does not use thumbnails as placeholders.
+    /// Returns <paramref name="flags"/> without <see cref="PageDrawFlags.Thumbnail"/> when <paramref name="request"/>
+    /// does not use thumbnails as placeholders.
     /// </summary>
-    private static PageDrawFlags GetPageDrawFlags(PageDrawFlags flags, PdfContentPictures pictures, PagesDrawingRequest request)
-    {
-        if (pictures.Content?.HasContent == true || request.UseThumbnailsAsPlaceholders)
-        {
-            return flags;
-        }
-
-        return flags & ~PageDrawFlags.Thumbnail;
-    }
+    private static PageDrawFlags GetPageDrawFlags(PageDrawFlags flags, PagesDrawingRequest request)
+        => (request.ThumbnailPlaceholderMode == PdfPanelThumbnailPlaceholderMode.None) ? flags & ~PageDrawFlags.Thumbnail : flags;
 
     private bool NeedsImmediateContentUpdate(PagesDrawingRequest? previousRequest, PagesDrawingRequest request)
     {
@@ -416,7 +410,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         _tiler.UpdateTiles(args.ContentPictures.Content, in page, _lastRequest, forceClearVisible: true);
 
         SKSurface surface = GetSurface(_lastRequest);
-        PageDrawFlags flags = GetPageDrawFlags(PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, args.ContentPictures, _lastRequest);
+        PageDrawFlags flags = GetPageDrawFlags(PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, _lastRequest);
         surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, _graphics, flags, default);
         Present(surface, _lastRequest);
     }
@@ -429,7 +423,7 @@ public sealed partial class PdfPanelRenderer : IDisposable
         }
 
         PdfContentPictures pictures = _panelDocument.GetContentPictures(page.PageNumber);
-        PageDrawFlags flags = GetPageDrawFlags(PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, pictures, _lastRequest);
+        PageDrawFlags flags = GetPageDrawFlags(PageDrawFlags.Background | PageDrawFlags.Thumbnail | PageDrawFlags.Content, _lastRequest);
         surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, _graphics, flags, default);
     }
 

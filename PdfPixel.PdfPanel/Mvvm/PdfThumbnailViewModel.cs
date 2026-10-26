@@ -5,13 +5,12 @@ using System.ComponentModel;
 namespace PdfPixel.PdfPanel.Mvvm;
 
 /// <summary>
-/// Bindable thumbnail of a page as a PNG file, produced while it is requested.
+/// Bindable thumbnail of a page as a PNG file, produced and kept while it is visible.
 /// </summary>
 public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
 {
     private readonly PdfPanelThumbnails _thumbnails;
-    private bool _isRequested;
-    private byte[]? _png;
+    private bool _isVisible;
     private int _reportedRotation;
 
     internal PdfThumbnailViewModel(PdfPanelThumbnails thumbnails, PdfPanelPage page)
@@ -45,75 +44,58 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
     public PdfSize? Size => _thumbnails.GetSize(PageNumber);
 
     /// <summary>
-    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not ready.
+    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not visible or not ready.
     /// </summary>
-    public byte[]? Png => _png;
+    public byte[]? Png => _isVisible ? _thumbnails.GetPng(PageNumber) : null;
 
     /// <summary>
-    /// Whether the thumbnail is requested: setting it starts producing the thumbnail, clearing it cancels producing.
+    /// Whether the thumbnail is shown by the view: setting it produces the thumbnail and keeps it, clearing it lets it be evicted.
     /// </summary>
-    public bool IsRequested
+    public bool IsVisible
     {
-        get => _isRequested;
+        get => _isVisible;
 
         set
         {
-            if (_isRequested == value)
+            if (_isVisible == value)
             {
                 return;
             }
 
-            _isRequested = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRequested)));
+            _isVisible = value;
 
             if (value)
             {
-                byte[]? png = _thumbnails.GetPng(PageNumber);
-
-                if (png == null)
-                {
-                    _thumbnails.Request(PageNumber);
-                }
-                else if (!ReferenceEquals(png, _png))
-                {
-                    _png = png;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
-                }
+                _thumbnails.Request(PageNumber, pin: true);
             }
             else
             {
-                _thumbnails.Cancel(PageNumber);
+                _thumbnails.Release(PageNumber);
             }
+
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsVisible)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
         }
     }
 
     /// <summary>
-    /// Keeps the thumbnail that became ready while it is requested.
+    /// Reports <see cref="Png"/> of the thumbnail that became ready while it is visible.
     /// </summary>
-    internal void OnThumbnailReady(byte[] png)
+    internal void OnThumbnailReady()
     {
-        if (!_isRequested)
+        if (_isVisible)
         {
-            return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
         }
-
-        _png = png;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
     }
 
     /// <summary>
-    /// Reports the dropped thumbnail and requests it again while it is requested.
+    /// Reports the dropped thumbnail.
     /// </summary>
     internal void OnCleared()
     {
-        _png = null;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Size)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
-
-        if (_isRequested)
-        {
-            _thumbnails.Request(PageNumber);
-        }
     }
 
     /// <summary>

@@ -7,7 +7,6 @@ public sealed partial class PdfPanelRenderer
 {
     internal const float DefaultPageCornerRadius = 0f;
     internal const bool DefaultShowPageLoadingAnimation = true;
-    internal const bool DefaultUseThumbnailsAsPlaceholders = false;
     internal const bool DefaultAntialias = true;
     internal const bool DefaultSnapToDevicePixels = true;
     internal const int DefaultTileSize = 512;
@@ -35,12 +34,6 @@ public sealed partial class PdfPanelRenderer
     public bool ShowPageLoadingAnimation { get; set; } = DefaultShowPageLoadingAnimation;
 
     /// <summary>
-    /// Draws the thumbnail of a page that has no decoded content yet in place of the page.
-    /// Thumbnails are always drawn under decoded content.
-    /// </summary>
-    public bool UseThumbnailsAsPlaceholders { get; set; } = DefaultUseThumbnailsAsPlaceholders;
-
-    /// <summary>
     /// If true - antialiasing is enabled for page content.
     /// </summary>
     public bool Antialias { get; set; } = DefaultAntialias;
@@ -61,12 +54,14 @@ public sealed partial class PdfPanelRenderer
     public int AnimationFps { get; set; } = DefaultAnimationFps;
 
     /// <summary>
-    /// Time a scrolled request waits before page content decoding starts.
+    /// Time a scrolled request waits before the content of the pages that stayed visible is decoded again.
+    /// A page that comes into view is decoded at once.
     /// </summary>
     public TimeSpan ScrollContentUpdateDelay { get; set; } = DefaultScrollContentUpdateDelay;
 
     /// <summary>
-    /// Time a zoomed request waits before page content decoding starts.
+    /// Time a zoomed request waits before the content of the pages that stayed visible is decoded again.
+    /// A page that comes into view is decoded at once.
     /// </summary>
     public TimeSpan ZoomContentUpdateDelay { get; set; } = DefaultZoomContentUpdateDelay;
 

@@ -1,12 +1,12 @@
 namespace PdfPixel.PdfPanel.Thumbnails;
 
 /// <summary>
-/// Pages whose thumbnails are produced without being requested.
+/// Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet.
 /// </summary>
-public enum PdfPanelThumbnailPreloadMode
+public enum PdfPanelThumbnailPlaceholderMode
 {
     /// <summary>
-    /// Only requested thumbnails are produced.
+    /// No thumbnails are drawn in place of pages.
     /// </summary>
     None,
 

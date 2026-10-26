@@ -472,21 +472,28 @@ internal static partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Starts producing the thumbnail of a page that has none; its PNG is passed to the thumbnail subscriber of the panel
-    /// when it is ready, and again whenever it is produced anew while it stays requested. Does nothing for a page whose
-    /// thumbnail is already produced.
+    /// Sets whether the thumbnail of a page is shown by the view. While it is visible, the thumbnail is kept and its PNG
+    /// is passed to the thumbnail subscriber of the panel when it is ready, at once when it is already produced, and
+    /// again whenever it is produced anew. A thumbnail that is no longer visible may be evicted.
     /// </summary>
     [JSExport]
-    public static bool RequestThumbnail(string containerId, int pageNumber)
-        => SetThumbnailRequested(containerId, pageNumber, true);
+    public static bool SetThumbnailVisible(string containerId, int pageNumber, bool isVisible)
+    {
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Thumbnails == null)
+        {
+            return false;
+        }
 
-    /// <summary>
-    /// Cancels producing the thumbnail of a page; no PNG of it is passed until it is requested again. Does nothing for a
-    /// page whose thumbnail is not requested.
-    /// </summary>
-    [JSExport]
-    public static bool CancelThumbnail(string containerId, int pageNumber)
-        => SetThumbnailRequested(containerId, pageNumber, false);
+        IReadOnlyList<PdfThumbnailViewModel> thumbnails = resources.Thumbnails.Items;
+
+        if (pageNumber < 1 || pageNumber > thumbnails.Count)
+        {
+            return false;
+        }
+
+        thumbnails[pageNumber - 1].IsVisible = isVisible;
+        return true;
+    }
 
     /// <summary>
     /// Passes the PNG of the thumbnail of a page to the thumbnail subscriber of the panel of <paramref name="containerId"/>.
@@ -713,29 +720,6 @@ internal static partial class PdfPanelInterop
             return false;
         }
 
-        return true;
-    }
-
-    private static bool SetThumbnailRequested(string containerId, int pageNumber, bool isRequested)
-    {
-        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Thumbnails == null || resources.Context == null)
-        {
-            return false;
-        }
-
-        IReadOnlyList<PdfThumbnailViewModel> thumbnails = resources.Thumbnails.Items;
-
-        if (pageNumber < 1 || pageNumber > thumbnails.Count)
-        {
-            return false;
-        }
-
-        if (isRequested && resources.Context.Thumbnails.GetPng(pageNumber) != null)
-        {
-            return false;
-        }
-
-        thumbnails[pageNumber - 1].IsRequested = isRequested;
         return true;
     }
 

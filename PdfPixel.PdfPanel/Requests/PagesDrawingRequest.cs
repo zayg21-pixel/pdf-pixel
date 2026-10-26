@@ -1,5 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.OptionalContent;
+using PdfPixel.PdfPanel.Thumbnails;
 using System;
 
 namespace PdfPixel.PdfPanel.Requests;
@@ -40,9 +41,9 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     public bool ShowPageLoadingAnimation { get; set; }
 
     /// <summary>
-    /// Draws the thumbnail of a page that has no decoded content yet in place of the page.
+    /// Pages whose thumbnails are drawn in place of pages that have no decoded content yet.
     /// </summary>
-    public bool UseThumbnailsAsPlaceholders { get; set; }
+    public PdfPanelThumbnailPlaceholderMode ThumbnailPlaceholderMode { get; set; }
 
     /// <summary>
     /// ON/OFF state of the optional content groups content is rendered with, or null for the document's default configuration.
@@ -82,7 +83,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
                 && BackgroundColor.Equals(other.BackgroundColor)
                 && PageCornerRadius == other.PageCornerRadius
                 && ShowPageLoadingAnimation == other.ShowPageLoadingAnimation
-                && UseThumbnailsAsPlaceholders == other.UseThumbnailsAsPlaceholders
+                && ThumbnailPlaceholderMode == other.ThumbnailPlaceholderMode
                 && OptionalContentStates == other.OptionalContentStates;
         }
 
@@ -107,7 +108,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
         hash.Add(BackgroundColor);
         hash.Add(PageCornerRadius);
         hash.Add(ShowPageLoadingAnimation);
-        hash.Add(UseThumbnailsAsPlaceholders);
+        hash.Add(ThumbnailPlaceholderMode);
         return hash.ToHashCode();
     }
 }
