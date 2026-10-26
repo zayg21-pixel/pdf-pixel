@@ -1,10 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using PdfPixel.Png.Decoding;
-using PdfPixel.Png.Encoding;
-using PdfPixel.Png.Model;
-using PdfPixel.Png.Parsing;
+using PdfPixel.Png;
 using SkiaSharp;
 using Xunit;
 
@@ -47,7 +44,7 @@ public class PngWriterTests
     public void RoundTrip_ReproducesSamples(string fileName)
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, fileName));
-        PngImageInfo sourceInfo = PngReader.Read(data);
+        PngImageInfo sourceInfo = PngImageInfo.Parse(data);
         (byte[] samples, int rowBytes) = ReadSamples(sourceInfo, data);
 
         foreach (bool adaptiveFiltering in new[] { false, true })
@@ -63,7 +60,7 @@ public class PngWriterTests
                 PngWriter.Write(written, writtenInfo, samples, rowBytes, adaptiveFiltering, CompressionLevel.Optimal);
                 byte[] writtenBytes = written.ToArray();
 
-                PngImageInfo readBackInfo = PngReader.Read(writtenBytes);
+                PngImageInfo readBackInfo = PngImageInfo.Parse(writtenBytes);
                 Assert.Equal(interlaceMethod, readBackInfo.InterlaceMethod);
 
                 (byte[] readBackSamples, _) = ReadSamples(readBackInfo, writtenBytes);
@@ -81,12 +78,12 @@ public class PngWriterTests
     public void Metadata_RoundTrips()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, "rgb8-metadata.png"));
-        PngImageInfo sourceInfo = PngReader.Read(data);
+        PngImageInfo sourceInfo = PngImageInfo.Parse(data);
         (byte[] samples, int rowBytes) = ReadSamples(sourceInfo, data);
 
         using MemoryStream written = new();
         PngWriter.Write(written, sourceInfo, samples, rowBytes, adaptiveFiltering: true, CompressionLevel.Fastest);
-        PngImageInfo readBackInfo = PngReader.Read(written.ToArray());
+        PngImageInfo readBackInfo = PngImageInfo.Parse(written.ToArray());
 
         Assert.Equal(sourceInfo.IccProfileName, readBackInfo.IccProfileName);
         Assert.Equal(sourceInfo.IccProfile, readBackInfo.IccProfile);

@@ -4,9 +4,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Jpx.Decoding;
-using PdfPixel.Jpx.Model;
-using PdfPixel.Jpx.Parsing;
+using PdfPixel.Jpx;
 using System;
 using System.Collections.Generic;
 
@@ -29,7 +27,7 @@ internal class JpxImageDecoder : PdfImageDecoder
     {
         ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
 
-        JpxHeader jpxHeader = JpxReader.ParseHeader(encodedData.Span);
+        var jpxHeader = JpxHeader.Parse(encodedData.Span);
 
         _resolvedConverter = ResolveConverter(jpxHeader);
         if (_resolvedConverter == null)
@@ -152,7 +150,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         return jpxRegionsOfInterest;
     }
 
-    private sealed class JpxObserver : IJpxExectionObserver
+    private sealed class JpxObserver : IJpxExecutionObserver
     {
         private readonly IPdfExecutionObserver? _pdfObserver;
 

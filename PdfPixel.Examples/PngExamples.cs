@@ -1,10 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using PdfPixel.Png.Decoding;
-using PdfPixel.Png.Encoding;
-using PdfPixel.Png.Model;
-using PdfPixel.Png.Parsing;
+using PdfPixel.Png;
 
 namespace PdfPixel.Examples;
 
@@ -49,7 +46,7 @@ internal static class PngExamples
 
         // Reads every chunk up to IEND: the image header, palette, transparency and ICC profile.
         // The image data is located here, but not decompressed.
-        PngImageInfo info = PngReader.Read(fileBytes);
+        PngImageInfo info = PngImageInfo.Parse(fileBytes);
 
         // Inflates and unfilters the image data as rows are reached.
         PngRowDecoder decoder = new(info, fileBytes, descaleFactor);
@@ -86,7 +83,7 @@ internal static class PngExamples
         Console.WriteLine($"[Png] Expanding the palette of {PaletteSourceFile}...");
 
         byte[] fileBytes = File.ReadAllBytes(ExamplePaths.Input(Format, PaletteSourceFile));
-        PngImageInfo info = PngReader.Read(fileBytes);
+        PngImageInfo info = PngImageInfo.Parse(fileBytes);
 
         // PLTE holds red, green and blue bytes per entry; an indexed-color file always carries one.
         byte[] palette = info.Palette ?? throw new InvalidDataException($"{PaletteSourceFile} has no palette.");

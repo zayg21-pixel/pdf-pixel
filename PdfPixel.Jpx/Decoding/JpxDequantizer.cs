@@ -1,4 +1,3 @@
-using PdfPixel.Jpx.Model;
 using System;
 using System.Runtime.CompilerServices;
 

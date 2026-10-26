@@ -2,8 +2,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using PdfPixel.Ccitt;
-using PdfPixel.Png.Encoding;
-using PdfPixel.Png.Model;
+using PdfPixel.Png;
 
 namespace PdfPixel.Examples;
 

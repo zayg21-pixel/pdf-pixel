@@ -128,54 +128,9 @@ public sealed class JpegDecodingParameters
     }
 
     /// <summary>
-    /// Maximum horizontal sampling factor across all components.
-    /// </summary>
-    public int HMax { get; }
-
-    /// <summary>
-    /// Maximum vertical sampling factor across all components.
-    /// </summary>
-    public int VMax { get; }
-
-    /// <summary>
     /// Power-of-two reduction applied to the reconstructed image (1, 2, 4 or 8).
     /// </summary>
     public int DescaleFactor { get; }
-
-    /// <summary>
-    /// Edge length in output samples of one reconstructed block (8 / <see cref="DescaleFactor"/>).
-    /// </summary>
-    public int BlockSize { get; }
-
-    /// <summary>
-    /// Step between the block lanes holding samples, once the block is reconstructed at <see cref="BlockSize"/>.
-    /// </summary>
-    public int BlockVectorStride { get; }
-
-    /// <summary>
-    /// One past the last block lane holding samples, once the block is reconstructed at <see cref="BlockSize"/>.
-    /// </summary>
-    public int BlockVectorLimit { get; }
-
-    /// <summary>
-    /// MCU width in stored pixels (8 × <see cref="HMax"/>).
-    /// </summary>
-    public int McuWidth { get; }
-
-    /// <summary>
-    /// MCU height in stored pixels (8 × <see cref="VMax"/>).
-    /// </summary>
-    public int McuHeight { get; }
-
-    /// <summary>
-    /// MCU width in output samples (<see cref="BlockSize"/> × <see cref="HMax"/>).
-    /// </summary>
-    public int OutputMcuWidth { get; }
-
-    /// <summary>
-    /// MCU height in output samples (<see cref="BlockSize"/> × <see cref="VMax"/>).
-    /// </summary>
-    public int OutputMcuHeight { get; }
 
     /// <summary>
     /// Width of the reconstructed image in output samples.
@@ -188,90 +143,135 @@ public sealed class JpegDecodingParameters
     public int OutputHeight { get; }
 
     /// <summary>
-    /// Number of MCU columns needed to cover the full image width.
-    /// </summary>
-    public int McuColumns { get; }
-
-    /// <summary>
-    /// Number of MCU rows needed to cover the full image height.
-    /// </summary>
-    public int McuRows { get; }
-
-    /// <summary>
-    /// First MCU column a reconstructed band holds.
-    /// </summary>
-    public int ReconstructedMcuColumnStart { get; }
-
-    /// <summary>
-    /// Number of MCU columns a reconstructed band holds, starting at <see cref="ReconstructedMcuColumnStart"/>.
-    /// </summary>
-    public int ReconstructedMcuColumns { get; }
-
-    /// <summary>
-    /// True when a band spans the full image width.
-    /// </summary>
-    public bool IsFullWidthReconstructed => ReconstructedMcuColumns == McuColumns;
-
-    /// <summary>
     /// Byte stride of one decoded output row (<see cref="OutputWidth"/> × ComponentCount).
     /// </summary>
     public int OutputStride { get; }
 
     /// <summary>
+    /// Maximum horizontal sampling factor across all components.
+    /// </summary>
+    internal int HMax { get; }
+
+    /// <summary>
+    /// Maximum vertical sampling factor across all components.
+    /// </summary>
+    internal int VMax { get; }
+
+    /// <summary>
+    /// Edge length in output samples of one reconstructed block (8 / <see cref="DescaleFactor"/>).
+    /// </summary>
+    internal int BlockSize { get; }
+
+    /// <summary>
+    /// Step between the block lanes holding samples, once the block is reconstructed at <see cref="BlockSize"/>.
+    /// </summary>
+    internal int BlockVectorStride { get; }
+
+    /// <summary>
+    /// One past the last block lane holding samples, once the block is reconstructed at <see cref="BlockSize"/>.
+    /// </summary>
+    internal int BlockVectorLimit { get; }
+
+    /// <summary>
+    /// MCU width in stored pixels (8 × <see cref="HMax"/>).
+    /// </summary>
+    internal int McuWidth { get; }
+
+    /// <summary>
+    /// MCU height in stored pixels (8 × <see cref="VMax"/>).
+    /// </summary>
+    internal int McuHeight { get; }
+
+    /// <summary>
+    /// MCU width in output samples (<see cref="BlockSize"/> × <see cref="HMax"/>).
+    /// </summary>
+    internal int OutputMcuWidth { get; }
+
+    /// <summary>
+    /// MCU height in output samples (<see cref="BlockSize"/> × <see cref="VMax"/>).
+    /// </summary>
+    internal int OutputMcuHeight { get; }
+
+    /// <summary>
+    /// Number of MCU columns needed to cover the full image width.
+    /// </summary>
+    internal int McuColumns { get; }
+
+    /// <summary>
+    /// Number of MCU rows needed to cover the full image height.
+    /// </summary>
+    internal int McuRows { get; }
+
+    /// <summary>
+    /// First MCU column a reconstructed band holds.
+    /// </summary>
+    internal int ReconstructedMcuColumnStart { get; }
+
+    /// <summary>
+    /// Number of MCU columns a reconstructed band holds, starting at <see cref="ReconstructedMcuColumnStart"/>.
+    /// </summary>
+    internal int ReconstructedMcuColumns { get; }
+
+    /// <summary>
+    /// True when a band spans the full image width.
+    /// </summary>
+    internal bool IsFullWidthReconstructed => ReconstructedMcuColumns == McuColumns;
+
+    /// <summary>
     /// Number of blocks per MCU after upsampling (<see cref="HMax"/> × <see cref="VMax"/>).
     /// </summary>
-    public int UpsampledBlocksPerMcu { get; }
+    internal int UpsampledBlocksPerMcu { get; }
 
     /// <summary>
     /// Per-component horizontal 8×8 block count per MCU (1 for single-component images, H sampling factor otherwise).
     /// </summary>
-    public int[] ComponentBlocksH { get; }
+    internal int[] ComponentBlocksH { get; }
 
     /// <summary>
     /// Per-component vertical 8×8 block count per MCU (1 for single-component images, V sampling factor otherwise).
     /// </summary>
-    public int[] ComponentBlocksV { get; }
+    internal int[] ComponentBlocksV { get; }
 
     /// <summary>
     /// Per-component number of 8×8 blocks per MCU (<c>ComponentBlocksH[i] × ComponentBlocksV[i]</c>).
     /// </summary>
-    public int[] BlocksPerMcu { get; }
+    internal int[] BlocksPerMcu { get; }
 
     /// <summary>
     /// Per-component total 8×8 blocks in one MCU-height band (<c>ReconstructedMcuColumns × BlocksPerMcu[i]</c>).
     /// </summary>
-    public int[] TotalBlocksPerBand { get; }
+    internal int[] TotalBlocksPerBand { get; }
 
     /// <summary>
     /// Per-component width of the inverse transform output, in samples (1, 2, 4 or 8).
     /// </summary>
-    public int[] ComponentIdctWidth { get; }
+    internal int[] ComponentIdctWidth { get; }
 
     /// <summary>
     /// Per-component height of the inverse transform output, in samples (1, 2, 4 or 8).
     /// </summary>
-    public int[] ComponentIdctHeight { get; }
+    internal int[] ComponentIdctHeight { get; }
 
     /// <summary>
     /// Per-component horizontal replication applied to transform output to reach the full sampling grid.
     /// </summary>
-    public int[] ComponentReplicationH { get; }
+    internal int[] ComponentReplicationH { get; }
 
     /// <summary>
     /// Per-component vertical replication applied to transform output to reach the full sampling grid.
     /// </summary>
-    public int[] ComponentReplicationV { get; }
+    internal int[] ComponentReplicationV { get; }
 
     /// <summary>
     /// True when at least one component has a smaller sampling factor than <see cref="HMax"/>/<see cref="VMax"/> and must be upsampled.
     /// </summary>
-    public bool NeedsUpsampling { get; }
+    internal bool NeedsUpsampling { get; }
 
     /// <summary>
     /// Reports whether <paramref name="mcuRow"/> covers a region of interest and is reconstructed.
     /// </summary>
     /// <param name="mcuRow">Zero-based MCU row index.</param>
-    public bool IsMcuRowReconstructed(int mcuRow) => _reconstructedMcuRows == null || _reconstructedMcuRows[mcuRow];
+    internal bool IsMcuRowReconstructed(int mcuRow) => _reconstructedMcuRows == null || _reconstructedMcuRows[mcuRow];
 
     /// <summary>
     /// Returns the largest transform size (a power of two, at most 8) that divides <paramref name="footprint"/>.

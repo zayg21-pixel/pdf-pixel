@@ -2,11 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using PdfPixel.Jpx.Decoding;
-using PdfPixel.Jpx.Model;
-using PdfPixel.Jpx.Parsing;
-using PdfPixel.Png.Encoding;
-using PdfPixel.Png.Model;
+using PdfPixel.Jpx;
+using PdfPixel.Png;
 
 namespace PdfPixel.Examples;
 
@@ -63,7 +60,7 @@ internal static class JpxExamples
         byte[] fileBytes = File.ReadAllBytes(ExamplePaths.Input(Format, sourceFileName));
 
         // Parses the main header: image and tile grid, coding style, quantization, and components.
-        JpxHeader header = JpxReader.ParseHeader(fileBytes);
+        JpxHeader header = JpxHeader.Parse(fileBytes);
 
         IReadOnlyList<JpxRectangle>? regions = (regionOfInterest == null)
             ? null

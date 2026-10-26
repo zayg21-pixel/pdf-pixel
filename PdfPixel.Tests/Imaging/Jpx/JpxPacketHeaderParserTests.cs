@@ -1,5 +1,5 @@
-using PdfPixel.Jpx.Model;
-using PdfPixel.Jpx.Parsing;
+using PdfPixel.Jpx;
+using PdfPixel.Jpx.Packets;
 using Xunit;
 
 namespace PdfPixel.Tests.Imaging.Jpx;

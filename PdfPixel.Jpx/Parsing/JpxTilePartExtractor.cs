@@ -1,0 +1,256 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+namespace PdfPixel.Jpx.Parsing;
+
+/// <summary>
+/// Extracts and concatenates tile-part data from a JPEG 2000 codestream.
+/// Scans SOT markers, collects all tile-part segments per tile, concatenates
+/// their data, and returns one <see cref="JpxExtractedTileContent"/> per tile found.
+/// </summary>
+internal sealed class JpxTilePartExtractor
+{
+    /// <summary>
+    /// Lightweight index entry pointing to a tile-part slice within the codestream.
+    /// </summary>
+    private readonly struct TilePartSlice
+    {
+        public readonly int Offset;
+        public readonly int Length;
+
+        public TilePartSlice(int offset, int length)
+        {
+            Offset = offset;
+            Length = length;
+        }
+    }
+
+    /// <summary>
+    /// Extracts tile contents from a codestream, returning one entry per tile
+    /// in tile-index order. The returned array length equals the total number of tiles
+    /// in the image grid. Tiles not present in the codestream will have a null <see cref="JpxExtractedTileContent.TileHeader"/>.
+    /// </summary>
+    /// <param name="header">Parsed JPX header containing tile grid information.</param>
+    /// <param name="codestream">Codestream data starting at the first SOT marker.</param>
+    /// <returns>Array of extracted tile contents indexed by tile index.</returns>
+    public JpxExtractedTileContent[] ExtractTileContents(JpxHeader header, in ReadOnlyMemory<byte> codestream)
+    {
+        if (header == null)
+        {
+            throw new ArgumentNullException(nameof(header));
+        }
+
+        var tilesHorizontal = (int)Math.Ceiling((double)header.Width / header.TileWidth);
+        var tilesVertical = (int)Math.Ceiling((double)header.Height / header.TileHeight);
+        int totalTiles = tilesHorizontal * tilesVertical;
+
+        // Store lightweight slice indices instead of copying byte arrays during scan.
+        // For single-part tiles (common case), firstSlice alone is sufficient.
+        var firstSlices = new TilePartSlice[totalTiles];
+        var hasData = new bool[totalTiles];
+        var additionalSlices = new List<TilePartSlice>[totalTiles];
+        var tileHeaders = new JpxTileHeader[totalTiles];
+        JpxSpanReader reader = new(codestream.Span);
+
+        while (!reader.EndOfSpan && reader.Remaining >= 2)
+        {
+            ushort marker = reader.PeekUInt16BE();
+
+            if (marker == JpxMarkers.EOC)
+            {
+                break;
+            }
+
+            if (marker != JpxMarkers.SOT)
+            {
+                // Skip unexpected bytes
+                reader.Skip(1);
+                continue;
+            }
+
+            JpxTileHeader tileHeader = ParseTileHeader(ref reader, tilesHorizontal, tilesVertical);
+            int tileDataOffset = reader.Position;
+            int tileDataLength = (int)tileHeader.TilePartLength - 12;
+
+            if (tileDataLength <= 0 || reader.Remaining < tileDataLength)
+            {
+                throw new InvalidDataException(
+                    $"Invalid tile data length: {tileDataLength}, remaining: {reader.Remaining}.");
+            }
+
+            reader.Skip(tileDataLength);
+
+            int tileIndex = tileHeader.TileIndex;
+            TilePartSlice slice = new(tileDataOffset, tileDataLength);
+
+            if (!hasData[tileIndex])
+            {
+                firstSlices[tileIndex] = slice;
+                hasData[tileIndex] = true;
+                tileHeaders[tileIndex] = tileHeader;
+            }
+            else
+            {
+                (additionalSlices[tileIndex] ??= new List<TilePartSlice>()).Add(slice);
+            }
+        }
+
+        // Build result array — extract bytes from codestream using stored slices
+        var results = new JpxExtractedTileContent[totalTiles];
+
+        for (int tileIndex = 0; tileIndex < totalTiles; tileIndex++)
+        {
+            if (!hasData[tileIndex])
+            {
+                // Leave as default (TileHeader will be null)
+                continue;
+            }
+
+            TilePartSlice first = firstSlices[tileIndex];
+            List<TilePartSlice> extra = additionalSlices[tileIndex];
+
+            if (extra == null)
+            {
+                // Single tile-part: slice directly from codestream
+                ReadOnlyMemory<byte> data = codestream.Slice(first.Offset, first.Length);
+                results[tileIndex] = new JpxExtractedTileContent(tileHeaders[tileIndex], data);
+            }
+            else
+            {
+                byte[] concatenatedData = ConcatenateSlices(codestream.Span, first, extra);
+                results[tileIndex] = new JpxExtractedTileContent(tileHeaders[tileIndex], concatenatedData);
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Advances past the tile-part's marker segments to the first byte of packet data,
+    /// which follows the SOD (Start of Data) marker.
+    /// </summary>
+    public static ReadOnlySpan<byte> SkipToTileData(in ReadOnlySpan<byte> tileData)
+    {
+        JpxSpanReader reader = new(tileData);
+
+        while (!reader.EndOfSpan && reader.Remaining >= 2)
+        {
+            ushort marker = reader.PeekUInt16BE();
+            if (marker == JpxMarkers.SOD)
+            {
+                reader.Skip(2);
+                break;
+            }
+
+            if ((marker & 0xFF00) == 0xFF00 && marker != 0xFF00)
+            {
+                reader.Skip(2);
+                if (reader.Remaining >= 2)
+                {
+                    ushort segmentLength = reader.ReadUInt16BE();
+                    if (reader.Remaining >= segmentLength - 2)
+                    {
+                        reader.Skip(segmentLength - 2);
+                    }
+                }
+            }
+            else
+            {
+                reader.Skip(1);
+            }
+        }
+
+        return reader.ReadBytes(reader.Remaining);
+    }
+
+    /// <summary>
+    /// Concatenates tile-part slices from the codestream into a single byte array.
+    /// The first part is kept as-is (including its SOD marker for the tile decoder).
+    /// Subsequent parts have their SOD marker (0xFF93) stripped since the tile decoder
+    /// expects a single contiguous packet data stream after the initial SOD.
+    /// </summary>
+    private static byte[] ConcatenateSlices(
+        in ReadOnlySpan<byte> codestream,
+        in TilePartSlice first,
+        List<TilePartSlice> additionalParts)
+    {
+        int totalLength = first.Length;
+
+        for (int i = 0; i < additionalParts.Count; i++)
+        {
+            TilePartSlice slice = additionalParts[i];
+            int partLength = slice.Length;
+
+            // Strip SOD marker (2 bytes) from subsequent parts if present
+            if (partLength >= 2
+                && codestream[slice.Offset] == 0xFF
+                && codestream[slice.Offset + 1] == 0x93)
+            {
+                partLength -= 2;
+            }
+
+            totalLength += partLength;
+        }
+
+        var result = new byte[totalLength];
+        int offset = 0;
+
+        // Copy first part as-is (includes SOD)
+        codestream.Slice(first.Offset, first.Length).CopyTo(result.AsSpan(offset));
+        offset += first.Length;
+
+        // Copy subsequent parts, stripping SOD markers
+        for (int i = 0; i < additionalParts.Count; i++)
+        {
+            TilePartSlice slice = additionalParts[i];
+            int sourceOffset = slice.Offset;
+            int copyLength = slice.Length;
+
+            if (copyLength >= 2
+                && codestream[sourceOffset] == 0xFF
+                && codestream[sourceOffset + 1] == 0x93)
+            {
+                sourceOffset += 2;
+                copyLength -= 2;
+            }
+
+            if (copyLength > 0)
+            {
+                codestream.Slice(sourceOffset, copyLength).CopyTo(result.AsSpan(offset));
+                offset += copyLength;
+            }
+        }
+
+        return result;
+    }
+
+    private static JpxTileHeader ParseTileHeader(ref JpxSpanReader reader, int tilesHorizontal, int tilesVertical)
+    {
+        // Expect SOT marker
+        ushort sotMarker = reader.ReadUInt16BE();
+        if (sotMarker != JpxMarkers.SOT)
+        {
+            throw new InvalidDataException($"Expected SOT marker (0x{JpxMarkers.SOT:X4}), found 0x{sotMarker:X4}.");
+        }
+
+        // Parse SOT segment
+        ushort segmentLength = reader.ReadUInt16BE();
+        if (segmentLength != 10)
+        {
+            throw new InvalidDataException($"SOT segment must be 10 bytes, found {segmentLength}.");
+        }
+
+        JpxTileHeader tileHeader = new()
+        {
+            TileIndex = reader.ReadUInt16BE(),
+            TilePartLength = reader.ReadUInt32BE(),
+            TilePartIndex = reader.ReadByte(),
+            TilePartCount = reader.ReadByte(),
+            TilesHorizontal = tilesHorizontal,
+            TilesVertical = tilesVertical
+        };
+
+        return tileHeader;
+    }
+}

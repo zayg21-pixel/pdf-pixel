@@ -1,4 +1,4 @@
-using PdfPixel.Jpx.Model;
+using PdfPixel.Jpx.Packets;
 using PdfPixel.Jpx.Parsing;
 using System;
 using System.Collections.Generic;
@@ -68,7 +68,7 @@ internal sealed class JpxTileDecoder
         in ReadOnlySpan<byte> tileData,
         in JpxDecodingParameters decodingParameters,
         JpxTile destination,
-        IJpxExectionObserver? observer = default)
+        IJpxExecutionObserver? observer = default)
     {
         if (tileHeader == null)
         {
@@ -96,7 +96,7 @@ internal sealed class JpxTileDecoder
 
         // Stage 1: Parse packets according to progression order. Each code-block is
         // returned once, carrying the data accumulated across every layer it appears in.
-        IReadOnlyList<JpxCodeBlock> codeBlocks = _packetParser.ParseCodeBlocks(SkipToTileData(tileData), tileHeader);
+        IReadOnlyList<JpxCodeBlock> codeBlocks = _packetParser.ParseCodeBlocks(JpxTilePartExtractor.SkipToTileData(tileData), tileHeader);
         observer?.Notify();
 
         int sampleCount = destination.SampleCount;
@@ -158,7 +158,7 @@ internal sealed class JpxTileDecoder
         IReadOnlyList<JpxCodeBlock> codeBlocks,
         int component,
         int highestNeededResolution,
-        IJpxExectionObserver? observer)
+        IJpxExecutionObserver? observer)
     {
         var placedAnyCoefficients = false;
 
@@ -243,43 +243,5 @@ internal sealed class JpxTileDecoder
                 data[i] = value;
             }
         }
-    }
-
-    /// <summary>
-    /// Advances past the tile-part's marker segments to the first byte of packet data,
-    /// which follows the SOD (Start of Data) marker.
-    /// </summary>
-    private static ReadOnlySpan<byte> SkipToTileData(in ReadOnlySpan<byte> tileData)
-    {
-        JpxSpanReader reader = new(tileData);
-
-        while (!reader.EndOfSpan && reader.Remaining >= 2)
-        {
-            ushort marker = reader.PeekUInt16BE();
-            if (marker == JpxMarkers.SOD)
-            {
-                reader.Skip(2);
-                break;
-            }
-
-            if ((marker & 0xFF00) == 0xFF00 && marker != 0xFF00)
-            {
-                reader.Skip(2);
-                if (reader.Remaining >= 2)
-                {
-                    ushort segmentLength = reader.ReadUInt16BE();
-                    if (reader.Remaining >= segmentLength - 2)
-                    {
-                        reader.Skip(segmentLength - 2);
-                    }
-                }
-            }
-            else
-            {
-                reader.Skip(1);
-            }
-        }
-
-        return reader.ReadBytes(reader.Remaining);
     }
 }

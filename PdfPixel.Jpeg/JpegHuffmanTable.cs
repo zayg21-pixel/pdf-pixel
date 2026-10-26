@@ -14,12 +14,12 @@ public sealed class JpegHuffmanTable
     /// <summary>
     /// Table class: 0 = DC, 1 = AC.
     /// </summary>
-    public int TableClass { get; set; }
+    public int TableClass { get; internal set; }
 
     /// <summary>
     /// Table identifier (0..3).
     /// </summary>
-    public int TableId { get; set; }
+    public int TableId { get; internal set; }
 
     /// <summary>
     /// Code length counts L1..L16 (number of codes for each bit-length 1..16).
@@ -29,5 +29,5 @@ public sealed class JpegHuffmanTable
     /// <summary>
     /// Huffman values (symbols) in the canonical increasing code order.
     /// </summary>
-    public byte[] Values { get; set; } = [];
+    public byte[] Values { get; internal set; } = [];
 }

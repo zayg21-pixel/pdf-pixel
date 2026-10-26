@@ -2,7 +2,7 @@
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Jpx;
+namespace PdfPixel.Jpx.Decoding;
 
 /// <summary>
 /// Bit writer for packing unsigned sample values into a destination span (MSB-first within byte).

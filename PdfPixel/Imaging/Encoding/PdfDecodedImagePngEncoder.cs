@@ -1,6 +1,5 @@
 using PdfPixel.Color;
-using PdfPixel.Png.Encoding;
-using PdfPixel.Png.Model;
+using PdfPixel.Png;
 using System;
 using System.IO;
 using System.IO.Compression;

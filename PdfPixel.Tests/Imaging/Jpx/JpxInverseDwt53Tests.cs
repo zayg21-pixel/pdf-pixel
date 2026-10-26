@@ -1,5 +1,5 @@
-﻿using PdfPixel.Jpx.Decoding;
-using PdfPixel.Jpx.Model;
+﻿using PdfPixel.Jpx;
+using PdfPixel.Jpx.Decoding;
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

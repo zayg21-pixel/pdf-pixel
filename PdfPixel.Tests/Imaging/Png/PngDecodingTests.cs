@@ -1,9 +1,7 @@
 using System;
 using System.IO;
 using PdfPixel.Color;
-using PdfPixel.Png.Decoding;
-using PdfPixel.Png.Model;
-using PdfPixel.Png.Parsing;
+using PdfPixel.Png;
 using SkiaSharp;
 using Xunit;
 using Xunit.Abstractions;
@@ -135,7 +133,7 @@ public class PngDecodingTests
     public void Descale_PicksEveryNthPixel(string fileName, int descaleFactor)
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, fileName));
-        PngImageInfo info = PngReader.Read(data);
+        PngImageInfo info = PngImageInfo.Parse(data);
 
         DecodedImage decoded = Decode(info, data, descaleFactor);
 
@@ -167,7 +165,7 @@ public class PngDecodingTests
     public void Metadata_IsRead()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, "rgb8-metadata.png"));
-        PngImageInfo info = PngReader.Read(data);
+        PngImageInfo info = PngImageInfo.Parse(data);
 
         using Stream? profileStream = typeof(ProfileResources).Assembly.GetManifestResourceStream("PdfPixel.Color.EmbeddedData.CompactCmyk.icc");
         Assert.NotNull(profileStream);
@@ -202,7 +200,7 @@ public class PngDecodingTests
     public void AncillaryCrcFailure_SkipsChunk()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, "rgb8-crc-ancillary.png"));
-        PngImageInfo info = PngReader.Read(data);
+        PngImageInfo info = PngImageInfo.Parse(data);
 
         Assert.Null(info.PhysicalDimensions);
 
@@ -217,7 +215,7 @@ public class PngDecodingTests
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, "rgb8-crc-critical.png"));
 
-        Assert.Throws<InvalidDataException>(() => PngReader.Read(data));
+        Assert.Throws<InvalidDataException>(() => PngImageInfo.Parse(data));
     }
 
     /// <summary>
@@ -228,7 +226,7 @@ public class PngDecodingTests
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, "rgb8-truncated.png"));
 
-        Assert.Throws<InvalidDataException>(() => PngReader.Read(data));
+        Assert.Throws<InvalidDataException>(() => PngImageInfo.Parse(data));
     }
 
     /// <summary>
@@ -238,7 +236,7 @@ public class PngDecodingTests
     private void AssertDecodesToGolden(string fileName)
     {
         byte[] data = File.ReadAllBytes(Path.Combine(PngFolder, fileName));
-        PngImageInfo info = PngReader.Read(data);
+        PngImageInfo info = PngImageInfo.Parse(data);
 
         AssertMatchesGolden(fileName, Decode(info, data, 1), ResolveGolden(fileName));
     }

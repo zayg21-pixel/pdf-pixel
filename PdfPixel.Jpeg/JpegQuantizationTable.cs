@@ -9,12 +9,12 @@ public sealed class JpegQuantizationTable
     /// <summary>
     /// Gets or sets the quantization table identifier (0..3).
     /// </summary>
-    public int TableId { get; set; }
+    public int TableId { get; internal set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the table uses 16-bit precision entries (Pq=1).
     /// </summary>
-    public bool Is16Bit { get; set; }
+    public bool Is16Bit { get; internal set; }
 
     /// <summary>
     /// Gets the quantization table entries (64 values, row-major order).

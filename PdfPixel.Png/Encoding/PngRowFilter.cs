@@ -1,4 +1,3 @@
-using PdfPixel.Png.Decoding;
 using System;
 using System.Runtime.CompilerServices;
 

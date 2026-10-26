@@ -8,15 +8,15 @@ public sealed class JpegIccSegmentInfo
     /// <summary>
     /// Gets or sets the sequence number of this ICC profile segment (1-based).
     /// </summary>
-    public int SequenceNumber { get; set; }
+    public int SequenceNumber { get; internal set; }
 
     /// <summary>
     /// Gets or sets the total number of ICC profile segments in the JPEG file.
     /// </summary>
-    public int TotalSegments { get; set; }
+    public int TotalSegments { get; internal set; }
 
     /// <summary>
     /// Gets or sets the raw data bytes for this ICC profile segment.
     /// </summary>
-    public byte[] Data { get; set; } = [];
+    public byte[] Data { get; internal set; } = [];
 }

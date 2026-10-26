@@ -8,8 +8,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.Icc;
 using PdfPixel.Color.Transform;
 using PdfPixel.Jpeg;
-using PdfPixel.Png.Encoding;
-using PdfPixel.Png.Model;
+using PdfPixel.Png;
 
 namespace PdfPixel.Examples;
 

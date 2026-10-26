@@ -1,4 +1,4 @@
-using PdfPixel.Jpx.Parsing;
+using PdfPixel.Jpx.Packets;
 using Xunit;
 
 namespace PdfPixel.Tests.Imaging.Jpx;

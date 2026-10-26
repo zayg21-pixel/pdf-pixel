@@ -1,8 +1,7 @@
 using System;
 using System.IO;
-using PdfPixel.Jpx.Decoding;
-using PdfPixel.Jpx.Model;
-using PdfPixel.Jpx.Parsing;
+using PdfPixel.Jpx;
+using PdfPixel.Jpx.Packets;
 using SkiaSharp;
 using Xunit;
 using Xunit.Abstractions;
@@ -404,7 +403,7 @@ public class JpxDecodingTests
         }
 
         byte[] data = File.ReadAllBytes(filePath);
-        JpxHeader header = JpxReader.ParseHeader(data);
+        JpxHeader header = JpxHeader.Parse(data);
         JpxTileProvider provider = new(header, data.AsMemory(header.CodestreamOffset));
         JpxTileToRowConverter converter = new(header, provider);
 

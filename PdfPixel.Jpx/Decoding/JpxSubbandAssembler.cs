@@ -1,4 +1,4 @@
-using PdfPixel.Jpx.Model;
+using PdfPixel.Jpx.Packets;
 using System;
 
 namespace PdfPixel.Jpx.Decoding;

@@ -1,4 +1,4 @@
-using PdfPixel.Jpx.Model;
+using PdfPixel.Jpx.Packets;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;

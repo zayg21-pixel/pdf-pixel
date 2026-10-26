@@ -1,4 +1,4 @@
-﻿using PdfPixel.Png.Decoding;
+﻿using PdfPixel.Png;
 using PdfPixel.Tiff.Streams;
 using System;
 using System.IO;

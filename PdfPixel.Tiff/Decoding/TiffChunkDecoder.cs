@@ -1,8 +1,6 @@
 using PdfPixel.Ccitt;
 using PdfPixel.Jpeg;
-using PdfPixel.Jpx.Decoding;
-using PdfPixel.Jpx.Model;
-using PdfPixel.Jpx.Parsing;
+using PdfPixel.Jpx;
 using PdfPixel.Tiff.Model;
 using PdfPixel.Tiff.Streams;
 using System;
@@ -233,7 +231,7 @@ internal sealed class TiffChunkDecoder
 
     private static void DecodeJpeg2000(in ReadOnlyMemory<byte> encoded, int chunkWidth, int chunkRows, int[] sampleBits, int rowBytes, byte[] destination)
     {
-        JpxHeader header = JpxReader.ParseHeader(encoded.Span);
+        var header = JpxHeader.Parse(encoded.Span);
         JpxTileProvider tileProvider = new(header, encoded.Slice(header.CodestreamOffset));
         JpxTileToRowConverter rowConverter = new(header, tileProvider);
 

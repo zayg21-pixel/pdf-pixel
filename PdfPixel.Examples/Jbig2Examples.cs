@@ -3,8 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Jbig2.Model;
-using PdfPixel.Png.Encoding;
-using PdfPixel.Png.Model;
+using PdfPixel.Png;
 
 namespace PdfPixel.Examples;
 

@@ -15,20 +15,20 @@ public sealed class JpegScanSpec
     /// <summary>
     /// Gets or sets the spectral selection start index (Ss) for progressive JPEG scans.
     /// </summary>
-    public int SpectralStart { get; set; }
+    public int SpectralStart { get; internal set; }
 
     /// <summary>
     /// Gets or sets the spectral selection end index (Se) for progressive JPEG scans.
     /// </summary>
-    public int SpectralEnd { get; set; }
+    public int SpectralEnd { get; internal set; }
 
     /// <summary>
     /// Gets or sets the high bit position for successive approximation (Ah).
     /// </summary>
-    public int SuccessiveApproxHigh { get; set; }
+    public int SuccessiveApproxHigh { get; internal set; }
 
     /// <summary>
     /// Gets or sets the low bit position for successive approximation (Al).
     /// </summary>
-    public int SuccessiveApproxLow { get; set; }
+    public int SuccessiveApproxLow { get; internal set; }
 }
