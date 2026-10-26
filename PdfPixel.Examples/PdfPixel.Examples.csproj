@@ -13,7 +13,7 @@
     <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
     <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" />
     <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
-    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpeg\PdfPixel.Jpeg.csproj" />
     <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
     <ProjectReference Include="..\PdfPixel.Png\PdfPixel.Png.csproj" />
     <ProjectReference Include="..\PdfPixel.Tiff\PdfPixel.Tiff.csproj" />

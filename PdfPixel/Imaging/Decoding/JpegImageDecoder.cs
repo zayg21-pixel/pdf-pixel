@@ -2,10 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Jpg.Color;
-using PdfPixel.Jpg.Decoding;
-using PdfPixel.Jpg.Model;
-using PdfPixel.Jpg.Readers;
+using PdfPixel.Jpeg;
 using PdfPixel.Streams;
 using System;
 using System.Collections.Generic;
@@ -18,7 +15,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    private IJpgDecoder? _jpgRowDecoder;
+    private IJpegDecoder? _jpegRowDecoder;
 
     public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
         : base(image, context, loggerFactory)
@@ -34,7 +31,7 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
     {
         ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
 
-        JpgHeader header = JpgReader.ParseHeader(encodedData.Span);
+        var header = JpegHeader.Parse(encodedData.Span);
 
         if (header == null || header.ContentOffset < 0)
         {
@@ -42,10 +39,13 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         }
 
         PdfColorSpaceConverter resolvedConverter = _colorSpaceConverter;
-        if ((Context.ColorSpaceConverter == null || Context.Host.Resources.DeviceColorMapping.Map(resolvedConverter).IsDevice)
-            && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
+        if (Context.ColorSpaceConverter == null || Context.Host.Resources.DeviceColorMapping.Map(resolvedConverter).IsDevice)
         {
-            resolvedConverter = new PdfIccColorSpaceConverter(header.ComponentCount, resolvedConverter, profileBytes);
+            byte[]? profileBytes = header.GetIccProfile();
+            if (profileBytes != null)
+            {
+                resolvedConverter = new PdfIccColorSpaceConverter(header.ComponentCount, resolvedConverter, profileBytes);
+            }
         }
 
         // The row count is the smaller of the two declared heights. A frame header may carry a
@@ -66,19 +66,19 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 
         List<PdfIntegerRectangle>? mappedRegions = MapRegionsToSampleGrid(regionsOfInterest, sampleSize, descaleFactor);
 
-        _jpgRowDecoder = CreateJpgDecoder(encodedData, header, descaleFactor, ToJpgRegions(mappedRegions));
+        _jpegRowDecoder = CreateJpegDecoder(encodedData, header, descaleFactor, ToJpegRegions(mappedRegions));
 
         return parameters;
     }
 
     public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
-        if (_jpgRowDecoder == null)
+        if (_jpegRowDecoder == null)
         {
             return false;
         }
 
-        if (!_jpgRowDecoder.TryReadRow(destination))
+        if (!_jpegRowDecoder.TryReadRow(destination))
         {
             throw new InvalidOperationException($"JPEG decode failed (Reference={Image.Reference}).");
         }
@@ -86,39 +86,39 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         return true;
     }
 
-    private static List<JpgRectangle>? ToJpgRegions(List<PdfIntegerRectangle>? regionsOfInterest)
+    private static List<JpegRectangle>? ToJpegRegions(List<PdfIntegerRectangle>? regionsOfInterest)
     {
         if (regionsOfInterest == null)
         {
             return null;
         }
 
-        List<JpgRectangle> jpgRegionsOfInterest = new(regionsOfInterest.Count);
+        List<JpegRectangle> jpegRegionsOfInterest = new(regionsOfInterest.Count);
         for (int index = 0; index < regionsOfInterest.Count; index++)
         {
             PdfIntegerRectangle region = regionsOfInterest[index];
-            jpgRegionsOfInterest.Add(new JpgRectangle(region.Left, region.Top, region.Width, region.Height));
+            jpegRegionsOfInterest.Add(new JpegRectangle(region.Left, region.Top, region.Width, region.Height));
         }
 
-        return jpgRegionsOfInterest;
+        return jpegRegionsOfInterest;
     }
 
-    private IJpgDecoder CreateJpgDecoder(
+    private IJpegDecoder CreateJpegDecoder(
         in ReadOnlyMemory<byte> encodedData,
-        JpgHeader header,
+        JpegHeader header,
         int descaleFactor,
-        IReadOnlyList<JpgRectangle>? regionsOfInterest)
+        IReadOnlyList<JpegRectangle>? regionsOfInterest)
     {
         int? colorTransform = (Image.DecodeParameters as PdfDctDecodeParameters)?.ColorTransform;
 
-        JpgYuvMode yuvMode = colorTransform switch
+        JpegYuvMode yuvMode = colorTransform switch
         {
-            0 => JpgYuvMode.NoYuv,
-            1 => JpgYuvMode.ForceYuv,
-            _ => JpgYuvMode.Default
+            0 => JpegYuvMode.NoYuv,
+            1 => JpegYuvMode.ForceYuv,
+            _ => JpegYuvMode.Default
         };
 
-        JpgDecoderOptions decoderOptions = new()
+        JpegDecoderOptions decoderOptions = new()
         {
             YuvMode = yuvMode,
             InvertCmykColors = false,
@@ -126,8 +126,8 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
             RegionsOfInterest = regionsOfInterest
         };
 
-        return JpgDecoderFactory.Create(header, encodedData, decoderOptions);
+        return JpegDecoderFactory.Create(header, encodedData, decoderOptions);
     }
 
-    public override void Cleanup() => _jpgRowDecoder = null;
+    public override void Cleanup() => _jpegRowDecoder = null;
 }

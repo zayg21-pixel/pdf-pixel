@@ -1,0 +1,121 @@
+using System;
+
+namespace PdfPixel.Jpeg.Decoding;
+
+/// <summary>
+/// Manages JPEG quantization tables and provides quantization/dequantization operations.
+/// Throws exceptions on invalid usage (e.g. missing required tables).
+/// </summary>
+internal sealed class JpegQuantizationManager
+{
+    private readonly JpegQuantizationTable[] _tables;
+
+    private readonly int[][] _entriesInt = new int[MaxTableCount][];
+    private readonly int[][] _entriesNaturalInt = new int[MaxTableCount][];
+
+    public const int MaxTableCount = 4;
+
+    private JpegQuantizationManager() => _tables = new JpegQuantizationTable[MaxTableCount];
+
+    /// <summary>
+    /// Create a quantization manager from the header. Throws if header is null.
+    /// </summary>
+    public static JpegQuantizationManager CreateFromHeader(JpegHeader header)
+    {
+        if (header == null)
+        {
+            throw new ArgumentNullException(nameof(header));
+        }
+
+        JpegQuantizationManager manager = new();
+        if (header.QuantizationTables == null)
+        {
+            return manager; // No tables provided (legal for scans referencing none yet)
+        }
+
+        foreach (JpegQuantizationTable quantTable in header.QuantizationTables)
+        {
+            if (quantTable == null)
+            {
+                continue;
+            }
+
+            if (quantTable.TableId < 0 || quantTable.TableId >= MaxTableCount)
+            {
+                continue; // Ignore out-of-range table ids
+            }
+
+            manager._tables[quantTable.TableId] = quantTable;
+
+            var zigZagEntries = new int[64];
+            for (int coefficientIndex = 0; coefficientIndex < 64; coefficientIndex++)
+            {
+                zigZagEntries[coefficientIndex] = quantTable.Entries[coefficientIndex];
+            }
+
+            manager._entriesInt[quantTable.TableId] = zigZagEntries;
+
+            var naturalEntries = new int[64];
+            for (int zigIndex = 0; zigIndex < 64; zigIndex++)
+            {
+                int naturalIndex = JpegZigZag.Table[zigIndex];
+                naturalEntries[naturalIndex] = zigZagEntries[zigIndex];
+            }
+
+            manager._entriesNaturalInt[quantTable.TableId] = naturalEntries;
+        }
+
+        return manager;
+    }
+
+    public JpegQuantizationTable GetTable(int tableId)
+    {
+        if (tableId < 0 || tableId >= MaxTableCount)
+        {
+            throw new ArgumentOutOfRangeException($"Quantization table {tableId} is out of range of allowed 0-{MaxTableCount}.");
+        }
+
+        return _tables[tableId];
+    }
+
+    /// <summary>
+    /// Ensure the quantization table exists for a component; throws if missing.
+    /// </summary>
+    public void ValidateTableExists(int tableId, int componentIndex)
+    {
+        JpegQuantizationTable table = GetTable(tableId);
+        if (table == null)
+        {
+            throw new InvalidOperationException($"Quantization table id {tableId} required for component {componentIndex} is missing.");
+        }
+    }
+
+    /// <summary>
+    /// Create a new <see cref="Block8x8F"/> whose 64 scalar elements are populated with the natural-order
+    /// quantization table entries for the given <paramref name="tableId"/>. This mirrors the internal
+    /// representation used by natural block.
+    /// </summary>
+    /// <param name="tableId">Quantization table identifier (0..3).</param>
+    /// <returns>Block with natural-order table values converted to float.</returns>
+    public Block8x8F CreateNaturalBlock(int tableId)
+    {
+        if (tableId < 0 || tableId >= MaxTableCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(tableId));
+        }
+
+        int[] naturalEntries = _entriesNaturalInt[tableId];
+        if (naturalEntries == null)
+        {
+            throw new InvalidOperationException($"Quantization table id {tableId} not loaded.");
+        }
+
+        Block8x8F block = default;
+        for (int coefficientIndex = 0; coefficientIndex < Block8x8F.Size; coefficientIndex++)
+        {
+            block[coefficientIndex] = naturalEntries[coefficientIndex];
+        }
+
+        return block;
+    }
+}

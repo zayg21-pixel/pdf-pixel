@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
-    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpeg\PdfPixel.Jpeg.csproj" />
     <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
   </ItemGroup>
 

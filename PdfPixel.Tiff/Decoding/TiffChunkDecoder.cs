@@ -1,8 +1,5 @@
 using PdfPixel.Ccitt;
-using PdfPixel.Jpg.Color;
-using PdfPixel.Jpg.Decoding;
-using PdfPixel.Jpg.Model;
-using PdfPixel.Jpg.Readers;
+using PdfPixel.Jpeg;
 using PdfPixel.Jpx.Decoding;
 using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
@@ -158,7 +155,7 @@ internal sealed class TiffChunkDecoder
     private void DecodeJpeg(in ReadOnlyMemory<byte> encoded, int chunkWidth, int chunkRows, int samplesPerPixel, int rowBytes, byte[] destination)
     {
         ReadOnlyMemory<byte> jpegData = PrependJpegTables(_directory.JpegTables, encoded.Span);
-        JpgYuvMode yuvMode = (_directory.Photometric == TiffPhotometric.YCbCr) ? JpgYuvMode.ForceYuv : JpgYuvMode.NoYuv;
+        JpegYuvMode yuvMode = (_directory.Photometric == TiffPhotometric.YCbCr) ? JpegYuvMode.ForceYuv : JpegYuvMode.NoYuv;
 
         DecodeJpegStream(jpegData, chunkWidth, chunkRows, samplesPerPixel, rowBytes, yuvMode, destination);
     }
@@ -171,7 +168,7 @@ internal sealed class TiffChunkDecoder
         }
 
         byte[] jpegData = _oldJpegStreamBuilder.Build(encoded, chunkWidth, chunkRows, samplesPerPixel);
-        int rows = DecodeJpegStream(jpegData, chunkWidth, chunkRows, samplesPerPixel, rowBytes, JpgYuvMode.NoYuv, destination);
+        int rows = DecodeJpegStream(jpegData, chunkWidth, chunkRows, samplesPerPixel, rowBytes, JpegYuvMode.NoYuv, destination);
 
         if (_directory.Photometric != TiffPhotometric.YCbCr)
         {
@@ -202,10 +199,10 @@ internal sealed class TiffChunkDecoder
         int chunkRows,
         int samplesPerPixel,
         int rowBytes,
-        JpgYuvMode yuvMode,
+        JpegYuvMode yuvMode,
         byte[] destination)
     {
-        JpgHeader header = JpgReader.ParseHeader(jpegData.Span);
+        var header = JpegHeader.Parse(jpegData.Span);
 
         if (header.ContentOffset < 0 || header.Width != chunkWidth || header.ComponentCount != samplesPerPixel)
         {
@@ -214,13 +211,13 @@ internal sealed class TiffChunkDecoder
                     + $"expected {chunkWidth} with {samplesPerPixel}.");
         }
 
-        JpgDecoderOptions options = new()
+        JpegDecoderOptions options = new()
         {
             YuvMode = yuvMode,
             InvertCmykColors = false
         };
 
-        IJpgDecoder rowDecoder = JpgDecoderFactory.Create(header, jpegData, options);
+        IJpegDecoder rowDecoder = JpegDecoderFactory.Create(header, jpegData, options);
         int rows = Math.Min(header.Height, chunkRows);
 
         for (int row = 0; row < rows; row++)

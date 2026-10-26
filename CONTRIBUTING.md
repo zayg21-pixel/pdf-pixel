@@ -25,7 +25,7 @@ You need the .NET 8, 9 and 10 SDKs. From the repository root:
 ```bash
 dotnet build PdfPixel.slnx --configuration Release -warnaserror
 dotnet test PdfPixel.Tests/PdfPixel.Tests.csproj --configuration Release
-dotnet test PdfPixel.Jpg.Test/PdfPixel.Jpg.Test.csproj --configuration Release
+dotnet test PdfPixel.Jpeg.Test/PdfPixel.Jpeg.Test.csproj --configuration Release
 ```
 
 CI runs the same steps on every pull request.

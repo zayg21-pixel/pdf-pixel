@@ -8,8 +8,8 @@
   <Folder Name="/Images/">
     <Project Path="PdfPixel.Ccitt/PdfPixel.Ccitt.csproj" Id="91aaa973-caea-451b-a4fb-bc63b3fa5e6a" />
     <Project Path="PdfPixel.Jbig2/PdfPixel.Jbig2.csproj" Id="f3d6c410-1d6f-4ece-8688-f4f76caff720" />
-    <Project Path="PdfPixel.Jpg.Test/PdfPixel.Jpg.Test.csproj" Id="c79a0855-2a3c-4e8f-a20a-21b8556c1ff0" />
-    <Project Path="PdfPixel.Jpg/PdfPixel.Jpg.csproj" Id="04b48238-6889-4836-bbc7-948365e215af" />
+    <Project Path="PdfPixel.Jpeg.Test/PdfPixel.Jpeg.Test.csproj" Id="c79a0855-2a3c-4e8f-a20a-21b8556c1ff0" />
+    <Project Path="PdfPixel.Jpeg/PdfPixel.Jpeg.csproj" Id="04b48238-6889-4836-bbc7-948365e215af" />
     <Project Path="PdfPixel.Jpx/PdfPixel.Jpx.csproj" Id="f60689a2-d290-4f4b-a97c-18de0a8a9307" />
     <Project Path="PdfPixel.Png/PdfPixel.Png.csproj" />
     <Project Path="PdfPixel.Tiff/PdfPixel.Tiff.csproj" />

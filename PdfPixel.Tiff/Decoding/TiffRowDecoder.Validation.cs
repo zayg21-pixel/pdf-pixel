@@ -138,7 +138,7 @@ public sealed partial class TiffRowDecoder
 
         if (directory.OldJpeg != null && directory.OldJpeg.Process != 1)
         {
-            // TODO: [LOW] Old-style lossless JPEG (JPEGProc 14), which needs a lossless decoder in PdfPixel.Jpg.
+            // TODO: [LOW] Old-style lossless JPEG (JPEGProc 14), which needs a lossless decoder in PdfPixel.Jpeg.
             throw new NotSupportedException($"TIFF old-style JPEG process {directory.OldJpeg.Process} is not supported.");
         }
     }

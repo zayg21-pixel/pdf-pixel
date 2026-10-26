@@ -34,5 +34,5 @@ jobs:
       - name: Test PdfPixel.Tests
         run: dotnet test PdfPixel.Tests/PdfPixel.Tests.csproj --configuration Release --no-build
 
-      - name: Test PdfPixel.Jpg.Test
-        run: dotnet test PdfPixel.Jpg.Test/PdfPixel.Jpg.Test.csproj --configuration Release --no-build
+      - name: Test PdfPixel.Jpeg.Test
+        run: dotnet test PdfPixel.Jpeg.Test/PdfPixel.Jpeg.Test.csproj --configuration Release --no-build

@@ -17,7 +17,7 @@ internal static class Program
 
         PdfExamples.Run();
         ContentExamples.Run();
-        JpgExamples.Run();
+        JpegExamples.Run();
         JpxExamples.Run();
         Jbig2Examples.Run();
         CcittExamples.Run();
