@@ -13,13 +13,13 @@ namespace PdfPixel.PdfPanel.Wpf;
 public partial class WpfPdfPanel
 {
     /// <summary>
-    /// Identifies the <see cref="Pages"/> dependency property.
+    /// Identifies the <see cref="Document"/> dependency property.
     /// </summary>
-    public static readonly DependencyProperty PagesProperty = DependencyProperty.Register(
-        nameof(Pages),
-        typeof(PdfPanelPageCollection),
+    public static readonly DependencyProperty DocumentProperty = DependencyProperty.Register(
+        nameof(Document),
+        typeof(PdfPanelDocument),
         typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, PagesProperty_Changed));
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, DocumentProperty_Changed));
 
     /// <summary>
     /// Identifies the <see cref="ScrollTick"/> dependency property.
@@ -238,12 +238,12 @@ public partial class WpfPdfPanel
     public WpfRenderMode RenderMode { get; set; } = WpfRenderMode.Software;
 
     /// <summary>
-    /// Gets or sets the collection of pages.
+    /// Gets or sets the displayed document.
     /// </summary>
-    public PdfPanelPageCollection? Pages
+    public PdfPanelDocument? Document
     {
-        get => (PdfPanelPageCollection?)GetValue(PagesProperty);
-        set => SetValue(PagesProperty, value);
+        get => (PdfPanelDocument?)GetValue(DocumentProperty);
+        set => SetValue(DocumentProperty, value);
     }
 
     /// <summary>
@@ -415,20 +415,20 @@ public partial class WpfPdfPanel
         set => SetValue(PanelInterfaceProperty, value);
     }
 
-    private static void PagesProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    private static void DocumentProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var source = (WpfPdfPanel)d;
 
-        if (source.Pages == null)
+        if (source.Document == null)
         {
             source.ResetContent();
         }
         else
         {
-            if (source.CurrentPage > 0 && source.CurrentPage <= source.Pages.Count)
+            if (source.CurrentPage > 0 && source.CurrentPage <= source.Document.Pages.Count)
             {
-                PdfPanelPage page = source.Pages[source.CurrentPage - 1];
-                string label = page.Info.Label;
+                PdfPanelPage page = source.Document.Pages[source.CurrentPage - 1];
+                string label = page.Label;
                 source.SetValue(PageLabelPropertyKey, label);
             }
         }
@@ -458,14 +458,14 @@ public partial class WpfPdfPanel
     {
         var source = (WpfPdfPanel)d;
 
-        if (source.Pages == null)
+        if (source.Document == null)
         {
             source.ResetContent();
             source.SetValue(PageLabelPropertyKey, string.Empty);
             return;
         }
 
-        if (source.Pages.Count == 0)
+        if (source.Document.Pages.Count == 0)
         {
             source.SetValue(PageLabelPropertyKey, string.Empty);
             return;
@@ -476,13 +476,13 @@ public partial class WpfPdfPanel
             source.CurrentPage = 1;
         }
 
-        if (source.CurrentPage > source.Pages.Count)
+        if (source.CurrentPage > source.Document.Pages.Count)
         {
-            source.CurrentPage = source.Pages.Count;
+            source.CurrentPage = source.Document.Pages.Count;
         }
 
-        PdfPanelPage page = source.Pages[source.CurrentPage - 1];
-        string label = page.Info.Label;
+        PdfPanelPage page = source.Document.Pages[source.CurrentPage - 1];
+        string label = page.Label;
         source.SetValue(PageLabelPropertyKey, label);
 
         if (!source._updatingPages)

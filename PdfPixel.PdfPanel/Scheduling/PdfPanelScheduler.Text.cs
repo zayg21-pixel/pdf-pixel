@@ -58,18 +58,17 @@ internal sealed partial class PdfPanelScheduler
                 return;
             }
 
-            PdfPageCacheEntry? nextEntry = FindNextEntryWithoutWords();
+            PdfPanelPage? nextPage = FindNextPageWithoutWords();
 
-            if (nextEntry == null)
+            if (nextPage == null)
             {
                 return;
             }
 
-            IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextEntry.PageNumber);
+            IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextPage.PageNumber);
             _textExtractionObserver = observer;
             _processingQueue.Enqueue(new PdfPageExtractTextWorkItem(
-                nextEntry,
-                _panelDocument,
+                nextPage,
                 _textExtractor,
                 _textExtractionProperties,
                 _panelDocument.OptionalContentStates,
@@ -85,7 +84,7 @@ internal sealed partial class PdfPanelScheduler
             return;
         }
 
-        if (_panelDocument.Entries[complete.PageNumber - 1].Content.Words.HasContent)
+        if (_panelDocument.Pages[complete.PageNumber - 1].CacheEntry.Content.Words.HasContent)
         {
             _panelDocument.NotifyPageTextExtracted(complete.PageNumber);
         }
@@ -102,18 +101,18 @@ internal sealed partial class PdfPanelScheduler
         }
     }
 
-    private PdfPageCacheEntry? FindNextEntryWithoutWords()
+    private PdfPanelPage? FindNextPageWithoutWords()
     {
-        IReadOnlyList<PdfPageCacheEntry> entries = _panelDocument.Entries;
+        IReadOnlyList<PdfPanelPage> pages = _panelDocument.Pages;
         int startIndex = _textExtractionStartPageNumber - 1;
 
-        for (int offset = 0; offset < entries.Count; offset++)
+        for (int offset = 0; offset < pages.Count; offset++)
         {
-            PdfPageCacheEntry cacheEntry = entries[(startIndex + offset) % entries.Count];
+            PdfPanelPage page = pages[(startIndex + offset) % pages.Count];
 
-            if (!cacheEntry.Content.Words.HasContent)
+            if (!page.CacheEntry.Content.Words.HasContent)
             {
-                return cacheEntry;
+                return page;
             }
         }
 

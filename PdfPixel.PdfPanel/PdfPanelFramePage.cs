@@ -9,6 +9,7 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public readonly struct PdfPanelFramePage
 {
+    private readonly PdfPanelPage _page;
     private readonly PdfMatrix _contentToPanel;
 
     internal PdfPanelFramePage(
@@ -17,9 +18,8 @@ public readonly struct PdfPanelFramePage
         PdfPanelRenderedLayerInfo? renderedContent,
         PdfPanelRenderedLayerInfo? renderedAnnotations)
     {
-        PageNumber = page.PageNumber;
-        Info = page.Info;
-        UserRotation = page.UserRotation;
+        _page = page.Page;
+        Rotation = page.Rotation;
         RenderedContent = renderedContent;
         RenderedAnnotations = renderedAnnotations;
         _contentToPanel = page.GetContentToPanelMatrix(scale);
@@ -28,17 +28,22 @@ public readonly struct PdfPanelFramePage
     /// <summary>
     /// Gets the page number.
     /// </summary>
-    public int PageNumber { get; }
+    public int PageNumber => _page.PageNumber;
 
     /// <summary>
-    /// Gets the page information.
+    /// Human-readable page label (e.g. "iv", "1", "A-1") as defined in the PDF.
     /// </summary>
-    public PdfPanelPageInfo Info { get; }
+    public string Label => _page.Label;
 
     /// <summary>
-    /// Gets the user rotation of the page.
+    /// Size of the page without rotation, in panel units.
     /// </summary>
-    public int UserRotation { get; }
+    public PdfSize Size => _page.Size;
+
+    /// <summary>
+    /// Clockwise rotation of the page in degrees, normalized to 0-359.
+    /// </summary>
+    public int Rotation { get; }
 
     /// <summary>
     /// Gets the information about the rendered page content, or <see langword="null"/> if it has not been rendered yet.
@@ -53,7 +58,7 @@ public readonly struct PdfPanelFramePage
     /// <summary>
     /// Gets the rotated size of the page.
     /// </summary>
-    public PdfSize RotatedSize => Info.GetRotatedSize(UserRotation);
+    public PdfSize RotatedSize => _page.GetRotatedSize(Rotation);
 
     /// <summary>
     /// Returns the matrix that maps panel pixels to page space rotated by <paramref name="rotation"/> degrees,
@@ -75,8 +80,8 @@ public readonly struct PdfPanelFramePage
             throw new ArgumentOutOfRangeException(nameof(rotation));
         }
 
-        float width = Info.CropBox.Width;
-        float height = Info.CropBox.Height;
+        float width = _page.Size.Width;
+        float height = _page.Size.Height;
         float rotatedWidth = (normalizedRotation % 180 == 0) ? width : height;
         float rotatedHeight = (normalizedRotation % 180 == 0) ? height : width;
         float rotationOffsetX = normalizedRotation switch { 90 or 180 => rotatedWidth, _ => 0f };

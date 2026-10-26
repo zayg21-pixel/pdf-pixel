@@ -12,12 +12,13 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
     private readonly PdfPanelThumbnails _thumbnails;
     private bool _isRequested;
     private byte[]? _png;
+    private int _reportedRotation;
 
-    internal PdfThumbnailViewModel(PdfPanelThumbnails thumbnails, int pageNumber, in PdfPanelPageInfo info)
+    internal PdfThumbnailViewModel(PdfPanelThumbnails thumbnails, PdfPanelPage page)
     {
         _thumbnails = thumbnails;
-        PageNumber = pageNumber;
-        Info = info;
+        Page = page;
+        _reportedRotation = page.Rotation;
     }
 
     /// <inheritdoc />
@@ -26,12 +27,17 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
     /// <summary>
     /// 1-based number of the page.
     /// </summary>
-    public int PageNumber { get; }
+    public int PageNumber => Page.PageNumber;
 
     /// <summary>
-    /// Label, crop box and rotation of the page.
+    /// Page the thumbnail shows.
     /// </summary>
-    public PdfPanelPageInfo Info { get; }
+    public PdfPanelPage Page { get; }
+
+    /// <summary>
+    /// Clockwise rotation of the page in degrees.
+    /// </summary>
+    public int Rotation => Page.Rotation;
 
     /// <summary>
     /// Size of the thumbnail in pixels, or <see langword="null"/> when the page has none.
@@ -39,7 +45,7 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
     public PdfSize? Size => _thumbnails.GetSize(PageNumber);
 
     /// <summary>
-    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not requested or not ready.
+    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not ready.
     /// </summary>
     public byte[]? Png => _png;
 
@@ -58,24 +64,26 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
             }
 
             _isRequested = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRequested)));
 
             if (value)
             {
-                _png = _thumbnails.GetPng(PageNumber);
+                byte[]? png = _thumbnails.GetPng(PageNumber);
 
-                if (_png == null)
+                if (png == null)
                 {
                     _thumbnails.Request(PageNumber);
+                }
+                else if (!ReferenceEquals(png, _png))
+                {
+                    _png = png;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
                 }
             }
             else
             {
                 _thumbnails.Cancel(PageNumber);
-                _png = null;
             }
-
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRequested)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
         }
     }
 
@@ -106,5 +114,19 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
         {
             _thumbnails.Request(PageNumber);
         }
+    }
+
+    /// <summary>
+    /// Reports <see cref="Rotation"/> when it changed since it was last reported.
+    /// </summary>
+    internal void Synchronize()
+    {
+        if (Rotation == _reportedRotation)
+        {
+            return;
+        }
+
+        _reportedRotation = Rotation;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Rotation)));
     }
 }

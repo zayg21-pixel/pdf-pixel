@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Geometry;
+using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using System;
@@ -6,23 +7,21 @@ using System;
 namespace PdfPixel.PdfPanel;
 
 /// <summary>
-/// Represents a page in the PDF document in <see cref="PdfPanelPageCollection"/>.
+/// Represents a page in the PDF document in <see cref="PdfPanelDocument"/>.
 /// </summary>
 public class PdfPanelPage
 {
-    private readonly PdfPanelDocument _panelDocument;
+    private int _rotation;
 
-    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, PdfPanelDocument panelDocument)
+    internal PdfPanelPage(IPdfPage pdfPage, int pageNumber, PdfPanelDocument panelDocument)
     {
-        Info = info;
+        PdfPage = pdfPage ?? throw new ArgumentNullException(nameof(pdfPage));
         PageNumber = pageNumber;
-        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
+        PanelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
+        Label = pdfPage.PageLabel.DecodePdfString();
+        CacheEntry = new PdfPageCacheEntry(pageNumber);
+        _rotation = (pdfPage.Rotation % 90 == 0) ? pdfPage.Rotation : 0;
     }
-
-    /// <summary>
-    /// Information about the page, it's size and rotation.
-    /// </summary>
-    public PdfPanelPageInfo Info { get; }
 
     /// <summary>
     /// Number of the page.
@@ -30,9 +29,38 @@ public class PdfPanelPage
     public int PageNumber { get; }
 
     /// <summary>
+    /// Human-readable page label (e.g. "iv", "1", "A-1") as defined in the PDF.
+    /// </summary>
+    public string Label { get; }
+
+    /// <summary>
+    /// Size of the page without rotation, in panel units.
+    /// </summary>
+    public PdfSize Size => new(PdfPage.CropBox.Width * PdfPage.UserUnit, PdfPage.CropBox.Height * PdfPage.UserUnit);
+
+    /// <summary>
+    /// Clockwise rotation of the page in degrees, normalized to 0-359. Starts at the rotation defined in the PDF.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is not a multiple of 90.</exception>
+    public int Rotation
+    {
+        get => _rotation;
+
+        set
+        {
+            if (value % 90 != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Rotation must be a multiple of 90.");
+            }
+
+            _rotation = ((value % 360) + 360) % 360;
+        }
+    }
+
+    /// <summary>
     /// Collection of annotation popups for this page.
     /// </summary>
-    public PdfAnnotationPopup[] Popups => _panelDocument.GetAnnotationPopups(PageNumber);
+    public PdfAnnotationPopup[] Popups => CacheEntry.GetAnnotations(this);
 
     /// <summary>
     /// Gets the offset of the page.
@@ -43,8 +71,18 @@ public class PdfPanelPage
     public PdfPoint Offset { get; set; }
 
     /// <summary>
-    /// User defined rotation of the page in degrees.
-    /// Can be any value that is a multiple of 90.
+    /// Page of the PDF document this page displays. Property reads are thread-safe;
+    /// method calls and stream access must lock <see cref="PdfPanelDocument.DocumentLocker"/>.
     /// </summary>
-    public int UserRotation { get; set; }
+    public IPdfPage PdfPage { get; }
+
+    /// <summary>
+    /// Document this page belongs to.
+    /// </summary>
+    internal PdfPanelDocument PanelDocument { get; }
+
+    /// <summary>
+    /// Content produced for this page.
+    /// </summary>
+    internal PdfPageCacheEntry CacheEntry { get; }
 }

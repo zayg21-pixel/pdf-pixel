@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace PdfPixel.PdfPanel.Web.Dto.Model;
@@ -14,6 +15,7 @@ namespace PdfPixel.PdfPanel.Web.Dto.Model;
 [JsonSerializable(typeof(FrameDto))]
 [JsonSerializable(typeof(PageDestinationDto))]
 [JsonSerializable(typeof(NamedDestinationDto))]
+[JsonSerializable(typeof(List<ThumbnailLayoutDto>))]
 internal sealed partial class DtoJsonContext : JsonSerializerContext
 {
 }

@@ -9,15 +9,15 @@ namespace PdfPixel.PdfPanel.Annotations;
 /// </summary>
 public sealed class PdfPanelAnnotations
 {
-    private readonly PdfPanelPageCollection _pages;
+    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelInput _input;
 
     /// <summary>
     /// Initializes a new <see cref="PdfPanelAnnotations"/> and subscribes it to the given input.
     /// </summary>
-    internal PdfPanelAnnotations(PdfPanelPageCollection pages, PdfPanelInput input)
+    internal PdfPanelAnnotations(PdfPanelDocument panelDocument, PdfPanelInput input)
     {
-        _pages = pages ?? throw new ArgumentNullException(nameof(pages));
+        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _input = input ?? throw new ArgumentNullException(nameof(input));
 
         _input.PointerMoved += OnPointerMoved;
@@ -119,7 +119,7 @@ public sealed class PdfPanelAnnotations
             return null;
         }
 
-        return _pages.GetAnnotationPopupAt(pagePoint.Value.PageNumber, pagePoint.Value.Position);
+        return _panelDocument.GetAnnotationPopupAt(pagePoint.Value.PageNumber, pagePoint.Value.Position);
     }
 
     private void Clear()

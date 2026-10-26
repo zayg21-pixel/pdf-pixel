@@ -51,12 +51,7 @@ internal sealed class PdfPanelResources
     /// <summary>
     /// Gets or sets the document currently loaded into the panel, or null when none is loaded.
     /// </summary>
-    public IPdfDocument? Document { get; set; }
-
-    /// <summary>
-    /// Gets or sets the pages of the currently loaded document, or null when none is loaded.
-    /// </summary>
-    public PdfPanelPageCollection? Pages { get; set; }
+    public PdfPanelDocument? Document { get; set; }
 
     /// <summary>
     /// Gets or sets the outline of the currently loaded document, or null when none is loaded.

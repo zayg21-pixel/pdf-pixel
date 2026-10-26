@@ -17,30 +17,18 @@ internal sealed class PdfPageCacheEntry : IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a cache entry for the given page number, info, and annotations.
+    /// Initializes a cache entry for the given page number.
     /// </summary>
-    public PdfPageCacheEntry(int pageNumber, in PdfPanelPageInfo pageInfo)
+    public PdfPageCacheEntry(int pageNumber)
     {
         if (pageNumber < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(pageNumber));
         }
 
-        PageNumber = pageNumber;
-        PageInfo = pageInfo;
         Content = new PdfPageCacheEntryItem(pageNumber);
         AnnotationContent = new PdfPageCacheEntryItem(pageNumber);
     }
-
-    /// <summary>
-    /// 1-based page number this cache entry represents.
-    /// </summary>
-    public int PageNumber { get; }
-
-    /// <summary>
-    /// General information about the page.
-    /// </summary>
-    public PdfPanelPageInfo PageInfo { get; }
 
     /// <summary>
     /// Main page content.
@@ -60,20 +48,20 @@ internal sealed class PdfPageCacheEntry : IDisposable
     /// <summary>
     /// Returns the page's annotation popups, creating them on first call.
     /// </summary>
-    public PdfAnnotationPopup[] GetAnnotations(PdfPanelDocument panelDocument)
+    public PdfAnnotationPopup[] GetAnnotations(PdfPanelPage page)
     {
-        if (panelDocument == null)
+        if (page == null)
         {
-            throw new ArgumentNullException(nameof(panelDocument));
+            throw new ArgumentNullException(nameof(page));
         }
 
         ThrowIfDisposed();
 
         if (_annotations == null)
         {
-            lock (panelDocument.DocumentLocker)
+            lock (page.PanelDocument.DocumentLocker)
             {
-                _annotations = panelDocument.CreateAnnotationPopups(PageNumber);
+                _annotations = page.PanelDocument.CreateAnnotationPopups(page.PageNumber);
             }
         }
 
@@ -109,7 +97,7 @@ internal sealed class PdfPageCacheEntry : IDisposable
     /// Keeps the parse observer if one already exists, creating it only when missing;
     /// always cancels and replaces the content observer.
     /// </summary>
-    public void InitializeForRendering(IPdfExecutionObserverFactory observerFactory, PagesDrawingRequest request)
+    public void InitializeForRendering(IPdfExecutionObserverFactory observerFactory, PagesDrawingRequest request, int pageNumber)
     {
         if (observerFactory == null)
         {
@@ -122,12 +110,12 @@ internal sealed class PdfPageCacheEntry : IDisposable
         {
             if (ParseObserver == null)
             {
-                ParseObserver = observerFactory.CreateParseObserver(PageNumber);
+                ParseObserver = observerFactory.CreateParseObserver(pageNumber);
             }
 
             ContentObserver?.Cancel();
             ContentObserver?.Dispose();
-            ContentObserver = observerFactory.CreateContentObserver(PageNumber);
+            ContentObserver = observerFactory.CreateContentObserver(pageNumber);
             _pendingRequest = request ?? throw new ArgumentNullException(nameof(request));
         }
     }

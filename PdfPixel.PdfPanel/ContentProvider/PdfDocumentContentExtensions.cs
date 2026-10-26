@@ -35,7 +35,7 @@ internal static class PdfDocumentContentExtensions
 
         PdfCommandRecorder recorder = new();
 
-        recorder.ApplyPageTransformations(pdfPage.CropBox);
+        recorder.ApplyPageTransformations(pdfPage.CropBox, scale: pdfPage.UserUnit);
 
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
@@ -82,7 +82,7 @@ internal static class PdfDocumentContentExtensions
 
         PdfCommandRecorder commandRecording = new();
 
-        commandRecording.ApplyPageTransformations(pdfPage.CropBox);
+        commandRecording.ApplyPageTransformations(pdfPage.CropBox, scale: pdfPage.UserUnit);
 
         pdfPage.Render(commandRecording, renderingParameters, observer);
 
@@ -128,13 +128,6 @@ internal static class PdfDocumentContentExtensions
         await commandRecording.ReplayAsync(processor).ConfigureAwait(false);
 
         canvas.Flush();
-    }
-
-    public static PdfPanelPageInfo GetPageInfo(IPdfDocument document, int pageNumber)
-    {
-        IPdfPage pdfPage = document.Pages[pageNumber - 1];
-        string label = document.Pages[pageNumber - 1].PageLabel.DecodePdfString();
-        return new PdfPanelPageInfo(label, pdfPage.CropBox, pdfPage.Rotation, pdfPage.UserUnit);
     }
 
     /// <summary>

@@ -25,7 +25,7 @@ public static class PdfPanelContextExtensions
             throw new ArgumentNullException(nameof(context));
         }
 
-        int pageCount = context.Pages.Count;
+        int pageCount = context.Document.Pages.Count;
         float panelCenterX = context.HorizontalOffset + (context.PanelWidth / 2f);
         float panelCenterY = context.VerticalOffset + (context.PanelHeight / 2f);
         int closestPageNumber = 1;
@@ -33,7 +33,7 @@ public static class PdfPanelContextExtensions
 
         for (int i = 0; i < pageCount; i++)
         {
-            PdfPanelPage page = context.Pages[i];
+            PdfPanelPage page = context.Document.Pages[i];
             PdfSize rotatedScaledSize = page.GetRotatedScaledSize(context.Scale);
 
             float pageCenterX = page.Offset.X + (rotatedScaledSize.Width / 2f);
@@ -66,7 +66,7 @@ public static class PdfPanelContextExtensions
             throw new ArgumentNullException(nameof(context));
         }
 
-        PdfPanelPage? page = context.Pages.FirstOrDefault(p => p.PageNumber == pageNumber);
+        PdfPanelPage? page = context.Document.Pages.FirstOrDefault(p => p.PageNumber == pageNumber);
         if (page != null)
         {
             float pageGap = context.Layout.PageGap;
@@ -116,7 +116,7 @@ public static class PdfPanelContextExtensions
             throw new ArgumentNullException(nameof(context));
         }
 
-        if (context.Pages == null)
+        if (context.Document == null)
         {
             return null;
         }
@@ -128,7 +128,7 @@ public static class PdfPanelContextExtensions
             return null;
         }
 
-        context.Pages.TryGetPage(pagePoint.Value.PageNumber, out PdfPanelPage? page);
+        context.Document.TryGetPage(pagePoint.Value.PageNumber, out PdfPanelPage? page);
 
         return page;
     }
@@ -145,7 +145,7 @@ public static class PdfPanelContextExtensions
             throw new ArgumentNullException(nameof(context));
         }
 
-        if (!context.Pages.TryGetPage(match.Range.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
+        if (!context.Document.TryGetPage(match.Range.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
         {
             return;
         }

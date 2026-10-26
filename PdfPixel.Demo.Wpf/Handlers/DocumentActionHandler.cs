@@ -163,7 +163,7 @@ public sealed class DocumentActionHandler
         }
 
         DocumentTabRequest target = _tab.Request;
-        IPdfDocument targetDocument = _tab.Document;
+        IPdfDocument targetDocument = _tab.Document?.Document;
 
         try
         {
@@ -195,7 +195,7 @@ public sealed class DocumentActionHandler
                     return;
                 }
 
-                if (targetDocument != _tab.Document)
+                if (targetDocument != _tab.Document?.Document)
                 {
                     targetDocument?.Dispose();
                 }
@@ -205,7 +205,7 @@ public sealed class DocumentActionHandler
         }
         finally
         {
-            if (targetDocument != _tab.Document)
+            if (targetDocument != _tab.Document?.Document)
             {
                 targetDocument?.Dispose();
             }
@@ -223,9 +223,9 @@ public sealed class DocumentActionHandler
         PdfFileSpecification fileSpecification;
         byte[] data;
 
-        if (parentDocument == _tab.Document)
+        if (parentDocument == _tab.Document?.Document)
         {
-            lock (_tab.Pages.DocumentLocker)
+            lock (_tab.Document.DocumentLocker)
             {
                 fileSpecification = parentDocument.EmbeddedFiles.ResolveFile(step);
                 data = ReadEmbeddedFile(fileSpecification);
@@ -252,7 +252,7 @@ public sealed class DocumentActionHandler
     {
         byte[] data;
 
-        lock (_tab.Pages.DocumentLocker)
+        lock (_tab.Document.DocumentLocker)
         {
             data = ReadEmbeddedFile(fileSpecification);
         }

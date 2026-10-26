@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Layout;
 
@@ -24,7 +25,7 @@ public interface IPdfPanelLayout
     /// </summary>
     /// <param name="pages">The collection of pages to layout.</param>
     /// <returns>The size to fit, in unscaled panel space.</returns>
-    PdfSize CalculateFitSize(PdfPanelPageCollection pages);
+    PdfSize CalculateFitSize(IReadOnlyList<PdfPanelPage> pages);
 
     /// <summary>
     /// Calculates the total extent (width and height) required to display all pages with the given layout.
@@ -35,7 +36,7 @@ public interface IPdfPanelLayout
     /// <param name="panelHeight">The height of the panel in device pixels.</param>
     /// <returns>The total extent size in scaled space (device pixels).</returns>
     PdfSize CalculateDimensions(
-        PdfPanelPageCollection pages,
+        IReadOnlyList<PdfPanelPage> pages,
         float scale,
         float panelWidth,
         float panelHeight);
@@ -49,7 +50,7 @@ public interface IPdfPanelLayout
     /// <param name="extentWidth">The total width of the content area in scaled space.</param>
     /// <param name="extentHeight">The total height of the content area in scaled space.</param>
     void CalculatePageOffsets(
-        PdfPanelPageCollection pages,
+        IReadOnlyList<PdfPanelPage> pages,
         float scale,
         float extentWidth,
         float extentHeight);

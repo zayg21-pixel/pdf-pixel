@@ -92,7 +92,7 @@
 
                     <ui:NumberBox Value="{Binding PageNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   Minimum="1"
-                                  Maximum="{Binding Pages.Count}"
+                                  Maximum="{Binding Document.Pages.Count}"
                                   MaxDecimalPlaces="0"
                                   SmallChange="-1"
                                   SpinButtonPlacementMode="Hidden"
@@ -104,7 +104,7 @@
                                   Width="52"
                                   Margin="4" />
                     <TextBlock Text="of" VerticalAlignment="Center" Margin="6 0" />
-                    <TextBlock Text="{Binding Pages.Count}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Document.Pages.Count}" VerticalAlignment="Center" />
 
                     <Separator Margin="6 0" />
 
@@ -226,11 +226,11 @@
                                         <Image.LayoutTransform>
                                             <TransformGroup>
                                                 <ScaleTransform ScaleX="0.5" ScaleY="0.5" />
-                                                <RotateTransform Angle="{Binding Info.Rotation}" />
+                                                <RotateTransform Angle="{Binding Rotation}" />
                                             </TransformGroup>
                                         </Image.LayoutTransform>
                                     </Image>
-                                    <TextBlock Text="{Binding Info.Label}" HorizontalAlignment="Center" Margin="0 2 0 0" />
+                                    <TextBlock Text="{Binding Page.Label}" HorizontalAlignment="Center" Margin="0 2 0 0" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -385,7 +385,7 @@
                 <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
                     <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
                                              CurrentPage="{Binding PageNumber}"
-                                             Pages="{Binding Pages}"
+                                             Document="{Binding Document}"
                                              AutoScaleMode="{Binding AutoScaleMode}"
                                              SearchQuery="{Binding SearchQuery}"
                                              CurrentSearchResult="{Binding CurrentSearchResult}"

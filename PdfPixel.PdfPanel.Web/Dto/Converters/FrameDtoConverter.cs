@@ -19,22 +19,15 @@ internal static class FrameDtoConverter
 
         foreach (PdfPanelFramePage page in frame.Pages)
         {
-            PdfRectangle cropBox = page.Info.CropBox;
             PdfSize rotatedSize = page.RotatedSize;
 
             FramePageDto pageDto = new()
             {
                 PageNumber = page.PageNumber,
-                Label = page.Info.Label,
-                CropBox = new RectangleDto
-                {
-                    Left = cropBox.Left,
-                    Top = cropBox.Top,
-                    Right = cropBox.Right,
-                    Bottom = cropBox.Bottom
-                },
-                Rotation = page.Info.Rotation,
-                UserRotation = page.UserRotation,
+                Label = page.Label,
+                Width = page.Size.Width,
+                Height = page.Size.Height,
+                Rotation = page.Rotation,
                 RotatedWidth = rotatedSize.Width,
                 RotatedHeight = rotatedSize.Height,
                 PanelToContent = ToDomMatrix(page.GetPanelToPage(0))

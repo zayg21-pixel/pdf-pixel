@@ -33,7 +33,7 @@ internal sealed partial class PdfPanelScheduler : IDisposable
     public void ClearExtractedContent() => EnqueueClear(CachedContentType.Words | CachedContentType.Thumbnail);
 
     private void EnqueueClear(CachedContentType contentTypes)
-        => _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(_panelDocument.Entries, _panelDocument.DocumentLocker, contentTypes, OnExtractedContentCleared));
+        => _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(_panelDocument.Pages,_panelDocument.DocumentLocker, contentTypes, OnExtractedContentCleared));
 
     private void OnExtractedContentCleared(CachedContentType contentTypes)
     {

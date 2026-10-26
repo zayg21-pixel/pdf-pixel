@@ -65,7 +65,7 @@ internal sealed class PdfPageContentTiler : IDisposable
             _pageCache[pageInfo.PageNumber] = pageCache;
         }
 
-        float pageScale = request.Scale * pageInfo.Info.UserUnit;
+        float pageScale = request.Scale;
 
         if (pageCache.Scale != pageScale)
         {
@@ -73,7 +73,7 @@ internal sealed class PdfPageContentTiler : IDisposable
             pageCache.Scale = pageScale;
         }
 
-        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Info.CropBox.Width, pageInfo.Info.CropBox.Height);
+        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Page.Size.Width, pageInfo.Page.Size.Height);
 
         PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.VisibleRegion, pageScale);
         PdfIntegerRectangle pagePixels = ToPixels(pageBounds, pageScale);

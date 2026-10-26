@@ -14,37 +14,25 @@ internal readonly struct RequestPageInfo
     /// Initialises a new snapshot for a page of a request.
     /// </summary>
     public RequestPageInfo(
-        int pageNumber,
+        PdfPanelPage page,
         in PdfPoint offset,
-        in PdfPanelPageInfo pageInfo,
-        int userRotation,
         in PdfSize panelSize,
         float scale,
         int tileSize)
     {
-        PageNumber = pageNumber;
+        Page = page;
         Offset = offset;
-        Info = pageInfo;
-
-        int normalizedUserRotation = userRotation % 360;
-
-        if (normalizedUserRotation < 0)
-        {
-            normalizedUserRotation += 360;
-        }
-
-        UserRotation = normalizedUserRotation;
+        Rotation = page.Rotation;
 
         PdfRectangle panelRect = PdfRectangle.FromLocationAndSize(0, 0, panelSize.Width, panelSize.Height);
         PdfRectangle visibleContent = GetContentToPanelMatrix(scale).Invert().MapRect(panelRect);
-        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.CropBox.Width, pageInfo.CropBox.Height);
-        float pageScale = scale * pageInfo.UserUnit;
+        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, page.Size.Width, page.Size.Height);
 
         VisibleRegion = (PdfRectangle.IntersectsWith(visibleContent, pageBounds))
-            ? PdfRectangle.Intersect(PdfPageContentTiler.SnapToTileGrid(visibleContent, pageScale, tileSize), pageBounds)
+            ? PdfRectangle.Intersect(PdfPageContentTiler.SnapToTileGrid(visibleContent, scale, tileSize), pageBounds)
             : PdfRectangle.Empty;
 
-        if (pageBounds.Width * pageScale <= panelSize.Width && pageBounds.Height * pageScale <= panelSize.Height)
+        if (pageBounds.Width * scale <= panelSize.Width && pageBounds.Height * scale <= panelSize.Height)
         {
             RegionOfInterest = null;
         }
@@ -57,7 +45,7 @@ internal readonly struct RequestPageInfo
     /// <summary>
     /// Gets the page number.
     /// </summary>
-    public int PageNumber { get; }
+    public int PageNumber => Page.PageNumber;
 
     /// <summary>
     /// Gets the offset of the page.
@@ -66,14 +54,14 @@ internal readonly struct RequestPageInfo
     public PdfPoint Offset { get; }
 
     /// <summary>
-    /// Gets the page information.
+    /// Gets the page.
     /// </summary>
-    public PdfPanelPageInfo Info { get; }
+    public PdfPanelPage Page { get; }
 
     /// <summary>
-    /// Gets the user rotation of the page.
+    /// Gets the rotation of the page.
     /// </summary>
-    public int UserRotation { get; }
+    public int Rotation { get; }
 
     /// <summary>
     /// Gets the part of the page covered by the canvas, in content coordinates, expanded to the tile grid and clamped
@@ -90,11 +78,11 @@ internal readonly struct RequestPageInfo
     /// <summary>
     /// Gets the rotated size of the page.
     /// </summary>
-    public PdfSize RotatedSize => Info.GetRotatedSize(UserRotation);
+    public PdfSize RotatedSize => Page.GetRotatedSize(Rotation);
 
     /// <summary>
     /// Matrix that maps this page's content coordinates (top-left origin, Y-down, unrotated,
-    /// matching <see cref="Info"/> dimensions — the space recorded pictures and command
+    /// matching <see cref="Page"/> dimensions — the space recorded pictures and command
     /// replay operate in) directly to panel pixels. Combines page rotation with the
     /// scroll-offset translation and render scale applied to the panel before content is
     /// drawn. Invert it to map panel pixels back to content coordinates, e.g. to derive a
@@ -102,16 +90,13 @@ internal readonly struct RequestPageInfo
     /// </summary>
     public PdfMatrix GetContentToPanelMatrix(float scale)
     {
-        int rotation = Info.GetTotalRotation(UserRotation);
         PdfSize rotatedSize = RotatedSize;
 
-        float rotationOffsetX = rotation switch { 90 or 180 => rotatedSize.Width, _ => 0f };
-        float rotationOffsetY = rotation switch { 180 or 270 => rotatedSize.Height, _ => 0f };
+        float rotationOffsetX = Rotation switch { 90 or 180 => rotatedSize.Width, _ => 0f };
+        float rotationOffsetY = Rotation switch { 180 or 270 => rotatedSize.Height, _ => 0f };
 
-        float pageScale = scale * Info.UserUnit;
-
-        return PdfMatrix.CreateRotationDegrees(rotation)
-            .PostConcat(PdfMatrix.CreateScale(pageScale, pageScale))
+        return PdfMatrix.CreateRotationDegrees(Rotation)
+            .PostConcat(PdfMatrix.CreateScale(scale, scale))
             .PostConcat(PdfMatrix.CreateTranslation(
                 PdfCommandProcessingUtilities.SnapToWholePixel((Offset.X + rotationOffsetX) * scale),
                 PdfCommandProcessingUtilities.SnapToWholePixel((Offset.Y + rotationOffsetY) * scale)));
@@ -124,11 +109,14 @@ internal readonly struct RequestPageInfo
     /// <returns>Rectangle in page coordinates.</returns>
     public PdfRectangle FromPdfRect(in PdfRectangle pdfRect)
     {
+        PdfRectangle cropBox = Page.PdfPage.CropBox;
+        float userUnit = Page.PdfPage.UserUnit;
+
         return PdfRectangle.FromLocationAndSize(
-            pdfRect.Left - Info.CropBox.Left,
-            Info.CropBox.Height + Info.CropBox.Top - pdfRect.Bottom,
-            pdfRect.Width,
-            pdfRect.Height);
+            (pdfRect.Left - cropBox.Left) * userUnit,
+            (cropBox.Height + cropBox.Top - pdfRect.Bottom) * userUnit,
+            pdfRect.Width * userUnit,
+            pdfRect.Height * userUnit);
     }
 
     /// <summary>

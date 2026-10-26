@@ -4,62 +4,39 @@ using System;
 namespace PdfPixel.PdfPanel.Extensions;
 
 /// <summary>
-/// Extension methods for <see cref="PdfPanelPage"/> and <see cref="PdfPanelPageInfo"/>.
+/// Extension methods for <see cref="PdfPanelPage"/>.
 /// </summary>
 public static class PdfPanelPageExtensions
 {
     /// <summary>
-    /// Gets the total rotation in degrees after applying user rotation.
-    /// </summary>
-    /// <param name="pageInfo">The page information.</param>
-    /// <param name="userRotation">User-applied rotation in degrees.</param>
-    /// <returns>Total rotation normalized to 0-359 degrees.</returns>
-    public static int GetTotalRotation(this in PdfPanelPageInfo pageInfo, int userRotation)
-    {
-        int totalRotation = pageInfo.Rotation + userRotation;
-        totalRotation %= 360;
-
-        if (totalRotation < 0)
-        {
-            totalRotation += 360;
-        }
-
-        return totalRotation;
-    }
-
-    /// <summary>
-    /// Gets the size of the page after applying rotation and the user unit.
-    /// </summary>
-    /// <param name="pageInfo">The page information.</param>
-    /// <param name="userRotation">User-applied rotation in degrees.</param>
-    /// <returns>The rotated page size with width and height swapped if rotated 90 or 270 degrees.</returns>
-    public static PdfSize GetRotatedSize(this in PdfPanelPageInfo pageInfo, int userRotation)
-    {
-        int totalRotation = pageInfo.GetTotalRotation(userRotation);
-        float width = pageInfo.CropBox.Width * pageInfo.UserUnit;
-        float height = pageInfo.CropBox.Height * pageInfo.UserUnit;
-
-        if (totalRotation % 180 != 0)
-        {
-            return new PdfSize(height, width);
-        }
-
-        return new PdfSize(width, height);
-    }
-
-    /// <summary>
-    /// Gets the total rotation in degrees for the page.
+    /// Gets the size of the page after applying <paramref name="rotation"/>.
     /// </summary>
     /// <param name="page">The page.</param>
-    /// <returns>Total rotation normalized to 0-359 degrees.</returns>
-    public static int GetTotalRotation(this PdfPanelPage page) => page?.Info.GetTotalRotation(page.UserRotation) ?? throw new ArgumentNullException(nameof(page));
+    /// <param name="rotation">Rotation in degrees, a multiple of 90.</param>
+    /// <returns>The rotated page size with width and height swapped if rotated 90 or 270 degrees.</returns>
+    public static PdfSize GetRotatedSize(this PdfPanelPage page, int rotation)
+    {
+        if (page == null)
+        {
+            throw new ArgumentNullException(nameof(page));
+        }
+
+        PdfSize size = page.Size;
+
+        if (rotation % 180 != 0)
+        {
+            return new PdfSize(size.Height, size.Width);
+        }
+
+        return size;
+    }
 
     /// <summary>
     /// Gets the size of the page after applying rotation.
     /// </summary>
     /// <param name="page">The page.</param>
     /// <returns>The rotated page size.</returns>
-    public static PdfSize GetRotatedSize(this PdfPanelPage page) => page?.Info.GetRotatedSize(page.UserRotation) ?? throw new ArgumentNullException(nameof(page));
+    public static PdfSize GetRotatedSize(this PdfPanelPage page) => page?.GetRotatedSize(page.Rotation) ?? throw new ArgumentNullException(nameof(page));
 
     /// <summary>
     /// Gets the size of the page after applying rotation and scale.
@@ -145,9 +122,9 @@ public static class PdfPanelPageExtensions
         }
 
         return pagePoint.X >= 0
-            && pagePoint.X <= page.Info.CropBox.Width
+            && pagePoint.X <= page.Size.Width
             && pagePoint.Y >= 0
-            && pagePoint.Y <= page.Info.CropBox.Height;
+            && pagePoint.Y <= page.Size.Height;
     }
 
     /// <summary>
@@ -191,16 +168,14 @@ public static class PdfPanelPageExtensions
         // Step 2: Subtract page offset (in scaled space) to get to page origin
         matrix = matrix.PostConcat(PdfMatrix.CreateTranslation(-page.Offset.X, -page.Offset.Y));
 
-        // Step 3: Apply inverse scale and user unit to get to unscaled page space
-        float pageScale = scale * page.Info.UserUnit;
-        matrix = matrix.PostConcat(PdfMatrix.CreateScale(1f / pageScale, 1f / pageScale));
+        // Step 3: Apply inverse scale to get to unscaled page space
+        matrix = matrix.PostConcat(PdfMatrix.CreateScale(1f / scale, 1f / scale));
 
         // Step 4: Apply inverse rotation to get to unrotated page space
-        int totalRotation = page.GetTotalRotation();
-        if (totalRotation != 0)
+        if (page.Rotation != 0)
         {
-            PdfSize unrotatedSize = new(page.Info.CropBox.Width, page.Info.CropBox.Height);
-            matrix = matrix.PostConcat(GetInverseRotationMatrix(unrotatedSize.Width, unrotatedSize.Height, totalRotation));
+            PdfSize unrotatedSize = page.Size;
+            matrix = matrix.PostConcat(GetInverseRotationMatrix(unrotatedSize.Width, unrotatedSize.Height, page.Rotation));
         }
 
         return matrix;
@@ -260,9 +235,12 @@ public static class PdfPanelPageExtensions
             throw new ArgumentNullException(nameof(page));
         }
 
+        PdfRectangle cropBox = page.PdfPage.CropBox;
+        float userUnit = page.PdfPage.UserUnit;
+
         return new PdfPoint(
-            pdfPoint.X - page.Info.CropBox.Left,
-            page.Info.CropBox.Height + page.Info.CropBox.Top - pdfPoint.Y);
+            (pdfPoint.X - cropBox.Left) * userUnit,
+            (cropBox.Height + cropBox.Top - pdfPoint.Y) * userUnit);
     }
 
     /// <summary>
@@ -278,10 +256,13 @@ public static class PdfPanelPageExtensions
             throw new ArgumentNullException(nameof(page));
         }
 
+        PdfRectangle cropBox = page.PdfPage.CropBox;
+        float userUnit = page.PdfPage.UserUnit;
+
         return PdfRectangle.FromLocationAndSize(
-            pdfRect.Left - page.Info.CropBox.Left,
-            page.Info.CropBox.Height + page.Info.CropBox.Top - pdfRect.Bottom,
-            pdfRect.Width,
-            pdfRect.Height);
+            (pdfRect.Left - cropBox.Left) * userUnit,
+            (cropBox.Height + cropBox.Top - pdfRect.Bottom) * userUnit,
+            pdfRect.Width * userUnit,
+            pdfRect.Height * userUnit);
     }
 }

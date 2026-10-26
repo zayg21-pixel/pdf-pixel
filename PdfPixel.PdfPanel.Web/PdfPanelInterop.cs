@@ -173,8 +173,8 @@ internal static partial class PdfPanelInterop
         if (ResourcesMap.TryGetValue(containerId, out PdfPanelResources? resources))
         {
             DisposeContext(resources);
-            resources.Pages?.Dispose();
             resources.Document?.Dispose();
+            resources.Document?.Document.Dispose();
             resources.SkSurfaceFactory.Dispose();
 
             ResourcesMap.Remove(containerId);
@@ -233,21 +233,19 @@ internal static partial class PdfPanelInterop
 
         try
         {
-            resources.Pages?.Dispose();
             resources.Document?.Dispose();
+            resources.Document?.Document.Dispose();
 
-            resources.Document = loadedDocument;
-
-            resources.Pages = PdfPanelPageCollection.FromDocument(
-                resources.Document,
+            resources.Document = PdfPanelDocument.FromDocument(
+                loadedDocument,
                 new SequentialWorkQueue(LoggerFactory.CreateLogger<SequentialWorkQueue>()),
                 new PdfYieldingObserverFactory(resources.YieldInterval),
                 SynchronizationContext.Current);
 
-            Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Pages.Count);
+            Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Document.Pages.Count);
 
             DisposeContext(resources);
-            resources.Context = new PdfPanelContext(resources.Pages, resources.SkSurfaceFactory, resources.RenderTargetFactory);
+            resources.Context = new PdfPanelContext(resources.Document, resources.SkSurfaceFactory, resources.RenderTargetFactory);
             resources.Configuration.ApplyConfiguration(resources.Context);
             resources.Context.Actions.ActionRequested += resources.OnActionRequested;
             resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;
@@ -255,7 +253,7 @@ internal static partial class PdfPanelInterop
             resources.SearchResultsChanged = true;
             resources.CurrentSearchRange = null;
 
-            CreateViewModels(resources, resources.Pages, resources.Context);
+            CreateViewModels(resources, resources.Document, resources.Context);
 
             return DocumentDtoConverter.CreateDocumentResult(resources);
         }
@@ -293,32 +291,32 @@ internal static partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Sets the rotation of one page of the panel of <paramref name="containerId"/>, keeping the current page in view.
+    /// Rotates one page of the panel of <paramref name="containerId"/> by <paramref name="degrees"/>, keeping the current page in view.
     /// </summary>
     [JSExport]
-    public static bool SetPageRotation(string containerId, int pageNumber, int degrees)
+    public static bool RotatePage(string containerId, int pageNumber, int degrees)
     {
         if (degrees % 90 != 0 || !TryGetContext(containerId, out PdfPanelContext? context))
         {
             return false;
         }
 
-        if (!context.Pages.TryGetPage(pageNumber, out PdfPanelPage? page) || page == null)
+        if (!context.Document.TryGetPage(pageNumber, out PdfPanelPage? page) || page == null)
         {
             return false;
         }
 
         int currentPage = context.GetCurrentPage();
-        page.UserRotation = degrees;
+        page.Rotation += degrees;
         context.Actions.ScrollToPage(currentPage);
         return true;
     }
 
     /// <summary>
-    /// Sets the rotation of every page of the panel of <paramref name="containerId"/>, keeping the current page in view.
+    /// Rotates every page of the panel of <paramref name="containerId"/> by <paramref name="degrees"/>, keeping the current page in view.
     /// </summary>
     [JSExport]
-    public static bool SetRotation(string containerId, int degrees)
+    public static bool RotatePages(string containerId, int degrees)
     {
         if (degrees % 90 != 0 || !TryGetContext(containerId, out PdfPanelContext? context))
         {
@@ -327,9 +325,9 @@ internal static partial class PdfPanelInterop
 
         int currentPage = context.GetCurrentPage();
 
-        foreach (PdfPanelPage page in context.Pages)
+        foreach (PdfPanelPage page in context.Document.Pages)
         {
-            page.UserRotation = degrees;
+            page.Rotation += degrees;
         }
 
         context.Actions.ScrollToPage(currentPage);
@@ -404,7 +402,7 @@ internal static partial class PdfPanelInterop
     [JSExport]
     public static JSObject? GetFileBytes(string containerId, int handle, JSObject? credential)
     {
-        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Pages == null)
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Document == null)
         {
             return null;
         }
@@ -427,7 +425,7 @@ internal static partial class PdfPanelInterop
 
         try
         {
-            lock (resources.Pages.DocumentLocker)
+            lock (resources.Document.DocumentLocker)
             {
                 return CreateFileResult(embeddedFile.Stream.DecodeAsMemory().ToArray());
             }
@@ -444,15 +442,47 @@ internal static partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Starts producing the thumbnail of a page; its PNG is passed to the thumbnail subscriber of the panel when it is ready,
-    /// and again whenever it is produced anew while it stays requested.
+    /// Returns the JSON thumbnail layout <c>[{ pageNumber, width, height, rotation }]</c> of the pages of the panel of
+    /// <paramref name="containerId"/>, or <see langword="null"/> when the panel has no document.
+    /// </summary>
+    [JSExport]
+    public static string? GetThumbnailLayout(string containerId)
+    {
+        if (!TryGetContext(containerId, out PdfPanelContext? context))
+        {
+            return null;
+        }
+
+        return ThumbnailDtoConverter.CreateLayout(context);
+    }
+
+    /// <summary>
+    /// Returns the PNG of the thumbnail of a page, or <see langword="null"/> when it has not been produced.
+    /// </summary>
+    [JSExport]
+    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+    public static byte[]? GetThumbnail(string containerId, int pageNumber)
+    {
+        if (!TryGetContext(containerId, out PdfPanelContext? context) || pageNumber < 1 || pageNumber > context.Document.Pages.Count)
+        {
+            return null;
+        }
+
+        return context.Thumbnails.GetPng(pageNumber);
+    }
+
+    /// <summary>
+    /// Starts producing the thumbnail of a page that has none; its PNG is passed to the thumbnail subscriber of the panel
+    /// when it is ready, and again whenever it is produced anew while it stays requested. Does nothing for a page whose
+    /// thumbnail is already produced.
     /// </summary>
     [JSExport]
     public static bool RequestThumbnail(string containerId, int pageNumber)
         => SetThumbnailRequested(containerId, pageNumber, true);
 
     /// <summary>
-    /// Cancels producing the thumbnail of a page; no PNG of it is passed until it is requested again.
+    /// Cancels producing the thumbnail of a page; no PNG of it is passed until it is requested again. Does nothing for a
+    /// page whose thumbnail is not requested.
     /// </summary>
     [JSExport]
     public static bool CancelThumbnail(string containerId, int pageNumber)
@@ -610,12 +640,12 @@ internal static partial class PdfPanelInterop
     /// Creates the view models of the outline, layers, thumbnails and attached files of the loaded document
     /// and subscribes the panel to the changes it sends to JS.
     /// </summary>
-    private static void CreateViewModels(PdfPanelResources resources, PdfPanelPageCollection pages, PdfPanelContext context)
+    private static void CreateViewModels(PdfPanelResources resources, PdfPanelDocument document, PdfPanelContext context)
     {
-        resources.Outlines = new PdfOutlinesViewModel(pages, context.Actions);
+        resources.Outlines = new PdfOutlinesViewModel(document, context.Actions);
         resources.Layers = new PdfLayersViewModel(context.Layers);
-        resources.Thumbnails = new PdfThumbnailsViewModel(context.Thumbnails, pages, context.Actions);
-        resources.Attachments = new PdfAttachmentsViewModel(pages);
+        resources.Thumbnails = new PdfThumbnailsViewModel(context.Thumbnails, document, context.Actions);
+        resources.Attachments = new PdfAttachmentsViewModel(document);
         resources.LayersChanged = true;
 
         resources.Layers.PropertyChanged += resources.OnLayersPropertyChanged;
@@ -688,7 +718,7 @@ internal static partial class PdfPanelInterop
 
     private static bool SetThumbnailRequested(string containerId, int pageNumber, bool isRequested)
     {
-        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Thumbnails == null)
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Thumbnails == null || resources.Context == null)
         {
             return false;
         }
@@ -696,6 +726,11 @@ internal static partial class PdfPanelInterop
         IReadOnlyList<PdfThumbnailViewModel> thumbnails = resources.Thumbnails.Items;
 
         if (pageNumber < 1 || pageNumber > thumbnails.Count)
+        {
+            return false;
+        }
+
+        if (isRequested && resources.Context.Thumbnails.GetPng(pageNumber) != null)
         {
             return false;
         }

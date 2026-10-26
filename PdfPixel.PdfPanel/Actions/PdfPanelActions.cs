@@ -114,7 +114,7 @@ public sealed class PdfPanelActions
         _targetPageNumber = null;
         _targetLocation = null;
 
-        if (!_context.Pages.TryGetPage(pageNumber, out PdfPanelPage? page) || page == null)
+        if (!_panelDocument.TryGetPage(pageNumber, out PdfPanelPage? page) || page == null)
         {
             return;
         }
@@ -187,7 +187,7 @@ public sealed class PdfPanelActions
     /// </summary>
     private void SynchronizePage()
     {
-        if (_context.Pages.Count == 0)
+        if (_panelDocument.Pages.Count == 0)
         {
             return;
         }
@@ -325,7 +325,7 @@ public sealed class PdfPanelActions
             return;
         }
 
-        int pageCount = _context.Pages.Count;
+        int pageCount = _panelDocument.Pages.Count;
         if (pageCount == 0)
         {
             return;
@@ -364,7 +364,7 @@ public sealed class PdfPanelActions
             return;
         }
 
-        if (!_context.Pages.TryGetPage(target.Value.PageIndex + 1, out PdfPanelPage? targetPage) || targetPage == null)
+        if (!_panelDocument.TryGetPage(target.Value.PageIndex + 1, out PdfPanelPage? targetPage) || targetPage == null)
         {
             return;
         }
@@ -382,7 +382,7 @@ public sealed class PdfPanelActions
         }
 
         _targetPageNumber = targetPage.PageNumber;
-        _targetLocation = GetDestinationLocation(target.Value, targetPage.Info.CropBox, currentLocation);
+        _targetLocation = GetDestinationLocation(target.Value, targetPage.PdfPage.CropBox, currentLocation);
     }
 
     private float? ComputeFitZoom(PdfPanelPage page, in PdfNavigationTarget target)
@@ -459,14 +459,15 @@ public sealed class PdfPanelActions
     /// </summary>
     private PdfPoint? GetCurrentLocation()
     {
-        if (!_context.Pages.TryGetPage(_context.GetCurrentPage(), out PdfPanelPage? currentPage) || currentPage == null)
+        if (!_panelDocument.TryGetPage(_context.GetCurrentPage(), out PdfPanelPage? currentPage) || currentPage == null)
         {
             return null;
         }
 
-        PdfRectangle cropBox = currentPage.Info.CropBox;
+        PdfRectangle cropBox = currentPage.PdfPage.CropBox;
+        float userUnit = currentPage.PdfPage.UserUnit;
         PdfPoint pageLocation = currentPage.PanelToPageMatrix(_context).MapPoint(new PdfPoint(0, 0));
 
-        return new PdfPoint(pageLocation.X + cropBox.Left, cropBox.Height + cropBox.Top - pageLocation.Y);
+        return new PdfPoint((pageLocation.X / userUnit) + cropBox.Left, cropBox.Height + cropBox.Top - (pageLocation.Y / userUnit));
     }
 }

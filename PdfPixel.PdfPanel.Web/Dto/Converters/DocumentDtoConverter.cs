@@ -25,7 +25,6 @@ internal static class DocumentDtoConverter
     public static string CreateDocumentResult(PdfPanelResources resources)
     {
         if (resources.Document == null
-            || resources.Pages == null
             || resources.Outlines == null
             || resources.Layers == null
             || resources.Attachments == null)
@@ -33,18 +32,18 @@ internal static class DocumentDtoConverter
             return CreateDocumentError("error", "No document is loaded.");
         }
 
-        IPdfDocument document = resources.Document;
+        IPdfDocument document = resources.Document.Document;
 
         DocumentResultDto result = new()
         {
-            PageCount = resources.Pages.Count,
+            PageCount = resources.Document.Pages.Count,
             Version = document.Version?.ToString(),
             PageMode = ToString(document.PageMode),
             PageLayout = ToString(document.PageLayout),
             Language = document.Language?.DecodePdfString(),
             Information = (document.Information != null) ? CreateDocumentInformation(document.Information) : null,
             Permissions = (document.Permissions != null) ? CreatePermissions(document.Permissions.Value) : null,
-            Pages = CreatePages(resources.Pages),
+            Pages = CreatePages(resources.Document.Pages),
             Outlines = CreateOutline(resources.Outlines.Items, resources.OutlineItems),
             LayerConfigurations = CreateLayerConfigurations(resources.Layers.Configurations, resources),
             Attachments = CreateAttachments(resources.Attachments.Items, resources)
@@ -205,27 +204,22 @@ internal static class DocumentDtoConverter
     }
 
     /// <summary>
-    /// Builds the static info <c>{ label, cropBox, rotation }</c> of <paramref name="pages"/>, in page order.
+    /// Builds the static info <c>{ label, width, height, rotation }</c> of <paramref name="pages"/>, in page order.
     /// </summary>
-    private static List<PageDto> CreatePages(PdfPanelPageCollection pages)
+    private static List<PageDto> CreatePages(IReadOnlyList<PdfPanelPage> pages)
     {
         List<PageDto> pageList = new(pages.Count);
 
         for (int pageIndex = 0; pageIndex < pages.Count; pageIndex++)
         {
-            PdfPanelPageInfo info = pages[pageIndex].Info;
+            PdfPanelPage panelPage = pages[pageIndex];
 
             PageDto page = new()
             {
-                Label = info.Label,
-                CropBox = new RectangleDto
-                {
-                    Left = info.CropBox.Left,
-                    Top = info.CropBox.Top,
-                    Right = info.CropBox.Right,
-                    Bottom = info.CropBox.Bottom
-                },
-                Rotation = info.Rotation
+                Label = panelPage.Label,
+                Width = panelPage.Size.Width,
+                Height = panelPage.Size.Height,
+                Rotation = panelPage.Rotation
             };
 
             pageList.Add(page);

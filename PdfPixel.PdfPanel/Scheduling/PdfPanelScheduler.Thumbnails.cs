@@ -113,28 +113,27 @@ internal sealed partial class PdfPanelScheduler
                 return;
             }
 
-            PdfPageCacheEntry? nextEntry = FindNextEntryWithoutThumbnail(centerPageNumber.Value);
+            PdfPanelPage? nextPage = FindNextPageWithoutThumbnail(centerPageNumber.Value);
 
-            if (nextEntry == null)
+            if (nextPage == null)
             {
                 return;
             }
 
-            IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextEntry.PageNumber);
+            IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextPage.PageNumber);
             _thumbnailPreloadObserver = observer;
-            _processingQueue.Enqueue(CreateThumbnailWorkItem(nextEntry, GetPageThumbnail(nextEntry.PageNumber), observer, OnThumbnailPreloadCompleted));
+            _processingQueue.Enqueue(CreateThumbnailWorkItem(nextPage, GetPageThumbnail(nextPage.PageNumber), observer, OnThumbnailPreloadCompleted));
         }
     }
 
     private PdfPageThumbnailWorkItem CreateThumbnailWorkItem(
-        PdfPageCacheEntry cacheEntry,
+        PdfPanelPage page,
         PdfImage? pageThumbnail,
         IPdfCancellableExecutionObserver observer,
         Action<BackgroundWorkItemComplete> onCompleted)
     {
         return new(
-            cacheEntry,
-            _panelDocument,
+            page,
             pageThumbnail,
             _thumbnailSettings.RenderMaximumSize,
             _panelDocument.OptionalContentStates,
@@ -149,10 +148,7 @@ internal sealed partial class PdfPanelScheduler
             return null;
         }
 
-        lock (_panelDocument.DocumentLocker)
-        {
-            return _panelDocument.Document.Pages[pageNumber - 1].Thumbnail;
-        }
+        return _panelDocument.Pages[pageNumber - 1].PdfPage.Thumbnail;
     }
 
     private void OnThumbnailRequestCompleted(BackgroundWorkItemComplete complete)
@@ -171,7 +167,7 @@ internal sealed partial class PdfPanelScheduler
             {
                 _thumbnailRequestsObservers.Remove(complete.PageNumber);
 
-                using LockedContent<byte[]> lockedThumbnail = _panelDocument.Entries[complete.PageNumber - 1].Thumbnail.GetContent();
+                using LockedContent<byte[]> lockedThumbnail = _panelDocument.Pages[complete.PageNumber - 1].CacheEntry.Thumbnail.GetContent();
                 png = lockedThumbnail.Content;
             }
 
@@ -188,7 +184,7 @@ internal sealed partial class PdfPanelScheduler
     {
         IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(pageNumber);
         _thumbnailRequestsObservers[pageNumber] = observer;
-        _processingQueue.Enqueue(CreateThumbnailWorkItem(_panelDocument.Entries[pageNumber - 1], pageThumbnail, observer, OnThumbnailRequestCompleted));
+        _processingQueue.Enqueue(CreateThumbnailWorkItem(_panelDocument.Pages[pageNumber - 1], pageThumbnail, observer, OnThumbnailRequestCompleted));
     }
 
     private void RequeueThumbnailRequests()
@@ -239,13 +235,13 @@ internal sealed partial class PdfPanelScheduler
             return;
         }
 
-        IReadOnlyList<PdfPageCacheEntry> entries = _panelDocument.Entries;
+        IReadOnlyList<PdfPanelPage> pages = _panelDocument.Pages;
         int centerIndex = centerPageNumber.Value - 1;
         List<int> storedIndexes = [];
 
-        for (int index = 0; index < entries.Count; index++)
+        for (int index = 0; index < pages.Count; index++)
         {
-            if (entries[index].Thumbnail.HasContent)
+            if (pages[index].CacheEntry.Thumbnail.HasContent)
             {
                 storedIndexes.Add(index);
             }
@@ -260,14 +256,14 @@ internal sealed partial class PdfPanelScheduler
 
         foreach (int index in storedIndexes.OrderByDescending(storedIndex => Math.Abs(storedIndex - centerIndex)).Take(excessCount))
         {
-            entries[index].Clear(CachedContentType.Thumbnail);
+            pages[index].CacheEntry.Clear(CachedContentType.Thumbnail);
         }
     }
 
     /// <summary>
     /// Returns the next page without a thumbnail selected by the preload mode, or <see langword="null"/>.
     /// </summary>
-    private PdfPageCacheEntry? FindNextEntryWithoutThumbnail(int centerPageNumber)
+    private PdfPanelPage? FindNextPageWithoutThumbnail(int centerPageNumber)
     {
         PdfPanelThumbnailPreloadMode preloadMode = _thumbnailSettings.PreloadMode;
 
@@ -276,14 +272,14 @@ internal sealed partial class PdfPanelScheduler
             return null;
         }
 
-        IReadOnlyList<PdfPageCacheEntry> entries = _panelDocument.Entries;
+        IReadOnlyList<PdfPanelPage> pages = _panelDocument.Pages;
         int centerIndex = centerPageNumber - 1;
         int storedCount = 0;
         int? farthestIndex = null;
 
-        for (int index = 0; index < entries.Count; index++)
+        for (int index = 0; index < pages.Count; index++)
         {
-            if (!entries[index].Thumbnail.HasContent)
+            if (!pages[index].CacheEntry.Thumbnail.HasContent)
             {
                 continue;
             }
@@ -302,16 +298,16 @@ internal sealed partial class PdfPanelScheduler
             {
                 int index = pageNumber - 1;
 
-                if (!entries[index].Thumbnail.HasContent)
+                if (!pages[index].CacheEntry.Thumbnail.HasContent)
                 {
-                    return SelectThumbnailEntry(index, centerIndex, storedCount, farthestIndex);
+                    return SelectThumbnailPage(index, centerIndex, storedCount, farthestIndex);
                 }
             }
 
             return null;
         }
 
-        for (int distance = 0; distance < entries.Count; distance++)
+        for (int distance = 0; distance < pages.Count; distance++)
         {
             for (int direction = 0; direction < 2; direction++)
             {
@@ -322,9 +318,9 @@ internal sealed partial class PdfPanelScheduler
 
                 int index = (direction == 0) ? centerIndex + distance : centerIndex - distance;
 
-                if (index >= 0 && index < entries.Count && !entries[index].Thumbnail.HasContent)
+                if (index >= 0 && index < pages.Count && !pages[index].CacheEntry.Thumbnail.HasContent)
                 {
-                    return SelectThumbnailEntry(index, centerIndex, storedCount, farthestIndex);
+                    return SelectThumbnailPage(index, centerIndex, storedCount, farthestIndex);
                 }
             }
         }
@@ -333,18 +329,18 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Returns the entry at <paramref name="index"/> when its thumbnail fits within the maximum count, otherwise <see langword="null"/>.
+    /// Returns the page at <paramref name="index"/> when its thumbnail fits within the maximum count, otherwise <see langword="null"/>.
     /// </summary>
-    private PdfPageCacheEntry? SelectThumbnailEntry(int index, int centerIndex, int storedCount, int? farthestIndex)
+    private PdfPanelPage? SelectThumbnailPage(int index, int centerIndex, int storedCount, int? farthestIndex)
     {
         if (storedCount < _thumbnailSettings.MaximumCount)
         {
-            return _panelDocument.Entries[index];
+            return _panelDocument.Pages[index];
         }
 
         if (farthestIndex != null && Math.Abs(farthestIndex.Value - centerIndex) > Math.Abs(index - centerIndex))
         {
-            return _panelDocument.Entries[index];
+            return _panelDocument.Pages[index];
         }
 
         return null;

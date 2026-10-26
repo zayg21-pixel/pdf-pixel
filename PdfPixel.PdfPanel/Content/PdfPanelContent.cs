@@ -131,15 +131,15 @@ public sealed class PdfPanelContent
 
     private SKPicture CreateSelectionPicture(PdfPanelImageContentItem selection, float scale)
     {
-        PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(selection.PageNumber);
+        PdfPanelPage page = _panelDocument.Pages[selection.PageNumber - 1];
 
         using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
+        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(page.Size.Width, page.Size.Height));
 
         using SKPaint borderPaint = new()
         {
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = SelectionBorderThickness / (scale * pageInfo.UserUnit),
+            StrokeWidth = SelectionBorderThickness / scale,
             Color = SelectionBorderColor.ToSkiaColor(),
             IsAntialias = true
         };

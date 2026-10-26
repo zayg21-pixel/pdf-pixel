@@ -1,6 +1,7 @@
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Layout;
 
@@ -20,7 +21,7 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
     public float PageGap { get; set; } = DefaultPageGap;
 
     /// <inheritdoc />
-    public PdfSize CalculateFitSize(PdfPanelPageCollection pages)
+    public PdfSize CalculateFitSize(IReadOnlyList<PdfPanelPage> pages)
     {
         if (pages == null)
         {
@@ -42,7 +43,7 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
 
     /// <inheritdoc />
     public PdfSize CalculateDimensions(
-        PdfPanelPageCollection pages,
+        IReadOnlyList<PdfPanelPage> pages,
         float scale,
         float panelWidth,
         float panelHeight)
@@ -86,7 +87,7 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
 
     /// <inheritdoc />
     public void CalculatePageOffsets(
-        PdfPanelPageCollection pages,
+        IReadOnlyList<PdfPanelPage> pages,
         float scale,
         float extentWidth,
         float extentHeight)

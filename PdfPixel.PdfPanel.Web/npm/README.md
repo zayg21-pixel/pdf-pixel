@@ -145,14 +145,16 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `setLayerVisible(id, handle, visible)` | Shows or hides a layer; showing it hides the other layers of its radio-button sets. |
 | `getFileBytes(id, handle)` | Resolves to the content of an embedded file, from `attachments` or from a requested action, as a `Uint8Array`, or `null`. An encrypted file requests its credential through `setOnCredentialRequested` with `authEvent` `embeddedFileOpen`. |
 | `setOnActionRequested(id, callback)` | Calls `callback({ source, action })` for each action the panel does not perform itself, after the render during which it was requested (see below). |
-| `requestThumbnail(id, pageNumber)`, `cancelThumbnail(id, pageNumber)` | Requests the thumbnail of a page, or cancels the request. The PNG of a requested thumbnail is passed to the `setOnThumbnailUpdated` callback when it is ready, and again whenever it is produced anew. |
+| `getThumbnailLayout(id)` | Returns `{ pageNumber, width, height, rotation }` per page: the thumbnail size in pixels before rotation, and the page rotation. Call it again after rotating pages or changing the thumbnail configuration. |
+| `getThumbnail(id, pageNumber)` | Returns the PNG of a thumbnail that is already produced, or `null`. |
+| `requestThumbnail(id, pageNumber)`, `cancelThumbnail(id, pageNumber)` | Requests the thumbnail of a page that has none, or cancels a pending request; each does nothing otherwise. The PNG of a requested thumbnail is passed to the `setOnThumbnailUpdated` callback when it is ready, and again whenever it is produced anew. |
 | `setOnThumbnailUpdated(id, callback)` | Calls `callback({ pageNumber, png })` for each requested thumbnail that is ready. |
 | `requestRedraw(id)` | Renders the panel. |
 | `setPage(id, pageNumber)` | Scrolls to a 1-based page. |
 | `setScale(id, scale)` | Zooms to a scale (`1.0` = 100%) around the panel center. |
 | `setAutoScaleMode(id, mode)` | Fits the pages to the panel: `scaleToWidth`, `scaleToHeight` or `noAutoScale`. The mode applies to documents loaded afterwards and returns to `noAutoScale` when the user zooms. |
 | `scrollToDestination(id, destination)` | Scrolls to `{ pageNumber, fitType, left?, top?, right?, bottom?, zoom? }` in the page's PDF user space, with a fit type of ISO 32000 Table 149 (`XYZ`, `Fit`, `FitH`, `FitV`, `FitR`, `FitB`, `FitBH`, `FitBV`). Works for pages not shown yet. |
-| `setPageRotation(id, pageNumber, degrees)`, `setRotation(id, degrees)` | Rotates one page or every page by a multiple of 90 degrees on top of the document's rotation, keeping the current page in view. |
+| `rotatePage(id, pageNumber, degrees)`, `rotatePages(id, degrees)` | Rotates one page or every page by a multiple of 90 degrees, added to its current rotation, keeping the current page in view. |
 | `setSearchQuery(id, query)` | Searches the document text, or stops searching with `null`. |
 | `setCurrentSearchResult(id, result)` | Highlights a result from `searchResults` as current and scrolls to it. |
 | `nextSearchResult(id)`, `previousSearchResult(id)` | Selects the next or previous result, wrapping around; with no current result, selects the first result on or after the current page. |
@@ -165,7 +167,7 @@ The document data returned by `setDocument` includes:
 | Field | Description |
 | --- | --- |
 | `pageCount` | Number of pages. |
-| `pages` | Per page in page order, `{ label, cropBox, rotation }`, the shape of the frame page `info`. |
+| `pages` | Per page in page order, `{ label, width, height, rotation }`, the shape of the frame page `info`. |
 | `version` | Version the document conforms to, such as `1.7`, or `null`. |
 | `pageMode`, `pageLayout` | How the document is displayed and laid out when opened, as PDF names (`UseOutlines`, `TwoColumnLeft`, …), `Unknown` for an unrecognized value, or `null`. |
 | `language` | Natural language of the document, or `null`. |

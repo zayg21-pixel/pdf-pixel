@@ -1,4 +1,4 @@
-using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -54,8 +54,8 @@ internal sealed class PdfPanelGraphics : IDisposable
                 continue;
             }
 
-            PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(page.Key);
-            page.Value.Compose(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
+            PdfSize pageSize = _panelDocument.Pages[page.Key - 1].Size;
+            page.Value.Compose(SKRect.Create(pageSize.Width, pageSize.Height));
             _updatedPageNumbers.Add(page.Key);
         }
 

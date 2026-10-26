@@ -13,20 +13,20 @@ public sealed class PdfOutlinesViewModel
     private readonly PdfPanelActions _actions;
 
     /// <summary>
-    /// Initializes a view model over the outline of the document <paramref name="pages"/> are decoded from.
+    /// Initializes a view model over the outline of <paramref name="document"/>.
     /// </summary>
-    /// <param name="pages">The panel's pages.</param>
+    /// <param name="document">The panel's document.</param>
     /// <param name="actions">The panel's actions, performing activated items.</param>
-    public PdfOutlinesViewModel(PdfPanelPageCollection pages, PdfPanelActions actions)
+    public PdfOutlinesViewModel(PdfPanelDocument document, PdfPanelActions actions)
     {
-        if (pages == null)
+        if (document == null)
         {
-            throw new ArgumentNullException(nameof(pages));
+            throw new ArgumentNullException(nameof(document));
         }
 
         _actions = actions ?? throw new ArgumentNullException(nameof(actions));
 
-        IReadOnlyList<PdfOutlineItem>? outlineItems = pages.Document.Outlines.Items;
+        IReadOnlyList<PdfOutlineItem>? outlineItems = document.Document.Outlines.Items;
         if (outlineItems == null)
         {
             Items = Array.Empty<PdfOutlineItemViewModel>();

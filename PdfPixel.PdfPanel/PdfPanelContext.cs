@@ -28,7 +28,6 @@ public sealed class PdfPanelContext : IDisposable
     private const float ScaleTolerance = 0.001f;
 
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
-    private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelScheduler _scheduler;
     private readonly PdfPanelGraphics _graphics;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
@@ -36,36 +35,35 @@ public sealed class PdfPanelContext : IDisposable
     private bool _isScrollingUp;
 
     /// <summary>
-    /// Initializes the context with the given page collection, surface factory and render target factory.
-    /// Page and animation callbacks are posted to the synchronization context <paramref name="pages"/> were created with,
-    /// or invoked on the calling thread when they were created without one.
+    /// Initializes the context with the given document, surface factory and render target factory.
+    /// Page and animation callbacks are posted to the synchronization context <paramref name="document"/> was created with,
+    /// or invoked on the calling thread when it was created without one.
     /// </summary>
     public PdfPanelContext(
-        PdfPanelPageCollection pages,
+        PdfPanelDocument document,
         ISkSurfaceFactory surfaceFactory,
         IPdfPanelRenderTargetFactory renderTargetFactory)
     {
-        Pages = pages ?? throw new ArgumentNullException(nameof(pages));
+        Document = document ?? throw new ArgumentNullException(nameof(document));
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
-        _panelDocument = pages.PanelDocument;
-        _scheduler = pages.Scheduler;
+        _scheduler = document.Scheduler;
         _scheduler.ClearExtractedContent();
-        _graphics = new PdfPanelGraphics(_panelDocument);
+        _graphics = new PdfPanelGraphics(document);
 
         Input = new PdfPanelInput();
-        Annotations = new PdfPanelAnnotations(pages, Input);
-        Text = new PdfPanelText(_panelDocument, Input, _graphics);
-        Search = new PdfPanelSearch(this, Text, _panelDocument, _graphics);
-        Content = new PdfPanelContent(_panelDocument, Input, _graphics);
-        Layers = new PdfPanelLayers(_panelDocument);
-        Thumbnails = new PdfPanelThumbnails(_panelDocument, _scheduler);
-        Actions = new PdfPanelActions(this, _panelDocument, Annotations, Layers);
-        Renderer = new PdfPanelRenderer(surfaceFactory, _panelDocument, _scheduler, _graphics);
-        _panelDocument.OptionalContentStates = Layers.Configuration?.ToStates();
+        Annotations = new PdfPanelAnnotations(document, Input);
+        Text = new PdfPanelText(Document, Input, _graphics);
+        Search = new PdfPanelSearch(this, Text, Document, _graphics);
+        Content = new PdfPanelContent(Document, Input, _graphics);
+        Layers = new PdfPanelLayers(Document);
+        Thumbnails = new PdfPanelThumbnails(Document, _scheduler);
+        Actions = new PdfPanelActions(this, Document, Annotations, Layers);
+        Renderer = new PdfPanelRenderer(surfaceFactory, Document, _scheduler, _graphics);
+        Document.OptionalContentStates = Layers.Configuration?.ToStates();
 
-        _panelDocument.PageTextExtracted += OnPageTextExtracted;
-        _panelDocument.PageThumbnailRendered += OnPageThumbnailRendered;
-        _panelDocument.ExtractedContentCleared += OnExtractedContentCleared;
+        Document.PageTextExtracted += OnPageTextExtracted;
+        Document.PageThumbnailRendered += OnPageThumbnailRendered;
+        Document.ExtractedContentCleared += OnExtractedContentCleared;
     }
 
     /// <summary>
@@ -136,9 +134,9 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelAutoScaleMode AutoScaleMode { get; set; }
 
     /// <summary>
-    /// Collection of PDF pages to display.
+    /// Document whose pages are displayed.
     /// </summary>
-    public PdfPanelPageCollection Pages { get; }
+    public PdfPanelDocument Document { get; }
 
     /// <summary>
     /// Pointer and key input of the panel.
@@ -233,9 +231,9 @@ public sealed class PdfPanelContext : IDisposable
         PagesDrawingRequest lookAheadRequest = BuildRequest(GetLookAheadPages(request.Pages).ToArray(), isLookAhead: true);
         Actions.ClearAnnotationUpdate();
 
-        if (_panelDocument.OptionalContentStates != request.OptionalContentStates)
+        if (Document.OptionalContentStates != request.OptionalContentStates)
         {
-            _panelDocument.OptionalContentStates = request.OptionalContentStates;
+            Document.OptionalContentStates = request.OptionalContentStates;
             _scheduler.ClearExtractedContent();
         }
 
@@ -299,9 +297,9 @@ public sealed class PdfPanelContext : IDisposable
     /// </summary>
     public PdfPanelPointerPosition ResolvePointerPosition(in PdfPoint panelPosition)
     {
-        for (int i = 0; i < Pages.Count; i++)
+        for (int i = 0; i < Document.Pages.Count; i++)
         {
-            PdfPanelPage page = Pages[i];
+            PdfPanelPage page = Document.Pages[i];
 
             if (!page.IsPageVisible(PanelRectangle, Scale))
             {
@@ -329,12 +327,12 @@ public sealed class PdfPanelContext : IDisposable
 
         ApplyAutoScale();
 
-        PdfSize extentSize = Layout.CalculateDimensions(Pages, Scale, PanelWidth, PanelHeight);
+        PdfSize extentSize = Layout.CalculateDimensions(Document.Pages, Scale, PanelWidth, PanelHeight);
 
         ExtentWidth = extentSize.Width;
         ExtentHeight = extentSize.Height;
 
-        Layout.CalculatePageOffsets(Pages, Scale, ExtentWidth, ExtentHeight);
+        Layout.CalculatePageOffsets(Document.Pages, Scale, ExtentWidth, ExtentHeight);
 
         Actions.ApplyNavigation();
 
@@ -367,9 +365,9 @@ public sealed class PdfPanelContext : IDisposable
 
     private IEnumerable<RequestPageInfo> GetVisiblePages()
     {
-        for (int i = 0; i < Pages.Count; i++)
+        for (int i = 0; i < Document.Pages.Count; i++)
         {
-            if (Pages[i].IsPageVisible(PanelRectangle, Scale))
+            if (Document.Pages[i].IsPageVisible(PanelRectangle, Scale))
             {
                 yield return CreateRequestPage(i);
             }
@@ -393,7 +391,7 @@ public sealed class PdfPanelContext : IDisposable
         {
             int index = edgeIndex + (step * offset);
 
-            if (index < 0 || index >= Pages.Count)
+            if (index < 0 || index >= Document.Pages.Count)
             {
                 yield break;
             }
@@ -414,15 +412,13 @@ public sealed class PdfPanelContext : IDisposable
 
     private RequestPageInfo CreateRequestPage(int index)
     {
-        PdfPanelPage page = Pages[index];
+        PdfPanelPage page = Document.Pages[index];
         float offsetX = (page.Offset.X - HorizontalOffset) / Scale;
         float offsetY = (page.Offset.Y - VerticalOffset) / Scale;
 
         return new RequestPageInfo(
-            index + 1,
+            page,
             new PdfPoint(offsetX, offsetY),
-            page.Info,
-            page.UserRotation,
             new PdfSize(PanelWidth, PanelHeight),
             Scale,
             Renderer.TileSize);
@@ -430,12 +426,12 @@ public sealed class PdfPanelContext : IDisposable
 
     private void ApplyAutoScale()
     {
-        if (AutoScaleMode == PdfPanelAutoScaleMode.NoAutoScale || Pages.Count == 0)
+        if (AutoScaleMode == PdfPanelAutoScaleMode.NoAutoScale || Document.Pages.Count == 0)
         {
             return;
         }
 
-        PdfSize fitSize = Layout.CalculateFitSize(Pages);
+        PdfSize fitSize = Layout.CalculateFitSize(Document.Pages);
         float fitScale;
 
         if (AutoScaleMode == PdfPanelAutoScaleMode.ScaleToWidth)
@@ -488,9 +484,9 @@ public sealed class PdfPanelContext : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        _panelDocument.PageTextExtracted -= OnPageTextExtracted;
-        _panelDocument.PageThumbnailRendered -= OnPageThumbnailRendered;
-        _panelDocument.ExtractedContentCleared -= OnExtractedContentCleared;
+        Document.PageTextExtracted -= OnPageTextExtracted;
+        Document.PageThumbnailRendered -= OnPageThumbnailRendered;
+        Document.ExtractedContentCleared -= OnExtractedContentCleared;
 
         Annotations.Dispose();
         Text.Dispose();

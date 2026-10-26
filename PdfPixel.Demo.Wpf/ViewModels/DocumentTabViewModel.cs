@@ -41,8 +41,7 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
     private DocumentTabRequest _request;
     private int _pageNumber;
     private PdfPanelAutoScaleMode _autoScaleMode;
-    private PdfPanelPageCollection _pages;
-    private IPdfDocument _document;
+    private PdfPanelDocument _document;
     private PdfFileLocation _selectedPdfFile;
     private string _title = EmptyTabTitle;
     private bool _isSelected;
@@ -140,11 +139,6 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
     /// </summary>
     internal DocumentTabRequest Request => _request;
 
-    /// <summary>
-    /// The open document, or null when none is open.
-    /// </summary>
-    internal IPdfDocument Document => _document;
-
     public bool IsSelected
     {
         get => _isSelected;
@@ -175,10 +169,13 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _autoScaleMode, value);
     }
 
-    public PdfPanelPageCollection Pages
+    /// <summary>
+    /// The open document, or null when none is open.
+    /// </summary>
+    public PdfPanelDocument Document
     {
-        get => _pages;
-        private set => SetProperty(ref _pages, value);
+        get => _document;
+        private set => SetProperty(ref _document, value);
     }
 
     public string SearchQuery
@@ -299,11 +296,10 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _document = document;
         _request = request;
         Title = GetTitle(document, request.FileName);
         SidePanel = DocumentSidePanel.None;
-        Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory, SynchronizationContext.Current);
+        Document = PdfPanelDocument.FromDocument(document, _loggerFactory, SynchronizationContext.Current);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToHeight;
         OnPropertyChanged(nameof(HasDocument));
 
@@ -369,14 +365,14 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
 
     private void RotatePage()
     {
-        if (Pages == null || PageNumber < 1 || PageNumber > Pages.Count)
+        if (Document == null || PageNumber < 1 || PageNumber > Document.Pages.Count)
         {
             return;
         }
 
         var oldPage = PageNumber;
 
-        Pages[PageNumber - 1].UserRotation += 90;
+        Document.Pages[PageNumber - 1].Rotation += 90;
         PanelInterface.RequestRedraw();
 
         PageNumber = oldPage;
@@ -384,16 +380,16 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
 
     private void RotateAllPages()
     {
-        if (Pages == null)
+        if (Document == null)
         {
             return;
         }
 
         var oldPage = PageNumber;
 
-        foreach (var page in Pages)
+        foreach (var page in Document.Pages)
         {
-            page.UserRotation += 90;
+            page.Rotation += 90;
         }
 
         PanelInterface.RequestRedraw();
@@ -493,11 +489,10 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
 
     private void CloseDocument()
     {
-        var currentPages = Pages;
-        Pages = null;
-        _document?.Dispose();
-        _document = null;
-        currentPages?.Dispose();
+        var currentDocument = Document;
+        Document = null;
+        currentDocument?.Document.Dispose();
+        currentDocument?.Dispose();
     }
 
     public void Dispose() => CloseDocument();

@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
-/// Work item that extracts a page's words without rendering it and stores them in <see cref="CacheEntry"/>.
+/// Work item that extracts a page's words without rendering it and stores them in the page's cache entry.
 /// </summary>
 internal sealed class PdfPageExtractTextWorkItem : IWorkItem
 {
@@ -28,7 +28,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         ExtractContent = true
     };
 
-    private readonly PdfPanelDocument _panelDocument;
+    private readonly PdfPanelPage _page;
     private readonly PdfTextExtractor _textExtractor;
     private readonly PdfTextExtractionProperties _textExtractionProperties;
     private readonly PdfOptionalContentStates? _optionalContentStates;
@@ -36,20 +36,18 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     private readonly Action<BackgroundWorkItemComplete> _onCompleted;
 
     /// <summary>
-    /// Initializes the work item for the given cache entry. The work item takes ownership of <paramref name="observer"/>
+    /// Initializes the work item for the given page. The work item takes ownership of <paramref name="observer"/>
     /// and invokes <paramref name="onCompleted"/> with its completion once it finishes.
     /// </summary>
     public PdfPageExtractTextWorkItem(
-        PdfPageCacheEntry cacheEntry,
-        PdfPanelDocument panelDocument,
+        PdfPanelPage page,
         PdfTextExtractor textExtractor,
         PdfTextExtractionProperties textExtractionProperties,
         PdfOptionalContentStates? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
         Action<BackgroundWorkItemComplete> onCompleted)
     {
-        CacheEntry = cacheEntry ?? throw new ArgumentNullException(nameof(cacheEntry));
-        _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
+        _page = page ?? throw new ArgumentNullException(nameof(page));
         _textExtractor = textExtractor ?? throw new ArgumentNullException(nameof(textExtractor));
         _textExtractionProperties = textExtractionProperties ?? throw new ArgumentNullException(nameof(textExtractionProperties));
         _optionalContentStates = optionalContentStates;
@@ -60,11 +58,6 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
     /// <inheritdoc />
     public bool IsSkippable => false;
 
-    /// <summary>
-    /// The cache entry this work item will populate.
-    /// </summary>
-    public PdfPageCacheEntry CacheEntry { get; }
-
     /// <inheritdoc />
     public async ValueTask ProcessAsync()
     {
@@ -74,7 +67,7 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         {
             await _observer.YieldAsync().ConfigureAwait(false);
 
-            if (!CacheEntry.Content.Words.HasContent)
+            if (!_page.CacheEntry.Content.Words.HasContent)
             {
                 ExtractWords();
             }
@@ -89,30 +82,30 @@ internal sealed class PdfPageExtractTextWorkItem : IWorkItem
         finally
         {
             _observer.Dispose();
-            _onCompleted(new BackgroundWorkItemComplete(CacheEntry.PageNumber, result, _observer));
+            _onCompleted(new BackgroundWorkItemComplete(_page.PageNumber, result, _observer));
         }
     }
 
     private void ExtractWords()
     {
-        lock (_panelDocument.DocumentLocker)
+        lock (_page.PanelDocument.DocumentLocker)
         {
-            IPdfPage page = _panelDocument.Document.Pages[CacheEntry.PageNumber - 1];
+            IPdfPage page = _page.PdfPage;
 
             using PdfCommandExecutionContext executionContext = new(
-                _panelDocument.Document,
+                _page.PanelDocument.Document,
                 new PdfCommandExecutionParameters(),
-                _panelDocument.DocumentLocker,
+                _page.PanelDocument.DocumentLocker,
                 _optionalContentStates,
                 _observer);
 
-            using SKNoDrawCanvas canvas = new((int)page.CropBox.Width, (int)page.CropBox.Height);
-            SkCanvasCommandProcessor processor = new(canvas, executionContext, _panelDocument.Document.LoggerFactory.CreateLogger<SkCanvasCommandProcessor>());
-            processor.ApplyPageTransformations(page.CropBox);
+            using SKNoDrawCanvas canvas = new((int)_page.Size.Width, (int)_page.Size.Height);
+            SkCanvasCommandProcessor processor = new(canvas, executionContext, _page.PanelDocument.Document.LoggerFactory.CreateLogger<SkCanvasCommandProcessor>());
+            processor.ApplyPageTransformations(page.CropBox, scale: page.UserUnit);
             page.Render(processor, TextExtractionParameters, _observer);
 
             PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, PdfMatrix.Identity, _textExtractionProperties);
-            CacheEntry.Content.Words.SetContent(words);
+            _page.CacheEntry.Content.Words.SetContent(words);
         }
     }
 }

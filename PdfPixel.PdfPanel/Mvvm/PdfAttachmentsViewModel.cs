@@ -12,17 +12,17 @@ namespace PdfPixel.PdfPanel.Mvvm;
 public sealed class PdfAttachmentsViewModel
 {
     /// <summary>
-    /// Initializes a view model over the embedded files of the document <paramref name="pages"/> are decoded from.
+    /// Initializes a view model over the embedded files of <paramref name="panelDocument"/>.
     /// </summary>
-    /// <param name="pages">The panel's pages.</param>
-    public PdfAttachmentsViewModel(PdfPanelPageCollection pages)
+    /// <param name="panelDocument">The panel's document.</param>
+    public PdfAttachmentsViewModel(PdfPanelDocument panelDocument)
     {
-        if (pages == null)
+        if (panelDocument == null)
         {
-            throw new ArgumentNullException(nameof(pages));
+            throw new ArgumentNullException(nameof(panelDocument));
         }
 
-        IPdfDocument document = pages.Document;
+        IPdfDocument document = panelDocument.Document;
         List<PdfAttachmentViewModel> items = [];
         HashSet<PdfReference> documentReferences = [];
 

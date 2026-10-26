@@ -31,7 +31,7 @@ public partial class WpfPdfPanel
             e.Handled = true;
         }
 
-        if (Pages != null && _context != null)
+        if (Document != null && _context != null)
         {
             InvalidateVisual();
         }
@@ -42,7 +42,7 @@ public partial class WpfPdfPanel
     {
         base.OnMouseUp(e);
 
-        if (Pages != null && _context != null)
+        if (Document != null && _context != null)
         {
             InvalidateVisual();
         }
@@ -98,7 +98,7 @@ public partial class WpfPdfPanel
     {
         base.OnMouseMove(e);
 
-        if (Pages != null && _context != null)
+        if (Document != null && _context != null)
         {
             InvalidateVisual();
         }

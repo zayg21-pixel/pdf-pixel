@@ -184,7 +184,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void Update()
     {
-        if (Pages == null || !IsLoaded)
+        if (Document == null || !IsLoaded)
         {
             return;
         }
@@ -214,12 +214,12 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void EnsureContext()
     {
-        if (_context != null && _context.Pages == Pages)
+        if (_context != null && _context.Document == Document)
         {
             return;
         }
 
-        if (Pages == null || _surfaceFactory == null || _renderTargetFactory == null)
+        if (Document == null || _surfaceFactory == null || _renderTargetFactory == null)
         {
             return;
         }
@@ -227,7 +227,7 @@ public partial class WpfPdfPanel : FrameworkElement
         DisposeContext();
         ClearSearchResults();
 
-        _context = new PdfPanelContext(Pages, _surfaceFactory, _renderTargetFactory);
+        _context = new PdfPanelContext(Document, _surfaceFactory, _renderTargetFactory);
         _context.AutoScaleMode = AutoScaleMode;
         _context.Actions.ActionRequested += OnActionRequested;
         _context.Search.MatchesChanged += OnSearchMatchesChanged;
@@ -238,13 +238,13 @@ public partial class WpfPdfPanel : FrameworkElement
         PdfLayersViewModel layers = new(_context.Layers);
         layers.Changed += OnViewModelChanged;
         SetValue(LayersPropertyKey, layers);
-        PdfOutlinesViewModel outlines = new(Pages, _context.Actions);
+        PdfOutlinesViewModel outlines = new(Document, _context.Actions);
         outlines.Changed += OnViewModelChanged;
         SetValue(OutlinesPropertyKey, outlines);
-        PdfThumbnailsViewModel thumbnails = new(_context.Thumbnails, Pages, _context.Actions);
+        PdfThumbnailsViewModel thumbnails = new(_context.Thumbnails, Document, _context.Actions);
         thumbnails.Changed += OnViewModelChanged;
         SetValue(ThumbnailsPropertyKey, thumbnails);
-        PdfAttachmentsViewModel attachments = new(Pages);
+        PdfAttachmentsViewModel attachments = new(Document);
         SetValue(AttachmentsPropertyKey, attachments);
 
         if (_pendingDestination != null)
@@ -298,7 +298,7 @@ public partial class WpfPdfPanel : FrameworkElement
     /// </summary>
     private void ScrollToDestination(PdfDestination destination)
     {
-        if (_context == null || _context.Pages != Pages)
+        if (_context == null || _context.Document != Document)
         {
             _pendingDestination = destination;
             return;
@@ -328,6 +328,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context.Synchronize();
         Layers?.Synchronize();
+        Thumbnails?.Synchronize();
 
         UpdateAnnotationPopup(_context.Annotations.ActiveAnnotation);
 
@@ -355,7 +356,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private bool CanRedraw()
     {
-        return Pages != null
+        return Document != null
             && this.IsPanelSizeValid(PanelSize)
             && IsLoaded
             && IsVisible;

@@ -56,8 +56,7 @@ const autoScaleIcons = {
     noAutoScale: 'open_in_full'
 };
 
-const thumbnailWidth = 120;
-const thumbnailMaximumHeight = 170;
+const thumbnailDisplayScale = 0.5;
 const sidePanelMinimumWidth = 160;
 const sidePanelMaximumWidth = 600;
 
@@ -68,8 +67,6 @@ const pendingWindows = new Map();
 let searchInputTimer = null;
 let isSearchOpen = false;
 let sidePanel = null;
-let allPagesRotation = 0;
-const pageRotations = new Map();
 
 let thumbnailItems = [];
 let thumbnailImageUrls = [];
@@ -128,14 +125,12 @@ async function loadDocument(source, destination) {
 
     documentData = result;
     documentSource = source;
-    allPagesRotation = 0;
-    pageRotations.clear();
     document.title = `${getDocumentTitle(result, source.fileName)} – PDF Pixel`;
 
     pdfPixel.setAutoScaleMode(containerId, 'scaleToHeight');
     searchToggleButton.disabled = false;
 
-    buildThumbnails(result.pages);
+    buildThumbnails(result.pages, pdfPixel.getThumbnailLayout(containerId));
     buildOutlines(result.outlines);
     buildLayerConfigurations(result.layerConfigurations);
     buildAttachments(result.attachments);
@@ -454,7 +449,7 @@ sideSplitter.addEventListener('pointerdown', (e) => {
 
 // ── Thumbnails ───────────────────────────────────────────────
 
-function buildThumbnails(pages) {
+function buildThumbnails(pages, layout) {
     if (thumbnailObserver) {
         thumbnailObserver.disconnect();
     }
@@ -479,7 +474,7 @@ function buildThumbnails(pages) {
         item.dataset.pageNumber = String(pageNumber);
         item.addEventListener('click', () => pdfPixel.setPage(containerId, pageNumber));
 
-        const frame = createThumbnailFrame(page);
+        const frame = createThumbnailFrame();
         const label = document.createElement('div');
         label.className = 'thumbnail-label';
         label.textContent = page.label;
@@ -489,44 +484,62 @@ function buildThumbnails(pages) {
         thumbnailItems.push(item);
         thumbnailObserver.observe(item);
     });
+
+    layoutThumbnails(layout);
 }
 
-function createThumbnailFrame(page) {
-    const cropWidth = Math.abs(page.cropBox.right - page.cropBox.left);
-    const cropHeight = Math.abs(page.cropBox.top - page.cropBox.bottom);
-    const isQuarterTurn = (((page.rotation % 360) + 360) % 180) !== 0;
-    const shownWidth = isQuarterTurn ? cropHeight : cropWidth;
-    const shownHeight = isQuarterTurn ? cropWidth : cropHeight;
-    const scale = Math.min(thumbnailWidth / shownWidth, thumbnailMaximumHeight / shownHeight);
-
+function createThumbnailFrame() {
     const frame = document.createElement('div');
     frame.className = 'thumbnail-frame';
-    frame.style.width = Math.round(shownWidth * scale) + 'px';
-    frame.style.height = Math.round(shownHeight * scale) + 'px';
 
     const image = document.createElement('img');
     image.alt = '';
     image.hidden = true;
-    image.style.width = Math.round(cropWidth * scale) + 'px';
-    image.style.height = Math.round(cropHeight * scale) + 'px';
-    image.style.transform = `translate(-50%, -50%) rotate(${page.rotation}deg)`;
 
     frame.append(image);
     return frame;
 }
 
+function layoutThumbnails(layout) {
+    for (const pageLayout of layout ?? []) {
+        layoutThumbnailFrame(thumbnailItems[pageLayout.pageNumber - 1].querySelector('.thumbnail-frame'), pageLayout);
+    }
+}
+
+function layoutThumbnailFrame(frame, pageLayout) {
+    const isQuarterTurn = (pageLayout.rotation % 180) !== 0;
+    const width = pageLayout.width * thumbnailDisplayScale;
+    const height = pageLayout.height * thumbnailDisplayScale;
+
+    frame.style.width = Math.round(isQuarterTurn ? height : width) + 'px';
+    frame.style.height = Math.round(isQuarterTurn ? width : height) + 'px';
+
+    const image = frame.querySelector('img');
+    image.style.width = Math.round(width) + 'px';
+    image.style.height = Math.round(height) + 'px';
+    image.style.transform = `translate(-50%, -50%) rotate(${pageLayout.rotation}deg)`;
+}
+
 function onThumbnailsIntersected(entries) {
     for (const entry of entries) {
         const pageNumber = Number(entry.target.dataset.pageNumber);
-        if (entry.isIntersecting) {
-            pdfPixel.requestThumbnail(containerId, pageNumber);
-        } else {
+        if (!entry.isIntersecting) {
             pdfPixel.cancelThumbnail(containerId, pageNumber);
+        } else if (!thumbnailImageUrls[pageNumber - 1]) {
+            const png = pdfPixel.getThumbnail(containerId, pageNumber);
+
+            if (png) {
+                showThumbnail(pageNumber, png);
+            } else {
+                pdfPixel.requestThumbnail(containerId, pageNumber);
+            }
         }
     }
 }
 
-pdfPixel.setOnThumbnailUpdated(containerId, ({ pageNumber, png }) => {
+pdfPixel.setOnThumbnailUpdated(containerId, ({ pageNumber, png }) => showThumbnail(pageNumber, png));
+
+function showThumbnail(pageNumber, png) {
     const item = thumbnailItems[pageNumber - 1];
     if (!item) {
         return;
@@ -543,7 +556,7 @@ pdfPixel.setOnThumbnailUpdated(containerId, ({ pageNumber, png }) => {
     const image = item.querySelector('img');
     image.src = url;
     image.hidden = false;
-});
+}
 
 function updateCurrentThumbnail(pageNumber) {
     const item = thumbnailItems[pageNumber - 1] ?? null;
@@ -908,18 +921,9 @@ autoScaleButton.addEventListener('click', () => {
     pdfPixel.setAutoScaleMode(containerId, mode);
 });
 
-function applyPageRotation(pageNumber) {
-    const degrees = (allPagesRotation + (pageRotations.get(pageNumber) ?? 0)) % 360;
-    pdfPixel.setPageRotation(containerId, pageNumber, degrees);
-}
-
 rotateAllPagesButton.addEventListener('click', () => {
-    allPagesRotation = (allPagesRotation + 90) % 360;
-    pdfPixel.setRotation(containerId, allPagesRotation);
-
-    for (const pageNumber of pageRotations.keys()) {
-        applyPageRotation(pageNumber);
-    }
+    pdfPixel.rotatePages(containerId, 90);
+    layoutThumbnails(pdfPixel.getThumbnailLayout(containerId));
 });
 
 rotatePageButton.addEventListener('click', () => {
@@ -928,8 +932,8 @@ rotatePageButton.addEventListener('click', () => {
         return;
     }
 
-    pageRotations.set(pageNumber, ((pageRotations.get(pageNumber) ?? 0) + 90) % 360);
-    applyPageRotation(pageNumber);
+    pdfPixel.rotatePage(containerId, pageNumber, 90);
+    layoutThumbnails(pdfPixel.getThumbnailLayout(containerId));
 });
 
 loadPdfBtn.addEventListener('click', () => {

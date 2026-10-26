@@ -67,7 +67,7 @@ internal sealed partial class PdfPanelScheduler
         {
             foreach (int pageNumber in _lookAheadPageNumbers)
             {
-                EnqueueContentUpdate(_panelDocument.Entries[pageNumber - 1], _lastLookAheadRequest);
+                EnqueueContentUpdate(_panelDocument.Pages[pageNumber - 1], _lastLookAheadRequest);
             }
         }
 
@@ -77,21 +77,20 @@ internal sealed partial class PdfPanelScheduler
         EnqueueNextTextExtraction();
     }
 
-    private void EnqueueContentUpdate(PdfPageCacheEntry cacheEntry, PagesDrawingRequest request)
+    private void EnqueueContentUpdate(PdfPanelPage page, PagesDrawingRequest request)
     {
-        _contentCachePageNumbers.Add(cacheEntry.PageNumber);
+        _contentCachePageNumbers.Add(page.PageNumber);
 
-        PagesDrawingRequest? pendingRequest = cacheEntry.PendingRequest;
+        PagesDrawingRequest? pendingRequest = page.CacheEntry.PendingRequest;
 
-        if (pendingRequest != null && pendingRequest.CoversPage(cacheEntry.PageNumber, request))
+        if (pendingRequest != null && pendingRequest.CoversPage(page.PageNumber, request))
         {
             return;
         }
 
-        cacheEntry.InitializeForRendering(_observerFactory, request);
+        page.CacheEntry.InitializeForRendering(_observerFactory, request, page.PageNumber);
         _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(
-            cacheEntry,
-            _panelDocument,
+            page,
             _textExtractor,
             _textExtractionProperties,
             _contentExtractor,
@@ -105,7 +104,7 @@ internal sealed partial class PdfPanelScheduler
     {
         foreach (RequestPageInfo page in request.Pages)
         {
-            EnqueueContentUpdate(_panelDocument.Entries[page.PageNumber - 1], request);
+            EnqueueContentUpdate(_panelDocument.Pages[page.PageNumber - 1], request);
         }
     }
 
@@ -113,7 +112,7 @@ internal sealed partial class PdfPanelScheduler
     {
         foreach (int pageNumber in pageNumbers.ToList())
         {
-            _panelDocument.Entries[pageNumber - 1].Cancel();
+            _panelDocument.Pages[pageNumber - 1].CacheEntry.Cancel();
         }
     }
 
@@ -122,7 +121,7 @@ internal sealed partial class PdfPanelScheduler
     /// </summary>
     private void EvictContentCache()
     {
-        List<PdfPageCacheEntry> evictedEntries = [];
+        List<PdfPanelPage> evictedPages = [];
 
         foreach (int pageNumber in _contentCachePageNumbers)
         {
@@ -131,19 +130,19 @@ internal sealed partial class PdfPanelScheduler
                 continue;
             }
 
-            PdfPageCacheEntry evictedEntry = _panelDocument.Entries[pageNumber - 1];
-            evictedEntry.Cancel();
-            evictedEntries.Add(evictedEntry);
+            PdfPanelPage evictedPage = _panelDocument.Pages[pageNumber - 1];
+            evictedPage.CacheEntry.Cancel();
+            evictedPages.Add(evictedPage);
         }
 
-        foreach (PdfPageCacheEntry evictedEntry in evictedEntries)
+        foreach (PdfPanelPage evictedPage in evictedPages)
         {
-            _contentCachePageNumbers.Remove(evictedEntry.PageNumber);
+            _contentCachePageNumbers.Remove(evictedPage.PageNumber);
         }
 
-        if (evictedEntries.Count > 0)
+        if (evictedPages.Count > 0)
         {
-            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(evictedEntries, _panelDocument.DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
+            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(evictedPages, _panelDocument.DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
         }
     }
 }

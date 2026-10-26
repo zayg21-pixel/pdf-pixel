@@ -50,7 +50,7 @@ public sealed class PdfPanelText
         _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _input = input ?? throw new ArgumentNullException(nameof(input));
         _graphics = graphics ?? throw new ArgumentNullException(nameof(graphics));
-        _extractedPages = new bool[panelDocument.PageCount];
+        _extractedPages = new bool[panelDocument.Pages.Count];
 
         for (int pageNumber = 1; pageNumber <= _extractedPages.Length; pageNumber++)
         {
@@ -340,10 +340,10 @@ public sealed class PdfPanelText
             return null;
         }
 
-        PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(selection.PageNumber);
+        PdfSize pageSize = _panelDocument.Pages[selection.PageNumber - 1].Size;
 
         using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
+        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageSize.Width, pageSize.Height));
 
         using SKPaint selectionPaint = new()
         {
@@ -491,9 +491,7 @@ public sealed class PdfPanelText
             return null;
         }
 
-        float? pageDistance = maxDistance / _panelDocument.GetPageInfo(pagePoint.Value.PageNumber).UserUnit;
-
-        return HitTestCharacterNearest(words, pagePoint.Value.Position, pageDistance);
+        return HitTestCharacterNearest(words, pagePoint.Value.Position, maxDistance);
     }
 
     /// <summary>

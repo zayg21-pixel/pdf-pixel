@@ -253,7 +253,7 @@ public sealed class PdfPanelSearch
 
         _pageMatches.Clear();
 
-        int pageCount = _panelDocument.PageCount;
+        int pageCount = _panelDocument.Pages.Count;
 
         for (int pageNumber = 1; pageNumber <= pageCount; pageNumber++)
         {
@@ -280,10 +280,10 @@ public sealed class PdfPanelSearch
             return null;
         }
 
-        PdfPanelPageInfo pageInfo = _panelDocument.GetPageInfo(pageNumber);
+        PdfSize pageSize = _panelDocument.Pages[pageNumber - 1].Size;
 
         using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.CropBox.Width, pageInfo.CropBox.Height));
+        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageSize.Width, pageSize.Height));
 
         using SKPaint matchPaint = new()
         {

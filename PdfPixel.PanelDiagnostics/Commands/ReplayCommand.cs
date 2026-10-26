@@ -37,10 +37,10 @@ internal static class ReplayCommand
         using PanelSynchronizationContext synchronizationContext = new(clock);
         SynchronizationContext.SetSynchronizationContext(synchronizationContext);
 
-        using PdfPanelPageCollection pages = CreatePages(document, queueMode, loggerFactory, synchronizationContext);
+        using PdfPanelDocument panelDocument = CreatePanelDocument(document, queueMode, loggerFactory, synchronizationContext);
         using CpuSkSurfaceFactory surfaceFactory = new(SKColorType.Rgba8888, SKAlphaType.Premul);
         PanelRenderTarget renderTarget = new(clock);
-        using PdfPanelContext context = new(pages, surfaceFactory, renderTarget);
+        using PdfPanelContext context = new(panelDocument, surfaceFactory, renderTarget);
 
         context.PanelWidth = DefaultPanelWidth;
         context.PanelHeight = DefaultPanelHeight;
@@ -59,7 +59,7 @@ internal static class ReplayCommand
         }
     }
 
-    private static PdfPanelPageCollection CreatePages(
+    private static PdfPanelDocument CreatePanelDocument(
         IPdfDocument document,
         WorkQueueMode queueMode,
         ILoggerFactory loggerFactory,
@@ -67,14 +67,14 @@ internal static class ReplayCommand
     {
         if (queueMode == WorkQueueMode.Immediate)
         {
-            return PdfPanelPageCollection.FromDocument(
+            return PdfPanelDocument.FromDocument(
                 document,
                 new ImmidiateWorkQueue(loggerFactory.CreateLogger<ImmidiateWorkQueue>()),
                 new PdfYieldingObserverFactory(YieldInterval),
                 synchronizationContext);
         }
 
-        return PdfPanelPageCollection.FromDocument(document, loggerFactory, synchronizationContext);
+        return PdfPanelDocument.FromDocument(document, loggerFactory, synchronizationContext);
     }
 
     /// <summary>

@@ -152,13 +152,13 @@ export interface PdfPixelFramePage {
     pageNumber: number;
     info: {
         label: string;
-        /** Crop box in PDF user space. */
-        cropBox: PdfPixelRectangle;
-        /** Page rotation from the document. */
+        /** Page width without rotation, in panel units. */
+        width: number;
+        /** Page height without rotation, in panel units. */
+        height: number;
+        /** Clockwise rotation of the page in degrees. */
         rotation: number;
     };
-    /** Rotation applied by the user. */
-    userRotation: number;
     /** Page size after rotation. */
     rotatedSize: PdfPixelSize;
     /**
@@ -192,9 +192,11 @@ export interface PdfPixelDestination {
 /** Static info of a page, the shape of the frame page `info`. */
 export interface PdfPixelPageInfo {
     label: string;
-    /** Crop box in PDF user space. */
-    cropBox: PdfPixelRectangle;
-    /** Page rotation from the document. */
+    /** Page width without rotation, in panel units. */
+    width: number;
+    /** Page height without rotation, in panel units. */
+    height: number;
+    /** Clockwise rotation of the page in degrees. */
     rotation: number;
 }
 
@@ -328,6 +330,18 @@ export interface PdfPixelThumbnailUpdate {
     png: Uint8Array;
 }
 
+/** Thumbnail layout of a page returned by `getThumbnailLayout`. */
+export interface PdfPixelThumbnailLayout {
+    /** 1-based page number. */
+    pageNumber: number;
+    /** Thumbnail width in pixels, before rotation. */
+    width: number;
+    /** Thumbnail height in pixels, before rotation. */
+    height: number;
+    /** Clockwise rotation of the page in degrees. */
+    rotation: number;
+}
+
 /** Request passed to the `setOnCredentialRequested` callback. */
 export interface PdfPixelCredentialRequest {
     /** `required` for the first request, `rejected` after a credential that is not accepted. */
@@ -372,8 +386,8 @@ export function setPage(id: string, pageNumber: number): boolean;
 export function setScale(id: string, scale: number): boolean;
 export function setAutoScaleMode(id: string, mode: PdfPixelAutoScaleMode): boolean;
 export function scrollToDestination(id: string, destination: PdfPixelDestination): boolean;
-export function setPageRotation(id: string, pageNumber: number, degrees: number): boolean;
-export function setRotation(id: string, degrees: number): boolean;
+export function rotatePage(id: string, pageNumber: number, degrees: number): boolean;
+export function rotatePages(id: string, degrees: number): boolean;
 export function setSearchQuery(id: string, query: string | null): boolean;
 export function setCurrentSearchResult(id: string, result: PdfPixelSearchResult | null): boolean;
 export function nextSearchResult(id: string): boolean;
@@ -388,6 +402,8 @@ export function setLayerConfiguration(id: string, handle: number): boolean;
 export function setLayerVisible(id: string, handle: number, visible: boolean): boolean;
 export function getFileBytes(id: string, handle: number): Promise<Uint8Array | null>;
 export function setOnActionRequested(id: string, callback: (request: PdfPixelActionRequest) => void): boolean;
+export function getThumbnailLayout(id: string): PdfPixelThumbnailLayout[] | null;
+export function getThumbnail(id: string, pageNumber: number): Uint8Array | null;
 export function requestThumbnail(id: string, pageNumber: number): boolean;
 export function cancelThumbnail(id: string, pageNumber: number): boolean;
 export function setOnThumbnailUpdated(id: string, callback: (update: PdfPixelThumbnailUpdate) => void): boolean;

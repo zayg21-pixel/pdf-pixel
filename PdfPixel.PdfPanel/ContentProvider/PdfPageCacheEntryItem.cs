@@ -107,7 +107,7 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
     }
 
     /// <summary>
-    /// Scale the content picture is recorded at: the request's scale times the page's user unit when a scale-dependent command
+    /// Scale the content picture is recorded at: the request's scale when a scale-dependent command
     /// was recorded, and 1 otherwise, so that scale-independent content is recorded once and reused
     /// at every scale.
     /// </summary>
@@ -118,7 +118,7 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
             throw new ArgumentNullException(nameof(request));
         }
 
-        return ((Features & PdfCommandFeatures.Scale) != 0) ? request.Scale * request.GetPage(PageNumber).Info.UserUnit : 1f;
+        return ((Features & PdfCommandFeatures.Scale) != 0) ? request.Scale : 1f;
     }
 
     /// <summary>

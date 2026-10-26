@@ -123,7 +123,7 @@ public sealed class PdfPanelThumbnails
             return GetDecodedSize(pageThumbnail);
         }
 
-        PdfIntegerSize renderSize = PdfPageThumbnailWorkItem.GetRenderSize(_panelDocument.GetPageInfo(pageNumber).CropBox, _renderMaximumSize);
+        PdfIntegerSize renderSize = PdfPageThumbnailWorkItem.GetRenderSize(_panelDocument.Pages[pageNumber - 1].Size, _renderMaximumSize);
 
         return new PdfSize(renderSize.Width, renderSize.Height);
     }
@@ -178,10 +178,7 @@ public sealed class PdfPanelThumbnails
             return null;
         }
 
-        lock (_panelDocument.DocumentLocker)
-        {
-            return _panelDocument.Document.Pages[pageNumber - 1].Thumbnail;
-        }
+        return _panelDocument.Pages[pageNumber - 1].PdfPage.Thumbnail;
     }
 
     /// <summary>

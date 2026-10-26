@@ -9,11 +9,11 @@ internal sealed class FramePageDto
 
     public required string Label { get; set; }
 
-    public required RectangleDto CropBox { get; set; }
+    public float Width { get; set; }
+
+    public float Height { get; set; }
 
     public int Rotation { get; set; }
-
-    public int UserRotation { get; set; }
 
     public float RotatedWidth { get; set; }
 

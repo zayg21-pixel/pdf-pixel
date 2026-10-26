@@ -39,18 +39,18 @@ function createPanelCanvas(className) {
  */
 class PdfPanelFramePage {
     /**
-     * @param {{ pageNumber: number, label: string, cropBox: { left: number, top: number, right: number, bottom: number },
-     * rotation: number, userRotation: number, rotatedWidth: number, rotatedHeight: number, panelToContent: number[] }} page
+     * @param {{ pageNumber: number, label: string, width: number, height: number,
+     * rotation: number, rotatedWidth: number, rotatedHeight: number, panelToContent: number[] }} page
      * The page of the frame JSON.
      */
     constructor(page) {
         this.pageNumber = page.pageNumber;
         this.info = {
             label: page.label,
-            cropBox: page.cropBox,
+            width: page.width,
+            height: page.height,
             rotation: page.rotation
         };
-        this.userRotation = page.userRotation;
         this.rotatedSize = { width: page.rotatedWidth, height: page.rotatedHeight };
         this._panelToContent = new DOMMatrix(page.panelToContent);
     }
@@ -68,8 +68,8 @@ class PdfPanelFramePage {
             throw new RangeError(`Rotation ${rotation} is not a multiple of 90`);
         }
 
-        const width = this.info.cropBox.right - this.info.cropBox.left;
-        const height = this.info.cropBox.bottom - this.info.cropBox.top;
+        const width = this.info.width;
+        const height = this.info.height;
         const rotatedWidth = (normalizedRotation % 180 === 0) ? width : height;
         const rotatedHeight = (normalizedRotation % 180 === 0) ? height : width;
         const rotationOffsetX = (normalizedRotation === 90 || normalizedRotation === 180) ? rotatedWidth : 0;
@@ -849,8 +849,39 @@ export function setOnActionRequested(id, callback) {
 }
 
 /**
- * Request the thumbnail of a page of the specified view. Its PNG is passed to the `setOnThumbnailUpdated` callback when it
- * is ready, and again whenever it is produced anew while it stays requested.
+ * Get the thumbnail layout of the pages of the specified view: the thumbnail size in pixels, before rotation, and the
+ * rotation of each page. Call it again after rotating pages or changing the thumbnail configuration.
+ * @param {string} id View id.
+ * @returns {{ pageNumber: number, width: number, height: number, rotation: number }[] | null} The layout in page order,
+ * or null when the view has no document.
+ */
+export function getThumbnailLayout(id) {
+    if (!views.has(id)) {
+        console.error(`View not found for id '${id}'`);
+        return null;
+    }
+    const layout = interop.GetThumbnailLayout(id);
+    return layout ? JSON.parse(layout) : null;
+}
+
+/**
+ * Get the thumbnail of a page of the specified view when it is already produced.
+ * @param {string} id View id.
+ * @param {number} pageNumber 1-based page number.
+ * @returns {Uint8Array | null} The thumbnail PNG, or null when it has not been produced.
+ */
+export function getThumbnail(id, pageNumber) {
+    if (!views.has(id)) {
+        console.error(`View not found for id '${id}'`);
+        return null;
+    }
+    return interop.GetThumbnail(id, pageNumber);
+}
+
+/**
+ * Request the thumbnail of a page of the specified view that has none. Its PNG is passed to the `setOnThumbnailUpdated`
+ * callback when it is ready, and again whenever it is produced anew while it stays requested. Does nothing for a page
+ * whose thumbnail is already produced; read it with `getThumbnail`.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
  * @returns {boolean} True if the view has a document and the thumbnail was requested.
@@ -865,6 +896,7 @@ export function requestThumbnail(id, pageNumber) {
 
 /**
  * Cancel the thumbnail request of a page of the specified view; no PNG of it is passed until it is requested again.
+ * Does nothing for a page whose thumbnail is not requested.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
  * @returns {boolean} True if the view has a document and the request was canceled.
@@ -915,36 +947,36 @@ export function scrollToDestination(id, destination) {
 }
 
 /**
- * Set the rotation of one page of the specified view, keeping the current page in view.
+ * Rotate one page of the specified view by the given degrees, keeping the current page in view.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
- * @param {number} degrees Rotation in degrees, a multiple of 90, on top of the page's own rotation.
- * @returns {boolean} True if the view has a document and the rotation was set.
+ * @param {number} degrees Clockwise rotation in degrees, a multiple of 90, added to the page's current rotation.
+ * @returns {boolean} True if the view has a document and the page was rotated.
  */
-export function setPageRotation(id, pageNumber, degrees) {
+export function rotatePage(id, pageNumber, degrees) {
     const view = views.get(id);
     if (!view) {
         console.error(`View not found for id '${id}'`);
         return false;
     }
-    const applied = interop.SetPageRotation(id, pageNumber, degrees);
+    const applied = interop.RotatePage(id, pageNumber, degrees);
     view.requestRender();
     return applied;
 }
 
 /**
- * Set the rotation of every page of the specified view, keeping the current page in view.
+ * Rotate every page of the specified view by the given degrees, keeping the current page in view.
  * @param {string} id View id.
- * @param {number} degrees Rotation in degrees, a multiple of 90, on top of each page's own rotation.
- * @returns {boolean} True if the view has a document and the rotation was set.
+ * @param {number} degrees Clockwise rotation in degrees, a multiple of 90, added to each page's current rotation.
+ * @returns {boolean} True if the view has a document and the pages were rotated.
  */
-export function setRotation(id, degrees) {
+export function rotatePages(id, degrees) {
     const view = views.get(id);
     if (!view) {
         console.error(`View not found for id '${id}'`);
         return false;
     }
-    const applied = interop.SetRotation(id, degrees);
+    const applied = interop.RotatePages(id, degrees);
     view.requestRender();
     return applied;
 }

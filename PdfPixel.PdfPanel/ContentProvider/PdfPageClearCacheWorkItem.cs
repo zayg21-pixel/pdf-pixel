@@ -11,21 +11,21 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 internal sealed class PdfPageClearCacheWorkItem : IWorkItem
 {
-    private readonly IReadOnlyList<PdfPageCacheEntry> _cacheEntries;
+    private readonly IReadOnlyList<PdfPanelPage> _pages;
     private readonly object _documentLocker;
     private readonly CachedContentType _contentTypes;
     private readonly Action<CachedContentType>? _onCleared;
 
     /// <summary>
-    /// Initializes the work item for the given cache entries and content types.
+    /// Initializes the work item for the given pages and content types.
     /// </summary>
     public PdfPageClearCacheWorkItem(
-        IReadOnlyList<PdfPageCacheEntry> cacheEntries,
+        IReadOnlyList<PdfPanelPage> pages,
         object documentLocker,
         CachedContentType contentTypes,
         Action<CachedContentType>? onCleared)
     {
-        _cacheEntries = cacheEntries ?? throw new ArgumentNullException(nameof(cacheEntries));
+        _pages = pages ?? throw new ArgumentNullException(nameof(pages));
         _documentLocker = documentLocker ?? throw new ArgumentNullException(nameof(documentLocker));
         _contentTypes = contentTypes;
         _onCleared = onCleared;
@@ -39,9 +39,9 @@ internal sealed class PdfPageClearCacheWorkItem : IWorkItem
     {
         lock (_documentLocker)
         {
-            foreach (PdfPageCacheEntry cacheEntry in _cacheEntries)
+            foreach (PdfPanelPage page in _pages)
             {
-                cacheEntry.Clear(_contentTypes);
+                page.CacheEntry.Clear(_contentTypes);
             }
         }
 
