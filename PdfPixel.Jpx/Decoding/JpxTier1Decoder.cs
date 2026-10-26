@@ -487,6 +487,7 @@ internal ref partial struct JpxTier1Decoder
         int sign,
         bool hiddenFromStripeAbove)
     {
+        nint stride = stateWidth;
         uint flags = FlagSignificant;
 
         if (sign != 0)
@@ -502,18 +503,18 @@ internal ref partial struct JpxTier1Decoder
         // Propagate neighbor-significance bits to the adjacent entries using relative offsets.
         Unsafe.Add(ref stateRef, -1) |= NeighborRight;
         Unsafe.Add(ref stateRef, 1) |= NeighborLeft;
-        Unsafe.Add(ref stateRef, stateWidth) |= NeighborTop;
-        Unsafe.Add(ref stateRef, stateWidth - 1) |= NeighborTopRight;
-        Unsafe.Add(ref stateRef, stateWidth + 1) |= NeighborTopLeft;
+        Unsafe.Add(ref stateRef, stride) |= NeighborTop;
+        Unsafe.Add(ref stateRef, stride - 1) |= NeighborTopRight;
+        Unsafe.Add(ref stateRef, stride + 1) |= NeighborTopLeft;
 
         if (hiddenFromStripeAbove)
         {
             return;
         }
 
-        Unsafe.Add(ref stateRef, -stateWidth) |= NeighborBottom;
-        Unsafe.Add(ref stateRef, -stateWidth - 1) |= NeighborBottomRight;
-        Unsafe.Add(ref stateRef, -stateWidth + 1) |= NeighborBottomLeft;
+        Unsafe.Add(ref stateRef, -stride) |= NeighborBottom;
+        Unsafe.Add(ref stateRef, -stride - 1) |= NeighborBottomRight;
+        Unsafe.Add(ref stateRef, -stride + 1) |= NeighborBottomLeft;
     }
 
     /// <summary>

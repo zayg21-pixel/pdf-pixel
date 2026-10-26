@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Demo/">
     <Project Path="PdfPixel.Demo.Console/PdfPixel.Demo.Console.csproj" />
+    <Project Path="PdfPixel.Demo.Maui/PdfPixel.Demo.Maui.csproj" />
     <Project Path="PdfPixel.Demo.Web/PdfPixel.Demo.Web.csproj" />
     <Project Path="PdfPixel.Demo.Wpf/PdfPixel.Demo.Wpf.csproj" />
   </Folder>
@@ -14,6 +15,7 @@
     <Project Path="PdfPixel.Tiff/PdfPixel.Tiff.csproj" />
   </Folder>
   <Folder Name="/Panel/">
+    <Project Path="PdfPixel.PdfPanel.Maui/PdfPixel.PdfPanel.Maui.csproj" />
     <Project Path="PdfPixel.PdfPanel.Web/PdfPixel.PdfPanel.Web.csproj" />
     <Project Path="PdfPixel.PdfPanel.Wpf/PdfPixel.PdfPanel.Wpf.csproj" />
     <Project Path="PdfPixel.PdfPanel/PdfPixel.PdfPanel.csproj" />

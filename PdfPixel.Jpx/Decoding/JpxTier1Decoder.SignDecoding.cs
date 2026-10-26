@@ -24,7 +24,7 @@ internal ref partial struct JpxTier1Decoder
 #endif
     private int DecodeSign(ref uint statePtr, bool ignoresStripeBelow)
     {
-        int stateWidth = _stateWidth;
+        nint stateWidth = _stateWidth;
         uint leftState = Unsafe.Add(ref statePtr, -1);
         uint rightState = Unsafe.Add(ref statePtr, 1);
         uint topState = Unsafe.Add(ref statePtr, -stateWidth);

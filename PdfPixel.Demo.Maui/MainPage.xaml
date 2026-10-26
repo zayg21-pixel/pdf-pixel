@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:panel="clr-namespace:PdfPixel.PdfPanel.Maui;assembly=PdfPixel.PdfPanel.Maui"
+             x:Class="PdfPixel.Demo.Maui.MainPage"
+             BackgroundColor="{StaticResource BackgroundColor}">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <panel:MauiPdfPanel x:Name="PdfPanel"
+                            Grid.Row="0"
+                            ActionRequested="OnActionRequested" />
+
+        <VerticalStackLayout x:Name="EmptyState"
+                             Grid.Row="0"
+                             VerticalOptions="Center"
+                             HorizontalOptions="Center"
+                             Spacing="16">
+            <Label Text="No document open"
+                   FontSize="18"
+                   HorizontalOptions="Center" />
+            <Button Text="Open PDF"
+                    BackgroundColor="{StaticResource AccentColor}"
+                    TextColor="White"
+                    CornerRadius="8"
+                    Clicked="OnOpenClicked" />
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="1"
+              ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto"
+              Padding="4"
+              BackgroundColor="{StaticResource ToolbarColor}">
+            <Button Grid.Column="0" Text="Open" Clicked="OnOpenClicked" />
+            <Label x:Name="PageLabel"
+                   Grid.Column="1"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Center" />
+            <Button Grid.Column="2" Text="‹" Clicked="OnPreviousPageClicked" />
+            <Button Grid.Column="3" Text="›" Clicked="OnNextPageClicked" />
+            <Button Grid.Column="4" Text="−" Clicked="OnZoomOutClicked" />
+            <Button Grid.Column="5" Text="+" Clicked="OnZoomInClicked" />
+            <Button Grid.Column="6" Text="Fit" Clicked="OnFitWidthClicked" />
+        </Grid>
+
+    </Grid>
+
+</ContentPage>
