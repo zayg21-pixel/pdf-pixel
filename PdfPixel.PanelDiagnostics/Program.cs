@@ -17,17 +17,10 @@ internal sealed class Program
             Description = "Path to the script to replay, one command per line: size <w> <h>, zoom <scale>, scroll <x> <y>, scroll_relative <dx> <dy>, page <n>, sleep <seconds>."
         };
 
-        Option<WorkQueueMode> queueOption = new("--queue")
-        {
-            Description = "Work queue the panel decodes pages with: 'immediate' or 'sequential'.",
-            DefaultValueFactory = _ => WorkQueueMode.Immediate
-        };
-
         RootCommand rootCommand = new("Replays a script of user interactions against a PDF panel, logging frames and blocked time.")
         {
             pdfArgument,
-            scriptArgument,
-            queueOption
+            scriptArgument
         };
 
         rootCommand.SetAction(parseResult =>
@@ -40,7 +33,7 @@ internal sealed class Program
                 return 1;
             }
 
-            ReplayCommand.Run(pdfFile, scriptFile, parseResult.GetValue(queueOption));
+            ReplayCommand.Run(pdfFile, scriptFile);
 
             return 0;
         });

@@ -9,7 +9,7 @@ public sealed partial class PdfPanelRenderer
     internal const bool DefaultShowPageLoadingAnimation = true;
     internal const bool DefaultAntialias = true;
     internal const bool DefaultSnapToDevicePixels = true;
-    internal const int DefaultTileSize = 512;
+    internal const int DefaultTileSize = 2048;
     internal const int DefaultAnimationFps = 60;
     internal const int DefaultLookAheadPageCount = 2;
 

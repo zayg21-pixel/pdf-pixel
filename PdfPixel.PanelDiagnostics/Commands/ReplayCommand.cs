@@ -1,10 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.PanelDiagnostics.Utilities;
 using PdfPixel.PdfPanel;
-using PdfPixel.PdfPanel.Execution;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System.Diagnostics;
@@ -20,12 +18,10 @@ internal static class ReplayCommand
     private const int DefaultPanelWidth = 1280;
     private const int DefaultPanelHeight = 960;
 
-    private static readonly TimeSpan YieldInterval = TimeSpan.FromMilliseconds(16);
-
     /// <summary>
-    /// Opens <paramref name="pdfFile"/> in a panel decoding with <paramref name="queueMode"/> and replays <paramref name="scriptFile"/> against it.
+    /// Opens <paramref name="pdfFile"/> in a panel and replays <paramref name="scriptFile"/> against it.
     /// </summary>
-    public static void Run(FileInfo pdfFile, FileInfo scriptFile, WorkQueueMode queueMode)
+    public static void Run(FileInfo pdfFile, FileInfo scriptFile)
     {
         List<PanelScriptLine> script = PanelScriptLine.ParseFile(scriptFile.FullName);
 
@@ -37,7 +33,7 @@ internal static class ReplayCommand
         using PanelSynchronizationContext synchronizationContext = new(clock);
         SynchronizationContext.SetSynchronizationContext(synchronizationContext);
 
-        using PdfPanelDocument panelDocument = CreatePanelDocument(document, queueMode, loggerFactory, synchronizationContext);
+        using PdfPanelDocument panelDocument = PdfPanelDocument.FromDocument(document, loggerFactory, synchronizationContext);
         using CpuSkSurfaceFactory surfaceFactory = new(SKColorType.Rgba8888, SKAlphaType.Premul);
         PanelRenderTarget renderTarget = new(clock);
         using PdfPanelContext context = new(panelDocument, surfaceFactory, renderTarget);
@@ -57,24 +53,6 @@ internal static class ReplayCommand
 
             Execute(context, clock, line.Text, line);
         }
-    }
-
-    private static PdfPanelDocument CreatePanelDocument(
-        IPdfDocument document,
-        WorkQueueMode queueMode,
-        ILoggerFactory loggerFactory,
-        SynchronizationContext synchronizationContext)
-    {
-        if (queueMode == WorkQueueMode.Immediate)
-        {
-            return PdfPanelDocument.FromDocument(
-                document,
-                new ImmidiateWorkQueue(loggerFactory.CreateLogger<ImmidiateWorkQueue>()),
-                new PdfYieldingObserverFactory(YieldInterval),
-                synchronizationContext);
-        }
-
-        return PdfPanelDocument.FromDocument(document, loggerFactory, synchronizationContext);
     }
 
     /// <summary>
