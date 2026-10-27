@@ -2,7 +2,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 
-namespace PdfPixel.Annotations.Rendering;
+namespace PdfPixel.Annotations.Icons;
 
 /// <summary>
 /// A single path element within an icon definition.

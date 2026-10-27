@@ -310,6 +310,11 @@ internal static class PdfTokens
     public static readonly PdfString LeaderLineExtensionKey = (PdfString)"LLE"u8;     // Leader line extension
     public static readonly PdfString LeaderLineOffsetKey = (PdfString)"LLO"u8;        // Leader line offset
     public static readonly PdfString CaptionKey = (PdfString)"Cap"u8;                 // Caption flag
+
+    // Free text annotation specific keys
+    public static readonly PdfString CLKey = (PdfString)"CL"u8;                       // Callout line [x1 y1 x2 y2] or [x1 y1 x2 y2 x3 y3]
+    public static readonly PdfString CalloutLineEndingKey = (PdfString)"LE"u8;        // Callout line ending style name
+    public static readonly PdfString DSKey = (PdfString)"DS"u8;                       // Default style string
     public static readonly PdfString CaptionPositionKey = (PdfString)"CP"u8;          // Caption position
     public static readonly PdfString MeasureKey = (PdfString)"Measure"u8;             // Measure dictionary
     public static readonly PdfString CaptionOffsetKey = (PdfString)"CO"u8;            // Caption offset

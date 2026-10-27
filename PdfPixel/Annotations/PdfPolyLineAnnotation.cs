@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
@@ -28,7 +29,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
         : base(annotationObject, PdfAnnotationSubType.PolyLine)
     {
         Vertices = PdfPoint.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
-        Path = PdfAnnotationGeometry.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
+        Path = PdfAnnotationGeometryParser.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
 
         if (Path != null)
         {

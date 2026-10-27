@@ -1,6 +1,8 @@
 using PdfPixel.Files;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
+using PdfPixel.Annotations.Icons;
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using System;

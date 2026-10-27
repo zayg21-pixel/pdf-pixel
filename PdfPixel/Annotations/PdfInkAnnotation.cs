@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
@@ -26,8 +27,8 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     internal PdfInkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Ink)
     {
-        InkList = PdfAnnotationGeometry.ParseInkList(annotationObject.Dictionary.GetArray(PdfTokens.InkListKey));
-        Path = PdfAnnotationGeometry.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
+        InkList = PdfAnnotationGeometryParser.ParseInkList(annotationObject.Dictionary.GetArray(PdfTokens.InkListKey));
+        Path = PdfAnnotationGeometryParser.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
 
         if (Path != null)
         {

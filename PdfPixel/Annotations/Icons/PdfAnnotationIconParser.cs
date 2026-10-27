@@ -1,4 +1,5 @@
 using PdfPixel.Annotations;
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
@@ -7,7 +8,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Xml;
 
-namespace PdfPixel.Annotations.Rendering;
+namespace PdfPixel.Annotations.Icons;
 
 /// <summary>
 /// Parses icon definitions from the annotation resource XML format.

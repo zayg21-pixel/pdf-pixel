@@ -4,7 +4,7 @@ using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.Operators;
 
-namespace PdfPixel.Annotations.Rendering;
+namespace PdfPixel.Annotations.Parsing;
 
 /// <summary>
 /// Parses annotation border style (BS dictionary / legacy Border array) and border effect

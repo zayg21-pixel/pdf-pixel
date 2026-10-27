@@ -1,4 +1,5 @@
 using PdfPixel.Actions;
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
@@ -35,7 +36,7 @@ public class PdfLinkAnnotation : PdfAnnotation
         Action = PdfAction.GetAction(annotationObject.Dictionary, PdfTokens.AKey);
 
         HighlightMode = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
-        Quadrilaterals = PdfAnnotationGeometry.ParseQuadrilaterals(annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey));
+        Quadrilaterals = PdfAnnotationGeometryParser.ParseQuadrilaterals(annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey));
         _activeRectangles = GetActiveRectangles(Rectangle, Quadrilaterals);
     }
 

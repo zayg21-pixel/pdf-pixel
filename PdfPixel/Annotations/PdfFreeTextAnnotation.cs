@@ -1,5 +1,8 @@
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Objects;
+using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
@@ -19,18 +22,72 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
     internal PdfFreeTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FreeText)
     {
-        // TODO: [MEDIUM] Not parsed, so a FreeText without an appearance stream is not drawn:
-        // - default appearance string: font, size and text color (DA)
-        // - text justification: left, centered or right (Q)
-        // - callout line points and its line ending, not drawn for the typewriter intent (CL, LE)
-        // - inset of the text box from the annotation rectangle (RD)
-        // - default rich text style string (DS)
-        // - border effect, cloudy border (BE)
-        // Fallback rendering waits on default appearance handling from the Widget implementation.
+        PdfDictionary dictionary = annotationObject.Dictionary;
+
+        DefaultAppearance = dictionary.GetString(PdfTokens.DefaultAppearanceKey);
+        TextAlignment = (PdfTextAlignment)dictionary.GetIntegerOrDefault(PdfTokens.QuadKey);
+        DefaultStyle = dictionary.GetString(PdfTokens.DSKey);
+
+        PdfArray? calloutLineArray = dictionary.GetArray(PdfTokens.CLKey);
+        if (calloutLineArray != null)
+        {
+            CalloutLine = PdfPoint.ParsePoints(calloutLineArray);
+        }
+
+        LineEnding = dictionary.GetNameOrDefault(PdfTokens.CalloutLineEndingKey).AsEnum<PdfLineEndingStyle>();
+        BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        RectangleDifferences = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        ContentRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
+
+        // TODO: [MEDIUM] A FreeText without an appearance stream is not drawn:
+        // - text in the default appearance, aligned by TextAlignment, inside ContentRectangle
+        // - border of ContentRectangle with its border effect
+        // - callout line and its line ending, not drawn for the typewriter intent
+        // - default style string
     }
 
     /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
+
+    /// <summary>
+    /// Gets the default appearance string the text is formatted with (DA entry).
+    /// </summary>
+    public PdfString? DefaultAppearance { get; }
+
+    /// <summary>
+    /// Gets the justification of the text (Q entry). Default <see cref="PdfTextAlignment.Left"/>.
+    /// </summary>
+    public PdfTextAlignment TextAlignment { get; }
+
+    /// <summary>
+    /// Gets the default style string (DS entry).
+    /// </summary>
+    public PdfString? DefaultStyle { get; }
+
+    /// <summary>
+    /// Gets the starting, knee (when present) and ending points of the callout line (CL entry).
+    /// </summary>
+    public PdfPoint[]? CalloutLine { get; }
+
+    /// <summary>
+    /// Gets the line ending style at the starting point of <see cref="CalloutLine"/> (LE entry).
+    /// </summary>
+    public PdfLineEndingStyle LineEnding { get; }
+
+    /// <summary>
+    /// Gets the parsed border effect (BE entry).
+    /// </summary>
+    public PdfAnnotationBorderEffect BorderEffect { get; }
+
+    /// <summary>
+    /// Gets the rectangle differences that inset the text box from the annotation rectangle.
+    /// </summary>
+    public PdfRectangle? RectangleDifferences { get; }
+
+    /// <summary>
+    /// Gets the text box after applying <see cref="RectangleDifferences"/>.
+    /// </summary>
+    public PdfRectangle ContentRectangle { get; }
 
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,

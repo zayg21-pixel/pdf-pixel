@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Icons;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Commands;

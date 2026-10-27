@@ -1,7 +1,7 @@
 using PdfPixel.Annotations;
 using PdfPixel.Geometry;
 
-namespace PdfPixel.Annotations.Rendering;
+namespace PdfPixel.Annotations.Icons;
 
 /// <summary>
 /// A complete icon definition parsed from a resource XML element.

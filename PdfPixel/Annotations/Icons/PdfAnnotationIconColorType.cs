@@ -1,4 +1,4 @@
-namespace PdfPixel.Annotations.Rendering;
+namespace PdfPixel.Annotations.Icons;
 
 /// <summary>
 /// How a path's colors are sourced at render time.

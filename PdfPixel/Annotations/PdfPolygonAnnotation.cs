@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
@@ -24,7 +25,7 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
         : base(annotationObject, PdfAnnotationSubType.Polygon)
     {
         Vertices = PdfPoint.ParsePoints(annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey));
-        Path = PdfAnnotationGeometry.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
+        Path = PdfAnnotationGeometryParser.ParsePath(annotationObject.Dictionary.GetArray(PdfTokens.PathKey));
 
         if (Path != null)
         {
