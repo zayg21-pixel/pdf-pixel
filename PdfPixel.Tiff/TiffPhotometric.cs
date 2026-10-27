@@ -1,4 +1,4 @@
-namespace PdfPixel.Tiff.Model;
+namespace PdfPixel.Tiff;
 
 /// <summary>
 /// Color model of the samples in a TIFF image (tag 262).

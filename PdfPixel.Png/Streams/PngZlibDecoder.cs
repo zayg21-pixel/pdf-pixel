@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 
-namespace PdfPixel.Png.Decoding;
+namespace PdfPixel.Png.Streams;
 
 /// <summary>
 /// Opens zlib streams (RFC 1950) of PNG image data and compressed chunks.

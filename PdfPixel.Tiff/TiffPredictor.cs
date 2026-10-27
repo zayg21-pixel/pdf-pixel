@@ -1,4 +1,4 @@
-namespace PdfPixel.Tiff.Model;
+namespace PdfPixel.Tiff;
 
 /// <summary>
 /// Prediction applied to the samples before compression (tag 317).

@@ -1,4 +1,4 @@
-namespace PdfPixel.Tiff.Model;
+namespace PdfPixel.Tiff;
 
 /// <summary>
 /// Arrangement of the samples of a pixel in a TIFF image (tag 284).

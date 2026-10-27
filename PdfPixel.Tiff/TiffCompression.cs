@@ -1,4 +1,4 @@
-namespace PdfPixel.Tiff.Model;
+namespace PdfPixel.Tiff;
 
 /// <summary>
 /// Compression scheme of a TIFF image (tag 259).

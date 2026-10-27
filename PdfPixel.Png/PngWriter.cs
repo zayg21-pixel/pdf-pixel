@@ -1,6 +1,7 @@
 using PdfPixel.Png.Decoding;
 using PdfPixel.Png.Encoding;
 using PdfPixel.Png.Parsing;
+using PdfPixel.Png.Streams;
 using System;
 using System.Buffers.Binary;
 using System.IO;

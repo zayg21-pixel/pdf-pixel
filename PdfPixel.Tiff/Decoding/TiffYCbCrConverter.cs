@@ -1,4 +1,3 @@
-using PdfPixel.Tiff.Model;
 using System;
 
 namespace PdfPixel.Tiff.Decoding;

@@ -1,4 +1,4 @@
-namespace PdfPixel.Tiff.Model;
+namespace PdfPixel.Tiff;
 
 /// <summary>
 /// Numeric interpretation of the samples in a TIFF image (tag 339).

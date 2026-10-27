@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Png;
+namespace PdfPixel.Png.Streams;
 
 /// <summary>
 /// Undoes the PNG row filters of filter method 0 (filter types 0..4).

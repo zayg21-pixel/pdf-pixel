@@ -1,6 +1,6 @@
 using System;
 
-namespace PdfPixel.Tiff.Model;
+namespace PdfPixel.Tiff;
 
 /// <summary>
 /// Kind of data an image file directory holds (NewSubfileType, tag 254).

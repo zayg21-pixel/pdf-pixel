@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using PdfPixel.Color;
-using PdfPixel.Tiff.Decoding;
-using PdfPixel.Tiff.Model;
-using PdfPixel.Tiff.Parsing;
+using PdfPixel.Tiff;
 using SkiaSharp;
 using Xunit;
 using Xunit.Abstractions;
@@ -222,7 +220,7 @@ public class TiffDecodingTests
     public void Multipage_DecodesEachDirectory()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(TiffFolder, "baboon-multipage.tif"));
-        List<TiffDirectory> directories = TiffReader.ReadDirectories(data);
+        IReadOnlyList<TiffDirectory> directories = TiffDirectory.ParseAll(data);
 
         Assert.Equal(2, directories.Count);
 
@@ -237,7 +235,7 @@ public class TiffDecodingTests
     public void Pyramid_MarksReducedResolutionLevels()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(TiffFolder, "baboon-pyramid.tif"));
-        List<TiffDirectory> directories = TiffReader.ReadDirectories(data);
+        IReadOnlyList<TiffDirectory> directories = TiffDirectory.ParseAll(data);
 
         Assert.Equal(3, directories.Count);
         Assert.Equal(TiffSubfileType.None, directories[0].SubfileType);
@@ -256,7 +254,7 @@ public class TiffDecodingTests
     public void SubIfds_AreReadAsChildDirectories()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(TiffFolder, "baboon-subifd.tif"));
-        List<TiffDirectory> directories = TiffReader.ReadDirectories(data);
+        IReadOnlyList<TiffDirectory> directories = TiffDirectory.ParseAll(data);
 
         Assert.Single(directories);
         TiffDirectory child = Assert.Single(directories[0].SubDirectories);
@@ -273,7 +271,7 @@ public class TiffDecodingTests
     public void IccProfile_IsReadByteForByte()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(TiffFolder, "cmyk-icc.tif"));
-        List<TiffDirectory> directories = TiffReader.ReadDirectories(data);
+        IReadOnlyList<TiffDirectory> directories = TiffDirectory.ParseAll(data);
 
         using Stream? profileStream = typeof(ProfileResources).Assembly.GetManifestResourceStream("PdfPixel.Color.EmbeddedData.CompactCmyk.icc");
         Assert.NotNull(profileStream);
@@ -291,7 +289,7 @@ public class TiffDecodingTests
     public void Orientation_IsReported()
     {
         byte[] data = File.ReadAllBytes(Path.Combine(TiffFolder, "baboon-orientation.tif"));
-        List<TiffDirectory> directories = TiffReader.ReadDirectories(data);
+        IReadOnlyList<TiffDirectory> directories = TiffDirectory.ParseAll(data);
 
         Assert.Equal(TiffOrientation.RightTop, directories[0].Orientation);
 
@@ -305,7 +303,7 @@ public class TiffDecodingTests
     private void AssertDecodesToGolden(string fileName)
     {
         byte[] data = File.ReadAllBytes(Path.Combine(TiffFolder, fileName));
-        List<TiffDirectory> directories = TiffReader.ReadDirectories(data);
+        IReadOnlyList<TiffDirectory> directories = TiffDirectory.ParseAll(data);
 
         AssertMatchesGolden(fileName, Decode(directories[0], data), ResolveGolden(fileName));
     }

@@ -1,8 +1,8 @@
-using PdfPixel.Tiff.Model;
+using PdfPixel.Tiff.Decoding;
 using System;
 using System.IO;
 
-namespace PdfPixel.Tiff.Decoding;
+namespace PdfPixel.Tiff;
 
 /// <summary>
 /// Decodes a TIFF image row by row into interleaved unsigned samples of <see cref="BitsPerComponent"/> bits,

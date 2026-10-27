@@ -8,9 +8,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.Icc;
 using PdfPixel.Color.Transform;
 using PdfPixel.Png;
-using PdfPixel.Tiff.Decoding;
-using PdfPixel.Tiff.Model;
-using PdfPixel.Tiff.Parsing;
+using PdfPixel.Tiff;
 
 namespace PdfPixel.Examples;
 
@@ -38,7 +36,7 @@ internal static class TiffExamples
         byte[] fileBytes = File.ReadAllBytes(ExamplePaths.Input(Format, CmykSourceFile));
 
         // Reads every image file directory in the file; the first one describes the first image.
-        List<TiffDirectory> directories = TiffReader.ReadDirectories(fileBytes);
+        IReadOnlyList<TiffDirectory> directories = TiffDirectory.ParseAll(fileBytes);
         TiffDirectory directory = directories[0];
 
         if (directory.IccProfile == null)

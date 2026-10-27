@@ -1,3 +1,4 @@
+using PdfPixel.Png.Streams;
 using System;
 using System.Runtime.CompilerServices;
 

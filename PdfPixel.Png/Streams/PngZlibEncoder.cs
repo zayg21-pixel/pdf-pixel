@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 using System.IO;
 using System.IO.Compression;
 
-namespace PdfPixel.Png.Encoding;
+namespace PdfPixel.Png.Streams;
 
 /// <summary>
 /// Compresses data into a zlib stream (RFC 1950): header, deflate data and Adler-32 trailer.

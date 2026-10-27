@@ -1,8 +1,7 @@
-using PdfPixel.Tiff.Model;
 using System;
 using System.IO;
 
-namespace PdfPixel.Tiff.Decoding;
+namespace PdfPixel.Tiff;
 
 public sealed partial class TiffRowDecoder
 {

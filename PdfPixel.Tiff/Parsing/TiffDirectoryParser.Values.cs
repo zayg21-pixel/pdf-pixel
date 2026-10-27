@@ -1,9 +1,8 @@
-using PdfPixel.Tiff.Model;
 using System.IO;
 
 namespace PdfPixel.Tiff.Parsing;
 
-public static partial class TiffReader
+internal static partial class TiffDirectoryParser
 {
     private static double[] ReadReals(in TiffSpanReader reader, in TiffEntry entry)
     {

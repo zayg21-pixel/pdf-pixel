@@ -1,7 +1,6 @@
 using PdfPixel.Ccitt;
 using PdfPixel.Jpeg;
 using PdfPixel.Jpx;
-using PdfPixel.Tiff.Model;
 using PdfPixel.Tiff.Streams;
 using System;
 using System.IO;

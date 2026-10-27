@@ -1,8 +1,9 @@
+using PdfPixel.Png.Decoding;
 using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace PdfPixel.Png.Decoding;
+namespace PdfPixel.Png.Streams;
 
 /// <summary>
 /// Forward-only stream reading the compressed image data of a PNG file across its IDAT or fdAT chunks.

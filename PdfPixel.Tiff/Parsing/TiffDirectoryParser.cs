@@ -1,4 +1,3 @@
-using PdfPixel.Tiff.Model;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +7,7 @@ namespace PdfPixel.Tiff.Parsing;
 /// <summary>
 /// Parses the image file directories of classic TIFF and BigTIFF files.
 /// </summary>
-public static partial class TiffReader
+internal static partial class TiffDirectoryParser
 {
     private const byte LittleEndianMarker = 0x49;
     private const byte BigEndianMarker = 0x4D;
@@ -23,7 +22,7 @@ public static partial class TiffReader
     /// </summary>
     /// <param name="data">Complete TIFF file.</param>
     /// <returns>The directories the file links, the first one describing the first image.</returns>
-    public static List<TiffDirectory> ReadDirectories(in ReadOnlySpan<byte> data)
+    public static List<TiffDirectory> Parse(in ReadOnlySpan<byte> data)
     {
         if (data.Length < 8)
         {
@@ -204,10 +203,13 @@ public static partial class TiffReader
 
         if (subDirectoryOffsets != null)
         {
+            List<TiffDirectory> subDirectories = [];
             for (int index = 0; index < subDirectoryOffsets.Length; index++)
             {
-                directory.SubDirectories.AddRange(ReadDirectoryChain(reader, subDirectoryOffsets[index], isBigTiff, visitedOffsets));
+                subDirectories.AddRange(ReadDirectoryChain(reader, subDirectoryOffsets[index], isBigTiff, visitedOffsets));
             }
+
+            directory.SubDirectories = subDirectories;
         }
 
         return directory;
