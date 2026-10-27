@@ -9,12 +9,6 @@ namespace PdfPixel.Jbig2.Decoding;
 /// for a named integer-coding procedure. Context arrays must persist across symbol instances so
 /// the probability model stays synchronized with the encoder.
 /// </summary>
-/// <remarks>
-/// Arrays whose size depends on decode parameters (<see cref="IaId"/>, <see cref="Gr"/>).
-/// The <see cref="IaId"/>, <see cref="Iardx"/>, <see cref="Iardy"/>, and
-/// <see cref="Gr"/> arrays may be injected from an owning decoder (inline aggregate path,
-/// ITU-T T.88 Section 6.5.8.2) to keep the probability model continuous across symbol decodes.
-/// </remarks>
 internal sealed class Jbig2ArithmeticContext
 {
     /// <summary>

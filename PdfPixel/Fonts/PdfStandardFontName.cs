@@ -3,9 +3,6 @@ namespace PdfPixel.Fonts;
 /// <summary>
 /// Represents the set of standard PDF font families.
 /// </summary>
-/// <remarks>
-/// The values correspond to common Standard 14 font family names used in PDF documents.
-/// </remarks>
 public enum PdfStandardFontName
 {
     /// <summary>

@@ -5,11 +5,6 @@ namespace PdfPixel.Jpx.Decoding;
 /// <summary>
 /// Reusable working buffers for the inverse wavelet transform.
 /// </summary>
-/// <remarks>
-/// The transform works in place on the component and holds one row or one strip of columns
-/// here at a time. One instance is shared by every tile and component of an image; each
-/// buffer grows to fit the largest request and is reused from then on.
-/// </remarks>
 internal sealed class JpxDwtScratch
 {
     /// <summary>

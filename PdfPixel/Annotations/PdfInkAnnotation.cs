@@ -13,11 +13,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF ink annotation for freehand drawing.
 /// </summary>
-/// <remarks>
-/// Ink annotations represent freehand "scribbles" composed of one or more disjoint paths.
-/// When displayed or printed, the paths are stroked with the annotation's color
-/// using a solid line of uniform thickness.
-/// </remarks>
 public class PdfInkAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
@@ -47,11 +42,10 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     /// </summary>
     protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// A declared /Rect that misses the ink entirely cannot be where the ink is, so the ink bounds are used
-    /// instead, grown to leave room for the stroke around them.
-    /// </remarks>
+    /// <summary>
+    /// Gets the declared rectangle, or the stroked bounds of the ink when there is no appearance stream
+    /// and the declared rectangle does not overlap them.
+    /// </summary>
     public override PdfRectangle Rectangle
     {
         get

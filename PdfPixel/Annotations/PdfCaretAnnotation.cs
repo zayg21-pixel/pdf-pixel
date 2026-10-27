@@ -13,11 +13,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF caret annotation, indicating a text insertion point.
 /// </summary>
-/// <remarks>
-/// Caret annotations mark a position in a PDF document where text should be inserted.
-/// The <see cref="Symbol"/> entry indicates whether a paragraph break is implied.
-/// The <see cref="RectangleDifferences"/> entry insets the actual mark from the annotation rectangle.
-/// </remarks>
 public class PdfCaretAnnotation : PdfMarkupAnnotation
 {
     /// <summary>

@@ -44,10 +44,6 @@ public abstract class PdfMarkupAnnotation : PdfAnnotation
     public override bool HasPopupContent => base.HasPopupContent || RichContents != null;
 
     /// <inheritdoc />
-    /// <remarks>
-    /// An annotation that carries no <see cref="Popup"/> triggers its pop-up from its own area
-    /// instead, so it shows no separate bubble.
-    /// </remarks>
     public override bool ShouldDisplayBubble => Popup != null && HasPopupContent;
 
     /// <summary>
@@ -59,26 +55,16 @@ public abstract class PdfMarkupAnnotation : PdfAnnotation
     /// <summary>
     /// Gets the annotation title/author.
     /// </summary>
-    /// <remarks>
-    /// The title is typically used to identify the author or creator of the annotation.
-    /// </remarks>
     public PdfString? Title { get; }
 
     /// <summary>
     /// Gets the annotation subject.
     /// </summary>
-    /// <remarks>
-    /// The subject represents a short description of the subject being addressed by the annotation.
-    /// </remarks>
     public PdfString? Subject { get; }
 
     /// <summary>
-    /// Gets the creation date of the annotation.
+    /// Gets the creation date of the annotation, or null when absent or unparsable.
     /// </summary>
-    /// <remarks>
-    /// The creation date represents when the annotation was first created.
-    /// Returns null if the date is not present or could not be parsed.
-    /// </remarks>
     public DateTime? CreationDate { get; }
 
     /// <summary>
@@ -87,21 +73,13 @@ public abstract class PdfMarkupAnnotation : PdfAnnotation
     public PdfReference? Popup { get; }
 
     /// <summary>
-    /// Gets the reference to the annotation that this annotation is in reply to.
+    /// Gets the reference to the annotation that this annotation is in reply to, or null when it is not a reply.
     /// </summary>
-    /// <remarks>
-    /// Used to create threaded discussions where annotations can reply to other annotations.
-    /// Returns null if this annotation is not a reply.
-    /// </remarks>
     public PdfReference? InReplyTo { get; }
 
     /// <summary>
     /// Gets the reply type indicating the relationship between this annotation and the one specified by InReplyTo.
     /// </summary>
-    /// <remarks>
-    /// Reply (R) creates a linear thread, Group allows multiple replies to same parent.
-    /// Returns None if not specified or if this annotation is not a reply.
-    /// </remarks>
     public PdfAnnotationReplyType ReplyType { get; }
 
     /// <summary>

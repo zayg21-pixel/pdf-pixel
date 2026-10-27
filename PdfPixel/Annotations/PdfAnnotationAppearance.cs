@@ -8,10 +8,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Parsed annotation appearance dictionary (AP), holding the appearance stream of each visual state.
 /// </summary>
-/// <remarks>
-/// A visual state whose entry holds a sub-dictionary of appearance streams instead of a single stream
-/// is resolved through the annotation's appearance state (AS).
-/// </remarks>
 public sealed class PdfAnnotationAppearance
 {
     private PdfAnnotationAppearance(PdfForm? normal, PdfForm? rollover, PdfForm? down)

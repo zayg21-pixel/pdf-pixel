@@ -11,10 +11,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF strikeout annotation.
 /// </summary>
-/// <remarks>
-/// Strikeout annotations mark text with a line drawn through the middle of it,
-/// typically used to indicate deleted or obsolete content.
-/// </remarks>
 public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>

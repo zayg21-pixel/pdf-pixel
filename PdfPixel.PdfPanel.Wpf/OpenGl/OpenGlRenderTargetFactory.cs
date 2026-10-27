@@ -61,9 +61,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Creates the offscreen WGL context and SkiaSharp <see cref="GRContext"/> on the render thread.
-    /// </remarks>
     public void Initialize()
     {
         if (_glContext != null)
@@ -134,10 +131,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     public PdfMatrix HostToPanel { get; private set; } = PdfMatrix.Identity;
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Called from the UI thread. Creates or reuses a <see cref="WriteableBitmap"/> that
-    /// matches the current panel dimensions.
-    /// </remarks>
     public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context)
     {
         PdfSize panelSize = new((float)_panel.PanelSize.Width, (float)_panel.PanelSize.Height);

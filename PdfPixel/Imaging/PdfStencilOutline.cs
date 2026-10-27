@@ -10,12 +10,6 @@ namespace PdfPixel.Imaging;
 /// Traces the painted samples of a small stencil mask into a path in the unit square the image is drawn in, so the mask
 /// can be filled as a shape: antialiased at whatever size it is drawn, instead of resampled.
 /// </summary>
-/// <remarks>
-/// The outline follows the cracks between painted and unpainted samples on the grid of sample corners. Every crack is a
-/// directed edge with the painted sample on its right, so each contour closes on itself, holes run opposite to the
-/// contours around them, and the nonzero fill of all the contours covers exactly the painted samples. Only the corners
-/// where a contour turns become points of the path.
-/// </remarks>
 internal static class PdfStencilOutline
 {
     // Directions a crack runs along the corner grid, rows downwards, ordered clockwise so that turning right is the next one.

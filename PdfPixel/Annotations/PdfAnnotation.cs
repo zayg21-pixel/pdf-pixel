@@ -19,11 +19,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Base class for all PDF annotations containing common fields and properties.
 /// </summary>
-/// <remarks>
-/// This class provides the foundation for all PDF annotation types as defined in
-/// the PDF specification. All annotations share a common set of properties including
-/// position, appearance, and metadata.
-/// </remarks>
 public abstract class PdfAnnotation : IPdfAssociatedFilesHost
 {
     /// <summary>
@@ -42,7 +37,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         Reference = annotationObject.Reference;
         Subtype = subtype;
 
-        // Initialize all properties in constructor to avoid re-parsing
         Rectangle = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? PdfRectangle.Empty;
         Contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
         Name = annotationObject.Dictionary.GetString(PdfTokens.AnnotationNameKey);
@@ -86,10 +80,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <summary>
     /// Gets the rectangle defining the annotation's location on the page.
     /// </summary>
-    /// <remarks>
-    /// The rectangle is specified in default user space coordinates and
-    /// represents the annotation's bounding box.
-    /// </remarks>
     public virtual PdfRectangle Rectangle { get; }
 
     /// <summary>
@@ -98,8 +88,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     protected virtual PdfPoint ContentStart => new(Rectangle.Left, Rectangle.Bottom);
 
     /// <summary>
-    /// Whether fallback rendering is wrapped in a translucent layer carrying <see cref="Opacity"/>, so that
-    /// overlapping parts of the annotation fade as one instead of stacking on each other.
+    /// Whether fallback rendering is wrapped in a translucent layer carrying <see cref="Opacity"/>.
     /// </summary>
     protected virtual bool UsesOpacityLayer => Opacity < 1.0f;
 
@@ -111,10 +100,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
     /// </summary>
-    /// <remarks>
-    /// When true, indicates that the annotation has content (like comments) that should
-    /// be accessible through a bubble indicator. The hover rectangles will be the bubble area only.
-    /// </remarks>
     public virtual bool ShouldDisplayBubble => false;
 
     /// <summary>
@@ -125,11 +110,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <summary>
     /// Gets whether this annotation responds to pointer interaction with a visual state change.
     /// </summary>
-    /// <remarks>
-    /// True when the appearance stream defines rollover or down states, or when the annotation
-    /// has pop-up content to reveal. Subclasses with fallback interactive rendering should
-    /// override this to return true unconditionally.
-    /// </remarks>
     public virtual bool IsInteractive
     {
         get
@@ -154,20 +134,13 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     public PdfString? Name { get; }
 
     /// <summary>
-    /// Gets the modification date of the annotation.
+    /// Gets the modification date of the annotation, or null when absent or unparsable.
     /// </summary>
-    /// <remarks>
-    /// The modification date represents when the annotation was last modified.
-    /// Returns null if the date is not present or could not be parsed.
-    /// </remarks>
     public DateTime? ModificationDate { get; }
 
     /// <summary>
     /// Gets the annotation flags that specify various characteristics of the annotation.
     /// </summary>
-    /// <remarks>
-    /// Flags include: Invisible, Hidden, Print, NoZoom, NoRotate, NoView, ReadOnly, etc.
-    /// </remarks>
     public PdfAnnotationFlags Flags { get; }
 
     /// <summary>
@@ -189,13 +162,8 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     public PdfString? AppearanceState { get; }
 
     /// <summary>
-    /// Gets the border style dictionary that specifies the characteristics of the annotation's border.
+    /// Gets the border style of the annotation, or null when absent.
     /// </summary>
-    /// <remarks>
-    /// The border style includes width, style type (Solid, Dashed, Beveled, Inset, Underline),
-    /// and dash pattern for dashed borders. This is parsed from the BS (Border Style) dictionary
-    /// or the older Border array entry. Returns null if no border information is present.
-    /// </remarks>
     public PdfAnnotationBorderStyle? BorderStyle { get; }
 
     /// <summary>
@@ -206,25 +174,16 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <summary>
     /// Gets the interior color array that specifies the annotation's fill color.
     /// </summary>
-    /// <remarks>
-    /// Used by annotations that support filled shapes (Circle, Square, Line, Polygon, etc.).
-    /// The array format depends on the color space (grayscale, RGB, or CMYK).
-    /// </remarks>
     public float[]? InteriorColor { get; }
 
     /// <summary>
-    /// Gets the constant opacity value for the annotation (CA entry). Applied to all fallback-rendered
-    /// content. Default is 1.0 (fully opaque).
+    /// Gets the constant opacity of the annotation (CA entry), 1.0 when absent.
     /// </summary>
     public float Opacity { get; }
 
     /// <summary>
-    /// Gets the page reference that specifies which page this annotation appears on.
+    /// Gets the reference of the page this annotation appears on, or null when absent.
     /// </summary>
-    /// <remarks>
-    /// This is typically an indirect reference to a page object. If not present,
-    /// the annotation is associated with the page that contains it.
-    /// </remarks>
     public PdfReference? PageReference { get; }
 
     /// <summary>
@@ -248,14 +207,8 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     public PdfBlendMode? BlendMode { get; }
 
     /// <summary>
-    /// Gets the hover rectangles for interaction purposes (hit testing, popups, etc.).
+    /// Gets the hover rectangles of the annotation, kept inside the crop box of <paramref name="page"/>.
     /// </summary>
-    /// <remarks>
-    /// If ShouldDisplayBubble is true, this returns a small rectangle for the bubble indicator
-    /// positioned just above and to the left of the annotation content. The bubble does not
-    /// overlap the annotation's own Rectangle. Otherwise this returns the annotation's Rectangle.
-    /// Coordinates are in PDF space where the origin is at the bottom-left of the page.
-    /// </remarks>
     /// <param name="page">Owning PDF page to crop margins to.</param>
     public virtual PdfRectangle[] GetHoverRectangles(IPdfPage page)
     {
@@ -323,11 +276,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if fallback rendering was emitted, false if no fallback is available.</returns>
-    /// <remarks>
-    /// This method allows each annotation type to provide its own custom rendering logic
-    /// when the annotation doesn't have an appearance stream.
-    /// The visual state allows annotations to change their appearance based on user interaction.
-    /// </remarks>
     internal abstract bool RenderFallback(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
@@ -535,10 +483,8 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
             return null;
         }
 
-        // Get the annotation subtype and convert to enum
         PdfAnnotationSubType subtype = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfAnnotationSubType>();
 
-        // Create specific annotation types based on subtype
         return subtype switch
         {
             PdfAnnotationSubType.Text => new PdfTextAnnotation(annotationObject),

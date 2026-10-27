@@ -12,11 +12,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF text annotation.
 /// </summary>
-/// <remarks>
-/// Text annotations represent "sticky notes" attached to a point in the PDF document.
-/// When closed, they appear as an icon; when open, they display a pop-up window
-/// containing the text of the note in a font and size chosen by the conforming reader.
-/// </remarks>
 public class PdfTextAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
@@ -44,9 +39,6 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets a value indicating whether the annotation is initially displayed in an open state.
     /// </summary>
-    /// <remarks>
-    /// Default value is false (closed).
-    /// </remarks>
     public bool IsOpen { get; }
 
     /// <summary>
@@ -66,18 +58,11 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets the state model corresponding to a change in the annotation's state.
     /// </summary>
-    /// <remarks>
-    /// Common state models include "Review" and "Marked".
-    /// </remarks>
     public PdfString? StateModel { get; }
 
     /// <summary>
     /// Gets the state value corresponding to the state model.
     /// </summary>
-    /// <remarks>
-    /// For "Review" state model: None, Accepted, Rejected, Cancelled, Completed, etc.
-    /// For "Marked" state model: Marked, Unmarked.
-    /// </remarks>
     public PdfString? State { get; }
 
     internal override bool RenderFallback(

@@ -6,11 +6,6 @@ namespace PdfPixel.Fonts.Cff;
 /// <summary>
 /// Writes a <see cref="CffTypeface"/> model back out to CFF binary data.
 /// </summary>
-/// <remarks>
-/// Every <see cref="CffCharacter.CharString"/> is already hint-free and subroutine-free, so the
-/// written font never needs Local or Global Subrs: the Global Subr INDEX is always empty and no
-/// Private DICT carries a Subrs entry.
-/// </remarks>
 public partial class CffTypefaceWriter
 {
     /// <summary>

@@ -29,9 +29,8 @@ public class PdfDocumentReader
     /// <summary>
     /// Reads a PDF document from the specified stream, requesting a credential when an encrypted document needs one.
     /// </summary>
-    /// <remarks>The returned document parses lazily from <paramref name="stream"/>; it is not copied.
-    /// The stream must stay open, readable and seekable for as long as the document is in use.</remarks>
-    /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable.</param>
+    /// <param name="stream">The input <see cref="Stream"/> containing the PDF data. The stream must be readable and seekable,
+    /// and stay open for as long as the document is in use.</param>
     /// <param name="onCredentialRequested">Called when the empty user password does not decrypt the document, at open or on
     /// first access to encrypted embedded files. When <see langword="null"/>, only the empty user password is tried.</param>
     /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF content.</returns>

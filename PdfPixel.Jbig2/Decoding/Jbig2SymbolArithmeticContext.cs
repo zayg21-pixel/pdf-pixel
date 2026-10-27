@@ -7,11 +7,6 @@ namespace PdfPixel.Jbig2.Decoding;
 /// session (ITU-T T.88 Section 6.5). Each array is a probability state vector for a named
 /// integer-coding procedure defined by the specification.
 /// </summary>
-/// <remarks>
-/// Mirrors the role of <see cref="Jbig2ArithmeticContext"/> for text regions.
-/// Context arrays persist across the entire height-class loop so the probability model
-/// stays synchronised with the encoder.
-/// </remarks>
 internal sealed class Jbig2SymbolArithmeticContext
 {
     /// <summary>

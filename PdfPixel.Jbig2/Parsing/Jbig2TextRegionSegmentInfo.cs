@@ -6,9 +6,6 @@ namespace PdfPixel.Jbig2.Parsing;
 /// parameters that follow them in the header: refinement AT pixel coordinates and the
 /// number of symbol instances.
 /// </summary>
-/// <remarks>
-/// Construct via <see cref="Jbig2SegmentParser.ParseTextRegionInfo"/> rather than directly.
-/// </remarks>
 internal readonly struct Jbig2TextRegionSegmentInfo
 {
     public Jbig2TextRegionSegmentInfo(

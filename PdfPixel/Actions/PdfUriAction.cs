@@ -6,9 +6,6 @@ namespace PdfPixel.Actions;
 /// <summary>
 /// Represents a URI action that resolves a uniform resource identifier.
 /// </summary>
-/// <remarks>
-/// URI actions are typically used for hyperlinks to web resources.
-/// </remarks>
 public class PdfUriAction : PdfAction
 {
     /// <summary>
@@ -30,11 +27,6 @@ public class PdfUriAction : PdfAction
     /// <summary>
     /// Gets a value indicating whether the URI is a map coordinate.
     /// </summary>
-    /// <remarks>
-    /// If true, the URI is interpreted as a base URI to which a query string with
-    /// x,y coordinates will be appended when activated.
-    /// Default is false.
-    /// </remarks>
     public bool IsMap { get; }
 
     /// <summary>

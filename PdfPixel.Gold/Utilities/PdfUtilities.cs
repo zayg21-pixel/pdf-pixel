@@ -35,12 +35,8 @@ internal static class PdfUtilities
 
     /// <summary>
     /// Renders the requested pages of the document one at a time, or every page when no page number
-    /// is given. An encrypted document needs its user password.
+    /// is given. An encrypted document needs its user password. The caller disposes each bitmap.
     /// </summary>
-    /// <remarks>
-    /// A page is rendered only as the caller asks for it, so that a long document never holds more
-    /// than one page bitmap at a time. The caller disposes each bitmap before taking the next one.
-    /// </remarks>
     public static IEnumerable<(int PageNumber, SKBitmap Bitmap)> RenderPages(PdfDocumentReader reader, string pdfPath, IReadOnlyList<int> pageNumbers, string? password)
     {
         if (!File.Exists(pdfPath))

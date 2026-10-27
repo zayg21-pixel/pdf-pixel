@@ -11,10 +11,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF highlight annotation.
 /// </summary>
-/// <remarks>
-/// Highlight annotations mark text with a semi-transparent colored background,
-/// typically yellow, to draw attention to specific content.
-/// </remarks>
 public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>
@@ -27,10 +23,6 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     }
 
     /// <inheritdoc/>
-    /// <remarks>
-    /// The Multiply blend needs the marked content as its backdrop, which a layer would hide, so the
-    /// highlight paints its opacity directly instead.
-    /// </remarks>
     protected override bool UsesOpacityLayer => false;
 
     internal override bool RenderFallback(

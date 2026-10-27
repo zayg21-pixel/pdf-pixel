@@ -15,8 +15,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a free-form text annotation in a PDF document that allows users to add arbitrary text content.
 /// </summary>
-/// <remarks>Free-form text annotations do not display a bubble. Without an appearance stream, the text is drawn
-/// with the default appearance.</remarks>
 public class PdfFreeTextAnnotation : PdfMarkupAnnotation
 {
     /// <summary>

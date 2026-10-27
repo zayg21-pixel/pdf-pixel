@@ -34,9 +34,6 @@ public readonly struct PdfString : IEquatable<PdfString>
     /// <summary>
     /// Gets an empty <see cref="PdfString"/> instance.
     /// </summary>
-    /// <remarks>This property provides a predefined, immutable instance of <see cref="PdfString"/>
-    /// that represents an empty string. It can be used as a default value or to avoid  creating new instances for
-    /// empty content.</remarks>
     public static PdfString Empty => new(ReadOnlyMemory<byte>.Empty);
 
     /// <summary>

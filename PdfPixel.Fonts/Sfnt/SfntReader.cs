@@ -5,14 +5,9 @@ namespace PdfPixel.Fonts.Sfnt;
 /// <summary>
 /// Low-level reader over raw SFNT binary data: fixed-width big-endian integers. Shared by the
 /// container directory reader and every per-table reader so the byte-level format only needs to be
-/// implemented once.
+/// implemented once. Once a read runs past the end of the data, every later <c>Read*</c> call returns
+/// null without moving the position.
 /// </summary>
-/// <remarks>
-/// Once a read runs past the end of the data, the reader is faulted: every subsequent <c>Read*</c>
-/// call returns null, without moving the position further. A caller reading several fields in
-/// sequence therefore only needs to check <see cref="IsValid"/> once at the end, instead of after
-/// every individual read.
-/// </remarks>
 internal ref struct SfntReader
 {
     private readonly ReadOnlySpan<byte> _data;

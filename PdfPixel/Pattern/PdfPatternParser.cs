@@ -11,9 +11,6 @@ internal static class PdfPatternParser
     /// <summary>
     /// Parses a PDF pattern object and returns the corresponding <see cref="PdfPattern"/> instance.
     /// </summary>
-    /// <remarks>This method supports parsing tiling patterns (PatternType 1) and shading patterns
-    /// (PatternType 2).  Patterns with other types are not supported and will result in a <see langword="null"/>
-    /// return value.</remarks>
     /// <param name="patternObject">The PDF object representing the pattern. Must contain a valid dictionary with a <c>PatternType</c> key.</param>
     /// <returns>A <see cref="PdfPattern"/> instance representing the parsed pattern, or <see langword="null"/> if the
     /// pattern type is unsupported.</returns>

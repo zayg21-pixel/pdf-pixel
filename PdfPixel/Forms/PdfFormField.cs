@@ -8,10 +8,6 @@ namespace PdfPixel.Forms;
 /// <summary>
 /// Base class for PDF form fields (AcroForm fields).
 /// </summary>
-/// <remarks>
-/// Form fields define the interactive data entry and selection elements in a PDF.
-/// Widget annotations provide the visual representation and user interaction for fields.
-/// </remarks>
 public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeyboardInteraction
 {
     /// <summary>
@@ -50,18 +46,11 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <summary>
     /// Gets the partial field name.
     /// </summary>
-    /// <remarks>
-    /// The fully qualified field name is constructed by concatenating the partial names
-    /// of all ancestors, separated by periods.
-    /// </remarks>
     public PdfString? PartialName { get; }
 
     /// <summary>
     /// Gets the alternate field name for user interface purposes.
     /// </summary>
-    /// <remarks>
-    /// This is the name displayed to the user in tooltips or dialogs.
-    /// </remarks>
     public PdfString? AlternateName { get; }
 
     /// <summary>
@@ -77,9 +66,6 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <summary>
     /// Gets the field value.
     /// </summary>
-    /// <remarks>
-    /// The type and format depend on the field type.
-    /// </remarks>
     public PdfValue? Value { get; }
 
     /// <summary>
@@ -90,25 +76,16 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <summary>
     /// Gets the reference to the parent field, or <see langword="null"/> when absent.
     /// </summary>
-    /// <remarks>
-    /// Form fields can be organized hierarchically. Terminal fields have widgets.
-    /// </remarks>
     public PdfReference? Parent { get; }
 
     /// <summary>
     /// Gets the default appearance string.
     /// </summary>
-    /// <remarks>
-    /// Contains instructions for generating the field's appearance, including font, size, and color.
-    /// </remarks>
     public PdfString? DefaultAppearance { get; }
 
     /// <summary>
     /// Gets the quadding (text alignment) value.
     /// </summary>
-    /// <remarks>
-    /// 0 = left-justified, 1 = centered, 2 = right-justified.
-    /// </remarks>
     public int Quadding { get; }
 
     /// <summary>

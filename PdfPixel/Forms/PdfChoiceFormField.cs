@@ -10,10 +10,6 @@ namespace PdfPixel.Forms;
 /// <summary>
 /// Represents a PDF choice form field.
 /// </summary>
-/// <remarks>
-/// Choice fields allow the user to select one or more options from a list.
-/// They can be combo boxes (drop-down lists) or list boxes.
-/// </remarks>
 public class PdfChoiceFormField : PdfFormField
 {
     private int _highlightedIndex = -1;
@@ -35,10 +31,6 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Gets the options array.
     /// </summary>
-    /// <remarks>
-    /// Each element can be either a text string or a two-element array containing
-    /// the export value and display text.
-    /// </remarks>
     public PdfArray? Options { get; }
 
     /// <summary>
@@ -373,10 +365,6 @@ public class PdfChoiceFormField : PdfFormField
     /// </summary>
     /// <param name="position">Position in PDF coordinates relative to field rectangle.</param>
     /// <returns>Option index, or -1 if no option at that position.</returns>
-    /// <remarks>
-    /// This is a simplified implementation. A complete implementation would need
-    /// to measure the actual option layout using the field's font and appearance.
-    /// </remarks>
     private int GetOptionIndexAtPosition(in PdfPoint position)
     {
         if (Options == null || Options.Count == 0)
@@ -384,6 +372,7 @@ public class PdfChoiceFormField : PdfFormField
             return -1;
         }
 
+        // TODO: [LOW] Measure the option layout with the field's font and appearance instead of a fixed item height.
         const float itemHeight = 20.0f;
         var index = (int)(position.Y / itemHeight);
 
@@ -431,10 +420,6 @@ public class PdfChoiceFormField : PdfFormField
     /// </summary>
     /// <param name="index">Index of the option to select.</param>
     /// <param name="addToSelection">Whether to add to existing selection (for multiselect).</param>
-    /// <remarks>
-    /// This method updates the highlighted index and should trigger a value change event
-    /// in the higher-level implementation to persist the selection to the PDF document.
-    /// </remarks>
     protected virtual void SelectOption(int index, bool addToSelection)
     {
         if (index >= 0 && index < OptionCount)
@@ -447,9 +432,6 @@ public class PdfChoiceFormField : PdfFormField
     /// Filters options based on the input text (for editable combo boxes).
     /// </summary>
     /// <param name="text">Text to filter by.</param>
-    /// <remarks>
-    /// This method should update the visible options in the higher-level implementation.
-    /// </remarks>
     protected virtual void FilterOptions(string text)
     {
     }

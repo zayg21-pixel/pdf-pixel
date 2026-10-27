@@ -7,10 +7,6 @@ namespace PdfPixel.Forms;
 /// <summary>
 /// Represents a PDF button form field.
 /// </summary>
-/// <remarks>
-/// Button fields include push buttons, checkboxes, and radio buttons.
-/// The field flags determine the specific button type.
-/// </remarks>
 public class PdfButtonFormField : PdfFormField
 {
     private bool _isPressed;
@@ -37,9 +33,6 @@ public class PdfButtonFormField : PdfFormField
     /// <summary>
     /// Gets a value indicating whether this is a checkbox.
     /// </summary>
-    /// <remarks>
-    /// A checkbox is a button that is neither a push button nor a radio button.
-    /// </remarks>
     public bool IsCheckbox => !IsPushButton && !IsRadio;
 
     /// <summary>
@@ -132,9 +125,6 @@ public class PdfButtonFormField : PdfFormField
     /// <summary>
     /// Toggles the checked state of the button (for checkboxes and radio buttons).
     /// </summary>
-    /// <remarks>
-    /// This method should trigger a value change event in the higher-level implementation.
-    /// </remarks>
     protected virtual void ToggleCheckedState()
     {
     }
@@ -142,9 +132,6 @@ public class PdfButtonFormField : PdfFormField
     /// <summary>
     /// Handles button click action (for push buttons).
     /// </summary>
-    /// <remarks>
-    /// This method should trigger an action execution in the higher-level implementation.
-    /// </remarks>
     protected virtual void OnButtonClicked()
     {
     }

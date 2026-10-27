@@ -320,11 +320,6 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// <summary>
     /// Applies the inverse 5-3 lifting steps to one line, per ITU-T T.800 F.3.8.2.
     /// </summary>
-    /// <remarks>
-    /// The line arrives with its two sample classes already in contiguous halves, so every
-    /// lifting step reads its two neighbours from adjacent positions of the other half rather
-    /// than from alternating positions of the line.
-    /// </remarks>
     /// <param name="row">Low-pass samples followed by high-pass samples.</param>
     /// <param name="lowLength">Number of low-pass samples at the front of the row.</param>
     /// <param name="parity">

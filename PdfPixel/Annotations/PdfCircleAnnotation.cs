@@ -8,10 +8,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF circle annotation.
 /// </summary>
-/// <remarks>
-/// Circle annotations display an ellipse on the page. When the annotation has no appearance stream,
-/// the ellipse is drawn to fit within the annotation rectangle using the specified color and border style.
-/// </remarks>
 public class PdfCircleAnnotation : PdfShapeAnnotation
 {
     /// <summary>

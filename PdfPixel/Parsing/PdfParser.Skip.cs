@@ -69,9 +69,6 @@ internal partial struct PdfParser
     /// <summary>
     /// Skips a single end-of-line sequence in the input, if present.
     /// </summary>
-    /// <remarks>This method advances the input position past a single end-of-line sequence, which can
-    /// be either a carriage return ('\r'), a line feed ('\n'), or a carriage return followed by a line feed
-    /// ("\r\n"). If the input is already at the end, no action is taken.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SkipSingleEndOfLine()
     {

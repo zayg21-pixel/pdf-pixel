@@ -10,10 +10,6 @@ namespace PdfPixel.Annotations.Rendering;
 /// <summary>
 /// Utility class for drawing line endings on annotations.
 /// </summary>
-/// <remarks>
-/// Provides reusable methods for drawing various line ending styles (arrows, circles, squares, etc.)
-/// used by Line, PolyLine, and other annotation types.
-/// </remarks>
 internal static class PdfAnnotationLineEndingRenderer
 {
     /// <summary>

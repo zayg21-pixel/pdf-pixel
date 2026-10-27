@@ -11,12 +11,6 @@ namespace PdfPixel.Shading.Decoding;
 /// <summary>
 /// Resolves the colors of a mesh shading's vertices (types 4 to 7).
 /// </summary>
-/// <remarks>
-/// When the shading dictionary carries a <c>Function</c> entry, a vertex stores a single parametric
-/// value instead of color components. Such a value is interpolated across the mesh and the function
-/// is evaluated for every interpolated value, so the resolver pre-samples the function over the
-/// parametric range and interpolates between those samples.
-/// </remarks>
 internal sealed class MeshColorResolver
 {
     private readonly ColorTransformSampler _sampler;

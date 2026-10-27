@@ -8,10 +8,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF square annotation.
 /// </summary>
-/// <remarks>
-/// Square annotations display a rectangle on the page. When the annotation has no appearance stream,
-/// the rectangle is drawn within the annotation rectangle using the specified color and border style.
-/// </remarks>
 public class PdfSquareAnnotation : PdfShapeAnnotation
 {
     /// <summary>

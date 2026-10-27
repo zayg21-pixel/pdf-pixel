@@ -5,9 +5,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents the highlighting mode for link annotations.
 /// </summary>
-/// <remarks>
-/// The highlighting mode specifies the visual effect to use when the mouse button is pressed or held down inside the active area of a link annotation.
-/// </remarks>
 [PdfEnum]
 public enum PdfLinkHighlightMode
 {

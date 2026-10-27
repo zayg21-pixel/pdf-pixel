@@ -18,9 +18,6 @@ internal sealed partial class PdfColorSpaceResolver
     /// <summary>
     /// Resolves the appropriate <see cref="PdfColorSpaceConverter"/> for the specified <paramref name="pdfObject"/>.
     /// </summary>
-    /// <remarks>If <paramref name="pdfObject"/> has a valid reference and a matching converter is found in
-    /// the cache, the cached converter is returned. Otherwise, the converter is resolved from the object's value and
-    /// may be cached for future use.</remarks>
     /// <param name="pdfObject">The PDF object representing a color space definition. Must not be <c>null</c>.</param>
     /// <param name="defaultComponents">The default number of color components to assume if the color space type cannot be determined. Must be a
     /// positive integer. The default is 3.</param>

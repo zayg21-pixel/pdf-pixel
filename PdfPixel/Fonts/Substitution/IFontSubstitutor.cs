@@ -5,10 +5,6 @@ namespace PdfPixel.Fonts.Substitution;
 /// system fonts, an explicit in-memory registry, and so on. An implementation only loads: candidate
 /// selection, caching, and the lifetime of what it returns all belong to the caller.
 /// </summary>
-/// <remarks>
-/// Every method returns a freshly constructed typeface that the caller owns and disposes. An
-/// implementation must never hand back an instance it keeps a reference to.
-/// </remarks>
 public interface IFontSubstitutor
 {
     /// <summary>

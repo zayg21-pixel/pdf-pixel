@@ -6,12 +6,6 @@ namespace PdfPixel.Jpx;
 /// <summary>
 /// Holds one decoded JPX tile's component samples.
 /// </summary>
-/// <remarks>
-/// A tile is reusable storage: <see cref="Reset"/> re-targets it at another tile of the
-/// grid, growing its component buffers only when a larger tile is encountered. Callers
-/// that decode a tile grid can therefore keep one instance per tile column alive instead
-/// of allocating fresh sample buffers for every tile.
-/// </remarks>
 public sealed class JpxTile
 {
     /// <summary>

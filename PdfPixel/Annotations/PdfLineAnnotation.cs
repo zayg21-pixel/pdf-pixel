@@ -13,10 +13,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF line annotation.
 /// </summary>
-/// <remarks>
-/// Line annotations display a single straight line on the page. The line may have optional
-/// line ending styles at its start and end points (such as arrows, circles, or diamonds).
-/// </remarks>
 public class PdfLineAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
@@ -64,11 +60,10 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// When there is no appearance stream, this is the bounding box of the line and its leader lines.
-    /// Otherwise this is the declared /Rect.
-    /// </remarks>
+    /// <summary>
+    /// Gets the declared rectangle, or the stroked bounds of the line and its leader lines when there is
+    /// no appearance stream and the declared rectangle does not overlap them.
+    /// </summary>
     public override PdfRectangle Rectangle
     {
         get
@@ -122,10 +117,6 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets the leader line length.
     /// </summary>
-    /// <remarks>
-    /// Leader lines extend perpendicular from the line endpoints. A positive value extends
-    /// in the direction of the line, while a negative value extends in the opposite direction.
-    /// </remarks>
     public float? LeaderLineLength { get; }
 
     /// <summary>

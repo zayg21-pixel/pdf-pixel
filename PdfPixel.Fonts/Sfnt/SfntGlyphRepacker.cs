@@ -9,11 +9,6 @@ namespace PdfPixel.Fonts.Sfnt;
 /// The points arrive in the design units the format stores and are written as they are: nothing on
 /// this path places, scales or rounds them.
 /// </summary>
-/// <remarks>
-/// One instance repacks a whole table: the per-point scratch buffers grow to the largest glyph seen
-/// and are reused by every glyph after it, so a table costs one set of buffers rather than one per
-/// glyph.
-/// </remarks>
 internal sealed class SfntGlyphRepacker
 {
     private const int ShortDeltaLimit = 255;

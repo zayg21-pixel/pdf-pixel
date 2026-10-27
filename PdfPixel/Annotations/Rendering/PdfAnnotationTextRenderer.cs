@@ -71,7 +71,7 @@ internal static class PdfAnnotationTextRenderer
     /// <param name="lineStart">The start point of the line.</param>
     /// <param name="lineEnd">The end point of the line.</param>
     /// <param name="position">Whether the caption is centered inside the line or on top of it.</param>
-    /// <param name="offset">The offset of the caption along the line, then perpendicular to it toward its top.</param>
+    /// <param name="offset">The offset of the caption along the line, then perpendicular to it.</param>
     /// <param name="lineWidth">The width of the line.</param>
     /// <param name="leaderLength">The leader line length; negative when the leader lines extend to the right of the line.</param>
     /// <param name="leaderExtension">The length the leader lines extend past the line.</param>
@@ -120,13 +120,7 @@ internal static class PdfAnnotationTextRenderer
             baseline = topClearance - descent;
         }
 
-        float perpendicularOffset = offset.Y;
-        if (isTopBelowLine)
-        {
-            perpendicularOffset = -offset.Y;
-        }
-
-        PdfPoint origin = new(offset.X - (width / 2f), perpendicularOffset + baseline);
+        PdfPoint origin = new(offset.X - (width / 2f), offset.Y + baseline);
 
         DrawText(processor, glyphs, PdfAnnotationGeometry.CreateLineMatrix(lineStart, lineEnd), origin, LineCaptionFontSize, PdfColors.Black);
 

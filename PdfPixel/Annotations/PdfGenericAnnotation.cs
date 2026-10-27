@@ -8,11 +8,6 @@ namespace PdfPixel.Annotations;
 /// Represents a generic PDF annotation for annotation types that don't have
 /// a specific implementation yet.
 /// </summary>
-/// <remarks>
-/// This class provides access to the common annotation properties defined in
-/// <see cref="PdfAnnotation"/> for annotation subtypes that are not yet
-/// specifically implemented in the library.
-/// </remarks>
 public class PdfGenericAnnotation : PdfAnnotation
 {
     /// <summary>

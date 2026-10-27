@@ -11,10 +11,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF widget annotation (form field visual representation).
 /// </summary>
-/// <remarks>
-/// Widget annotations provide the visual appearance and user interaction for form fields.
-/// They are typically associated with a parent form field that contains the field's data and behavior.
-/// </remarks>
 public class PdfWidgetAnnotation : PdfAnnotation
 {
     /// <summary>
@@ -36,19 +32,11 @@ public class PdfWidgetAnnotation : PdfAnnotation
     /// <summary>
     /// Gets the highlighting mode.
     /// </summary>
-    /// <remarks>
-    /// Valid values: N (None), I (Invert), O (Outline), P (Push), T (Toggle).
-    /// Default is I (Invert).
-    /// </remarks>
     public PdfString? HighlightMode { get; }
 
     /// <summary>
     /// Gets the appearance characteristics dictionary.
     /// </summary>
-    /// <remarks>
-    /// Contains information for constructing the widget's appearance, such as
-    /// background color, border color, caption text, and icon fit.
-    /// </remarks>
     public PdfDictionary? AppearanceCharacteristics { get; }
 
     /// <summary>
@@ -59,26 +47,16 @@ public class PdfWidgetAnnotation : PdfAnnotation
     /// <summary>
     /// Gets the associated form field.
     /// </summary>
-    /// <remarks>
-    /// Widget annotations are linked to form fields. This property resolves the field
-    /// by checking if the widget object itself is a field or if it has a parent field.
-    /// </remarks>
     public PdfFormField? Field { get; }
 
     /// <summary>
     /// Gets whether this annotation carries text to show in a pop-up window.
     /// </summary>
-    /// <remarks>
-    /// Widget annotations are form controls; their text belongs to the field, not to a pop-up.
-    /// </remarks>
     public override bool HasPopupContent => false;
 
     /// <summary>
     /// Gets a value indicating whether this widget should not display a content bubble.
     /// </summary>
-    /// <remarks>
-    /// Widget annotations typically don't show bubbles since they are interactive form elements.
-    /// </remarks>
     public override bool ShouldDisplayBubble => false;
 
     internal override bool RenderFallback(
@@ -276,11 +254,6 @@ public class PdfWidgetAnnotation : PdfAnnotation
     /// </summary>
     /// <param name="pagePosition">Position in PDF page coordinates (bottom-left origin, Y up).</param>
     /// <returns>Position relative to the widget's rectangle (top-left origin, Y down).</returns>
-    /// <remarks>
-    /// PDF uses bottom-left origin with Y increasing upward, but form fields internally
-    /// use top-left origin with Y increasing downward (like UI elements).
-    /// This method converts from PDF page coordinates to field-relative UI coordinates.
-    /// </remarks>
     private PdfPoint GetRelativePosition(in PdfPoint pagePosition)
     {
         return new(

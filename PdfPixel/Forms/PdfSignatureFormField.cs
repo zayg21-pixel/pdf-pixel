@@ -5,10 +5,6 @@ namespace PdfPixel.Forms;
 /// <summary>
 /// Represents a PDF signature form field.
 /// </summary>
-/// <remarks>
-/// Signature fields contain digital signatures that can be used to authenticate
-/// the signer and verify document integrity.
-/// </remarks>
 public class PdfSignatureFormField : PdfFormField
 {
     /// <summary>

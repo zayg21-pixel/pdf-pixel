@@ -13,11 +13,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF file attachment annotation.
 /// </summary>
-/// <remarks>
-/// File attachment annotations (FileAttachment) reference a file specification (Filespec) which
-/// contains an embedded file stream in the /EF dictionary. This class exposes basic metadata
-/// about the attached file and provides a minimal fallback rendering (paperclip icon + name).
-/// </remarks>
 public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
 {
     /// <summary>

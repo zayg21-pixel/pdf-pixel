@@ -8,9 +8,6 @@ namespace PdfPixel.Objects;
 /// <summary>
 /// Represents a strongly-typed wrapper for a PDF array, providing type-safe indexed access to PDF values.
 /// </summary>
-/// <remarks>
-/// This class enables safe and convenient access to PDF array elements, including type coercion and reference resolution.
-/// </remarks>
 public class PdfArray
 {
     private readonly PdfValue[] _items;

@@ -65,12 +65,6 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// The cache entry hands out a fresh content observer for every request, so holding one that is no
-    /// longer the entry's current observer means a newer request for this page arrived while this item
-    /// waited in the queue, and rendering the request it carries would paint the page at a scale the
-    /// panel has already left.
-    /// </remarks>
     public bool IsSkippable => !ReferenceEquals(_contentObserver, _page.CacheEntry.ContentObserver);
 
     /// <inheritdoc />

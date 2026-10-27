@@ -8,31 +8,16 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF popup annotation.
 /// </summary>
-/// <remarks>
-/// Popup annotations display a pop-up window containing text of another annotation.
-/// They are typically associated with text annotations and other markup annotations
-/// to display additional content in a separate window. The popup annotation itself
-/// is invisible and only defines where a popup window would appear. Rendering of
-/// popup content is handled by the viewer application.
-/// </remarks>
 public class PdfPopupAnnotation : PdfAnnotation
 {
     /// <summary>
     /// Gets whether this annotation carries text to show in a pop-up window.
     /// </summary>
-    /// <remarks>
-    /// A popup annotation is the window itself, shown on behalf of its parent, so it is never
-    /// a trigger of its own.
-    /// </remarks>
     public override bool HasPopupContent => false;
 
     /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
     /// </summary>
-    /// <remarks>
-    /// Popup annotations are non-visual containers that define the position of a pop-up window
-    /// for another annotation. They should never render an additional bubble indicator.
-    /// </remarks>
     public override bool ShouldDisplayBubble => false;
 
     /// <summary>

@@ -10,11 +10,6 @@ namespace PdfPixel.Parsing;
 /// structures. Every <c>N G obj</c> declaration, catalog object, <c>trailer</c> dictionary and
 /// cross-reference stream in the file is collected; the last declaration of an object reference wins.
 /// </summary>
-/// <remarks>
-/// The scan records offsets and never materializes an object into the cache. Encryption is only known
-/// once a trailer has been read, and an object parsed ahead of that point would keep its strings
-/// undecrypted, so every object found here is left to be parsed on demand afterwards.
-/// </remarks>
 internal sealed class PdfXrefRecoveryScanner
 {
     private static readonly PdfString Trailer = (PdfString)"trailer"u8;

@@ -12,10 +12,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF squiggly underline annotation.
 /// </summary>
-/// <remarks>
-/// Squiggly annotations mark text with a wavy line drawn under it, typically
-/// used to indicate spelling or grammar errors.
-/// </remarks>
 public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>
@@ -62,9 +58,6 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
     }
 
     /// <inheritdoc/>
-    /// <remarks>
-    /// Padded by twice <see cref="GetAmplitude"/> above and below the baseline.
-    /// </remarks>
     protected override PdfRectangle GetQuadBounds(PdfPoint[] quad)
     {
         if (quad == null)

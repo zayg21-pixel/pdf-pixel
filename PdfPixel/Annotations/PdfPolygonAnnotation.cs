@@ -11,10 +11,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF polygon annotation.
 /// </summary>
-/// <remarks>
-/// Polygon annotations display a closed polygon on the page with multiple vertices.
-/// The polygon can be filled with an interior color and stroked with a border.
-/// </remarks>
 public class PdfPolygonAnnotation : PdfShapeAnnotation
 {
     /// <summary>
@@ -44,11 +40,10 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
     /// </summary>
     protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// When there is no appearance stream, this is the bounding box of the polygon outline.
-    /// Otherwise this is the declared /Rect.
-    /// </remarks>
+    /// <summary>
+    /// Gets the declared rectangle, or the stroked bounds of the polygon outline when there is no appearance
+    /// stream and the declared rectangle does not overlap them.
+    /// </summary>
     public override PdfRectangle Rectangle
     {
         get

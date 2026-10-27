@@ -14,11 +14,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF polyline annotation.
 /// </summary>
-/// <remarks>
-/// PolyLine annotations display an open path with multiple vertices on the page.
-/// Unlike Polygon, the path is not closed. PolyLine annotations can have line ending
-/// styles at the start and end points.
-/// </remarks>
 public class PdfPolyLineAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
@@ -57,11 +52,10 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// When there is no appearance stream, this is the bounding box of the polyline.
-    /// Otherwise this is the declared /Rect.
-    /// </remarks>
+    /// <summary>
+    /// Gets the declared rectangle, or the stroked bounds of the polyline when there is no appearance stream
+    /// and the declared rectangle does not overlap them.
+    /// </summary>
     public override PdfRectangle Rectangle
     {
         get

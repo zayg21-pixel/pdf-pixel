@@ -17,12 +17,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF rubber stamp annotation.
 /// </summary>
-/// <remarks>
-/// Stamp annotations display a predefined icon or text label (e.g. "DRAFT", "APPROVED")
-/// as a visual mark on the page. When no appearance stream is available, the fallback
-/// renders a slightly tilted rounded rectangle border with centered label text, both cast onto
-/// a flat shadow offset to the bottom right to imitate a physical stamp impression.
-/// </remarks>
 public class PdfStampAnnotation : PdfMarkupAnnotation
 {
     private const float BorderWidthFraction = 0.08f;

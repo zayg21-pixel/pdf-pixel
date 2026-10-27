@@ -363,9 +363,6 @@ public abstract class PdfFont
     /// <summary>
     /// Creates a font object based on the specified PDF object.
     /// </summary>
-    /// <remarks>The method determines the font subtype from the dictionary and returns an appropriate
-    /// font object instance. Supported font subtypes include Type0, CIDFontType0, CIDFontType2,  Type1, TrueType,
-    /// Type3, and MMType1.</remarks>
     /// <param name="fontObject">The PDF object containing font metadata and properties. Must represent a valid font
     /// object.</param>
     private static PdfFont? CreateFont(PdfObject? fontObject)

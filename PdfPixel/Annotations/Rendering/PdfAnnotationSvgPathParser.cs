@@ -6,13 +6,9 @@ namespace PdfPixel.Annotations.Rendering;
 
 /// <summary>
 /// Parses SVG path data (the <c>d</c> attribute of an <c>&lt;Icon&gt;</c> path element) into a
-/// <see cref="PdfPath"/>.
+/// <see cref="PdfPath"/>, supporting <c>M</c>, <c>L</c>, <c>H</c>, <c>V</c>, <c>C</c>, <c>Q</c>, <c>T</c>
+/// and <c>Z</c> in absolute and relative form.
 /// </summary>
-/// <remarks>
-/// Supports the commands used by the annotation icon resource: <c>M</c>, <c>L</c>, <c>H</c>, <c>V</c>,
-/// <c>C</c>, <c>Q</c>, <c>T</c>, and <c>Z</c>, in both absolute and relative form. Quadratic curves
-/// (<c>Q</c>/<c>T</c>) are elevated to the cubic curves <see cref="PdfPath"/> supports.
-/// </remarks>
 internal static class PdfAnnotationSvgPathParser
 {
     private const string CommandLetters = "MmLlHhVvCcQqTtZz";

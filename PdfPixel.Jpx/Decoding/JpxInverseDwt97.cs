@@ -219,11 +219,6 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// <summary>
     /// Dequantizes subband coefficients into consecutive positions of <paramref name="target"/>.
     /// </summary>
-    /// <remarks>
-    /// Tier-1 leaves the sign in bit 31 and the magnitude below it, which is where IEEE-754
-    /// keeps its own sign, so the scaled magnitude only has to have that bit put back rather
-    /// than be negated under a branch.
-    /// </remarks>
 #if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #else
@@ -434,11 +429,6 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// Applies the inverse 9-7 lifting steps to one interleaved line,
     /// per ITU-T T.800 F.3.8.2.
     /// </summary>
-    /// <remarks>
-    /// The line arrives with its two sample classes already in contiguous halves, so every
-    /// lifting step reads its two neighbours from adjacent positions of the other half rather
-    /// than from alternating positions, which is what lets the steps run a vector at a time.
-    /// </remarks>
     /// <param name="row">Low-pass samples followed by high-pass samples.</param>
     /// <param name="lowLength">Number of low-pass samples at the front of the row.</param>
     /// <param name="parity">

@@ -9,11 +9,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Base class for text markup annotations (Highlight, Underline, Squiggly, StrikeOut).
 /// </summary>
-/// <remarks>
-/// Text markup annotations are used to mark up text in a PDF document. They use QuadPoints
-/// to define the regions of text to be marked. QuadPoints specify quadrilaterals that
-/// encompass the marked text.
-/// </remarks>
 public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
@@ -35,17 +30,11 @@ public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets the collection of quadrilaterals, each represented as an array of four points in two-dimensional space.
     /// </summary>
-    /// <remarks>Each quadrilateral is defined by an array of four <see cref="PdfPoint"/> instances, specifying
-    /// its vertices in order. This property can be used to access the geometric outlines of annotated regions for
-    /// rendering or further processing. The order of points in each array determines the shape and orientation of the
-    /// quadrilateral.</remarks>
     public PdfPoint[][] Quadrilaterals { get; }
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// When there is no appearance stream, this is the union of <see cref="GetQuadBounds"/> across
-    /// <see cref="Quadrilaterals"/>. Otherwise this is the declared /Rect.
-    /// </remarks>
+    /// <summary>
+    /// Gets the declared rectangle, or the union of the quadrilateral bounds when there is no appearance stream.
+    /// </summary>
     public override PdfRectangle Rectangle
     {
         get
@@ -69,9 +58,6 @@ public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Returns the bounds of a single quadrilateral's fallback-rendered geometry, in PDF user space.
     /// </summary>
-    /// <remarks>
-    /// The default is the quadrilateral's own corner bounding box.
-    /// </remarks>
     protected virtual PdfRectangle GetQuadBounds(PdfPoint[] quad)
     {
         if (quad == null)

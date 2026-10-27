@@ -8,10 +8,6 @@ namespace PdfPixel.Forms;
 /// <summary>
 /// Represents a PDF text form field.
 /// </summary>
-/// <remarks>
-/// Text fields allow the user to enter arbitrary text. They can be single-line or multiline,
-/// and can have various formatting constraints.
-/// </remarks>
 public class PdfTextFormField : PdfFormField
 {
     private int _caretPosition;
@@ -30,11 +26,8 @@ public class PdfTextFormField : PdfFormField
     }
 
     /// <summary>
-    /// Gets the maximum length of the field's text, in characters.
+    /// Gets the maximum length of the field's text, in characters, or null when absent.
     /// </summary>
-    /// <remarks>
-    /// Returns null if no maximum length is specified.
-    /// </remarks>
     public int? MaxLength { get; }
 
     /// <summary>
@@ -55,10 +48,6 @@ public class PdfTextFormField : PdfFormField
     /// <summary>
     /// Gets a value indicating whether this field uses comb formatting.
     /// </summary>
-    /// <remarks>
-    /// Comb formatting divides the field into as many positions as MaxLength,
-    /// with one character per position.
-    /// </remarks>
     public bool IsComb => (Flags & PdfFormFieldFlags.Comb) != 0;
 
     /// <summary>
@@ -223,13 +212,11 @@ public class PdfTextFormField : PdfFormField
     /// </summary>
     /// <param name="position">Position in PDF coordinates relative to field rectangle.</param>
     /// <returns>Character index.</returns>
-    /// <remarks>
-    /// This is a simplified implementation. A complete implementation would need
-    /// to measure the actual text layout using the field's font and appearance.
-    /// </remarks>
     private int GetCharacterIndexAtPosition(in PdfPoint position)
     {
         string text = GetTextValue();
+
+        // TODO: [LOW] Measure the text layout with the field's font and appearance instead of a fixed character width.
         var estimatedIndex = (int)(position.X / 10);
         return Math.Max(0, Math.Min(estimatedIndex, text.Length));
     }
@@ -306,9 +293,6 @@ public class PdfTextFormField : PdfFormField
     /// Deletes the character before or after the caret.
     /// </summary>
     /// <param name="deleteForward">True to delete after caret (Delete), false to delete before (Backspace).</param>
-    /// <remarks>
-    /// This method should trigger a value change event in the higher-level implementation.
-    /// </remarks>
     protected virtual void DeleteCharacter(bool deleteForward)
     {
     }
@@ -317,9 +301,6 @@ public class PdfTextFormField : PdfFormField
     /// Inserts text at the current caret position.
     /// </summary>
     /// <param name="text">Text to insert.</param>
-    /// <remarks>
-    /// This method should trigger a value change event in the higher-level implementation.
-    /// </remarks>
     protected virtual void InsertTextAtCaret(string text)
     {
     }

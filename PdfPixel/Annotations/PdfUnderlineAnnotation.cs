@@ -11,9 +11,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF underline annotation.
 /// </summary>
-/// <remarks>
-/// Underline annotations mark text with a line drawn under it.
-/// </remarks>
 public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
 {
     /// <summary>

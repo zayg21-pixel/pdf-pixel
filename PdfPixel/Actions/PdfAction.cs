@@ -7,9 +7,6 @@ namespace PdfPixel.Actions;
 /// <summary>
 /// Base class for PDF actions.
 /// </summary>
-/// <remarks>
-/// Actions define behaviors to be performed in response to user interaction or other events.
-/// </remarks>
 public abstract class PdfAction
 {
     private PdfDictionary? _actionDictionary;

@@ -6,9 +6,6 @@ namespace PdfPixel.Jbig2.Parsing;
 /// parameters that follow them in the header: AT pixel coordinates, refinement AT pixel
 /// coordinates, symbol counts, and the byte offset where coded symbol data begins.
 /// </summary>
-/// <remarks>
-/// Construct via <see cref="Jbig2SegmentParser.ParseSymbolDictionaryInfo"/> rather than directly.
-/// </remarks>
 internal readonly struct Jbig2SymbolDictionarySegmentInfo
 {
     public Jbig2SymbolDictionarySegmentInfo(

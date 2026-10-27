@@ -16,11 +16,6 @@ namespace PdfPixel.Jpx.Decoding;
 /// 5. Inverse Wavelet Transform (5-3 reversible or 9-7 irreversible)
 /// 6. Inverse MCT, Level Shifting, and Clamping
 /// </summary>
-/// <remarks>
-/// One decoder serves every tile of an image, and owns the scratch buffers the stages
-/// work in so that decoding a tile allocates only the tile it returns. Buffers grow to
-/// fit the largest tile seen and are reused from then on.
-/// </remarks>
 internal sealed class JpxTileDecoder
 {
     private readonly JpxHeader _header;

@@ -16,10 +16,6 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a PDF link annotation.
 /// </summary>
-/// <remarks>
-/// Link annotations represent either hypertext links to destinations elsewhere in the document
-/// or actions to be performed. They are typically invisible but may have a border or highlight effect.
-/// </remarks>
 public class PdfLinkAnnotation : PdfAnnotation
 {
     private readonly PdfRectangle[]? _activeRectangles;
@@ -52,11 +48,10 @@ public class PdfLinkAnnotation : PdfAnnotation
     /// </summary>
     public PdfPoint[][] Quadrilaterals { get; }
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// One rectangle per quadrilateral when every quadrilateral lies within <see cref="PdfAnnotation.Rectangle"/>.
-    /// Otherwise <see cref="PdfAnnotation.Rectangle"/>.
-    /// </remarks>
+    /// <summary>
+    /// Gets one rectangle per quadrilateral when every quadrilateral lies within <see cref="PdfAnnotation.Rectangle"/>,
+    /// otherwise the hover rectangles of the annotation.
+    /// </summary>
     public override PdfRectangle[] GetHoverRectangles(IPdfPage page)
     {
         if (_activeRectangles == null)
@@ -75,24 +70,13 @@ public class PdfLinkAnnotation : PdfAnnotation
     public PdfDestination? Destination { get; }
 
     /// <summary>
-    /// Gets the action dictionary that defines the action to be performed when the annotation is activated.
+    /// Gets the action to be performed when the annotation is activated, or null when absent.
     /// </summary>
-    /// <remarks>
-    /// This property is null if the link uses a Destination instead.
-    /// Common action types include GoTo, GoToR, URI, Launch, etc.
-    /// </remarks>
     public PdfAction? Action { get; }
 
     /// <summary>
     /// Gets the highlight mode that specifies the visual effect to use when the link is activated.
     /// </summary>
-    /// <remarks>
-    /// Valid values are:
-    /// - None: No highlighting
-    /// - Invert: Invert the colors of the annotation rectangle (default)
-    /// - Outline: Invert the border of the annotation rectangle
-    /// - Push: Display the annotation as if it were being pushed
-    /// </remarks>
     public PdfLinkHighlightMode HighlightMode { get; }
 
     internal override bool RenderFallback(

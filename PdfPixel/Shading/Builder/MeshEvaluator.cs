@@ -55,11 +55,6 @@ internal static class MeshEvaluator
     /// <summary>
     /// Creates vertices for all Type 4/5 Gouraud triangles in a single batch for efficient rendering.
     /// </summary>
-    /// <remarks>
-    /// A triangle whose vertices carry a parametric value is subdivided barycentrically, so that the
-    /// parametric value is what gets interpolated and the shading's function is evaluated for every
-    /// interpolated value. Triangles carrying colors directly are emitted unchanged.
-    /// </remarks>
     /// <param name="triangles">List of decoded triangles, three vertices each.</param>
     /// <param name="colorResolver">Resolver for the color of an interpolated parametric value.</param>
     /// <param name="tessellation">Number of subdivisions per triangle edge (higher = smoother).</param>

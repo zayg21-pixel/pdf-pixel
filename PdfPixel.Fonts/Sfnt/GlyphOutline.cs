@@ -9,10 +9,6 @@ namespace PdfPixel.Fonts.Sfnt;
 /// contour. Immutable - a composite glyph's components are combined through <see cref="Merge"/>,
 /// which returns the combined outline instead of growing either of the two it was given.
 /// </summary>
-/// <remarks>
-/// Only a glyph read for its path is ever flattened this way. Writing "glyf" back out keeps a
-/// composite composite, so nothing on that path places a component or leaves the design grid.
-/// </remarks>
 public sealed class GlyphOutline
 {
     private readonly GlyphPoint[] _points;
