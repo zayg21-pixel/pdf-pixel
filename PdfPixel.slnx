@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/Demo/">
-    <Project Path="PdfPixel.Demo.Console/PdfPixel.Demo.Console.csproj" />
+    <Project Path="PdfPixel.Demo.Cli/PdfPixel.Demo.Cli.csproj" />
     <Project Path="PdfPixel.Demo.Maui/PdfPixel.Demo.Maui.csproj" />
     <Project Path="PdfPixel.Demo.Web/PdfPixel.Demo.Web.csproj" />
     <Project Path="PdfPixel.Demo.Wpf/PdfPixel.Demo.Wpf.csproj" />

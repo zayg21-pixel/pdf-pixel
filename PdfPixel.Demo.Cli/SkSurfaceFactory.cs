@@ -2,7 +2,7 @@ using Silk.NET.Core.Contexts;
 using Silk.NET.Windowing;
 using SkiaSharp;
 
-namespace PdfPixel.Console.Demo;
+namespace PdfPixel.Demo.Cli;
 
 internal static class SkSurfaceFactory
 {
