@@ -16,6 +16,8 @@ namespace PdfPixel.Fonts;
 /// </summary>
 public sealed class SfntPdfTypeface : IPdfTypeface
 {
+    private const int ReplacementCharacter = 0xFFFD;
+
     private static readonly (ushort PlatformId, ushort EncodingId)[] PreferredUnicodeCmapSubtables =
     [
         (3, 1), // Windows, Unicode BMP
@@ -162,7 +164,19 @@ public sealed class SfntPdfTypeface : IPdfTypeface
             return null;
         }
 
-        int codepoint = char.ConvertToUtf32(unicode, 0);
+        int codepoint;
+        if (unicode.Length > 1 && char.IsSurrogatePair(unicode[0], unicode[1]))
+        {
+            codepoint = char.ConvertToUtf32(unicode[0], unicode[1]);
+        }
+        else if (char.IsSurrogate(unicode[0]))
+        {
+            codepoint = ReplacementCharacter;
+        }
+        else
+        {
+            codepoint = unicode[0];
+        }
 
         foreach ((ushort platformId, ushort encodingId) in PreferredUnicodeCmapSubtables)
         {

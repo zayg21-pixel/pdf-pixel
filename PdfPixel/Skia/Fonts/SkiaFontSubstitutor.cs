@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Substitution;
+using PdfPixel.Objects;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -62,7 +63,12 @@ public sealed class SkiaFontSubstitutor : IFontSubstitutor
     /// <inheritdoc />
     public SfntPdfTypeface? ResolveByCharacter(in PdfSubstitutionInfo substitutionInfo, string unicode)
     {
-        int codepoint = char.ConvertToUtf32(unicode, 0);
+        if (unicode == null)
+        {
+            throw new ArgumentNullException(nameof(unicode));
+        }
+
+        int codepoint = unicode.GetCodePoint(0, out _);
         SKFontStyle style = CreateFontStyle(substitutionInfo.Weight, substitutionInfo.Width, substitutionInfo.IsItalic);
 
         using SKTypeface? matchedTypeface = SKFontManager.Default.MatchCharacter(

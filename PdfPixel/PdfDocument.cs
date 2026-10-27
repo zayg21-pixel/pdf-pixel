@@ -56,7 +56,7 @@ internal class PdfDocument : IPdfDocumentInternal
         LoggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<PdfDocument>();
         _streamDecoder = new PdfStreamDecoder(loggerFactory);
-        FontProvider = new FontProvider(fontSubstitutor, loggerFactory);
+        FontProvider = new FontProvider(fontSubstitutor, this);
         _objectCache = new PdfDocumentObjectCache(this);
         _colorSpaceResolver = new PdfColorSpaceResolver(this);
         _stream = new BufferedStream(fileStream, PdfStreamDecoder.StreamChunkSize);

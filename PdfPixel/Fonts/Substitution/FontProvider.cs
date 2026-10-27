@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
 
@@ -11,30 +12,33 @@ namespace PdfPixel.Fonts.Substitution;
 public sealed class FontProvider : IDisposable
 {
     private readonly IFontSubstitutor _substitutor;
+    private readonly IPdfDocumentInternal _document;
     private readonly ILoggerFactory _loggerFactory;
     private readonly Dictionary<PdfSubstitutionInfo, SfntPdfTypeface> _familyTypefaces = [];
     private readonly Dictionary<PdfSubstitutionInfo, List<SfntPdfTypeface>> _characterFallbackTypefaces = [];
+    private readonly Dictionary<PdfString, PdfNamedFont> _namedFonts = [];
     private SfntPdfTypeface? _fallback;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FontProvider"/> class.
     /// </summary>
     /// <param name="substitutor">Loads typefaces from the underlying font source.</param>
-    /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
-    public FontProvider(IFontSubstitutor substitutor, ILoggerFactory loggerFactory)
+    /// <param name="document">Document the provider serves.</param>
+    internal FontProvider(IFontSubstitutor substitutor, IPdfDocumentInternal document)
     {
         if (substitutor == null)
         {
             throw new ArgumentNullException(nameof(substitutor));
         }
 
-        if (loggerFactory == null)
+        if (document == null)
         {
-            throw new ArgumentNullException(nameof(loggerFactory));
+            throw new ArgumentNullException(nameof(document));
         }
 
         _substitutor = substitutor;
-        _loggerFactory = loggerFactory;
+        _document = document;
+        _loggerFactory = document.LoggerFactory;
     }
 
     /// <summary>
@@ -87,6 +91,21 @@ public sealed class FontProvider : IDisposable
     /// </summary>
     /// <param name="substitutionInfo">Normalized font substitution hints, used to match style where possible.</param>
     public SfntPdfTypeface GetFallbackTypeface(in PdfSubstitutionInfo substitutionInfo) => GetStandard14Fallback(substitutionInfo);
+
+    /// <summary>
+    /// Returns the font known only by <paramref name="baseFont"/>, one instance per name.
+    /// </summary>
+    /// <param name="baseFont">Base font name (PostScript name).</param>
+    internal PdfNamedFont GetNamedFont(in PdfString baseFont)
+    {
+        if (!_namedFonts.TryGetValue(baseFont, out PdfNamedFont? namedFont))
+        {
+            namedFont = new PdfNamedFont(_document, baseFont);
+            _namedFonts[baseFont] = namedFont;
+        }
+
+        return namedFont;
+    }
 
     /// <summary>
     /// Returns the font source's own last-resort typeface.
@@ -194,6 +213,7 @@ public sealed class FontProvider : IDisposable
 
         _familyTypefaces.Clear();
         _characterFallbackTypefaces.Clear();
+        _namedFonts.Clear();
 
         _fallback?.Dispose();
         _fallback = null;

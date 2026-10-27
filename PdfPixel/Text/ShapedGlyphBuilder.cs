@@ -42,7 +42,7 @@ public static class ShapedGlyphBuilder
 
         while (index < text.Length)
         {
-            int codepointLength = (char.IsSurrogatePair(text, index)) ? 2 : 1;
+            int codepoint = text.GetCodePoint(index, out int codepointLength);
             string unicode = text.Substring(index, codepointLength);
             index += codepointLength;
 
@@ -50,7 +50,7 @@ public static class ShapedGlyphBuilder
             float width = (gid == null) ? 0f : typeface.GetWidth(gid.Value) ?? 0f;
 
             PdfCharacterInfo info = new(
-                new PdfCharacterCode((uint)char.ConvertToUtf32(unicode, 0), sizeof(uint)),
+                new PdfCharacterCode((uint)codepoint, sizeof(uint)),
                 typeface,
                 unicode,
                 [gid],
@@ -109,7 +109,7 @@ public static class ShapedGlyphBuilder
                 if (item is PdfStringValue)
                 {
                     PdfText pdfText = PdfText.FromOperand(item);
-                    AddShapedGlyphsForText(pdfText, font, state, buffer, ref x, ref y);
+                    AddShapedGlyphs(font.ExtractCharacterCodes(pdfText.RawBytes), font, state, buffer, ref x, ref y);
                 }
                 else
                 {
@@ -162,20 +162,55 @@ public static class ShapedGlyphBuilder
         float x = 0f;
         float y = 0f;
 
-        AddShapedGlyphsForText(pdfText, font, state, buffer, ref x, ref y);
+        AddShapedGlyphs(font.ExtractCharacterCodes(pdfText.RawBytes), font, state, buffer, ref x, ref y);
     }
 
     /// <summary>
-    /// Shapes a PdfText and appends the resulting glyphs to the output buffer.
+    /// Shapes character codes of <paramref name="font"/> into <paramref name="buffer"/>, which is cleared first.
+    /// </summary>
+    /// <param name="codes">The character codes to shape.</param>
+    /// <param name="font">The font the codes belong to.</param>
+    /// <param name="state">The graphics state supplying font size and spacing.</param>
+    /// <param name="buffer">The buffer to clear and fill with the shaped glyphs.</param>
+    public static void BuildFromCodes(
+        in ReadOnlySpan<PdfCharacterCode> codes,
+        PdfFont font,
+        PdfGraphicsState state,
+        ShapedGlyphBuffer buffer)
+    {
+        if (font == null)
+        {
+            throw new ArgumentNullException(nameof(font));
+        }
+
+        if (state == null)
+        {
+            throw new ArgumentNullException(nameof(state));
+        }
+
+        if (buffer == null)
+        {
+            throw new ArgumentNullException(nameof(buffer));
+        }
+
+        buffer.Clear();
+
+        float x = 0f;
+        float y = 0f;
+
+        AddShapedGlyphs(codes, font, state, buffer, ref x, ref y);
+    }
+
+    /// <summary>
+    /// Shapes character codes and appends the resulting glyphs to the output buffer.
     /// </summary>
 #if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private static void AddShapedGlyphsForText(in PdfText pdfText, PdfFont font, PdfGraphicsState state, ShapedGlyphBuffer output, ref float x, ref float y)
+    private static void AddShapedGlyphs(in ReadOnlySpan<PdfCharacterCode> codes, PdfFont font, PdfGraphicsState state, ShapedGlyphBuffer output, ref float x, ref float y)
     {
-        PdfCharacterCode[] codes = font.ExtractCharacterCodes(pdfText.RawBytes);
         bool isVertical = font.WritingMode == Fonts.Mapping.CMapWritingMode.Vertical;
 
         for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)

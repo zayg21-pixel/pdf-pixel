@@ -8,6 +8,8 @@ namespace PdfPixel.Objects;
 /// </summary>
 public static class PdfEncodingExtensions
 {
+    private const int ReplacementCharacter = 0xFFFD;
+
     /// <summary>
     /// The PDF default string encoding (ISO-8859-1 / Latin-1).
     /// </summary>
@@ -97,6 +99,34 @@ public static class PdfEncodingExtensions
 
         string result = PdfDefault.GetString(value.Value);
         return CleanupEscapeSequence(result, keepEscapeSequence);
+    }
+
+    /// <summary>
+    /// Returns the Unicode code point starting at <paramref name="index"/>; an unpaired surrogate reads as U+FFFD.
+    /// </summary>
+    /// <param name="text">The text to read from.</param>
+    /// <param name="index">The index of the code point's first UTF-16 code unit.</param>
+    /// <param name="length">The number of UTF-16 code units the code point occupies.</param>
+    public static int GetCodePoint(this string text, int index, out int length)
+    {
+        if (text == null)
+        {
+            throw new ArgumentNullException(nameof(text));
+        }
+
+        if (char.IsSurrogatePair(text, index))
+        {
+            length = 2;
+            return char.ConvertToUtf32(text[index], text[index + 1]);
+        }
+
+        length = 1;
+        if (char.IsSurrogate(text[index]))
+        {
+            return ReplacementCharacter;
+        }
+
+        return text[index];
     }
 
     private static string CleanupEscapeSequence(string result, bool keepEscapeSequence)
