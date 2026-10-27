@@ -1,5 +1,6 @@
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Commands;
+using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;

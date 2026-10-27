@@ -1,4 +1,4 @@
-namespace PdfPixel.Annotations;
+namespace PdfPixel.Forms;
 
 /// <summary>
 /// Justification of variable text within its box (Q entry).

@@ -393,6 +393,8 @@ internal static class PdfTokens
     public static readonly PdfString DefaultValueKey = (PdfString)"DV"u8;             // Default field value
     public static readonly PdfString QuadKey = (PdfString)"Q"u8;                      // Quadding/alignment (0=left, 1=center, 2=right)
     public static readonly PdfString DefaultAppearanceKey = (PdfString)"DA"u8;        // Default appearance string
+    public static readonly PdfString DRKey = (PdfString)"DR"u8;                       // Interactive form default resources
+    public static readonly PdfString NeedAppearancesKey = (PdfString)"NeedAppearances"u8; // Interactive form need appearances flag
     public static readonly PdfString MaxLenKey = (PdfString)"MaxLen"u8;               // Maximum length for text field
     public static readonly PdfString OptKey = (PdfString)"Opt"u8;                     // Options array for choice fields
     public static readonly PdfString TopIndexKey = (PdfString)"TI"u8;                 // Top index for list box

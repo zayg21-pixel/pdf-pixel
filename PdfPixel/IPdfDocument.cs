@@ -113,9 +113,9 @@ public interface IPdfDocument : IPdfAssociatedFilesHost, IDisposable
     PdfMarkInformation? MarkInformation { get; }
 
     /// <summary>
-    /// Gets the document-level signature field characteristics (/AcroForm /SigFlags).
+    /// Gets the interactive form (/AcroForm), or <see langword="null"/> when absent.
     /// </summary>
-    PdfSignatureFlags SignatureFlags { get; }
+    PdfInteractiveForm? InteractiveForm { get; }
 
     /// <summary>
     /// Gets whether the document's XFA form must be rendered by the viewer (/NeedsRendering),

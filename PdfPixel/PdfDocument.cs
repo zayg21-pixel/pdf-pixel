@@ -130,7 +130,7 @@ internal class PdfDocument : IPdfDocumentInternal
         Outlines = PdfOutlines.FromCatalog(catalog, Destinations, StructureTree);
         Threads = PdfThreads.FromCatalog(catalog);
         Permissions = Decryptor?.Parameters.UserAccessPermissions;
-        SignatureFlags = GetSignatureFlags(catalog);
+        InteractiveForm = PdfInteractiveForm.FromCatalog(catalog);
     }
 
     /// <inheritdoc/>
@@ -214,7 +214,7 @@ internal class PdfDocument : IPdfDocumentInternal
     public PdfPermissions? Permissions { get; }
 
     /// <inheritdoc />
-    public PdfSignatureFlags SignatureFlags { get; }
+    public PdfInteractiveForm? InteractiveForm { get; }
 
     /// <inheritdoc />
     public PdfDecryptor? Decryptor { get; }
@@ -276,13 +276,6 @@ internal class PdfDocument : IPdfDocumentInternal
         }
 
         return PdfVersion.Parse(catalogVersionName.Value.Value.Span);
-    }
-
-    private static PdfSignatureFlags GetSignatureFlags(PdfDictionary catalog)
-    {
-        int signatureFlags = catalog.GetDictionary(PdfTokens.AcroFormKey)?.GetInteger(PdfTokens.SigFlagsKey) ?? 0;
-
-        return (PdfSignatureFlags)signatureFlags & (PdfSignatureFlags.SignaturesExist | PdfSignatureFlags.AppendOnly);
     }
 
     /// <inheritdoc/>
