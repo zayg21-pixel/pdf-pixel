@@ -26,26 +26,26 @@ public class PdfType3Font : PdfSingleByteFont
     /// <summary>
     /// Constructor for Type3 fonts - lightweight operations only
     /// </summary>
-    /// <param name="fontObject">PDF object containing the font definition</param>
-    internal PdfType3Font(PdfObject fontObject)
-        : base(fontObject)
+    /// <param name="dictionary">PDF dictionary containing the font definition</param>
+    internal PdfType3Font(PdfDictionary dictionary)
+        : base(dictionary)
     {
         if (Type != PdfFontSubType.Type3)
         {
             throw new ArgumentException("Font dictionary must be Type3");
         }
 
-        CharacterProcedures = Dictionary.GetDictionary(PdfTokens.CharProcsKey);
+        CharacterProcedures = dictionary.GetDictionary(PdfTokens.CharProcsKey);
 
-        PdfResourceDictionary? resources = PdfResourceDictionary.GetResourceDictionary(Dictionary, PdfTokens.ResourcesKey);
+        PdfResourceDictionary? resources = PdfResourceDictionary.GetResourceDictionary(dictionary, PdfTokens.ResourcesKey);
         if (resources != null)
         {
             _resources = new PdfResourceNode(Document, resources, null);
         }
 
-        FontMatrix = PdfMatrix.FromArray(Dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? PdfMatrix.CreateScale(0.001f, 0.001f);
+        FontMatrix = PdfMatrix.FromArray(dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? PdfMatrix.CreateScale(0.001f, 0.001f);
 
-        FontBoundingBox = PdfRectangle.FromArray(Dictionary.GetArray(PdfTokens.FontBBoxKey));
+        FontBoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.FontBBoxKey));
         Widths.RescaleWidths(FontMatrix.ScaleX / PdfSingleByteFontWidths.WidthToUserSpaceCoeff);
 
         if (Encoding.BaseEncoding == PdfEncoding.Unknown)

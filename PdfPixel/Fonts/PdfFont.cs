@@ -19,21 +19,36 @@ public abstract class PdfFont
 
     /// <summary>
     /// Constructor for all PDF fonts. Parses the subtype, base font name, /ToUnicode CMap, font
-    /// descriptor and substitution info from <paramref name="fontObject"/>'s dictionary.
+    /// descriptor and substitution info from <paramref name="dictionary"/>.
     /// </summary>
-    /// <param name="fontObject">PDF object containing the font definition</param>
-    private protected PdfFont(PdfObject fontObject)
+    /// <param name="dictionary">Font dictionary</param>
+    private protected PdfFont(PdfDictionary dictionary)
     {
-        FontObject = fontObject ?? throw new ArgumentNullException(nameof(fontObject));
-        Dictionary = fontObject.Dictionary ?? throw new ArgumentNullException(nameof(fontObject));
+        if (dictionary == null)
+        {
+            throw new ArgumentNullException(nameof(dictionary));
+        }
 
-        Type = Dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
-        BaseFont = Dictionary.GetString(PdfTokens.BaseFontKey);
-        ToUnicodeCMap = PdfCMap.GetCMap(Dictionary, PdfTokens.ToUnicodeKey);
-        FontDescriptor = PdfFontDescriptor.GetFontDescriptor(Dictionary, PdfTokens.FontDescriptorKey);
+        Document = dictionary.Document;
+        Type = dictionary.GetNameOrDefault(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+        BaseFont = dictionary.GetString(PdfTokens.BaseFontKey);
+        ToUnicodeCMap = PdfCMap.GetCMap(dictionary, PdfTokens.ToUnicodeKey);
+        FontDescriptor = PdfFontDescriptor.GetFontDescriptor(dictionary, PdfTokens.FontDescriptorKey);
 
 
         SubstitutionInfo = PdfSubstitutionInfo.Parse(BaseFont, FontDescriptor);
+    }
+
+    /// <summary>
+    /// Constructor for fonts known only by name. Parses the substitution info from <paramref name="baseFont"/>.
+    /// </summary>
+    /// <param name="document">PDF document the font is used in</param>
+    /// <param name="baseFont">Base font name (PostScript name)</param>
+    private protected PdfFont(IPdfDocumentInternal document, in PdfString baseFont)
+    {
+        Document = document ?? throw new ArgumentNullException(nameof(document));
+        BaseFont = baseFont;
+        SubstitutionInfo = PdfSubstitutionInfo.Parse(BaseFont, descriptor: null);
     }
 
     /// <summary>
@@ -70,16 +85,6 @@ public abstract class PdfFont
     protected internal bool ShouldRescale => IsSubstitutedFont && HasWidths;
 
     /// <summary>
-    /// Original PDF font object.
-    /// </summary>
-    public PdfObject FontObject { get; }
-
-    /// <summary>
-    /// Font dictionary.
-    /// </summary>
-    public PdfDictionary Dictionary { get; }
-
-    /// <summary>
     /// PDF font type (Type1, TrueType, Type3, Type0, CIDFontType0, CIDFontType2, etc.)
     /// </summary>
     public PdfFontSubType Type { get; }
@@ -92,7 +97,7 @@ public abstract class PdfFont
     /// <summary>
     /// PDF document containing this font (convenience property)
     /// </summary>
-    internal IPdfDocumentInternal Document => Dictionary.Document;
+    internal IPdfDocumentInternal Document { get; }
 
     /// <summary>
     /// Loaded ToUnicode CMap for character-to-Unicode mapping.
@@ -379,13 +384,13 @@ public abstract class PdfFont
 
         return subtype switch
         {
-            PdfFontSubType.Type0 => new PdfCompositeFont(fontObject),
-            PdfFontSubType.CidFontType0 => new PdfCidFont(fontObject),
-            PdfFontSubType.CidFontType2 => new PdfCidFont(fontObject),
-            PdfFontSubType.Type1 => new PdfSimpleFont(fontObject),
-            PdfFontSubType.TrueType => new PdfSimpleFont(fontObject),
-            PdfFontSubType.Type3 => new PdfType3Font(fontObject),
-            PdfFontSubType.MMType1 => new PdfSimpleFont(fontObject),
+            PdfFontSubType.Type0 => new PdfCompositeFont(fontObject.Dictionary),
+            PdfFontSubType.CidFontType0 => new PdfCidFont(fontObject.Dictionary),
+            PdfFontSubType.CidFontType2 => new PdfCidFont(fontObject.Dictionary),
+            PdfFontSubType.Type1 => new PdfSimpleFont(fontObject.Dictionary),
+            PdfFontSubType.TrueType => new PdfSimpleFont(fontObject.Dictionary),
+            PdfFontSubType.Type3 => new PdfType3Font(fontObject.Dictionary),
+            PdfFontSubType.MMType1 => new PdfSimpleFont(fontObject.Dictionary),
             _ => null
         };
     }

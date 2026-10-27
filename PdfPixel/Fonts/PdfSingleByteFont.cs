@@ -15,12 +15,12 @@ public abstract class PdfSingleByteFont : PdfFont
     /// <summary>
     /// Constructor for single-byte fonts - handles common initialization
     /// </summary>
-    /// <param name="fontObject">PDF dictionary containing the font definition</param>
-    private protected PdfSingleByteFont(PdfObject fontObject)
-        : base(fontObject)
+    /// <param name="dictionary">PDF dictionary containing the font definition</param>
+    private protected PdfSingleByteFont(PdfDictionary dictionary)
+        : base(dictionary)
     {
-        Widths = new PdfSingleByteFontWidths(fontObject.Dictionary);
-        Encoding = PdfFontEncodingParser.ParseSingleByteEncoding(fontObject.Dictionary);
+        Widths = new PdfSingleByteFontWidths(dictionary);
+        Encoding = PdfFontEncodingParser.ParseSingleByteEncoding(dictionary);
     }
 
     /// <summary>

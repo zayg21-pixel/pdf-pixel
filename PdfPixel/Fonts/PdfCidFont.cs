@@ -22,15 +22,15 @@ public class PdfCidFont : PdfFont
     /// Constructor for CID fonts. Parses the widths, vertical metrics, CID system info and
     /// /CIDToGIDMap, and loads the embedded font program.
     /// </summary>
-    /// <param name="fontObject">PDF object containing the font definition</param>
-    internal PdfCidFont(PdfObject fontObject)
-        : base(fontObject)
+    /// <param name="dictionary">PDF dictionary containing the font definition</param>
+    internal PdfCidFont(PdfDictionary dictionary)
+        : base(dictionary)
     {
-        _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfCidFont>();
-        Widths = PdfCidFontWidths.Parse(Dictionary);
-        VerticalMetrics = PdfCidFontVerticalMetrics.Parse(Dictionary);
-        CidSystemInfo = LoadCidSystemInfo();
-        CidToGidMap = LoadCidToGidMap();
+        _logger = dictionary.Document.LoggerFactory.CreateLogger<PdfCidFont>();
+        Widths = PdfCidFontWidths.Parse(dictionary);
+        VerticalMetrics = PdfCidFontVerticalMetrics.Parse(dictionary);
+        CidSystemInfo = LoadCidSystemInfo(dictionary);
+        CidToGidMap = LoadCidToGidMap(dictionary);
         _typeface = GetTypeface();
 
         CffFont? embeddedCffFont = GetEmbeddedCffFont(_typeface);
@@ -172,9 +172,9 @@ public class PdfCidFont : PdfFont
         return cffTypeface.Fonts[0];
     }
 
-    private PdfCidSystemInfo? LoadCidSystemInfo()
+    private static PdfCidSystemInfo? LoadCidSystemInfo(PdfDictionary dictionary)
     {
-        PdfDictionary? cidSystemInfoDict = Dictionary.GetDictionary(PdfTokens.CidSystemInfoKey);
+        PdfDictionary? cidSystemInfoDict = dictionary.GetDictionary(PdfTokens.CidSystemInfoKey);
         if (cidSystemInfoDict == null)
         {
             return null;
@@ -183,15 +183,15 @@ public class PdfCidFont : PdfFont
         return new PdfCidSystemInfo(cidSystemInfoDict);
     }
 
-    private PdfCidToGidMap? LoadCidToGidMap()
+    private static PdfCidToGidMap? LoadCidToGidMap(PdfDictionary dictionary)
     {
         // Check if CIDToGIDMap is specified as "Identity" in the font dictionary
-        if (Dictionary.GetName(PdfTokens.CidToGidMapKey) == PdfTokens.IdentityKey)
+        if (dictionary.GetName(PdfTokens.CidToGidMapKey) == PdfTokens.IdentityKey)
         {
             return PdfCidToGidMap.Identity;
         }
 
-        PdfObject? cidToGidObj = Dictionary.GetObject(PdfTokens.CidToGidMapKey);
+        PdfObject? cidToGidObj = dictionary.GetObject(PdfTokens.CidToGidMapKey);
         if (cidToGidObj != null)
         {
             // Load as stream data

@@ -88,7 +88,9 @@ public class PdfWidgetAnnotation : PdfAnnotation
         PdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
-        => false;
+    {
+        return false;
+    }
 
     /// <summary>
     /// Gets the text value for text field widgets.

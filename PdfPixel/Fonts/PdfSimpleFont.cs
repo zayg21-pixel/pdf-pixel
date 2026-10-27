@@ -18,10 +18,10 @@ public class PdfSimpleFont : PdfSingleByteFont
     private readonly ILogger<PdfSimpleFont> _logger;
     private readonly TypefaceResolution _resolution;
 
-    internal PdfSimpleFont(PdfObject fontObject)
-        : base(fontObject)
+    internal PdfSimpleFont(PdfDictionary dictionary)
+        : base(dictionary)
     {
-        _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
+        _logger = dictionary.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
         _resolution = ResolveTypeface();
     }
 

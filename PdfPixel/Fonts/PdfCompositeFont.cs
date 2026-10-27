@@ -18,11 +18,11 @@ public class PdfCompositeFont : PdfFont
     private readonly CMapWritingMode _writingMode;
     private readonly Dictionary<uint, string>? _toUnicode;
 
-    internal PdfCompositeFont(PdfObject fontObject)
-        : base(fontObject)
+    internal PdfCompositeFont(PdfDictionary dictionary)
+        : base(dictionary)
     {
-        DescendantFonts = LoadDescendantFonts();
-        CodeToCidCMap = PdfCMap.GetCMap(Dictionary, PdfTokens.EncodingKey);
+        DescendantFonts = LoadDescendantFonts(dictionary);
+        CodeToCidCMap = PdfCMap.GetCMap(dictionary, PdfTokens.EncodingKey);
         _writingMode = CodeToCidCMap?.WritingMode ?? CMapWritingMode.Horizontal;
         _toUnicode = PdfToUnicodeMapProvider.GetToUnicodeMap(PrimaryDescendant?.CidSystemInfo);
     }
@@ -136,17 +136,17 @@ public class PdfCompositeFont : PdfFont
     /// Builds a <see cref="PdfCidFont"/> for every entry of the /DescendantFonts array. Entries that do
     /// not construct as a CID font are left out.
     /// </summary>
-    private List<PdfCidFont> LoadDescendantFonts()
+    private static List<PdfCidFont> LoadDescendantFonts(PdfDictionary dictionary)
     {
         List<PdfCidFont> descendants = [];
 
-        if (PdfFont.GetFont(Dictionary, PdfTokens.DescendantFontsKey) is PdfCidFont singleDescendant)
+        if (PdfFont.GetFont(dictionary, PdfTokens.DescendantFontsKey) is PdfCidFont singleDescendant)
         {
             descendants.Add(singleDescendant);
             return descendants;
         }
 
-        PdfArray? descendantArray = Dictionary.GetArray(PdfTokens.DescendantFontsKey);
+        PdfArray? descendantArray = dictionary.GetArray(PdfTokens.DescendantFontsKey);
         if (descendantArray == null)
         {
             return descendants;

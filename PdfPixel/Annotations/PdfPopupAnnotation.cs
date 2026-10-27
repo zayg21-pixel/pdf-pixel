@@ -63,7 +63,9 @@ public class PdfPopupAnnotation : PdfAnnotation
         PdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
-        => false;
+    {
+        return false;
+    }
 
     /// <summary>
     /// Returns a string representation of this popup annotation.
