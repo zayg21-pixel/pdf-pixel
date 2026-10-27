@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands;
 using PdfPixel.Files;
 using PdfPixel.Fonts;
 using PdfPixel.Objects;
@@ -183,36 +182,21 @@ internal sealed class PdfResourceNode
     }
 
     /// <summary>
-    /// Apply graphics state parameters from an ExtGState entry identified by name.
-    /// Applies them to the graphicsState and concatenates any transform matrix.
+    /// Get the graphics state parameters of an ExtGState by resource name. Returns null if not found.
     /// </summary>
-    /// <param name="graphicsStateName">Name of the ExtGState resource (/GS)</param>
-    /// <param name="processor">Command processor for matrix concatenation</param>
-    /// <param name="graphicsState">Graphics state to update</param>
-    public void ApplyGraphicsStateParameters(in PdfString graphicsStateName, IPdfCommandProcessor processor, PdfGraphicsState graphicsState)
+    public PdfGraphicsStateParameters? GetGraphicsStateParameters(in PdfString graphicsStateName)
     {
-        if (processor == null || graphicsState == null)
+        for (var node = this; node != null; node = node._parent)
         {
-            return;
+            PdfGraphicsStateParameters? parameters = node._resources.GetGraphicsStateParameters(graphicsStateName);
+            if (parameters != null)
+            {
+                return parameters;
+            }
         }
 
-        PdfGraphicsStateParameters? parameters = null;
-        for (var node = this; node != null && parameters == null; node = node._parent)
-        {
-            parameters = node._resources.GetGraphicsStateParameters(graphicsStateName);
-        }
-
-        if (parameters == null)
-        {
-            _logger.LogWarning("ExtGState '{GraphicsStateName}' is not present in the /ExtGState resources.", graphicsStateName);
-            return;
-        }
-
-        parameters.ApplyToGraphicsState(graphicsState);
-        if (parameters.TransformMatrix.HasValue)
-        {
-            processor.Process(new ConcatMatrixCommand(parameters.TransformMatrix.Value));
-        }
+        _logger.LogWarning("ExtGState '{GraphicsStateName}' is not present in the /ExtGState resources.", graphicsStateName);
+        return null;
     }
 
     /// <summary>

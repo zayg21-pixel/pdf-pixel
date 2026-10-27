@@ -299,7 +299,17 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        _host.Resources.ApplyGraphicsStateParameters(gsName.Value, _processor, graphicsState);
+        PdfGraphicsStateParameters? parameters = _host.Resources.GetGraphicsStateParameters(gsName.Value);
+        if (parameters == null)
+        {
+            return;
+        }
+
+        parameters.ApplyToGraphicsState(graphicsState);
+        if (parameters.TransformMatrix.HasValue)
+        {
+            _processor.Process(new ConcatMatrixCommand(parameters.TransformMatrix.Value));
+        }
     }
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)
