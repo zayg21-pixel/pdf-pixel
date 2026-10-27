@@ -2,21 +2,11 @@
 
 Open annotation work, smallest first. Items that share work are grouped together. Each item is also a `// TODO` in the listed files.
 
-FreeText fallback rendering and widgets are tracked in `FORMS-TODO.md`. Hide-action field targets are forms work and are not tracked here.
+Widgets and the FreeText default style string are tracked in `FORMS-TODO.md`. Hide-action field targets are forms work and are not tracked here.
 
 Test files: `PdfPixel.Tests/AnnotationFallbackTest.pdf` (fallback rendering playground), plus the Gold entries `comments.pdf`, `highlights.pdf`, `issue14438.pdf`, `issue9552.pdf`.
 
-## 1. Line captions
-
-Text laid out along the line:
-
-- whether the Contents text is shown as a caption on the line (`Cap`)
-- caption position, centered inside the line or on top of it (`CP`)
-- caption offset from its default position (`CO`)
-
-File: `PdfPixel/Annotations/PdfLineAnnotation.cs`
-
-## 2. View-dependent flags
+## 1. View-dependent flags
 
 Rendering does not know the view zoom or the viewer's rotation. Both have to be passed in through the rendering parameters, then from the panel. Hover rectangles have to follow the same view state.
 

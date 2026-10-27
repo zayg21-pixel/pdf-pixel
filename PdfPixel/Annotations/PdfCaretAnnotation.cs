@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Icons;
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Commands;
@@ -28,7 +29,7 @@ public class PdfCaretAnnotation : PdfMarkupAnnotation
     {
         Symbol = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.SymbolKey).AsEnum<PdfCaretSymbol>();
 
-        RectangleDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        RectangleDifferences = PdfAnnotationGeometryParser.ParseInsets(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         MarkRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
     }
 

@@ -377,9 +377,9 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
 
         return new PdfRectangle(
             rect.Left + differences.Value.Left,
-            rect.Top + differences.Value.Top,
+            rect.Top + differences.Value.Bottom,
             rect.Right - differences.Value.Right,
-            rect.Bottom - differences.Value.Bottom);
+            rect.Bottom - differences.Value.Top);
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using PdfPixel.Objects;
 using PdfPixel.Rendering;
 using PdfPixel.Text;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Fonts;
 
@@ -10,15 +11,36 @@ namespace PdfPixel.Fonts;
 /// </summary>
 internal sealed class PdfNamedFont : PdfFont
 {
+    /// <summary>
+    /// Acrobat's default resource names for the standard 14 fonts.
+    /// </summary>
+    private static readonly Dictionary<PdfString, PdfString> ShortNames = new()
+    {
+        [(PdfString)"Helv"u8] = (PdfString)"Helvetica"u8,
+        [(PdfString)"HeBo"u8] = (PdfString)"Helvetica-Bold"u8,
+        [(PdfString)"HeOb"u8] = (PdfString)"Helvetica-Oblique"u8,
+        [(PdfString)"HeBO"u8] = (PdfString)"Helvetica-BoldOblique"u8,
+        [(PdfString)"TiRo"u8] = (PdfString)"Times-Roman"u8,
+        [(PdfString)"TiBo"u8] = (PdfString)"Times-Bold"u8,
+        [(PdfString)"TiIt"u8] = (PdfString)"Times-Italic"u8,
+        [(PdfString)"TiBI"u8] = (PdfString)"Times-BoldItalic"u8,
+        [(PdfString)"Cour"u8] = (PdfString)"Courier"u8,
+        [(PdfString)"CoBo"u8] = (PdfString)"Courier-Bold"u8,
+        [(PdfString)"CoOb"u8] = (PdfString)"Courier-Oblique"u8,
+        [(PdfString)"CoBO"u8] = (PdfString)"Courier-BoldOblique"u8,
+        [(PdfString)"Symb"u8] = (PdfString)"Symbol"u8,
+        [(PdfString)"ZaDb"u8] = (PdfString)"ZapfDingbats"u8
+    };
+
     private readonly SfntPdfTypeface? _typeface;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfNamedFont"/> class.
     /// </summary>
     /// <param name="document">PDF document the font is used in</param>
-    /// <param name="baseFont">Base font name (PostScript name)</param>
+    /// <param name="baseFont">Base font name (PostScript name), or one of Acrobat's short names for a standard 14 font</param>
     public PdfNamedFont(IPdfDocumentInternal document, in PdfString baseFont)
-        : base(document, baseFont)
+        : base(document, GetBaseFont(baseFont))
     {
         PdfStandardFontName? standardFontName = SubstitutionInfo.GetStandardName();
         if (standardFontName != null)
@@ -94,6 +116,16 @@ internal sealed class PdfNamedFont : PdfFont
         }
 
         return SubstituteByUnicode(renderingUnicode);
+    }
+
+    private static PdfString GetBaseFont(in PdfString name)
+    {
+        if (ShortNames.TryGetValue(name, out PdfString baseFont))
+        {
+            return baseFont;
+        }
+
+        return name;
     }
 
     private static PdfCharacterCode GetCharacterCode(int codePoint)

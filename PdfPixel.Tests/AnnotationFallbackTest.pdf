@@ -5,7 +5,7 @@
 endobj
 
 2 0 obj
-<< /Type /Pages /Kids [3 0 R 77 0 R 154 0 R 169 0 R] /Count 4 >>
+<< /Type /Pages /Kids [3 0 R 77 0 R 154 0 R 169 0 R 193 0 R] /Count 5 >>
 endobj
 
 3 0 obj
@@ -1297,7 +1297,9 @@ endobj
             176 0 R 177 0 R 178 0 R
             179 0 R 180 0 R 181 0 R
             182 0 R 183 0 R 184 0 R
-            185 0 R 186 0 R 187 0 R]
+            185 0 R 186 0 R 187 0 R
+            188 0 R 189 0 R 190 0 R
+            191 0 R 192 0 R]
 >>
 endobj
 
@@ -1477,11 +1479,196 @@ endobj
    /T (FreeText - callout) >>
 endobj
 
+% ============================================================
+% Row G: underline border, cloudy border, closed callout ending, overflow  y=100-330
+% ============================================================
+
+188 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 220 320 330]
+   /DA (/Helv 12 Tf 0 0 0.6 rg)
+   /C [0.9 0.95 1]
+   /BS << /S /U /W 2 >>
+   /Contents (Underline border style \(BS /S /U\) with a light blue background.)
+   /T (FreeText - underline border) >>
+endobj
+
+189 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [350 220 650 330]
+   /DA (/Helv 12 Tf 0.6 0 0 rg)
+   /C [1 1 0.8]
+   /BE << /S /C /I 1 >>
+   /RD [10 10 10 10]
+   /Contents (Cloudy border effect \(BE\) with a light yellow background.)
+   /T (FreeText - cloudy border) >>
+endobj
+
+190 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [680 220 980 330]
+   /DA (/Helv 11 Tf 0 0.5 0 rg)
+   /C [1 0.9 0.6]
+   /IT /FreeTextCallout
+   /CL [690 230 740 300 800 300]
+   /LE /ClosedArrow
+   /RD [120 0 0 0]
+   /Contents (Callout with a closed arrow ending and an orange background.)
+   /T (FreeText - callout closed arrow) >>
+endobj
+
+191 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 100 170 160]
+   /DA (/Helv 14 Tf 0 g)
+   /Contents (Overflowing_word_without_any_spaces_to_break_at)
+   /T (FreeText - overflow clipping) >>
+endobj
+
+192 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [220 100 520 190]
+   /DA (0 0 1 rg)
+   /Contents (DA without Tf: only a blue fill color, no font and no size.)
+   /T (FreeText - DA without Tf) >>
+endobj
+
+% ============================================================
+% Page 5: Line leader lines and captions (no appearance streams)
+% ============================================================
+
+193 0 obj
+<< /Type /Page
+   /MediaBox [0 0 1000 1300]
+   /Parent 2 0 R
+   /Annots [194 0 R 195 0 R 196 0 R
+            197 0 R 198 0 R 199 0 R
+            200 0 R 201 0 R 202 0 R
+            203 0 R 204 0 R 205 0 R]
+>>
+endobj
+
+% ============================================================
+% Row A: leader lines  y=1050-1250
+% ============================================================
+
+194 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [80 1130 420 1220] /L [100 1150 400 1150]
+   /LL 40 /LLE 10 /LLO 5
+   /LE [/OpenArrow /OpenArrow] /IT /LineDimension /C [0 0 0.8] /BS << /W 1 >>
+   /T (Line - LL 40, LLE 10, LLO 5. Expected: line 45 above the L points, leader lines up from 5 above them to 10 past the line) >>
+endobj
+
+195 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [480 1080 820 1170] /L [500 1150 800 1150]
+   /LL -40 /LLE 10 /LLO 5
+   /LE [/OpenArrow /OpenArrow] /IT /LineDimension /C [0 0 0.8] /BS << /W 1 >>
+   /T (Line - LL -40. Expected: same as LL 40, mirrored below the L points) >>
+endobj
+
+196 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [80 1000 420 1110] /L [100 1010 400 1060]
+   /LL 30 /LLE 8 /LLO 4
+   /LE [/ClosedArrow /ClosedArrow] /IT /LineDimension /C [0 0.5 0] /IC [0 0.5 0] /BS << /W 1 >>
+   /T (Line - diagonal leader lines. Expected: leader lines perpendicular to the diagonal) >>
+endobj
+
+% ============================================================
+% Row B: captions  y=750-950
+% ============================================================
+
+197 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [80 930 420 970] /L [100 950 400 950]
+   /Cap true
+   /LE [/ClosedArrow /ClosedArrow] /C [0.7 0 0] /IC [0.7 0 0] /BS << /W 1 >>
+   /Contents (Inline caption)
+   /T (Line - Cap, default CP. Expected: black caption centered inside a gap in the line) >>
+endobj
+
+198 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [480 930 820 980] /L [500 950 800 950]
+   /Cap true /CP /Top
+   /LE [/ClosedArrow /ClosedArrow] /C [0.7 0 0] /IC [0.7 0 0] /BS << /W 1 >>
+   /Contents (Top caption)
+   /T (Line - CP Top. Expected: unbroken line, caption centered on top of it) >>
+endobj
+
+199 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [80 830 420 870] /L [100 850 400 850]
+   /Cap true /CO [80 0]
+   /LE [/None /None] /C [0.7 0 0] /BS << /W 1 >>
+   /Contents (Shifted)
+   /T (Line - CO along the line. Expected: inline caption and its gap 80 right of the midpoint) >>
+endobj
+
+200 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [480 830 820 890] /L [500 850 800 850]
+   /Cap true /CO [0 25]
+   /LE [/None /None] /C [0.7 0 0] /BS << /W 1 >>
+   /Contents (Lifted off the line)
+   /T (Line - CO perpendicular. Expected: caption 25 above its inline position, line unbroken) >>
+endobj
+
+201 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [80 740 420 780] /L [230 760 270 760]
+   /Cap true
+   /LE [/Circle /Circle] /C [0.7 0 0] /IC [1 0.8 0.8] /BS << /W 1 >>
+   /Contents (Caption wider than the line)
+   /T (Line - inline caption wider than the line. Expected: no line visible, circle endings over the text) >>
+endobj
+
+% ============================================================
+% Row C: captions with leader lines and direction  y=400-650
+% ============================================================
+
+202 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [80 580 420 670] /L [100 600 400 600]
+   /LL 40 /LLE 10 /LLO 5 /Cap true
+   /LE [/OpenArrow /OpenArrow] /IT /LineDimension /C [0 0 0.8] /BS << /W 1 >>
+   /Contents (12.5 cm)
+   /T (Line - dimension with inline caption. Expected: caption in a gap of the moved line, as in ISO 32000-2 figure 82) >>
+endobj
+
+203 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [480 500 820 720] /L [500 520 800 700]
+   /Cap true /CP /Top
+   /LE [/None /OpenArrow] /C [0 0.5 0] /BS << /W 2 >>
+   /Contents (Diagonal top caption)
+   /T (Line - diagonal CP Top. Expected: caption rotated along the line, on its upper side) >>
+endobj
+
+204 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [80 430 420 470] /L [100 450 400 450]
+   /LE [/None /None] /C [0.7 0 0] /BS << /W 1 >>
+   /Contents (Contents without Cap)
+   /T (Line - Contents without Cap. Expected: plain line, no caption) >>
+endobj
+
+205 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [480 380 820 470] /L [500 450 800 450]
+   /LL -30 /LLE 8 /Cap true /CP /Top
+   /LE [/Slash /Slash] /IT /LineDimension /C [0 0 0.8] /BS << /W 1 >>
+   /Contents (Below, top caption)
+   /T (Line - LL -30 with CP Top. Expected: line 30 below the L points, caption on top of the moved line) >>
+endobj
+
 xref
 0 1
 0000000000 65535 f
 trailer
-<< /Size 188 /Root 1 0 R >>
+<< /Size 206 /Root 1 0 R >>
 startxref
 0
 

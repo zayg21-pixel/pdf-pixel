@@ -79,7 +79,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ✅ File Attachment
 - ✅ Stamp
 - ✅ Caret
-- ⚠️ FreeText *(no default appearance (DA) generation — requires an existing appearance stream)*
+- ✅ FreeText
 - ⚠️ Redact *(rendered as generic annotation, no dedicated support)*
 - 🔲 Widget (AcroForm) *(planned)*
 - ❌ Sound, Movie, Screen, 3D

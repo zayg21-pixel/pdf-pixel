@@ -69,6 +69,25 @@ internal static class PdfAnnotationGeometryParser
     }
 
     /// <summary>
+    /// Parses an RD array of four insets into a rectangle holding the left, top, right and bottom differences, in that order.
+    /// </summary>
+    /// <param name="insetsArray">The RD array, or null.</param>
+    /// <returns>The differences, or null if the array is null or has fewer than four numbers.</returns>
+    public static PdfRectangle? ParseInsets(PdfArray? insetsArray)
+    {
+        if (insetsArray == null || insetsArray.Count < 4)
+        {
+            return null;
+        }
+
+        return new PdfRectangle(
+            insetsArray.GetFloatOrDefault(0),
+            insetsArray.GetFloatOrDefault(1),
+            insetsArray.GetFloatOrDefault(2),
+            insetsArray.GetFloatOrDefault(3));
+    }
+
+    /// <summary>
     /// Parses a Path array of path operator operands into a path: a moveto first, then a lineto
     /// for each 2-number entry and a curveto for each 6-number entry.
     /// </summary>

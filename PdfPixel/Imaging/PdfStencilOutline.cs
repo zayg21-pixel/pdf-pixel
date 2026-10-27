@@ -4,6 +4,8 @@ using System.Threading;
 
 namespace PdfPixel.Imaging;
 
+// TODO: [HIGH] double purpose class, has both caching and outline generation logic. Also needs optimizations, potentially, on 1 bit level.
+
 /// <summary>
 /// Traces the painted samples of a small stencil mask into a path in the unit square the image is drawn in, so the mask
 /// can be filled as a shape: antialiased at whatever size it is drawn, instead of resampled.

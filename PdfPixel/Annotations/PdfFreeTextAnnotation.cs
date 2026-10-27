@@ -1,4 +1,6 @@
 using PdfPixel.Annotations.Parsing;
+using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
@@ -38,12 +40,10 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
 
         LineEnding = dictionary.GetNameOrDefault(PdfTokens.CalloutLineEndingKey).AsEnum<PdfLineEndingStyle>();
         BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(dictionary.GetDictionary(PdfTokens.BorderEffectKey));
-        RectangleDifferences = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        RectangleDifferences = PdfAnnotationGeometryParser.ParseInsets(dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
 
-        // TODO: [MEDIUM] A FreeText without an appearance stream draws only its text, not:
-        // - border of ContentRectangle with its border effect
-        // - callout line and its line ending, not drawn for the typewriter intent
+        // TODO: [MEDIUM] A FreeText without an appearance stream does not apply:
         // - default style string
     }
 
@@ -98,17 +98,57 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        if (Contents == null)
+        PdfGraphicsState state = PdfAppearanceRenderer.CreateState(processor, page, renderer, DefaultAppearance, renderingParameters, observer);
+        PdfColor color = state.FillPaint.Color;
+
+        PdfColor backgroundColor = ResolveColor(page);
+        if (backgroundColor != PdfColors.Transparent)
         {
-            return false;
+            PdfAppearanceRenderer.DrawBackground(processor, ContentRectangle, BorderStyle, BorderEffect, backgroundColor);
         }
 
-        float borderWidth = BorderStyle?.StrokeStyle.LineWidth ?? new PdfStrokeStyle().LineWidth;
-        PdfGraphicsState state = PdfAppearanceRenderer.CreateState(processor, page, renderer, DefaultAppearance, renderingParameters, observer);
+        PdfAppearanceRenderer.DrawBorder(processor, ContentRectangle, BorderStyle, BorderEffect, color);
 
-        processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
-        PdfAppearanceRenderer.DrawText(processor, renderer, state, Contents.Value.DecodePdfString(), ContentRectangle.Inflate(-borderWidth), TextAlignment);
+        if (Intent == PdfAnnotationIntent.FreeTextCallout && CalloutLine != null)
+        {
+            PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
+            DrawCalloutLine(processor, CalloutLine, strokeStyle, color, backgroundColor);
+        }
+
+        if (Contents != null && state.FontSize > 0)
+        {
+            PdfAppearanceRenderer.DrawText(processor, renderer, state, Contents.Value.DecodePdfString(), ContentRectangle, BorderStyle, TextAlignment);
+        }
 
         return true;
+    }
+
+    private void DrawCalloutLine(
+        IPdfCommandProcessor processor,
+        PdfPoint[] calloutLine,
+        PdfStrokeStyle strokeStyle,
+        in PdfColor color,
+        in PdfColor backgroundColor)
+    {
+        PdfPath? calloutPath = PdfAnnotationGeometry.CreatePolylinePath(calloutLine);
+        if (calloutPath == null)
+        {
+            return;
+        }
+
+        processor.Process(new DrawPathCommand(calloutPath, PdfAnnotationPaintFactory.CreateStrokePaint(color, strokeStyle)));
+
+        PdfPoint start = calloutLine[0];
+        PdfPoint afterStart = calloutLine[1];
+        PdfAnnotationLineEndingRenderer.DrawLineEnding(
+            processor,
+            start.X,
+            start.Y,
+            afterStart.X,
+            afterStart.Y,
+            LineEnding,
+            strokeStyle.LineWidth,
+            color,
+            backgroundColor);
     }
 }

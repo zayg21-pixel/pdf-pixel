@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Parsing;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
@@ -20,7 +21,7 @@ public class PdfCircleAnnotation : PdfShapeAnnotation
     internal PdfCircleAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Circle)
     {
-        RectangleDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        RectangleDifferences = PdfAnnotationGeometryParser.ParseInsets(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
     }
 

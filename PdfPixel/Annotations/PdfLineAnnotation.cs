@@ -26,6 +26,10 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     internal PdfLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Line)
     {
+        LeaderLineLength = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineKey);
+        LeaderLineExtension = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineExtensionKey);
+        LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
+
         PdfArray? lineArray = annotationObject.Dictionary.GetArray(PdfTokens.LKey);
         if (lineArray?.Count >= 4)
         {
@@ -33,7 +37,12 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
             StartY = lineArray.GetFloatOrDefault(1);
             EndX = lineArray.GetFloatOrDefault(2);
             EndY = lineArray.GetFloatOrDefault(3);
-            DrawingPath = PdfAnnotationGeometry.CreatePolylinePath([new PdfPoint(StartX, StartY), new PdfPoint(EndX, EndY)]);
+
+            PdfPoint start = new(StartX, StartY);
+            PdfPoint end = new(EndX, EndY);
+            DrawingLine = PdfAnnotationGeometry.MoveLine(start, end, LeaderLineLength ?? 0f, LeaderLineOffset ?? 0f);
+            DrawingPath = PdfAnnotationGeometry.CreatePolylinePath(DrawingLine);
+            LeaderLinesPath = PdfAnnotationGeometry.CreateLeaderLinesPath(start, end, LeaderLineLength ?? 0f, LeaderLineExtension ?? 0f, LeaderLineOffset ?? 0f);
         }
 
         PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
@@ -43,15 +52,11 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
             EndLineEnding = lineEndingArray.GetNameOrDefault(1).AsEnum<PdfLineEndingStyle>();
         }
 
-        LeaderLineLength = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineKey);
-        LeaderLineExtension = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineExtensionKey);
-        LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
+        HasCaption = annotationObject.Dictionary.GetBooleanOrDefault(PdfTokens.CaptionKey);
+        CaptionPosition = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.CaptionPositionKey).AsEnum<PdfLineCaptionPosition>();
+        CaptionOffset = PdfPoint.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.CaptionOffsetKey)) ?? PdfPoint.Empty;
         Measure = PdfMeasure.GetMeasure(annotationObject.Dictionary, PdfTokens.MeasureKey);
         StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
-        // TODO: [MEDIUM] Not parsed, so the line is drawn without its caption:
-        // - whether the Contents text is shown as a caption on the line (Cap)
-        // - caption position, centered inside the line or on top of it (CP)
-        // - caption offset from its default position (CO)
     }
 
     /// <summary>
@@ -61,7 +66,7 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
 
     /// <inheritdoc/>
     /// <remarks>
-    /// When there is no appearance stream, this is the bounding box of the line's endpoints.
+    /// When there is no appearance stream, this is the bounding box of the line and its leader lines.
     /// Otherwise this is the declared /Rect.
     /// </remarks>
     public override PdfRectangle Rectangle
@@ -73,7 +78,14 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
                 return base.Rectangle;
             }
 
-            return PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
+            PdfRectangle rectangle = PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
+
+            if (LeaderLinesPath != null)
+            {
+                rectangle = PdfRectangle.Union(rectangle, PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, LeaderLinesPath, StrokeStyle.LineWidth));
+            }
+
+            return rectangle;
         }
     }
 
@@ -132,14 +144,41 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     public PdfMeasure? Measure { get; }
 
     /// <summary>
+    /// Gets whether the Contents text is shown as a caption on the line (Cap entry). Default false.
+    /// </summary>
+    public bool HasCaption { get; }
+
+    /// <summary>
+    /// Gets the position of the caption relative to the line (CP entry). Default <see cref="PdfLineCaptionPosition.Inline"/>.
+    /// </summary>
+    public PdfLineCaptionPosition CaptionPosition { get; }
+
+    /// <summary>
+    /// Gets the offset of the caption from its normal position (CO entry): along the line from its midpoint, then
+    /// perpendicular to it. Default (0, 0).
+    /// </summary>
+    public PdfPoint CaptionOffset { get; }
+
+    /// <summary>
     /// Gets the stroke style used to draw the line, falling back to defaults when no BS/Border entry is present.
     /// </summary>
     public PdfStrokeStyle StrokeStyle { get; }
 
     /// <summary>
-    /// Gets the line that is drawn, from the line coordinates. Null when they are absent.
+    /// Gets the start and end points of the line that is drawn, from the line coordinates moved out by the leader
+    /// lines. Null when the line coordinates are absent.
+    /// </summary>
+    internal PdfPoint[]? DrawingLine { get; }
+
+    /// <summary>
+    /// Gets <see cref="DrawingLine"/> as a path. Null when the line coordinates are absent.
     /// </summary>
     internal PdfPath? DrawingPath { get; }
+
+    /// <summary>
+    /// Gets the leader lines that are drawn. Null when the line coordinates are absent or the leader line length is 0.
+    /// </summary>
+    internal PdfPath? LeaderLinesPath { get; }
 
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
@@ -149,16 +188,41 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        if (DrawingPath == null)
+        if (DrawingLine == null)
         {
             return false;
+        }
+
+        PdfPoint lineStart = DrawingLine[0];
+        PdfPoint lineEnd = DrawingLine[1];
+        PdfRectangle? captionArea = null;
+
+        if (HasCaption && Contents != null)
+        {
+            captionArea = PdfAnnotationTextRenderer.DrawLineCaption(
+                processor,
+                page,
+                Contents.Value.DecodePdfString(),
+                lineStart,
+                lineEnd,
+                CaptionPosition,
+                CaptionOffset,
+                StrokeStyle.LineWidth,
+                LeaderLineLength ?? 0f,
+                LeaderLineExtension ?? 0f);
         }
 
         PdfColor lineColor = ResolveColor(page, PdfColors.Black);
 
         PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 
-        processor.Process(new DrawPathCommand(DrawingPath, linePaint));
+        processor.Process(new DrawPathCommand(PdfAnnotationGeometry.CreateLinePath(lineStart, lineEnd, captionArea), linePaint));
+
+        if (LeaderLinesPath != null)
+        {
+            PdfPaint leaderLinesPaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
+            processor.Process(new DrawPathCommand(LeaderLinesPath, leaderLinesPaint));
+        }
 
         PdfColor interiorColor = ResolveInteriorColor(page);
 
@@ -166,10 +230,10 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,
-                StartX,
-                StartY,
-                EndX,
-                EndY,
+                lineStart.X,
+                lineStart.Y,
+                lineEnd.X,
+                lineEnd.Y,
                 StartLineEnding,
                 StrokeStyle.LineWidth,
                 lineColor,
@@ -180,10 +244,10 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,
-                EndX,
-                EndY,
-                StartX,
-                StartY,
+                lineEnd.X,
+                lineEnd.Y,
+                lineStart.X,
+                lineStart.Y,
                 EndLineEnding,
                 StrokeStyle.LineWidth,
                 lineColor,

@@ -39,14 +39,10 @@ internal static class PdfAnnotationLineEndingRenderer
         in PdfColor lineColor,
         PdfColor? interiorColor)
     {
-        float dx = otherX - x;
-        float dy = otherY - y;
-        var angle = (float)Math.Atan2(dy, dx);
-        float endingSize = lineWidth * 3;
+        float endingSize = GetEndingSize(lineWidth);
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(x, y)));
-        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateRotationDegrees(angle * 180 / MathF.PI)));
+        processor.Process(new ConcatMatrixCommand(GetEndingMatrix(x, y, otherX, otherY, style)));
 
         switch (style)
         {
@@ -114,13 +110,7 @@ internal static class PdfAnnotationLineEndingRenderer
 
     private static void DrawClosedArrow(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
     {
-        PdfPathBuilder path = new();
-        path.MoveTo(0, 0);
-        path.LineTo(size, -size / 2);
-        path.LineTo(size, size / 2);
-        path.Close();
-
-        PdfPath builtPath = path.ToPath();
+        PdfPath builtPath = CreateClosedArrowPath(size);
 
         if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
         {
@@ -134,12 +124,7 @@ internal static class PdfAnnotationLineEndingRenderer
 
     private static void DrawSquare(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
     {
-        PdfRectangle rect = PdfRectangle.FromLocationAndSize(-size / 2, -size / 2, size, size);
-
-        PdfPathBuilder path = new();
-        path.AddRect(rect);
-
-        PdfPath builtPath = path.ToPath();
+        PdfPath builtPath = CreateSquarePath(size);
 
         if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
         {
@@ -153,12 +138,7 @@ internal static class PdfAnnotationLineEndingRenderer
 
     private static void DrawCircle(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
     {
-        float radius = size / 2;
-
-        PdfPathBuilder path = new();
-        path.AddCircle(PdfPoint.Empty, radius);
-
-        PdfPath builtPath = path.ToPath();
+        PdfPath builtPath = CreateCirclePath(size);
 
         if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
         {
@@ -172,14 +152,7 @@ internal static class PdfAnnotationLineEndingRenderer
 
     private static void DrawDiamond(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
     {
-        PdfPathBuilder path = new();
-        path.MoveTo(size / 2, 0);
-        path.LineTo(0, -size / 2);
-        path.LineTo(-size / 2, 0);
-        path.LineTo(0, size / 2);
-        path.Close();
-
-        PdfPath builtPath = path.ToPath();
+        PdfPath builtPath = CreateDiamondPath(size);
 
         if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
         {
@@ -206,9 +179,9 @@ internal static class PdfAnnotationLineEndingRenderer
         PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
 
         PdfPathBuilder path = new();
-        path.MoveTo(size, size / 2);
+        path.MoveTo(-size, size / 2);
         path.LineTo(0, 0);
-        path.LineTo(size, -size / 2);
+        path.LineTo(-size, -size / 2);
 
         processor.Process(new DrawPathCommand(path.ToPath(), paint));
     }
@@ -217,8 +190,8 @@ internal static class PdfAnnotationLineEndingRenderer
     {
         PdfPathBuilder path = new();
         path.MoveTo(0, 0);
-        path.LineTo(size, size / 2);
-        path.LineTo(size, -size / 2);
+        path.LineTo(-size, size / 2);
+        path.LineTo(-size, -size / 2);
         path.Close();
 
         PdfPath builtPath = path.ToPath();
@@ -241,5 +214,58 @@ internal static class PdfAnnotationLineEndingRenderer
         path.MoveTo(-size / 2, -size / 2);
         path.LineTo(size / 2, size / 2);
         processor.Process(new DrawPathCommand(path.ToPath(), paint));
+    }
+
+    private static float GetEndingSize(float lineWidth) => lineWidth * 6f;
+
+    private static PdfMatrix GetEndingMatrix(float x, float y, float otherX, float otherY, PdfLineEndingStyle style)
+    {
+        if (style == PdfLineEndingStyle.Square || style == PdfLineEndingStyle.Circle)
+        {
+            return PdfMatrix.CreateTranslation(x, y);
+        }
+
+        float angle = MathF.Atan2(otherY - y, otherX - x);
+
+        return PdfMatrix.Concat(PdfMatrix.CreateTranslation(x, y), PdfMatrix.CreateRotationDegrees(angle * 180 / MathF.PI));
+    }
+
+    private static PdfPath CreateClosedArrowPath(float size)
+    {
+        PdfPathBuilder path = new();
+        path.MoveTo(0, 0);
+        path.LineTo(size, -size / 2);
+        path.LineTo(size, size / 2);
+        path.Close();
+
+        return path.ToPath();
+    }
+
+    private static PdfPath CreateSquarePath(float size)
+    {
+        PdfPathBuilder path = new();
+        path.AddRect(PdfRectangle.FromLocationAndSize(-size / 2, -size / 2, size, size));
+
+        return path.ToPath();
+    }
+
+    private static PdfPath CreateCirclePath(float size)
+    {
+        PdfPathBuilder path = new();
+        path.AddCircle(PdfPoint.Empty, size / 2);
+
+        return path.ToPath();
+    }
+
+    private static PdfPath CreateDiamondPath(float size)
+    {
+        PdfPathBuilder path = new();
+        path.MoveTo(size / 2, 0);
+        path.LineTo(0, -size / 2);
+        path.LineTo(-size / 2, 0);
+        path.LineTo(0, size / 2);
+        path.Close();
+
+        return path.ToPath();
     }
 }

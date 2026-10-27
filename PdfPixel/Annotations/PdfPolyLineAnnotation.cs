@@ -124,11 +124,14 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        if (DrawingPath == null
-            || !PdfAnnotationGeometry.TryGetPathEnds(DrawingPath, out PdfPoint start, out PdfPoint afterStart, out PdfPoint end, out PdfPoint beforeEnd))
+        PdfPathEnds? pathEnds = PdfAnnotationGeometry.GetPathEnds(DrawingPath);
+
+        if (DrawingPath == null || pathEnds == null)
         {
             return false;
         }
+
+        PdfPathEnds ends = pathEnds.Value;
 
         PdfColor lineColor = ResolveColor(page, PdfColors.Black);
 
@@ -142,10 +145,10 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,
-                start.X,
-                start.Y,
-                afterStart.X,
-                afterStart.Y,
+                ends.Start.X,
+                ends.Start.Y,
+                ends.AfterStart.X,
+                ends.AfterStart.Y,
                 StartLineEnding,
                 StrokeStyle.LineWidth,
                 lineColor,
@@ -156,10 +159,10 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,
-                end.X,
-                end.Y,
-                beforeEnd.X,
-                beforeEnd.Y,
+                ends.End.X,
+                ends.End.Y,
+                ends.BeforeEnd.X,
+                ends.BeforeEnd.Y,
                 EndLineEnding,
                 StrokeStyle.LineWidth,
                 lineColor,

@@ -107,17 +107,124 @@ internal static class PdfAnnotationGeometry
     }
 
     /// <summary>
+    /// Returns the endpoints of the line from <paramref name="start"/> to <paramref name="end"/>, moved out by leader
+    /// lines of <paramref name="leaderLength"/> that start <paramref name="leaderOffset"/> away from the endpoints.
+    /// </summary>
+    /// <param name="start">The start point of the line.</param>
+    /// <param name="end">The end point of the line.</param>
+    /// <param name="leaderLength">The leader line length; positive to the left of the line, negative to its right, 0 for no leader lines.</param>
+    /// <param name="leaderOffset">The non-negative distance between the endpoints and the leader lines.</param>
+    /// <returns>The moved start and end points.</returns>
+    public static PdfPoint[] MoveLine(in PdfPoint start, in PdfPoint end, float leaderLength, float leaderOffset)
+    {
+        PdfMatrix lineMatrix = CreateLineMatrix(start, end);
+        float halfLength = GetDistance(start, end) / 2f;
+        float distance = GetLeaderLineStart(leaderLength, leaderOffset) + leaderLength;
+
+        return new PdfPoint[] { lineMatrix.MapPoint(new PdfPoint(-halfLength, distance)), lineMatrix.MapPoint(new PdfPoint(halfLength, distance)) };
+    }
+
+    /// <summary>
+    /// Creates the leader lines of the line from <paramref name="start"/> to <paramref name="end"/>: perpendicular
+    /// to it at both endpoints, from <paramref name="leaderOffset"/> away to <paramref name="leaderExtension"/> past
+    /// the moved line.
+    /// </summary>
+    /// <param name="start">The start point of the line.</param>
+    /// <param name="end">The end point of the line.</param>
+    /// <param name="leaderLength">The leader line length; positive to the left of the line, negative to its right.</param>
+    /// <param name="leaderExtension">The non-negative length the leader lines extend past the moved line.</param>
+    /// <param name="leaderOffset">The non-negative distance between the endpoints and the leader lines.</param>
+    /// <returns>The leader lines, or null when <paramref name="leaderLength"/> is 0.</returns>
+    public static PdfPath? CreateLeaderLinesPath(in PdfPoint start, in PdfPoint end, float leaderLength, float leaderExtension, float leaderOffset)
+    {
+        if (leaderLength == 0f)
+        {
+            return null;
+        }
+
+        PdfMatrix lineMatrix = CreateLineMatrix(start, end);
+        float halfLength = GetDistance(start, end) / 2f;
+        float leaderStart = GetLeaderLineStart(leaderLength, leaderOffset);
+        float leaderEnd = leaderStart + leaderLength + (MathF.Sign(leaderLength) * leaderExtension);
+
+        PdfPathBuilder builder = new();
+        builder.MoveTo(lineMatrix.MapPoint(new PdfPoint(-halfLength, leaderStart)));
+        builder.LineTo(lineMatrix.MapPoint(new PdfPoint(-halfLength, leaderEnd)));
+        builder.MoveTo(lineMatrix.MapPoint(new PdfPoint(halfLength, leaderStart)));
+        builder.LineTo(lineMatrix.MapPoint(new PdfPoint(halfLength, leaderEnd)));
+
+        return builder.ToPath();
+    }
+
+    /// <summary>
+    /// Creates the line from <paramref name="start"/> to <paramref name="end"/>, broken where <paramref name="clearArea"/>
+    /// crosses it.
+    /// </summary>
+    /// <param name="start">The start point of the line.</param>
+    /// <param name="end">The end point of the line.</param>
+    /// <param name="clearArea">
+    /// The area the line is kept clear of, in the coordinates of <see cref="CreateLineMatrix"/>, or null for an unbroken line.
+    /// </param>
+    public static PdfPath CreateLinePath(in PdfPoint start, in PdfPoint end, PdfRectangle? clearArea)
+    {
+        PdfPathBuilder builder = new();
+
+        if (clearArea != null && clearArea.Value.Top <= 0f && clearArea.Value.Bottom >= 0f)
+        {
+            PdfMatrix lineMatrix = CreateLineMatrix(start, end);
+            float halfLength = GetDistance(start, end) / 2f;
+
+            AddLineSegment(builder, lineMatrix, -halfLength, Math.Min(clearArea.Value.Left, halfLength));
+            AddLineSegment(builder, lineMatrix, Math.Max(clearArea.Value.Right, -halfLength), halfLength);
+        }
+        else
+        {
+            builder.MoveTo(start);
+            builder.LineTo(end);
+        }
+
+        return builder.ToPath();
+    }
+
+    /// <summary>
+    /// Returns the distance between <paramref name="start"/> and <paramref name="end"/>.
+    /// </summary>
+    public static float GetDistance(in PdfPoint start, in PdfPoint end)
+    {
+        float deltaX = end.X - start.X;
+        float deltaY = end.Y - start.Y;
+
+        return MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+    }
+
+    /// <summary>
+    /// Creates the matrix from the coordinates of the line from <paramref name="start"/> to <paramref name="end"/> to
+    /// the page: the x axis runs along the line from its midpoint, the y axis to its left.
+    /// </summary>
+    public static PdfMatrix CreateLineMatrix(in PdfPoint start, in PdfPoint end)
+    {
+        float angle = MathF.Atan2(end.Y - start.Y, end.X - start.X);
+        PdfMatrix midpoint = PdfMatrix.CreateTranslation((start.X + end.X) / 2f, (start.Y + end.Y) / 2f);
+
+        return PdfMatrix.Concat(midpoint, PdfMatrix.CreateRotationDegrees(angle * 180 / MathF.PI));
+    }
+
+    /// <summary>
     /// Finds the two ends of <paramref name="path"/> and, for each, the point the path leaves it toward: the
     /// next point for a line segment, the nearest distinct control point for a curve.
     /// </summary>
-    /// <returns>False when the path has no segment after its first point.</returns>
-    public static bool TryGetPathEnds(PdfPath path, out PdfPoint start, out PdfPoint afterStart, out PdfPoint end, out PdfPoint beforeEnd)
+    /// <returns>The ends, or null if <paramref name="path"/> is null or has no segment after its first point.</returns>
+    public static PdfPathEnds? GetPathEnds(PdfPath? path)
     {
-        start = default;
-        afterStart = default;
-        end = default;
-        beforeEnd = default;
+        if (path == null)
+        {
+            return null;
+        }
 
+        PdfPoint start = default;
+        PdfPoint afterStart = default;
+        PdfPoint end = default;
+        PdfPoint beforeEnd = default;
         var hasSegment = false;
         PdfPoint currentPoint = default;
 
@@ -160,7 +267,28 @@ internal static class PdfAnnotationGeometry
             }
         }
 
-        return hasSegment;
+        if (!hasSegment)
+        {
+            return null;
+        }
+
+        return new PdfPathEnds(start, afterStart, end, beforeEnd);
+    }
+
+    /// <summary>
+    /// Returns the distance from the line at which leader lines start, on the side of <paramref name="leaderLength"/>.
+    /// </summary>
+    private static float GetLeaderLineStart(float leaderLength, float leaderOffset) => MathF.Sign(leaderLength) * leaderOffset;
+
+    private static void AddLineSegment(PdfPathBuilder builder, in PdfMatrix lineMatrix, float from, float to)
+    {
+        if (from >= to)
+        {
+            return;
+        }
+
+        builder.MoveTo(lineMatrix.MapPoint(new PdfPoint(from, 0f)));
+        builder.LineTo(lineMatrix.MapPoint(new PdfPoint(to, 0f)));
     }
 
     private static PdfPoint GetFirstDistinctPoint(in PdfPoint anchor, in PdfPoint first, in PdfPoint second, in PdfPoint third)

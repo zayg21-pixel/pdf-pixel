@@ -32,6 +32,12 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
     private const float ShadowGray = 0.8f;
     private const float TiltDegrees = 1.25f;
 
+    private static readonly PdfSubstitutionInfo LabelFont = new(
+        PdfStandardFontName.Times,
+        PdfSubstitutionInfo.BoldWeight,
+        PdfSubstitutionInfo.NormalWidth,
+        italicAngle: 0f);
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfStampAnnotation"/> class.
     /// </summary>
@@ -90,27 +96,48 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         PdfPathBuilder borderPathBuilder = new();
         borderPathBuilder.AddRoundRect(borderRect, cornerRadius, cornerRadius);
         PdfPath borderPath = borderPathBuilder.ToPath();
-        PdfPath? labelPath = CreateLabelPath(page, labelText);
 
-        PdfPaint borderShadowPaint = PdfAnnotationPaintFactory.CreateStrokePaint(shadowColor, tiltedBorderWidth);
-        processor.Process(new DrawPathCommand(borderPath.Transform(shadowTiltMatrix), borderShadowPaint));
+        SfntPdfTypeface labelTypeface = page.Document.FontProvider.GetTypefaceByUnicode(LabelFont, labelText);
+        ShapedGlyph[] labelGlyphs = PdfAnnotationTextRenderer.Shape(labelText, labelTypeface);
 
-        if (labelPath != null)
-        {
-            PdfPaint labelShadowPaint = PdfAnnotationPaintFactory.CreateFillPaint(shadowColor);
-            processor.Process(new DrawPathCommand(labelPath.Transform(shadowTiltMatrix), labelShadowPaint));
-        }
-
-        PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, tiltedBorderWidth);
-        processor.Process(new DrawPathCommand(borderPath.Transform(tiltMatrix), borderPaint));
-
-        if (labelPath != null)
-        {
-            PdfPaint labelPaint = PdfAnnotationPaintFactory.CreateFillPaint(color);
-            processor.Process(new DrawPathCommand(labelPath.Transform(tiltMatrix), labelPaint));
-        }
+        DrawImpression(processor, borderPath, labelGlyphs, labelTypeface.Metrics, shadowTiltMatrix, tiltedBorderWidth, shadowColor);
+        DrawImpression(processor, borderPath, labelGlyphs, labelTypeface.Metrics, tiltMatrix, tiltedBorderWidth, color);
 
         return true;
+    }
+
+    /// <summary>
+    /// Draws the border and the label centered in the rectangle, mapped through <paramref name="matrix"/>.
+    /// </summary>
+    private void DrawImpression(
+        IPdfCommandProcessor processor,
+        PdfPath borderPath,
+        ShapedGlyph[] labelGlyphs,
+        PdfFontMetrics labelMetrics,
+        in PdfMatrix matrix,
+        float borderWidth,
+        in PdfColor color)
+    {
+        PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, borderWidth);
+        processor.Process(new DrawPathCommand(borderPath.Transform(matrix), borderPaint));
+
+        float labelWidth = TextRenderUtilities.GetTextWidth(labelGlyphs);
+        float capHeight = labelMetrics.CapHeight;
+
+        if (labelWidth <= 0f || capHeight <= 0f)
+        {
+            return;
+        }
+
+        float fontSize = Math.Min(
+            Rectangle.Width * LabelWidthFraction / labelWidth,
+            Rectangle.Height * LabelHeightFraction / capHeight);
+
+        PdfPoint labelOrigin = new(
+            Rectangle.MidX - (labelWidth * fontSize / 2f),
+            Rectangle.MidY - (capHeight * fontSize / 2f));
+
+        PdfAnnotationTextRenderer.DrawText(processor, labelGlyphs, matrix, labelOrigin, fontSize, color);
     }
 
     private PdfMatrix CreateTiltMatrix(in PdfRectangle stampBounds, out float tiltScale)
@@ -124,35 +151,6 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         PdfMatrix toRectangle = PdfMatrix.CreateTranslation(Rectangle.MidX, Rectangle.MidY);
 
         return PdfMatrix.Concat(toRectangle, PdfMatrix.Concat(scaledRotation, toOrigin));
-    }
-
-    private PdfPath? CreateLabelPath(IPdfPageInternal page, string labelText)
-    {
-        PdfSubstitutionInfo substitutionInfo = new(PdfStandardFontName.Times, PdfSubstitutionInfo.BoldWeight, PdfSubstitutionInfo.NormalWidth, italicAngle: 0f);
-        SfntPdfTypeface typeface = page.Document.FontProvider.GetTypefaceByUnicode(substitutionInfo, labelText);
-
-        ShapedGlyphBuffer glyphs = new();
-        ShapedGlyphBuilder.BuildFromText(labelText, typeface, glyphs);
-
-        PdfPath emPath = TextRenderUtilities.GetTextPath(glyphs.Glyphs, PdfMatrix.CreateScale(1f, -1f));
-        PdfRectangle inkBounds = emPath.GetBounds();
-
-        if (inkBounds.Width <= 0f || inkBounds.Height <= 0f)
-        {
-            return null;
-        }
-
-        float fontSize = Math.Min(
-            Rectangle.Width * LabelWidthFraction / inkBounds.Width,
-            Rectangle.Height * LabelHeightFraction / inkBounds.Height);
-
-        PdfMatrix labelMatrix = PdfMatrix.CreateScaleTranslation(
-            fontSize,
-            fontSize,
-            Rectangle.MidX - (inkBounds.MidX * fontSize),
-            Rectangle.MidY - (inkBounds.MidY * fontSize));
-
-        return emPath.Transform(labelMatrix);
     }
 
     private PdfColor GetStampColor()
