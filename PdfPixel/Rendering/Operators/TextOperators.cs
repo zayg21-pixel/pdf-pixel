@@ -241,7 +241,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.Leading = -leading.Value;
+        graphicsState.Leading = leading.Value;
     }
 
     private void ProcessSetTextRise(PdfGraphicsState graphicsState)
@@ -326,7 +326,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.Leading = ty.Value;
+        graphicsState.Leading = -ty.Value;
         PdfMatrix translation = PdfMatrix.CreateTranslation(tx.Value, ty.Value);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
@@ -376,7 +376,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessNextLine(PdfGraphicsState graphicsState)
     {
-        PdfMatrix translation = PdfMatrix.CreateTranslation(0, graphicsState.Leading);
+        PdfMatrix translation = PdfMatrix.CreateTranslation(0, -graphicsState.Leading);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }

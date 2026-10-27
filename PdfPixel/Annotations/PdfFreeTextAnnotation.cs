@@ -1,6 +1,8 @@
 using PdfPixel.Annotations.Parsing;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
+using PdfPixel.Forms.Rendering;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
@@ -11,9 +13,8 @@ namespace PdfPixel.Annotations;
 /// <summary>
 /// Represents a free-form text annotation in a PDF document that allows users to add arbitrary text content.
 /// </summary>
-/// <remarks>Free-form text annotations do not display a bubble and require an appearance stream for rendering.
-/// Fallback rendering is not implemented, as these annotations should always provide an appearance stream to ensure
-/// correct display.</remarks>
+/// <remarks>Free-form text annotations do not display a bubble. Without an appearance stream, the text is drawn
+/// with the default appearance.</remarks>
 public class PdfFreeTextAnnotation : PdfMarkupAnnotation
 {
     /// <summary>
@@ -40,8 +41,7 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         RectangleDifferences = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
 
-        // TODO: [MEDIUM] A FreeText without an appearance stream is not drawn:
-        // - text in the default appearance, aligned by TextAlignment, inside ContentRectangle
+        // TODO: [MEDIUM] A FreeText without an appearance stream draws only its text, not:
         // - border of ContentRectangle with its border effect
         // - callout line and its line ending, not drawn for the typewriter intent
         // - default style string
@@ -98,7 +98,17 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        // FreeText annotations should always have an appearance stream, so fallback rendering is not implemented.
-        return false;
+        if (Contents == null)
+        {
+            return false;
+        }
+
+        float borderWidth = BorderStyle?.StrokeStyle.LineWidth ?? new PdfStrokeStyle().LineWidth;
+        PdfGraphicsState state = PdfAppearanceRenderer.CreateState(processor, page, renderer, DefaultAppearance, renderingParameters, observer);
+
+        processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
+        PdfAppearanceRenderer.DrawText(processor, renderer, state, Contents.Value.DecodePdfString(), ContentRectangle.Inflate(-borderWidth), TextAlignment);
+
+        return true;
     }
 }

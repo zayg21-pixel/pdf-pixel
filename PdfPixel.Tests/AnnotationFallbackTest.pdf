@@ -1,11 +1,11 @@
 %PDF-1.7
 
 1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
+<< /Type /Catalog /Pages 2 0 R /AcroForm 165 0 R >>
 endobj
 
 2 0 obj
-<< /Type /Pages /Kids [3 0 R 77 0 R 154 0 R] /Count 3 >>
+<< /Type /Pages /Kids [3 0 R 77 0 R 154 0 R 169 0 R] /Count 4 >>
 endobj
 
 3 0 obj
@@ -501,7 +501,8 @@ endobj
    /Rect [130 255 210 310]
    /C [0.9 0.9 0]
    /BS << /S /S /W 1 >>
-   /DA (/Helvetica 12 Tf 0 0 0 rg)
+   /DA (/Helv 12 Tf 0 0 0 rg)
+   /Contents (FreeText)
    /T (FreeText) >>
 endobj
 
@@ -569,7 +570,6 @@ endobj
 % ============================================================
 % Row L: Watermark, 3D, Redact  y=95-150
 % Note: Unknown subtype -> PdfAnnotationFactory returns null, not renderable
-% Note: FreeText has no RenderFallback (returns false), needs appearance stream
 % ============================================================
 
 58 0 obj
@@ -1261,11 +1261,227 @@ endobj
    /Contents (Link whose QuadPoints stick out of Rect. Expected: hand cursor over the whole blue box, not over the yellow part outside it.) >>
 endobj
 
+% ============================================================
+% Interactive form: default resources the FreeText DA names resolve against
+% ============================================================
+
+165 0 obj
+<< /Fields []
+   /DR << /Font << /Helv 166 0 R /TiRo 167 0 R /Cour 168 0 R >>
+          /ExtGState << /GSHalf << /Type /ExtGState /ca 0.5 /CA 0.5 >> >> >>
+   /DA (/Helv 0 Tf 0 g) >>
+endobj
+
+166 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+
+167 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>
+endobj
+
+168 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+
+% ============================================================
+% Page 4: FreeText default appearance (no appearance streams)
+% ============================================================
+
+169 0 obj
+<< /Type /Page
+   /MediaBox [0 0 1000 1300]
+   /Parent 2 0 R
+   /Annots [170 0 R 171 0 R 172 0 R
+            173 0 R 174 0 R 175 0 R
+            176 0 R 177 0 R 178 0 R
+            179 0 R 180 0 R 181 0 R
+            182 0 R 183 0 R 184 0 R
+            185 0 R 186 0 R 187 0 R]
+>>
+endobj
+
+% ============================================================
+% Row A: font and color operators  y=1150-1260
+% ============================================================
+
+170 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 1150 320 1260]
+   /DA (/TiRo 14 Tf 0 0 1 rg)
+   /Contents (Times 14, blue from rg. Expected: blue serif text from the top left.)
+   /T (FreeText - TiRo rg) >>
+endobj
+
+171 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [350 1150 650 1260]
+   /DA (/Helv 12 Tf 0 0.6 0.9 0 k)
+   /Contents (Helvetica 12, CMYK from k. Expected: orange sans-serif text.)
+   /T (FreeText - Helv k) >>
+endobj
+
+172 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [680 1150 980 1260]
+   /DA (/Helv 12 Tf /DeviceRGB cs 0.8 0 0.4 sc)
+   /Contents (Helvetica 12, color from cs and sc. Expected: magenta text.)
+   /T (FreeText - cs sc) >>
+endobj
+
+% ============================================================
+% Row B: ExtGState, leading, wrapping  y=1000-1110
+% ============================================================
+
+173 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 1000 320 1110]
+   /DA (/GSHalf gs /Helv 16 Tf 0 0 0 rg)
+   /Contents (Helvetica 16, half alpha from gs. Expected: gray-looking black text.)
+   /T (FreeText - gs) >>
+endobj
+
+174 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [350 1000 650 1110]
+   /DA (/Helv 10 Tf 24 TL 0 g)
+   /Contents (Helvetica 10 with leading 24 from TL.\nSecond line.\nThird line. Expected: wide line spacing.)
+   /T (FreeText - TL) >>
+endobj
+
+175 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [680 1000 980 1110]
+   /DA (/Helv 11 Tf 0 g)
+   /Contents (Helvetica 11 wrapped to the box. Long sentences break between words when they reach the right edge of the annotation rectangle.\nA line break starts a new paragraph.)
+   /T (FreeText - wrap) >>
+endobj
+
+% ============================================================
+% Row C: rich text, auto size, large font  y=850-960
+% ============================================================
+
+176 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 850 320 960]
+   /DA (/TiRo 12 Tf 0.5 0 0 rg)
+   /RC (<?xml version="1.0"?><body xmlns="http://www.w3.org/1999/xhtml" xmlns:xfa="http://www.xfa.org/schema/xfa-data/1.0/" xfa:APIVersion="Acrobat:11.0.0" xfa:spec="2.0.2"><p>Text from RC only, no Contents.</p><p>Expected: two dark red Times lines.</p></body>)
+   /T (FreeText - RC) >>
+endobj
+
+177 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [350 850 650 960]
+   /DA (/Helv 0 Tf 0 0.5 0 rg)
+   /Contents (Font size 0 \(auto\), green.)
+   /T (FreeText - auto size) >>
+endobj
+
+178 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [680 850 980 960]
+   /DA (/Cour 24 Tf 0.3 g)
+   /Contents (Courier 24, gray from g.)
+   /T (FreeText - Cour g) >>
+endobj
+
+% ============================================================
+% Row D: auto size (font size 0) in different boxes  y=700-810
+% ============================================================
+
+179 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 700 320 810]
+   /DA (/Helv 0 Tf 0 g)
+   /Contents (Auto)
+   /T (FreeText - auto size, short text, large box) >>
+endobj
+
+180 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [350 760 650 810]
+   /DA (/Helv 0 Tf 0 g)
+   /Contents (Auto size with a long sentence that does not fit in this short box at twelve points, so it has to shrink or overflow.)
+   /T (FreeText - auto size, long text, small box) >>
+endobj
+
+181 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [680 700 760 810]
+   /DA (/Helv 0 Tf 0 g)
+   /Contents (Narrow)
+   /T (FreeText - auto size, narrow box) >>
+endobj
+
+% ============================================================
+% Row E: alignment, inset and border width  y=550-660
+% ============================================================
+
+182 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 550 320 660]
+   /DA (/Helv 12 Tf 0 g)
+   /Q 1
+   /Contents (Centered text \(Q 1\).\nEach line is centered in the box.)
+   /T (FreeText - Q centered) >>
+endobj
+
+183 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [350 550 650 660]
+   /DA (/Helv 12 Tf 0 g)
+   /Q 2
+   /Contents (Right-justified text \(Q 2\).\nEach line ends at the right edge.)
+   /T (FreeText - Q right) >>
+endobj
+
+184 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [680 550 980 660]
+   /DA (/Helv 12 Tf 0 g)
+   /RD [20 20 20 20]
+   /BS << /W 4 >>
+   /Contents (Inner rectangle inset by 20 \(RD\) with a 4 point border \(BS\). The text stays inside both.)
+   /T (FreeText - RD and BS) >>
+endobj
+
+% ============================================================
+% Row F: substitution, text matrix, callout  y=380-510
+% ============================================================
+
+185 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [20 400 320 510]
+   /DA (/TiRo 14 Tf 0 0 0.6 rg)
+   /Contents <FEFF041f04400438043204350442002c0020043c04380440002100200043007900720069006c006c00690063002000660061006c006c00730020006200610063006b00200074006f0020006100200073007500620073007400690074007500740065002000740079007000650066006100630065002e>
+   /T (FreeText - Cyrillic) >>
+endobj
+
+186 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [350 400 650 510]
+   /DA (/Helv 12 Tf 1 0 0.3 1 0 0 Tm 0 g)
+   /Contents (Text matrix in DA: slanted text, positions still set by the layout.)
+   /T (FreeText - Tm) >>
+endobj
+
+187 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [680 380 980 510]
+   /DA (/Helv 11 Tf 0 0 1 rg)
+   /IT /FreeTextCallout
+   /CL [690 390 740 455 800 455]
+   /LE /OpenArrow
+   /RD [120 0 0 0]
+   /Contents (Callout: the line starts at the arrow, bends at the knee and ends at the text box.)
+   /T (FreeText - callout) >>
+endobj
+
 xref
 0 1
 0000000000 65535 f
 trailer
-<< /Size 165 /Root 1 0 R >>
+<< /Size 188 /Root 1 0 R >>
 startxref
 0
 
