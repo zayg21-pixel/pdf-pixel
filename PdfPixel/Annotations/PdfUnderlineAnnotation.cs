@@ -4,6 +4,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
 
@@ -24,7 +25,13 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
     {
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         PdfPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)

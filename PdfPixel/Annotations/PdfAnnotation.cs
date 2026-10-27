@@ -317,13 +317,22 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
+    /// <param name="renderer">The renderer context.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
+    /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if fallback rendering was emitted, false if no fallback is available.</returns>
     /// <remarks>
     /// This method allows each annotation type to provide its own custom rendering logic
     /// when the annotation doesn't have an appearance stream.
     /// The visual state allows annotations to change their appearance based on user interaction.
     /// </remarks>
-    internal abstract bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind);
+    internal abstract bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer);
 
     /// <summary>
     /// Renders the appearance stream for this annotation.
@@ -445,7 +454,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
             processor.Process(new SaveLayerCommand(Rectangle, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));
         }
 
-        bool rendered = RenderFallback(processor, page, visualStateKind);
+        bool rendered = RenderFallback(processor, page, visualStateKind, renderer, renderingParameters, observer);
 
         if (useOpacityLayer)
         {

@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 using System;
 
 namespace PdfPixel.Annotations;
@@ -36,7 +37,13 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfAnnotationBorderEffect BorderEffect { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
         PdfPath? shapePath = CreateShapePath(strokeStyle.LineWidth);

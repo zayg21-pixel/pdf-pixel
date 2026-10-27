@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Objects;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
 
@@ -31,7 +32,13 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
     /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         // FreeText annotations should always have an appearance stream, so fallback rendering is not implemented.
         return false;

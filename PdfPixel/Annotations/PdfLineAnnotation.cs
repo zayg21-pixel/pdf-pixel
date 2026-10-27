@@ -6,6 +6,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Measures;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
 
@@ -140,7 +141,13 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     internal PdfPath? DrawingPath { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         if (DrawingPath == null)
         {

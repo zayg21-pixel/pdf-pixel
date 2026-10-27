@@ -4,6 +4,7 @@ using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
 
@@ -78,7 +79,13 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
     /// </remarks>
     public PdfString? State { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         PdfAnnotationIconDefinition? iconDefinition =
             PdfAnnotationGraphics.GetAnnotationIcon(Icon.ToString(), visualStateKind)

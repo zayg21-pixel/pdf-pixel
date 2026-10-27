@@ -7,6 +7,7 @@ using PdfPixel.Fonts.Substitution;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 using PdfPixel.Rendering.Text;
 using PdfPixel.Text;
 using System;
@@ -54,7 +55,13 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfString? RawStampName { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         bool isRubberStamp = Intent == PdfAnnotationIntent.None || Intent == PdfAnnotationIntent.Stamp;
         string? labelText = isRubberStamp ? GetLabelText() : null;

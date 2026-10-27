@@ -4,6 +4,7 @@ using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
 
@@ -80,7 +81,14 @@ public class PdfWidgetAnnotation : PdfAnnotation
     /// </remarks>
     public override bool ShouldDisplayBubble => false;
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind) => false;
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
+        => false;
 
     /// <summary>
     /// Gets the text value for text field widgets.

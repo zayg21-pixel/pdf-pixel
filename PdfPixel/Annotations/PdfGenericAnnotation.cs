@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Objects;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
 
@@ -24,7 +25,13 @@ public class PdfGenericAnnotation : PdfAnnotation
     {
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         // Generic annotations don't provide custom fallback rendering
         return false;

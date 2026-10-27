@@ -7,6 +7,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Navigation;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 using System;
 
 namespace PdfPixel.Annotations;
@@ -93,7 +94,13 @@ public class PdfLinkAnnotation : PdfAnnotation
     /// </remarks>
     public PdfLinkHighlightMode HighlightMode { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
         PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
 

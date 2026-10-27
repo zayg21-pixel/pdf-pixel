@@ -1,6 +1,7 @@
 using PdfPixel.Commands;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Rendering;
 
 namespace PdfPixel.Annotations;
 
@@ -55,7 +56,14 @@ public class PdfPopupAnnotation : PdfAnnotation
     /// </summary>
     public bool IsOpen { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind) => false;
+    internal override bool RenderFallback(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
+        => false;
 
     /// <summary>
     /// Returns a string representation of this popup annotation.
