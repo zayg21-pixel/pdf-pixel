@@ -164,12 +164,11 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         lock (_page.PanelDocument.DocumentLocker)
         {
             if (_page.CacheEntry.GetAnnotations(_page).Length > 0
-                && _page.CacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(_request))
+                && _page.CacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(_page, _request))
             {
                 PdfCommandRecorder? annotationRecording = _page.PanelDocument.Document.GetAnnotationRecording(
                     _page.PageNumber,
-                    _request.ActiveAnnotation?.PageAnnotation,
-                    _request.ActiveAnnotationState,
+                    _request,
                     RenderingParameters,
                     contentObserver);
                 _page.CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);

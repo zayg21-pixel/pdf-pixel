@@ -116,15 +116,17 @@ public sealed class PdfPanelDocument : IDisposable
     /// </summary>
     /// <param name="pageNumber">Number of the page.</param>
     /// <param name="pagePosition">Position on the page in PDF coordinates.</param>
+    /// <param name="scale">Scale the page is displayed at.</param>
+    /// <param name="referenceScale">Scale at which the pages are displayed at a zoom of 100%.</param>
     /// <returns>The annotation popup if found; otherwise, null.</returns>
-    public PdfAnnotationPopup? GetAnnotationPopupAt(int pageNumber, in PdfPoint pagePosition)
+    public PdfAnnotationPopup? GetAnnotationPopupAt(int pageNumber, in PdfPoint pagePosition, float scale, float referenceScale)
     {
         if (!TryGetPage(pageNumber, out PdfPanelPage? page) || page == null)
         {
             return null;
         }
 
-        return PdfDocumentAnnotationExtractor.GetActiveAnnotation(page, pagePosition);
+        return PdfDocumentAnnotationExtractor.GetActiveAnnotation(page, pagePosition, scale, referenceScale);
     }
 
     /// <summary>
@@ -193,7 +195,7 @@ public sealed class PdfPanelDocument : IDisposable
         PdfPanelPage page = _pages[pageNumber - 1];
 
         return page.CacheEntry.GetAnnotations(page).Length > 0
-            && page.CacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(request);
+            && page.CacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(page, request);
     }
 
     /// <summary>

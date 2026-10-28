@@ -17,6 +17,11 @@ internal abstract class DrawingRequest
     public float Scale { get; set; }
 
     /// <summary>
+    /// Scale at which the pages are displayed at a zoom of 100%.
+    /// </summary>
+    public float ReferenceScale { get; set; }
+
+    /// <summary>
     /// Horizontal and vertical scroll offset in scaled panel space.
     /// </summary>
     public PdfPoint Offset { get; set; }
@@ -67,6 +72,7 @@ internal abstract class DrawingRequest
         if (obj is DrawingRequest request)
         {
             return Scale == request.Scale
+                && ReferenceScale == request.ReferenceScale
                 && ActiveAnnotation == request.ActiveAnnotation
                 && ActiveAnnotationState == request.ActiveAnnotationState
                 && Offset == request.Offset
@@ -79,5 +85,5 @@ internal abstract class DrawingRequest
     }
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Scale, Offset, PanelSize, RenderTarget, ActiveAnnotation, ActiveAnnotationState, Pages);
+    public override int GetHashCode() => HashCode.Combine(Scale, ReferenceScale, Offset, PanelSize, RenderTarget, ActiveAnnotation, ActiveAnnotationState, Pages);
 }

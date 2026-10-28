@@ -6,13 +6,14 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.Commands.Execution;
 using PdfPixel.Commands;
 using PdfPixel.Content;
 using PdfPixel.Imaging;
-using PdfPixel.Objects;
 
 namespace PdfPixel.PdfPanel.Caching;
 
@@ -21,8 +22,7 @@ internal static class PdfDocumentContentExtensions
     public static PdfCommandRecorder? GetAnnotationRecording(
         this IPdfDocument document,
         int pageNumber,
-        PdfPageAnnotation? activeAnnotation,
-        PdfPanelPointerState pointerState,
+        PagesDrawingRequest request,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
@@ -40,21 +40,26 @@ internal static class PdfDocumentContentExtensions
 
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
-            bool isInvisibleUnknownType = (pageAnnotation.Content.Flags & PdfAnnotationFlags.Invisible) != 0
-                && pageAnnotation.Content.Subtype == PdfAnnotationSubType.Unknown;
+            bool isActive = pageAnnotation == request.ActiveAnnotation?.PageAnnotation;
 
-            if (isInvisibleUnknownType
-                || pageAnnotation.Content.IsHidden
-                || (pageAnnotation.Content.Flags & PdfAnnotationFlags.NoView) != 0)
+            if (!pageAnnotation.Content.IsVisible(isActive))
             {
                 continue;
             }
 
-            PdfAnnotationVisualStateKind visualStateKind = (pageAnnotation == activeAnnotation)
-                ? ConvertToVisualStateKind(pointerState)
+            PdfAnnotationVisualStateKind visualStateKind = isActive
+                ? ConvertToVisualStateKind(request.ActiveAnnotationState)
                 : PdfAnnotationVisualStateKind.Normal;
 
+            recorder.Process(SaveStateCommand.Instance);
+            recorder.Process(new ConcatMatrixCommand(pageAnnotation.Content.GetDisplayMatrix(request.Scale, request.ReferenceScale, request.GetPage(pageNumber).Rotation)));
+            if (pageAnnotation.Content.ShouldDisplayBubble)
+            {
+                pageAnnotation.RenderBubble(recorder, pageAnnotation.Content.ContentStart, visualStateKind);
+            }
+
             pageAnnotation.Render(recorder, visualStateKind, renderingParameters, observer);
+            recorder.Process(RestoreStateCommand.Instance);
         }
 
         return recorder;

@@ -1,4 +1,3 @@
-using PdfPixel.Annotations;
 using PdfPixel.PdfPanel.Input;
 using System;
 
@@ -9,14 +8,16 @@ namespace PdfPixel.PdfPanel.Annotations;
 /// </summary>
 public sealed class PdfPanelAnnotations
 {
+    private readonly PdfPanelContext _context;
     private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelInput _input;
 
     /// <summary>
     /// Initializes a new <see cref="PdfPanelAnnotations"/> and subscribes it to the given input.
     /// </summary>
-    internal PdfPanelAnnotations(PdfPanelDocument panelDocument, PdfPanelInput input)
+    internal PdfPanelAnnotations(PdfPanelContext context, PdfPanelDocument panelDocument, PdfPanelInput input)
     {
+        _context = context ?? throw new ArgumentNullException(nameof(context));
         _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _input = input ?? throw new ArgumentNullException(nameof(input));
 
@@ -63,7 +64,7 @@ public sealed class PdfPanelAnnotations
 
         PdfAnnotationPopup? annotation = HitTest(args);
 
-        if (annotation == null)
+        if (annotation == null || !annotation.PageAnnotation.Content.IsVisible(isActive: true))
         {
             return;
         }
@@ -95,7 +96,7 @@ public sealed class PdfPanelAnnotations
         }
 
         args.IsHandled = true;
-        args.Cursor = GetCursor(annotation);
+        args.Cursor = annotation.PageAnnotation.Content.GetCursor();
     }
 
     private PdfPanelPointerState GetPointerState(PdfAnnotationPopup? annotation)
@@ -119,23 +120,13 @@ public sealed class PdfPanelAnnotations
             return null;
         }
 
-        return _panelDocument.GetAnnotationPopupAt(pagePoint.Value.PageNumber, pagePoint.Value.Position);
+        return _panelDocument.GetAnnotationPopupAt(pagePoint.Value.PageNumber, pagePoint.Value.Position, _context.Scale, _context.ReferenceScale);
     }
 
     private void Clear()
     {
         ActiveAnnotation = null;
         ActiveAnnotationState = PdfPanelPointerState.None;
-    }
-
-    private static PdfPanelCursor GetCursor(PdfAnnotationPopup annotation)
-    {
-        return annotation.PageAnnotation.Content.CursorType switch
-        {
-            PdfAnnotationCursorType.Hand => PdfPanelCursor.Hand,
-            PdfAnnotationCursorType.IBeam => PdfPanelCursor.IBeam,
-            _ => PdfPanelCursor.Arrow
-        };
     }
 
     /// <summary>

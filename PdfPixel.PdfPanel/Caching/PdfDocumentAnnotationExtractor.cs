@@ -10,7 +10,7 @@ namespace PdfPixel.PdfPanel.Caching;
 
 internal static class PdfDocumentAnnotationExtractor
 {
-    public static PdfAnnotationPopup? GetActiveAnnotation(PdfPanelPage page, PdfPoint pagePosition)
+    public static PdfAnnotationPopup? GetActiveAnnotation(PdfPanelPage page, PdfPoint pagePosition, float scale, float referenceScale)
     {
         if (page == null)
         {
@@ -19,7 +19,7 @@ internal static class PdfDocumentAnnotationExtractor
 
         return page.Popups.FirstOrDefault(x =>
             x.IsInteractive
-                && IsInHoverRectangles(page, x, pagePosition));
+                && IsInHoverRectangles(page, x, pagePosition, scale, referenceScale));
     }
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this PdfPanelDocument panelDocument, int pageNumber)
@@ -96,7 +96,7 @@ internal static class PdfDocumentAnnotationExtractor
             replies.AddRange(BuildThread(reply, repliesByParent, processedAnnotations));
         }
 
-        PdfAnnotationMessage? message = CreateAnnotationMessage(annotation, replies.ToArray());
+        PdfAnnotationMessage? message = annotation.CreateAnnotationMessage(replies.ToArray());
 
         if (message == null)
         {
@@ -155,30 +155,6 @@ internal static class PdfDocumentAnnotationExtractor
         return repliesByParent;
     }
 
-    /// <summary>
-    /// Creates annotation message from an annotation's metadata.
-    /// </summary>
-    private static PdfAnnotationMessage? CreateAnnotationMessage(PdfMarkupAnnotation annotation, PdfAnnotationMessage[] replies)
-    {
-        if (annotation.Contents == null)
-        {
-            return null;
-        }
-
-        string contents = annotation.Contents.Value.DecodePdfString();
-
-        if (string.IsNullOrEmpty(contents))
-        {
-            return null;
-        }
-
-        string? title = annotation.Title?.DecodePdfString();
-        string? messageTitle = (!string.IsNullOrEmpty(title)) ? title : null;
-        DateTimeOffset? messageDate = (annotation.CreationDate.HasValue) ? new DateTimeOffset(annotation.CreationDate.Value) : (DateTimeOffset?)null;
-
-        return new PdfAnnotationMessage(messageDate, messageTitle, contents, replies);
-    }
-
     private static List<PdfMarkupAnnotation> FindDirectReplies(
         PdfMarkupAnnotation annotation,
         Dictionary<PdfReference, List<PdfMarkupAnnotation>> repliesByParent)
@@ -196,9 +172,9 @@ internal static class PdfDocumentAnnotationExtractor
         return replies;
     }
 
-    private static bool IsInHoverRectangles(PdfPanelPage page, PdfAnnotationPopup popup, in PdfPoint pagePosition)
+    private static bool IsInHoverRectangles(PdfPanelPage page, PdfAnnotationPopup popup, in PdfPoint pagePosition, float scale, float referenceScale)
     {
-        foreach (PdfRectangle hoverRectangle in popup.HoverRectangles)
+        foreach (PdfRectangle hoverRectangle in popup.GetHoverRectangles(scale, referenceScale))
         {
             if (page.FromPdfRect(hoverRectangle).Contains(pagePosition))
             {

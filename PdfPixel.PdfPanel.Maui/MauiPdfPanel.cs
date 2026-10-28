@@ -59,6 +59,11 @@ public partial class MauiPdfPanel : SKCanvasView
     internal float HostScale { get; private set; } = 1;
 
     /// <summary>
+    /// Scale at which the pages are displayed at a zoom of 100% on the current display.
+    /// </summary>
+    private float ReferenceScale => PdfPanelContext.DefaultReferenceScale * HostScale;
+
+    /// <summary>
     /// Scrolls to the page with the specified 1-based number.
     /// </summary>
     /// <param name="pageNumber">The 1-based page number.</param>
@@ -228,6 +233,8 @@ public partial class MauiPdfPanel : SKCanvasView
         DisposeContext();
 
         _context = new PdfPanelContext(Document, _surfaceFactory, _renderTargetFactory);
+        _context.ReferenceScale = ReferenceScale;
+        _context.Scale = (float)ZoomScale * _context.ReferenceScale;
         _context.AutoScaleMode = AutoScaleMode;
         _context.Actions.ActionRequested += OnActionRequested;
 
@@ -278,13 +285,14 @@ public partial class MauiPdfPanel : SKCanvasView
 
         _context.PanelWidth = PanelSize.Width;
         _context.PanelHeight = PanelSize.Height;
+        _context.ReferenceScale = ReferenceScale;
         _context.Layout = PageLayout;
         (Configuration ?? PdfPanelConfiguration.Default).ApplyConfiguration(_context);
 
         _context.Synchronize();
 
         _updatingScale = true;
-        ZoomScale = _context.Scale;
+        ZoomScale = _context.Scale / _context.ReferenceScale;
         AutoScaleMode = _context.AutoScaleMode;
         _updatingScale = false;
     }

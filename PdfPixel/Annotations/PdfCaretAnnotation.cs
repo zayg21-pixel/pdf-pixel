@@ -46,6 +46,9 @@ public class PdfCaretAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfRectangle MarkRectangle { get; }
 
+    /// <inheritdoc/>
+    public override PdfPoint ContentStart => new(MarkRectangle.Left, MarkRectangle.Bottom);
+
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,

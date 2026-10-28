@@ -191,7 +191,7 @@ public partial class MauiPdfPanel
             return;
         }
 
-        source._context.Zoom((float)source.ZoomScale, source._context.PanelWidth / 2, source._context.PanelHeight / 2);
+        source._context.Zoom((float)source.ZoomScale * source._context.ReferenceScale, source._context.PanelWidth / 2, source._context.PanelHeight / 2);
         source.RequestRedraw();
     }
 

@@ -156,7 +156,7 @@ public partial class WpfPdfPanel : IScrollInfo
 
         PdfPoint center = GetZoomCenter(_context);
 
-        _context.Zoom((float)Scale, center.X, center.Y);
+        _context.Zoom((float)Scale * _context.ReferenceScale, center.X, center.Y);
         InvalidateVisual();
     }
 

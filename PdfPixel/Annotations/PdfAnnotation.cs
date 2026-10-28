@@ -85,7 +85,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <summary>
     /// Starting point of actual content.
     /// </summary>
-    protected virtual PdfPoint ContentStart => new(Rectangle.Left, Rectangle.Bottom);
+    public virtual PdfPoint ContentStart => new(Rectangle.Left, Rectangle.Bottom);
 
     /// <summary>
     /// Whether fallback rendering is wrapped in a translucent layer carrying <see cref="Opacity"/>.
@@ -217,12 +217,29 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
             throw new ArgumentNullException(nameof(page));
         }
 
-        if (ShouldDisplayBubble)
+        return new PdfRectangle[] { MoveIntoCropBox(Rectangle, page) };
+    }
+
+    /// <summary>
+    /// Gets the rectangle of the content bubble indicator placed at <paramref name="anchor"/>, kept inside the crop
+    /// box of <paramref name="page"/>.
+    /// </summary>
+    /// <param name="page">Owning PDF page to crop margins to.</param>
+    /// <param name="anchor">The point the bubble is placed at, such as <see cref="ContentStart"/>.</param>
+    public static PdfRectangle GetBubbleRectangle(IPdfPage page, in PdfPoint anchor)
+    {
+        if (page == null)
         {
-            return new PdfRectangle[] { GetBubbleRectangle(page) };
+            throw new ArgumentNullException(nameof(page));
         }
 
-        return new PdfRectangle[] { MoveIntoCropBox(Rectangle, page) };
+        PdfRectangle bubbleRectangle = new(
+            anchor.X - PdfAnnotationGraphics.DefaultBubbleSize,
+            anchor.Y,
+            anchor.X,
+            anchor.Y + PdfAnnotationGraphics.DefaultBubbleSize);
+
+        return MoveIntoCropBox(bubbleRectangle, page);
     }
 
     /// <summary>
@@ -264,6 +281,25 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         }
 
         return rendered;
+    }
+
+    /// <summary>
+    /// Renders the content bubble indicator of this annotation via the command processor.
+    /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
+    /// <param name="page">The PDF page containing this annotation.</param>
+    /// <param name="anchor">The point the bubble is placed at, such as <see cref="ContentStart"/>.</param>
+    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
+    internal void RenderBubble(IPdfCommandProcessor processor, IPdfPageInternal page, in PdfPoint anchor, PdfAnnotationVisualStateKind visualStateKind)
+    {
+        PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
+
+        if (bubbleIcon != null)
+        {
+            PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+            PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+            PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(page, anchor), borderColor, backgroundColor);
+        }
     }
 
     /// <summary>
@@ -373,18 +409,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        if (ShouldDisplayBubble)
-        {
-            PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
-
-            if (bubbleIcon != null)
-            {
-                PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-                PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(page), borderColor, backgroundColor);
-            }
-        }
-
         processor.Process(SaveStateCommand.Instance);
 
         if (Appearance != null)
@@ -414,17 +438,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         processor.Process(RestoreStateCommand.Instance);
 
         return rendered;
-    }
-
-    private PdfRectangle GetBubbleRectangle(IPdfPage page)
-    {
-        PdfRectangle bubbleRectangle = new(
-            ContentStart.X - PdfAnnotationGraphics.DefaultBubbleSize,
-            ContentStart.Y,
-            ContentStart.X,
-            ContentStart.Y + PdfAnnotationGraphics.DefaultBubbleSize);
-
-        return MoveIntoCropBox(bubbleRectangle, page);
     }
 
     private static PdfRectangle MoveIntoCropBox(in PdfRectangle rectangle, IPdfPage page)

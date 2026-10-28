@@ -38,7 +38,7 @@ internal static class RedrawDtoConverter
             ScrollHeight = context.ExtentHeight,
             VerticalOffset = context.VerticalOffset,
             HorizontalOffset = context.HorizontalOffset,
-            Scale = context.Scale,
+            Scale = context.Scale / context.ReferenceScale,
             AutoScaleMode = ToString(context.AutoScaleMode),
             CurrentPage = context.GetCurrentPage()
         };

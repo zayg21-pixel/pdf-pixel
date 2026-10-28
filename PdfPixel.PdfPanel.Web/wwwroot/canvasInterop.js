@@ -215,6 +215,7 @@ class PdfPanelView {
         const input = {
             panelWidth: physicalWidth,
             panelHeight: physicalHeight,
+            devicePixelScale: devicePixelScale,
             verticalOffset: this.state.verticalOffset,
             horizontalOffset: this.state.horizontalOffset,
             scale: this.state.scale,

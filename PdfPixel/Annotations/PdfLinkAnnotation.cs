@@ -18,6 +18,8 @@ namespace PdfPixel.Annotations;
 /// </summary>
 public class PdfLinkAnnotation : PdfAnnotation
 {
+    private const float HighlightLineWidth = 1f;
+
     private readonly PdfRectangle[]? _activeRectangles;
 
     /// <summary>
@@ -40,6 +42,9 @@ public class PdfLinkAnnotation : PdfAnnotation
     public override bool ShouldDisplayBubble => false;
 
     /// <inheritdoc/>
+    public override PdfPoint ContentStart => (_activeRectangles != null) ? new PdfPoint(_activeRectangles[0].Left, _activeRectangles[0].Bottom) : base.ContentStart;
+
+    /// <inheritdoc/>
     public override bool IsInteractive => true;
 
     /// <summary>
@@ -47,20 +52,6 @@ public class PdfLinkAnnotation : PdfAnnotation
     /// spanning two lines of text. Empty when the link has none.
     /// </summary>
     public PdfPoint[][] Quadrilaterals { get; }
-
-    /// <summary>
-    /// Gets one rectangle per quadrilateral when every quadrilateral lies within <see cref="PdfAnnotation.Rectangle"/>,
-    /// otherwise the hover rectangles of the annotation.
-    /// </summary>
-    public override PdfRectangle[] GetHoverRectangles(IPdfPage page)
-    {
-        if (_activeRectangles == null)
-        {
-            return base.GetHoverRectangles(page);
-        }
-
-        return _activeRectangles;
-    }
 
     /// <summary>
     /// Gets the destination (/Dest) shown when the annotation is activated, resolved by this document's
@@ -78,6 +69,42 @@ public class PdfLinkAnnotation : PdfAnnotation
     /// Gets the highlight mode that specifies the visual effect to use when the link is activated.
     /// </summary>
     public PdfLinkHighlightMode HighlightMode { get; }
+
+    /// <summary>
+    /// Gets one rectangle per quadrilateral when every quadrilateral lies within <see cref="PdfAnnotation.Rectangle"/>,
+    /// otherwise the hover rectangles of the annotation.
+    /// </summary>
+    public override PdfRectangle[] GetHoverRectangles(IPdfPage page)
+    {
+        if (_activeRectangles == null)
+        {
+            return base.GetHoverRectangles(page);
+        }
+
+        return _activeRectangles;
+    }
+
+    internal override bool RenderAppearanceStream(
+        IPdfCommandProcessor processor,
+        IPdfPageInternal page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
+    {
+        bool rendered = base.RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer);
+
+        if (rendered
+            && visualStateKind == PdfAnnotationVisualStateKind.Down
+            && Appearance != null
+            && (Appearance.SupportedStates & PdfAnnotationVisualStateKind.Down) == 0)
+        {
+            PdfRectangle[] areas = _activeRectangles ?? [Rectangle];
+            RenderHighlight(processor, areas, BorderStyle?.StrokeStyle ?? new PdfStrokeStyle());
+        }
+
+        return rendered;
+    }
 
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
@@ -102,41 +129,10 @@ public class PdfLinkAnnotation : PdfAnnotation
 
         if (visualStateKind == PdfAnnotationVisualStateKind.Down)
         {
-            switch (HighlightMode)
-            {
-                case PdfLinkHighlightMode.Invert:
-                {
-                    InvertAreas(processor, areas);
-                    break;
-                }
-                case PdfLinkHighlightMode.Outline:
-                {
-                    InvertBorders(processor, areas, strokeStyle);
-                    break;
-                }
-            }
+            RenderHighlight(processor, areas, strokeStyle);
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Returns a string representation of this link annotation.
-    /// </summary>
-    /// <returns>A string containing the annotation type and destination or URI.</returns>
-    public override string ToString()
-    {
-        if (Action is PdfUriAction uriAction && uriAction.Uri != null)
-        {
-            return $"Link Annotation: {uriAction.Uri}";
-        }
-
-        if (Action != null)
-        {
-            return $"Link Annotation: {Action.ActionType} Action";
-        }
-
-        return "Link Annotation";
     }
 
     private void DrawBorder(IPdfCommandProcessor processor, in PdfRectangle area, PdfPaint paint, float borderWidth)
@@ -177,6 +173,28 @@ public class PdfLinkAnnotation : PdfAnnotation
         }
     }
 
+    private void RenderHighlight(IPdfCommandProcessor processor, PdfRectangle[] areas, PdfStrokeStyle strokeStyle)
+    {
+        switch (HighlightMode)
+        {
+            case PdfLinkHighlightMode.Invert:
+            {
+                InvertAreas(processor, areas);
+                break;
+            }
+            case PdfLinkHighlightMode.Outline:
+            {
+                InvertBorders(processor, areas, strokeStyle);
+                break;
+            }
+            case PdfLinkHighlightMode.Push:
+            {
+                PushAreas(processor, areas, strokeStyle.LineWidth);
+                break;
+            }
+        }
+    }
+
     private static void InvertAreas(IPdfCommandProcessor processor, PdfRectangle[] areas)
     {
         PdfPaint paint = PdfAnnotationPaintFactory.CreateInvertFillPaint();
@@ -189,16 +207,29 @@ public class PdfLinkAnnotation : PdfAnnotation
 
     private void InvertBorders(IPdfCommandProcessor processor, PdfRectangle[] areas, PdfStrokeStyle strokeStyle)
     {
-        if (strokeStyle.LineWidth <= 0)
-        {
-            return;
-        }
-
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateInvertStrokePaint(strokeStyle);
+        PdfStrokeStyle outlineStyle = (strokeStyle.LineWidth > 0) ? strokeStyle : new PdfStrokeStyle();
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateInvertStrokePaint(outlineStyle);
 
         foreach (PdfRectangle area in areas)
         {
-            DrawBorder(processor, area, paint, strokeStyle.LineWidth);
+            DrawBorder(processor, area, paint, outlineStyle.LineWidth);
+        }
+    }
+
+    private static void PushAreas(IPdfCommandProcessor processor, PdfRectangle[] areas, float borderWidth)
+    {
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(PdfColors.Black, HighlightLineWidth);
+
+        foreach (PdfRectangle area in areas)
+        {
+            float left = area.Left + borderWidth + (HighlightLineWidth / 2);
+            float top = area.Bottom - borderWidth - (HighlightLineWidth / 2);
+
+            PdfPathBuilder pushPath = new();
+            pushPath.MoveTo(left, area.Top + borderWidth);
+            pushPath.LineTo(left, top);
+            pushPath.LineTo(area.Right - borderWidth, top);
+            processor.Process(new DrawPathCommand(pushPath.ToPath(), paint));
         }
     }
 
@@ -234,5 +265,24 @@ public class PdfLinkAnnotation : PdfAnnotation
         }
 
         return rectangles;
+    }
+
+    /// <summary>
+    /// Returns a string representation of this link annotation.
+    /// </summary>
+    /// <returns>A string containing the annotation type and destination or URI.</returns>
+    public override string ToString()
+    {
+        if (Action is PdfUriAction uriAction && uriAction.Uri != null)
+        {
+            return $"Link Annotation: {uriAction.Uri}";
+        }
+
+        if (Action != null)
+        {
+            return $"Link Annotation: {Action.ActionType} Action";
+        }
+
+        return "Link Annotation";
     }
 }

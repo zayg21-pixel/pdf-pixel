@@ -58,7 +58,7 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets the starting point for bubble placement, using the line's start coordinates.
     /// </summary>
-    protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
+    public override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <inheritdoc/>
     public override bool ShouldDisplayBubble => !HasCaption && base.ShouldDisplayBubble;

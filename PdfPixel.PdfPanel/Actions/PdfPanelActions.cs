@@ -377,7 +377,7 @@ public sealed class PdfPanelActions
         }
         else if (target.Value.Zoom > 0)
         {
-            _context.Scale = target.Value.Zoom.Value;
+            _context.Scale = target.Value.Zoom.Value * _context.ReferenceScale;
         }
 
         _targetPageNumber = targetPage.PageNumber;

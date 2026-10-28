@@ -7,7 +7,8 @@
 % - Only features the library supports. Broken input the library handles is a feature too.
 % - One case per feature. Every annotation has Contents saying what it tests and what is expected.
 %   FreeText and Line captions draw their Contents, so there the drawn text is the description.
-% - No annotation has an appearance stream, except the Invisible control cases on the Visibility page.
+% - No annotation has an appearance stream, except the Invisible control cases on the Flags page and
+%   the H Invert appearance case on the Link page.
 % - Pages are 840 x 840. Grid: 8 x 8 cells of 100 x 100, no gaps, 20 margins.
 %   Cell (column c, row r), row 0 at the top: left = 20 + 100c, top = 820 - 100r.
 %   A case may span several cells; it never leaves its cells.
@@ -36,10 +37,10 @@
 %   18. Border effects
 %   19. Border style
 %   20. Color and opacity
-%   21. Visibility
-% - Not covered until supported: Redact, Widget, NoZoom, NoRotate, ReadOnly, ToggleNoView, Beveled and
+%   21. Flags
+% - Not covered until supported: Redact, Widget, Beveled and
 %   Inset border styles, underline border on FreeText, cloudy PolyLine, FreeText DS and rich text,
-%   link highlight modes, Text State, Measure, StampImage and StampSnapshot appearances (they exist
+%   Text State, Measure, StampImage and StampSnapshot appearances (they exist
 %   only as an appearance stream).
 %   Out of scope: Sound, Movie, Screen, PrinterMark, TrapNet, Watermark, 3D, RichMedia, Projection.
 % - Edit by hand. The xref is a stub with a bogus startxref: readers repair it by scanning the objects,
@@ -1785,7 +1786,7 @@ endobj
 222 0 obj
 << /Type /Annot /Subtype /Square
    /Rect [30 730 110 810]
-   /T (Visibility - Hidden)
+   /T (Flags - Hidden)
    /Contents (Square: F Hidden. Expected: nothing drawn, no hover.)
    /C [0.8 0 0] /IC [1 0.9 0.6] /F 2 >>
 endobj
@@ -1793,7 +1794,7 @@ endobj
 223 0 obj
 << /Type /Annot /Subtype /Square
    /Rect [130 730 210 810]
-   /T (Visibility - NoView)
+   /T (Flags - NoView)
    /Contents (Square: F NoView. Expected: nothing drawn, no hover.)
    /C [0.8 0 0] /IC [1 0.9 0.6] /F 32 >>
 endobj
@@ -1801,15 +1802,15 @@ endobj
 224 0 obj
 << /Type /Annot /Subtype /Foo
    /Rect [230 730 310 810]
-   /T (Visibility - Invisible)
-   /Contents (Foo: Unknown subtype /Foo with an appearance stream, F Invisible. Expected: nothing drawn.)
+   /T (Flags - Invisible)
+   /Contents (Foo: Unknown subtype /Foo with an appearance stream, F Invisible. Expected: nothing drawn, no hover.)
    /F 1 /AP << /N 221 0 R >> >>
 endobj
 
 225 0 obj
 << /Type /Annot /Subtype /Foo
    /Rect [330 730 410 810]
-   /T (Visibility - Not invisible)
+   /T (Flags - Not invisible)
    /Contents (Foo: Unknown subtype /Foo with an appearance stream, no flags. Control case. Expected: red square.)
    /AP << /N 221 0 R >> >>
 endobj
@@ -1817,7 +1818,7 @@ endobj
 226 0 obj
 << /Type /Annot /Subtype /Square
    /Rect [430 730 510 810]
-   /T (Visibility - Print)
+   /T (Flags - Print)
    /Contents (Square: F Print only. Expected: drawn as usual.)
    /C [0.8 0 0] /IC [1 0.9 0.6] /F 4 >>
 endobj
@@ -1825,7 +1826,7 @@ endobj
 227 0 obj
 << /Type /Annot /Subtype /Square
    /Rect [530 730 610 810]
-   /T (Visibility - OC off)
+   /T (Flags - OC off)
    /Contents (Square: OC is a layer that starts off. Expected: nothing drawn until the layer is turned on.)
    /C [0.8 0 0] /IC [1 0.9 0.6] /OC 6 0 R >>
 endobj
@@ -1833,7 +1834,7 @@ endobj
 228 0 obj
 << /Type /Annot /Subtype /Popup
    /Rect [730 730 810 810]
-   /T (Visibility - Popup)
+   /T (Flags - Popup)
    /Contents (Popup: belongs to the Popup bubble case. Expected: nothing drawn for the Popup itself.)
    /Parent 229 0 R >>
 endobj
@@ -1841,7 +1842,7 @@ endobj
 229 0 obj
 << /Type /Annot /Subtype /Square
    /Rect [650 750 690 790]
-   /T (Visibility - Popup bubble)
+   /T (Flags - Popup bubble)
    /Contents (Square: Markup with a Popup and Contents. Expected: the square and a speech bubble at its corner.)
    /C [0.8 0 0] /IC [1 0.9 0.6] /Popup 228 0 R >>
 endobj
@@ -3145,7 +3146,8 @@ endobj
 << /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
    /Resources << /Font << /F1 1 0 R >> >>
    /Contents 261 0 R
-   /Annots [171 0 R 172 0 R 173 0 R 174 0 R 175 0 R 176 0 R 177 0 R 178 0 R 179 0 R 180 0 R 181 0 R 182 0 R 183 0 R 184 0 R 185 0 R 186 0 R] >>
+   /Annots [171 0 R 172 0 R 173 0 R 174 0 R 175 0 R 176 0 R 177 0 R 178 0 R 179 0 R 180 0 R 181 0 R 182 0 R 183 0 R 184 0 R 185 0 R 186 0 R
+             294 0 R 295 0 R 296 0 R 297 0 R] >>
 endobj
 
 263 0 obj
@@ -3541,7 +3543,10 @@ endobj
 << /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
    /Resources << /Font << /F1 1 0 R >> >>
    /Contents 271 0 R
-   /Annots [222 0 R 223 0 R 224 0 R 225 0 R 226 0 R 227 0 R 229 0 R 228 0 R] >>
+   /Annots [222 0 R 223 0 R 224 0 R 225 0 R 226 0 R 227 0 R 229 0 R 228 0 R
+             274 0 R 275 0 R 276 0 R 277 0 R 278 0 R 279 0 R 280 0 R 281 0 R
+             282 0 R 283 0 R 284 0 R 285 0 R 286 0 R 287 0 R 288 0 R 289 0 R 290 0 R
+             291 0 R 292 0 R 293 0 R] >>
 endobj
 
 273 0 obj
@@ -3549,11 +3554,210 @@ endobj
    /OCProperties << /OCGs [6 0 R] /D << /OFF [6 0 R] /Order [6 0 R] >> >> >>
 endobj
 
+274 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [30 630 110 710]
+   /T (Flags - Invisible standard type)
+   /Contents (Square: F Invisible on a standard type. Expected: drawn as usual, Invisible applies only to unknown types.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 1 >>
+endobj
+
+275 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [135 650 205 690]
+   /T (Flags - NoView link)
+   /Contents (Link: F NoView, URI action. Expected: nothing drawn, no hand cursor, nothing happens on click.)
+   /A << /S /URI /URI (https://example.com/) >> /C [0 0 1] /F 32 >>
+endobj
+
+276 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [230 630 310 710]
+   /T (Flags - Locked)
+   /Contents (Square: F Locked. Expected: drawn and hovered as usual.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 128 >>
+endobj
+
+277 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [330 630 410 710]
+   /T (Flags - LockedContents)
+   /Contents (Square: F LockedContents. Expected: drawn and hovered as usual.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 512 >>
+endobj
+
+278 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [30 530 110 610]
+   /T (Flags - ReadOnly)
+   /Contents (Square: F ReadOnly. Expected: drawn as usual, no hover, no popup.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 64 >>
+endobj
+
+279 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [135 550 205 590]
+   /T (Flags - ReadOnly link)
+   /Contents (Link: F ReadOnly, URI action. Expected: blue border, no hand cursor, nothing happens on click.)
+   /A << /S /URI /URI (https://example.com/) >> /C [0 0 1] /F 64 >>
+endobj
+
+280 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [235 550 305 590]
+   /T (Flags - ReadOnly H Invert)
+   /Contents (Link: F ReadOnly, H /I. Expected: blue border, no change while pressed.)
+   /C [0 0 1] /H /I /F 64 >>
+endobj
+
+281 0 obj
+<< /Type /Annot /Subtype /Text
+   /Rect [354 554 386 586]
+   /T (Flags - ReadOnly Text)
+   /Contents (Text: F ReadOnly. Expected: black Note icon outline, a click opens no popup.)
+   /F 64 >>
+endobj
+
+282 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [30 430 110 510]
+   /T (Flags - NoView)
+   /Contents (Square: F NoView. Expected: nothing drawn, no hover, also with the pointer over the Rect.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 32 >>
+endobj
+
+283 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [130 430 210 510]
+   /T (Flags - ToggleNoView)
+   /Contents (Square: F ToggleNoView without NoView. Expected: drawn, disappears while the pointer is over the Rect, its popup still shows.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 256 >>
+endobj
+
+284 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [230 430 310 510]
+   /T (Flags - NoView ToggleNoView)
+   /Contents (Square: F NoView and ToggleNoView. Expected: nothing drawn until the pointer is over the Rect, then drawn and hovered.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 288 >>
+endobj
+
+285 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [30 330 110 410]
+   /T (Flags - NoZoom)
+   /Contents (Square: F NoZoom. Expected: the same size on screen at every zoom, top-left corner fixed. Zoomed out to 50% it fills the 2 x 2 cells.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 8 >>
+endobj
+
+286 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [325 225 415 315]
+   /T (Flags - NoRotate)
+   /Contents (FreeText: NoRotate. Expected: upright at every page rotation, turning around its top-left corner.)
+   /DA (/Helv 9 Tf 0 g) /F 16 >>
+endobj
+
+287 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [525 225 615 315]
+   /T (Flags - NoZoom NoRotate)
+   /Contents (FreeText: NoZoom and NoRotate. Expected: same screen size and upright, top-left corner fixed.)
+   /DA (/Helv 9 Tf 0 g) /F 24 >>
+endobj
+
+288 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [720 220 820 320]
+   /T (Flags - NoRotate Line)
+   /Contents (Line: F NoRotate, Rect is the whole cell, arrow pointing right. Expected: the arrow keeps pointing right at every page rotation, turning around the top-left corner of the Rect.)
+   /L [735 270 805 270] /LE [/None /OpenArrow] /C [0.8 0 0] /BS << /W 3 >> /F 16 >>
+endobj
+
+289 0 obj
+<< /Type /Annot /Subtype /Text
+   /Rect [154 54 186 86]
+   /T (Flags - Text no flags)
+   /Contents (Text: no flags. Expected: as with NoZoom and NoRotate, the Note icon keeps its screen size and stays upright, top-left corner fixed.)
+   >>
+endobj
+
+290 0 obj
+<< /Type /Annot /Subtype /FileAttachment
+   /Rect [355 55 385 85]
+   /T (Flags - FileAttachment no flags)
+   /Contents (FileAttachment: no flags. Expected: the push pin zooms and rotates with the page; only Text is always NoZoom and NoRotate.)
+   /FS << /Type /Filespec /F (attached.txt) /UF (attached.txt) /EF << /F 5 0 R >> >> /C [1 1 0] >>
+endobj
+
+291 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [70 230 110 270]
+   /T (Flags - NoRotate Square)
+   /Contents (Square: F NoRotate, top-left corner at the cell center. Expected: upright at every page rotation, turning around its top-left corner.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 16 >>
+endobj
+
+292 0 obj
+<< /Type /Annot /Subtype /Text
+   /Rect [170 238 202 270]
+   /T (Flags - NoRotate Text)
+   /Contents (Text: no flags, top-left corner at the cell center. Expected: as with NoRotate, the Note icon stays upright at every page rotation, turning around its top-left corner.)
+   >>
+endobj
+
+293 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [270 230 310 270]
+   /T (Flags - NoZoom NoRotate Square)
+   /Contents (Square: F NoZoom and NoRotate, top-left corner at the cell center. Expected: the same size on screen and upright at every zoom and page rotation, around its top-left corner.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /F 24 >>
+endobj
+
+294 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [35 450 105 490]
+   /T (Link - H Push)
+   /Contents (Link: H /P, C blue. Expected: while pressed, black lines along the top and left inside the blue border.)
+   /C [0 0 1] /H /P >>
+endobj
+
+295 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [135 450 205 490]
+   /T (Link - H Push no border)
+   /Contents (Link: H /P, Border [0 0 0]. Expected: while pressed, black lines along the top and left edges.)
+   /C [0 0 1] /Border [0 0 0] /H /P >>
+endobj
+
+296 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [235 450 305 490]
+   /T (Link - H Outline no border)
+   /Contents (Link: H /O, Border [0 0 0]. Expected: while pressed, an inverted outline of width 1.)
+   /C [0 0 1] /Border [0 0 0] /H /O >>
+endobj
+
+297 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [330 450 410 490]
+   /T (Link - H Invert appearance)
+   /Contents (Link: H /I, appearance stream with a Normal state only, a blue rectangle. Expected: the blue rectangle inverted while pressed.)
+   /C [0 0 1] /H /I /AP << /N 298 0 R >> >>
+endobj
+
+298 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 80 40] /Length 23 >>
+stream
+0 0 1 rg 0 0 80 40 re f
+endstream
+endobj
+
 xref
 0 1
 0000000000 65535 f 
 trailer
-<< /Size 274 /Root 273 0 R >>
+<< /Size 299 /Root 273 0 R >>
 startxref
 0
 %%EOF

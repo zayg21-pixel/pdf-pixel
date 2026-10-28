@@ -40,7 +40,7 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets the starting point for bubble placement, using the first point of the ink.
     /// </summary>
-    protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
+    public override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <summary>
     /// Gets the declared rectangle, or the stroked bounds of the ink when there is no appearance stream

@@ -32,6 +32,9 @@ public class PdfSquareAnnotation : PdfShapeAnnotation
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
 
+    /// <inheritdoc/>
+    public override PdfPoint ContentStart => new(ContentRectangle.Left, ContentRectangle.Bottom);
+
     /// <inheritdoc />
     internal override PdfPath? CreateShapePath(float lineWidth)
         => PdfAnnotationGeometry.CreateRectanglePath(ContentRectangle.Inflate(-lineWidth / 2f), BorderStyle);

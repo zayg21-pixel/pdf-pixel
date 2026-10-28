@@ -531,7 +531,8 @@ internal static partial class PdfPanelInterop
 
             resources.Context.VerticalOffset = state.VerticalOffset;
             resources.Context.HorizontalOffset = state.HorizontalOffset;
-            resources.Context.Scale = state.Scale;
+            resources.Context.ReferenceScale = PdfPanelContext.DefaultReferenceScale * state.DevicePixelScale;
+            resources.Context.Scale = state.Scale * resources.Context.ReferenceScale;
             resources.Context.AutoScaleMode = RedrawDtoConverter.ReadAutoScaleMode(state.AutoScaleMode) ?? PdfPanelAutoScaleMode.NoAutoScale;
             resources.Context.PanelWidth = state.PanelWidth;
             resources.Context.PanelHeight = state.PanelHeight;
@@ -587,7 +588,7 @@ internal static partial class PdfPanelInterop
 
         if (zoomRequest.Scale != null)
         {
-            context.Zoom(zoomRequest.Scale.Value, zoomRequest.CenterX, zoomRequest.CenterY);
+            context.Zoom(zoomRequest.Scale.Value * context.ReferenceScale, zoomRequest.CenterX, zoomRequest.CenterY);
         }
         else if (zoomRequest.Step > 0)
         {

@@ -88,6 +88,9 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
 
+    /// <inheritdoc/>
+    public override PdfPoint ContentStart => new(ContentRectangle.Left, ContentRectangle.Bottom);
+
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,

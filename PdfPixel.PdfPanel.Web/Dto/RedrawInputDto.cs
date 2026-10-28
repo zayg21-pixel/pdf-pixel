@@ -9,6 +9,8 @@ internal sealed class RedrawInputDto
 
     public int PanelHeight { get; set; }
 
+    public float DevicePixelScale { get; set; }
+
     public float VerticalOffset { get; set; }
 
     public float HorizontalOffset { get; set; }

@@ -50,7 +50,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     /// <summary>
     /// Gets the starting point for bubble placement, using the first point of the polyline.
     /// </summary>
-    protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
+    public override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <summary>
     /// Gets the declared rectangle, or the stroked bounds of the polyline when there is no appearance stream

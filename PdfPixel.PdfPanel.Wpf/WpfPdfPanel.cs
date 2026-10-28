@@ -13,7 +13,6 @@ using SkiaSharp;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -86,6 +85,11 @@ public partial class WpfPdfPanel : FrameworkElement
     /// Scale from host coordinates to device pixels.
     /// </summary>
     internal Point HostScale { get; private set; }
+
+    /// <summary>
+    /// Scale at which the pages are displayed at a zoom of 100% on the current display.
+    /// </summary>
+    private float ReferenceScale => PdfPanelContext.DefaultReferenceScale * (float)HostScale.X;
 
     /// <summary>
     /// Position of the panel relative to the root visual, in host coordinates.
@@ -227,6 +231,8 @@ public partial class WpfPdfPanel : FrameworkElement
         ClearSearchResults();
 
         _context = new PdfPanelContext(Document, _surfaceFactory, _renderTargetFactory);
+        _context.ReferenceScale = ReferenceScale;
+        _context.Scale = (float)Scale * _context.ReferenceScale;
         _context.AutoScaleMode = AutoScaleMode;
         _context.Actions.ActionRequested += OnActionRequested;
         _context.Search.MatchesChanged += OnSearchMatchesChanged;
@@ -318,6 +324,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
         _context.PanelWidth = (float)PanelSize.Width;
         _context.PanelHeight = (float)PanelSize.Height;
+        _context.ReferenceScale = ReferenceScale;
         _context.Layout = Layout;
         (Configuration ?? PdfPanelConfiguration.Default).ApplyConfiguration(_context);
         _context.Search.Query = SearchQuery;
@@ -346,7 +353,7 @@ public partial class WpfPdfPanel : FrameworkElement
         ViewportHeight = _context.PanelHeight;
 
         _updatingScale = true;
-        Scale = _context.Scale;
+        Scale = _context.Scale / _context.ReferenceScale;
         AutoScaleMode = _context.AutoScaleMode;
         _updatingScale = false;
 

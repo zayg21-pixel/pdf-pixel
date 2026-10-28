@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
+using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.Text;
@@ -145,11 +146,17 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
 
     /// <summary>
     /// Returns <see langword="true"/> when the cached annotation recording must be regenerated for <paramref name="request"/>:
-    /// no recording is cached yet, no request was recorded, the active annotation or its state changed, or the
-    /// request forces an annotation update.
+    /// no recording is cached yet, no request was recorded, the active annotation or its state changed, the scale or
+    /// reference scale changed on a page with annotations that keep their size on screen, the page rotation changed on a
+    /// page with annotations that stay upright, or the request forces an annotation update.
     /// </summary>
-    public bool NeedsAnnotationRecordingUpdate(PagesDrawingRequest request)
+    public bool NeedsAnnotationRecordingUpdate(PdfPanelPage page, PagesDrawingRequest request)
     {
+        if (page == null)
+        {
+            throw new ArgumentNullException(nameof(page));
+        }
+
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));
@@ -159,6 +166,10 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
             || LastRequest == null
             || LastRequest.ActiveAnnotation != request.ActiveAnnotation
             || LastRequest.ActiveAnnotationState != request.ActiveAnnotationState
+            || ((LastRequest.Scale != request.Scale || LastRequest.ReferenceScale != request.ReferenceScale)
+                && page.PdfPage.GetAnnotations().Any(x => x.Content.IsNoZoom()))
+            || (LastRequest.GetPage(page.PageNumber).Rotation != request.GetPage(page.PageNumber).Rotation
+                && page.PdfPage.GetAnnotations().Any(x => x.Content.IsNoRotate()))
             || request.ForceAnnotationUpdate;
     }
 

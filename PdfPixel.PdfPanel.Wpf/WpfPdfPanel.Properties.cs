@@ -256,7 +256,7 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets or sets the scale.
+    /// Gets or sets the zoom factor of the pages, 1 being 100%.
     /// </summary>
     public double Scale
     {

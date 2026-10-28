@@ -21,6 +21,11 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public sealed class PdfPanelContext : IDisposable
 {
+    /// <summary>
+    /// Default <see cref="ReferenceScale"/>: one inch of the page is 96 device pixels at a zoom of 100%.
+    /// </summary>
+    public const float DefaultReferenceScale = 96f / 72f;
+
     internal const float DefaultMinScale = 0.1f;
     internal const float DefaultMaxScale = 10f;
     internal const float DefaultZoomStep = 0.1f;
@@ -50,7 +55,7 @@ public sealed class PdfPanelContext : IDisposable
         _graphics = new PdfPanelGraphics(document);
 
         Input = new PdfPanelInput();
-        Annotations = new PdfPanelAnnotations(document, Input);
+        Annotations = new PdfPanelAnnotations(this, document, Input);
         Text = new PdfPanelText(Document, Input, _graphics);
         Search = new PdfPanelSearch(this, Text, Document, _graphics);
         Content = new PdfPanelContent(Document, Input, _graphics);
@@ -126,6 +131,11 @@ public sealed class PdfPanelContext : IDisposable
     /// Extent and offset values are expressed in the scaled space.
     /// </summary>
     public float Scale { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Scale at which the pages are displayed at a zoom of 100%.
+    /// </summary>
+    public float ReferenceScale { get; set; } = DefaultReferenceScale;
 
     /// <summary>
     /// Automatic scaling mode applied to <see cref="Scale"/> by <see cref="Synchronize"/>.
@@ -344,6 +354,7 @@ public sealed class PdfPanelContext : IDisposable
         return new()
         {
             Scale = Scale,
+            ReferenceScale = ReferenceScale,
             ActiveAnnotation = Annotations.ActiveAnnotation,
             ActiveAnnotationState = Annotations.ActiveAnnotationState,
             Offset = new PdfPoint(HorizontalOffset, VerticalOffset),
