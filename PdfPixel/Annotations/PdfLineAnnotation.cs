@@ -60,6 +60,9 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     protected override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
+    /// <inheritdoc/>
+    public override bool ShouldDisplayBubble => !HasCaption && base.ShouldDisplayBubble;
+
     /// <summary>
     /// Gets the declared rectangle, or the stroked bounds of the line and its leader lines when there is
     /// no appearance stream and the declared rectangle does not overlap them.
@@ -203,7 +206,7 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
                 LeaderLineExtension ?? 0f);
         }
 
-        PdfColor lineColor = ResolveColor(page, PdfColors.Black);
+        PdfColor lineColor = ResolveColor(page);
 
         PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 

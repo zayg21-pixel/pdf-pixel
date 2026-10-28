@@ -110,6 +110,13 @@ internal static class PdfAnnotationGraphics
         float offsetY = rect.Top + ((rect.Height - (icon.Height * scale)) / 2f);
 
         processor.Process(SaveStateCommand.Instance);
+
+        bool useOpacityLayer = icon.Opacity < 1f;
+        if (useOpacityLayer)
+        {
+            processor.Process(new SaveLayerCommand(rect, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(icon.Opacity)));
+        }
+
         processor.Process(new ConcatMatrixCommand(
             PdfMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY)));
         processor.Process(new ConcatMatrixCommand(icon.ViewportMatrix));
@@ -117,6 +124,11 @@ internal static class PdfAnnotationGraphics
         foreach (PdfAnnotationIconPath iconPath in icon.Paths)
         {
             RenderIconPath(processor, iconPath, color, interiorColor);
+        }
+
+        if (useOpacityLayer)
+        {
+            processor.Process(RestoreLayerCommand.Instance);
         }
 
         processor.Process(RestoreStateCommand.Instance);

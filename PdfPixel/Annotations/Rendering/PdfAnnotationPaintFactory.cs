@@ -24,7 +24,17 @@ internal static class PdfAnnotationPaintFactory
     /// blend from the page it has to darken.
     /// </summary>
     public static PdfPaint CreateHighlightPaint(in PdfColor color, float opacity)
-        => new PdfPaint(PdfPaintStyle.Fill).WithColor(color).WithBlendMode(PdfBlendMode.Multiply).WithAlpha(opacity);
+        => new PdfPaint(PdfPaintStyle.Fill).WithColor(color.WithAlpha(color.Alpha * opacity)).WithBlendMode(PdfBlendMode.Multiply);
+
+    /// <summary>
+    /// Fill paint that inverts the colors beneath it.
+    /// </summary>
+    public static PdfPaint CreateInvertFillPaint() => new PdfPaint(PdfPaintStyle.Fill).WithColor(PdfColors.White).WithBlendMode(PdfBlendMode.Difference);
+
+    /// <summary>
+    /// Stroke paint of <paramref name="strokeStyle"/> that inverts the colors beneath it.
+    /// </summary>
+    public static PdfPaint CreateInvertStrokePaint(PdfStrokeStyle strokeStyle) => new PdfPaint(strokeStyle).WithColor(PdfColors.White).WithBlendMode(PdfBlendMode.Difference);
 
     /// <summary>
     /// Plain fill paint.

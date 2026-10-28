@@ -36,7 +36,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page, PdfColors.Black);
+        PdfColor color = ResolveColor(page);
 
         foreach (PdfPoint[] quad in quads)
         {

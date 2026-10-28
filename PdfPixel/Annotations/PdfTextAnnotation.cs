@@ -82,9 +82,7 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-        PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, borderColor, backgroundColor);
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, PdfColors.Black, ResolveColor(page));
         return true;
     }
 

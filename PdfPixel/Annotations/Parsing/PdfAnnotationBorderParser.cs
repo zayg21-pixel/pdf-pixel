@@ -35,7 +35,7 @@ internal static class PdfAnnotationBorderParser
             }
 
             PdfStrokeStyle strokeStyle = new(lineWidth: width, dashPattern: dashPattern);
-            return new PdfAnnotationBorderStyle(style, strokeStyle);
+            return new PdfAnnotationBorderStyle(style, strokeStyle, 0f, 0f);
         }
 
         if (borderArray?.Count >= 3)
@@ -56,7 +56,7 @@ internal static class PdfAnnotationBorderParser
             }
 
             PdfStrokeStyle strokeStyle = new(lineWidth: width, dashPattern: dashPattern);
-            return new PdfAnnotationBorderStyle(style, strokeStyle);
+            return new PdfAnnotationBorderStyle(style, strokeStyle, borderArray.GetFloatOrDefault(0), borderArray.GetFloatOrDefault(1));
         }
 
         return null;

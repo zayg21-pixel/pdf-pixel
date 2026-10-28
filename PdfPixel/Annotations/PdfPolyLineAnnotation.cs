@@ -127,7 +127,7 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
 
         PdfPathEnds ends = pathEnds.Value;
 
-        PdfColor lineColor = ResolveColor(page, PdfColors.Black);
+        PdfColor lineColor = ResolveColor(page);
 
         PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 

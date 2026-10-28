@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Parsing;
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
@@ -33,14 +34,7 @@ public class PdfSquareAnnotation : PdfShapeAnnotation
 
     /// <inheritdoc />
     internal override PdfPath? CreateShapePath(float lineWidth)
-    {
-        float inset = (lineWidth / 2f) + ((RectangleDifferences == null) ? BorderEffect.GetOutset(lineWidth) : 0f);
-
-        PdfPathBuilder shapePath = new();
-        shapePath.AddRect(ContentRectangle.Inflate(-inset));
-
-        return shapePath.ToPath();
-    }
+        => PdfAnnotationGeometry.CreateRectanglePath(ContentRectangle.Inflate(-lineWidth / 2f), BorderStyle);
 
     /// <summary>
     /// Returns a string representation of this square annotation.

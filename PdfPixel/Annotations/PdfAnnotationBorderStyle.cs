@@ -10,10 +10,16 @@ public sealed class PdfAnnotationBorderStyle
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfAnnotationBorderStyle"/> class.
     /// </summary>
-    public PdfAnnotationBorderStyle(PdfAnnotationBorderStyleType styleType, PdfStrokeStyle strokeStyle)
+    public PdfAnnotationBorderStyle(
+        PdfAnnotationBorderStyleType styleType,
+        PdfStrokeStyle strokeStyle,
+        float horizontalCornerRadius,
+        float verticalCornerRadius)
     {
         StyleType = styleType;
         StrokeStyle = strokeStyle;
+        HorizontalCornerRadius = horizontalCornerRadius;
+        VerticalCornerRadius = verticalCornerRadius;
     }
 
     /// <summary>
@@ -25,4 +31,14 @@ public sealed class PdfAnnotationBorderStyle
     /// Gets the stroke style (width, dash pattern) used to render this border.
     /// </summary>
     public PdfStrokeStyle StrokeStyle { get; }
+
+    /// <summary>
+    /// Gets the horizontal radius of the border's rounded corners, 0 for square corners.
+    /// </summary>
+    public float HorizontalCornerRadius { get; }
+
+    /// <summary>
+    /// Gets the vertical radius of the border's rounded corners, 0 for square corners.
+    /// </summary>
+    public float VerticalCornerRadius { get; }
 }

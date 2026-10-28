@@ -88,26 +88,32 @@ public class PdfLinkAnnotation : PdfAnnotation
         IPdfExecutionObserver observer)
     {
         PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
+        PdfRectangle[] areas = _activeRectangles ?? [Rectangle];
 
-        if (strokeStyle.LineWidth <= 0 || Color?.Length == 0)
+        if (strokeStyle.LineWidth > 0 && Color?.Length != 0)
         {
-            return false;
-        }
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(ResolveColor(page), strokeStyle);
 
-        PdfColor color = ResolveColor(page, PdfColors.Black);
-        float borderWidth = strokeStyle.LineWidth;
-
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, strokeStyle);
-
-        if (_activeRectangles == null)
-        {
-            DrawBorder(processor, Rectangle, paint, borderWidth);
-        }
-        else
-        {
-            foreach (PdfRectangle activeRectangle in _activeRectangles)
+            foreach (PdfRectangle area in areas)
             {
-                DrawBorder(processor, activeRectangle, paint, borderWidth);
+                DrawBorder(processor, area, paint, strokeStyle.LineWidth);
+            }
+        }
+
+        if (visualStateKind == PdfAnnotationVisualStateKind.Down)
+        {
+            switch (HighlightMode)
+            {
+                case PdfLinkHighlightMode.Invert:
+                {
+                    InvertAreas(processor, areas);
+                    break;
+                }
+                case PdfLinkHighlightMode.Outline:
+                {
+                    InvertBorders(processor, areas, strokeStyle);
+                    break;
+                }
             }
         }
 
@@ -162,14 +168,37 @@ public class PdfLinkAnnotation : PdfAnnotation
                 area.Right - (borderWidth / 2),
                 area.Bottom - (borderWidth / 2));
 
-            PdfPathBuilder rectPath = new();
-            rectPath.AddRect(rect);
-            processor.Process(new DrawPathCommand(rectPath.ToPath(), paint));
+            processor.Process(new DrawPathCommand(PdfAnnotationGeometry.CreateRectanglePath(rect, BorderStyle), paint));
         }
 
         if (confineToRectangle)
         {
             processor.Process(RestoreStateCommand.Instance);
+        }
+    }
+
+    private static void InvertAreas(IPdfCommandProcessor processor, PdfRectangle[] areas)
+    {
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateInvertFillPaint();
+
+        foreach (PdfRectangle area in areas)
+        {
+            processor.Process(new DrawPathCommand(PdfAnnotationGeometry.CreateRectanglePath(area, null), paint));
+        }
+    }
+
+    private void InvertBorders(IPdfCommandProcessor processor, PdfRectangle[] areas, PdfStrokeStyle strokeStyle)
+    {
+        if (strokeStyle.LineWidth <= 0)
+        {
+            return;
+        }
+
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateInvertStrokePaint(strokeStyle);
+
+        foreach (PdfRectangle area in areas)
+        {
+            DrawBorder(processor, area, paint, strokeStyle.LineWidth);
         }
     }
 

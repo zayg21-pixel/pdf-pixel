@@ -39,6 +39,7 @@ internal static class PdfAnnotationIconParser
         float height = ParseFloat(reader, "height");
         string stateValue = reader.GetAttribute("state") ?? "Normal";
         PdfAnnotationVisualStateKind visualState = ParseVisualState(stateValue);
+        float opacity = ParseFloatValue(reader.GetAttribute("opacity") ?? "1");
 
         PdfMatrix viewportMatrix;
         string? viewBoxValue = reader.GetAttribute("viewBox");
@@ -58,7 +59,7 @@ internal static class PdfAnnotationIconParser
             while (reader.ReadToNextSibling("path"));
         }
 
-        return new PdfAnnotationIconDefinition(name, width, height, visualState, viewportMatrix, paths.ToArray());
+        return new PdfAnnotationIconDefinition(name, width, height, visualState, viewportMatrix, opacity, paths.ToArray());
     }
 
     private static PdfAnnotationVisualStateKind ParseVisualState(string value)

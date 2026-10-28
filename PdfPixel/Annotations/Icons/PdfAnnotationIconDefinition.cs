@@ -17,6 +17,7 @@ internal sealed class PdfAnnotationIconDefinition
         float height,
         PdfAnnotationVisualStateKind visualState,
         in PdfMatrix viewportMatrix,
+        float opacity,
         PdfAnnotationIconPath[] paths)
     {
         Name = name;
@@ -24,6 +25,7 @@ internal sealed class PdfAnnotationIconDefinition
         Height = height;
         VisualState = visualState;
         ViewportMatrix = viewportMatrix;
+        Opacity = opacity;
         Paths = paths;
     }
 
@@ -52,6 +54,11 @@ internal sealed class PdfAnnotationIconDefinition
     /// Derived from the <c>viewBox</c> attribute; <see cref="PdfMatrix.Identity"/> when absent.
     /// </summary>
     public PdfMatrix ViewportMatrix { get; }
+
+    /// <summary>
+    /// Gets the opacity the whole icon is drawn with, in the range [0, 1].
+    /// </summary>
+    public float Opacity { get; }
 
     /// <summary>
     /// Gets the ordered list of paths that make up the icon.

@@ -44,6 +44,9 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         RawStampName = (StampName == PdfStampName.Raw) ? stampName : null;
     }
 
+    /// <inheritdoc/>
+    public override bool ShouldDisplayBubble => false;
+
     /// <summary>
     /// Gets the standard stamp name identifying the stamp type (e.g. Draft, Approved).
     /// Default <see cref="PdfStampName.Draft"/>.
@@ -63,8 +66,7 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        bool isRubberStamp = Intent == PdfAnnotationIntent.None || Intent == PdfAnnotationIntent.Stamp;
-        string? labelText = isRubberStamp ? GetLabelText() : null;
+        string? labelText = GetLabelText();
 
         if (labelText == null)
         {

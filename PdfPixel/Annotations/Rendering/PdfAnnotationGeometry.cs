@@ -56,6 +56,26 @@ internal static class PdfAnnotationGeometry
     }
 
     /// <summary>
+    /// Creates a closed path around <paramref name="rectangle"/>, with the rounded corners of
+    /// <paramref name="borderStyle"/> when both of its corner radii are positive.
+    /// </summary>
+    public static PdfPath CreateRectanglePath(in PdfRectangle rectangle, PdfAnnotationBorderStyle? borderStyle)
+    {
+        PdfPathBuilder builder = new();
+
+        if (borderStyle != null && borderStyle.HorizontalCornerRadius > 0f && borderStyle.VerticalCornerRadius > 0f)
+        {
+            builder.AddRoundRect(rectangle, borderStyle.HorizontalCornerRadius, borderStyle.VerticalCornerRadius);
+        }
+        else
+        {
+            builder.AddRect(rectangle);
+        }
+
+        return builder.ToPath();
+    }
+
+    /// <summary>
     /// Returns <paramref name="path"/> with its last subpath closed.
     /// </summary>
     public static PdfPath ClosePath(PdfPath path)

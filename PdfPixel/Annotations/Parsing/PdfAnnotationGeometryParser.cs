@@ -56,6 +56,12 @@ internal static class PdfAnnotationGeometryParser
         for (int index = 0; index < quadCount; index++)
         {
             int offset = index * 8;
+
+            // Deliberate deviation from the spec. ISO 32000-2 (Tables 176 and 182) lists each quadrilateral's
+            // corners counterclockwise, starting with the bottom edge. Acrobat, and with it nearly every PDF
+            // writer, stores them as top-left, top-right, bottom-left, bottom-right instead. Following the spec
+            // would put underlines and strikeouts on the wrong edge in almost every real file, so the points are
+            // read in the order writers actually use: the first two points below form the bottom edge.
             quads[index] =
             [
                 new PdfPoint(quadPoints[offset + 6], quadPoints[offset + 7]),

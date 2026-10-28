@@ -95,7 +95,7 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfColor inkColor = ResolveColor(page, PdfColors.Black);
+        PdfColor inkColor = ResolveColor(page);
         PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
 
         processor.Process(new DrawPathCommand(DrawingPath, paint));

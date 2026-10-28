@@ -4,7 +4,7 @@ Widget annotations and form fields, one control type at a time, drawn with the d
 
 Scope: widget annotations. Redaction annotations are out of scope. Full rich text is out of scope.
 
-Test file: `PdfPixel.Tests/AnnotationFallbackTest.pdf` (page 4 holds the FreeText cases).
+Test file: `PdfPixel.Tests/AnnotationFallbackTest.pdf` (page 2 holds the FreeText cases).
 
 Acrobat is the reference for anything the spec leaves to the implementation. PDF.js barely supports DA and is not a reference here.
 

@@ -28,6 +28,9 @@ public class PdfCaretAnnotation : PdfMarkupAnnotation
         MarkRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
     }
 
+    /// <inheritdoc/>
+    public override bool ShouldDisplayBubble => false;
+
     /// <summary>
     /// Gets the symbol associated with this caret annotation.
     /// </summary>
@@ -58,8 +61,8 @@ public class PdfCaretAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page, PdfColors.DarkBlue);
-        PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle, color, null);
+        PdfColor color = ResolveColor(page);
+        PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle, color, color);
         return true;
     }
 }

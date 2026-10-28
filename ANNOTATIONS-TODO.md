@@ -63,7 +63,19 @@ Files: `PdfPixel.PdfPanel/Caching/PdfDocumentContentExtensions.cs`, `PdfPixel.Pd
 5. Pivot rectangle: `Rectangle` is overridden by computed bounds for fallback-rendered Line, PolyLine, Polygon, Ink and text markup, and by the default bubble size for a zero-size Text annotation. Which rectangle does Acrobat pivot on in those cases?
 6. Gold, Cli and Diagnostics: confirm they render at the reference scale and without page rotation, so skipping NoZoom/NoRotate there still matches Acrobat.
 
-## 2. Redaction annotation (view only)
+## 2. Link Push highlight mode
+
+A pressed Link draws its highlight mode (`H`, ISO 32000-2 Table 176) in the Down state: None, Invert and Outline are done. Push ("display the annotation as if it were being pushed below the surface of the page") draws nothing yet: the spec gives no look, and the fallback cannot offset the page content beneath the link.
+
+Files: `PdfPixel/Annotations/PdfLinkAnnotation.cs`
+
+### Open questions (verify in Acrobat)
+
+1. What a pressed Push link looks like, with and without a border.
+2. Outline on a link without a border (`Border [0 0 0]`): does Acrobat draw anything?
+3. A link with an appearance stream but no Down appearance: does Acrobat apply `H` on top of the Normal appearance?
+
+## 3. Redaction annotation (view only)
 
 `Redact` falls through to `PdfGenericAnnotation`. Add a `PdfRedactAnnotation` that models every entry of ISO 32000-2 Table 195 and renders the marked region. Applying redactions (removing content) is out of scope.
 

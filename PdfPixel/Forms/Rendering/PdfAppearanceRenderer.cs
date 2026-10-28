@@ -79,7 +79,7 @@ internal static class PdfAppearanceRenderer
         in PdfAnnotationBorderEffect borderEffect,
         in PdfColor color)
     {
-        PdfPath backgroundPath = CreateBorderPath(box, GetStrokeStyle(borderStyle).LineWidth, borderEffect);
+        PdfPath backgroundPath = CreateBorderPath(box, borderStyle, GetStrokeStyle(borderStyle).LineWidth, borderEffect);
 
         processor.Process(new DrawPathCommand(backgroundPath, PdfAnnotationPaintFactory.CreateFillPaint(color)));
     }
@@ -106,7 +106,7 @@ internal static class PdfAppearanceRenderer
             return;
         }
 
-        PdfPath borderPath = CreateBorderPath(box, lineWidth, borderEffect);
+        PdfPath borderPath = CreateBorderPath(box, borderStyle, lineWidth, borderEffect);
 
         processor.Process(new DrawPathCommand(borderPath, PdfAnnotationPaintFactory.CreateStrokePaint(color, strokeStyle, borderEffect)));
     }
@@ -210,12 +210,15 @@ internal static class PdfAppearanceRenderer
         }
     }
 
-    private static PdfPath CreateBorderPath(in PdfRectangle box, float lineWidth, in PdfAnnotationBorderEffect borderEffect)
+    private static PdfPath CreateBorderPath(
+        in PdfRectangle box,
+        PdfAnnotationBorderStyle? borderStyle,
+        float lineWidth,
+        in PdfAnnotationBorderEffect borderEffect)
     {
-        PdfPathBuilder pathBuilder = new();
-        pathBuilder.AddRect(box.Inflate(-lineWidth / 2f));
+        PdfPath rectanglePath = PdfAnnotationGeometry.CreateRectanglePath(box.Inflate(-lineWidth / 2f), borderStyle);
 
-        return borderEffect.Apply(pathBuilder.ToPath(), lineWidth);
+        return borderEffect.Apply(rectanglePath, lineWidth);
     }
 
     private static PdfStrokeStyle GetStrokeStyle(PdfAnnotationBorderStyle? borderStyle) => borderStyle?.StrokeStyle ?? DefaultBorderStrokeStyle;

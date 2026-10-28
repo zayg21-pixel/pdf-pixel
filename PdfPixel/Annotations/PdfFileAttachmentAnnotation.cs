@@ -71,8 +71,7 @@ public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page, PdfColors.DarkBlue);
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, color, null);
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, PdfColors.Black, ResolveColor(page));
         return true;
     }
 

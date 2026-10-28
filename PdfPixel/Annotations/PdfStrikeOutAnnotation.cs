@@ -36,7 +36,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page, PdfColors.Red);
+        PdfColor color = ResolveColor(page);
 
         foreach (PdfPoint[] quad in quads)
         {

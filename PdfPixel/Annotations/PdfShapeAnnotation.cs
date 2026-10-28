@@ -64,7 +64,7 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
 
         if (strokeStyle.LineWidth > 0 && Color?.Length != 0)
         {
-            PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
+            PdfColor strokeColor = ResolveColor(page);
             PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, strokeStyle, BorderEffect);
             processor.Process(new DrawPathCommand(effectPath, strokePaint));
         }

@@ -34,10 +34,8 @@ public class PdfCircleAnnotation : PdfShapeAnnotation
     /// <inheritdoc />
     internal override PdfPath? CreateShapePath(float lineWidth)
     {
-        float inset = (lineWidth / 2f) + ((RectangleDifferences == null) ? BorderEffect.GetOutset(lineWidth) : 0f);
-
         PdfPathBuilder shapePath = new();
-        shapePath.AddOval(ContentRectangle.Inflate(-inset));
+        shapePath.AddOval(ContentRectangle.Inflate(-lineWidth / 2f));
 
         return shapePath.ToPath();
     }

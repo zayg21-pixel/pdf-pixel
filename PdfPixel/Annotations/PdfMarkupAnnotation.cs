@@ -41,10 +41,7 @@ public abstract class PdfMarkupAnnotation : PdfAnnotation
     }
 
     /// <inheritdoc />
-    public override bool HasPopupContent => base.HasPopupContent || RichContents != null;
-
-    /// <inheritdoc />
-    public override bool ShouldDisplayBubble => Popup != null && HasPopupContent;
+    public override bool ShouldDisplayBubble => HasPopupContent;
 
     /// <summary>
     /// Gets the annotation's rich text contents (the RC entry), an XHTML-subset

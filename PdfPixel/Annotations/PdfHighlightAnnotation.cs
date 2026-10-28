@@ -39,7 +39,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page, PdfColors.Yellow);
+        PdfColor color = ResolveColor(page);
 
         foreach (PdfPoint[] quad in quads)
         {
