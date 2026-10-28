@@ -62,3 +62,19 @@ Files: `PdfPixel.PdfPanel/Caching/PdfDocumentContentExtensions.cs`, `PdfPixel.Pd
 4. ToggleNoView "selected": what selection means in a viewer without annotation editing; keyboard focus only?
 5. Pivot rectangle: `Rectangle` is overridden by computed bounds for fallback-rendered Line, PolyLine, Polygon, Ink and text markup, and by the default bubble size for a zero-size Text annotation. Which rectangle does Acrobat pivot on in those cases?
 6. Gold, Cli and Diagnostics: confirm they render at the reference scale and without page rotation, so skipping NoZoom/NoRotate there still matches Acrobat.
+
+## 2. Redaction annotation (view only)
+
+`Redact` falls through to `PdfGenericAnnotation`. Add a `PdfRedactAnnotation` that models every entry of ISO 32000-2 Table 195 and renders the marked region. Applying redactions (removing content) is out of scope.
+
+Model: QuadPoints (as text markup), IC (DeviceRGB, transparent when absent, ignored when RO is present), RO (overlay form XObject, origin at the lower-left corner of the rectangle, takes precedence over IC, OverlayText, DA and Q), OverlayText, Repeat (default false), DA (required with OverlayText, through the existing default appearance parsing) and Q. The region is QuadPoints when present, otherwise Rect.
+
+Rendering: an appearance stream is drawn as usual. The spec only defines what the overlay looks like after the redaction is applied; what a viewer shows before that has to come from Acrobat (open questions).
+
+Files: `PdfPixel/Annotations/PdfAnnotation.cs`, `PdfPixel/Annotations`
+
+### Open questions (verify in Acrobat)
+
+1. Fallback without appearance stream: Acrobat appears to outline the region in the annotation color and show the overlay (RO, or IC fill with OverlayText) on rollover. Confirm both, and whether the outline follows the quadrilaterals or the rectangle.
+2. Repeat: how the repeated OverlayText is laid out and clipped within the region.
+3. RO when it is also in the AP dictionary: does Acrobat ever draw RO before the redaction is applied?
