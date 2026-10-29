@@ -31,6 +31,23 @@ internal static class PdfVectorMath
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2 Offset(Vector2 point, Vector2 direction, float halfWidth) => point + LeftNormal(direction, halfWidth);
 
+    /// <summary>
+    /// The two-dimensional cross product: positive when <paramref name="b"/> turns counterclockwise from <paramref name="a"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float Cross(Vector2 a, Vector2 b) => Vector2.Dot(LeftNormal(a, 1f), b);
+
+    /// <summary>
+    /// The point where the line through <paramref name="firstPoint"/> along <paramref name="firstDirection"/> meets the
+    /// line through <paramref name="secondPoint"/> along <paramref name="secondDirection"/>.
+    /// </summary>
+    public static Vector2 IntersectLines(Vector2 firstPoint, Vector2 firstDirection, Vector2 secondPoint, Vector2 secondDirection)
+    {
+        float distance = Cross(secondPoint - firstPoint, secondDirection) / Cross(firstDirection, secondDirection);
+
+        return firstPoint + (firstDirection * distance);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float AngleDegreesOf(Vector2 direction) => MathF.Atan2(direction.Y, direction.X) * 180f / MathF.PI;
 

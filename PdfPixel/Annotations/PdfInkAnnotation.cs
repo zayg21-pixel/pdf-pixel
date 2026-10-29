@@ -43,19 +43,20 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     public override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <summary>
-    /// Gets the declared rectangle, or the stroked bounds of the ink when there is no appearance stream
-    /// and the declared rectangle does not overlap them.
+    /// Gets the stroked bounds of the ink, or <see cref="PdfAnnotation.Rectangle"/> when there are no strokes.
     /// </summary>
-    public override PdfRectangle Rectangle
+    public override PdfRectangle ContentBounds
     {
         get
         {
-            if (Appearance != null)
+            if (DrawingPath != null)
             {
-                return base.Rectangle;
+                return DrawingPath.GetBounds().InflateForStroke(StrokeStyle);
             }
-
-            return PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
+            else
+            {
+                return base.ContentBounds;
+            }
         }
     }
 
@@ -81,6 +82,23 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
     /// <see cref="InkList"/>. Null when neither defines a stroke.
     /// </summary>
     internal PdfPath? DrawingPath { get; }
+
+    /// <summary>
+    /// Gets <see cref="DrawingPath"/> grown by half the line width plus <paramref name="tolerance"/>, or the hover area
+    /// of the annotation when there are no strokes.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+    {
+        if (DrawingPath != null)
+        {
+            return DrawingPath.Inflate((StrokeStyle.LineWidth / 2f) + tolerance);
+        }
+        else
+        {
+            return base.GetHoverPath(tolerance);
+        }
+    }
 
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,

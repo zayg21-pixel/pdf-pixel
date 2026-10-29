@@ -244,6 +244,27 @@ public static class PdfPanelPageExtensions
     }
 
     /// <summary>
+    /// Converts a point from page coordinates (top-left origin, Y-down) to PDF coordinates (bottom-left origin, Y-up).
+    /// </summary>
+    /// <param name="page">The page.</param>
+    /// <param name="pagePoint">Point in page coordinates.</param>
+    /// <returns>Point in PDF coordinates.</returns>
+    public static PdfPoint ToPdfPoint(this PdfPanelPage page, in PdfPoint pagePoint)
+    {
+        if (page == null)
+        {
+            throw new ArgumentNullException(nameof(page));
+        }
+
+        PdfRectangle cropBox = page.PdfPage.CropBox;
+        float userUnit = page.PdfPage.UserUnit;
+
+        return new PdfPoint(
+            (pagePoint.X / userUnit) + cropBox.Left,
+            cropBox.Height + cropBox.Top - (pagePoint.Y / userUnit));
+    }
+
+    /// <summary>
     /// Converts a rectangle from PDF coordinates (bottom-left origin, Y-up) to page coordinates (top-left origin, Y-down).
     /// </summary>
     /// <param name="page">The page.</param>

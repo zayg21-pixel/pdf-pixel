@@ -60,13 +60,12 @@ internal static class PdfAnnotationTextRenderer
     }
 
     /// <summary>
-    /// Draws <paramref name="text"/> as the caption of the line from <paramref name="lineStart"/> to
-    /// <paramref name="lineEnd"/>, in black Helvetica, along the line from its midpoint. An inline caption that does
-    /// not fit the line is drawn on top of it. The top of the line is the side its leader lines extend to, and a caption
-    /// on top keeps clear of the leader line extensions.
+    /// Lays out <paramref name="text"/> as the caption of the line from <paramref name="lineStart"/> to
+    /// <paramref name="lineEnd"/>, in Helvetica, along the line from its midpoint. An inline caption that does not fit
+    /// the line goes on top of it. The top of the line is the side its leader lines extend to, and a caption on top
+    /// keeps clear of the leader line extensions.
     /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The page the caption is drawn on.</param>
+    /// <param name="document">The document whose fonts the caption is shaped with.</param>
     /// <param name="text">The caption text.</param>
     /// <param name="lineStart">The start point of the line.</param>
     /// <param name="lineEnd">The end point of the line.</param>
@@ -75,13 +74,9 @@ internal static class PdfAnnotationTextRenderer
     /// <param name="lineWidth">The width of the line.</param>
     /// <param name="leaderLength">The leader line length; negative when the leader lines extend to the right of the line.</param>
     /// <param name="leaderExtension">The length the leader lines extend past the line.</param>
-    /// <returns>
-    /// The area the line is kept clear of, in the coordinates of <see cref="PdfAnnotationGeometry.CreateLineMatrix"/>,
-    /// or null when <paramref name="text"/> is empty.
-    /// </returns>
-    public static PdfRectangle? DrawLineCaption(
-        IPdfCommandProcessor processor,
-        IPdfPageInternal page,
+    /// <returns>The caption layout, or null when <paramref name="text"/> is empty.</returns>
+    public static PdfLineCaptionLayout? LayoutLineCaption(
+        IPdfDocumentInternal document,
         string text,
         in PdfPoint lineStart,
         in PdfPoint lineEnd,
@@ -96,7 +91,7 @@ internal static class PdfAnnotationTextRenderer
             return null;
         }
 
-        SfntPdfTypeface typeface = page.Document.FontProvider.GetTypefaceByUnicode(LineCaptionFont, text);
+        SfntPdfTypeface typeface = document.FontProvider.GetTypefaceByUnicode(LineCaptionFont, text);
         ShapedGlyph[] glyphs = Shape(text, typeface);
         float width = TextRenderUtilities.GetTextWidth(glyphs) * LineCaptionFontSize;
         float ascent = typeface.Metrics.Ascent * LineCaptionFontSize;
@@ -121,9 +116,16 @@ internal static class PdfAnnotationTextRenderer
         }
 
         PdfPoint origin = new(offset.X - (width / 2f), offset.Y + baseline);
+        PdfRectangle area = new(origin.X - LineCaptionMargin, origin.Y + descent, origin.X + width + LineCaptionMargin, origin.Y + ascent);
 
-        DrawText(processor, glyphs, PdfAnnotationGeometry.CreateLineMatrix(lineStart, lineEnd), origin, LineCaptionFontSize, PdfColors.Black);
-
-        return new PdfRectangle(origin.X - LineCaptionMargin, origin.Y + descent, origin.X + width + LineCaptionMargin, origin.Y + ascent);
+        return new PdfLineCaptionLayout(glyphs, PdfAnnotationGeometry.CreateLineMatrix(lineStart, lineEnd), origin, area);
     }
+
+    /// <summary>
+    /// Draws the caption laid out by <see cref="LayoutLineCaption"/> in black.
+    /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
+    /// <param name="layout">The caption layout.</param>
+    public static void DrawLineCaption(IPdfCommandProcessor processor, in PdfLineCaptionLayout layout)
+        => DrawText(processor, layout.Glyphs, layout.LineMatrix, layout.Origin, LineCaptionFontSize, PdfColors.Black);
 }

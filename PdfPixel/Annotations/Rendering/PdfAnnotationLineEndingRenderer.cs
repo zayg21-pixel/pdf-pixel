@@ -92,6 +92,20 @@ internal static class PdfAnnotationLineEndingRenderer
         processor.Process(RestoreStateCommand.Instance);
     }
 
+    /// <summary>
+    /// Returns an upper bound of how far the line endings <paramref name="start"/> and <paramref name="end"/> drawn
+    /// with <paramref name="lineWidth"/> reach from the ends of their line, 0 when both are none.
+    /// </summary>
+    public static float GetEndingsReach(PdfLineEndingStyle start, PdfLineEndingStyle end, float lineWidth)
+    {
+        if (start == PdfLineEndingStyle.None && end == PdfLineEndingStyle.None)
+        {
+            return 0f;
+        }
+
+        return 2f * GetEndingSize(lineWidth);
+    }
+
     private static void DrawOpenArrow(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color)
     {
         PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);

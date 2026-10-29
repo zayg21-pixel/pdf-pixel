@@ -53,19 +53,23 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     public override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <summary>
-    /// Gets the declared rectangle, or the stroked bounds of the polyline when there is no appearance stream
-    /// and the declared rectangle does not overlap them.
+    /// Gets the stroked bounds of the polyline grown by the reach of its line endings, or
+    /// <see cref="PdfAnnotation.Rectangle"/> when there is no polyline.
     /// </summary>
-    public override PdfRectangle Rectangle
+    public override PdfRectangle ContentBounds
     {
         get
         {
-            if (Appearance != null)
+            if (DrawingPath != null)
             {
-                return base.Rectangle;
-            }
+                float endingsReach = PdfAnnotationLineEndingRenderer.GetEndingsReach(StartLineEnding, EndLineEnding, StrokeStyle.LineWidth);
 
-            return PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
+                return DrawingPath.GetBounds().InflateForStroke(StrokeStyle).Inflate(endingsReach);
+            }
+            else
+            {
+                return base.ContentBounds;
+            }
         }
     }
 
@@ -109,6 +113,23 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
     /// Null when neither defines a polyline.
     /// </summary>
     internal PdfPath? DrawingPath { get; }
+
+    /// <summary>
+    /// Gets <see cref="DrawingPath"/> grown by half the line width plus <paramref name="tolerance"/>, or the hover area
+    /// of the annotation when there is no polyline.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+    {
+        if (DrawingPath != null)
+        {
+            return DrawingPath.Inflate((StrokeStyle.LineWidth / 2f) + tolerance);
+        }
+        else
+        {
+            return base.GetHoverPath(tolerance);
+        }
+    }
 
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,

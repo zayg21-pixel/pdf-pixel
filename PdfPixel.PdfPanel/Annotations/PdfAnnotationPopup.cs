@@ -11,8 +11,10 @@ namespace PdfPixel.PdfPanel.Annotations;
 /// </summary>
 public class PdfAnnotationPopup
 {
+    // Distance in device pixels the hover area reaches beyond what is drawn.
+    private const float HoverTolerance = 3f;
+
     private readonly PdfPanelDocument _panelDocument;
-    private readonly PdfRectangle[] _hoverRectangles;
 
     /// <summary>
     /// Initializes a popup backed by a live page annotation.
@@ -21,16 +23,6 @@ public class PdfAnnotationPopup
     {
         _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         PageAnnotation = pageAnnotation ?? throw new ArgumentNullException(nameof(pageAnnotation));
-
-        if (pageAnnotation.Content.ShouldDisplayBubble)
-        {
-            _hoverRectangles = [.. pageAnnotation.GetHoverRectangles(), pageAnnotation.GetBubbleRectangle(pageAnnotation.Content.ContentStart)];
-        }
-        else
-        {
-            _hoverRectangles = pageAnnotation.GetHoverRectangles();
-        }
-
         Messages = messages ?? throw new ArgumentNullException(nameof(messages));
     }
 
@@ -63,20 +55,27 @@ public class PdfAnnotationPopup
     public IReadOnlyList<PdfAnnotationMessage> Messages { get; }
 
     /// <summary>
-    /// Gets the hover rectangles in PDF coordinates at the given scale and the scale of a zoom of 100%.
-    /// Used for hit-testing.
+    /// Gets whether <paramref name="pdfPoint"/>, in PDF coordinates, is over the annotation or its bubble at the given
+    /// scale and the scale of a zoom of 100%. Used for hit-testing.
     /// </summary>
-    public IReadOnlyList<PdfRectangle> GetHoverRectangles(float scale, float referenceScale)
+    public bool HitTest(in PdfPoint pdfPoint, float scale, float referenceScale)
     {
+        PdfAnnotation annotation = PageAnnotation.Content;
         int rotation = _panelDocument.Pages[PageAnnotation.Page.PageNumber - 1].Rotation;
-        PdfMatrix displayMatrix = PageAnnotation.Content.GetDisplayMatrix(scale, referenceScale, rotation);
-        var hoverRectangles = new PdfRectangle[_hoverRectangles.Length];
+        PdfMatrix displayMatrix = annotation.GetDisplayMatrix(scale, referenceScale, rotation);
+        PdfPoint annotationPoint = displayMatrix.Invert().MapPoint(pdfPoint);
+        float displayScale = (annotation.IsNoZoom()) ? referenceScale : scale;
+        float tolerance = HoverTolerance / (displayScale * PageAnnotation.Page.UserUnit);
 
-        for (int rectangleIndex = 0; rectangleIndex < _hoverRectangles.Length; rectangleIndex++)
-        {
-            hoverRectangles[rectangleIndex] = displayMatrix.MapRect(_hoverRectangles[rectangleIndex]);
-        }
+        return PageAnnotation.GetHoverPath(tolerance).Contains(annotationPoint)
+            || (annotation.ShouldDisplayBubble && IsOverBubble(annotationPoint, scale, referenceScale, rotation));
+    }
 
-        return hoverRectangles;
+    private bool IsOverBubble(in PdfPoint annotationPoint, float scale, float referenceScale, int rotation)
+    {
+        PdfPoint bubbleAnchor = PageAnnotation.Content.ContentStart;
+        PdfMatrix bubbleMatrix = PageAnnotation.Content.GetBubbleMatrix(bubbleAnchor, scale, referenceScale, rotation, PageAnnotation.Page.CropBox);
+
+        return PdfAnnotation.GetBubbleRectangle(bubbleAnchor).Contains(bubbleMatrix.Invert().MapPoint(annotationPoint));
     }
 }

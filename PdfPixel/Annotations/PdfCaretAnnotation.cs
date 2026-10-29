@@ -49,6 +49,13 @@ public class PdfCaretAnnotation : PdfMarkupAnnotation
     /// <inheritdoc/>
     public override PdfPoint ContentStart => new(MarkRectangle.Left, MarkRectangle.Bottom);
 
+    /// <summary>
+    /// Gets <see cref="MarkRectangle"/> grown by <paramref name="tolerance"/>.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+        => PdfAnnotationGeometry.CreateRectanglePath(MarkRectangle.Inflate(tolerance), borderStyle: null);
+
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,

@@ -64,26 +64,25 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     public override bool ShouldDisplayBubble => !HasCaption && base.ShouldDisplayBubble;
 
     /// <summary>
-    /// Gets the declared rectangle, or the stroked bounds of the line and its leader lines when there is
-    /// no appearance stream and the declared rectangle does not overlap them.
+    /// Gets the stroked bounds of the line, its leader lines and its caption grown by the reach of its line endings,
+    /// or <see cref="PdfAnnotation.Rectangle"/> when there is no line.
     /// </summary>
-    public override PdfRectangle Rectangle
+    public override PdfRectangle ContentBounds
     {
         get
         {
-            if (Appearance != null)
+            PdfPath? contentPath = CreateContentPath();
+
+            if (contentPath != null)
             {
-                return base.Rectangle;
+                float endingsReach = PdfAnnotationLineEndingRenderer.GetEndingsReach(StartLineEnding, EndLineEnding, StrokeStyle.LineWidth);
+
+                return contentPath.GetBounds().InflateForStroke(StrokeStyle).Inflate(endingsReach);
             }
-
-            PdfRectangle rectangle = PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, StrokeStyle.LineWidth);
-
-            if (LeaderLinesPath != null)
+            else
             {
-                rectangle = PdfRectangle.Union(rectangle, PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, LeaderLinesPath, StrokeStyle.LineWidth));
+                return base.ContentBounds;
             }
-
-            return rectangle;
         }
     }
 
@@ -174,6 +173,25 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     internal PdfPath? LeaderLinesPath { get; }
 
+    /// <summary>
+    /// Gets the line, its leader lines and its caption grown by half the line width plus <paramref name="tolerance"/>,
+    /// or the hover area of the annotation when it has no line.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+    {
+        PdfPath? contentPath = CreateContentPath();
+
+        if (contentPath != null)
+        {
+            return contentPath.Inflate((StrokeStyle.LineWidth / 2f) + tolerance);
+        }
+        else
+        {
+            return base.GetHoverPath(tolerance);
+        }
+    }
+
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
@@ -189,22 +207,14 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
 
         PdfPoint lineStart = DrawingLine[0];
         PdfPoint lineEnd = DrawingLine[1];
-        PdfRectangle? captionArea = null;
+        PdfLineCaptionLayout? caption = LayoutCaption(lineStart, lineEnd);
 
-        if (HasCaption && Contents != null)
+        if (caption != null)
         {
-            captionArea = PdfAnnotationTextRenderer.DrawLineCaption(
-                processor,
-                page,
-                Contents.Value.DecodePdfString(),
-                lineStart,
-                lineEnd,
-                CaptionPosition,
-                CaptionOffset,
-                StrokeStyle.LineWidth,
-                LeaderLineLength ?? 0f,
-                LeaderLineExtension ?? 0f);
+            PdfAnnotationTextRenderer.DrawLineCaption(processor, caption.Value);
         }
+
+        PdfRectangle? captionArea = caption?.Area;
 
         PdfColor lineColor = ResolveColor(page);
 
@@ -263,5 +273,63 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
         }
 
         return "Line Annotation";
+    }
+
+    /// <summary>
+    /// Creates the path of the line, its leader lines and the area of its caption, or returns null when there is no
+    /// line.
+    /// </summary>
+    private PdfPath? CreateContentPath()
+    {
+        if (DrawingLine == null)
+        {
+            return null;
+        }
+
+        PdfPoint lineStart = DrawingLine[0];
+        PdfPoint lineEnd = DrawingLine[1];
+        PdfPathBuilder contentPath = new();
+
+        contentPath.MoveTo(lineStart);
+        contentPath.LineTo(lineEnd);
+
+        if (LeaderLinesPath != null)
+        {
+            contentPath.AddPath(LeaderLinesPath);
+        }
+
+        PdfLineCaptionLayout? caption = LayoutCaption(lineStart, lineEnd);
+
+        if (caption != null)
+        {
+            PdfPathBuilder captionPath = new(caption.Value.LineMatrix);
+            captionPath.AddRect(caption.Value.Area);
+            contentPath.AddPath(captionPath.ToPath());
+        }
+
+        return contentPath.ToPath();
+    }
+
+    /// <summary>
+    /// Lays out the caption on the line from <paramref name="lineStart"/> to <paramref name="lineEnd"/>, or returns
+    /// null when <see cref="PdfAnnotation.Contents"/> is not shown as a caption.
+    /// </summary>
+    private PdfLineCaptionLayout? LayoutCaption(in PdfPoint lineStart, in PdfPoint lineEnd)
+    {
+        if (!HasCaption || Contents == null)
+        {
+            return null;
+        }
+
+        return PdfAnnotationTextRenderer.LayoutLineCaption(
+            Document,
+            Contents.Value.DecodePdfString(),
+            lineStart,
+            lineEnd,
+            CaptionPosition,
+            CaptionOffset,
+            StrokeStyle.LineWidth,
+            LeaderLineLength ?? 0f,
+            LeaderLineExtension ?? 0f);
     }
 }

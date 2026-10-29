@@ -41,25 +41,6 @@ public class PdfPolygonAnnotation : PdfShapeAnnotation
     public override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
     /// <summary>
-    /// Gets the declared rectangle, or the stroked bounds of the polygon outline when there is no appearance
-    /// stream and the declared rectangle does not overlap them.
-    /// </summary>
-    public override PdfRectangle Rectangle
-    {
-        get
-        {
-            if (Appearance != null)
-            {
-                return base.Rectangle;
-            }
-
-            float lineWidth = BorderStyle?.StrokeStyle.LineWidth ?? new PdfStrokeStyle().LineWidth;
-
-            return PdfAnnotationGeometry.GetFallbackRectangle(base.Rectangle, DrawingPath, lineWidth);
-        }
-    }
-
-    /// <summary>
     /// Gets the vertices array containing coordinates of the polygon vertices.
     /// </summary>
     public PdfPoint[] Vertices { get; }

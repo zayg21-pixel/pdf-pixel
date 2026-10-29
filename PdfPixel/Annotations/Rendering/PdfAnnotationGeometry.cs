@@ -1,6 +1,8 @@
 using PdfPixel.Geometry;
+using PdfPixel.Geometry.PathOperations;
 using PdfPixel.Objects;
 using System;
+using System.Numerics;
 
 namespace PdfPixel.Annotations.Rendering;
 
@@ -106,24 +108,6 @@ internal static class PdfAnnotationGeometry
         }
 
         return segments.Current.Points[0];
-    }
-
-    /// <summary>
-    /// Returns the rectangle of an annotation drawn as <paramref name="path"/> with a stroke of
-    /// <paramref name="lineWidth"/>: <paramref name="declaredRectangle"/> when it overlaps the stroked path,
-    /// otherwise the bounds of the stroked path.
-    /// </summary>
-    /// <returns>The rectangle, or <paramref name="declaredRectangle"/> if <paramref name="path"/> is null.</returns>
-    public static PdfRectangle GetFallbackRectangle(in PdfRectangle declaredRectangle, PdfPath? path, float lineWidth)
-    {
-        if (path == null)
-        {
-            return declaredRectangle;
-        }
-
-        PdfRectangle strokeBounds = path.GetBounds().Inflate(2f * lineWidth);
-
-        return (PdfRectangle.IntersectsWith(declaredRectangle, strokeBounds)) ? declaredRectangle : strokeBounds;
     }
 
     /// <summary>
@@ -293,6 +277,47 @@ internal static class PdfAnnotationGeometry
         }
 
         return new PdfPathEnds(start, afterStart, end, beforeEnd);
+    }
+
+    /// <summary>
+    /// Adds the left and top edges of <paramref name="quadrilateral"/>, given bottom right, bottom left, top left, top
+    /// right, each moved <paramref name="edgeInset"/> inward, running from <paramref name="endInset"/> inside the
+    /// bottom edge to <paramref name="endInset"/> inside the right edge.
+    /// </summary>
+    public static void AddInsetLeftTopEdges(PdfPathBuilder builder, PdfPoint[] quadrilateral, float edgeInset, float endInset)
+    {
+        Vector2 cornerSum = PdfVectorMath.ToVector2(quadrilateral[0])
+            + PdfVectorMath.ToVector2(quadrilateral[1])
+            + PdfVectorMath.ToVector2(quadrilateral[2])
+            + PdfVectorMath.ToVector2(quadrilateral[3]);
+        Vector2 center = cornerSum / 4f;
+
+        (Vector2 Point, Vector2 Direction) bottom = InsetEdge(quadrilateral[0], quadrilateral[1], center, endInset);
+        (Vector2 Point, Vector2 Direction) left = InsetEdge(quadrilateral[1], quadrilateral[2], center, edgeInset);
+        (Vector2 Point, Vector2 Direction) top = InsetEdge(quadrilateral[2], quadrilateral[3], center, edgeInset);
+        (Vector2 Point, Vector2 Direction) right = InsetEdge(quadrilateral[3], quadrilateral[0], center, endInset);
+
+        builder.MoveTo(PdfVectorMath.ToPdfPoint(PdfVectorMath.IntersectLines(left.Point, left.Direction, bottom.Point, bottom.Direction)));
+        builder.LineTo(PdfVectorMath.ToPdfPoint(PdfVectorMath.IntersectLines(left.Point, left.Direction, top.Point, top.Direction)));
+        builder.LineTo(PdfVectorMath.ToPdfPoint(PdfVectorMath.IntersectLines(top.Point, top.Direction, right.Point, right.Direction)));
+    }
+
+    /// <summary>
+    /// The edge from <paramref name="start"/> to <paramref name="end"/> moved <paramref name="distance"/> toward
+    /// <paramref name="center"/>, as a point on it and its direction.
+    /// </summary>
+    private static (Vector2 Point, Vector2 Direction) InsetEdge(in PdfPoint start, in PdfPoint end, Vector2 center, float distance)
+    {
+        Vector2 from = PdfVectorMath.ToVector2(start);
+        Vector2 direction = PdfVectorMath.Direction(from, PdfVectorMath.ToVector2(end));
+        Vector2 normal = PdfVectorMath.LeftNormal(direction, distance);
+
+        if (Vector2.Dot(normal, center - from) < 0)
+        {
+            normal = -normal;
+        }
+
+        return (from + normal, direction);
     }
 
     /// <summary>

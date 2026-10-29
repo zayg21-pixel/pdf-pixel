@@ -10,6 +10,8 @@ namespace PdfPixel.Annotations;
 /// </summary>
 public class PdfCircleAnnotation : PdfShapeAnnotation
 {
+    private const float HalfSquareRootOfTwo = 0.70710678f;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfCircleAnnotation"/> class.
     /// </summary>
@@ -31,8 +33,20 @@ public class PdfCircleAnnotation : PdfShapeAnnotation
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
 
-    /// <inheritdoc/>
-    public override PdfPoint ContentStart => new(ContentRectangle.Left, ContentRectangle.Bottom);
+    /// <summary>
+    /// Gets the upper-left point of the ellipse drawn in <see cref="ContentRectangle"/>, halfway between its top and its
+    /// left.
+    /// </summary>
+    public override PdfPoint ContentStart
+    {
+        get
+        {
+            float offsetX = ContentRectangle.Width / 2f * HalfSquareRootOfTwo;
+            float offsetY = ContentRectangle.Height / 2f * HalfSquareRootOfTwo;
+
+            return new PdfPoint(ContentRectangle.MidX - offsetX, ContentRectangle.MidY + offsetY);
+        }
+    }
 
     /// <inheritdoc />
     internal override PdfPath? CreateShapePath(float lineWidth)

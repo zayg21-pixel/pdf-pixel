@@ -5,7 +5,6 @@ using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Rendering;
-using System;
 
 namespace PdfPixel.Annotations;
 
@@ -41,13 +40,10 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
 
         foreach (PdfPoint[] quad in quads)
         {
-            float startX = quad[1].X;
-            float endX = quad[0].X;
-            float baselineY = quad[0].Y;
-            float amplitude = GetAmplitude(quad);
+            (PdfMatrix lineMatrix, float halfLength, float height) = GetBaselineFrame(quad);
 
-            PdfPathBuilder path = new();
-            DrawSquigglyLine(path, startX, endX, baselineY, amplitude);
+            PdfPathBuilder path = new(lineMatrix);
+            DrawSquigglyLine(path, -halfLength, halfLength, 0f, GetAmplitude(height));
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
@@ -57,24 +53,8 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
         return true;
     }
 
-    /// <inheritdoc/>
-    protected override PdfRectangle GetQuadBounds(PdfPoint[] quad)
-    {
-        if (quad == null)
-        {
-            throw new ArgumentNullException(nameof(quad));
-        }
-
-        float baselineY = quad[0].Y;
-        float amplitude = GetAmplitude(quad);
-        float left = Math.Min(quad[0].X, quad[1].X);
-        float right = Math.Max(quad[0].X, quad[1].X);
-
-        return new PdfRectangle(left, baselineY - (2f * amplitude), right, baselineY + (2f * amplitude));
-    }
-
     // Quadrilateral height divided by 6.
-    private static float GetAmplitude(PdfPoint[] quad) => (quad[2].Y - quad[0].Y) / 6f;
+    private static float GetAmplitude(float height) => height / 6f;
 
     // Draws a wave that starts at (startX, baselineY + amplitude) and zigzags between the baseline
     // and one amplitude above it every 2 units of X, ending at or past endX.

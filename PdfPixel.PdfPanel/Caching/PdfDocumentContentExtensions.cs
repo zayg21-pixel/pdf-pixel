@@ -51,11 +51,18 @@ internal static class PdfDocumentContentExtensions
                 ? ConvertToVisualStateKind(request.ActiveAnnotationState)
                 : PdfAnnotationVisualStateKind.Normal;
 
+            int rotation = request.GetPage(pageNumber).Rotation;
+
             recorder.Process(SaveStateCommand.Instance);
-            recorder.Process(new ConcatMatrixCommand(pageAnnotation.Content.GetDisplayMatrix(request.Scale, request.ReferenceScale, request.GetPage(pageNumber).Rotation)));
+            recorder.Process(new ConcatMatrixCommand(pageAnnotation.Content.GetDisplayMatrix(request.Scale, request.ReferenceScale, rotation)));
             if (pageAnnotation.Content.ShouldDisplayBubble)
             {
-                pageAnnotation.RenderBubble(recorder, pageAnnotation.Content.ContentStart, visualStateKind);
+                PdfPoint bubbleAnchor = pageAnnotation.Content.ContentStart;
+
+                recorder.Process(SaveStateCommand.Instance);
+                recorder.Process(new ConcatMatrixCommand(pageAnnotation.Content.GetBubbleMatrix(bubbleAnchor, request.Scale, request.ReferenceScale, rotation, pdfPage.CropBox)));
+                pageAnnotation.RenderBubble(recorder, bubbleAnchor, visualStateKind);
+                recorder.Process(RestoreStateCommand.Instance);
             }
 
             pageAnnotation.Render(recorder, visualStateKind, renderingParameters, observer);

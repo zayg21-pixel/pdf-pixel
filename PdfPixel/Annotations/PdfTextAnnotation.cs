@@ -27,14 +27,17 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
         StateModel = annotationObject.Dictionary.GetName(PdfTokens.StateModelKey);
         State = annotationObject.Dictionary.GetName(PdfTokens.StateKey);
 
-        PdfRectangle rectangle = base.Rectangle;
-        Rectangle = (rectangle.Width > 0 && rectangle.Height > 0)
-            ? rectangle
-            : PdfRectangle.FromLocationAndSize(rectangle.Left, rectangle.Top, PdfAnnotationGraphics.DefaultBubbleSize, PdfAnnotationGraphics.DefaultBubbleSize);
+        float iconSize = PdfAnnotationGraphics.DefaultBubbleSize;
+        ContentBounds = (Rectangle.Width > 0 && Rectangle.Height > 0)
+            ? Rectangle
+            : PdfRectangle.FromLocationAndSize(Rectangle.Left, Rectangle.Bottom - iconSize, iconSize, iconSize);
     }
 
-    /// <inheritdoc/>
-    public override PdfRectangle Rectangle { get; }
+    /// <summary>
+    /// Gets the rectangle the icon is drawn in: <see cref="PdfAnnotation.Rectangle"/>, or an icon of the default size
+    /// with its top-left corner at the upper-left corner of <see cref="PdfAnnotation.Rectangle"/> when it has no area.
+    /// </summary>
+    public override PdfRectangle ContentBounds { get; }
 
     /// <summary>
     /// Gets a value indicating whether the annotation is initially displayed in an open state.
@@ -52,8 +55,12 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
     /// <inheritdoc/>
     public override bool IsInteractive => true;
 
-    /// <inheritdoc/>
-    public override PdfRectangle[] GetHoverRectangles(IPdfPage page) => [Rectangle];
+    /// <summary>
+    /// Gets the icon rectangle grown by <paramref name="tolerance"/>.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+        => PdfAnnotationGeometry.CreateRectanglePath(ContentBounds.Inflate(tolerance), borderStyle: null);
 
     /// <summary>
     /// Gets the state model corresponding to a change in the annotation's state.
@@ -82,7 +89,7 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, PdfColors.Black, ResolveColor(page));
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, ContentBounds, PdfColors.Black, ResolveColor(page));
         return true;
     }
 

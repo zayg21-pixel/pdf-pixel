@@ -31,17 +31,10 @@ public sealed class PdfPageAnnotation
     public PdfAnnotation Content { get; }
 
     /// <summary>
-    /// Returns the hover rectangles for this annotation in PDF page coordinates.
+    /// Returns the hover area for this annotation as a path in PDF page coordinates.
     /// </summary>
-    public PdfRectangle[] GetHoverRectangles() => Content.GetHoverRectangles(_page);
-
-    /// <summary>
-    /// Returns the rectangle of the content bubble indicator placed at <paramref name="anchor"/>, in PDF page coordinates.
-    /// </summary>
-    /// <param name="anchor">
-    /// The point the bubble is placed at, such as <see cref="PdfAnnotation.ContentStart"/>.
-    /// </param>
-    public PdfRectangle GetBubbleRectangle(in PdfPoint anchor) => PdfAnnotation.GetBubbleRectangle(_page, anchor);
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    public PdfPath GetHoverPath(float tolerance) => Content.GetHoverPath(tolerance);
 
     /// <summary>
     /// Renders this annotation via the command processor.

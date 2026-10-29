@@ -85,6 +85,22 @@ internal readonly struct PdfCubicContourSegment : IPdfContourSegment
         return new PdfLengthLookup(buffer.Distances, buffer.Parameters, sampleCount + 1);
     }
 
+    /// <summary>
+    /// How many even steps in <c>t</c> the curve is measured over. The control polygon is never shorter
+    /// than the curve, so scaling the count by it keeps the samples no further apart than
+    /// <see cref="CurveMeasureStep"/> however long or short the curve turns out to be.
+    /// </summary>
+    public int GetSampleCount()
+    {
+        float polygonLength = Vector2.Distance(Start, Control1)
+            + Vector2.Distance(Control1, Control2)
+            + Vector2.Distance(Control2, End);
+
+        var sampleCount = (int)MathF.Ceiling(polygonLength / CurveMeasureStep);
+
+        return Math.Min(MaxCurveMeasureSamples, Math.Max(MinCurveMeasureSamples, sampleCount));
+    }
+
     public IPdfContourSegment Slice(float t0, float t1)
     {
         PdfCubicSplit startSplit = SplitAt(t0);
@@ -144,22 +160,6 @@ internal readonly struct PdfCubicContourSegment : IPdfContourSegment
         Vector2 midpointSag = ((startTangent + endTangent) * 0.5f) - midpointTangent;
 
         return (halfWidth * halfWidth * midpointSag.LengthSquared()) <= (offsetTolerance * offsetTolerance);
-    }
-
-    /// <summary>
-    /// How many even steps in <c>t</c> the curve is measured over. The control polygon is never shorter
-    /// than the curve, so scaling the count by it keeps the samples no further apart than
-    /// <see cref="CurveMeasureStep"/> however long or short the curve turns out to be.
-    /// </summary>
-    private int GetSampleCount()
-    {
-        float polygonLength = Vector2.Distance(Start, Control1)
-            + Vector2.Distance(Control1, Control2)
-            + Vector2.Distance(Control2, End);
-
-        var sampleCount = (int)MathF.Ceiling(polygonLength / CurveMeasureStep);
-
-        return Math.Min(MaxCurveMeasureSamples, Math.Max(MinCurveMeasureSamples, sampleCount));
     }
 
     private PdfCubicSplit SplitAt(float t)

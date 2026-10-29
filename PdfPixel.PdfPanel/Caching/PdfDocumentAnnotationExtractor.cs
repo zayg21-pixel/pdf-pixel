@@ -10,16 +10,18 @@ namespace PdfPixel.PdfPanel.Caching;
 
 internal static class PdfDocumentAnnotationExtractor
 {
-    public static PdfAnnotationPopup? GetActiveAnnotation(PdfPanelPage page, PdfPoint pagePosition, float scale, float referenceScale)
+    public static PdfAnnotationPopup? GetActiveAnnotation(PdfPanelPage page, in PdfPoint pagePosition, float scale, float referenceScale)
     {
         if (page == null)
         {
             return null;
         }
 
+        PdfPoint pdfPosition = page.ToPdfPoint(pagePosition);
+
         return page.Popups.FirstOrDefault(x =>
             x.IsInteractive
-                && IsInHoverRectangles(page, x, pagePosition, scale, referenceScale));
+                && x.HitTest(pdfPosition, scale, referenceScale));
     }
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this PdfPanelDocument panelDocument, int pageNumber)
@@ -170,18 +172,5 @@ internal static class PdfDocumentAnnotationExtractor
         }
 
         return replies;
-    }
-
-    private static bool IsInHoverRectangles(PdfPanelPage page, PdfAnnotationPopup popup, in PdfPoint pagePosition, float scale, float referenceScale)
-    {
-        foreach (PdfRectangle hoverRectangle in popup.GetHoverRectangles(scale, referenceScale))
-        {
-            if (page.FromPdfRect(hoverRectangle).Contains(pagePosition))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

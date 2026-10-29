@@ -91,6 +91,13 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
     /// <inheritdoc/>
     public override PdfPoint ContentStart => new(ContentRectangle.Left, ContentRectangle.Bottom);
 
+    /// <summary>
+    /// Gets <see cref="ContentRectangle"/> grown by <paramref name="tolerance"/>, without the callout line.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+        => PdfAnnotationGeometry.CreateRectanglePath(ContentRectangle.Inflate(tolerance), borderStyle: null);
+
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,

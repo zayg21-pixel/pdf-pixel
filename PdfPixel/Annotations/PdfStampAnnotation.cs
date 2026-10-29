@@ -48,6 +48,13 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
     public override bool ShouldDisplayBubble => false;
 
     /// <summary>
+    /// Gets the stamp rectangle grown by <paramref name="tolerance"/>.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+        => PdfAnnotationGeometry.CreateRectanglePath(Rectangle.Inflate(tolerance), borderStyle: null);
+
+    /// <summary>
     /// Gets the standard stamp name identifying the stamp type (e.g. Draft, Approved).
     /// Default <see cref="PdfStampName.Draft"/>.
     /// </summary>

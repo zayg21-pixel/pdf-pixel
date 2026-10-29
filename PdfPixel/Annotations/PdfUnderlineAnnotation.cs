@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Rendering;
+using System;
 
 namespace PdfPixel.Annotations;
 
@@ -42,16 +43,14 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
         {
             const float baselineOffset = 1.3f;
 
-            float startX = quad[0].X;
-            float startY = quad[0].Y + baselineOffset;
-            float endX = quad[1].X;
-            float endY = quad[1].Y + baselineOffset;
+            (PdfMatrix lineMatrix, float halfLength, float height) = GetBaselineFrame(quad);
+            float offset = MathF.Sign(height) * baselineOffset;
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
-            PdfPathBuilder linePath = new();
-            linePath.MoveTo(startX, startY);
-            linePath.LineTo(endX, endY);
+            PdfPathBuilder linePath = new(lineMatrix);
+            linePath.MoveTo(-halfLength, offset);
+            linePath.LineTo(halfLength, offset);
             processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
         }
 

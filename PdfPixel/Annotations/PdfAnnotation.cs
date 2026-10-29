@@ -35,6 +35,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         }
 
         Reference = annotationObject.Reference;
+        Document = annotationObject.Document;
         Subtype = subtype;
 
         Rectangle = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? PdfRectangle.Empty;
@@ -73,6 +74,11 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     public PdfReference? Reference { get; }
 
     /// <summary>
+    /// Gets the document the annotation belongs to.
+    /// </summary>
+    internal IPdfDocumentInternal Document { get; }
+
+    /// <summary>
     /// Gets the annotation subtype (e.g., Text, Link, Widget, etc.).
     /// </summary>
     public PdfAnnotationSubType Subtype { get; }
@@ -80,7 +86,13 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     /// <summary>
     /// Gets the rectangle defining the annotation's location on the page.
     /// </summary>
-    public virtual PdfRectangle Rectangle { get; }
+    public PdfRectangle Rectangle { get; }
+
+    /// <summary>
+    /// Gets the bounds of everything the fallback rendering draws, borders and line endings included. By default
+    /// <see cref="Rectangle"/>, for annotations drawn inside it.
+    /// </summary>
+    public virtual PdfRectangle ContentBounds => Rectangle;
 
     /// <summary>
     /// Starting point of actual content.
@@ -207,40 +219,20 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     public PdfBlendMode? BlendMode { get; }
 
     /// <summary>
-    /// Gets the hover rectangles of the annotation, kept inside the crop box of <paramref name="page"/>.
+    /// Gets the hover area of the annotation as a path, by default <see cref="Rectangle"/> grown by
+    /// <paramref name="tolerance"/>.
     /// </summary>
-    /// <param name="page">Owning PDF page to crop margins to.</param>
-    public virtual PdfRectangle[] GetHoverRectangles(IPdfPage page)
-    {
-        if (page == null)
-        {
-            throw new ArgumentNullException(nameof(page));
-        }
-
-        return new PdfRectangle[] { MoveIntoCropBox(Rectangle, page) };
-    }
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal virtual PdfPath GetHoverPath(float tolerance)
+        => PdfAnnotationGeometry.CreateRectanglePath(Rectangle.Inflate(tolerance), borderStyle: null);
 
     /// <summary>
-    /// Gets the rectangle of the content bubble indicator placed at <paramref name="anchor"/>, kept inside the crop
-    /// box of <paramref name="page"/>.
+    /// Gets the rectangle of the content bubble indicator placed at <paramref name="anchor"/>: above and to the left
+    /// of it, its lower-right corner at the anchor.
     /// </summary>
-    /// <param name="page">Owning PDF page to crop margins to.</param>
     /// <param name="anchor">The point the bubble is placed at, such as <see cref="ContentStart"/>.</param>
-    public static PdfRectangle GetBubbleRectangle(IPdfPage page, in PdfPoint anchor)
-    {
-        if (page == null)
-        {
-            throw new ArgumentNullException(nameof(page));
-        }
-
-        PdfRectangle bubbleRectangle = new(
-            anchor.X - PdfAnnotationGraphics.DefaultBubbleSize,
-            anchor.Y,
-            anchor.X,
-            anchor.Y + PdfAnnotationGraphics.DefaultBubbleSize);
-
-        return MoveIntoCropBox(bubbleRectangle, page);
-    }
+    public static PdfRectangle GetBubbleRectangle(in PdfPoint anchor)
+        => new(anchor.X - PdfAnnotationGraphics.DefaultBubbleSize, anchor.Y, anchor.X, anchor.Y + PdfAnnotationGraphics.DefaultBubbleSize);
 
     /// <summary>
     /// Renders this annotation via the command processor.
@@ -298,7 +290,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         {
             PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
             PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-            PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(page, anchor), borderColor, backgroundColor);
+            PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(anchor), borderColor, backgroundColor);
         }
     }
 
@@ -425,7 +417,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         bool useOpacityLayer = UsesOpacityLayer;
         if (useOpacityLayer)
         {
-            processor.Process(new SaveLayerCommand(Rectangle, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));
+            processor.Process(new SaveLayerCommand(ContentBounds, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));
         }
 
         bool rendered = RenderFallback(processor, page, visualStateKind, renderer, renderingParameters, observer);
@@ -438,38 +430,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         processor.Process(RestoreStateCommand.Instance);
 
         return rendered;
-    }
-
-    private static PdfRectangle MoveIntoCropBox(in PdfRectangle rectangle, IPdfPage page)
-    {
-        if (rectangle.Width <= 0 || rectangle.Height <= 0)
-        {
-            return PdfRectangle.Empty;
-        }
-
-        PdfRectangle crop = page.CropBox;
-
-        float dx = 0f;
-        if (rectangle.Left < crop.Left)
-        {
-            dx = crop.Left - rectangle.Left;
-        }
-        else if (rectangle.Right > crop.Right)
-        {
-            dx = crop.Right - rectangle.Right;
-        }
-
-        float dy = 0f;
-        if (rectangle.Top < crop.Top)
-        {
-            dy = crop.Top - rectangle.Top;
-        }
-        else if (rectangle.Bottom > crop.Bottom)
-        {
-            dy = crop.Bottom - rectangle.Bottom;
-        }
-
-        return new PdfRectangle(rectangle.Left + dx, rectangle.Top + dy, rectangle.Right + dx, rectangle.Bottom + dy);
     }
 
     /// <summary>

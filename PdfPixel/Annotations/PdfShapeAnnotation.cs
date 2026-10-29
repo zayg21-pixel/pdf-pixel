@@ -38,6 +38,49 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfAnnotationBorderEffect BorderEffect { get; }
 
+    /// <summary>
+    /// Gets the stroked bounds of the shape grown by the reach of <see cref="BorderEffect"/>, or
+    /// <see cref="PdfAnnotation.Rectangle"/> when the annotation defines no shape.
+    /// </summary>
+    public override PdfRectangle ContentBounds
+    {
+        get
+        {
+            PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
+            PdfPath? shapePath = CreateShapePath(strokeStyle.LineWidth);
+
+            if (shapePath != null)
+            {
+                return shapePath.GetBounds().InflateForStroke(strokeStyle).Inflate(BorderEffect.GetOutset(strokeStyle.LineWidth));
+            }
+            else
+            {
+                return base.ContentBounds;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the shape grown by half its border width plus <paramref name="tolerance"/>, or the hover area of the
+    /// annotation when it defines no shape.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+    {
+        PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
+        PdfPath? shapePath = CreateShapePath(strokeStyle.LineWidth);
+
+        if (shapePath != null)
+        {
+            float borderReach = (HasBorder(strokeStyle)) ? strokeStyle.LineWidth / 2f : 0f;
+            return shapePath.Inflate(borderReach + tolerance);
+        }
+        else
+        {
+            return base.GetHoverPath(tolerance);
+        }
+    }
+
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
@@ -62,7 +105,7 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
             processor.Process(new DrawPathCommand(effectPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
-        if (strokeStyle.LineWidth > 0 && Color?.Length != 0)
+        if (HasBorder(strokeStyle))
         {
             PdfColor strokeColor = ResolveColor(page);
             PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, strokeStyle, BorderEffect);
@@ -77,4 +120,9 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
     /// defines no shape.
     /// </summary>
     internal abstract PdfPath? CreateShapePath(float lineWidth);
+
+    /// <summary>
+    /// Whether a border is drawn with <paramref name="strokeStyle"/>.
+    /// </summary>
+    private bool HasBorder(PdfStrokeStyle strokeStyle) => strokeStyle.LineWidth > 0 && Color?.Length != 0;
 }

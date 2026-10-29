@@ -1,8 +1,9 @@
 using PdfPixel.Annotations.Parsing;
+using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
-using System;
 
 namespace PdfPixel.Annotations;
 
@@ -33,43 +34,63 @@ public abstract class PdfTextMarkupAnnotation : PdfMarkupAnnotation
     public PdfPoint[][] Quadrilaterals { get; }
 
     /// <summary>
-    /// Gets the declared rectangle, or the union of the quadrilateral bounds when there is no appearance stream.
+    /// Gets the bounds of <see cref="Quadrilaterals"/> grown by half the width of the lines marked on them, or
+    /// <see cref="PdfAnnotation.Rectangle"/> when there are none.
     /// </summary>
-    public override PdfRectangle Rectangle
+    public override PdfRectangle ContentBounds
     {
         get
         {
-            if (Appearance != null || Quadrilaterals.Length == 0)
+            if (Quadrilaterals.Length > 0)
             {
-                return base.Rectangle;
+                return CreateQuadrilateralsPath().GetBounds().Inflate(new PdfStrokeStyle().LineWidth / 2f);
             }
-
-            PdfRectangle bounds = GetQuadBounds(Quadrilaterals[0]);
-
-            for (int index = 1; index < Quadrilaterals.Length; index++)
+            else
             {
-                bounds = PdfRectangle.Union(bounds, GetQuadBounds(Quadrilaterals[index]));
+                return base.ContentBounds;
             }
-
-            return bounds;
         }
     }
 
     /// <summary>
-    /// Returns the bounds of a single quadrilateral's fallback-rendered geometry, in PDF user space.
+    /// Gets <see cref="Quadrilaterals"/> grown by <paramref name="tolerance"/>, or the hover area of the annotation
+    /// when it has none.
     /// </summary>
-    protected virtual PdfRectangle GetQuadBounds(PdfPoint[] quad)
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
     {
-        if (quad == null)
+        if (Quadrilaterals.Length > 0)
         {
-            throw new ArgumentNullException(nameof(quad));
+            return CreateQuadrilateralsPath().Inflate(tolerance);
         }
+        else
+        {
+            return base.GetHoverPath(tolerance);
+        }
+    }
 
-        float left = Math.Min(Math.Min(quad[0].X, quad[1].X), Math.Min(quad[2].X, quad[3].X));
-        float right = Math.Max(Math.Max(quad[0].X, quad[1].X), Math.Max(quad[2].X, quad[3].X));
-        float minY = Math.Min(Math.Min(quad[0].Y, quad[1].Y), Math.Min(quad[2].Y, quad[3].Y));
-        float maxY = Math.Max(Math.Max(quad[0].Y, quad[1].Y), Math.Max(quad[2].Y, quad[3].Y));
+    /// <summary>
+    /// Creates one path with a closed contour for each of <see cref="Quadrilaterals"/>.
+    /// </summary>
+    private PdfPath CreateQuadrilateralsPath()
+    {
+        PdfPathBuilder quadrilateralsPath = new();
+        quadrilateralsPath.AddQuadrilaterals(Quadrilaterals);
 
-        return new PdfRectangle(left, minY, right, maxY);
+        return quadrilateralsPath.ToPath();
+    }
+
+    /// <summary>
+    /// The frame of the bottom edge of <paramref name="quad"/>: the matrix from its coordinates to the page, with the
+    /// x axis along the edge from its midpoint and the y axis to the edge's left, half the edge length, and the
+    /// height of the quadrilateral, positive when its top lies on the positive y side.
+    /// </summary>
+    private protected static (PdfMatrix Matrix, float HalfLength, float Height) GetBaselineFrame(PdfPoint[] quad)
+    {
+        PdfMatrix lineMatrix = PdfAnnotationGeometry.CreateLineMatrix(quad[1], quad[0]);
+        float halfLength = PdfAnnotationGeometry.GetDistance(quad[1], quad[0]) / 2f;
+        float height = lineMatrix.Invert().MapPoint(quad[2]).Y;
+
+        return (lineMatrix, halfLength, height);
     }
 }

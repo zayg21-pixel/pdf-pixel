@@ -40,20 +40,12 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         }
 
         PdfColor color = ResolveColor(page);
+        PdfPathBuilder path = new();
+        path.AddQuadrilaterals(quads);
 
-        foreach (PdfPoint[] quad in quads)
-        {
-            PdfPathBuilder path = new();
-            path.MoveTo(quad[0]);
-            path.LineTo(quad[1]);
-            path.LineTo(quad[2]);
-            path.LineTo(quad[3]);
-            path.Close();
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color, Opacity);
 
-            PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color, Opacity);
-
-            processor.Process(new DrawPathCommand(path.ToPath(), paint));
-        }
+        processor.Process(new DrawPathCommand(path.ToPath(), paint));
 
         return true;
     }

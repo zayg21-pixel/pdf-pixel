@@ -4,6 +4,7 @@ using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Files;
+using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
@@ -33,6 +34,13 @@ public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
 
     /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
+
+    /// <summary>
+    /// Gets the icon rectangle grown by <paramref name="tolerance"/>.
+    /// </summary>
+    /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
+    internal override PdfPath GetHoverPath(float tolerance)
+        => PdfAnnotationGeometry.CreateRectanglePath(Rectangle.Inflate(tolerance), borderStyle: null);
 
     /// <inheritdoc/>
     public override bool IsInteractive => true;

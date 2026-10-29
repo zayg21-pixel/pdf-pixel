@@ -41,11 +41,66 @@ public static class PdfPathExtensions
             throw new ArgumentNullException(nameof(strokePaint));
         }
 
-        PdfStrokeStyle style = strokePaint.RequireStrokeStyle();
-        float halfWidth = style.LineWidth / 2f;
-        float inflate = (style.LineJoin == PdfStrokeJoin.Miter) ? halfWidth * Math.Max(style.MiterLimit, 1f) : halfWidth;
+        return bounds.InflateForStroke(strokePaint.RequireStrokeStyle());
+    }
+
+    /// <summary>
+    /// Grows <paramref name="bounds"/> by the reach a stroke with <paramref name="strokeStyle"/> adds beyond
+    /// the geometry it follows, so the result covers the stroked shape rather than its centre line.
+    /// </summary>
+    public static PdfRectangle InflateForStroke(this in PdfRectangle bounds, PdfStrokeStyle strokeStyle)
+    {
+        if (strokeStyle == null)
+        {
+            throw new ArgumentNullException(nameof(strokeStyle));
+        }
+
+        float halfWidth = strokeStyle.LineWidth / 2f;
+        float inflate = (strokeStyle.LineJoin == PdfStrokeJoin.Miter) ? halfWidth * Math.Max(strokeStyle.MiterLimit, 1f) : halfWidth;
 
         return bounds.Inflate(inflate);
+    }
+
+    /// <summary>
+    /// Returns <paramref name="path"/> grown by <paramref name="amount"/> on every side, an open subpath becoming the
+    /// area within <paramref name="amount"/> of it.
+    /// </summary>
+    public static PdfPath Inflate(this PdfPath path, float amount)
+    {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        return PdfStrokeOutlineBuilder.BuildInflated(path, amount);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="point"/> lies inside <paramref name="path"/> filled with its <see cref="PdfPath.FillType"/>,
+    /// an open subpath closed for filling as usual.
+    /// </summary>
+    public static bool Contains(this PdfPath path, in PdfPoint point)
+    {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        int winding = 0;
+
+        if (path.GetBounds().Contains(point))
+        {
+            winding = PdfPathWinding.GetWinding(path, PdfVectorMath.ToVector2(point));
+        }
+
+        if (path.FillType == PdfPathFillType.EvenOdd)
+        {
+            return (winding & 1) != 0;
+        }
+        else
+        {
+            return winding != 0;
+        }
     }
 
     /// <summary>
@@ -63,6 +118,31 @@ public static class PdfPathExtensions
         path.LineTo(rect.Right, rect.Bottom);
         path.LineTo(rect.Left, rect.Bottom);
         path.Close();
+    }
+
+    /// <summary>
+    /// Adds a closed contour for each of <paramref name="quadrilaterals"/>, four points each in drawing order.
+    /// </summary>
+    public static void AddQuadrilaterals(this PdfPathBuilder path, PdfPoint[][] quadrilaterals)
+    {
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        if (quadrilaterals == null)
+        {
+            throw new ArgumentNullException(nameof(quadrilaterals));
+        }
+
+        foreach (PdfPoint[] quadrilateral in quadrilaterals)
+        {
+            path.MoveTo(quadrilateral[0]);
+            path.LineTo(quadrilateral[1]);
+            path.LineTo(quadrilateral[2]);
+            path.LineTo(quadrilateral[3]);
+            path.Close();
+        }
     }
 
     /// <summary>

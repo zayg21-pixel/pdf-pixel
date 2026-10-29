@@ -147,8 +147,8 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Returns <see langword="true"/> when the cached annotation recording must be regenerated for <paramref name="request"/>:
     /// no recording is cached yet, no request was recorded, the active annotation or its state changed, the scale or
-    /// reference scale changed on a page with annotations that keep their size on screen, the page rotation changed on a
-    /// page with annotations that stay upright, or the request forces an annotation update.
+    /// reference scale changed on a page with annotations or bubbles that keep their size on screen, the page rotation
+    /// changed on a page with annotations or bubbles that stay upright, or the request forces an annotation update.
     /// </summary>
     public bool NeedsAnnotationRecordingUpdate(PdfPanelPage page, PagesDrawingRequest request)
     {
@@ -167,9 +167,9 @@ internal sealed class PdfPageCacheEntryItem : IDisposable
             || LastRequest.ActiveAnnotation != request.ActiveAnnotation
             || LastRequest.ActiveAnnotationState != request.ActiveAnnotationState
             || ((LastRequest.Scale != request.Scale || LastRequest.ReferenceScale != request.ReferenceScale)
-                && page.PdfPage.GetAnnotations().Any(x => x.Content.IsNoZoom()))
+                && page.PdfPage.GetAnnotations().Any(x => x.Content.IsNoZoom() || x.Content.ShouldDisplayBubble))
             || (LastRequest.GetPage(page.PageNumber).Rotation != request.GetPage(page.PageNumber).Rotation
-                && page.PdfPage.GetAnnotations().Any(x => x.Content.IsNoRotate()))
+                && page.PdfPage.GetAnnotations().Any(x => x.Content.IsNoRotate() || x.Content.ShouldDisplayBubble))
             || request.ForceAnnotationUpdate;
     }
 
