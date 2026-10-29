@@ -21,3 +21,13 @@ Files: `PdfPixel/Annotations/PdfAnnotation.cs`, `PdfPixel/Annotations`
 1. Fallback without appearance stream: Acrobat appears to outline the region in the annotation color and show the overlay (RO, or IC fill with OverlayText) on rollover. Confirm both, and whether the outline follows the quadrilaterals or the rectangle.
 2. Repeat: how the repeated OverlayText is laid out and clipped within the region.
 3. RO when it is also in the AP dictionary: does Acrobat ever draw RO before the redaction is applied?
+
+## 2. Content bounds for hover areas and the bubble
+
+Hover areas come from `Rectangle` (`GetHoverRectangles`), and the bubble anchor from `ContentStart`, a single point each type has to override. `Rectangle` often does not match what is drawn (RD insets, QuadPoints, path geometry, an oversized or empty Rect), and a missed `ContentStart` override goes unnoticed.
+
+How: an abstract `ContentRectangle` on `PdfAnnotation`, the rectangle of what is actually drawn, replaces `ContentStart`. Several types already have a `ContentRectangle` (Square, Circle, FreeText) or an equivalent (`MarkRectangle` on Caret); they become its overrides, and every other type derives it from its fallback geometry (quadrilaterals, line, ink, polygon and polyline paths, the icon rectangle). Hover rectangles and the bubble anchor (its upper-left corner) both come from it. A content path instead of a rectangle (exact hit testing of lines and ink) would be ideal but may be too complex; decide when starting.
+
+With an appearance stream the fallback geometry is not what is drawn. The appearance is the form's BBox mapped through its Matrix and fitted into `Rectangle` (ISO 32000-2 12.5.5), then clipped to `Rectangle`. What `ContentRectangle` is in that case has not been considered yet: the transformed BBox, `Rectangle`, or still the fallback geometry when the appearance is known to match it.
+
+Files: `PdfPixel/Annotations/PdfAnnotation.cs`, the annotation types that override `ContentStart` or `GetHoverRectangles`, `PdfPixel.PdfPanel/Annotations/PdfAnnotationPopup.cs`, `PdfPixel.PdfPanel/Caching/PdfDocumentContentExtensions.cs`

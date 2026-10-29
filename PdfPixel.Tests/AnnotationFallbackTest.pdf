@@ -8,7 +8,7 @@
 % - One case per feature. Every annotation has Contents saying what it tests and what is expected.
 %   FreeText and Line captions draw their Contents, so there the drawn text is the description.
 % - No annotation has an appearance stream, except the Invisible control cases on the Flags page and
-%   the H Invert appearance case on the Link page.
+%   the H Invert appearance case on the Link page, and the appearance cases on the Hover and bubble page.
 % - Pages are 840 x 840. Grid: 8 x 8 cells of 100 x 100, no gaps, 20 margins.
 %   Cell (column c, row r), row 0 at the top: left = 20 + 100c, top = 820 - 100r.
 %   A case may span several cells; it never leaves its cells.
@@ -38,6 +38,9 @@
 %   19. Border style
 %   20. Color and opacity
 %   21. Flags
+%   22. Hover and bubble: compares hover areas and speech bubbles with other viewers, so Contents
+%       say what to check wherever the reference behavior is not settled. Cases without
+%       Contents carry their description in Subj.
 % - Not covered until supported: Redact, Widget, Beveled and
 %   Inset border styles, underline border on FreeText, cloudy PolyLine, FreeText DS and rich text,
 %   Text State, Measure, StampImage and StampSnapshot appearances (they exist
@@ -1848,7 +1851,7 @@ endobj
 endobj
 
 230 0 obj
-<< /Type /Pages /Count 21 /Kids [232 0 R 234 0 R 236 0 R 238 0 R 240 0 R 242 0 R 244 0 R 246 0 R 248 0 R 250 0 R 252 0 R 254 0 R 256 0 R 258 0 R 260 0 R 262 0 R 264 0 R 266 0 R 268 0 R 270 0 R 272 0 R] >>
+<< /Type /Pages /Count 22 /Kids [232 0 R 234 0 R 236 0 R 238 0 R 240 0 R 242 0 R 244 0 R 246 0 R 248 0 R 250 0 R 252 0 R 254 0 R 256 0 R 258 0 R 260 0 R 262 0 R 264 0 R 266 0 R 268 0 R 270 0 R 272 0 R 338 0 R] >>
 endobj
 
 231 0 obj
@@ -2484,7 +2487,7 @@ endobj
 endobj
 
 247 0 obj
-<<  /Length 1630 >>
+<<  /Length 1759 >>
 stream
 q 0.85 G 0.5 w
 20 720 100 100 re S
@@ -2558,6 +2561,8 @@ BT /F1 12 Tf 0 g 235 765 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 680 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 650 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 135 665 Td (Marked text) Tj ET
+BT /F1 12 Tf 0 g 0.866 0.5 -0.5 0.866 240 650 Tm (Marked text) Tj ET
+BT /F1 12 Tf 0 g 1 0 0.364 1 335 665 Tm (Marked text) Tj ET
 endstream
 endobj
 
@@ -2565,11 +2570,11 @@ endobj
 << /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
    /Resources << /Font << /F1 1 0 R >> >>
    /Contents 247 0 R
-   /Annots [115 0 R 116 0 R 117 0 R 118 0 R 119 0 R] >>
+   /Annots [115 0 R 116 0 R 117 0 R 118 0 R 119 0 R 339 0 R 340 0 R] >>
 endobj
 
 249 0 obj
-<<  /Length 1630 >>
+<<  /Length 1759 >>
 stream
 q 0.85 G 0.5 w
 20 720 100 100 re S
@@ -2643,6 +2648,8 @@ BT /F1 12 Tf 0 g 235 765 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 680 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 650 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 135 665 Td (Marked text) Tj ET
+BT /F1 12 Tf 0 g 0.866 0.5 -0.5 0.866 240 650 Tm (Marked text) Tj ET
+BT /F1 12 Tf 0 g 1 0 0.364 1 335 665 Tm (Marked text) Tj ET
 endstream
 endobj
 
@@ -2650,11 +2657,11 @@ endobj
 << /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
    /Resources << /Font << /F1 1 0 R >> >>
    /Contents 249 0 R
-   /Annots [120 0 R 121 0 R 122 0 R 123 0 R 124 0 R] >>
+   /Annots [120 0 R 121 0 R 122 0 R 123 0 R 124 0 R 341 0 R 342 0 R] >>
 endobj
 
 251 0 obj
-<<  /Length 1630 >>
+<<  /Length 1759 >>
 stream
 q 0.85 G 0.5 w
 20 720 100 100 re S
@@ -2728,6 +2735,8 @@ BT /F1 12 Tf 0 g 235 765 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 680 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 650 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 135 665 Td (Marked text) Tj ET
+BT /F1 12 Tf 0 g 0.866 0.5 -0.5 0.866 240 650 Tm (Marked text) Tj ET
+BT /F1 12 Tf 0 g 1 0 0.364 1 335 665 Tm (Marked text) Tj ET
 endstream
 endobj
 
@@ -2735,11 +2744,11 @@ endobj
 << /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
    /Resources << /Font << /F1 1 0 R >> >>
    /Contents 251 0 R
-   /Annots [125 0 R 126 0 R 127 0 R 128 0 R 129 0 R] >>
+   /Annots [125 0 R 126 0 R 127 0 R 128 0 R 129 0 R 343 0 R 344 0 R] >>
 endobj
 
 253 0 obj
-<<  /Length 1630 >>
+<<  /Length 1759 >>
 stream
 q 0.85 G 0.5 w
 20 720 100 100 re S
@@ -2813,6 +2822,8 @@ BT /F1 12 Tf 0 g 235 765 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 680 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 35 650 Td (Marked text) Tj ET
 BT /F1 12 Tf 0 g 135 665 Td (Marked text) Tj ET
+BT /F1 12 Tf 0 g 0.866 0.5 -0.5 0.866 240 650 Tm (Marked text) Tj ET
+BT /F1 12 Tf 0 g 1 0 0.364 1 335 665 Tm (Marked text) Tj ET
 endstream
 endobj
 
@@ -2820,7 +2831,7 @@ endobj
 << /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
    /Resources << /Font << /F1 1 0 R >> >>
    /Contents 253 0 R
-   /Annots [130 0 R 131 0 R 132 0 R 133 0 R 134 0 R] >>
+   /Annots [130 0 R 131 0 R 132 0 R 133 0 R 134 0 R 345 0 R 346 0 R] >>
 endobj
 
 255 0 obj
@@ -3062,7 +3073,7 @@ endobj
 endobj
 
 261 0 obj
-<<  /Length 1641 >>
+<<  /Length 1756 >>
 stream
 q 0.85 G 0.5 w
 20 720 100 100 re S
@@ -3139,6 +3150,8 @@ BT /F1 12 Tf 0 g 338 566 Td (Press) Tj ET
 BT /F1 12 Tf 0 g 438 566 Td (Press) Tj ET
 1 1 0 rg 630 580 80 20 re f
 1 1 0 rg 530 540 100 20 re f
+1 1 0 rg 40 340 m 100.62 375 l 90.62 392.32 l 30 357.32 l h f
+1 1 0 rg 140 360 m 210 360 l 218 380 l 148 380 l h f
 endstream
 endobj
 
@@ -3147,7 +3160,7 @@ endobj
    /Resources << /Font << /F1 1 0 R >> >>
    /Contents 261 0 R
    /Annots [171 0 R 172 0 R 173 0 R 174 0 R 175 0 R 176 0 R 177 0 R 178 0 R 179 0 R 180 0 R 181 0 R 182 0 R 183 0 R 184 0 R 185 0 R 186 0 R
-             294 0 R 295 0 R 296 0 R 297 0 R] >>
+             294 0 R 295 0 R 296 0 R 297 0 R 347 0 R 348 0 R] >>
 endobj
 
 263 0 obj
@@ -3753,11 +3766,479 @@ stream
 endstream
 endobj
 
+299 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [30 730 110 810]
+   /T (Hover - Square no Popup)
+   /Contents (Square: Contents, no Popup. Check: Acrobat shows a speech bubble, PDF.js shows none.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] >>
+endobj
+
+300 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [130 730 210 810]
+   /T (Hover - Square Popup)
+   /Contents (Square: Contents and Popup. Check: a speech bubble in Acrobat and PDF.js.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /Popup 301 0 R >>
+endobj
+
+301 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [130 730 210 810]
+   /T (Hover - Square Popup popup)
+   /Contents (Popup: belongs to the Square Popup case. Expected: nothing drawn for the Popup itself.)
+   /Parent 300 0 R >>
+endobj
+
+302 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [230 730 310 810]
+   /T (Hover - Square Popup no Contents)
+   /Subj (Square: Popup, no Contents. Check: whether a speech bubble shows and what the popup shows.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /Popup 303 0 R >>
+endobj
+
+303 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [230 730 310 810]
+   /T (Hover - Square Popup no Contents popup)
+   /Parent 302 0 R >>
+endobj
+
+304 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [330 730 410 810]
+   /T (Hover - Square no Contents no Popup)
+   /Subj (Square: no Contents, no Popup. Expected: no speech bubble.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] >>
+endobj
+
+305 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [420 720 520 820]
+   /T (Hover - Highlight no Popup)
+   /Contents (Highlight: Contents, no Popup. Check: Acrobat shows a speech bubble, PDF.js shows none.)
+   /QuadPoints [434 776 498 776 434 762 498 762] /C [1 1 0] >>
+endobj
+
+306 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [520 720 620 820]
+   /T (Hover - Highlight Popup)
+   /Contents (Highlight: Contents and Popup. Check: a speech bubble in Acrobat and PDF.js.)
+   /QuadPoints [534 776 598 776 534 762 598 762] /C [1 1 0] /Popup 307 0 R >>
+endobj
+
+307 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [520 720 620 820]
+   /T (Hover - Highlight Popup popup)
+   /Contents (Popup: belongs to the Highlight Popup case. Expected: nothing drawn for the Popup itself.)
+   /Parent 306 0 R >>
+endobj
+
+308 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [620 720 720 820]
+   /T (Hover - Ink no Popup)
+   /Contents (Ink: Contents, no Popup. Check: Acrobat shows a speech bubble, PDF.js shows none.)
+   /InkList [[635 750 660 790 685 760 705 795]] /C [0.8 0 0] /BS << /W 2 >> >>
+endobj
+
+309 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [720 720 820 820]
+   /T (Hover - Ink Popup)
+   /Contents (Ink: Contents and Popup. Check: a speech bubble in Acrobat and PDF.js.)
+   /InkList [[735 750 760 790 785 760 805 795]] /C [0.8 0 0] /BS << /W 2 >> /Popup 310 0 R >>
+endobj
+
+310 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [720 720 820 820]
+   /T (Hover - Ink Popup popup)
+   /Contents (Popup: belongs to the Ink Popup case. Expected: nothing drawn for the Popup itself.)
+   /Parent 309 0 R >>
+endobj
+
+311 0 obj
+<< /Type /Annot /Subtype /Stamp
+   /Rect [30 650 110 690]
+   /T (Hover - Stamp no Popup)
+   /Contents (Stamp: Contents, no Popup. Check: no speech bubble in Acrobat.)
+   /Name /Approved >>
+endobj
+
+312 0 obj
+<< /Type /Annot /Subtype /Stamp
+   /Rect [130 650 210 690]
+   /T (Hover - Stamp Popup)
+   /Contents (Stamp: Contents and Popup. Check: whether the Popup brings a speech bubble in Acrobat and PDF.js.)
+   /Name /Approved /Popup 313 0 R >>
+endobj
+
+313 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [120 620 220 720]
+   /T (Hover - Stamp Popup popup)
+   /Contents (Popup: belongs to the Stamp Popup case. Expected: nothing drawn for the Popup itself.)
+   /Parent 312 0 R >>
+endobj
+
+314 0 obj
+<< /Type /Annot /Subtype /Caret
+   /Rect [255 655 285 685]
+   /T (Hover - Caret no Popup)
+   /Contents (Caret: Contents, no Popup. Check: no speech bubble in Acrobat.)
+   /C [0.8 0 0] >>
+endobj
+
+315 0 obj
+<< /Type /Annot /Subtype /Caret
+   /Rect [355 655 385 685]
+   /T (Hover - Caret Popup)
+   /Contents (Caret: Contents and Popup. Check: whether the Popup brings a speech bubble in Acrobat and PDF.js.)
+   /C [0.8 0 0] /Popup 316 0 R >>
+endobj
+
+316 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [320 620 420 720]
+   /T (Hover - Caret Popup popup)
+   /Contents (Popup: belongs to the Caret Popup case. Expected: nothing drawn for the Popup itself.)
+   /Parent 315 0 R >>
+endobj
+
+317 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [420 620 620 720]
+   /T (Hover - Line Cap no Popup)
+   /Contents (Line: Cap, no Popup)
+   /L [435 670 605 670] /C [0.2 0.2 0.6] /Cap true >>
+endobj
+
+318 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [620 620 820 720]
+   /T (Hover - Line Cap Popup)
+   /Contents (Line: Cap and Popup)
+   /L [635 670 805 670] /C [0.2 0.2 0.6] /Cap true /Popup 319 0 R >>
+endobj
+
+319 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [620 620 820 720]
+   /T (Hover - Line Cap Popup popup)
+   /Contents (Popup: belongs to the Line Cap Popup case. Expected: nothing drawn for the Popup itself.)
+   /Parent 318 0 R >>
+endobj
+
+320 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [20 320 320 620]
+   /T (Hover - Line diagonal)
+   /Contents (Line: corner to corner of a 3 x 3 cell Rect, no appearance stream. Check: Acrobat hovers only along the stroke, and where the speech bubble sits.)
+   /L [25 325 315 615] /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+321 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [320 320 620 620]
+   /T (Hover - Line diagonal appearance)
+   /Contents (Line: the same line drawn by an appearance stream. Check: whether the hover area still follows the stroke or becomes the Rect, and where the speech bubble sits.)
+   /L [325 325 615 615] /C [0.8 0 0] /BS << /W 3 >> /AP << /N 322 0 R >> >>
+endobj
+
+322 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 300 300] /Length 33 >>
+stream
+0.8 0 0 RG 3 w 5 5 m 295 295 l S
+endstream
+endobj
+
+323 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [620 420 820 620]
+   /T (Hover - Square diagonal appearance)
+   /Contents (Square: appearance stream drawing only a corner to corner line. Check: whether the hover area is the Rect or only the drawn line.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /AP << /N 324 0 R >> >>
+endobj
+
+324 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 200] /Length 33 >>
+stream
+0.8 0 0 RG 3 w 5 5 m 195 195 l S
+endstream
+endobj
+
+325 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [620 320 820 420]
+   /T (Hover - Line oversized Rect)
+   /Contents (Line: short line in the middle of a 2 x 1 cell Rect. Check: whether only the line hovers or the whole Rect, and where the speech bubble sits.)
+   /L [700 370 740 370] /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+326 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [30 230 110 310]
+   /T (Hover - Square no IC)
+   /Contents (Square: C red, no IC, border width 3. Check: whether the unfilled interior hovers or only the border.)
+   /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+327 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [130 230 210 310]
+   /T (Hover - Square IC)
+   /Contents (Square: C red, IC yellow, border width 3. Check: the filled interior hovers.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /BS << /W 3 >> >>
+endobj
+
+328 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [230 230 310 310]
+   /T (Hover - Circle no IC)
+   /Contents (Circle: C red, no IC, border width 3. Check: whether the corners of the Rect outside the circle and the unfilled interior hover.)
+   /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+329 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [320 220 420 320]
+   /T (Hover - Polygon no IC)
+   /Contents (Polygon: triangle, C red, no IC. Check: whether the empty corners of the Rect and the unfilled interior hover.)
+   /Vertices [335 235 405 235 370 305] /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+330 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [420 220 520 320]
+   /T (Hover - Polygon IC)
+   /Contents (Polygon: triangle, C red, IC yellow. Check: whether the empty corners of the Rect hover, the filled interior does.)
+   /Vertices [435 235 505 235 470 305] /C [0.8 0 0] /IC [1 0.9 0.6] /BS << /W 3 >> >>
+endobj
+
+331 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [520 220 620 320]
+   /T (Hover - Square RD)
+   /Contents (Square: RD 20 on every side, C red, IC yellow. Check: whether the hover area is the drawn square or the whole Rect, and where the speech bubble sits.)
+   /C [0.8 0 0] /IC [1 0.9 0.6] /RD [20 20 20 20] >>
+endobj
+
+332 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [620 220 820 320]
+   /T (Hover - Highlight two quads)
+   /Contents (Highlight: two quadrilaterals far apart. Check: whether the gap between them hovers.)
+   /QuadPoints [634 276 676 276 634 262 676 262 754 276 796 276 754 262 796 262] /C [1 1 0] >>
+endobj
+
+333 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [20 20 220 220]
+   /T (Hover - Ink diagonal)
+   /Contents (Ink: one stroke across a 2 x 2 cell Rect. Check: whether only the stroke hovers.)
+   /InkList [[30 30 80 160 140 80 210 210]] /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+334 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [220 20 420 220]
+   /T (Hover - PolyLine zigzag)
+   /Contents (PolyLine: zigzag across a 2 x 2 cell Rect. Check: whether only the segments hover.)
+   /Vertices [230 30 270 210 310 30 350 210 410 30] /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+335 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [420 20 620 220]
+   /T (Hover - Line arrows)
+   /Contents (Line: diagonal with an OpenArrow and a ClosedArrow. Check: whether the arrowheads hover with the stroke.)
+   /L [450 50 590 190] /LE [/OpenArrow /ClosedArrow] /C [0.8 0 0] /IC [1 0.9 0.6] /BS << /W 3 >> >>
+endobj
+
+336 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [620 20 820 220]
+   /T (Hover - Ink two strokes)
+   /Contents (Ink: two separate strokes. Check: whether the gap between them hovers.)
+   /InkList [[640 40 700 200] [740 40 800 200]] /C [0.8 0 0] /BS << /W 3 >> >>
+endobj
+
+337 0 obj
+<<  /Length 1527 >>
+stream
+q 0.85 G 0.5 w
+20 720 100 100 re S
+20 620 100 100 re S
+20 520 100 100 re S
+20 420 100 100 re S
+20 320 100 100 re S
+20 220 100 100 re S
+20 120 100 100 re S
+20 20 100 100 re S
+120 720 100 100 re S
+120 620 100 100 re S
+120 520 100 100 re S
+120 420 100 100 re S
+120 320 100 100 re S
+120 220 100 100 re S
+120 120 100 100 re S
+120 20 100 100 re S
+220 720 100 100 re S
+220 620 100 100 re S
+220 520 100 100 re S
+220 420 100 100 re S
+220 320 100 100 re S
+220 220 100 100 re S
+220 120 100 100 re S
+220 20 100 100 re S
+320 720 100 100 re S
+320 620 100 100 re S
+320 520 100 100 re S
+320 420 100 100 re S
+320 320 100 100 re S
+320 220 100 100 re S
+320 120 100 100 re S
+320 20 100 100 re S
+420 720 100 100 re S
+420 620 100 100 re S
+420 520 100 100 re S
+420 420 100 100 re S
+420 320 100 100 re S
+420 220 100 100 re S
+420 120 100 100 re S
+420 20 100 100 re S
+520 720 100 100 re S
+520 620 100 100 re S
+520 520 100 100 re S
+520 420 100 100 re S
+520 320 100 100 re S
+520 220 100 100 re S
+520 120 100 100 re S
+520 20 100 100 re S
+620 720 100 100 re S
+620 620 100 100 re S
+620 520 100 100 re S
+620 420 100 100 re S
+620 320 100 100 re S
+620 220 100 100 re S
+620 120 100 100 re S
+620 20 100 100 re S
+720 720 100 100 re S
+720 620 100 100 re S
+720 520 100 100 re S
+720 420 100 100 re S
+720 320 100 100 re S
+720 220 100 100 re S
+720 120 100 100 re S
+720 20 100 100 re S
+Q
+BT /F1 12 Tf 0 g 435 765 Td (Marked text) Tj ET
+BT /F1 12 Tf 0 g 535 765 Td (Marked text) Tj ET
+BT /F1 12 Tf 0 g 635 265 Td (Marked) Tj ET
+BT /F1 12 Tf 0 g 755 265 Td (Marked) Tj ET
+endstream
+endobj
+
+338 0 obj
+<< /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
+   /Resources << /Font << /F1 1 0 R >> >>
+   /Contents 337 0 R
+   /Annots [299 0 R 300 0 R 301 0 R 302 0 R 303 0 R 304 0 R 305 0 R 306 0 R 307 0 R 308 0 R 309 0 R 310 0 R
+             311 0 R 312 0 R 313 0 R 314 0 R 315 0 R 316 0 R 317 0 R 318 0 R 319 0 R
+             320 0 R 321 0 R 323 0 R 325 0 R
+             326 0 R 327 0 R 328 0 R 329 0 R 330 0 R 331 0 R 332 0 R
+             333 0 R 334 0 R 335 0 R 336 0 R] >>
+endobj
+
+339 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [220 620 320 720]
+   /T (Highlight - Rotated quad)
+   /Contents (Highlight: One quad rotated 30 degrees around rotated text. Expected: the mark is slanted with the text and covers it exactly.)
+   /C [1 0.5 0] /QuadPoints [233.63 659.03 289.06 691.03 240.63 646.9 296.06 678.9] >>
+endobj
+
+340 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [320 620 420 720]
+   /T (Highlight - Skewed quad)
+   /Contents (Highlight: One parallelogram quad around sheared text. Expected: the mark is a parallelogram leaning with the text.)
+   /C [1 0.5 0] /QuadPoints [338 676 402 676 332.91 662 396.91 662] >>
+endobj
+
+341 0 obj
+<< /Type /Annot /Subtype /Underline
+   /Rect [220 620 320 720]
+   /T (Underline - Rotated quad)
+   /Contents (Underline: One quad rotated 30 degrees around rotated text. Expected: the line runs along the slanted baseline.)
+   /C [1 0.5 0] /QuadPoints [233.63 659.03 289.06 691.03 240.63 646.9 296.06 678.9] >>
+endobj
+
+342 0 obj
+<< /Type /Annot /Subtype /Underline
+   /Rect [320 620 420 720]
+   /T (Underline - Skewed quad)
+   /Contents (Underline: One parallelogram quad around sheared text. Expected: a horizontal line under the text, along the bottom edge of the quad.)
+   /C [1 0.5 0] /QuadPoints [338 676 402 676 332.91 662 396.91 662] >>
+endobj
+
+343 0 obj
+<< /Type /Annot /Subtype /Squiggly
+   /Rect [220 620 320 720]
+   /T (Squiggly - Rotated quad)
+   /Contents (Squiggly: One quad rotated 30 degrees around rotated text. Expected: the wavy line runs along the slanted baseline.)
+   /C [1 0.5 0] /QuadPoints [233.63 659.03 289.06 691.03 240.63 646.9 296.06 678.9] >>
+endobj
+
+344 0 obj
+<< /Type /Annot /Subtype /Squiggly
+   /Rect [320 620 420 720]
+   /T (Squiggly - Skewed quad)
+   /Contents (Squiggly: One parallelogram quad around sheared text. Expected: a horizontal wavy line under the text, along the bottom edge of the quad.)
+   /C [1 0.5 0] /QuadPoints [338 676 402 676 332.91 662 396.91 662] >>
+endobj
+
+345 0 obj
+<< /Type /Annot /Subtype /StrikeOut
+   /Rect [220 620 320 720]
+   /T (StrikeOut - Rotated quad)
+   /Contents (StrikeOut: One quad rotated 30 degrees around rotated text. Expected: the line runs through the middle of the slanted text.)
+   /C [1 0.5 0] /QuadPoints [233.63 659.03 289.06 691.03 240.63 646.9 296.06 678.9] >>
+endobj
+
+346 0 obj
+<< /Type /Annot /Subtype /StrikeOut
+   /Rect [320 620 420 720]
+   /T (StrikeOut - Skewed quad)
+   /Contents (StrikeOut: One parallelogram quad around sheared text. Expected: a horizontal line through the middle of the text.)
+   /C [1 0.5 0] /QuadPoints [338 676 402 676 332.91 662 396.91 662] >>
+endobj
+
+347 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [20 320 120 420]
+   /T (Link - Rotated quad)
+   /Contents (Link: One quad rotated 30 degrees inside Rect. Expected: a blue border along the edges of the yellow strip, hand cursor only over the strip.)
+   /C [0 0 1] /QuadPoints [30 357.32 90.62 392.32 40 340 100.62 375] >>
+endobj
+
+348 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [120 320 220 420]
+   /T (Link - Skewed quad)
+   /Contents (Link: One parallelogram quad inside Rect. Expected: a blue border along the edges of the yellow strip, hand cursor only over the strip.)
+   /C [0 0 1] /QuadPoints [148 380 218 380 140 360 210 360] >>
+endobj
+
 xref
 0 1
 0000000000 65535 f 
 trailer
-<< /Size 299 /Root 273 0 R >>
+<< /Size 349 /Root 273 0 R >>
 startxref
 0
 %%EOF
