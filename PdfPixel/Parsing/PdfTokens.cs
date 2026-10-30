@@ -326,6 +326,11 @@ internal static class PdfTokens
     // Text markup annotation keys
     public static readonly PdfString QuadPointsKey = (PdfString)"QuadPoints"u8;       // Text markup quadrilaterals array
 
+    // Redaction annotation keys
+    public static readonly PdfString ROKey = (PdfString)"RO"u8;                       // Redaction overlay appearance form
+    public static readonly PdfString OverlayTextKey = (PdfString)"OverlayText"u8;     // Redaction overlay text
+    public static readonly PdfString RepeatKey = (PdfString)"Repeat"u8;               // Redaction overlay text repeat flag
+
     // Annotation popup and metadata keys
     public static readonly PdfString TitleKey = (PdfString)"T"u8;                     // Annotation title/author
     public static readonly PdfString AnnotationNameKey = (PdfString)"NM"u8;           // Annotation name, unique on its page

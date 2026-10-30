@@ -80,7 +80,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ✅ Stamp
 - ✅ Caret
 - ✅ FreeText
-- ⚠️ Redact *(rendered as generic annotation, no dedicated support)*
+- ✅ Redact
 - 🔲 Widget (AcroForm) *(planned)*
 - ❌ Sound, Movie, Screen, 3D
 
@@ -175,6 +175,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - Add portable collections (PDF Portfolios): `/Collection` (schema, sort, folders, initial document) and collection items (`/CI`)
 - Add document parts: `/DPartRoot` hierarchy (page ranges, `/DPM` metadata) and the GoToDp action
 - Add WinForms, Avalonia and MAUI support
+- Investigate rich text (`RC`) and default style strings (`DS`) for FreeText and fields: support or drop
 - Unit tests with full test coverage
 
 ---

@@ -105,5 +105,4 @@ Added one at a time, each as its own small step:
 - Text field flags: multiline, comb, password
 - Push-button captions and icons, including rollover and down
 - Highlighting mode (`H`)
-- Default style string (`DS`) and rich text formatting, for FreeText and fields
 - Native control overlay, with the DA export it reads

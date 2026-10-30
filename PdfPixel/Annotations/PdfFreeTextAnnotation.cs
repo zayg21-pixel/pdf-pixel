@@ -40,9 +40,6 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(dictionary.GetDictionary(PdfTokens.BorderEffectKey));
         RectangleDifferences = PdfAnnotationGeometryParser.ParseInsets(dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
-
-        // TODO: [MEDIUM] A FreeText without an appearance stream does not apply:
-        // - default style string
     }
 
     /// <inheritdoc/>
@@ -108,6 +105,7 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
     {
         PdfGraphicsState state = PdfAppearanceRenderer.CreateState(processor, page, renderer, DefaultAppearance, renderingParameters, observer);
         PdfColor color = state.FillPaint.Color;
+        PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
 
         PdfColor backgroundColor = ResolveColor(page);
         if (backgroundColor != PdfColors.Transparent)
@@ -119,13 +117,13 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
 
         if (Intent == PdfAnnotationIntent.FreeTextCallout && CalloutLine != null)
         {
-            PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
             DrawCalloutLine(processor, CalloutLine, strokeStyle, color, backgroundColor);
         }
 
-        if (Contents != null && state.FontSize > 0)
+        if (Contents != null)
         {
-            PdfAppearanceRenderer.DrawText(processor, renderer, state, Contents.Value.DecodePdfString(), ContentRectangle, BorderStyle, TextAlignment);
+            PdfRectangle textBox = ContentRectangle.Inflate(-2f * strokeStyle.LineWidth);
+            PdfAppearanceRenderer.DrawText(processor, renderer, state, Contents.Value.DecodePdfString(), textBox, TextAlignment);
         }
 
         return true;

@@ -50,6 +50,34 @@ internal static class PdfAnnotationAppearanceRenderer
     }
 
     /// <summary>
+    /// Draws <paramref name="form"/> unscaled, with the origin of its coordinate space at <paramref name="origin"/>.
+    /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
+    /// <param name="form">The form to draw.</param>
+    /// <param name="origin">The point the origin of the form lands on.</param>
+    /// <param name="page">The PDF page containing the annotation.</param>
+    /// <param name="renderer">The renderer context.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
+    /// <param name="observer">Observer for long-running operations.</param>
+    public static void RenderFormAt(
+        IPdfCommandProcessor processor,
+        PdfForm form,
+        in PdfPoint origin,
+        IPdfPageInternal page,
+        PdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
+    {
+        processor.Process(SaveStateCommand.Instance);
+        processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(origin.X, origin.Y)));
+
+        PdfGraphicsState state = new(page, page.MediaBox, new HashSet<uint>(), observer, renderingParameters);
+        renderer.DrawForm(processor, form, state);
+
+        processor.Process(RestoreStateCommand.Instance);
+    }
+
+    /// <summary>
     /// Renders a Form XObject appearance.
     /// </summary>
     private static void RenderFormAppearance(

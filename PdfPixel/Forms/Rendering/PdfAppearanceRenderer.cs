@@ -112,32 +112,33 @@ internal static class PdfAppearanceRenderer
     }
 
     /// <summary>
-    /// Draws <paramref name="text"/> from the top of <paramref name="box"/> down, padded by twice the width of
-    /// <paramref name="borderStyle"/>, wrapped to the padded width and aligned by <paramref name="alignment"/>, in the
-    /// font, size and paint of <paramref name="state"/>.
+    /// Draws <paramref name="text"/> from the top of <paramref name="textBox"/> down, wrapped to its width and aligned
+    /// by <paramref name="alignment"/>, in the font, size and paint of <paramref name="state"/>, at 12 points when the
+    /// size is 0 (auto size).
     /// </summary>
     /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="renderer">The renderer context.</param>
     /// <param name="state">The graphics state a default appearance set.</param>
     /// <param name="text">The text to draw.</param>
-    /// <param name="box">The box the border lies inside.</param>
-    /// <param name="borderStyle">The border style, or null for a solid border of width 1.</param>
+    /// <param name="textBox">The box the text is laid out in.</param>
     /// <param name="alignment">The justification of each line.</param>
-    public static void DrawText(
+    /// <returns>The area the lines take: across the widest line, and from the top of the box down by one line height
+    /// per line.</returns>
+    public static PdfRectangle DrawText(
         IPdfCommandProcessor processor,
         PdfRenderer renderer,
         PdfGraphicsState state,
         string text,
-        in PdfRectangle box,
-        PdfAnnotationBorderStyle? borderStyle,
+        in PdfRectangle textBox,
         PdfTextAlignment alignment)
     {
-        PdfRectangle textBox = box.Inflate(-2f * GetStrokeStyle(borderStyle).LineWidth);
+        ResolveAutoSize(state);
+
         PdfNamedFont font = GetNamedFont(state);
         float fontSize = state.FontSize;
         float horizontalScale = fontSize * state.HorizontalScaling / 100f;
         PdfFontMetrics metrics = GetMetrics(state, font);
-        float lineHeight = (state.Leading > 0) ? state.Leading : (metrics.Ascent - metrics.Descent) * fontSize;
+        float lineHeight = GetLineHeight(state, metrics);
 
         ShapedGlyphBuffer glyphs = new();
         List<string> lines = [];
@@ -148,6 +149,8 @@ internal static class PdfAppearanceRenderer
 
         PdfMatrix textMatrix = state.TextMatrix;
         float baseline = textBox.Bottom - (metrics.Ascent * fontSize);
+        float textLeft = float.PositiveInfinity;
+        float textRight = float.NegativeInfinity;
 
         foreach (string line in lines)
         {
@@ -163,8 +166,12 @@ internal static class PdfAppearanceRenderer
             state.TextMatrix = new PdfMatrix(textMatrix.ScaleX, textMatrix.SkewX, lineStart, textMatrix.SkewY, textMatrix.ScaleY, baseline);
             renderer.DrawTextSequence(processor, glyphs.Glyphs, state, font);
 
+            textLeft = MathF.Min(textLeft, lineStart);
+            textRight = MathF.Max(textRight, lineStart + lineWidth);
             baseline -= lineHeight;
         }
+
+        return new PdfRectangle(textLeft, textBox.Bottom - (lines.Count * lineHeight), textRight, textBox.Bottom);
     }
 
     private static void ApplyDefaultAppearance(
@@ -221,6 +228,14 @@ internal static class PdfAppearanceRenderer
         return borderEffect.Apply(rectanglePath, lineWidth);
     }
 
+    private static void ResolveAutoSize(PdfGraphicsState state)
+    {
+        if (state.FontSize == 0)
+        {
+            state.FontSize = DefaultFontSize;
+        }
+    }
+
     private static PdfStrokeStyle GetStrokeStyle(PdfAnnotationBorderStyle? borderStyle) => borderStyle?.StrokeStyle ?? DefaultBorderStrokeStyle;
 
     private static PdfNamedFont GetNamedFont(PdfGraphicsState state)
@@ -244,6 +259,9 @@ internal static class PdfAppearanceRenderer
 
         return state.Host.Document.FontProvider.GetFallbackTypeface(font.SubstitutionInfo).Metrics;
     }
+
+    private static float GetLineHeight(PdfGraphicsState state, PdfFontMetrics metrics)
+        => (state.Leading > 0) ? state.Leading : (metrics.Ascent - metrics.Descent) * state.FontSize;
 
     private static void AddWrappedLines(
         string paragraph,

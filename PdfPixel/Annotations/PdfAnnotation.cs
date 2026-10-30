@@ -477,6 +477,7 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
             PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
             PdfAnnotationSubType.Popup => new PdfPopupAnnotation(annotationObject),
             PdfAnnotationSubType.FileAttachment => new PdfFileAttachmentAnnotation(annotationObject),
+            PdfAnnotationSubType.Redact => new PdfRedactAnnotation(annotationObject),
             PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // TODO: [LOW] Widget is not fully implemented yet
             _ => new PdfGenericAnnotation(annotationObject, subtype)
         };

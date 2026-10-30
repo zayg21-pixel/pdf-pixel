@@ -41,7 +41,8 @@
 %   22. Hover and bubble: compares hover areas and speech bubbles with other viewers, so Contents
 %       say what to check wherever the reference behavior is not settled. Cases without
 %       Contents carry their description in Subj.
-% - Not covered until supported: Redact, Widget, Beveled and
+%   23. Redact: the overlay shows on hover, before the redaction is applied.
+% - Not covered until supported: Widget, Beveled and
 %   Inset border styles, underline border on FreeText, cloudy PolyLine, FreeText DS and rich text,
 %   Text State, Measure, StampImage and StampSnapshot appearances (they exist
 %   only as an appearance stream).
@@ -376,7 +377,7 @@ endobj
 << /Type /Annot /Subtype /FreeText
    /Rect [25 325 215 415]
    /T (FreeText - Font size 0)
-   /Contents (FreeText: Font size 0 \(auto\). Expected: border only, no text.)
+   /Contents (FreeText: Font size 0 \(auto\). Expected: border and the text at 12 pt.)
    /DA (/Helv 0 Tf 0 g) >>
 endobj
 
@@ -1851,7 +1852,7 @@ endobj
 endobj
 
 230 0 obj
-<< /Type /Pages /Count 22 /Kids [232 0 R 234 0 R 236 0 R 238 0 R 240 0 R 242 0 R 244 0 R 246 0 R 248 0 R 250 0 R 252 0 R 254 0 R 256 0 R 258 0 R 260 0 R 262 0 R 264 0 R 266 0 R 268 0 R 270 0 R 272 0 R 338 0 R] >>
+<< /Type /Pages /Count 23 /Kids [232 0 R 234 0 R 236 0 R 238 0 R 240 0 R 242 0 R 244 0 R 246 0 R 248 0 R 250 0 R 252 0 R 254 0 R 256 0 R 258 0 R 260 0 R 262 0 R 264 0 R 266 0 R 268 0 R 270 0 R 272 0 R 338 0 R 364 0 R] >>
 endobj
 
 231 0 obj
@@ -4234,11 +4235,244 @@ endobj
    /C [0 0 1] /QuadPoints [148 380 218 380 140 360 210 360] >>
 endobj
 
+349 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [30 750 110 790]
+   /T (Redact - Default)
+   /Contents (Redact: No IC or overlay. Expected: nothing drawn; on hover the Rect filled white, hiding the text.) >>
+endobj
+
+351 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [130 750 210 790]
+   /T (Redact - IC)
+   /Contents (Redact: IC black. Expected: nothing drawn; on hover the Rect filled black.)
+   /IC [0 0 0] >>
+endobj
+
+352 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [230 750 310 790]
+   /T (Redact - CA)
+   /Contents (Redact: IC black, CA 0.5. Expected: nothing drawn; on hover an opaque black fill, CA is ignored.)
+   /IC [0 0 0] /CA 0.5 >>
+endobj
+
+353 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [330 730 810 810]
+   /T (Redact - Repeat)
+   /Contents (Redact: Baseline with Repeat true, on a wide Rect. Expected: nothing drawn; on hover a white Rect tiled edge to edge with REDACTED in black, with no space between repetitions, rows and columns starting at its top left, cut at its right and bottom edges.)
+   /OverlayText (REDACTED) /Repeat true /DA (/Helv 10 Tf 0 g) >>
+endobj
+
+354 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [30 650 110 690]
+   /T (Redact - OverlayText)
+   /Contents (Redact: Baseline: OverlayText, no IC, DA black 10 pt, no Q. Expected: nothing drawn; on hover a white Rect with REDACTED in black at its top left.)
+   /OverlayText (REDACTED) /DA (/Helv 10 Tf 0 g) >>
+endobj
+
+355 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [130 650 210 690]
+   /T (Redact - Q centered)
+   /Contents (Redact: Baseline with Q 1. Expected: nothing drawn; on hover a white Rect with REDACTED in black centered at its top.)
+   /OverlayText (REDACTED) /DA (/Helv 10 Tf 0 g) /Q 1 >>
+endobj
+
+356 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [230 650 310 690]
+   /T (Redact - Q right)
+   /Contents (Redact: Baseline with Q 2. Expected: nothing drawn; on hover a white Rect with REDACTED in black at its top right.)
+   /OverlayText (REDACTED) /DA (/Helv 10 Tf 0 g) /Q 2 >>
+endobj
+
+357 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [330 650 410 690]
+   /T (Redact - DA red)
+   /Contents (Redact: Baseline with DA red. Expected: nothing drawn; on hover a white Rect with REDACTED in red at its top left.)
+   /OverlayText (REDACTED) /DA (/Helv 10 Tf 1 0 0 rg) >>
+endobj
+
+358 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [430 650 510 690]
+   /T (Redact - IC with text)
+   /Contents (Redact: Baseline with IC light gray. Expected: nothing drawn; on hover a light gray Rect with REDACTED in black at its top left.)
+   /IC [0.8 0.8 0.8] /OverlayText (REDACTED) /DA (/Helv 10 Tf 0 g) >>
+endobj
+
+359 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [530 650 610 690]
+   /T (Redact - Auto size)
+   /Contents (Redact: Baseline with DA font size 0 \(auto\). Expected: nothing drawn; on hover a white Rect with REDACTED in black at 12 pt at its top left.)
+   /OverlayText (REDACTED) /DA (/Helv 0 Tf 0 g) >>
+endobj
+
+362 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 80 60] /Length 65 >>
+stream
+0.5 g 0 0 80 60 re f 1 G 3 w 10 10 m 70 50 l S 10 50 m 70 10 l S
+endstream
+endobj
+
+363 0 obj
+<<  /Length 2488 >>
+stream
+q 0.85 G 0.5 w
+20 720 100 100 re S
+20 620 100 100 re S
+20 520 100 100 re S
+20 420 100 100 re S
+20 320 100 100 re S
+20 220 100 100 re S
+20 120 100 100 re S
+20 20 100 100 re S
+120 720 100 100 re S
+120 620 100 100 re S
+120 520 100 100 re S
+120 420 100 100 re S
+120 320 100 100 re S
+120 220 100 100 re S
+120 120 100 100 re S
+120 20 100 100 re S
+220 720 100 100 re S
+220 620 100 100 re S
+220 520 100 100 re S
+220 420 100 100 re S
+220 320 100 100 re S
+220 220 100 100 re S
+220 120 100 100 re S
+220 20 100 100 re S
+320 720 100 100 re S
+320 620 100 100 re S
+320 520 100 100 re S
+320 420 100 100 re S
+320 320 100 100 re S
+320 220 100 100 re S
+320 120 100 100 re S
+320 20 100 100 re S
+420 720 100 100 re S
+420 620 100 100 re S
+420 520 100 100 re S
+420 420 100 100 re S
+420 320 100 100 re S
+420 220 100 100 re S
+420 120 100 100 re S
+420 20 100 100 re S
+520 720 100 100 re S
+520 620 100 100 re S
+520 520 100 100 re S
+520 420 100 100 re S
+520 320 100 100 re S
+520 220 100 100 re S
+520 120 100 100 re S
+520 20 100 100 re S
+620 720 100 100 re S
+620 620 100 100 re S
+620 520 100 100 re S
+620 420 100 100 re S
+620 320 100 100 re S
+620 220 100 100 re S
+620 120 100 100 re S
+620 20 100 100 re S
+720 720 100 100 re S
+720 620 100 100 re S
+720 520 100 100 re S
+720 420 100 100 re S
+720 320 100 100 re S
+720 220 100 100 re S
+720 120 100 100 re S
+720 20 100 100 re S
+Q
+BT /F1 12 Tf 0 g 35 765 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 135 765 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 235 765 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 335 790 Td (Secret text spread over a wide region, across several columns) Tj ET
+BT /F1 12 Tf 0 g 335 770 Td (Secret text spread over a wide region, across several columns) Tj ET
+BT /F1 12 Tf 0 g 335 750 Td (Secret text spread over a wide region, across several columns) Tj ET
+BT /F1 12 Tf 0 g 35 665 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 135 665 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 235 665 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 335 665 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 435 665 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 535 665 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 25 580 Td (Secret line one) Tj ET
+BT /F1 12 Tf 0 g 25 550 Td (Secret line two) Tj ET
+BT /F1 12 Tf 0 g 125 580 Td (Secret line one) Tj ET
+BT /F1 12 Tf 0 g 125 550 Td (Secret line two) Tj ET
+BT /F1 12 Tf 0 g 0.866 0.5 -0.5 0.866 240 550 Tm (Secret text) Tj ET
+BT /F1 12 Tf 0 g 335 565 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 440 565 Td (Secret text) Tj ET
+BT /F1 12 Tf 0 g 540 565 Td (Secret text) Tj ET
+endstream
+endobj
+
+364 0 obj
+<< /Type /Page /Parent 230 0 R /MediaBox [0 0 840 840]
+   /Resources << /Font << /F1 1 0 R >> >>
+   /Contents 363 0 R
+   /Annots [349 0 R 351 0 R 352 0 R 353 0 R 354 0 R 355 0 R 356 0 R 357 0 R 358 0 R 359 0 R 365 0 R 366 0 R 367 0 R 368 0 R 369 0 R 370 0 R] >>
+endobj
+
+365 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [22 540 116 600]
+   /T (Redact - Two quads)
+   /Contents (Redact: QuadPoints around two lines, IC black. Expected: nothing drawn; on hover both lines filled black, the rest of the Rect untouched.)
+   /IC [0 0 0] /QuadPoints [24 591 114 591 24 577 114 577 24 561 114 561 24 547 114 547] >>
+endobj
+
+366 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [122 540 216 600]
+   /T (Redact - Two quads with text)
+   /Contents (Redact: Baseline overlay text on QuadPoints around two lines. Expected: nothing drawn; on hover both lines filled white, each with REDACTED in black at its top left.)
+   /OverlayText (REDACTED) /DA (/Helv 10 Tf 0 g) /QuadPoints [124 591 214 591 124 577 214 577 124 561 214 561 124 547 214 547] >>
+endobj
+
+367 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [220 520 320 620]
+   /T (Redact - Rotated quad)
+   /Contents (Redact: One quad rotated 30 degrees around rotated text, IC black. Expected: nothing drawn; on hover the slanted strip filled black.)
+   /IC [0 0 0] /QuadPoints [233.63 559.03 289.06 591.03 240.63 546.9 296.06 578.9] >>
+endobj
+
+368 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [328 555 346 585]
+   /T (Redact - Text on the edge)
+   /Contents (Redact: Rect whose right edge runs through the e of Secret, IC black. Expected: nothing drawn; on hover the Rect filled black, the e cut at the edge, its right half still visible.)
+   /IC [0 0 0] >>
+endobj
+
+369 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [430 540 510 600]
+   /T (Redact - RO)
+   /Contents (Redact: RO, a gray box with a white cross. Expected: nothing drawn; on hover the gray box with the cross covering the Rect.)
+   /RO 362 0 R >>
+endobj
+
+370 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [530 540 610 600]
+   /T (Redact - RO precedence)
+   /Contents (Redact: RO plus IC red and OverlayText. Expected: nothing drawn; on hover the gray box with the cross, no red fill and no text, since RO takes precedence.)
+   /RO 362 0 R /IC [1 0 0] /OverlayText (IGNORED) /DA (/Helv 10 Tf 0 g) >>
+endobj
+
 xref
 0 1
 0000000000 65535 f 
 trailer
-<< /Size 349 /Root 273 0 R >>
+<< /Size 371 /Root 273 0 R >>
 startxref
 0
 %%EOF
