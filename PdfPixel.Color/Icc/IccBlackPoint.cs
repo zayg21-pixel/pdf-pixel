@@ -5,10 +5,12 @@ using System.Numerics;
 namespace PdfPixel.Color.Icc;
 
 /// <summary>
-/// Provides black point measurements for black point compensation.
+/// Provides black point measurements and black point compensation.
 /// </summary>
-internal static class IccBlackPoint
+public static class IccBlackPoint
 {
+    private const float CieEpsilon = 216f / 24389f;
+    private const float CieKappa = 24389f / 27f;
     private const float BlackPointMaxLightness = 50f;
     private const float NegativeProfileMinLightness = 95f;
     private const float NeutralLabEncoded = 128f / 255f;
@@ -27,6 +29,16 @@ internal static class IccBlackPoint
     /// <returns>The black point, or null when the color space has no darkest colorant.</returns>
     public static Vector4? GetDarkestColorantBlackPoint(IccProfileHeader header, IColorTransform deviceToPcs, IColorTransform? pcsToXyz)
     {
+        if (header == null)
+        {
+            throw new ArgumentNullException(nameof(header));
+        }
+
+        if (deviceToPcs == null)
+        {
+            throw new ArgumentNullException(nameof(deviceToPcs));
+        }
+
         Vector4 darkestColorant;
         switch (header.ColorSpace)
         {
@@ -69,7 +81,7 @@ internal static class IccBlackPoint
             lab.X = BlackPointMaxLightness;
         }
 
-        return IccTransforms.LabToXyz(lab);
+        return LabToXyz(lab);
     }
 
     /// <summary>
@@ -82,6 +94,21 @@ internal static class IccBlackPoint
     /// <returns>The black point.</returns>
     public static Vector4 GetPerceptualBlackPoint(IccProfileHeader header, IccLutPipeline perceptualOutput, IColorTransform deviceToPcs, IColorTransform? pcsToXyz)
     {
+        if (header == null)
+        {
+            throw new ArgumentNullException(nameof(header));
+        }
+
+        if (perceptualOutput == null)
+        {
+            throw new ArgumentNullException(nameof(perceptualOutput));
+        }
+
+        if (deviceToPcs == null)
+        {
+            throw new ArgumentNullException(nameof(deviceToPcs));
+        }
+
         Vector4 pcsBlack = Vector4.Zero;
         if (header.Pcs == IccColorSpace.Lab)
         {
@@ -91,9 +118,34 @@ internal static class IccBlackPoint
         Vector4 device = perceptualOutput.Transform.Transform(pcsBlack);
         Vector3 lab = DeviceToLab(header, deviceToPcs, pcsToXyz, device);
 
-        Vector3 neutralLab = new(Math.Min(lab.X, BlackPointMaxLightness), 0f, 0f);
+        return ToNeutralBlackPoint(lab);
+    }
 
-        return IccTransforms.LabToXyz(neutralLab);
+    /// <summary>
+    /// Measures the black point as the neutral color at the lightness of a known black point in CIE XYZ (D50).
+    /// </summary>
+    /// <param name="blackPoint">The known black point in CIE XYZ (D50).</param>
+    /// <returns>The black point.</returns>
+    public static Vector4 GetNeutralBlackPoint(Vector4 blackPoint) => ToNeutralBlackPoint(XyzToLab(blackPoint));
+
+    /// <summary>
+    /// Builds a black point compensation transform that maps the specified black point to zero in CIE XYZ (D50).
+    /// </summary>
+    /// <param name="blackPoint">The source black point in CIE XYZ (D50).</param>
+    /// <returns>An <see cref="IColorTransform"/> that applies black point compensation, or null when the black point is already zero.</returns>
+    public static IColorTransform? BuildBlackPointCompensationTransform(Vector4 blackPoint)
+    {
+        Vector4 black = new(blackPoint.X, blackPoint.Y, blackPoint.Z, 0f);
+        if (black == Vector4.Zero)
+        {
+            return null;
+        }
+
+        Vector4 white = IccTransforms.D50WhitePoint;
+        Vector4 scale = white / (white - black);
+        Vector4 offset = -black * scale;
+
+        return new FunctionColorTransform(x => (x * scale) + offset);
     }
 
     /// <summary>
@@ -103,6 +155,11 @@ internal static class IccBlackPoint
     /// <returns><c>true</c> if the color space is CMY, CMYK or multichannel; otherwise, <c>false</c>.</returns>
     public static bool IsInkColorSpace(IccProfileHeader header)
     {
+        if (header == null)
+        {
+            throw new ArgumentNullException(nameof(header));
+        }
+
         IccColorSpace colorSpace = header.ColorSpace;
         if (colorSpace == IccColorSpace.Cmyk || colorSpace == IccColorSpace.Cmy)
         {
@@ -119,6 +176,8 @@ internal static class IccBlackPoint
             || colorSpaceName.EndsWith("CLR", StringComparison.Ordinal);
     }
 
+    private static Vector4 ToNeutralBlackPoint(Vector3 lab) => LabToXyz(new Vector3(Math.Min(lab.X, BlackPointMaxLightness), 0f, 0f));
+
     private static Vector3 DeviceToLab(IccProfileHeader header, IColorTransform deviceToPcs, IColorTransform? pcsToXyz, Vector4 color)
     {
         Vector4 pcs = deviceToPcs.Transform(color);
@@ -133,6 +192,47 @@ internal static class IccBlackPoint
             pcs = pcsToXyz.Transform(pcs);
         }
 
-        return IccTransforms.XyzToLab(pcs);
+        return XyzToLab(pcs);
+    }
+
+    private static Vector3 XyzToLab(Vector4 xyz)
+    {
+        Vector4 white = IccTransforms.D50WhitePoint;
+        float fx = LabForward(xyz.X / white.X);
+        float fy = LabForward(xyz.Y / white.Y);
+        float fz = LabForward(xyz.Z / white.Z);
+
+        return new Vector3((116f * fy) - 16f, 500f * (fx - fy), 200f * (fy - fz));
+    }
+
+    private static Vector4 LabToXyz(Vector3 lab)
+    {
+        Vector4 white = IccTransforms.D50WhitePoint;
+        float fy = (lab.X + 16f) / 116f;
+        float fx = fy + (lab.Y / 500f);
+        float fz = fy - (lab.Z / 200f);
+
+        return new Vector4(LabInverse(fx) * white.X, LabInverse(fy) * white.Y, LabInverse(fz) * white.Z, 1f);
+    }
+
+    private static float LabForward(float ratio)
+    {
+        if (ratio > CieEpsilon)
+        {
+            return (float)Math.Pow(ratio, 1.0 / 3.0);
+        }
+
+        return ((CieKappa * ratio) + 16f) / 116f;
+    }
+
+    private static float LabInverse(float value)
+    {
+        float cube = value * value * value;
+        if (cube > CieEpsilon)
+        {
+            return cube;
+        }
+
+        return ((116f * value) - 16f) / CieKappa;
     }
 }

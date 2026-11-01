@@ -16,7 +16,9 @@ public sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
     private static readonly Vector4 _defaultMax = new(100f, 100f, 100f, 1f);
 
     private readonly FunctionColorTransform _normalizeTransform;
+    private readonly FunctionColorTransform _rangeTransform;
     private readonly ChainedColorTransform _labTransform;
+    private readonly ChainedColorTransform _absoluteLabTransform;
 
     /// <summary>
     /// Initializes the space from its white point, black point, and the ranges bounding a* and b*.
@@ -48,11 +50,16 @@ public sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
         }
 
         FunctionColorTransform normalizeTransform = new(x => (Vector4.Clamp(x, labMinVector, labMaxVector) + _labOffset) * _labScale);
-        IColorTransform toXyzTransform = IccTransforms.BuildLabToXyzTransform(whitePointVector);
-        IColorTransform toSrgbTransform = IccTransforms.BuildXyzToSrgbTransform(whitePointVector);
 
+        Vector4 labSpanVector = labMaxVector - labMinVector;
+        _rangeTransform = new FunctionColorTransform(x => (labMinVector + (x * labSpanVector) + _labOffset) * _labScale);
         _normalizeTransform = normalizeTransform;
-        _labTransform = new ChainedColorTransform(toXyzTransform, toSrgbTransform);
+
+        // WhitePoint is the ICC media white: media-relative colorimetry scales XYZ by D50 / WhitePoint,
+        // which equals reading the values as D50 Lab; absolute colorimetry keeps the unscaled XYZ.
+        // BlackPoint is not applied: L* 0 stays black under every rendering intent.
+        _labTransform = new ChainedColorTransform(IccTransforms.LabD50ToXyzTransform, IccTransforms.XyzD50ToSrgbTransform);
+        _absoluteLabTransform = new ChainedColorTransform(IccTransforms.BuildLabToXyzTransform(whitePointVector), IccTransforms.XyzD50ToSrgbTransform);
     }
 
     /// <inheritdoc />
@@ -67,8 +74,19 @@ public sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
     /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
     {
-        IColorTransform? firstStage = normalize ? _normalizeTransform : null;
-        ChainedColorTransform chained = new(firstStage, _labTransform, parameters.TransferFunction);
+        FunctionColorTransform firstStage = _rangeTransform;
+        if (normalize)
+        {
+            firstStage = _normalizeTransform;
+        }
+
+        ChainedColorTransform labTransform = _labTransform;
+        if (parameters.RenderingIntent == PdfRenderingIntent.AbsoluteColorimetric)
+        {
+            labTransform = _absoluteLabTransform;
+        }
+
+        ChainedColorTransform chained = new(firstStage, labTransform, parameters.TransferFunction);
         return new ColorTransformSampler(chained);
     }
 }

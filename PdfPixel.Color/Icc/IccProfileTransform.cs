@@ -163,7 +163,7 @@ public sealed class IccProfileTransform
             Vector4? blackPoint = GetBlackPoint((IccRenderingIntent)intentIndex, hasTrcModel);
             if (blackPoint != null)
             {
-                _blackPointCompensationTransforms[intentIndex] = IccTransforms.BuildBlackPointCompensationTransform(blackPoint.Value);
+                _blackPointCompensationTransforms[intentIndex] = IccBlackPoint.BuildBlackPointCompensationTransform(blackPoint.Value);
             }
         }
     }

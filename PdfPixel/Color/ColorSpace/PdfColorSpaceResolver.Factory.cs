@@ -150,25 +150,17 @@ internal partial class PdfColorSpaceResolver
 
         float[]? blackPoint = dictionary.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
 
-        var matrix = new float[3, 3]
-        {
-            { 1f, 0f, 0f },
-            { 0f, 1f, 0f },
-            { 0f, 0f, 1f }
-        };
+        float[,]? matrix = null;
 
         float[]? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey)?.GetFloatArray();
         if (matrixArray?.Length >= 9)
         {
-            matrix[0, 0] = matrixArray[0];
-            matrix[0, 1] = matrixArray[1];
-            matrix[0, 2] = matrixArray[2];
-            matrix[1, 0] = matrixArray[3];
-            matrix[1, 1] = matrixArray[4];
-            matrix[1, 2] = matrixArray[5];
-            matrix[2, 0] = matrixArray[6];
-            matrix[2, 1] = matrixArray[7];
-            matrix[2, 2] = matrixArray[8];
+            matrix = new float[3, 3]
+            {
+                { matrixArray[0], matrixArray[1], matrixArray[2] },
+                { matrixArray[3], matrixArray[4], matrixArray[5] },
+                { matrixArray[6], matrixArray[7], matrixArray[8] }
+            };
         }
 
         return new PdfCalRgbColorSpaceConverter(whitePoint, blackPoint, gamma, matrix);

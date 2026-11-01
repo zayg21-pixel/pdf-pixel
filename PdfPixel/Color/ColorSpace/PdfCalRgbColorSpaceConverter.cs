@@ -1,5 +1,6 @@
 using PdfPixel.Color.Icc;
 using PdfPixel.Color.Transform;
+using System;
 using System.Numerics;
 
 namespace PdfPixel.Color.ColorSpace;
@@ -10,17 +11,15 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
 {
+    private readonly ChainedColorTransform _toSrgbTransform;
+    private readonly ChainedColorTransform _absoluteToSrgbTransform;
+
     /// <summary>
     /// Initializes the space from its white point, black point, per-component gamma, and the matrix
     /// mapping its components to CIE XYZ.
     /// </summary>
     public PdfCalRgbColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)
     {
-        // blackPoint is deliberately unused. The Acrobat desktop application is the only viewer that
-        // applies it at all, its behavior is documented nowhere, and it could not be reproduced across
-        // the range of black point values. The Edge build of Acrobat renders pages that use one
-        // entirely white. Every other viewer ignores blackPoint, which agrees with ICC, where the
-        // media black point is obsolete and carries no colorimetric meaning.
         Vector4 whitePointVector;
 
         if (whitePoint?.Length >= 3)
@@ -32,6 +31,13 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
             whitePointVector = IccTransforms.D65WhitePoint;
         }
 
+        Vector4 blackPointVector = Vector4.Zero;
+
+        if (blackPoint?.Length >= 3)
+        {
+            blackPointVector = ColorVectorUtilities.ToVector4WithZeroPadding(blackPoint.AsSpan(0, 3));
+        }
+
         if (gamma == null || gamma.Length < 3)
         {
             gamma = new float[] { 1.0f, 1.0f, 1.0f };
@@ -39,9 +45,9 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
 
         matrix3x3 ??= new float[3, 3]
         {
-            { 0, 0, 1 },
+            { 1, 0, 0 },
             { 0, 1, 0 },
-            { 1, 0, 0 }
+            { 0, 0, 1 }
         };
 
         PerChannelTrcTransform trcTransform = new([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);
@@ -50,12 +56,30 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
         Matrix4x4 primariesMatrix = ColorVectorUtilities.ToMatrix4x4(matrix3x3);
         primariesMatrix = Matrix4x4.Transpose(primariesMatrix); // this matches how PDF specifies the matrix
 
-        Matrix4x4 adaptedMatrix = Matrix4x4.Multiply(chadMatrix, primariesMatrix);
+        Matrix4x4 blackPointScaleMatrix = Matrix4x4.Identity;
+        FunctionColorTransform? blackPointOffsetTransform = null;
+        IColorTransform? blackPointCompensationTransform = null;
+
+        // BlackPoint is the media black: the components decode into [BlackPoint, WhitePoint], then black point
+        // compensation maps the neutral black at its lightness, at most L* 50, to zero; absolute colorimetry
+        // skips the compensation.
+        if (blackPointVector != Vector4.Zero)
+        {
+            Vector4 blackPointScale = (whitePointVector - blackPointVector) / whitePointVector;
+            blackPointScaleMatrix = Matrix4x4.CreateScale(blackPointScale.X, blackPointScale.Y, blackPointScale.Z);
+
+            Vector4 adaptedBlackPoint = Vector4.Transform(blackPointVector, Matrix4x4.Transpose(chadMatrix));
+            blackPointOffsetTransform = new FunctionColorTransform(x => x + adaptedBlackPoint);
+            blackPointCompensationTransform = IccBlackPoint.BuildBlackPointCompensationTransform(IccBlackPoint.GetNeutralBlackPoint(adaptedBlackPoint));
+        }
+
+        Matrix4x4 adaptedMatrix = Matrix4x4.Multiply(chadMatrix, Matrix4x4.Multiply(blackPointScaleMatrix, primariesMatrix));
         adaptedMatrix = Matrix4x4.Transpose(adaptedMatrix);
 
         MatrixColorTransform matrixTransform = new(adaptedMatrix);
 
-        ToSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, IccTransforms.XyzD50ToSrgbTransform);
+        _toSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform, blackPointCompensationTransform, IccTransforms.XyzD50ToSrgbTransform);
+        _absoluteToSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform, IccTransforms.XyzD50ToSrgbTransform);
     }
 
     /// <inheritdoc />
@@ -65,11 +89,19 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
     public override bool IsDevice => false;
 
     /// <summary>
-    /// Gets the transform taking this space's components to sRGB.
+    /// Gets the transform taking this space's components to sRGB under the specified rendering intent.
     /// </summary>
-    protected ChainedColorTransform ToSrgbTransform { get; }
+    protected ChainedColorTransform GetToSrgbTransform(PdfRenderingIntent renderingIntent)
+    {
+        if (renderingIntent == PdfRenderingIntent.AbsoluteColorimetric)
+        {
+            return _absoluteToSrgbTransform;
+        }
+
+        return _toSrgbTransform;
+    }
 
     /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-        => new(new ChainedColorTransform(ToSrgbTransform, parameters.TransferFunction));
+        => new(new ChainedColorTransform(GetToSrgbTransform(parameters.RenderingIntent), parameters.TransferFunction));
 }

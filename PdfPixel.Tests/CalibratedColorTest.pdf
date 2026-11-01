@@ -1,0 +1,4671 @@
+%PDF-2.0
+%‚„œ”
+% CalibratedColorTest.pdf - graphical tests for the CIE-based color spaces CalGray, CalRGB and Lab.
+%
+% Rules
+% - One page per feature. Each row is one case: one color space, optionally under a graphics state
+%   (UseBlackPtComp) or a rendering intent (ri). Each column is one input value, the same for every
+%   row of a page, so a feature's effect reads down a column.
+% - Only valid input: WhitePoint Y = 1, BlackPoint non-negative and not above WhitePoint.
+% - BlackPoint cases are written as k x WhitePoint, so they stay neutral relative to the white.
+% - Every page ends with a control row in a device space, for checking the capture itself.
+% - Pages are 1100 x 940. Grid: 12 columns x 12 rows, pitch 70, tiles 60 x 60 with 10 gutters.
+%   Tile (column c, row r), row 0 at the top: left = 230 + 70c, top = 870 - 70r.
+%   Unused rows stay empty. Black 8 x 8 registration squares mark the four outer corners of the full
+%   12 x 12 grid, centers (212, 888), (1078, 888), (212, 22), (1078, 22). They are the only small
+%   pure black objects on a page: all text is 0.4 gray, so a measuring script can find them.
+%   Each used tile has a light gray 0.5 outline 1.5 outside it, in the gutter, so white tiles show.
+% - Row labels are left of the grid, column inputs above it; no text inside the grid.
+% - Columns:
+%   CalRGB pages: gray ramp 0 .02 .05 .10 .20 .35 .50 .75 1, then R, G, B at full.
+%   CalGray page: 0 .02 .05 .10 .15 .20 .35 .50 .65 .75 .90 1.
+%   Lab pages: L* 0 5 20 50 75 100 at a* = b* = 0, then L* 60 at chroma 30 every 60 degrees of hue:
+%   (60 30 0) (60 15 26) (60 -15 26) (60 -30 0) (60 -15 -26) (60 15 -26). These stay inside sRGB for
+%   every WhitePoint used, adapted with Bradford or by XYZ scaling.
+%   Lab control row: DeviceRGB holding the exact sRGB of each column read as D50 Lab (8.6.5.4).
+% - Image rows are 12 x 1, 8-bit images with the default Decode for their space; inputs are rounded
+%   to the nearest code value.
+% - Matrices are named after the working space they resemble; values are the common published ones.
+% - Pages:
+%   1. CalRGB baseline: common working spaces, no BlackPoint
+%   2. CalRGB WhitePoint: sRGB-like matrix, G 2.2, WhitePoint varies
+%   3. CalRGB Gamma: sRGB-like matrix, D65, Gamma varies
+%   4. CalRGB Matrix: D65, G 2.2, Matrix varies
+%   5. CalRGB BlackPoint, realistic: sRGB-like, BlackPoint = k x WhitePoint
+%   6. CalRGB BlackPoint, upper range and tinted: sRGB-like
+%   7. CalRGB BlackPoint against UseBlackPtComp and rendering intent: sRGB-like
+%   8. CalGray: Gamma, WhitePoint, BlackPoint = k x WhitePoint
+%   9. Lab baseline: fills and 8-bit images
+%   10. Lab WhitePoint: Range omitted, WhitePoint varies
+%   11. Lab Range: D50, Range varies
+%   12. Lab BlackPoint, realistic: BlackPoint = k x WhitePoint
+%   13. Lab BlackPoint, upper range and tinted
+%   14. Lab against UseBlackPtComp and rendering intent
+% - Edit by hand. The xref is a stub with a bogus startxref: readers repair it by scanning the objects,
+%   so no offsets need maintaining. Keep /Root in the trailer pointing at the catalog, and keep each
+%   stream's /Length right.
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+
+2 0 obj
+<< /Type /ExtGState /UseBlackPtComp /ON >>
+endobj
+
+3 0 obj
+<< /Type /ExtGState /UseBlackPtComp /OFF >>
+endobj
+
+4 0 obj
+<< /Type /ExtGState /UseBlackPtComp /Default >>
+endobj
+
+5 0 obj
+<< /Type /Pages /Count 14 /Kids [16 0 R 25 0 R 36 0 R 46 0 R 56 0 R 67 0 R 72 0 R 85 0 R 94 0 R 103 0 R 113 0 R 124 0 R 135 0 R 140 0 R] >>
+endobj
+
+6 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+7 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.5767 0.2974 0.027 0.1856 0.6273 0.0707 0.1882 0.0753 0.9911] >>]
+endobj
+
+8 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [1.8 1.8 1.8] /Matrix [0.4497 0.2446 0.0252 0.3163 0.672 0.1412 0.1845 0.0833 0.9227] >>]
+endobj
+
+9 0 obj
+[/CalRGB << /WhitePoint [0.9642 1 0.8249] /Gamma [1.8 1.8 1.8] /Matrix [0.7977 0.288 0 0.1352 0.7119 0 0.0313 0.0001 0.8249] >>]
+endobj
+
+10 0 obj
+[/CalRGB << /WhitePoint [0.9642 1 0.8249] /Gamma [2.2 2.2 2.2] /Matrix [0.7165 0.2587 0 0.101 0.7247 0.0512 0.1468 0.0166 0.7739] >>]
+endobj
+
+11 0 obj
+[/CalRGB << /WhitePoint [1 1 1] /Gamma [2.2 2.2 2.2] /Matrix [0.4887 0.1762 0 0.3107 0.813 0.0102 0.2006 0.0108 0.9898] >>]
+endobj
+
+12 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] >>]
+endobj
+
+13 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [1 1 1] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+14 0 obj
+<< /Type /XObject /Subtype /Image /Width 12 /Height 1 /ColorSpace 6 0 R /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 73 >>
+stream
+0000000505050D0D0D1A1A1A333333595959808080BFBFBFFFFFFFFF000000FF000000FF>
+endstream
+endobj
+
+15 0 obj
+<< /Length 9117 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (1. CalRGB baseline: common working spaces, no BlackPoint) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02 0.02 0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05 0.05 0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1 0.1 0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.2 0.2 0.2) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.35 0.35 0.35) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.5 0.5 0.5) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.75 0.75 0.75) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (1 1 1) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (1 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0 1 0) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (0 0 1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (sRGB-like, D65, G 2.2) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 810 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 810 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 810 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 810 60 60 re f
+/CS0 cs 1 1 1 sc 790 810 60 60 re f
+/CS0 cs 1 0 0 sc 860 810 60 60 re f
+/CS0 cs 0 1 0 sc 930 810 60 60 re f
+/CS0 cs 0 0 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (Adobe RGB-like, D65, G 2.2) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 740 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 740 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 740 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 740 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 740 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 740 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 740 60 60 re f
+/CS1 cs 1 1 1 sc 790 740 60 60 re f
+/CS1 cs 1 0 0 sc 860 740 60 60 re f
+/CS1 cs 0 1 0 sc 930 740 60 60 re f
+/CS1 cs 0 0 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (Apple RGB-like, D65, G 1.8) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 0.02 0.02 0.02 sc 300 670 60 60 re f
+/CS2 cs 0.05 0.05 0.05 sc 370 670 60 60 re f
+/CS2 cs 0.1 0.1 0.1 sc 440 670 60 60 re f
+/CS2 cs 0.2 0.2 0.2 sc 510 670 60 60 re f
+/CS2 cs 0.35 0.35 0.35 sc 580 670 60 60 re f
+/CS2 cs 0.5 0.5 0.5 sc 650 670 60 60 re f
+/CS2 cs 0.75 0.75 0.75 sc 720 670 60 60 re f
+/CS2 cs 1 1 1 sc 790 670 60 60 re f
+/CS2 cs 1 0 0 sc 860 670 60 60 re f
+/CS2 cs 0 1 0 sc 930 670 60 60 re f
+/CS2 cs 0 0 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (ProPhoto-like, D50, G 1.8) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 0.02 0.02 0.02 sc 300 600 60 60 re f
+/CS3 cs 0.05 0.05 0.05 sc 370 600 60 60 re f
+/CS3 cs 0.1 0.1 0.1 sc 440 600 60 60 re f
+/CS3 cs 0.2 0.2 0.2 sc 510 600 60 60 re f
+/CS3 cs 0.35 0.35 0.35 sc 580 600 60 60 re f
+/CS3 cs 0.5 0.5 0.5 sc 650 600 60 60 re f
+/CS3 cs 0.75 0.75 0.75 sc 720 600 60 60 re f
+/CS3 cs 1 1 1 sc 790 600 60 60 re f
+/CS3 cs 1 0 0 sc 860 600 60 60 re f
+/CS3 cs 0 1 0 sc 930 600 60 60 re f
+/CS3 cs 0 0 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (Wide Gamut-like, D50, G 2.2) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 0.02 0.02 0.02 sc 300 530 60 60 re f
+/CS4 cs 0.05 0.05 0.05 sc 370 530 60 60 re f
+/CS4 cs 0.1 0.1 0.1 sc 440 530 60 60 re f
+/CS4 cs 0.2 0.2 0.2 sc 510 530 60 60 re f
+/CS4 cs 0.35 0.35 0.35 sc 580 530 60 60 re f
+/CS4 cs 0.5 0.5 0.5 sc 650 530 60 60 re f
+/CS4 cs 0.75 0.75 0.75 sc 720 530 60 60 re f
+/CS4 cs 1 1 1 sc 790 530 60 60 re f
+/CS4 cs 1 0 0 sc 860 530 60 60 re f
+/CS4 cs 0 1 0 sc 930 530 60 60 re f
+/CS4 cs 0 0 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (CIE RGB-like, E, G 2.2) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 0.02 0.02 0.02 sc 300 460 60 60 re f
+/CS5 cs 0.05 0.05 0.05 sc 370 460 60 60 re f
+/CS5 cs 0.1 0.1 0.1 sc 440 460 60 60 re f
+/CS5 cs 0.2 0.2 0.2 sc 510 460 60 60 re f
+/CS5 cs 0.35 0.35 0.35 sc 580 460 60 60 re f
+/CS5 cs 0.5 0.5 0.5 sc 650 460 60 60 re f
+/CS5 cs 0.75 0.75 0.75 sc 720 460 60 60 re f
+/CS5 cs 1 1 1 sc 790 460 60 60 re f
+/CS5 cs 1 0 0 sc 860 460 60 60 re f
+/CS5 cs 0 1 0 sc 930 460 60 60 re f
+/CS5 cs 0 0 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (WhitePoint D65 only) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 0.02 0.02 0.02 sc 300 390 60 60 re f
+/CS6 cs 0.05 0.05 0.05 sc 370 390 60 60 re f
+/CS6 cs 0.1 0.1 0.1 sc 440 390 60 60 re f
+/CS6 cs 0.2 0.2 0.2 sc 510 390 60 60 re f
+/CS6 cs 0.35 0.35 0.35 sc 580 390 60 60 re f
+/CS6 cs 0.5 0.5 0.5 sc 650 390 60 60 re f
+/CS6 cs 0.75 0.75 0.75 sc 720 390 60 60 re f
+/CS6 cs 1 1 1 sc 790 390 60 60 re f
+/CS6 cs 1 0 0 sc 860 390 60 60 re f
+/CS6 cs 0 1 0 sc 930 390 60 60 re f
+/CS6 cs 0 0 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (sRGB-like, D65, G 1.0) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 0.02 0.02 0.02 sc 300 320 60 60 re f
+/CS7 cs 0.05 0.05 0.05 sc 370 320 60 60 re f
+/CS7 cs 0.1 0.1 0.1 sc 440 320 60 60 re f
+/CS7 cs 0.2 0.2 0.2 sc 510 320 60 60 re f
+/CS7 cs 0.35 0.35 0.35 sc 580 320 60 60 re f
+/CS7 cs 0.5 0.5 0.5 sc 650 320 60 60 re f
+/CS7 cs 0.75 0.75 0.75 sc 720 320 60 60 re f
+/CS7 cs 1 1 1 sc 790 320 60 60 re f
+/CS7 cs 1 0 0 sc 860 320 60 60 re f
+/CS7 cs 0 1 0 sc 930 320 60 60 re f
+/CS7 cs 0 0 1 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (sRGB-like as 8-bit image) Tj ET
+q
+q 230 250 60 60 re W n 720 0 0 60 230 250 cm /Im8 Do Q
+q 300 250 60 60 re W n 720 0 0 60 240 250 cm /Im8 Do Q
+q 370 250 60 60 re W n 720 0 0 60 250 250 cm /Im8 Do Q
+q 440 250 60 60 re W n 720 0 0 60 260 250 cm /Im8 Do Q
+q 510 250 60 60 re W n 720 0 0 60 270 250 cm /Im8 Do Q
+q 580 250 60 60 re W n 720 0 0 60 280 250 cm /Im8 Do Q
+q 650 250 60 60 re W n 720 0 0 60 290 250 cm /Im8 Do Q
+q 720 250 60 60 re W n 720 0 0 60 300 250 cm /Im8 Do Q
+q 790 250 60 60 re W n 720 0 0 60 310 250 cm /Im8 Do Q
+q 860 250 60 60 re W n 720 0 0 60 320 250 cm /Im8 Do Q
+q 930 250 60 60 re W n 720 0 0 60 330 250 cm /Im8 Do Q
+q 1000 250 60 60 re W n 720 0 0 60 340 250 cm /Im8 Do Q
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (Control: DeviceRGB, same inputs) Tj ET
+q
+0 0 0 rg 230 180 60 60 re f
+0.02 0.02 0.02 rg 300 180 60 60 re f
+0.05 0.05 0.05 rg 370 180 60 60 re f
+0.1 0.1 0.1 rg 440 180 60 60 re f
+0.2 0.2 0.2 rg 510 180 60 60 re f
+0.35 0.35 0.35 rg 580 180 60 60 re f
+0.5 0.5 0.5 rg 650 180 60 60 re f
+0.75 0.75 0.75 rg 720 180 60 60 re f
+1 1 1 rg 790 180 60 60 re f
+1 0 0 rg 860 180 60 60 re f
+0 1 0 rg 930 180 60 60 re f
+0 0 1 rg 1000 180 60 60 re f
+Q
+endstream
+endobj
+
+16 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 6 0 R /CS1 7 0 R /CS2 8 0 R /CS3 9 0 R /CS4 10 0 R /CS5 11 0 R /CS6 12 0 R /CS7 13 0 R >> /XObject << /Im8 14 0 R >> >>
+   /Contents 15 0 R >>
+endobj
+
+17 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+18 0 obj
+[/CalRGB << /WhitePoint [0.9642 1 0.8249] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+19 0 obj
+[/CalRGB << /WhitePoint [0.9568 1 0.9214] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+20 0 obj
+[/CalRGB << /WhitePoint [1.0985 1 0.3558] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+21 0 obj
+[/CalRGB << /WhitePoint [0.9807 1 1.1822] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+22 0 obj
+[/CalRGB << /WhitePoint [0.953 1 1.413] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+23 0 obj
+[/CalRGB << /WhitePoint [1 1 1] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+24 0 obj
+<< /Length 7224 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (2. CalRGB WhitePoint: sRGB-like matrix, G 2.2, WhitePoint varies) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02 0.02 0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05 0.05 0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1 0.1 0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.2 0.2 0.2) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.35 0.35 0.35) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.5 0.5 0.5) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.75 0.75 0.75) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (1 1 1) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (1 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0 1 0) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (0 0 1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (WhitePoint D65) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 810 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 810 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 810 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 810 60 60 re f
+/CS0 cs 1 1 1 sc 790 810 60 60 re f
+/CS0 cs 1 0 0 sc 860 810 60 60 re f
+/CS0 cs 0 1 0 sc 930 810 60 60 re f
+/CS0 cs 0 0 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (WhitePoint D50) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 740 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 740 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 740 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 740 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 740 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 740 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 740 60 60 re f
+/CS1 cs 1 1 1 sc 790 740 60 60 re f
+/CS1 cs 1 0 0 sc 860 740 60 60 re f
+/CS1 cs 0 1 0 sc 930 740 60 60 re f
+/CS1 cs 0 0 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (WhitePoint D55) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 0.02 0.02 0.02 sc 300 670 60 60 re f
+/CS2 cs 0.05 0.05 0.05 sc 370 670 60 60 re f
+/CS2 cs 0.1 0.1 0.1 sc 440 670 60 60 re f
+/CS2 cs 0.2 0.2 0.2 sc 510 670 60 60 re f
+/CS2 cs 0.35 0.35 0.35 sc 580 670 60 60 re f
+/CS2 cs 0.5 0.5 0.5 sc 650 670 60 60 re f
+/CS2 cs 0.75 0.75 0.75 sc 720 670 60 60 re f
+/CS2 cs 1 1 1 sc 790 670 60 60 re f
+/CS2 cs 1 0 0 sc 860 670 60 60 re f
+/CS2 cs 0 1 0 sc 930 670 60 60 re f
+/CS2 cs 0 0 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (WhitePoint A) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 0.02 0.02 0.02 sc 300 600 60 60 re f
+/CS3 cs 0.05 0.05 0.05 sc 370 600 60 60 re f
+/CS3 cs 0.1 0.1 0.1 sc 440 600 60 60 re f
+/CS3 cs 0.2 0.2 0.2 sc 510 600 60 60 re f
+/CS3 cs 0.35 0.35 0.35 sc 580 600 60 60 re f
+/CS3 cs 0.5 0.5 0.5 sc 650 600 60 60 re f
+/CS3 cs 0.75 0.75 0.75 sc 720 600 60 60 re f
+/CS3 cs 1 1 1 sc 790 600 60 60 re f
+/CS3 cs 1 0 0 sc 860 600 60 60 re f
+/CS3 cs 0 1 0 sc 930 600 60 60 re f
+/CS3 cs 0 0 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (WhitePoint C) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 0.02 0.02 0.02 sc 300 530 60 60 re f
+/CS4 cs 0.05 0.05 0.05 sc 370 530 60 60 re f
+/CS4 cs 0.1 0.1 0.1 sc 440 530 60 60 re f
+/CS4 cs 0.2 0.2 0.2 sc 510 530 60 60 re f
+/CS4 cs 0.35 0.35 0.35 sc 580 530 60 60 re f
+/CS4 cs 0.5 0.5 0.5 sc 650 530 60 60 re f
+/CS4 cs 0.75 0.75 0.75 sc 720 530 60 60 re f
+/CS4 cs 1 1 1 sc 790 530 60 60 re f
+/CS4 cs 1 0 0 sc 860 530 60 60 re f
+/CS4 cs 0 1 0 sc 930 530 60 60 re f
+/CS4 cs 0 0 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (WhitePoint D93) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 0.02 0.02 0.02 sc 300 460 60 60 re f
+/CS5 cs 0.05 0.05 0.05 sc 370 460 60 60 re f
+/CS5 cs 0.1 0.1 0.1 sc 440 460 60 60 re f
+/CS5 cs 0.2 0.2 0.2 sc 510 460 60 60 re f
+/CS5 cs 0.35 0.35 0.35 sc 580 460 60 60 re f
+/CS5 cs 0.5 0.5 0.5 sc 650 460 60 60 re f
+/CS5 cs 0.75 0.75 0.75 sc 720 460 60 60 re f
+/CS5 cs 1 1 1 sc 790 460 60 60 re f
+/CS5 cs 1 0 0 sc 860 460 60 60 re f
+/CS5 cs 0 1 0 sc 930 460 60 60 re f
+/CS5 cs 0 0 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (WhitePoint E) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 0.02 0.02 0.02 sc 300 390 60 60 re f
+/CS6 cs 0.05 0.05 0.05 sc 370 390 60 60 re f
+/CS6 cs 0.1 0.1 0.1 sc 440 390 60 60 re f
+/CS6 cs 0.2 0.2 0.2 sc 510 390 60 60 re f
+/CS6 cs 0.35 0.35 0.35 sc 580 390 60 60 re f
+/CS6 cs 0.5 0.5 0.5 sc 650 390 60 60 re f
+/CS6 cs 0.75 0.75 0.75 sc 720 390 60 60 re f
+/CS6 cs 1 1 1 sc 790 390 60 60 re f
+/CS6 cs 1 0 0 sc 860 390 60 60 re f
+/CS6 cs 0 1 0 sc 930 390 60 60 re f
+/CS6 cs 0 0 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (Control: DeviceRGB, same inputs) Tj ET
+q
+0 0 0 rg 230 320 60 60 re f
+0.02 0.02 0.02 rg 300 320 60 60 re f
+0.05 0.05 0.05 rg 370 320 60 60 re f
+0.1 0.1 0.1 rg 440 320 60 60 re f
+0.2 0.2 0.2 rg 510 320 60 60 re f
+0.35 0.35 0.35 rg 580 320 60 60 re f
+0.5 0.5 0.5 rg 650 320 60 60 re f
+0.75 0.75 0.75 rg 720 320 60 60 re f
+1 1 1 rg 790 320 60 60 re f
+1 0 0 rg 860 320 60 60 re f
+0 1 0 rg 930 320 60 60 re f
+0 0 1 rg 1000 320 60 60 re f
+Q
+endstream
+endobj
+
+25 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 17 0 R /CS1 18 0 R /CS2 19 0 R /CS3 20 0 R /CS4 21 0 R /CS5 22 0 R /CS6 23 0 R >> >>
+   /Contents 24 0 R >>
+endobj
+
+26 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+27 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [1 1 1] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+28 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [1.8 1.8 1.8] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+29 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+30 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.6 2.6 2.6] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+31 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [3 3 3] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+32 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [0.5 0.5 0.5] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+33 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [1 2.2 3] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+34 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.6 1.8 1] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+35 0 obj
+<< /Length 8833 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (3. CalRGB Gamma: sRGB-like matrix, D65, Gamma varies) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02 0.02 0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05 0.05 0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1 0.1 0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.2 0.2 0.2) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.35 0.35 0.35) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.5 0.5 0.5) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.75 0.75 0.75) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (1 1 1) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (1 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0 1 0) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (0 0 1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (Gamma omitted) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 810 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 810 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 810 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 810 60 60 re f
+/CS0 cs 1 1 1 sc 790 810 60 60 re f
+/CS0 cs 1 0 0 sc 860 810 60 60 re f
+/CS0 cs 0 1 0 sc 930 810 60 60 re f
+/CS0 cs 0 0 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (Gamma 1.0) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 740 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 740 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 740 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 740 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 740 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 740 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 740 60 60 re f
+/CS1 cs 1 1 1 sc 790 740 60 60 re f
+/CS1 cs 1 0 0 sc 860 740 60 60 re f
+/CS1 cs 0 1 0 sc 930 740 60 60 re f
+/CS1 cs 0 0 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (Gamma 1.8) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 0.02 0.02 0.02 sc 300 670 60 60 re f
+/CS2 cs 0.05 0.05 0.05 sc 370 670 60 60 re f
+/CS2 cs 0.1 0.1 0.1 sc 440 670 60 60 re f
+/CS2 cs 0.2 0.2 0.2 sc 510 670 60 60 re f
+/CS2 cs 0.35 0.35 0.35 sc 580 670 60 60 re f
+/CS2 cs 0.5 0.5 0.5 sc 650 670 60 60 re f
+/CS2 cs 0.75 0.75 0.75 sc 720 670 60 60 re f
+/CS2 cs 1 1 1 sc 790 670 60 60 re f
+/CS2 cs 1 0 0 sc 860 670 60 60 re f
+/CS2 cs 0 1 0 sc 930 670 60 60 re f
+/CS2 cs 0 0 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (Gamma 2.2) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 0.02 0.02 0.02 sc 300 600 60 60 re f
+/CS3 cs 0.05 0.05 0.05 sc 370 600 60 60 re f
+/CS3 cs 0.1 0.1 0.1 sc 440 600 60 60 re f
+/CS3 cs 0.2 0.2 0.2 sc 510 600 60 60 re f
+/CS3 cs 0.35 0.35 0.35 sc 580 600 60 60 re f
+/CS3 cs 0.5 0.5 0.5 sc 650 600 60 60 re f
+/CS3 cs 0.75 0.75 0.75 sc 720 600 60 60 re f
+/CS3 cs 1 1 1 sc 790 600 60 60 re f
+/CS3 cs 1 0 0 sc 860 600 60 60 re f
+/CS3 cs 0 1 0 sc 930 600 60 60 re f
+/CS3 cs 0 0 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (Gamma 2.6) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 0.02 0.02 0.02 sc 300 530 60 60 re f
+/CS4 cs 0.05 0.05 0.05 sc 370 530 60 60 re f
+/CS4 cs 0.1 0.1 0.1 sc 440 530 60 60 re f
+/CS4 cs 0.2 0.2 0.2 sc 510 530 60 60 re f
+/CS4 cs 0.35 0.35 0.35 sc 580 530 60 60 re f
+/CS4 cs 0.5 0.5 0.5 sc 650 530 60 60 re f
+/CS4 cs 0.75 0.75 0.75 sc 720 530 60 60 re f
+/CS4 cs 1 1 1 sc 790 530 60 60 re f
+/CS4 cs 1 0 0 sc 860 530 60 60 re f
+/CS4 cs 0 1 0 sc 930 530 60 60 re f
+/CS4 cs 0 0 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (Gamma 3.0) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 0.02 0.02 0.02 sc 300 460 60 60 re f
+/CS5 cs 0.05 0.05 0.05 sc 370 460 60 60 re f
+/CS5 cs 0.1 0.1 0.1 sc 440 460 60 60 re f
+/CS5 cs 0.2 0.2 0.2 sc 510 460 60 60 re f
+/CS5 cs 0.35 0.35 0.35 sc 580 460 60 60 re f
+/CS5 cs 0.5 0.5 0.5 sc 650 460 60 60 re f
+/CS5 cs 0.75 0.75 0.75 sc 720 460 60 60 re f
+/CS5 cs 1 1 1 sc 790 460 60 60 re f
+/CS5 cs 1 0 0 sc 860 460 60 60 re f
+/CS5 cs 0 1 0 sc 930 460 60 60 re f
+/CS5 cs 0 0 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (Gamma 0.5) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 0.02 0.02 0.02 sc 300 390 60 60 re f
+/CS6 cs 0.05 0.05 0.05 sc 370 390 60 60 re f
+/CS6 cs 0.1 0.1 0.1 sc 440 390 60 60 re f
+/CS6 cs 0.2 0.2 0.2 sc 510 390 60 60 re f
+/CS6 cs 0.35 0.35 0.35 sc 580 390 60 60 re f
+/CS6 cs 0.5 0.5 0.5 sc 650 390 60 60 re f
+/CS6 cs 0.75 0.75 0.75 sc 720 390 60 60 re f
+/CS6 cs 1 1 1 sc 790 390 60 60 re f
+/CS6 cs 1 0 0 sc 860 390 60 60 re f
+/CS6 cs 0 1 0 sc 930 390 60 60 re f
+/CS6 cs 0 0 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (Gamma [1.0 2.2 3.0]) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 0.02 0.02 0.02 sc 300 320 60 60 re f
+/CS7 cs 0.05 0.05 0.05 sc 370 320 60 60 re f
+/CS7 cs 0.1 0.1 0.1 sc 440 320 60 60 re f
+/CS7 cs 0.2 0.2 0.2 sc 510 320 60 60 re f
+/CS7 cs 0.35 0.35 0.35 sc 580 320 60 60 re f
+/CS7 cs 0.5 0.5 0.5 sc 650 320 60 60 re f
+/CS7 cs 0.75 0.75 0.75 sc 720 320 60 60 re f
+/CS7 cs 1 1 1 sc 790 320 60 60 re f
+/CS7 cs 1 0 0 sc 860 320 60 60 re f
+/CS7 cs 0 1 0 sc 930 320 60 60 re f
+/CS7 cs 0 0 1 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (Gamma [2.6 1.8 1.0]) Tj ET
+q
+/CS8 cs 0 0 0 sc 230 250 60 60 re f
+/CS8 cs 0.02 0.02 0.02 sc 300 250 60 60 re f
+/CS8 cs 0.05 0.05 0.05 sc 370 250 60 60 re f
+/CS8 cs 0.1 0.1 0.1 sc 440 250 60 60 re f
+/CS8 cs 0.2 0.2 0.2 sc 510 250 60 60 re f
+/CS8 cs 0.35 0.35 0.35 sc 580 250 60 60 re f
+/CS8 cs 0.5 0.5 0.5 sc 650 250 60 60 re f
+/CS8 cs 0.75 0.75 0.75 sc 720 250 60 60 re f
+/CS8 cs 1 1 1 sc 790 250 60 60 re f
+/CS8 cs 1 0 0 sc 860 250 60 60 re f
+/CS8 cs 0 1 0 sc 930 250 60 60 re f
+/CS8 cs 0 0 1 sc 1000 250 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (Control: DeviceRGB, same inputs) Tj ET
+q
+0 0 0 rg 230 180 60 60 re f
+0.02 0.02 0.02 rg 300 180 60 60 re f
+0.05 0.05 0.05 rg 370 180 60 60 re f
+0.1 0.1 0.1 rg 440 180 60 60 re f
+0.2 0.2 0.2 rg 510 180 60 60 re f
+0.35 0.35 0.35 rg 580 180 60 60 re f
+0.5 0.5 0.5 rg 650 180 60 60 re f
+0.75 0.75 0.75 rg 720 180 60 60 re f
+1 1 1 rg 790 180 60 60 re f
+1 0 0 rg 860 180 60 60 re f
+0 1 0 rg 930 180 60 60 re f
+0 0 1 rg 1000 180 60 60 re f
+Q
+endstream
+endobj
+
+36 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 26 0 R /CS1 27 0 R /CS2 28 0 R /CS3 29 0 R /CS4 30 0 R /CS5 31 0 R /CS6 32 0 R /CS7 33 0 R /CS8 34 0 R >> >>
+   /Contents 35 0 R >>
+endobj
+
+37 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] >>]
+endobj
+
+38 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [1 0 0 0 1 0 0 0 1] >>]
+endobj
+
+39 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+40 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.5767 0.2974 0.027 0.1856 0.6273 0.0707 0.1882 0.0753 0.9911] >>]
+endobj
+
+41 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.637 0.2627 0 0.1446 0.678 0.0281 0.1689 0.0593 1.061] >>]
+endobj
+
+42 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.1805 0.0722 0.9505 0.3576 0.7152 0.1192 0.4124 0.2126 0.0193] >>]
+endobj
+
+43 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.3576 0.1805 0.2126 0.7152 0.0722 0.0193 0.1192 0.9505] >>]
+endobj
+
+44 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 -0.02 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+45 0 obj
+<< /Length 8076 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (4. CalRGB Matrix: D65, G 2.2, Matrix varies) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02 0.02 0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05 0.05 0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1 0.1 0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.2 0.2 0.2) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.35 0.35 0.35) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.5 0.5 0.5) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.75 0.75 0.75) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (1 1 1) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (1 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0 1 0) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (0 0 1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (Matrix omitted) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 810 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 810 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 810 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 810 60 60 re f
+/CS0 cs 1 1 1 sc 790 810 60 60 re f
+/CS0 cs 1 0 0 sc 860 810 60 60 re f
+/CS0 cs 0 1 0 sc 930 810 60 60 re f
+/CS0 cs 0 0 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (Matrix identity) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 740 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 740 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 740 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 740 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 740 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 740 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 740 60 60 re f
+/CS1 cs 1 1 1 sc 790 740 60 60 re f
+/CS1 cs 1 0 0 sc 860 740 60 60 re f
+/CS1 cs 0 1 0 sc 930 740 60 60 re f
+/CS1 cs 0 0 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (Matrix sRGB-like) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 0.02 0.02 0.02 sc 300 670 60 60 re f
+/CS2 cs 0.05 0.05 0.05 sc 370 670 60 60 re f
+/CS2 cs 0.1 0.1 0.1 sc 440 670 60 60 re f
+/CS2 cs 0.2 0.2 0.2 sc 510 670 60 60 re f
+/CS2 cs 0.35 0.35 0.35 sc 580 670 60 60 re f
+/CS2 cs 0.5 0.5 0.5 sc 650 670 60 60 re f
+/CS2 cs 0.75 0.75 0.75 sc 720 670 60 60 re f
+/CS2 cs 1 1 1 sc 790 670 60 60 re f
+/CS2 cs 1 0 0 sc 860 670 60 60 re f
+/CS2 cs 0 1 0 sc 930 670 60 60 re f
+/CS2 cs 0 0 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (Matrix Adobe RGB-like) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 0.02 0.02 0.02 sc 300 600 60 60 re f
+/CS3 cs 0.05 0.05 0.05 sc 370 600 60 60 re f
+/CS3 cs 0.1 0.1 0.1 sc 440 600 60 60 re f
+/CS3 cs 0.2 0.2 0.2 sc 510 600 60 60 re f
+/CS3 cs 0.35 0.35 0.35 sc 580 600 60 60 re f
+/CS3 cs 0.5 0.5 0.5 sc 650 600 60 60 re f
+/CS3 cs 0.75 0.75 0.75 sc 720 600 60 60 re f
+/CS3 cs 1 1 1 sc 790 600 60 60 re f
+/CS3 cs 1 0 0 sc 860 600 60 60 re f
+/CS3 cs 0 1 0 sc 930 600 60 60 re f
+/CS3 cs 0 0 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (Matrix Rec. 2020-like) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 0.02 0.02 0.02 sc 300 530 60 60 re f
+/CS4 cs 0.05 0.05 0.05 sc 370 530 60 60 re f
+/CS4 cs 0.1 0.1 0.1 sc 440 530 60 60 re f
+/CS4 cs 0.2 0.2 0.2 sc 510 530 60 60 re f
+/CS4 cs 0.35 0.35 0.35 sc 580 530 60 60 re f
+/CS4 cs 0.5 0.5 0.5 sc 650 530 60 60 re f
+/CS4 cs 0.75 0.75 0.75 sc 720 530 60 60 re f
+/CS4 cs 1 1 1 sc 790 530 60 60 re f
+/CS4 cs 1 0 0 sc 860 530 60 60 re f
+/CS4 cs 0 1 0 sc 930 530 60 60 re f
+/CS4 cs 0 0 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (Matrix sRGB, R and B swapped) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 0.02 0.02 0.02 sc 300 460 60 60 re f
+/CS5 cs 0.05 0.05 0.05 sc 370 460 60 60 re f
+/CS5 cs 0.1 0.1 0.1 sc 440 460 60 60 re f
+/CS5 cs 0.2 0.2 0.2 sc 510 460 60 60 re f
+/CS5 cs 0.35 0.35 0.35 sc 580 460 60 60 re f
+/CS5 cs 0.5 0.5 0.5 sc 650 460 60 60 re f
+/CS5 cs 0.75 0.75 0.75 sc 720 460 60 60 re f
+/CS5 cs 1 1 1 sc 790 460 60 60 re f
+/CS5 cs 1 0 0 sc 860 460 60 60 re f
+/CS5 cs 0 1 0 sc 930 460 60 60 re f
+/CS5 cs 0 0 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (Matrix sRGB, transposed) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 0.02 0.02 0.02 sc 300 390 60 60 re f
+/CS6 cs 0.05 0.05 0.05 sc 370 390 60 60 re f
+/CS6 cs 0.1 0.1 0.1 sc 440 390 60 60 re f
+/CS6 cs 0.2 0.2 0.2 sc 510 390 60 60 re f
+/CS6 cs 0.35 0.35 0.35 sc 580 390 60 60 re f
+/CS6 cs 0.5 0.5 0.5 sc 650 390 60 60 re f
+/CS6 cs 0.75 0.75 0.75 sc 720 390 60 60 re f
+/CS6 cs 1 1 1 sc 790 390 60 60 re f
+/CS6 cs 1 0 0 sc 860 390 60 60 re f
+/CS6 cs 0 1 0 sc 930 390 60 60 re f
+/CS6 cs 0 0 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (Matrix sRGB, ZA = -0.02) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 0.02 0.02 0.02 sc 300 320 60 60 re f
+/CS7 cs 0.05 0.05 0.05 sc 370 320 60 60 re f
+/CS7 cs 0.1 0.1 0.1 sc 440 320 60 60 re f
+/CS7 cs 0.2 0.2 0.2 sc 510 320 60 60 re f
+/CS7 cs 0.35 0.35 0.35 sc 580 320 60 60 re f
+/CS7 cs 0.5 0.5 0.5 sc 650 320 60 60 re f
+/CS7 cs 0.75 0.75 0.75 sc 720 320 60 60 re f
+/CS7 cs 1 1 1 sc 790 320 60 60 re f
+/CS7 cs 1 0 0 sc 860 320 60 60 re f
+/CS7 cs 0 1 0 sc 930 320 60 60 re f
+/CS7 cs 0 0 1 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (Control: DeviceRGB, same inputs) Tj ET
+q
+0 0 0 rg 230 250 60 60 re f
+0.02 0.02 0.02 rg 300 250 60 60 re f
+0.05 0.05 0.05 rg 370 250 60 60 re f
+0.1 0.1 0.1 rg 440 250 60 60 re f
+0.2 0.2 0.2 rg 510 250 60 60 re f
+0.35 0.35 0.35 rg 580 250 60 60 re f
+0.5 0.5 0.5 rg 650 250 60 60 re f
+0.75 0.75 0.75 rg 720 250 60 60 re f
+1 1 1 rg 790 250 60 60 re f
+1 0 0 rg 860 250 60 60 re f
+0 1 0 rg 930 250 60 60 re f
+0 0 1 rg 1000 250 60 60 re f
+Q
+endstream
+endobj
+
+46 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 37 0 R /CS1 38 0 R /CS2 39 0 R /CS3 40 0 R /CS4 41 0 R /CS5 42 0 R /CS6 43 0 R /CS7 44 0 R >> >>
+   /Contents 45 0 R >>
+endobj
+
+47 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+48 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0 0 0] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+49 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0024 0.0025 0.0027] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+50 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0048 0.005 0.0054] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+51 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0095 0.01 0.0109] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+52 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.019 0.02 0.0218] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+53 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0475 0.05 0.0544] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+54 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0951 0.1 0.1089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+55 0 obj
+<< /Length 8029 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (5. CalRGB BlackPoint, realistic: sRGB-like, BlackPoint = k x WhitePoint) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02 0.02 0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05 0.05 0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1 0.1 0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.2 0.2 0.2) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.35 0.35 0.35) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.5 0.5 0.5) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.75 0.75 0.75) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (1 1 1) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (1 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0 1 0) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (0 0 1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (BlackPoint omitted) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 810 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 810 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 810 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 810 60 60 re f
+/CS0 cs 1 1 1 sc 790 810 60 60 re f
+/CS0 cs 1 0 0 sc 860 810 60 60 re f
+/CS0 cs 0 1 0 sc 930 810 60 60 re f
+/CS0 cs 0 0 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (k = 0 \([0 0 0]\)) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 740 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 740 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 740 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 740 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 740 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 740 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 740 60 60 re f
+/CS1 cs 1 1 1 sc 790 740 60 60 re f
+/CS1 cs 1 0 0 sc 860 740 60 60 re f
+/CS1 cs 0 1 0 sc 930 740 60 60 re f
+/CS1 cs 0 0 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (k = 0.0025) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 0.02 0.02 0.02 sc 300 670 60 60 re f
+/CS2 cs 0.05 0.05 0.05 sc 370 670 60 60 re f
+/CS2 cs 0.1 0.1 0.1 sc 440 670 60 60 re f
+/CS2 cs 0.2 0.2 0.2 sc 510 670 60 60 re f
+/CS2 cs 0.35 0.35 0.35 sc 580 670 60 60 re f
+/CS2 cs 0.5 0.5 0.5 sc 650 670 60 60 re f
+/CS2 cs 0.75 0.75 0.75 sc 720 670 60 60 re f
+/CS2 cs 1 1 1 sc 790 670 60 60 re f
+/CS2 cs 1 0 0 sc 860 670 60 60 re f
+/CS2 cs 0 1 0 sc 930 670 60 60 re f
+/CS2 cs 0 0 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (k = 0.005) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 0.02 0.02 0.02 sc 300 600 60 60 re f
+/CS3 cs 0.05 0.05 0.05 sc 370 600 60 60 re f
+/CS3 cs 0.1 0.1 0.1 sc 440 600 60 60 re f
+/CS3 cs 0.2 0.2 0.2 sc 510 600 60 60 re f
+/CS3 cs 0.35 0.35 0.35 sc 580 600 60 60 re f
+/CS3 cs 0.5 0.5 0.5 sc 650 600 60 60 re f
+/CS3 cs 0.75 0.75 0.75 sc 720 600 60 60 re f
+/CS3 cs 1 1 1 sc 790 600 60 60 re f
+/CS3 cs 1 0 0 sc 860 600 60 60 re f
+/CS3 cs 0 1 0 sc 930 600 60 60 re f
+/CS3 cs 0 0 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (k = 0.01) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 0.02 0.02 0.02 sc 300 530 60 60 re f
+/CS4 cs 0.05 0.05 0.05 sc 370 530 60 60 re f
+/CS4 cs 0.1 0.1 0.1 sc 440 530 60 60 re f
+/CS4 cs 0.2 0.2 0.2 sc 510 530 60 60 re f
+/CS4 cs 0.35 0.35 0.35 sc 580 530 60 60 re f
+/CS4 cs 0.5 0.5 0.5 sc 650 530 60 60 re f
+/CS4 cs 0.75 0.75 0.75 sc 720 530 60 60 re f
+/CS4 cs 1 1 1 sc 790 530 60 60 re f
+/CS4 cs 1 0 0 sc 860 530 60 60 re f
+/CS4 cs 0 1 0 sc 930 530 60 60 re f
+/CS4 cs 0 0 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (k = 0.02) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 0.02 0.02 0.02 sc 300 460 60 60 re f
+/CS5 cs 0.05 0.05 0.05 sc 370 460 60 60 re f
+/CS5 cs 0.1 0.1 0.1 sc 440 460 60 60 re f
+/CS5 cs 0.2 0.2 0.2 sc 510 460 60 60 re f
+/CS5 cs 0.35 0.35 0.35 sc 580 460 60 60 re f
+/CS5 cs 0.5 0.5 0.5 sc 650 460 60 60 re f
+/CS5 cs 0.75 0.75 0.75 sc 720 460 60 60 re f
+/CS5 cs 1 1 1 sc 790 460 60 60 re f
+/CS5 cs 1 0 0 sc 860 460 60 60 re f
+/CS5 cs 0 1 0 sc 930 460 60 60 re f
+/CS5 cs 0 0 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (k = 0.05) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 0.02 0.02 0.02 sc 300 390 60 60 re f
+/CS6 cs 0.05 0.05 0.05 sc 370 390 60 60 re f
+/CS6 cs 0.1 0.1 0.1 sc 440 390 60 60 re f
+/CS6 cs 0.2 0.2 0.2 sc 510 390 60 60 re f
+/CS6 cs 0.35 0.35 0.35 sc 580 390 60 60 re f
+/CS6 cs 0.5 0.5 0.5 sc 650 390 60 60 re f
+/CS6 cs 0.75 0.75 0.75 sc 720 390 60 60 re f
+/CS6 cs 1 1 1 sc 790 390 60 60 re f
+/CS6 cs 1 0 0 sc 860 390 60 60 re f
+/CS6 cs 0 1 0 sc 930 390 60 60 re f
+/CS6 cs 0 0 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (k = 0.10) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 0.02 0.02 0.02 sc 300 320 60 60 re f
+/CS7 cs 0.05 0.05 0.05 sc 370 320 60 60 re f
+/CS7 cs 0.1 0.1 0.1 sc 440 320 60 60 re f
+/CS7 cs 0.2 0.2 0.2 sc 510 320 60 60 re f
+/CS7 cs 0.35 0.35 0.35 sc 580 320 60 60 re f
+/CS7 cs 0.5 0.5 0.5 sc 650 320 60 60 re f
+/CS7 cs 0.75 0.75 0.75 sc 720 320 60 60 re f
+/CS7 cs 1 1 1 sc 790 320 60 60 re f
+/CS7 cs 1 0 0 sc 860 320 60 60 re f
+/CS7 cs 0 1 0 sc 930 320 60 60 re f
+/CS7 cs 0 0 1 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (Control: DeviceRGB, same inputs) Tj ET
+q
+0 0 0 rg 230 250 60 60 re f
+0.02 0.02 0.02 rg 300 250 60 60 re f
+0.05 0.05 0.05 rg 370 250 60 60 re f
+0.1 0.1 0.1 rg 440 250 60 60 re f
+0.2 0.2 0.2 rg 510 250 60 60 re f
+0.35 0.35 0.35 rg 580 250 60 60 re f
+0.5 0.5 0.5 rg 650 250 60 60 re f
+0.75 0.75 0.75 rg 720 250 60 60 re f
+1 1 1 rg 790 250 60 60 re f
+1 0 0 rg 860 250 60 60 re f
+0 1 0 rg 930 250 60 60 re f
+0 0 1 rg 1000 250 60 60 re f
+Q
+endstream
+endobj
+
+56 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 47 0 R /CS1 48 0 R /CS2 49 0 R /CS3 50 0 R /CS4 51 0 R /CS5 52 0 R /CS6 53 0 R /CS7 54 0 R >> >>
+   /Contents 55 0 R >>
+endobj
+
+57 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.1426 0.15 0.1633] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+58 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.1711 0.18 0.196] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+59 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.1901 0.2 0.2178] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+60 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.2376 0.25 0.2722] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+61 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.2852 0.3 0.3267] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+62 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.4753 0.5 0.5445] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+63 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.03 0.02 0.01] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+64 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.01 0.02 0.03] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+65 0 obj
+[/CalRGB << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.0482 0.05 0.0412] /Gamma [1.8 1.8 1.8] /Matrix [0.7977 0.288 0 0.1352 0.7119 0 0.0313 0.0001 0.8249] >>]
+endobj
+
+66 0 obj
+<< /Length 8849 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (6. CalRGB BlackPoint, upper range and tinted: sRGB-like) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02 0.02 0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05 0.05 0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1 0.1 0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.2 0.2 0.2) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.35 0.35 0.35) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.5 0.5 0.5) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.75 0.75 0.75) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (1 1 1) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (1 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0 1 0) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (0 0 1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (k = 0.15) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 810 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 810 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 810 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 810 60 60 re f
+/CS0 cs 1 1 1 sc 790 810 60 60 re f
+/CS0 cs 1 0 0 sc 860 810 60 60 re f
+/CS0 cs 0 1 0 sc 930 810 60 60 re f
+/CS0 cs 0 0 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (k = 0.18) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 740 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 740 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 740 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 740 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 740 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 740 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 740 60 60 re f
+/CS1 cs 1 1 1 sc 790 740 60 60 re f
+/CS1 cs 1 0 0 sc 860 740 60 60 re f
+/CS1 cs 0 1 0 sc 930 740 60 60 re f
+/CS1 cs 0 0 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (k = 0.20) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 0.02 0.02 0.02 sc 300 670 60 60 re f
+/CS2 cs 0.05 0.05 0.05 sc 370 670 60 60 re f
+/CS2 cs 0.1 0.1 0.1 sc 440 670 60 60 re f
+/CS2 cs 0.2 0.2 0.2 sc 510 670 60 60 re f
+/CS2 cs 0.35 0.35 0.35 sc 580 670 60 60 re f
+/CS2 cs 0.5 0.5 0.5 sc 650 670 60 60 re f
+/CS2 cs 0.75 0.75 0.75 sc 720 670 60 60 re f
+/CS2 cs 1 1 1 sc 790 670 60 60 re f
+/CS2 cs 1 0 0 sc 860 670 60 60 re f
+/CS2 cs 0 1 0 sc 930 670 60 60 re f
+/CS2 cs 0 0 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (k = 0.25) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 0.02 0.02 0.02 sc 300 600 60 60 re f
+/CS3 cs 0.05 0.05 0.05 sc 370 600 60 60 re f
+/CS3 cs 0.1 0.1 0.1 sc 440 600 60 60 re f
+/CS3 cs 0.2 0.2 0.2 sc 510 600 60 60 re f
+/CS3 cs 0.35 0.35 0.35 sc 580 600 60 60 re f
+/CS3 cs 0.5 0.5 0.5 sc 650 600 60 60 re f
+/CS3 cs 0.75 0.75 0.75 sc 720 600 60 60 re f
+/CS3 cs 1 1 1 sc 790 600 60 60 re f
+/CS3 cs 1 0 0 sc 860 600 60 60 re f
+/CS3 cs 0 1 0 sc 930 600 60 60 re f
+/CS3 cs 0 0 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (k = 0.30) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 0.02 0.02 0.02 sc 300 530 60 60 re f
+/CS4 cs 0.05 0.05 0.05 sc 370 530 60 60 re f
+/CS4 cs 0.1 0.1 0.1 sc 440 530 60 60 re f
+/CS4 cs 0.2 0.2 0.2 sc 510 530 60 60 re f
+/CS4 cs 0.35 0.35 0.35 sc 580 530 60 60 re f
+/CS4 cs 0.5 0.5 0.5 sc 650 530 60 60 re f
+/CS4 cs 0.75 0.75 0.75 sc 720 530 60 60 re f
+/CS4 cs 1 1 1 sc 790 530 60 60 re f
+/CS4 cs 1 0 0 sc 860 530 60 60 re f
+/CS4 cs 0 1 0 sc 930 530 60 60 re f
+/CS4 cs 0 0 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (k = 0.50) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 0.02 0.02 0.02 sc 300 460 60 60 re f
+/CS5 cs 0.05 0.05 0.05 sc 370 460 60 60 re f
+/CS5 cs 0.1 0.1 0.1 sc 440 460 60 60 re f
+/CS5 cs 0.2 0.2 0.2 sc 510 460 60 60 re f
+/CS5 cs 0.35 0.35 0.35 sc 580 460 60 60 re f
+/CS5 cs 0.5 0.5 0.5 sc 650 460 60 60 re f
+/CS5 cs 0.75 0.75 0.75 sc 720 460 60 60 re f
+/CS5 cs 1 1 1 sc 790 460 60 60 re f
+/CS5 cs 1 0 0 sc 860 460 60 60 re f
+/CS5 cs 0 1 0 sc 930 460 60 60 re f
+/CS5 cs 0 0 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (Warm [0.03 0.02 0.01]) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 0.02 0.02 0.02 sc 300 390 60 60 re f
+/CS6 cs 0.05 0.05 0.05 sc 370 390 60 60 re f
+/CS6 cs 0.1 0.1 0.1 sc 440 390 60 60 re f
+/CS6 cs 0.2 0.2 0.2 sc 510 390 60 60 re f
+/CS6 cs 0.35 0.35 0.35 sc 580 390 60 60 re f
+/CS6 cs 0.5 0.5 0.5 sc 650 390 60 60 re f
+/CS6 cs 0.75 0.75 0.75 sc 720 390 60 60 re f
+/CS6 cs 1 1 1 sc 790 390 60 60 re f
+/CS6 cs 1 0 0 sc 860 390 60 60 re f
+/CS6 cs 0 1 0 sc 930 390 60 60 re f
+/CS6 cs 0 0 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (Cool [0.01 0.02 0.03]) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 0.02 0.02 0.02 sc 300 320 60 60 re f
+/CS7 cs 0.05 0.05 0.05 sc 370 320 60 60 re f
+/CS7 cs 0.1 0.1 0.1 sc 440 320 60 60 re f
+/CS7 cs 0.2 0.2 0.2 sc 510 320 60 60 re f
+/CS7 cs 0.35 0.35 0.35 sc 580 320 60 60 re f
+/CS7 cs 0.5 0.5 0.5 sc 650 320 60 60 re f
+/CS7 cs 0.75 0.75 0.75 sc 720 320 60 60 re f
+/CS7 cs 1 1 1 sc 790 320 60 60 re f
+/CS7 cs 1 0 0 sc 860 320 60 60 re f
+/CS7 cs 0 1 0 sc 930 320 60 60 re f
+/CS7 cs 0 0 1 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (k = 0.05, D50, ProPhoto-like) Tj ET
+q
+/CS8 cs 0 0 0 sc 230 250 60 60 re f
+/CS8 cs 0.02 0.02 0.02 sc 300 250 60 60 re f
+/CS8 cs 0.05 0.05 0.05 sc 370 250 60 60 re f
+/CS8 cs 0.1 0.1 0.1 sc 440 250 60 60 re f
+/CS8 cs 0.2 0.2 0.2 sc 510 250 60 60 re f
+/CS8 cs 0.35 0.35 0.35 sc 580 250 60 60 re f
+/CS8 cs 0.5 0.5 0.5 sc 650 250 60 60 re f
+/CS8 cs 0.75 0.75 0.75 sc 720 250 60 60 re f
+/CS8 cs 1 1 1 sc 790 250 60 60 re f
+/CS8 cs 1 0 0 sc 860 250 60 60 re f
+/CS8 cs 0 1 0 sc 930 250 60 60 re f
+/CS8 cs 0 0 1 sc 1000 250 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (Control: DeviceRGB, same inputs) Tj ET
+q
+0 0 0 rg 230 180 60 60 re f
+0.02 0.02 0.02 rg 300 180 60 60 re f
+0.05 0.05 0.05 rg 370 180 60 60 re f
+0.1 0.1 0.1 rg 440 180 60 60 re f
+0.2 0.2 0.2 rg 510 180 60 60 re f
+0.35 0.35 0.35 rg 580 180 60 60 re f
+0.5 0.5 0.5 rg 650 180 60 60 re f
+0.75 0.75 0.75 rg 720 180 60 60 re f
+1 1 1 rg 790 180 60 60 re f
+1 0 0 rg 860 180 60 60 re f
+0 1 0 rg 930 180 60 60 re f
+0 0 1 rg 1000 180 60 60 re f
+Q
+endstream
+endobj
+
+67 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 57 0 R /CS1 58 0 R /CS2 59 0 R /CS3 60 0 R /CS4 61 0 R /CS5 62 0 R /CS6 63 0 R /CS7 64 0 R /CS8 65 0 R >> >>
+   /Contents 66 0 R >>
+endobj
+
+68 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.2376 0.25 0.2722] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+69 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0475 0.05 0.0544] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+70 0 obj
+[/CalRGB << /WhitePoint [0.9505 1 1.089] /Gamma [2.2 2.2 2.2] /Matrix [0.4124 0.2126 0.0193 0.3576 0.7152 0.1192 0.1805 0.0722 0.9505] >>]
+endobj
+
+71 0 obj
+<< /Length 10803 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (7. CalRGB BlackPoint against UseBlackPtComp and rendering intent: sRGB-like) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02 0.02 0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05 0.05 0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1 0.1 0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.2 0.2 0.2) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.35 0.35 0.35) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.5 0.5 0.5) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.75 0.75 0.75) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (1 1 1) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (1 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0 1 0) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (0 0 1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+228.5 108.5 63 63 re S
+298.5 108.5 63 63 re S
+368.5 108.5 63 63 re S
+438.5 108.5 63 63 re S
+508.5 108.5 63 63 re S
+578.5 108.5 63 63 re S
+648.5 108.5 63 63 re S
+718.5 108.5 63 63 re S
+788.5 108.5 63 63 re S
+858.5 108.5 63 63 re S
+928.5 108.5 63 63 re S
+998.5 108.5 63 63 re S
+228.5 38.5 63 63 re S
+298.5 38.5 63 63 re S
+368.5 38.5 63 63 re S
+438.5 38.5 63 63 re S
+508.5 38.5 63 63 re S
+578.5 38.5 63 63 re S
+648.5 38.5 63 63 re S
+718.5 38.5 63 63 re S
+788.5 38.5 63 63 re S
+858.5 38.5 63 63 re S
+928.5 38.5 63 63 re S
+998.5 38.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (k = 0.25, plain) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 810 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 810 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 810 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 810 60 60 re f
+/CS0 cs 1 1 1 sc 790 810 60 60 re f
+/CS0 cs 1 0 0 sc 860 810 60 60 re f
+/CS0 cs 0 1 0 sc 930 810 60 60 re f
+/CS0 cs 0 0 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (k = 0.25, UseBlackPtComp ON) Tj ET
+q
+/BpcOn gs
+/CS0 cs 0 0 0 sc 230 740 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 740 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 740 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 740 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 740 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 740 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 740 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 740 60 60 re f
+/CS0 cs 1 1 1 sc 790 740 60 60 re f
+/CS0 cs 1 0 0 sc 860 740 60 60 re f
+/CS0 cs 0 1 0 sc 930 740 60 60 re f
+/CS0 cs 0 0 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (k = 0.25, UseBlackPtComp OFF) Tj ET
+q
+/BpcOff gs
+/CS0 cs 0 0 0 sc 230 670 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 670 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 670 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 670 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 670 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 670 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 670 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 670 60 60 re f
+/CS0 cs 1 1 1 sc 790 670 60 60 re f
+/CS0 cs 1 0 0 sc 860 670 60 60 re f
+/CS0 cs 0 1 0 sc 930 670 60 60 re f
+/CS0 cs 0 0 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (k = 0.25, UseBlackPtComp Default) Tj ET
+q
+/BpcDefault gs
+/CS0 cs 0 0 0 sc 230 600 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 600 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 600 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 600 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 600 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 600 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 600 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 600 60 60 re f
+/CS0 cs 1 1 1 sc 790 600 60 60 re f
+/CS0 cs 1 0 0 sc 860 600 60 60 re f
+/CS0 cs 0 1 0 sc 930 600 60 60 re f
+/CS0 cs 0 0 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (k = 0.25, ri Perceptual) Tj ET
+q
+/Perceptual ri
+/CS0 cs 0 0 0 sc 230 530 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 530 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 530 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 530 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 530 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 530 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 530 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 530 60 60 re f
+/CS0 cs 1 1 1 sc 790 530 60 60 re f
+/CS0 cs 1 0 0 sc 860 530 60 60 re f
+/CS0 cs 0 1 0 sc 930 530 60 60 re f
+/CS0 cs 0 0 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (k = 0.25, ri RelativeColorimetric) Tj ET
+q
+/RelativeColorimetric ri
+/CS0 cs 0 0 0 sc 230 460 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 460 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 460 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 460 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 460 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 460 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 460 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 460 60 60 re f
+/CS0 cs 1 1 1 sc 790 460 60 60 re f
+/CS0 cs 1 0 0 sc 860 460 60 60 re f
+/CS0 cs 0 1 0 sc 930 460 60 60 re f
+/CS0 cs 0 0 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (k = 0.25, ri Saturation) Tj ET
+q
+/Saturation ri
+/CS0 cs 0 0 0 sc 230 390 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 390 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 390 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 390 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 390 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 390 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 390 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 390 60 60 re f
+/CS0 cs 1 1 1 sc 790 390 60 60 re f
+/CS0 cs 1 0 0 sc 860 390 60 60 re f
+/CS0 cs 0 1 0 sc 930 390 60 60 re f
+/CS0 cs 0 0 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (k = 0.25, ri AbsoluteColorimetric) Tj ET
+q
+/AbsoluteColorimetric ri
+/CS0 cs 0 0 0 sc 230 320 60 60 re f
+/CS0 cs 0.02 0.02 0.02 sc 300 320 60 60 re f
+/CS0 cs 0.05 0.05 0.05 sc 370 320 60 60 re f
+/CS0 cs 0.1 0.1 0.1 sc 440 320 60 60 re f
+/CS0 cs 0.2 0.2 0.2 sc 510 320 60 60 re f
+/CS0 cs 0.35 0.35 0.35 sc 580 320 60 60 re f
+/CS0 cs 0.5 0.5 0.5 sc 650 320 60 60 re f
+/CS0 cs 0.75 0.75 0.75 sc 720 320 60 60 re f
+/CS0 cs 1 1 1 sc 790 320 60 60 re f
+/CS0 cs 1 0 0 sc 860 320 60 60 re f
+/CS0 cs 0 1 0 sc 930 320 60 60 re f
+/CS0 cs 0 0 1 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (k = 0.05, UseBlackPtComp ON) Tj ET
+q
+/BpcOn gs
+/CS1 cs 0 0 0 sc 230 250 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 250 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 250 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 250 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 250 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 250 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 250 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 250 60 60 re f
+/CS1 cs 1 1 1 sc 790 250 60 60 re f
+/CS1 cs 1 0 0 sc 860 250 60 60 re f
+/CS1 cs 0 1 0 sc 930 250 60 60 re f
+/CS1 cs 0 0 1 sc 1000 250 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (k = 0.05, UseBlackPtComp OFF) Tj ET
+q
+/BpcOff gs
+/CS1 cs 0 0 0 sc 230 180 60 60 re f
+/CS1 cs 0.02 0.02 0.02 sc 300 180 60 60 re f
+/CS1 cs 0.05 0.05 0.05 sc 370 180 60 60 re f
+/CS1 cs 0.1 0.1 0.1 sc 440 180 60 60 re f
+/CS1 cs 0.2 0.2 0.2 sc 510 180 60 60 re f
+/CS1 cs 0.35 0.35 0.35 sc 580 180 60 60 re f
+/CS1 cs 0.5 0.5 0.5 sc 650 180 60 60 re f
+/CS1 cs 0.75 0.75 0.75 sc 720 180 60 60 re f
+/CS1 cs 1 1 1 sc 790 180 60 60 re f
+/CS1 cs 1 0 0 sc 860 180 60 60 re f
+/CS1 cs 0 1 0 sc 930 180 60 60 re f
+/CS1 cs 0 0 1 sc 1000 180 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 136 Td (No BlackPoint, ri AbsoluteColorimetric) Tj ET
+q
+/AbsoluteColorimetric ri
+/CS2 cs 0 0 0 sc 230 110 60 60 re f
+/CS2 cs 0.02 0.02 0.02 sc 300 110 60 60 re f
+/CS2 cs 0.05 0.05 0.05 sc 370 110 60 60 re f
+/CS2 cs 0.1 0.1 0.1 sc 440 110 60 60 re f
+/CS2 cs 0.2 0.2 0.2 sc 510 110 60 60 re f
+/CS2 cs 0.35 0.35 0.35 sc 580 110 60 60 re f
+/CS2 cs 0.5 0.5 0.5 sc 650 110 60 60 re f
+/CS2 cs 0.75 0.75 0.75 sc 720 110 60 60 re f
+/CS2 cs 1 1 1 sc 790 110 60 60 re f
+/CS2 cs 1 0 0 sc 860 110 60 60 re f
+/CS2 cs 0 1 0 sc 930 110 60 60 re f
+/CS2 cs 0 0 1 sc 1000 110 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 66 Td (Control: DeviceRGB, same inputs) Tj ET
+q
+0 0 0 rg 230 40 60 60 re f
+0.02 0.02 0.02 rg 300 40 60 60 re f
+0.05 0.05 0.05 rg 370 40 60 60 re f
+0.1 0.1 0.1 rg 440 40 60 60 re f
+0.2 0.2 0.2 rg 510 40 60 60 re f
+0.35 0.35 0.35 rg 580 40 60 60 re f
+0.5 0.5 0.5 rg 650 40 60 60 re f
+0.75 0.75 0.75 rg 720 40 60 60 re f
+1 1 1 rg 790 40 60 60 re f
+1 0 0 rg 860 40 60 60 re f
+0 1 0 rg 930 40 60 60 re f
+0 0 1 rg 1000 40 60 60 re f
+Q
+endstream
+endobj
+
+72 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 68 0 R /CS1 69 0 R /CS2 70 0 R >> /ExtGState << /BpcOn 2 0 R /BpcOff 3 0 R /BpcDefault 4 0 R >> >>
+   /Contents 71 0 R >>
+endobj
+
+73 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] >>]
+endobj
+
+74 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] /Gamma 1.8 >>]
+endobj
+
+75 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] /Gamma 2.2 >>]
+endobj
+
+76 0 obj
+[/CalGray << /WhitePoint [0.9642 1 0.8249] /Gamma 2.2 >>]
+endobj
+
+77 0 obj
+[/CalGray << /WhitePoint [1.0985 1 0.3558] /Gamma 2.2 >>]
+endobj
+
+78 0 obj
+[/CalGray << /WhitePoint [0.953 1 1.413] /Gamma 2.2 >>]
+endobj
+
+79 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0095 0.01 0.0109] /Gamma 2.2 >>]
+endobj
+
+80 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0475 0.05 0.0544] /Gamma 2.2 >>]
+endobj
+
+81 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0951 0.1 0.1089] /Gamma 2.2 >>]
+endobj
+
+82 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.1901 0.2 0.2178] /Gamma 2.2 >>]
+endobj
+
+83 0 obj
+[/CalGray << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.2852 0.3 0.3267] /Gamma 2.2 >>]
+endobj
+
+84 0 obj
+<< /Length 9536 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (8. CalGray: Gamma, WhitePoint, BlackPoint = k x WhitePoint) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (0.02) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (0.05) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (0.1) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (0.15) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (0.2) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (0.35) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (0.5) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (0.65) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (0.75) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (0.9) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (1) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+228.5 108.5 63 63 re S
+298.5 108.5 63 63 re S
+368.5 108.5 63 63 re S
+438.5 108.5 63 63 re S
+508.5 108.5 63 63 re S
+578.5 108.5 63 63 re S
+648.5 108.5 63 63 re S
+718.5 108.5 63 63 re S
+788.5 108.5 63 63 re S
+858.5 108.5 63 63 re S
+928.5 108.5 63 63 re S
+998.5 108.5 63 63 re S
+228.5 38.5 63 63 re S
+298.5 38.5 63 63 re S
+368.5 38.5 63 63 re S
+438.5 38.5 63 63 re S
+508.5 38.5 63 63 re S
+578.5 38.5 63 63 re S
+648.5 38.5 63 63 re S
+718.5 38.5 63 63 re S
+788.5 38.5 63 63 re S
+858.5 38.5 63 63 re S
+928.5 38.5 63 63 re S
+998.5 38.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (D65, Gamma omitted) Tj ET
+q
+/CS0 cs 0 sc 230 810 60 60 re f
+/CS0 cs 0.02 sc 300 810 60 60 re f
+/CS0 cs 0.05 sc 370 810 60 60 re f
+/CS0 cs 0.1 sc 440 810 60 60 re f
+/CS0 cs 0.15 sc 510 810 60 60 re f
+/CS0 cs 0.2 sc 580 810 60 60 re f
+/CS0 cs 0.35 sc 650 810 60 60 re f
+/CS0 cs 0.5 sc 720 810 60 60 re f
+/CS0 cs 0.65 sc 790 810 60 60 re f
+/CS0 cs 0.75 sc 860 810 60 60 re f
+/CS0 cs 0.9 sc 930 810 60 60 re f
+/CS0 cs 1 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (D65, Gamma 1.8) Tj ET
+q
+/CS1 cs 0 sc 230 740 60 60 re f
+/CS1 cs 0.02 sc 300 740 60 60 re f
+/CS1 cs 0.05 sc 370 740 60 60 re f
+/CS1 cs 0.1 sc 440 740 60 60 re f
+/CS1 cs 0.15 sc 510 740 60 60 re f
+/CS1 cs 0.2 sc 580 740 60 60 re f
+/CS1 cs 0.35 sc 650 740 60 60 re f
+/CS1 cs 0.5 sc 720 740 60 60 re f
+/CS1 cs 0.65 sc 790 740 60 60 re f
+/CS1 cs 0.75 sc 860 740 60 60 re f
+/CS1 cs 0.9 sc 930 740 60 60 re f
+/CS1 cs 1 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (D65, Gamma 2.2) Tj ET
+q
+/CS2 cs 0 sc 230 670 60 60 re f
+/CS2 cs 0.02 sc 300 670 60 60 re f
+/CS2 cs 0.05 sc 370 670 60 60 re f
+/CS2 cs 0.1 sc 440 670 60 60 re f
+/CS2 cs 0.15 sc 510 670 60 60 re f
+/CS2 cs 0.2 sc 580 670 60 60 re f
+/CS2 cs 0.35 sc 650 670 60 60 re f
+/CS2 cs 0.5 sc 720 670 60 60 re f
+/CS2 cs 0.65 sc 790 670 60 60 re f
+/CS2 cs 0.75 sc 860 670 60 60 re f
+/CS2 cs 0.9 sc 930 670 60 60 re f
+/CS2 cs 1 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (D50, Gamma 2.2) Tj ET
+q
+/CS3 cs 0 sc 230 600 60 60 re f
+/CS3 cs 0.02 sc 300 600 60 60 re f
+/CS3 cs 0.05 sc 370 600 60 60 re f
+/CS3 cs 0.1 sc 440 600 60 60 re f
+/CS3 cs 0.15 sc 510 600 60 60 re f
+/CS3 cs 0.2 sc 580 600 60 60 re f
+/CS3 cs 0.35 sc 650 600 60 60 re f
+/CS3 cs 0.5 sc 720 600 60 60 re f
+/CS3 cs 0.65 sc 790 600 60 60 re f
+/CS3 cs 0.75 sc 860 600 60 60 re f
+/CS3 cs 0.9 sc 930 600 60 60 re f
+/CS3 cs 1 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (A, Gamma 2.2) Tj ET
+q
+/CS4 cs 0 sc 230 530 60 60 re f
+/CS4 cs 0.02 sc 300 530 60 60 re f
+/CS4 cs 0.05 sc 370 530 60 60 re f
+/CS4 cs 0.1 sc 440 530 60 60 re f
+/CS4 cs 0.15 sc 510 530 60 60 re f
+/CS4 cs 0.2 sc 580 530 60 60 re f
+/CS4 cs 0.35 sc 650 530 60 60 re f
+/CS4 cs 0.5 sc 720 530 60 60 re f
+/CS4 cs 0.65 sc 790 530 60 60 re f
+/CS4 cs 0.75 sc 860 530 60 60 re f
+/CS4 cs 0.9 sc 930 530 60 60 re f
+/CS4 cs 1 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (D93, Gamma 2.2) Tj ET
+q
+/CS5 cs 0 sc 230 460 60 60 re f
+/CS5 cs 0.02 sc 300 460 60 60 re f
+/CS5 cs 0.05 sc 370 460 60 60 re f
+/CS5 cs 0.1 sc 440 460 60 60 re f
+/CS5 cs 0.15 sc 510 460 60 60 re f
+/CS5 cs 0.2 sc 580 460 60 60 re f
+/CS5 cs 0.35 sc 650 460 60 60 re f
+/CS5 cs 0.5 sc 720 460 60 60 re f
+/CS5 cs 0.65 sc 790 460 60 60 re f
+/CS5 cs 0.75 sc 860 460 60 60 re f
+/CS5 cs 0.9 sc 930 460 60 60 re f
+/CS5 cs 1 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (D65, Gamma 2.2, k = 0.01) Tj ET
+q
+/CS6 cs 0 sc 230 390 60 60 re f
+/CS6 cs 0.02 sc 300 390 60 60 re f
+/CS6 cs 0.05 sc 370 390 60 60 re f
+/CS6 cs 0.1 sc 440 390 60 60 re f
+/CS6 cs 0.15 sc 510 390 60 60 re f
+/CS6 cs 0.2 sc 580 390 60 60 re f
+/CS6 cs 0.35 sc 650 390 60 60 re f
+/CS6 cs 0.5 sc 720 390 60 60 re f
+/CS6 cs 0.65 sc 790 390 60 60 re f
+/CS6 cs 0.75 sc 860 390 60 60 re f
+/CS6 cs 0.9 sc 930 390 60 60 re f
+/CS6 cs 1 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (D65, Gamma 2.2, k = 0.05) Tj ET
+q
+/CS7 cs 0 sc 230 320 60 60 re f
+/CS7 cs 0.02 sc 300 320 60 60 re f
+/CS7 cs 0.05 sc 370 320 60 60 re f
+/CS7 cs 0.1 sc 440 320 60 60 re f
+/CS7 cs 0.15 sc 510 320 60 60 re f
+/CS7 cs 0.2 sc 580 320 60 60 re f
+/CS7 cs 0.35 sc 650 320 60 60 re f
+/CS7 cs 0.5 sc 720 320 60 60 re f
+/CS7 cs 0.65 sc 790 320 60 60 re f
+/CS7 cs 0.75 sc 860 320 60 60 re f
+/CS7 cs 0.9 sc 930 320 60 60 re f
+/CS7 cs 1 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (D65, Gamma 2.2, k = 0.10) Tj ET
+q
+/CS8 cs 0 sc 230 250 60 60 re f
+/CS8 cs 0.02 sc 300 250 60 60 re f
+/CS8 cs 0.05 sc 370 250 60 60 re f
+/CS8 cs 0.1 sc 440 250 60 60 re f
+/CS8 cs 0.15 sc 510 250 60 60 re f
+/CS8 cs 0.2 sc 580 250 60 60 re f
+/CS8 cs 0.35 sc 650 250 60 60 re f
+/CS8 cs 0.5 sc 720 250 60 60 re f
+/CS8 cs 0.65 sc 790 250 60 60 re f
+/CS8 cs 0.75 sc 860 250 60 60 re f
+/CS8 cs 0.9 sc 930 250 60 60 re f
+/CS8 cs 1 sc 1000 250 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (D65, Gamma 2.2, k = 0.20) Tj ET
+q
+/CS9 cs 0 sc 230 180 60 60 re f
+/CS9 cs 0.02 sc 300 180 60 60 re f
+/CS9 cs 0.05 sc 370 180 60 60 re f
+/CS9 cs 0.1 sc 440 180 60 60 re f
+/CS9 cs 0.15 sc 510 180 60 60 re f
+/CS9 cs 0.2 sc 580 180 60 60 re f
+/CS9 cs 0.35 sc 650 180 60 60 re f
+/CS9 cs 0.5 sc 720 180 60 60 re f
+/CS9 cs 0.65 sc 790 180 60 60 re f
+/CS9 cs 0.75 sc 860 180 60 60 re f
+/CS9 cs 0.9 sc 930 180 60 60 re f
+/CS9 cs 1 sc 1000 180 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 136 Td (D65, Gamma 2.2, k = 0.30) Tj ET
+q
+/CS10 cs 0 sc 230 110 60 60 re f
+/CS10 cs 0.02 sc 300 110 60 60 re f
+/CS10 cs 0.05 sc 370 110 60 60 re f
+/CS10 cs 0.1 sc 440 110 60 60 re f
+/CS10 cs 0.15 sc 510 110 60 60 re f
+/CS10 cs 0.2 sc 580 110 60 60 re f
+/CS10 cs 0.35 sc 650 110 60 60 re f
+/CS10 cs 0.5 sc 720 110 60 60 re f
+/CS10 cs 0.65 sc 790 110 60 60 re f
+/CS10 cs 0.75 sc 860 110 60 60 re f
+/CS10 cs 0.9 sc 930 110 60 60 re f
+/CS10 cs 1 sc 1000 110 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 66 Td (Control: DeviceGray, same inputs) Tj ET
+q
+0 g 230 40 60 60 re f
+0.02 g 300 40 60 60 re f
+0.05 g 370 40 60 60 re f
+0.1 g 440 40 60 60 re f
+0.15 g 510 40 60 60 re f
+0.2 g 580 40 60 60 re f
+0.35 g 650 40 60 60 re f
+0.5 g 720 40 60 60 re f
+0.65 g 790 40 60 60 re f
+0.75 g 860 40 60 60 re f
+0.9 g 930 40 60 60 re f
+1 g 1000 40 60 60 re f
+Q
+endstream
+endobj
+
+85 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 73 0 R /CS1 74 0 R /CS2 75 0 R /CS3 76 0 R /CS4 77 0 R /CS5 78 0 R /CS6 79 0 R /CS7 80 0 R /CS8 81 0 R /CS9 82 0 R /CS10 83 0 R >> >>
+   /Contents 84 0 R >>
+endobj
+
+86 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] >>]
+endobj
+
+87 0 obj
+[/Lab << /WhitePoint [0.9505 1 1.089] >>]
+endobj
+
+88 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [-128 127 -128 127] >>]
+endobj
+
+89 0 obj
+<< /Type /XObject /Subtype /Image /Width 12 /Height 1 /ColorSpace 88 0 R /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 73 >>
+stream
+0080800D8080338080808080BF8080FF8080999E80998F9A99719A996280997166998F66>
+endstream
+endobj
+
+90 0 obj
+[/Lab << /WhitePoint [0.9505 1 1.089] /Range [-128 127 -128 127] >>]
+endobj
+
+91 0 obj
+<< /Type /XObject /Subtype /Image /Width 12 /Height 1 /ColorSpace 90 0 R /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 73 >>
+stream
+0080800D8080338080808080BF8080FF8080999E80998F9A99719A996280997166998F66>
+endstream
+endobj
+
+92 0 obj
+<< /Type /XObject /Subtype /Image /Width 12 /Height 1 /ColorSpace 86 0 R /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 73 >>
+stream
+0080800D8080338080808080BF8080FF808099A6809993A1996CA1995980996C5E99935E>
+endstream
+endobj
+
+93 0 obj
+<< /Length 6968 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (9. Lab baseline: fills and 8-bit images) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (5 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (20 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (50 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (75 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (100 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (60 30 0) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (60 15 26) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (60 -15 26) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (60 -30 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (60 -15 -26) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (60 15 -26) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (D50, Range omitted) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 5 0 0 sc 300 810 60 60 re f
+/CS0 cs 20 0 0 sc 370 810 60 60 re f
+/CS0 cs 50 0 0 sc 440 810 60 60 re f
+/CS0 cs 75 0 0 sc 510 810 60 60 re f
+/CS0 cs 100 0 0 sc 580 810 60 60 re f
+/CS0 cs 60 30 0 sc 650 810 60 60 re f
+/CS0 cs 60 15 26 sc 720 810 60 60 re f
+/CS0 cs 60 -15 26 sc 790 810 60 60 re f
+/CS0 cs 60 -30 0 sc 860 810 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 810 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (D65, Range omitted) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 5 0 0 sc 300 740 60 60 re f
+/CS1 cs 20 0 0 sc 370 740 60 60 re f
+/CS1 cs 50 0 0 sc 440 740 60 60 re f
+/CS1 cs 75 0 0 sc 510 740 60 60 re f
+/CS1 cs 100 0 0 sc 580 740 60 60 re f
+/CS1 cs 60 30 0 sc 650 740 60 60 re f
+/CS1 cs 60 15 26 sc 720 740 60 60 re f
+/CS1 cs 60 -15 26 sc 790 740 60 60 re f
+/CS1 cs 60 -30 0 sc 860 740 60 60 re f
+/CS1 cs 60 -15 -26 sc 930 740 60 60 re f
+/CS1 cs 60 15 -26 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (D50, Range [-128 127 -128 127]) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 5 0 0 sc 300 670 60 60 re f
+/CS2 cs 20 0 0 sc 370 670 60 60 re f
+/CS2 cs 50 0 0 sc 440 670 60 60 re f
+/CS2 cs 75 0 0 sc 510 670 60 60 re f
+/CS2 cs 100 0 0 sc 580 670 60 60 re f
+/CS2 cs 60 30 0 sc 650 670 60 60 re f
+/CS2 cs 60 15 26 sc 720 670 60 60 re f
+/CS2 cs 60 -15 26 sc 790 670 60 60 re f
+/CS2 cs 60 -30 0 sc 860 670 60 60 re f
+/CS2 cs 60 -15 -26 sc 930 670 60 60 re f
+/CS2 cs 60 15 -26 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (D50, wide Range, 8-bit image) Tj ET
+q
+q 230 600 60 60 re W n 720 0 0 60 230 600 cm /Im3 Do Q
+q 300 600 60 60 re W n 720 0 0 60 240 600 cm /Im3 Do Q
+q 370 600 60 60 re W n 720 0 0 60 250 600 cm /Im3 Do Q
+q 440 600 60 60 re W n 720 0 0 60 260 600 cm /Im3 Do Q
+q 510 600 60 60 re W n 720 0 0 60 270 600 cm /Im3 Do Q
+q 580 600 60 60 re W n 720 0 0 60 280 600 cm /Im3 Do Q
+q 650 600 60 60 re W n 720 0 0 60 290 600 cm /Im3 Do Q
+q 720 600 60 60 re W n 720 0 0 60 300 600 cm /Im3 Do Q
+q 790 600 60 60 re W n 720 0 0 60 310 600 cm /Im3 Do Q
+q 860 600 60 60 re W n 720 0 0 60 320 600 cm /Im3 Do Q
+q 930 600 60 60 re W n 720 0 0 60 330 600 cm /Im3 Do Q
+q 1000 600 60 60 re W n 720 0 0 60 340 600 cm /Im3 Do Q
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (D65, wide Range, 8-bit image) Tj ET
+q
+q 230 530 60 60 re W n 720 0 0 60 230 530 cm /Im4 Do Q
+q 300 530 60 60 re W n 720 0 0 60 240 530 cm /Im4 Do Q
+q 370 530 60 60 re W n 720 0 0 60 250 530 cm /Im4 Do Q
+q 440 530 60 60 re W n 720 0 0 60 260 530 cm /Im4 Do Q
+q 510 530 60 60 re W n 720 0 0 60 270 530 cm /Im4 Do Q
+q 580 530 60 60 re W n 720 0 0 60 280 530 cm /Im4 Do Q
+q 650 530 60 60 re W n 720 0 0 60 290 530 cm /Im4 Do Q
+q 720 530 60 60 re W n 720 0 0 60 300 530 cm /Im4 Do Q
+q 790 530 60 60 re W n 720 0 0 60 310 530 cm /Im4 Do Q
+q 860 530 60 60 re W n 720 0 0 60 320 530 cm /Im4 Do Q
+q 930 530 60 60 re W n 720 0 0 60 330 530 cm /Im4 Do Q
+q 1000 530 60 60 re W n 720 0 0 60 340 530 cm /Im4 Do Q
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (D50, Range omitted, 8-bit image) Tj ET
+q
+q 230 460 60 60 re W n 720 0 0 60 230 460 cm /Im5 Do Q
+q 300 460 60 60 re W n 720 0 0 60 240 460 cm /Im5 Do Q
+q 370 460 60 60 re W n 720 0 0 60 250 460 cm /Im5 Do Q
+q 440 460 60 60 re W n 720 0 0 60 260 460 cm /Im5 Do Q
+q 510 460 60 60 re W n 720 0 0 60 270 460 cm /Im5 Do Q
+q 580 460 60 60 re W n 720 0 0 60 280 460 cm /Im5 Do Q
+q 650 460 60 60 re W n 720 0 0 60 290 460 cm /Im5 Do Q
+q 720 460 60 60 re W n 720 0 0 60 300 460 cm /Im5 Do Q
+q 790 460 60 60 re W n 720 0 0 60 310 460 cm /Im5 Do Q
+q 860 460 60 60 re W n 720 0 0 60 320 460 cm /Im5 Do Q
+q 930 460 60 60 re W n 720 0 0 60 330 460 cm /Im5 Do Q
+q 1000 460 60 60 re W n 720 0 0 60 340 460 cm /Im5 Do Q
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (Control: DeviceRGB, D50 sRGB values) Tj ET
+q
+0 0 0 rg 230 390 60 60 re f
+0.066 0.066 0.066 rg 300 390 60 60 re f
+0.1894 0.1894 0.1893 rg 370 390 60 60 re f
+0.4663 0.4663 0.4662 rg 440 390 60 60 re f
+0.7239 0.7239 0.7238 rg 510 390 60 60 re f
+1 1 0.9998 rg 580 390 60 60 re f
+0.7591 0.4861 0.5721 rg 650 390 60 60 re f
+0.7074 0.5264 0.3898 rg 720 390 60 60 re f
+0.5117 0.5946 0.3818 rg 790 390 60 60 re f
+0.2903 0.6243 0.5622 rg 860 390 60 60 re f
+0.3277 0.6026 0.7443 rg 930 390 60 60 re f
+0.6024 0.5358 0.7477 rg 1000 390 60 60 re f
+Q
+endstream
+endobj
+
+94 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 86 0 R /CS1 87 0 R /CS2 88 0 R /CS3 90 0 R >> /XObject << /Im3 89 0 R /Im4 91 0 R /Im5 92 0 R >> >>
+   /Contents 93 0 R >>
+endobj
+
+95 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] >>]
+endobj
+
+96 0 obj
+[/Lab << /WhitePoint [0.9505 1 1.089] >>]
+endobj
+
+97 0 obj
+[/Lab << /WhitePoint [0.9568 1 0.9214] >>]
+endobj
+
+98 0 obj
+[/Lab << /WhitePoint [1.0985 1 0.3558] >>]
+endobj
+
+99 0 obj
+[/Lab << /WhitePoint [0.9807 1 1.1822] >>]
+endobj
+
+100 0 obj
+[/Lab << /WhitePoint [0.953 1 1.413] >>]
+endobj
+
+101 0 obj
+[/Lab << /WhitePoint [1 1 1] >>]
+endobj
+
+102 0 obj
+<< /Length 7090 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (10. Lab WhitePoint: Range omitted, WhitePoint varies) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (5 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (20 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (50 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (75 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (100 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (60 30 0) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (60 15 26) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (60 -15 26) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (60 -30 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (60 -15 -26) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (60 15 -26) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (WhitePoint D50) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 5 0 0 sc 300 810 60 60 re f
+/CS0 cs 20 0 0 sc 370 810 60 60 re f
+/CS0 cs 50 0 0 sc 440 810 60 60 re f
+/CS0 cs 75 0 0 sc 510 810 60 60 re f
+/CS0 cs 100 0 0 sc 580 810 60 60 re f
+/CS0 cs 60 30 0 sc 650 810 60 60 re f
+/CS0 cs 60 15 26 sc 720 810 60 60 re f
+/CS0 cs 60 -15 26 sc 790 810 60 60 re f
+/CS0 cs 60 -30 0 sc 860 810 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 810 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (WhitePoint D65) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 5 0 0 sc 300 740 60 60 re f
+/CS1 cs 20 0 0 sc 370 740 60 60 re f
+/CS1 cs 50 0 0 sc 440 740 60 60 re f
+/CS1 cs 75 0 0 sc 510 740 60 60 re f
+/CS1 cs 100 0 0 sc 580 740 60 60 re f
+/CS1 cs 60 30 0 sc 650 740 60 60 re f
+/CS1 cs 60 15 26 sc 720 740 60 60 re f
+/CS1 cs 60 -15 26 sc 790 740 60 60 re f
+/CS1 cs 60 -30 0 sc 860 740 60 60 re f
+/CS1 cs 60 -15 -26 sc 930 740 60 60 re f
+/CS1 cs 60 15 -26 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (WhitePoint D55) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 5 0 0 sc 300 670 60 60 re f
+/CS2 cs 20 0 0 sc 370 670 60 60 re f
+/CS2 cs 50 0 0 sc 440 670 60 60 re f
+/CS2 cs 75 0 0 sc 510 670 60 60 re f
+/CS2 cs 100 0 0 sc 580 670 60 60 re f
+/CS2 cs 60 30 0 sc 650 670 60 60 re f
+/CS2 cs 60 15 26 sc 720 670 60 60 re f
+/CS2 cs 60 -15 26 sc 790 670 60 60 re f
+/CS2 cs 60 -30 0 sc 860 670 60 60 re f
+/CS2 cs 60 -15 -26 sc 930 670 60 60 re f
+/CS2 cs 60 15 -26 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (WhitePoint A) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 5 0 0 sc 300 600 60 60 re f
+/CS3 cs 20 0 0 sc 370 600 60 60 re f
+/CS3 cs 50 0 0 sc 440 600 60 60 re f
+/CS3 cs 75 0 0 sc 510 600 60 60 re f
+/CS3 cs 100 0 0 sc 580 600 60 60 re f
+/CS3 cs 60 30 0 sc 650 600 60 60 re f
+/CS3 cs 60 15 26 sc 720 600 60 60 re f
+/CS3 cs 60 -15 26 sc 790 600 60 60 re f
+/CS3 cs 60 -30 0 sc 860 600 60 60 re f
+/CS3 cs 60 -15 -26 sc 930 600 60 60 re f
+/CS3 cs 60 15 -26 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (WhitePoint C) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 5 0 0 sc 300 530 60 60 re f
+/CS4 cs 20 0 0 sc 370 530 60 60 re f
+/CS4 cs 50 0 0 sc 440 530 60 60 re f
+/CS4 cs 75 0 0 sc 510 530 60 60 re f
+/CS4 cs 100 0 0 sc 580 530 60 60 re f
+/CS4 cs 60 30 0 sc 650 530 60 60 re f
+/CS4 cs 60 15 26 sc 720 530 60 60 re f
+/CS4 cs 60 -15 26 sc 790 530 60 60 re f
+/CS4 cs 60 -30 0 sc 860 530 60 60 re f
+/CS4 cs 60 -15 -26 sc 930 530 60 60 re f
+/CS4 cs 60 15 -26 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (WhitePoint D93) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 5 0 0 sc 300 460 60 60 re f
+/CS5 cs 20 0 0 sc 370 460 60 60 re f
+/CS5 cs 50 0 0 sc 440 460 60 60 re f
+/CS5 cs 75 0 0 sc 510 460 60 60 re f
+/CS5 cs 100 0 0 sc 580 460 60 60 re f
+/CS5 cs 60 30 0 sc 650 460 60 60 re f
+/CS5 cs 60 15 26 sc 720 460 60 60 re f
+/CS5 cs 60 -15 26 sc 790 460 60 60 re f
+/CS5 cs 60 -30 0 sc 860 460 60 60 re f
+/CS5 cs 60 -15 -26 sc 930 460 60 60 re f
+/CS5 cs 60 15 -26 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (WhitePoint E) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 5 0 0 sc 300 390 60 60 re f
+/CS6 cs 20 0 0 sc 370 390 60 60 re f
+/CS6 cs 50 0 0 sc 440 390 60 60 re f
+/CS6 cs 75 0 0 sc 510 390 60 60 re f
+/CS6 cs 100 0 0 sc 580 390 60 60 re f
+/CS6 cs 60 30 0 sc 650 390 60 60 re f
+/CS6 cs 60 15 26 sc 720 390 60 60 re f
+/CS6 cs 60 -15 26 sc 790 390 60 60 re f
+/CS6 cs 60 -30 0 sc 860 390 60 60 re f
+/CS6 cs 60 -15 -26 sc 930 390 60 60 re f
+/CS6 cs 60 15 -26 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (Control: DeviceRGB, D50 sRGB values) Tj ET
+q
+0 0 0 rg 230 320 60 60 re f
+0.066 0.066 0.066 rg 300 320 60 60 re f
+0.1894 0.1894 0.1893 rg 370 320 60 60 re f
+0.4663 0.4663 0.4662 rg 440 320 60 60 re f
+0.7239 0.7239 0.7238 rg 510 320 60 60 re f
+1 1 0.9998 rg 580 320 60 60 re f
+0.7591 0.4861 0.5721 rg 650 320 60 60 re f
+0.7074 0.5264 0.3898 rg 720 320 60 60 re f
+0.5117 0.5946 0.3818 rg 790 320 60 60 re f
+0.2903 0.6243 0.5622 rg 860 320 60 60 re f
+0.3277 0.6026 0.7443 rg 930 320 60 60 re f
+0.6024 0.5358 0.7477 rg 1000 320 60 60 re f
+Q
+endstream
+endobj
+
+103 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 95 0 R /CS1 96 0 R /CS2 97 0 R /CS3 98 0 R /CS4 99 0 R /CS5 100 0 R /CS6 101 0 R >> >>
+   /Contents 102 0 R >>
+endobj
+
+104 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] >>]
+endobj
+
+105 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [-128 127 -128 127] >>]
+endobj
+
+106 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [-160 160 -160 160] >>]
+endobj
+
+107 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [-50 50 -50 50] >>]
+endobj
+
+108 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [-20 20 -20 20] >>]
+endobj
+
+109 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [0 100 -100 0] >>]
+endobj
+
+110 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [-100 0 0 100] >>]
+endobj
+
+111 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /Range [10 20 -10 10] >>]
+endobj
+
+112 0 obj
+<< /Length 7919 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (11. Lab Range: D50, Range varies) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (5 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (20 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (50 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (75 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (100 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (60 30 0) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (60 15 26) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (60 -15 26) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (60 -30 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (60 -15 -26) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (60 15 -26) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (Range omitted) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 5 0 0 sc 300 810 60 60 re f
+/CS0 cs 20 0 0 sc 370 810 60 60 re f
+/CS0 cs 50 0 0 sc 440 810 60 60 re f
+/CS0 cs 75 0 0 sc 510 810 60 60 re f
+/CS0 cs 100 0 0 sc 580 810 60 60 re f
+/CS0 cs 60 30 0 sc 650 810 60 60 re f
+/CS0 cs 60 15 26 sc 720 810 60 60 re f
+/CS0 cs 60 -15 26 sc 790 810 60 60 re f
+/CS0 cs 60 -30 0 sc 860 810 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 810 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (Range [-128 127 -128 127]) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 5 0 0 sc 300 740 60 60 re f
+/CS1 cs 20 0 0 sc 370 740 60 60 re f
+/CS1 cs 50 0 0 sc 440 740 60 60 re f
+/CS1 cs 75 0 0 sc 510 740 60 60 re f
+/CS1 cs 100 0 0 sc 580 740 60 60 re f
+/CS1 cs 60 30 0 sc 650 740 60 60 re f
+/CS1 cs 60 15 26 sc 720 740 60 60 re f
+/CS1 cs 60 -15 26 sc 790 740 60 60 re f
+/CS1 cs 60 -30 0 sc 860 740 60 60 re f
+/CS1 cs 60 -15 -26 sc 930 740 60 60 re f
+/CS1 cs 60 15 -26 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (Range [-160 160 -160 160]) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 5 0 0 sc 300 670 60 60 re f
+/CS2 cs 20 0 0 sc 370 670 60 60 re f
+/CS2 cs 50 0 0 sc 440 670 60 60 re f
+/CS2 cs 75 0 0 sc 510 670 60 60 re f
+/CS2 cs 100 0 0 sc 580 670 60 60 re f
+/CS2 cs 60 30 0 sc 650 670 60 60 re f
+/CS2 cs 60 15 26 sc 720 670 60 60 re f
+/CS2 cs 60 -15 26 sc 790 670 60 60 re f
+/CS2 cs 60 -30 0 sc 860 670 60 60 re f
+/CS2 cs 60 -15 -26 sc 930 670 60 60 re f
+/CS2 cs 60 15 -26 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (Range [-50 50 -50 50]) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 5 0 0 sc 300 600 60 60 re f
+/CS3 cs 20 0 0 sc 370 600 60 60 re f
+/CS3 cs 50 0 0 sc 440 600 60 60 re f
+/CS3 cs 75 0 0 sc 510 600 60 60 re f
+/CS3 cs 100 0 0 sc 580 600 60 60 re f
+/CS3 cs 60 30 0 sc 650 600 60 60 re f
+/CS3 cs 60 15 26 sc 720 600 60 60 re f
+/CS3 cs 60 -15 26 sc 790 600 60 60 re f
+/CS3 cs 60 -30 0 sc 860 600 60 60 re f
+/CS3 cs 60 -15 -26 sc 930 600 60 60 re f
+/CS3 cs 60 15 -26 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (Range [-20 20 -20 20]) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 5 0 0 sc 300 530 60 60 re f
+/CS4 cs 20 0 0 sc 370 530 60 60 re f
+/CS4 cs 50 0 0 sc 440 530 60 60 re f
+/CS4 cs 75 0 0 sc 510 530 60 60 re f
+/CS4 cs 100 0 0 sc 580 530 60 60 re f
+/CS4 cs 60 30 0 sc 650 530 60 60 re f
+/CS4 cs 60 15 26 sc 720 530 60 60 re f
+/CS4 cs 60 -15 26 sc 790 530 60 60 re f
+/CS4 cs 60 -30 0 sc 860 530 60 60 re f
+/CS4 cs 60 -15 -26 sc 930 530 60 60 re f
+/CS4 cs 60 15 -26 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (Range [0 100 -100 0]) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 5 0 0 sc 300 460 60 60 re f
+/CS5 cs 20 0 0 sc 370 460 60 60 re f
+/CS5 cs 50 0 0 sc 440 460 60 60 re f
+/CS5 cs 75 0 0 sc 510 460 60 60 re f
+/CS5 cs 100 0 0 sc 580 460 60 60 re f
+/CS5 cs 60 30 0 sc 650 460 60 60 re f
+/CS5 cs 60 15 26 sc 720 460 60 60 re f
+/CS5 cs 60 -15 26 sc 790 460 60 60 re f
+/CS5 cs 60 -30 0 sc 860 460 60 60 re f
+/CS5 cs 60 -15 -26 sc 930 460 60 60 re f
+/CS5 cs 60 15 -26 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (Range [-100 0 0 100]) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 5 0 0 sc 300 390 60 60 re f
+/CS6 cs 20 0 0 sc 370 390 60 60 re f
+/CS6 cs 50 0 0 sc 440 390 60 60 re f
+/CS6 cs 75 0 0 sc 510 390 60 60 re f
+/CS6 cs 100 0 0 sc 580 390 60 60 re f
+/CS6 cs 60 30 0 sc 650 390 60 60 re f
+/CS6 cs 60 15 26 sc 720 390 60 60 re f
+/CS6 cs 60 -15 26 sc 790 390 60 60 re f
+/CS6 cs 60 -30 0 sc 860 390 60 60 re f
+/CS6 cs 60 -15 -26 sc 930 390 60 60 re f
+/CS6 cs 60 15 -26 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (Range [10 20 -10 10]) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 5 0 0 sc 300 320 60 60 re f
+/CS7 cs 20 0 0 sc 370 320 60 60 re f
+/CS7 cs 50 0 0 sc 440 320 60 60 re f
+/CS7 cs 75 0 0 sc 510 320 60 60 re f
+/CS7 cs 100 0 0 sc 580 320 60 60 re f
+/CS7 cs 60 30 0 sc 650 320 60 60 re f
+/CS7 cs 60 15 26 sc 720 320 60 60 re f
+/CS7 cs 60 -15 26 sc 790 320 60 60 re f
+/CS7 cs 60 -30 0 sc 860 320 60 60 re f
+/CS7 cs 60 -15 -26 sc 930 320 60 60 re f
+/CS7 cs 60 15 -26 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (Control: DeviceRGB, D50 sRGB values) Tj ET
+q
+0 0 0 rg 230 250 60 60 re f
+0.066 0.066 0.066 rg 300 250 60 60 re f
+0.1894 0.1894 0.1893 rg 370 250 60 60 re f
+0.4663 0.4663 0.4662 rg 440 250 60 60 re f
+0.7239 0.7239 0.7238 rg 510 250 60 60 re f
+1 1 0.9998 rg 580 250 60 60 re f
+0.7591 0.4861 0.5721 rg 650 250 60 60 re f
+0.7074 0.5264 0.3898 rg 720 250 60 60 re f
+0.5117 0.5946 0.3818 rg 790 250 60 60 re f
+0.2903 0.6243 0.5622 rg 860 250 60 60 re f
+0.3277 0.6026 0.7443 rg 930 250 60 60 re f
+0.6024 0.5358 0.7477 rg 1000 250 60 60 re f
+Q
+endstream
+endobj
+
+113 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 104 0 R /CS1 105 0 R /CS2 106 0 R /CS3 107 0 R /CS4 108 0 R /CS5 109 0 R /CS6 110 0 R /CS7 111 0 R >> >>
+   /Contents 112 0 R >>
+endobj
+
+114 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] >>]
+endobj
+
+115 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0 0 0] >>]
+endobj
+
+116 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.0024 0.0025 0.0021] >>]
+endobj
+
+117 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.0048 0.005 0.0041] >>]
+endobj
+
+118 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.0096 0.01 0.0082] >>]
+endobj
+
+119 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.0193 0.02 0.0165] >>]
+endobj
+
+120 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.0482 0.05 0.0412] >>]
+endobj
+
+121 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.0964 0.1 0.0825] >>]
+endobj
+
+122 0 obj
+[/Lab << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.0475 0.05 0.0544] >>]
+endobj
+
+123 0 obj
+<< /Length 8695 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (12. Lab BlackPoint, realistic: BlackPoint = k x WhitePoint) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (5 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (20 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (50 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (75 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (100 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (60 30 0) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (60 15 26) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (60 -15 26) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (60 -30 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (60 -15 -26) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (60 15 -26) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (D50, BlackPoint omitted) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 5 0 0 sc 300 810 60 60 re f
+/CS0 cs 20 0 0 sc 370 810 60 60 re f
+/CS0 cs 50 0 0 sc 440 810 60 60 re f
+/CS0 cs 75 0 0 sc 510 810 60 60 re f
+/CS0 cs 100 0 0 sc 580 810 60 60 re f
+/CS0 cs 60 30 0 sc 650 810 60 60 re f
+/CS0 cs 60 15 26 sc 720 810 60 60 re f
+/CS0 cs 60 -15 26 sc 790 810 60 60 re f
+/CS0 cs 60 -30 0 sc 860 810 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 810 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (D50, k = 0 \([0 0 0]\)) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 5 0 0 sc 300 740 60 60 re f
+/CS1 cs 20 0 0 sc 370 740 60 60 re f
+/CS1 cs 50 0 0 sc 440 740 60 60 re f
+/CS1 cs 75 0 0 sc 510 740 60 60 re f
+/CS1 cs 100 0 0 sc 580 740 60 60 re f
+/CS1 cs 60 30 0 sc 650 740 60 60 re f
+/CS1 cs 60 15 26 sc 720 740 60 60 re f
+/CS1 cs 60 -15 26 sc 790 740 60 60 re f
+/CS1 cs 60 -30 0 sc 860 740 60 60 re f
+/CS1 cs 60 -15 -26 sc 930 740 60 60 re f
+/CS1 cs 60 15 -26 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (D50, k = 0.0025) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 5 0 0 sc 300 670 60 60 re f
+/CS2 cs 20 0 0 sc 370 670 60 60 re f
+/CS2 cs 50 0 0 sc 440 670 60 60 re f
+/CS2 cs 75 0 0 sc 510 670 60 60 re f
+/CS2 cs 100 0 0 sc 580 670 60 60 re f
+/CS2 cs 60 30 0 sc 650 670 60 60 re f
+/CS2 cs 60 15 26 sc 720 670 60 60 re f
+/CS2 cs 60 -15 26 sc 790 670 60 60 re f
+/CS2 cs 60 -30 0 sc 860 670 60 60 re f
+/CS2 cs 60 -15 -26 sc 930 670 60 60 re f
+/CS2 cs 60 15 -26 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (D50, k = 0.005) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 5 0 0 sc 300 600 60 60 re f
+/CS3 cs 20 0 0 sc 370 600 60 60 re f
+/CS3 cs 50 0 0 sc 440 600 60 60 re f
+/CS3 cs 75 0 0 sc 510 600 60 60 re f
+/CS3 cs 100 0 0 sc 580 600 60 60 re f
+/CS3 cs 60 30 0 sc 650 600 60 60 re f
+/CS3 cs 60 15 26 sc 720 600 60 60 re f
+/CS3 cs 60 -15 26 sc 790 600 60 60 re f
+/CS3 cs 60 -30 0 sc 860 600 60 60 re f
+/CS3 cs 60 -15 -26 sc 930 600 60 60 re f
+/CS3 cs 60 15 -26 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (D50, k = 0.01) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 5 0 0 sc 300 530 60 60 re f
+/CS4 cs 20 0 0 sc 370 530 60 60 re f
+/CS4 cs 50 0 0 sc 440 530 60 60 re f
+/CS4 cs 75 0 0 sc 510 530 60 60 re f
+/CS4 cs 100 0 0 sc 580 530 60 60 re f
+/CS4 cs 60 30 0 sc 650 530 60 60 re f
+/CS4 cs 60 15 26 sc 720 530 60 60 re f
+/CS4 cs 60 -15 26 sc 790 530 60 60 re f
+/CS4 cs 60 -30 0 sc 860 530 60 60 re f
+/CS4 cs 60 -15 -26 sc 930 530 60 60 re f
+/CS4 cs 60 15 -26 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (D50, k = 0.02) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 5 0 0 sc 300 460 60 60 re f
+/CS5 cs 20 0 0 sc 370 460 60 60 re f
+/CS5 cs 50 0 0 sc 440 460 60 60 re f
+/CS5 cs 75 0 0 sc 510 460 60 60 re f
+/CS5 cs 100 0 0 sc 580 460 60 60 re f
+/CS5 cs 60 30 0 sc 650 460 60 60 re f
+/CS5 cs 60 15 26 sc 720 460 60 60 re f
+/CS5 cs 60 -15 26 sc 790 460 60 60 re f
+/CS5 cs 60 -30 0 sc 860 460 60 60 re f
+/CS5 cs 60 -15 -26 sc 930 460 60 60 re f
+/CS5 cs 60 15 -26 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (D50, k = 0.05) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 5 0 0 sc 300 390 60 60 re f
+/CS6 cs 20 0 0 sc 370 390 60 60 re f
+/CS6 cs 50 0 0 sc 440 390 60 60 re f
+/CS6 cs 75 0 0 sc 510 390 60 60 re f
+/CS6 cs 100 0 0 sc 580 390 60 60 re f
+/CS6 cs 60 30 0 sc 650 390 60 60 re f
+/CS6 cs 60 15 26 sc 720 390 60 60 re f
+/CS6 cs 60 -15 26 sc 790 390 60 60 re f
+/CS6 cs 60 -30 0 sc 860 390 60 60 re f
+/CS6 cs 60 -15 -26 sc 930 390 60 60 re f
+/CS6 cs 60 15 -26 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (D50, k = 0.10) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 5 0 0 sc 300 320 60 60 re f
+/CS7 cs 20 0 0 sc 370 320 60 60 re f
+/CS7 cs 50 0 0 sc 440 320 60 60 re f
+/CS7 cs 75 0 0 sc 510 320 60 60 re f
+/CS7 cs 100 0 0 sc 580 320 60 60 re f
+/CS7 cs 60 30 0 sc 650 320 60 60 re f
+/CS7 cs 60 15 26 sc 720 320 60 60 re f
+/CS7 cs 60 -15 26 sc 790 320 60 60 re f
+/CS7 cs 60 -30 0 sc 860 320 60 60 re f
+/CS7 cs 60 -15 -26 sc 930 320 60 60 re f
+/CS7 cs 60 15 -26 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (D65, k = 0.05) Tj ET
+q
+/CS8 cs 0 0 0 sc 230 250 60 60 re f
+/CS8 cs 5 0 0 sc 300 250 60 60 re f
+/CS8 cs 20 0 0 sc 370 250 60 60 re f
+/CS8 cs 50 0 0 sc 440 250 60 60 re f
+/CS8 cs 75 0 0 sc 510 250 60 60 re f
+/CS8 cs 100 0 0 sc 580 250 60 60 re f
+/CS8 cs 60 30 0 sc 650 250 60 60 re f
+/CS8 cs 60 15 26 sc 720 250 60 60 re f
+/CS8 cs 60 -15 26 sc 790 250 60 60 re f
+/CS8 cs 60 -30 0 sc 860 250 60 60 re f
+/CS8 cs 60 -15 -26 sc 930 250 60 60 re f
+/CS8 cs 60 15 -26 sc 1000 250 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (Control: DeviceRGB, D50 sRGB values) Tj ET
+q
+0 0 0 rg 230 180 60 60 re f
+0.066 0.066 0.066 rg 300 180 60 60 re f
+0.1894 0.1894 0.1893 rg 370 180 60 60 re f
+0.4663 0.4663 0.4662 rg 440 180 60 60 re f
+0.7239 0.7239 0.7238 rg 510 180 60 60 re f
+1 1 0.9998 rg 580 180 60 60 re f
+0.7591 0.4861 0.5721 rg 650 180 60 60 re f
+0.7074 0.5264 0.3898 rg 720 180 60 60 re f
+0.5117 0.5946 0.3818 rg 790 180 60 60 re f
+0.2903 0.6243 0.5622 rg 860 180 60 60 re f
+0.3277 0.6026 0.7443 rg 930 180 60 60 re f
+0.6024 0.5358 0.7477 rg 1000 180 60 60 re f
+Q
+endstream
+endobj
+
+124 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 114 0 R /CS1 115 0 R /CS2 116 0 R /CS3 117 0 R /CS4 118 0 R /CS5 119 0 R /CS6 120 0 R /CS7 121 0 R /CS8 122 0 R >> >>
+   /Contents 123 0 R >>
+endobj
+
+125 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.1446 0.15 0.1237] >>]
+endobj
+
+126 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.1736 0.18 0.1485] >>]
+endobj
+
+127 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.1928 0.2 0.165] >>]
+endobj
+
+128 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.241 0.25 0.2062] >>]
+endobj
+
+129 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.2893 0.3 0.2475] >>]
+endobj
+
+130 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.4821 0.5 0.4124] >>]
+endobj
+
+131 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.03 0.02 0.01] >>]
+endobj
+
+132 0 obj
+[/Lab << /WhitePoint [0.9642 1 0.8249] /BlackPoint [0.01 0.02 0.03] >>]
+endobj
+
+133 0 obj
+[/Lab << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.2376 0.25 0.2722] >>]
+endobj
+
+134 0 obj
+<< /Length 8683 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (13. Lab BlackPoint, upper range and tinted) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (5 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (20 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (50 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (75 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (100 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (60 30 0) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (60 15 26) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (60 -15 26) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (60 -30 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (60 -15 -26) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (60 15 -26) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (D50, k = 0.15) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 5 0 0 sc 300 810 60 60 re f
+/CS0 cs 20 0 0 sc 370 810 60 60 re f
+/CS0 cs 50 0 0 sc 440 810 60 60 re f
+/CS0 cs 75 0 0 sc 510 810 60 60 re f
+/CS0 cs 100 0 0 sc 580 810 60 60 re f
+/CS0 cs 60 30 0 sc 650 810 60 60 re f
+/CS0 cs 60 15 26 sc 720 810 60 60 re f
+/CS0 cs 60 -15 26 sc 790 810 60 60 re f
+/CS0 cs 60 -30 0 sc 860 810 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 810 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (D50, k = 0.18) Tj ET
+q
+/CS1 cs 0 0 0 sc 230 740 60 60 re f
+/CS1 cs 5 0 0 sc 300 740 60 60 re f
+/CS1 cs 20 0 0 sc 370 740 60 60 re f
+/CS1 cs 50 0 0 sc 440 740 60 60 re f
+/CS1 cs 75 0 0 sc 510 740 60 60 re f
+/CS1 cs 100 0 0 sc 580 740 60 60 re f
+/CS1 cs 60 30 0 sc 650 740 60 60 re f
+/CS1 cs 60 15 26 sc 720 740 60 60 re f
+/CS1 cs 60 -15 26 sc 790 740 60 60 re f
+/CS1 cs 60 -30 0 sc 860 740 60 60 re f
+/CS1 cs 60 -15 -26 sc 930 740 60 60 re f
+/CS1 cs 60 15 -26 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (D50, k = 0.20) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 670 60 60 re f
+/CS2 cs 5 0 0 sc 300 670 60 60 re f
+/CS2 cs 20 0 0 sc 370 670 60 60 re f
+/CS2 cs 50 0 0 sc 440 670 60 60 re f
+/CS2 cs 75 0 0 sc 510 670 60 60 re f
+/CS2 cs 100 0 0 sc 580 670 60 60 re f
+/CS2 cs 60 30 0 sc 650 670 60 60 re f
+/CS2 cs 60 15 26 sc 720 670 60 60 re f
+/CS2 cs 60 -15 26 sc 790 670 60 60 re f
+/CS2 cs 60 -30 0 sc 860 670 60 60 re f
+/CS2 cs 60 -15 -26 sc 930 670 60 60 re f
+/CS2 cs 60 15 -26 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (D50, k = 0.25) Tj ET
+q
+/CS3 cs 0 0 0 sc 230 600 60 60 re f
+/CS3 cs 5 0 0 sc 300 600 60 60 re f
+/CS3 cs 20 0 0 sc 370 600 60 60 re f
+/CS3 cs 50 0 0 sc 440 600 60 60 re f
+/CS3 cs 75 0 0 sc 510 600 60 60 re f
+/CS3 cs 100 0 0 sc 580 600 60 60 re f
+/CS3 cs 60 30 0 sc 650 600 60 60 re f
+/CS3 cs 60 15 26 sc 720 600 60 60 re f
+/CS3 cs 60 -15 26 sc 790 600 60 60 re f
+/CS3 cs 60 -30 0 sc 860 600 60 60 re f
+/CS3 cs 60 -15 -26 sc 930 600 60 60 re f
+/CS3 cs 60 15 -26 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (D50, k = 0.30) Tj ET
+q
+/CS4 cs 0 0 0 sc 230 530 60 60 re f
+/CS4 cs 5 0 0 sc 300 530 60 60 re f
+/CS4 cs 20 0 0 sc 370 530 60 60 re f
+/CS4 cs 50 0 0 sc 440 530 60 60 re f
+/CS4 cs 75 0 0 sc 510 530 60 60 re f
+/CS4 cs 100 0 0 sc 580 530 60 60 re f
+/CS4 cs 60 30 0 sc 650 530 60 60 re f
+/CS4 cs 60 15 26 sc 720 530 60 60 re f
+/CS4 cs 60 -15 26 sc 790 530 60 60 re f
+/CS4 cs 60 -30 0 sc 860 530 60 60 re f
+/CS4 cs 60 -15 -26 sc 930 530 60 60 re f
+/CS4 cs 60 15 -26 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (D50, k = 0.50) Tj ET
+q
+/CS5 cs 0 0 0 sc 230 460 60 60 re f
+/CS5 cs 5 0 0 sc 300 460 60 60 re f
+/CS5 cs 20 0 0 sc 370 460 60 60 re f
+/CS5 cs 50 0 0 sc 440 460 60 60 re f
+/CS5 cs 75 0 0 sc 510 460 60 60 re f
+/CS5 cs 100 0 0 sc 580 460 60 60 re f
+/CS5 cs 60 30 0 sc 650 460 60 60 re f
+/CS5 cs 60 15 26 sc 720 460 60 60 re f
+/CS5 cs 60 -15 26 sc 790 460 60 60 re f
+/CS5 cs 60 -30 0 sc 860 460 60 60 re f
+/CS5 cs 60 -15 -26 sc 930 460 60 60 re f
+/CS5 cs 60 15 -26 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (D50, warm [0.03 0.02 0.01]) Tj ET
+q
+/CS6 cs 0 0 0 sc 230 390 60 60 re f
+/CS6 cs 5 0 0 sc 300 390 60 60 re f
+/CS6 cs 20 0 0 sc 370 390 60 60 re f
+/CS6 cs 50 0 0 sc 440 390 60 60 re f
+/CS6 cs 75 0 0 sc 510 390 60 60 re f
+/CS6 cs 100 0 0 sc 580 390 60 60 re f
+/CS6 cs 60 30 0 sc 650 390 60 60 re f
+/CS6 cs 60 15 26 sc 720 390 60 60 re f
+/CS6 cs 60 -15 26 sc 790 390 60 60 re f
+/CS6 cs 60 -30 0 sc 860 390 60 60 re f
+/CS6 cs 60 -15 -26 sc 930 390 60 60 re f
+/CS6 cs 60 15 -26 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (D50, cool [0.01 0.02 0.03]) Tj ET
+q
+/CS7 cs 0 0 0 sc 230 320 60 60 re f
+/CS7 cs 5 0 0 sc 300 320 60 60 re f
+/CS7 cs 20 0 0 sc 370 320 60 60 re f
+/CS7 cs 50 0 0 sc 440 320 60 60 re f
+/CS7 cs 75 0 0 sc 510 320 60 60 re f
+/CS7 cs 100 0 0 sc 580 320 60 60 re f
+/CS7 cs 60 30 0 sc 650 320 60 60 re f
+/CS7 cs 60 15 26 sc 720 320 60 60 re f
+/CS7 cs 60 -15 26 sc 790 320 60 60 re f
+/CS7 cs 60 -30 0 sc 860 320 60 60 re f
+/CS7 cs 60 -15 -26 sc 930 320 60 60 re f
+/CS7 cs 60 15 -26 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (D65, k = 0.25) Tj ET
+q
+/CS8 cs 0 0 0 sc 230 250 60 60 re f
+/CS8 cs 5 0 0 sc 300 250 60 60 re f
+/CS8 cs 20 0 0 sc 370 250 60 60 re f
+/CS8 cs 50 0 0 sc 440 250 60 60 re f
+/CS8 cs 75 0 0 sc 510 250 60 60 re f
+/CS8 cs 100 0 0 sc 580 250 60 60 re f
+/CS8 cs 60 30 0 sc 650 250 60 60 re f
+/CS8 cs 60 15 26 sc 720 250 60 60 re f
+/CS8 cs 60 -15 26 sc 790 250 60 60 re f
+/CS8 cs 60 -30 0 sc 860 250 60 60 re f
+/CS8 cs 60 -15 -26 sc 930 250 60 60 re f
+/CS8 cs 60 15 -26 sc 1000 250 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (Control: DeviceRGB, D50 sRGB values) Tj ET
+q
+0 0 0 rg 230 180 60 60 re f
+0.066 0.066 0.066 rg 300 180 60 60 re f
+0.1894 0.1894 0.1893 rg 370 180 60 60 re f
+0.4663 0.4663 0.4662 rg 440 180 60 60 re f
+0.7239 0.7239 0.7238 rg 510 180 60 60 re f
+1 1 0.9998 rg 580 180 60 60 re f
+0.7591 0.4861 0.5721 rg 650 180 60 60 re f
+0.7074 0.5264 0.3898 rg 720 180 60 60 re f
+0.5117 0.5946 0.3818 rg 790 180 60 60 re f
+0.2903 0.6243 0.5622 rg 860 180 60 60 re f
+0.3277 0.6026 0.7443 rg 930 180 60 60 re f
+0.6024 0.5358 0.7477 rg 1000 180 60 60 re f
+Q
+endstream
+endobj
+
+135 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 125 0 R /CS1 126 0 R /CS2 127 0 R /CS3 128 0 R /CS4 129 0 R /CS5 130 0 R /CS6 131 0 R /CS7 132 0 R /CS8 133 0 R >> >>
+   /Contents 134 0 R >>
+endobj
+
+136 0 obj
+[/Lab << /WhitePoint [0.9505 1 1.089] /BlackPoint [0.2376 0.25 0.2722] >>]
+endobj
+
+137 0 obj
+[/Lab << /WhitePoint [0.9505 1 1.089] >>]
+endobj
+
+138 0 obj
+[/Lab << /WhitePoint [1.0985 1 0.3558] >>]
+endobj
+
+139 0 obj
+<< /Length 10558 >>
+stream
+BT 0.4 g /F1 14 Tf 30 905 Td (14. Lab against UseBlackPtComp and rendering intent) Tj ET
+q 0 g
+208 884 8 8 re f
+1074 884 8 8 re f
+208 18 8 8 re f
+1074 18 8 8 re f
+Q
+BT 0.4 g /F1 7 Tf 230 876 Td (0 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 300 876 Td (5 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 370 876 Td (20 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 440 876 Td (50 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 510 876 Td (75 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 580 876 Td (100 0 0) Tj ET
+BT 0.4 g /F1 7 Tf 650 876 Td (60 30 0) Tj ET
+BT 0.4 g /F1 7 Tf 720 876 Td (60 15 26) Tj ET
+BT 0.4 g /F1 7 Tf 790 876 Td (60 -15 26) Tj ET
+BT 0.4 g /F1 7 Tf 860 876 Td (60 -30 0) Tj ET
+BT 0.4 g /F1 7 Tf 930 876 Td (60 -15 -26) Tj ET
+BT 0.4 g /F1 7 Tf 1000 876 Td (60 15 -26) Tj ET
+q 0.75 G 0.5 w
+228.5 808.5 63 63 re S
+298.5 808.5 63 63 re S
+368.5 808.5 63 63 re S
+438.5 808.5 63 63 re S
+508.5 808.5 63 63 re S
+578.5 808.5 63 63 re S
+648.5 808.5 63 63 re S
+718.5 808.5 63 63 re S
+788.5 808.5 63 63 re S
+858.5 808.5 63 63 re S
+928.5 808.5 63 63 re S
+998.5 808.5 63 63 re S
+228.5 738.5 63 63 re S
+298.5 738.5 63 63 re S
+368.5 738.5 63 63 re S
+438.5 738.5 63 63 re S
+508.5 738.5 63 63 re S
+578.5 738.5 63 63 re S
+648.5 738.5 63 63 re S
+718.5 738.5 63 63 re S
+788.5 738.5 63 63 re S
+858.5 738.5 63 63 re S
+928.5 738.5 63 63 re S
+998.5 738.5 63 63 re S
+228.5 668.5 63 63 re S
+298.5 668.5 63 63 re S
+368.5 668.5 63 63 re S
+438.5 668.5 63 63 re S
+508.5 668.5 63 63 re S
+578.5 668.5 63 63 re S
+648.5 668.5 63 63 re S
+718.5 668.5 63 63 re S
+788.5 668.5 63 63 re S
+858.5 668.5 63 63 re S
+928.5 668.5 63 63 re S
+998.5 668.5 63 63 re S
+228.5 598.5 63 63 re S
+298.5 598.5 63 63 re S
+368.5 598.5 63 63 re S
+438.5 598.5 63 63 re S
+508.5 598.5 63 63 re S
+578.5 598.5 63 63 re S
+648.5 598.5 63 63 re S
+718.5 598.5 63 63 re S
+788.5 598.5 63 63 re S
+858.5 598.5 63 63 re S
+928.5 598.5 63 63 re S
+998.5 598.5 63 63 re S
+228.5 528.5 63 63 re S
+298.5 528.5 63 63 re S
+368.5 528.5 63 63 re S
+438.5 528.5 63 63 re S
+508.5 528.5 63 63 re S
+578.5 528.5 63 63 re S
+648.5 528.5 63 63 re S
+718.5 528.5 63 63 re S
+788.5 528.5 63 63 re S
+858.5 528.5 63 63 re S
+928.5 528.5 63 63 re S
+998.5 528.5 63 63 re S
+228.5 458.5 63 63 re S
+298.5 458.5 63 63 re S
+368.5 458.5 63 63 re S
+438.5 458.5 63 63 re S
+508.5 458.5 63 63 re S
+578.5 458.5 63 63 re S
+648.5 458.5 63 63 re S
+718.5 458.5 63 63 re S
+788.5 458.5 63 63 re S
+858.5 458.5 63 63 re S
+928.5 458.5 63 63 re S
+998.5 458.5 63 63 re S
+228.5 388.5 63 63 re S
+298.5 388.5 63 63 re S
+368.5 388.5 63 63 re S
+438.5 388.5 63 63 re S
+508.5 388.5 63 63 re S
+578.5 388.5 63 63 re S
+648.5 388.5 63 63 re S
+718.5 388.5 63 63 re S
+788.5 388.5 63 63 re S
+858.5 388.5 63 63 re S
+928.5 388.5 63 63 re S
+998.5 388.5 63 63 re S
+228.5 318.5 63 63 re S
+298.5 318.5 63 63 re S
+368.5 318.5 63 63 re S
+438.5 318.5 63 63 re S
+508.5 318.5 63 63 re S
+578.5 318.5 63 63 re S
+648.5 318.5 63 63 re S
+718.5 318.5 63 63 re S
+788.5 318.5 63 63 re S
+858.5 318.5 63 63 re S
+928.5 318.5 63 63 re S
+998.5 318.5 63 63 re S
+228.5 248.5 63 63 re S
+298.5 248.5 63 63 re S
+368.5 248.5 63 63 re S
+438.5 248.5 63 63 re S
+508.5 248.5 63 63 re S
+578.5 248.5 63 63 re S
+648.5 248.5 63 63 re S
+718.5 248.5 63 63 re S
+788.5 248.5 63 63 re S
+858.5 248.5 63 63 re S
+928.5 248.5 63 63 re S
+998.5 248.5 63 63 re S
+228.5 178.5 63 63 re S
+298.5 178.5 63 63 re S
+368.5 178.5 63 63 re S
+438.5 178.5 63 63 re S
+508.5 178.5 63 63 re S
+578.5 178.5 63 63 re S
+648.5 178.5 63 63 re S
+718.5 178.5 63 63 re S
+788.5 178.5 63 63 re S
+858.5 178.5 63 63 re S
+928.5 178.5 63 63 re S
+998.5 178.5 63 63 re S
+228.5 108.5 63 63 re S
+298.5 108.5 63 63 re S
+368.5 108.5 63 63 re S
+438.5 108.5 63 63 re S
+508.5 108.5 63 63 re S
+578.5 108.5 63 63 re S
+648.5 108.5 63 63 re S
+718.5 108.5 63 63 re S
+788.5 108.5 63 63 re S
+858.5 108.5 63 63 re S
+928.5 108.5 63 63 re S
+998.5 108.5 63 63 re S
+228.5 38.5 63 63 re S
+298.5 38.5 63 63 re S
+368.5 38.5 63 63 re S
+438.5 38.5 63 63 re S
+508.5 38.5 63 63 re S
+578.5 38.5 63 63 re S
+648.5 38.5 63 63 re S
+718.5 38.5 63 63 re S
+788.5 38.5 63 63 re S
+858.5 38.5 63 63 re S
+928.5 38.5 63 63 re S
+998.5 38.5 63 63 re S
+Q
+BT 0.4 g /F1 8 Tf 30 836 Td (D65, k = 0.25, plain) Tj ET
+q
+/CS0 cs 0 0 0 sc 230 810 60 60 re f
+/CS0 cs 5 0 0 sc 300 810 60 60 re f
+/CS0 cs 20 0 0 sc 370 810 60 60 re f
+/CS0 cs 50 0 0 sc 440 810 60 60 re f
+/CS0 cs 75 0 0 sc 510 810 60 60 re f
+/CS0 cs 100 0 0 sc 580 810 60 60 re f
+/CS0 cs 60 30 0 sc 650 810 60 60 re f
+/CS0 cs 60 15 26 sc 720 810 60 60 re f
+/CS0 cs 60 -15 26 sc 790 810 60 60 re f
+/CS0 cs 60 -30 0 sc 860 810 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 810 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 810 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 766 Td (D65, k = 0.25, UseBlackPtComp ON) Tj ET
+q
+/BpcOn gs
+/CS0 cs 0 0 0 sc 230 740 60 60 re f
+/CS0 cs 5 0 0 sc 300 740 60 60 re f
+/CS0 cs 20 0 0 sc 370 740 60 60 re f
+/CS0 cs 50 0 0 sc 440 740 60 60 re f
+/CS0 cs 75 0 0 sc 510 740 60 60 re f
+/CS0 cs 100 0 0 sc 580 740 60 60 re f
+/CS0 cs 60 30 0 sc 650 740 60 60 re f
+/CS0 cs 60 15 26 sc 720 740 60 60 re f
+/CS0 cs 60 -15 26 sc 790 740 60 60 re f
+/CS0 cs 60 -30 0 sc 860 740 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 740 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 740 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 696 Td (D65, k = 0.25, UseBlackPtComp OFF) Tj ET
+q
+/BpcOff gs
+/CS0 cs 0 0 0 sc 230 670 60 60 re f
+/CS0 cs 5 0 0 sc 300 670 60 60 re f
+/CS0 cs 20 0 0 sc 370 670 60 60 re f
+/CS0 cs 50 0 0 sc 440 670 60 60 re f
+/CS0 cs 75 0 0 sc 510 670 60 60 re f
+/CS0 cs 100 0 0 sc 580 670 60 60 re f
+/CS0 cs 60 30 0 sc 650 670 60 60 re f
+/CS0 cs 60 15 26 sc 720 670 60 60 re f
+/CS0 cs 60 -15 26 sc 790 670 60 60 re f
+/CS0 cs 60 -30 0 sc 860 670 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 670 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 670 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 626 Td (D65, k = 0.25, UseBlackPtComp Default) Tj ET
+q
+/BpcDefault gs
+/CS0 cs 0 0 0 sc 230 600 60 60 re f
+/CS0 cs 5 0 0 sc 300 600 60 60 re f
+/CS0 cs 20 0 0 sc 370 600 60 60 re f
+/CS0 cs 50 0 0 sc 440 600 60 60 re f
+/CS0 cs 75 0 0 sc 510 600 60 60 re f
+/CS0 cs 100 0 0 sc 580 600 60 60 re f
+/CS0 cs 60 30 0 sc 650 600 60 60 re f
+/CS0 cs 60 15 26 sc 720 600 60 60 re f
+/CS0 cs 60 -15 26 sc 790 600 60 60 re f
+/CS0 cs 60 -30 0 sc 860 600 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 600 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 600 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 556 Td (D65, k = 0.25, ri Perceptual) Tj ET
+q
+/Perceptual ri
+/CS0 cs 0 0 0 sc 230 530 60 60 re f
+/CS0 cs 5 0 0 sc 300 530 60 60 re f
+/CS0 cs 20 0 0 sc 370 530 60 60 re f
+/CS0 cs 50 0 0 sc 440 530 60 60 re f
+/CS0 cs 75 0 0 sc 510 530 60 60 re f
+/CS0 cs 100 0 0 sc 580 530 60 60 re f
+/CS0 cs 60 30 0 sc 650 530 60 60 re f
+/CS0 cs 60 15 26 sc 720 530 60 60 re f
+/CS0 cs 60 -15 26 sc 790 530 60 60 re f
+/CS0 cs 60 -30 0 sc 860 530 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 530 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 530 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 486 Td (D65, k = 0.25, ri RelativeColorimetric) Tj ET
+q
+/RelativeColorimetric ri
+/CS0 cs 0 0 0 sc 230 460 60 60 re f
+/CS0 cs 5 0 0 sc 300 460 60 60 re f
+/CS0 cs 20 0 0 sc 370 460 60 60 re f
+/CS0 cs 50 0 0 sc 440 460 60 60 re f
+/CS0 cs 75 0 0 sc 510 460 60 60 re f
+/CS0 cs 100 0 0 sc 580 460 60 60 re f
+/CS0 cs 60 30 0 sc 650 460 60 60 re f
+/CS0 cs 60 15 26 sc 720 460 60 60 re f
+/CS0 cs 60 -15 26 sc 790 460 60 60 re f
+/CS0 cs 60 -30 0 sc 860 460 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 460 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 460 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 416 Td (D65, k = 0.25, ri Saturation) Tj ET
+q
+/Saturation ri
+/CS0 cs 0 0 0 sc 230 390 60 60 re f
+/CS0 cs 5 0 0 sc 300 390 60 60 re f
+/CS0 cs 20 0 0 sc 370 390 60 60 re f
+/CS0 cs 50 0 0 sc 440 390 60 60 re f
+/CS0 cs 75 0 0 sc 510 390 60 60 re f
+/CS0 cs 100 0 0 sc 580 390 60 60 re f
+/CS0 cs 60 30 0 sc 650 390 60 60 re f
+/CS0 cs 60 15 26 sc 720 390 60 60 re f
+/CS0 cs 60 -15 26 sc 790 390 60 60 re f
+/CS0 cs 60 -30 0 sc 860 390 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 390 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 390 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 346 Td (D65, k = 0.25, ri AbsoluteColorimetric) Tj ET
+q
+/AbsoluteColorimetric ri
+/CS0 cs 0 0 0 sc 230 320 60 60 re f
+/CS0 cs 5 0 0 sc 300 320 60 60 re f
+/CS0 cs 20 0 0 sc 370 320 60 60 re f
+/CS0 cs 50 0 0 sc 440 320 60 60 re f
+/CS0 cs 75 0 0 sc 510 320 60 60 re f
+/CS0 cs 100 0 0 sc 580 320 60 60 re f
+/CS0 cs 60 30 0 sc 650 320 60 60 re f
+/CS0 cs 60 15 26 sc 720 320 60 60 re f
+/CS0 cs 60 -15 26 sc 790 320 60 60 re f
+/CS0 cs 60 -30 0 sc 860 320 60 60 re f
+/CS0 cs 60 -15 -26 sc 930 320 60 60 re f
+/CS0 cs 60 15 -26 sc 1000 320 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 276 Td (D65, ri AbsoluteColorimetric) Tj ET
+q
+/AbsoluteColorimetric ri
+/CS1 cs 0 0 0 sc 230 250 60 60 re f
+/CS1 cs 5 0 0 sc 300 250 60 60 re f
+/CS1 cs 20 0 0 sc 370 250 60 60 re f
+/CS1 cs 50 0 0 sc 440 250 60 60 re f
+/CS1 cs 75 0 0 sc 510 250 60 60 re f
+/CS1 cs 100 0 0 sc 580 250 60 60 re f
+/CS1 cs 60 30 0 sc 650 250 60 60 re f
+/CS1 cs 60 15 26 sc 720 250 60 60 re f
+/CS1 cs 60 -15 26 sc 790 250 60 60 re f
+/CS1 cs 60 -30 0 sc 860 250 60 60 re f
+/CS1 cs 60 -15 -26 sc 930 250 60 60 re f
+/CS1 cs 60 15 -26 sc 1000 250 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 206 Td (A, plain) Tj ET
+q
+/CS2 cs 0 0 0 sc 230 180 60 60 re f
+/CS2 cs 5 0 0 sc 300 180 60 60 re f
+/CS2 cs 20 0 0 sc 370 180 60 60 re f
+/CS2 cs 50 0 0 sc 440 180 60 60 re f
+/CS2 cs 75 0 0 sc 510 180 60 60 re f
+/CS2 cs 100 0 0 sc 580 180 60 60 re f
+/CS2 cs 60 30 0 sc 650 180 60 60 re f
+/CS2 cs 60 15 26 sc 720 180 60 60 re f
+/CS2 cs 60 -15 26 sc 790 180 60 60 re f
+/CS2 cs 60 -30 0 sc 860 180 60 60 re f
+/CS2 cs 60 -15 -26 sc 930 180 60 60 re f
+/CS2 cs 60 15 -26 sc 1000 180 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 136 Td (A, ri AbsoluteColorimetric) Tj ET
+q
+/AbsoluteColorimetric ri
+/CS2 cs 0 0 0 sc 230 110 60 60 re f
+/CS2 cs 5 0 0 sc 300 110 60 60 re f
+/CS2 cs 20 0 0 sc 370 110 60 60 re f
+/CS2 cs 50 0 0 sc 440 110 60 60 re f
+/CS2 cs 75 0 0 sc 510 110 60 60 re f
+/CS2 cs 100 0 0 sc 580 110 60 60 re f
+/CS2 cs 60 30 0 sc 650 110 60 60 re f
+/CS2 cs 60 15 26 sc 720 110 60 60 re f
+/CS2 cs 60 -15 26 sc 790 110 60 60 re f
+/CS2 cs 60 -30 0 sc 860 110 60 60 re f
+/CS2 cs 60 -15 -26 sc 930 110 60 60 re f
+/CS2 cs 60 15 -26 sc 1000 110 60 60 re f
+Q
+BT 0.4 g /F1 8 Tf 30 66 Td (Control: DeviceRGB, D50 sRGB values) Tj ET
+q
+0 0 0 rg 230 40 60 60 re f
+0.066 0.066 0.066 rg 300 40 60 60 re f
+0.1894 0.1894 0.1893 rg 370 40 60 60 re f
+0.4663 0.4663 0.4662 rg 440 40 60 60 re f
+0.7239 0.7239 0.7238 rg 510 40 60 60 re f
+1 1 0.9998 rg 580 40 60 60 re f
+0.7591 0.4861 0.5721 rg 650 40 60 60 re f
+0.7074 0.5264 0.3898 rg 720 40 60 60 re f
+0.5117 0.5946 0.3818 rg 790 40 60 60 re f
+0.2903 0.6243 0.5622 rg 860 40 60 60 re f
+0.3277 0.6026 0.7443 rg 930 40 60 60 re f
+0.6024 0.5358 0.7477 rg 1000 40 60 60 re f
+Q
+endstream
+endobj
+
+140 0 obj
+<< /Type /Page /Parent 5 0 R /MediaBox [0 0 1100 940]
+   /Resources << /Font << /F1 1 0 R >> /ColorSpace << /CS0 136 0 R /CS1 137 0 R /CS2 138 0 R >> /ExtGState << /BpcOn 2 0 R /BpcOff 3 0 R /BpcDefault 4 0 R >> >>
+   /Contents 139 0 R >>
+endobj
+
+141 0 obj
+<< /Type /Catalog /Pages 5 0 R >>
+endobj
+
+xref
+0 1
+0000000000 65535 f 
+trailer
+<< /Size 142 /Root 141 0 R >>
+startxref
+0
+%%EOF
