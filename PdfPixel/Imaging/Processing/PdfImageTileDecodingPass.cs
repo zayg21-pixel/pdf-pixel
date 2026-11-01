@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Logging;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System;
 using System.Collections.Generic;
 
@@ -12,18 +12,16 @@ namespace PdfPixel.Imaging.Processing;
 internal sealed class PdfImageTileDecodingPass
 {
     private readonly PdfTileInfo _tileInfo;
-    private readonly ILoggerFactory _loggerFactory;
 
     private PdfImageTilingContext? _tilingContext;
     private PdfImageRowDecodingParameters? _parameters;
     private byte[]? _rowBuffer;
     private int _currentRow;
 
-    public PdfImageTileDecodingPass(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
+    public PdfImageTileDecodingPass(PdfImageDecoder decoder, PdfTileInfo tileInfo)
     {
         Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
         _tileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
-        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
     }
 
     /// <summary>
@@ -38,14 +36,21 @@ internal sealed class PdfImageTileDecodingPass
 
     /// <summary>
     /// Starts a pass producing the tiles in <paramref name="tileIndexesToDecode"/> on <paramref name="outputSize"/>,
-    /// or every tile when it is null.
+    /// or every tile when it is null, through pipelines from <paramref name="pipelineFactory"/>: mask pipelines when
+    /// <paramref name="producesMask"/> is true, image pipelines otherwise.
     /// </summary>
-    public void Begin(in PdfMatrix ctm, in PdfIntegerSize outputSize, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public void Begin(
+        in PdfMatrix ctm,
+        in PdfIntegerSize outputSize,
+        HashSet<int>? tileIndexesToDecode,
+        IPdfImagePipelineFactory pipelineFactory,
+        bool producesMask,
+        IPdfExecutionObserver? observer)
     {
         End();
 
         _parameters = Decoder.Initialize(ComputeRegionsOfInterest(tileIndexesToDecode), ctm, observer);
-        _tilingContext = new PdfImageTilingContext(_tileInfo, _parameters, outputSize, tileIndexesToDecode, _loggerFactory);
+        _tilingContext = new PdfImageTilingContext(_tileInfo, _parameters, outputSize, tileIndexesToDecode, pipelineFactory, producesMask);
         _rowBuffer = new byte[_parameters.RowBytes];
     }
 
@@ -53,7 +58,7 @@ internal sealed class PdfImageTileDecodingPass
     /// Reads decoded rows into the tiling context until a tile row completes, and returns the tiles
     /// it produced. Returns null once the decoder stops before the grid is complete.
     /// </summary>
-    public PdfImageTile[]? DecodeNextTiles(IAlphaRowSource? alphaSource, IPdfExecutionObserver? observer)
+    public PdfImageTile[]? DecodeNextTiles(MaskAlphaRowSource? alphaSource, IPdfExecutionObserver? observer)
     {
         if (_parameters == null || _tilingContext == null || _rowBuffer == null)
         {

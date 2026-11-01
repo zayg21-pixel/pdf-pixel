@@ -62,13 +62,13 @@ public sealed class PdfLayoutAttribute : PdfStructureAttribute
     /// <summary>
     /// Background color (BackgroundColor), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfColor? BackgroundColor { get; }
+    public PdfRgbaColor? BackgroundColor { get; }
 
     /// <summary>
     /// Border color of each edge (BorderColor), or <see langword="null"/> when absent.
     /// An edge is <see langword="null"/> when it is not drawn.
     /// </summary>
-    public PdfStructureSides<PdfColor?>? BorderColor { get; }
+    public PdfStructureSides<PdfRgbaColor?>? BorderColor { get; }
 
     /// <summary>
     /// Border style of each edge (BorderStyle), or <see langword="null"/> when absent.
@@ -90,7 +90,7 @@ public sealed class PdfLayoutAttribute : PdfStructureAttribute
     /// <summary>
     /// Text color (Color), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfColor? Color { get; }
+    public PdfRgbaColor? Color { get; }
 
     /// <summary>
     /// Extra space before the element (SpaceBefore), or <see langword="null"/> when absent.
@@ -176,7 +176,7 @@ public sealed class PdfLayoutAttribute : PdfStructureAttribute
     /// <summary>
     /// Text decoration color (TextDecorationColor), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfColor? TextDecorationColor { get; }
+    public PdfRgbaColor? TextDecorationColor { get; }
 
     /// <summary>
     /// Text decoration line thickness (TextDecorationThickness), or <see langword="null"/> when absent.
@@ -220,7 +220,7 @@ public sealed class PdfLayoutAttribute : PdfStructureAttribute
     /// </summary>
     public IReadOnlyList<float>? ColumnWidths { get; }
 
-    private static PdfColor? ReadColor(PdfArray? components)
+    private static PdfRgbaColor? ReadColor(PdfArray? components)
     {
         if (components == null)
         {
@@ -235,10 +235,10 @@ public sealed class PdfLayoutAttribute : PdfStructureAttribute
             return null;
         }
 
-        return new PdfColor(red.Value, green.Value, blue.Value);
+        return new PdfRgbaColor(red.Value, green.Value, blue.Value);
     }
 
-    private static PdfStructureSides<PdfColor?>? ReadColorSides(PdfArray? value)
+    private static PdfStructureSides<PdfRgbaColor?>? ReadColorSides(PdfArray? value)
     {
         if (value == null)
         {
@@ -247,10 +247,10 @@ public sealed class PdfLayoutAttribute : PdfStructureAttribute
 
         if (value.GetFloat(0) != null)
         {
-            return new PdfStructureSides<PdfColor?>(ReadColor(value));
+            return new PdfStructureSides<PdfRgbaColor?>(ReadColor(value));
         }
 
-        return new PdfStructureSides<PdfColor?>(
+        return new PdfStructureSides<PdfRgbaColor?>(
             ReadColor(value.GetArray(0)),
             ReadColor(value.GetArray(1)),
             ReadColor(value.GetArray(2)),

@@ -2,6 +2,7 @@
 using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Execution;
+using PdfPixel.Skia.Cache;
 using PdfPixel.Skia.Fonts;
 using SkiaSharp;
 using System;
@@ -229,11 +230,12 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
 
     private DrawRecordingScope BeginDrawRecording(DrawRecordingCommand command)
     {
-        PdfColor? previousTintColor = _executionContext.TintColor;
+        PdfRgbaColor? previousTintColor = _executionContext.TintColor;
+        PdfRgbaColor? tintColor = ResolveTintColor(command);
 
-        if (command.TintColor != null)
+        if (tintColor != null)
         {
-            _executionContext.TintColor = command.TintColor;
+            _executionContext.TintColor = tintColor;
         }
 
         _canvas.Save();
@@ -252,6 +254,21 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
         _executionContext.Frames.OnRestoreState();
 
         _executionContext.TintColor = scope.PreviousTintColor;
+    }
+
+    /// <summary>
+    /// Returns the color the tint paint of <paramref name="command"/> resolves to, or null when it has none.
+    /// </summary>
+    private PdfRgbaColor? ResolveTintColor(DrawRecordingCommand command)
+    {
+        if (command.TintPaint == null)
+        {
+            return null;
+        }
+
+        SkiaColorSampler colorSampler = SkiaCommandUtilities.GetOrCreateColorSampler(_executionContext, command.TintPaint);
+
+        return colorSampler.ToRgbaColor(command.TintPaint);
     }
 
     private void ReplayRecorder(PdfCommandRecorder recorder)
@@ -299,7 +316,8 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
 
         if (command.Paint != null)
         {
-            using SKPaint paint = command.Paint.ToSkiaPaint();
+            SkiaColorSampler colorSampler = SkiaCommandUtilities.GetOrCreateColorSampler(_executionContext, command.Paint);
+            using SKPaint paint = command.Paint.ToSkiaPaint(colorSampler);
             paint.IsAntialias = _executionContext.Parameters.Antialias;
             _canvas.SaveLayer(skBounds, paint);
         }
@@ -311,9 +329,9 @@ public sealed partial class SkCanvasCommandProcessor : IPdfCommandProcessor
         _executionContext.Frames.OnSaveLayer();
     }
 
-    private readonly struct DrawRecordingScope(PdfColor? previousTintColor, int savesCountAfterOwnSave)
+    private readonly struct DrawRecordingScope(PdfRgbaColor? previousTintColor, int savesCountAfterOwnSave)
     {
-        public PdfColor? PreviousTintColor { get; } = previousTintColor;
+        public PdfRgbaColor? PreviousTintColor { get; } = previousTintColor;
 
         public int SavesCountAfterOwnSave { get; } = savesCountAfterOwnSave;
     }

@@ -21,18 +21,18 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private float _zoomStep = PdfPanelContext.DefaultZoomStep;
     private float _pageGap = PdfPanelVerticalLayout.DefaultPageGap;
     private PdfRectangle _layoutPadding = PdfPanelVerticalLayout.DefaultPadding;
-    private PdfColor _panelBackgroundColor = PdfPanelRenderer.DefaultBackgroundColor;
+    private PdfRgbaColor _panelBackgroundColor = PdfPanelRenderer.DefaultBackgroundColor;
     private float _pageCornerRadius = PdfPanelRenderer.DefaultPageCornerRadius;
     private bool _showPageLoadingAnimation = PdfPanelRenderer.DefaultShowPageLoadingAnimation;
     private bool _extractAllText = PdfPanelText.DefaultExtractText;
-    private PdfColor _textSelectionColor = PdfPanelText.DefaultSelectionColor;
+    private PdfRgbaColor _textSelectionColor = PdfPanelText.DefaultSelectionColor;
     private bool _searchMatchCase = PdfPanelSearch.DefaultMatchCase;
     private bool _searchMatchWholeWord = PdfPanelSearch.DefaultWholeWord;
     private bool _searchMatchDiacritics = PdfPanelSearch.DefaultMatchDiacritics;
-    private PdfColor _searchMatchColor = PdfPanelSearch.DefaultMatchColor;
-    private PdfColor _searchCurrentMatchColor = PdfPanelSearch.DefaultCurrentMatchColor;
+    private PdfRgbaColor _searchMatchColor = PdfPanelSearch.DefaultMatchColor;
+    private PdfRgbaColor _searchCurrentMatchColor = PdfPanelSearch.DefaultCurrentMatchColor;
     private float _contentSelectionBorderThickness = PdfPanelContent.DefaultSelectionBorderThickness;
-    private PdfColor _contentSelectionBorderColor = PdfPanelContent.DefaultSelectionBorderColor;
+    private PdfRgbaColor _contentSelectionBorderColor = PdfPanelContent.DefaultSelectionBorderColor;
     private bool _allowTextSelection = PdfPanelText.DefaultAllowSelection;
     private bool _allowPageContentHover = PdfPanelContent.DefaultAllowHover;
     private bool _allowImageSelection = PdfPanelContent.DefaultAllowImageSelection;
@@ -107,7 +107,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     /// <summary>
     /// Background color of the panel drawn behind the pages.
     /// </summary>
-    public PdfColor PanelBackgroundColor
+    public PdfRgbaColor PanelBackgroundColor
     {
         get => _panelBackgroundColor;
         set => SetProperty(ref _panelBackgroundColor, value, nameof(PanelBackgroundColor));
@@ -143,7 +143,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     /// <summary>
     /// Color the selected text is highlighted with.
     /// </summary>
-    public PdfColor TextSelectionColor
+    public PdfRgbaColor TextSelectionColor
     {
         get => _textSelectionColor;
         set => SetProperty(ref _textSelectionColor, value, nameof(TextSelectionColor));
@@ -179,7 +179,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     /// <summary>
     /// Color the search matches are highlighted with.
     /// </summary>
-    public PdfColor SearchMatchColor
+    public PdfRgbaColor SearchMatchColor
     {
         get => _searchMatchColor;
         set => SetProperty(ref _searchMatchColor, value, nameof(SearchMatchColor));
@@ -188,7 +188,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     /// <summary>
     /// Color the current search match is highlighted with.
     /// </summary>
-    public PdfColor SearchCurrentMatchColor
+    public PdfRgbaColor SearchCurrentMatchColor
     {
         get => _searchCurrentMatchColor;
         set => SetProperty(ref _searchCurrentMatchColor, value, nameof(SearchCurrentMatchColor));
@@ -206,7 +206,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     /// <summary>
     /// Color of the border drawn around the selected content.
     /// </summary>
-    public PdfColor ContentSelectionBorderColor
+    public PdfRgbaColor ContentSelectionBorderColor
     {
         get => _contentSelectionBorderColor;
         set => SetProperty(ref _contentSelectionBorderColor, value, nameof(ContentSelectionBorderColor));

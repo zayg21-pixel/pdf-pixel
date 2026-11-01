@@ -1,7 +1,7 @@
 using PdfPixel.Annotations.Icons;
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
@@ -71,8 +71,8 @@ public class PdfCaretAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page);
-        PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle, color, color);
+        PdfPaint? paint = ResolvePaint(page);
+        PdfAnnotationGraphics.RenderIcon(processor, page, icon, MarkRectangle, paint, paint);
         return true;
     }
 }

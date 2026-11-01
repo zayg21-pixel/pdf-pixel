@@ -1,4 +1,4 @@
-using PdfPixel.Color;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering;
 using PdfPixel.Shading.Builder;
@@ -69,35 +69,63 @@ public sealed class PdfShadingContent
     }
 
     /// <summary>
-    /// Builds the primitives for a shading, sampling its function(s) through <paramref name="sampler"/>
-    /// and constructing the type-specific gradient, mesh, or image data.
+    /// Returns the color space the colors of content built for <paramref name="colorSpace"/> are given in: the base
+    /// color space of an Indexed color space, otherwise <paramref name="colorSpace"/>.
+    /// </summary>
+    /// <param name="colorSpace">Color space the shading specifies its colors in.</param>
+    internal static PdfColorSpaceConverter GetColorSpace(PdfColorSpaceConverter colorSpace)
+    {
+        if (colorSpace is PdfIndexedColorSpaceConverter indexedColorSpace)
+        {
+            return indexedColorSpace.BaseColorSpace;
+        }
+
+        return colorSpace;
+    }
+
+    /// <summary>
+    /// Builds the primitives for a shading, constructing the type-specific gradient, mesh, or image data.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="sampler">Sampler every color of the shading is resolved through.</param>
+    /// <param name="colorSpace">Color space the shading specifies its colors in.</param>
     /// <param name="state">Graphics state the shading is drawn from.</param>
-    internal static PdfShadingContent Build(PdfShading shading, ColorTransformSampler sampler, PdfGraphicsState state)
+    internal static PdfShadingContent Build(
+        PdfShading shading,
+        PdfColorSpaceConverter colorSpace,
+        PdfGraphicsState state)
     {
         PdfShadingBuilder builder = new(state.Host.Document.LoggerFactory);
         int functionSamples = state.RenderingParameters.DefaultFunctionSamples;
+        PdfPalette? palette = (colorSpace as PdfIndexedColorSpaceConverter)?.Palette;
+        int componentCount = GetColorSpace(colorSpace).Components;
+
         PdfShadingContent content = new(shading.ShadingType, shading.BoundingBox);
 
         switch (shading.ShadingType)
         {
             case PdfShadingType.FunctionBased:
             {
-                content.Function = builder.BuildFunctionBased(shading, sampler, functionSamples, state.ExecutionObserver);
+                content.Function = builder.BuildFunctionBased(shading, palette, componentCount, functionSamples, state.ExecutionObserver);
                 break;
             }
             case PdfShadingType.Axial:
             {
-                PdfShadingColorStops axialColorStops = builder.BuildShadingColorsAndStops(shading, sampler, functionSamples);
-                content.Axial = builder.BuildAxialGradient(shading, axialColorStops);
+                PdfShadingColorStops? axialColorStops = builder.BuildShadingColorsAndStops(shading, palette, functionSamples);
+                if (axialColorStops != null)
+                {
+                    content.Axial = builder.BuildAxialGradient(shading, axialColorStops);
+                }
+
                 break;
             }
             case PdfShadingType.Radial:
             {
-                PdfShadingColorStops radialColorStops = builder.BuildShadingColorsAndStops(shading, sampler, functionSamples);
-                content.Radial = builder.BuildRadialGradient(shading, radialColorStops);
+                PdfShadingColorStops? radialColorStops = builder.BuildShadingColorsAndStops(shading, palette, functionSamples);
+                if (radialColorStops != null)
+                {
+                    content.Radial = builder.BuildRadialGradient(shading, radialColorStops);
+                }
+
                 break;
             }
             case PdfShadingType.FreeFormGouraud:
@@ -105,7 +133,7 @@ public sealed class PdfShadingContent
             case PdfShadingType.CoonsPatchMesh:
             case PdfShadingType.TensorProductPatchMesh:
             {
-                MeshColorResolver colorResolver = new(shading, sampler, functionSamples);
+                MeshColorResolver colorResolver = new(shading, palette, componentCount, functionSamples);
                 content.Mesh = builder.BuildMeshVertices(
                     shading,
                     colorResolver,
@@ -142,7 +170,7 @@ public sealed class PdfShadingContent
                     return null;
                 }
 
-                return Function.Matrix.MapRect(new PdfRectangle(0, 0, Function.Image.Width, Function.Image.Height));
+                return Function.Matrix.MapRect(new PdfRectangle(0, 0, Function.Samples.Width, Function.Samples.Height));
             }
             case PdfShadingType.FreeFormGouraud:
             case PdfShadingType.LatticeFormGouraud:

@@ -1,6 +1,7 @@
 ﻿using PdfPixel.Skia.Converters;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
+using PdfPixel.Skia.Cache;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -19,7 +20,8 @@ public sealed partial class SkCanvasCommandProcessor
             return;
         }
 
-        using SKPaint paint = command.Paint.ToSkiaPaint();
+        SkiaColorSampler colorSampler = SkiaCommandUtilities.GetOrCreateColorSampler(_executionContext, command.Paint);
+        using SKPaint paint = command.Paint.ToSkiaPaint(colorSampler);
         bool antialias = _executionContext.Parameters.Antialias;
         paint.IsAntialias = antialias;
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);

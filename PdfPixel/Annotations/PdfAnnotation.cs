@@ -4,7 +4,7 @@ using PdfPixel.Rendering;
 using PdfPixel.Annotations.Icons;
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using System;
 using System.Collections.Generic;
 using PdfPixel.Geometry;
@@ -288,9 +288,9 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
 
         if (bubbleIcon != null)
         {
-            PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-            PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-            PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(anchor), borderColor, backgroundColor);
+            PdfPaint? borderPaint = ResolvePaint(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+            PdfPaint? backgroundPaint = ResolveInteriorPaint(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+            PdfAnnotationGraphics.RenderIcon(processor, page, bubbleIcon, GetBubbleRectangle(anchor), borderPaint, backgroundPaint);
         }
     }
 
@@ -359,20 +359,20 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     }
 
     /// <summary>
-    /// Resolves the annotation color using proper color space conversion.
+    /// Resolves the annotation color to a fill paint.
     /// </summary>
     /// <param name="page">The PDF page for color space resolution.</param>
-    /// <param name="defaultColor">Default color to use if annotation has no color specified. If null, returns transparent.</param>
-    /// <returns>The resolved color for rendering.</returns>
-    internal PdfColor ResolveColor(IPdfPageInternal page, PdfColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(Color, page, defaultColor);
+    /// <param name="defaultColor">Components to use if the annotation has no color specified, or null for none.</param>
+    /// <returns>The paint of the color, or null when the annotation has no color.</returns>
+    internal PdfPaint? ResolvePaint(IPdfPageInternal page, float[]? defaultColor = null) => PdfAnnotationPaintFactory.ResolvePaint(Color, page, defaultColor);
 
     /// <summary>
-    /// Resolves the annotation interior color using proper color space conversion.
+    /// Resolves the annotation interior color to a fill paint.
     /// </summary>
     /// <param name="page">The PDF page for color space resolution.</param>
-    /// <param name="defaultColor">Default color to use if annotation has no interior color specified. If null, returns transparent.</param>
-    /// <returns>The resolved color for rendering.</returns>
-    internal PdfColor ResolveInteriorColor(IPdfPageInternal page, PdfColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(InteriorColor, page, defaultColor);
+    /// <param name="defaultColor">Components to use if the annotation has no interior color specified, or null for none.</param>
+    /// <returns>The paint of the interior color, or null when the annotation has no interior color.</returns>
+    internal PdfPaint? ResolveInteriorPaint(IPdfPageInternal page, float[]? defaultColor = null) => PdfAnnotationPaintFactory.ResolvePaint(InteriorColor, page, defaultColor);
 
     /// <summary>
     /// Returns a string representation of this annotation.

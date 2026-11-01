@@ -1,6 +1,7 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Geometry;
+using PdfPixel.Skia.Cache;
 using PdfPixel.Transparency;
 using SkiaSharp;
 using System;
@@ -11,42 +12,24 @@ namespace PdfPixel.Skia.Converters;
 
 /// <summary>
 /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/>. Single place where a paint's color,
-/// alpha, blend mode, and stroke styling are translated to their Skia equivalents.
+/// alpha and blend mode are translated to their Skia equivalents.
 /// </summary>
 internal static class PdfPaintConverter
 {
     private const int TransferFunctionTableSize = 256;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static SKPaint ToSkiaPaint(PdfPaint paint)
-    {
-        SKPaint skPaint = CreatePaint(paint, (paint.Style == PdfPaintStyle.Stroke) ? SKPaintStyle.Stroke : SKPaintStyle.Fill);
-
-        if (paint.Style == PdfPaintStyle.Stroke)
-        {
-            ApplyStrokeStyling(skPaint, paint.RequireStrokeStyle());
-        }
-
-        return skPaint;
-    }
-
     /// <summary>
-    /// Converts <paramref name="paint"/> for filling an outline that
-    /// <see cref="Geometry.PathOperations.PdfStrokeOutlineBuilder"/> has already widened, dashed, capped, and joined.
-    /// The stroke's own styling is left off, because the outline is plain geometry by the time it gets
-    /// here.
+    /// Converts <paramref name="paint"/> to a fill paint, converting its color with <paramref name="colorSampler"/>.
+    /// A stroke reaches Skia as an outline that <see cref="Geometry.PathOperations.PdfStrokeOutlineBuilder"/> has
+    /// already widened, dashed, capped, and joined, so every paint fills.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static SKPaint ToSkiaOutlineFillPaint(PdfPaint paint) => CreatePaint(paint, SKPaintStyle.Fill);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKPaint CreatePaint(PdfPaint paint, SKPaintStyle style)
+    internal static SKPaint ToSkiaPaint(PdfPaint paint, SkiaColorSampler colorSampler)
     {
         SKPaint skPaint = new()
         {
             BlendMode = (paint.MaskParameters != null) ? SKBlendMode.DstIn : paint.BlendMode.ToSkiaBlendMode(),
-            Style = style,
-            Color = paint.Color.ToSkiaColor()
+            Color = colorSampler.ToSkColor(paint)
         };
 
         if (paint.MaskParameters is { } maskParameters)
@@ -116,24 +99,5 @@ internal static class PdfPaintConverter
         }
 
         return table;
-    }
-
-    // Only a paint Skia itself strokes comes through here — glyph outlines drawn with a stroking text
-    // render mode. A stroked path is widened into an outline before it reaches a paint at all.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ApplyStrokeStyling(SKPaint paint, PdfStrokeStyle style)
-    {
-        // NOTE (PDF spec): setlinewidth 0 means a device-dependent hairline. Skia interprets
-        // StrokeWidth = 0 as a hairline, so pass through 0 unchanged; clamp negatives to 0.
-        paint.StrokeWidth = (style.LineWidth > 0) ? style.LineWidth : 0f;
-        paint.StrokeCap = style.LineCap.ToSkiaStrokeCap();
-        paint.StrokeJoin = style.LineJoin.ToSkiaStrokeJoin();
-        // Miter limit must be positive; clamp to a safe minimum to avoid Skia issues.
-        paint.StrokeMiter = (style.MiterLimit > 0) ? style.MiterLimit : 1f;
-
-        if (style.DashPattern?.Length > 0)
-        {
-            paint.PathEffect = SKPathEffect.CreateDash(style.DashPattern, style.DashPhase);
-        }
     }
 }

@@ -33,6 +33,10 @@ public sealed class PdfCalibratedRgbColorSpaceConverter : PdfCalibratedColorSpac
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
         => new(new ChainedColorTransform(GetToSrgbTransform(parameters.RenderingIntent), parameters.TransferFunction));
 
+    /// <inheritdoc />
+    public override ChainedColorTransform GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
+        => GetToXyzTransform(renderingIntent);
+
     private static float[] GetGammaOrDefault(float[]? gamma)
     {
         if (gamma?.Length >= 3)

@@ -1,6 +1,5 @@
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -148,13 +147,14 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
 
         PdfPathEnds ends = pathEnds.Value;
 
-        PdfColor lineColor = ResolveColor(page);
+        PdfPaint? linePaint = ResolvePaint(page);
 
-        PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
+        if (linePaint != null)
+        {
+            processor.Process(new DrawPathCommand(DrawingPath, PdfAnnotationPaintFactory.CreateStrokePaint(linePaint, StrokeStyle)));
+        }
 
-        processor.Process(new DrawPathCommand(DrawingPath, linePaint));
-
-        PdfColor interiorColor = ResolveInteriorColor(page);
+        PdfPaint? interiorPaint = ResolveInteriorPaint(page);
 
         if (StartLineEnding != PdfLineEndingStyle.None)
         {
@@ -166,8 +166,8 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
                 ends.AfterStart.Y,
                 StartLineEnding,
                 StrokeStyle.LineWidth,
-                lineColor,
-                interiorColor);
+                linePaint,
+                interiorPaint);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None)
@@ -180,8 +180,8 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
                 ends.BeforeEnd.Y,
                 EndLineEnding,
                 StrokeStyle.LineWidth,
-                lineColor,
-                interiorColor);
+                linePaint,
+                interiorPaint);
         }
 
         return true;

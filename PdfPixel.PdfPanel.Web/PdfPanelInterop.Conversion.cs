@@ -240,10 +240,10 @@ internal static partial class PdfPanelInterop
     private static bool ReadBoolean(JSObject source, string name, bool currentValue)
         => (source.HasProperty(name)) ? source.GetPropertyAsBoolean(name) : currentValue;
 
-    private static PdfColor ReadColor(JSObject source, string name, in PdfColor currentValue)
+    private static PdfRgbaColor ReadColor(JSObject source, string name, in PdfRgbaColor currentValue)
     {
         string? value = source.GetPropertyAsString(name);
-        return (value != null) ? PdfColor.ParseHexColor(value) : currentValue;
+        return (value != null) ? PdfRgbaColor.ParseHexColor(value) : currentValue;
     }
 
     private static float? ReadOptionalFloat(JSObject source, string name)

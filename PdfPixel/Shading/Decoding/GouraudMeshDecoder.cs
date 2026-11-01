@@ -123,10 +123,10 @@ internal class GouraudMeshDecoder
         while (!bitReader.EndOfData)
         {
             PdfPoint[]? previousVertices = previous?.Points;
-            MeshVertexColor[]? previousColors = previous?.CornerColors;
+            PdfColor[]? previousColors = previous?.CornerColors;
 
             var vertices = new PdfPoint[3];
-            var colors = new MeshVertexColor[3];
+            var colors = new PdfColor[3];
             uint flag = bitReader.ReadBits(_bitsPerFlag);
 
             if (flag == 0 || previousVertices == null)
@@ -190,11 +190,11 @@ internal class GouraudMeshDecoder
 #endif
     private List<MeshData> ReadType5(ref UintBitReader bitReader)
     {
-        List<(PdfPoint point, MeshVertexColor color)> vertexList = [];
+        List<(PdfPoint point, PdfColor color)> vertexList = [];
         while (!bitReader.EndOfData)
         {
             PdfPoint point = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-            MeshVertexColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _colorResolver);
+            PdfColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _colorResolver);
 
             bitReader.AlignToNextByte();
 

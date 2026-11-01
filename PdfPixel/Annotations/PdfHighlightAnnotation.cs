@@ -1,5 +1,4 @@
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -39,13 +38,14 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page);
-        PdfPathBuilder path = new();
-        path.AddQuadrilaterals(quads);
+        PdfPaint? paint = ResolvePaint(page);
+        if (paint != null)
+        {
+            PdfPathBuilder path = new();
+            path.AddQuadrilaterals(quads);
 
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color, Opacity);
-
-        processor.Process(new DrawPathCommand(path.ToPath(), paint));
+            processor.Process(new DrawPathCommand(path.ToPath(), PdfAnnotationPaintFactory.CreateHighlightPaint(paint, Opacity)));
+        }
 
         return true;
     }

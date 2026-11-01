@@ -52,4 +52,7 @@ public sealed class PdfSeparationColorSpaceConverter : PdfColorSpaceConverter
 
         return new ColorTransformSampler(alternateSampler.ColorTransform, TintTransform.Evaluate);
     }
+
+    /// <inheritdoc />
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

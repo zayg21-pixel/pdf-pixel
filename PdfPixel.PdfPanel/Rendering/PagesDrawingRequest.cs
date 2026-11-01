@@ -28,7 +28,7 @@ internal sealed class PagesDrawingRequest : DrawingRequest
     /// <summary>
     /// Background color drawn behind the pages.
     /// </summary>
-    public PdfColor BackgroundColor { get; set; }
+    public PdfRgbaColor BackgroundColor { get; set; }
 
     /// <summary>
     /// Corner radius for page rendering in unscaled panel space.

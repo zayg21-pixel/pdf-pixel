@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Geometry;
 using PdfPixel.Parsing;
 using System.Runtime.CompilerServices;
@@ -29,7 +30,7 @@ internal static class MeshReader
     /// Reads one vertex's color data and resolves it through <paramref name="colorResolver"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static MeshVertexColor ReadColorComponents(
+    public static PdfColor ReadColorComponents(
         ref UintBitReader bitReader,
         int bitsPerComponent,
         ColorMinAndScale[] colorComponentMinAndScale,

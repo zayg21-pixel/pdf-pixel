@@ -13,6 +13,8 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly ChainedColorTransform _toSrgbTransform;
     private readonly ChainedColorTransform _absoluteToSrgbTransform;
+    private readonly ChainedColorTransform _toXyzTransform;
+    private readonly ChainedColorTransform _absoluteToXyzTransform;
 
     private protected PdfCalibratedColorSpaceConverter(float[] whitePoint, float[] blackPoint, float[] gamma, float[] matrix)
     {
@@ -86,8 +88,10 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
 
         MatrixColorTransform matrixTransform = new(adaptedMatrix);
 
-        _toSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform, blackPointCompensationTransform, IccTransforms.XyzD50ToSrgbTransform);
-        _absoluteToSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform, IccTransforms.XyzD50ToSrgbTransform);
+        _toXyzTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform, blackPointCompensationTransform);
+        _absoluteToXyzTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform);
+        _toSrgbTransform = new ChainedColorTransform(_toXyzTransform, IccTransforms.XyzD50ToSrgbTransform);
+        _absoluteToSrgbTransform = new ChainedColorTransform(_absoluteToXyzTransform, IccTransforms.XyzD50ToSrgbTransform);
     }
 
     /// <summary>
@@ -114,6 +118,19 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
         }
 
         return _toSrgbTransform;
+    }
+
+    /// <summary>
+    /// Gets the transform taking this space's components to CIE XYZ D50 under the specified rendering intent.
+    /// </summary>
+    private protected ChainedColorTransform GetToXyzTransform(PdfRenderingIntent renderingIntent)
+    {
+        if (renderingIntent == PdfRenderingIntent.AbsoluteColorimetric)
+        {
+            return _absoluteToXyzTransform;
+        }
+
+        return _toXyzTransform;
     }
 
     /// <summary>

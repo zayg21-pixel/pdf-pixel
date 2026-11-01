@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System;
 using System.Threading;
 
@@ -65,10 +66,11 @@ internal static class PdfStencilOutline
             return null;
         }
 
-        PdfDecodedImage? samples = DecodeSamples(image);
+        PdfImageSamples? samples = DecodeSamples(image);
 
         if (samples == null
-            || samples.ColorFormat != PdfImageColorFormat.Alpha
+            || samples.Channels.Count != 1
+            || !samples.Channels[0].IsAlpha
             || samples.Width != image.Width
             || samples.Height != image.Height)
         {
@@ -84,7 +86,7 @@ internal static class PdfStencilOutline
     /// Marks, for every corner of the sample grid, the cracks that leave it: one bit per direction, as the corner a crack
     /// starts from with the painted sample on its right.
     /// </summary>
-    private static byte[] FindCracks(PdfDecodedImage samples)
+    private static byte[] FindCracks(PdfImageSamples samples)
     {
         int width = samples.Width;
         int height = samples.Height;
@@ -94,7 +96,7 @@ internal static class PdfStencilOutline
 
         for (int row = 0; row <= height; row++)
         {
-            ReadOnlySpan<byte> currentRow = (row < height) ? samples.GetPixelRow(row) : default;
+            ReadOnlySpan<byte> currentRow = (row < height) ? samples.GetRow(row) : default;
             int cornerRow = row * cornerColumns;
 
             for (int column = 0; column < width; column++)
@@ -223,7 +225,7 @@ internal static class PdfStencilOutline
         throw new ArgumentOutOfRangeException(nameof(cracks), "A corner without cracks has no direction to leave by.");
     }
 
-    private static PdfDecodedImage? DecodeSamples(PdfImage image)
+    private static PdfImageSamples? DecodeSamples(PdfImage image)
     {
         PdfCancellationExecutionObserver observer = new(CancellationToken.None);
 

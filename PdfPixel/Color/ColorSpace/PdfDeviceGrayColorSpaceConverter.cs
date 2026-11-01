@@ -26,4 +26,7 @@ public sealed class PdfDeviceGrayColorSpaceConverter : PdfColorSpaceConverter
         ChainedColorTransform chained = new(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), parameters.TransferFunction);
         return new ColorTransformSampler(chained);
     }
+
+    /// <inheritdoc />
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

@@ -8,14 +8,14 @@ using System.Windows.Media;
 namespace PdfPixel.PdfPanel.Wpf.Converters;
 
 /// <summary>
-/// Converts a <see cref="PdfColor"/> into a frozen <see cref="SolidColorBrush"/>, or leaves the target unset when there is no color.
+/// Converts a <see cref="PdfRgbaColor"/> into a frozen <see cref="SolidColorBrush"/>, or leaves the target unset when there is no color.
 /// </summary>
 public sealed class PdfColorBrushConverter : IValueConverter
 {
     /// <inheritdoc />
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is not PdfColor color)
+        if (value is not PdfRgbaColor color)
         {
             return DependencyProperty.UnsetValue;
         }

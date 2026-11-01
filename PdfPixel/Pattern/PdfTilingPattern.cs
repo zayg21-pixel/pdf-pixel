@@ -1,4 +1,4 @@
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
@@ -107,13 +107,13 @@ public sealed class PdfTilingPattern : PdfPattern
 
         PdfMatrix matrix = PdfMatrix.Concat(state.CTM.Invert(), Matrix);
 
-        PdfColor? tintColor = (PaintType == PdfTilingPaintType.Uncolored)
-            ? renderTarget.Color
+        PdfPaint? tintPaint = (PaintType == PdfTilingPaintType.Uncolored)
+            ? renderTarget.Paint
             : null;
 
         PdfRectangle bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
-        DrawRecordingCommand recordingCommand = new(tileRecorder, tintColor);
+        DrawRecordingCommand recordingCommand = new(tileRecorder, tintPaint);
         DrawTilingCommand tilingCommand = new(matrix, bounds, BoundingBox, XStep, YStep, recordingCommand);
 
         renderTarget.BeforePatternRender(processor, matrix.MapRect(tilingCommand.PaintedArea));

@@ -8,14 +8,14 @@ namespace PdfPixel.Color.ColorSpace;
 /// a device color space was selected with, or the document's output intent. A device color space without
 /// a mapped color space is converted as is.
 /// </summary>
-internal sealed class PdfDeviceColorMapping : IEquatable<PdfDeviceColorMapping>
+public sealed class PdfDeviceColorMapping : IEquatable<PdfDeviceColorMapping>
 {
     /// <summary>
     /// Mapping that converts every device color space as is.
     /// </summary>
     public static readonly PdfDeviceColorMapping None = new(null, null, null);
 
-    public PdfDeviceColorMapping(PdfColorSpaceConverter? gray, PdfColorSpaceConverter? rgb, PdfColorSpaceConverter? cmyk)
+    internal PdfDeviceColorMapping(PdfColorSpaceConverter? gray, PdfColorSpaceConverter? rgb, PdfColorSpaceConverter? cmyk)
     {
         Gray = gray;
         Rgb = rgb;

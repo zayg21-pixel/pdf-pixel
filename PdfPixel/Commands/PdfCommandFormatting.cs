@@ -18,5 +18,5 @@ internal static class PdfCommandFormatting
     /// Formats a paint's blend mode, color, and style, for debugging.
     /// </summary>
     public static string FormatPaint(PdfPaint paint)
-        => $"{paint.BlendMode}/{paint.Color}/{paint.Style}";
+        => $"{paint.BlendMode}/{paint.RgbColor}/{paint.Style}";
 }

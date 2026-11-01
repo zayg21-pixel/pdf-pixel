@@ -34,4 +34,7 @@ public sealed class PdfDeviceCmykColorSpaceConverter : PdfColorSpaceConverter
     /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
         => new(new ChainedColorTransform(_iccTransform.GetIntentTransform(parameters.RenderingIntent.ToIccRenderingIntent(), parameters.UseBlackPointCompensation), parameters.TransferFunction));
+
+    /// <inheritdoc />
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

@@ -1,4 +1,5 @@
 using PdfPixel.Color.Transform;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
 
@@ -30,6 +31,11 @@ public abstract class PdfColorSpaceConverter
     public virtual IColorTransform? NormalizeTransform => null;
 
     /// <summary>
+    /// Gets the range of each component of the color space, or null when every component spans [0 1].
+    /// </summary>
+    public virtual PdfRange[]? ComponentRanges => null;
+
+    /// <summary>
     /// Returns the component values of the initial color the CS and cs operators set for this color space.
     /// </summary>
     internal virtual float[] GetInitialComponents() => new float[Components];
@@ -40,7 +46,7 @@ public abstract class PdfColorSpaceConverter
     /// <param name="comps01">Component values in the range 0..1.</param>
     /// <param name="parameters">Color conversion parameters.</param>
     /// <returns>sRGB color.</returns>
-    public virtual PdfColor ToSrgb(in ReadOnlySpan<float> comps01, in PdfColorConversionParameters parameters)
+    public virtual PdfRgbaColor ToSrgb(in ReadOnlySpan<float> comps01, in PdfColorConversionParameters parameters)
         => GetRgbaSampler(parameters).Sample(comps01).ToPdfColor();
 
     /// <summary>
@@ -82,6 +88,14 @@ public abstract class PdfColorSpaceConverter
     /// <param name="normalize">See <see cref="GetRgbaSampler"/>.</param>
     /// <returns>RGBA sampler.</returns>
     protected abstract ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize);
+
+    /// <summary>
+    /// Returns the transform taking this space's component values to the profile connection space (CIE XYZ D50),
+    /// or null when the space converts no colors itself.
+    /// </summary>
+    /// <param name="renderingIntent">Rendering intent the colors are converted with.</param>
+    /// <param name="useBlackPointCompensation">Whether black point compensation is applied.</param>
+    public abstract ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation);
 
     private readonly struct SamplerCacheKey : IEquatable<SamplerCacheKey>
     {

@@ -11,7 +11,7 @@ public sealed partial class SkCanvasCommandProcessor
     private void ExecuteDrawImageTile(DrawImageTileCommand command)
     {
         PdfImageTileCacheEntry tileCache = command.TileCache;
-        PdfImageTile tile = tileCache.GetTile(_executionContext, command.TileIndex);
+        PdfImageTile tile = tileCache.GetTile(_executionContext, command.TileIndex, new SkiaImagePipelineFactory(_executionContext));
 
         if (tile.IsSkipped || tile.Image == null)
         {
@@ -22,7 +22,7 @@ public sealed partial class SkCanvasCommandProcessor
             _executionContext, tileCache.TileInfo.ImageSize, tile.TilePosition, tileCache.Decoder.Image.Interpolate);
 
         using SKImage skImage = tile.Image.ToSkImage();
-        using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(tileCache.Decoder.Context);
+        using SKPaint paint = SkiaCommandUtilities.GetBaseImagePaint(_executionContext, tileCache.Decoder.Context);
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
 
         _canvas.Save();

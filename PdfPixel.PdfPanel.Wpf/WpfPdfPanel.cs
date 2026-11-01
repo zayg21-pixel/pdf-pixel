@@ -474,7 +474,7 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void RaiseActionRequested(PdfPanelActionEventArgs e) => RaiseEvent(new WpfPdfPanelActionEventArgs(ActionRequestedEvent, e));
 
-    private static System.Windows.Media.Color ToMediaColor(in PdfPixel.Color.PdfColor color)
+    private static System.Windows.Media.Color ToMediaColor(in PdfPixel.Color.PdfRgbaColor color)
     {
         return System.Windows.Media.Color.FromArgb(
             ToColorByte(color.Alpha),

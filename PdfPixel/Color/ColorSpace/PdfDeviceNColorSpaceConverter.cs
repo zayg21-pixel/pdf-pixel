@@ -63,4 +63,7 @@ public sealed class PdfDeviceNColorSpaceConverter : PdfColorSpaceConverter
 
         return new ColorTransformSampler(alternateSampler.ColorTransform, TintTransform.Evaluate);
     }
+
+    /// <inheritdoc />
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

@@ -1,5 +1,6 @@
 using PdfPixel.Color.Icc;
 using PdfPixel.Color.Transform;
+using PdfPixel.Objects;
 using System;
 
 namespace PdfPixel.Color.ColorSpace;
@@ -62,6 +63,9 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
     /// <inheritdoc />
     public override IColorTransform? NormalizeTransform => Alternate.NormalizeTransform;
 
+    /// <inheritdoc />
+    public override PdfRange[]? ComponentRanges => Alternate.ComponentRanges;
+
     private static IccProfile? GetProfile(byte[]? bytes)
     {
         if (bytes == null)
@@ -97,5 +101,19 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
         IColorTransform? normalizeTransform = normalize ? Alternate.NormalizeTransform : null;
         ChainedColorTransform chained = new(normalizeTransform, iccPipeline, parameters.TransferFunction);
         return new ColorTransformSampler(chained);
+    }
+
+    /// <inheritdoc />
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
+    {
+        if (_useDefault || _iccTransform == null)
+        {
+            return Alternate.GetProfileConnectionTransform(renderingIntent, useBlackPointCompensation);
+        }
+        else
+        {
+            ChainedColorTransform iccPipeline = _iccTransform.GetIntentToXyzTransform(renderingIntent.ToIccRenderingIntent(), useBlackPointCompensation);
+            return new ChainedColorTransform(Alternate.NormalizeTransform, iccPipeline);
+        }
     }
 }

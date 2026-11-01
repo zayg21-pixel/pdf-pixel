@@ -2,6 +2,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Processing;
 using PdfPixel.Geometry;
+using PdfPixel.Skia.Cache;
 using SkiaSharp;
 
 namespace PdfPixel.Skia;
@@ -70,7 +71,8 @@ public sealed partial class SkCanvasCommandProcessor
         PdfPathDeviceGeometry geometry = PdfPathDeviceGeometry.CreateForDrawing(command.Path, command.Paint, _executionContext);
 
         using SKPath path = geometry.GetPath().ToSkPath();
-        using SKPaint paint = (geometry.IsStrokeOutline) ? command.Paint.ToSkiaOutlineFillPaint() : command.Paint.ToSkiaPaint();
+        SkiaColorSampler colorSampler = SkiaCommandUtilities.GetOrCreateColorSampler(_executionContext, command.Paint);
+        using SKPaint paint = command.Paint.ToSkiaPaint(colorSampler);
         SkiaCommandUtilities.ModifyPaint(paint, _executionContext);
         paint.IsAntialias = geometry.IsAntialias;
 

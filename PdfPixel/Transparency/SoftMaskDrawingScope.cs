@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -105,8 +104,7 @@ internal sealed class SoftMaskDrawingScope : IDisposable
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
-            PdfColor backgroundColor = _softMask.GetBackgroundColor(_graphicsState);
-            PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            PdfPaint backgroundPaint = _softMask.GetBackgroundPaint(_graphicsState);
 
             PdfPathBuilder rectPath = new();
             rectPath.AddRect(_layerBounds);

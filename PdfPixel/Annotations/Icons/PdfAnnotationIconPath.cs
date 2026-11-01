@@ -15,9 +15,9 @@ internal sealed class PdfAnnotationIconPath
     public PdfAnnotationIconPath(
         PdfPath path,
         PdfAnnotationIconColorType fillColorType,
-        in PdfColor fillColor,
+        PdfRgbaColor? fillColor,
         PdfAnnotationIconColorType strokeColorType,
-        in PdfColor strokeColor,
+        PdfRgbaColor? strokeColor,
         float strokeWidth,
         PdfStrokeCap strokeCap,
         PdfStrokeJoin strokeJoin,
@@ -48,9 +48,10 @@ internal sealed class PdfAnnotationIconPath
     public PdfAnnotationIconColorType FillColorType { get; }
 
     /// <summary>
-    /// Gets the fill color used when <see cref="FillColorType"/> is <see cref="PdfAnnotationIconColorType.Override"/>.
+    /// Gets the fill color used when <see cref="FillColorType"/> is <see cref="PdfAnnotationIconColorType.Override"/>,
+    /// otherwise null.
     /// </summary>
-    public PdfColor FillColor { get; }
+    public PdfRgbaColor? FillColor { get; }
 
     /// <summary>
     /// Gets how the stroke color is sourced for this path.
@@ -59,9 +60,10 @@ internal sealed class PdfAnnotationIconPath
     public PdfAnnotationIconColorType StrokeColorType { get; }
 
     /// <summary>
-    /// Gets the stroke color used when <see cref="StrokeColorType"/> is <see cref="PdfAnnotationIconColorType.Override"/>.
+    /// Gets the stroke color used when <see cref="StrokeColorType"/> is <see cref="PdfAnnotationIconColorType.Override"/>,
+    /// otherwise null.
     /// </summary>
-    public PdfColor StrokeColor { get; }
+    public PdfRgbaColor? StrokeColor { get; }
 
     /// <summary>
     /// Gets the stroke width in icon coordinate space.

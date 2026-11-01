@@ -1,5 +1,4 @@
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -211,24 +210,27 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
 
         if (caption != null)
         {
-            PdfAnnotationTextRenderer.DrawLineCaption(processor, caption.Value);
+            PdfAnnotationTextRenderer.DrawLineCaption(processor, page, caption.Value);
         }
 
         PdfRectangle? captionArea = caption?.Area;
 
-        PdfColor lineColor = ResolveColor(page);
+        PdfPaint? linePaint = ResolvePaint(page);
 
-        PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
-
-        processor.Process(new DrawPathCommand(PdfAnnotationGeometry.CreateLinePath(lineStart, lineEnd, captionArea), linePaint));
-
-        if (LeaderLinesPath != null)
+        if (linePaint != null)
         {
-            PdfPaint leaderLinesPaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
-            processor.Process(new DrawPathCommand(LeaderLinesPath, leaderLinesPaint));
+            PdfPaint lineStrokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(linePaint, StrokeStyle);
+
+            processor.Process(new DrawPathCommand(PdfAnnotationGeometry.CreateLinePath(lineStart, lineEnd, captionArea), lineStrokePaint));
+
+            if (LeaderLinesPath != null)
+            {
+                PdfPaint leaderLinesPaint = PdfAnnotationPaintFactory.CreateStrokePaint(linePaint, StrokeStyle);
+                processor.Process(new DrawPathCommand(LeaderLinesPath, leaderLinesPaint));
+            }
         }
 
-        PdfColor interiorColor = ResolveInteriorColor(page);
+        PdfPaint? interiorPaint = ResolveInteriorPaint(page);
 
         if (StartLineEnding != PdfLineEndingStyle.None)
         {
@@ -240,8 +242,8 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
                 lineEnd.Y,
                 StartLineEnding,
                 StrokeStyle.LineWidth,
-                lineColor,
-                interiorColor);
+                linePaint,
+                interiorPaint);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None)
@@ -254,8 +256,8 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
                 lineStart.Y,
                 EndLineEnding,
                 StrokeStyle.LineWidth,
-                lineColor,
-                interiorColor);
+                linePaint,
+                interiorPaint);
         }
 
         return true;

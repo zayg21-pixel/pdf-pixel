@@ -1,4 +1,5 @@
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Execution;
 using PdfPixel.Fonts;
@@ -41,7 +42,7 @@ internal static class SkiaCommandUtilities
         }
     }
 
-    private static SKColorFilter CreateUncoloredColorFilter(in PdfColor color)
+    private static SKColorFilter CreateUncoloredColorFilter(in PdfRgbaColor color)
     {
         // PDF uncolored semantics (concise):
         // final RGB = paint.rgb * paint.alpha * srcA
@@ -125,6 +126,27 @@ internal static class SkiaCommandUtilities
     }
 
     /// <summary>
+    /// Returns the color sampler for the color space and color conversion of <paramref name="paint"/>, kept in the
+    /// cache of <paramref name="executionContext"/>.
+    /// </summary>
+    public static SkiaColorSampler GetOrCreateColorSampler(PdfCommandExecutionContext executionContext, PdfPaint paint)
+    {
+        SkiaColorSamplerKey key = new(paint);
+        CommandCache cache = executionContext.Cache;
+
+        if (cache.GetEntry(key) is SkiaColorSampler existing)
+        {
+            return existing;
+        }
+
+        SkiaColorSampler colorSampler = new(paint);
+
+        cache.StoreEntry(key, colorSampler);
+
+        return colorSampler;
+    }
+
+    /// <summary>
     /// Creates a paint that draws <paramref name="shader"/> with the blend mode and fill
     /// alpha captured in <paramref name="context"/>.
     /// </summary>
@@ -135,18 +157,21 @@ internal static class SkiaCommandUtilities
         {
             Shader = shader,
             BlendMode = (context.FillPaint.MaskParameters != null) ? SKBlendMode.DstIn : context.FillPaint.BlendMode.ToSkiaBlendMode(),
-            Color = ApplyAlpha(SKColors.White, context.FillPaint.Color.Alpha)
+            Color = ApplyAlpha(SKColors.White, context.FillPaint.Alpha)
         };
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint GetBaseImagePaint(ImageDecodingContext context)
+    public static SKPaint GetBaseImagePaint(PdfCommandExecutionContext executionContext, ImageDecodingContext context)
     {
-        return new()
+        SkiaColorSampler colorSampler = GetOrCreateColorSampler(executionContext, context.FillPaint);
+        SKPaint paint = new()
         {
             BlendMode = (context.FillPaint.MaskParameters != null) ? SKBlendMode.DstIn : context.FillPaint.BlendMode.ToSkiaBlendMode(),
-            Color = context.FillPaint.Color.ToSkiaColor()
+            Color = colorSampler.ToSkColor(context.FillPaint)
         };
+
+        return paint;
     }
 
     /// <summary>

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
@@ -54,6 +53,7 @@ public sealed class PdfShadingPattern : PdfPattern
         }
 
         PdfMatrix matrix = PdfMatrix.Concat(shadingState.CTM.Invert(), Matrix);
+        PdfColorSpaceConverter colorSpace = shadingState.Host.Resources.ResolveColorSpace(Shading.ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
 
         PdfCommandRecorder recorder = new();
 
@@ -67,9 +67,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.Background != null && Shading.BoundingBox.HasValue)
         {
-            PdfColorSpaceConverter? colorSpace = shadingState.Host.Resources.ResolveColorSpace(Shading.ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
-            PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, new PdfColorConversionParameters(shadingState, shadingState.Host.Resources.DeviceColorMapping));
-            PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(shadingState, colorSpace, Shading.Background);
 
             PdfPathBuilder rectPath = new();
             rectPath.AddRect(Shading.BoundingBox.Value);
@@ -77,9 +75,10 @@ public sealed class PdfShadingPattern : PdfPattern
             recorder.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        PdfShadingContent content = Shading.GetContent(shadingState);
+        PdfShadingContent content = Shading.GetContent(colorSpace, shadingState);
 
-        recorder.Process(new DrawShadingCommand(content, shadingState.FillPaint.Color.Alpha));
+        PdfColorSpaceConverter contentColorSpace = PdfShadingContent.GetColorSpace(colorSpace);
+        recorder.Process(new DrawShadingCommand(content, shadingState.FillPaint.WithColorSpace(contentColorSpace, shadingState.Host.Resources.DeviceColorMapping)));
 
         recorder.Process(RestoreStateCommand.Instance);
 

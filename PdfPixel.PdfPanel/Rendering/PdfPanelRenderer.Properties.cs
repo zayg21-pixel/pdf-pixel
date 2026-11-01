@@ -13,14 +13,14 @@ public sealed partial class PdfPanelRenderer
     internal const int DefaultAnimationFps = 60;
     internal const int DefaultLookAheadPageCount = 2;
 
-    internal static readonly PdfColor DefaultBackgroundColor = PdfColors.LightGray;
+    internal static readonly PdfRgbaColor DefaultBackgroundColor = new(211f / 255f, 211f / 255f, 211f / 255f);
     internal static readonly TimeSpan DefaultScrollContentUpdateDelay = TimeSpan.Zero;
     internal static readonly TimeSpan DefaultZoomContentUpdateDelay = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
     /// Background color drawn behind the pages.
     /// </summary>
-    public PdfColor BackgroundColor { get; set; } = DefaultBackgroundColor;
+    public PdfRgbaColor BackgroundColor { get; set; } = DefaultBackgroundColor;
 
     /// <summary>
     /// Corner radius for page rendering in unscaled panel space.

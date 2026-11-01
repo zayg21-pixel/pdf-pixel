@@ -1,39 +1,42 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color;
-using PdfPixel.Color.Transform;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging;
+using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Text;
 using System;
-using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Shading.Builder;
 
 internal partial class PdfShadingBuilder
 {
+    private const int FloatBitsPerComponent = 32;
+
     /// <summary>
     /// Builds a function-based (Type 1) shading image and the matrix that maps
     /// image pixel space into the shading coordinate system.
     /// Returns <see langword="null"/> if the shading is invalid or degenerate.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="sampler">RGBA sampler for color conversion.</param>
+    /// <param name="palette">Palette the function values index into, or null when the shading's color space is not Indexed.</param>
+    /// <param name="componentCount">Number of color components each sample holds.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <param name="observer">Execution observer for progress and cancellation.</param>
-    /// <returns>A <see cref="PdfShadingImage"/> containing the image and matrix, or <see langword="null"/> on failure.</returns>
+    /// <returns>A <see cref="PdfShadingImage"/> containing the samples and matrix, or <see langword="null"/> on failure.</returns>
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
     public PdfShadingImage? BuildFunctionBased(
         PdfShading shading,
-        ColorTransformSampler sampler,
+        PdfPalette? palette,
+        int componentCount,
         int defaultFunctionSamples,
         IPdfExecutionObserver? observer)
     {
-        if (shading.Functions == null || shading.Functions.Length == 0 || !shading.ColorSpaceReference.IsPresent)
+        if (shading.Functions == null || shading.Functions.Length == 0 || !shading.ColorSpaceReference.IsPresent || componentCount <= 0)
         {
             _logger.LogWarning("Function-based shading has no functions or color space converter");
             return null;
@@ -67,20 +70,33 @@ internal partial class PdfShadingBuilder
         int bitmapWidth = Math.Max(1, xSamples.Length);
         int bitmapHeight = Math.Max(1, ySamples.Length);
 
-        PdfDecodedImage decodedImage = new(bitmapWidth, bitmapHeight, PdfImageColorFormat.Rgba, PdfImageAlphaType.Unpremultiplied);
-        Span<byte> imageBuffer = decodedImage.GetRawBuffer();
-        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref imageBuffer[0]);
+        var channels = new PdfImageChannel[componentCount];
+        for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+        {
+            channels[componentIndex] = PdfImageChannel.Component(componentIndex);
+        }
+
+        PdfImageSamples samples = new(bitmapWidth, bitmapHeight, PdfImageSampleFormat.Float, FloatBitsPerComponent, channels);
 
         for (int yIndex = 0; yIndex < bitmapHeight; yIndex++)
         {
             float domainY = ySamples[yIndex];
+            Span<float> row = MemoryMarshal.Cast<byte, float>(samples.GetRow(yIndex));
+
             for (int xIndex = 0; xIndex < bitmapWidth; xIndex++)
             {
                 float domainX = xSamples[xIndex];
-                ReadOnlySpan<float> comps = function.Evaluate([domainX, domainY]);
-                Vector4 colorVector = sampler.Sample(comps);
-                ColorVectorUtilities.Load01ToRgba(colorVector, ref destPixel);
-                destPixel = ref Unsafe.Add(ref destPixel, 1);
+                ReadOnlySpan<float> components = function.Evaluate([domainX, domainY]);
+
+                if (palette != null)
+                {
+                    components = palette.GetColor((components.Length > 0) ? components[0] : 0f).Components.Span;
+                }
+
+                Span<float> destination = row.Slice(xIndex * componentCount, componentCount);
+                int copiedCount = Math.Min(components.Length, componentCount);
+                components.Slice(0, copiedCount).CopyTo(destination);
+                destination.Slice(copiedCount).Clear();
             }
 
             observer?.Notify();
@@ -101,6 +117,6 @@ internal partial class PdfShadingBuilder
             ? PdfMatrix.Concat(shadingMatrix.Value, pixelToDomain)
             : pixelToDomain;
 
-        return new PdfShadingImage(decodedImage, finalMatrix);
+        return new PdfShadingImage(samples, finalMatrix);
     }
 }

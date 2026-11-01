@@ -1,6 +1,5 @@
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
@@ -104,20 +103,20 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         IPdfExecutionObserver observer)
     {
         PdfGraphicsState state = PdfAppearanceRenderer.CreateState(processor, page, renderer, DefaultAppearance, renderingParameters, observer);
-        PdfColor color = state.FillPaint.Color;
+        PdfPaint paint = state.FillPaint;
         PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
 
-        PdfColor backgroundColor = ResolveColor(page);
-        if (backgroundColor != PdfColors.Transparent)
+        PdfPaint? backgroundPaint = ResolvePaint(page);
+        if (backgroundPaint != null)
         {
-            PdfAppearanceRenderer.DrawBackground(processor, ContentRectangle, BorderStyle, BorderEffect, backgroundColor);
+            PdfAppearanceRenderer.DrawBackground(processor, ContentRectangle, BorderStyle, BorderEffect, backgroundPaint);
         }
 
-        PdfAppearanceRenderer.DrawBorder(processor, ContentRectangle, BorderStyle, BorderEffect, color);
+        PdfAppearanceRenderer.DrawBorder(processor, ContentRectangle, BorderStyle, BorderEffect, paint);
 
         if (Intent == PdfAnnotationIntent.FreeTextCallout && CalloutLine != null)
         {
-            DrawCalloutLine(processor, CalloutLine, strokeStyle, color, backgroundColor);
+            DrawCalloutLine(processor, CalloutLine, strokeStyle, paint, backgroundPaint);
         }
 
         if (Contents != null)
@@ -133,8 +132,8 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         IPdfCommandProcessor processor,
         PdfPoint[] calloutLine,
         PdfStrokeStyle strokeStyle,
-        in PdfColor color,
-        in PdfColor backgroundColor)
+        PdfPaint paint,
+        PdfPaint? backgroundPaint)
     {
         PdfPath? calloutPath = PdfAnnotationGeometry.CreatePolylinePath(calloutLine);
         if (calloutPath == null)
@@ -142,7 +141,7 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
             return;
         }
 
-        processor.Process(new DrawPathCommand(calloutPath, PdfAnnotationPaintFactory.CreateStrokePaint(color, strokeStyle)));
+        processor.Process(new DrawPathCommand(calloutPath, PdfAnnotationPaintFactory.CreateStrokePaint(paint, strokeStyle)));
 
         PdfPoint start = calloutLine[0];
         PdfPoint afterStart = calloutLine[1];
@@ -154,7 +153,7 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
             afterStart.Y,
             LineEnding,
             strokeStyle.LineWidth,
-            color,
-            backgroundColor);
+            paint,
+            backgroundPaint);
     }
 }

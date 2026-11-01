@@ -17,14 +17,14 @@ public sealed class PdfPanelContent
     internal const bool DefaultAllowHover = true;
     internal const bool DefaultAllowImageSelection = true;
 
-    internal static readonly PdfColor DefaultSelectionBorderColor = new(0f, 0f, 0f, 1f);
+    internal static readonly PdfRgbaColor DefaultSelectionBorderColor = new(0f, 0f, 0f, 1f);
 
     private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelInput _input;
     private readonly PdfPanelGraphics _graphics;
     private PdfPanelContentItem? _activeNamedContent;
     private PdfPanelImageContentItem? _drawnSelection;
-    private PdfColor _drawnBorderColor;
+    private PdfRgbaColor _drawnBorderColor;
     private float _drawnBorderThickness;
     private float _drawnScale;
 
@@ -57,7 +57,7 @@ public sealed class PdfPanelContent
     /// <summary>
     /// Color of the border drawn around the selected content.
     /// </summary>
-    public PdfColor SelectionBorderColor { get; set; } = DefaultSelectionBorderColor;
+    public PdfRgbaColor SelectionBorderColor { get; set; } = DefaultSelectionBorderColor;
 
     /// <summary>
     /// Whether the content under the pointer is tracked.

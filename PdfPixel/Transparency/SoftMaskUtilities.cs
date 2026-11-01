@@ -1,5 +1,4 @@
-﻿using PdfPixel.Color;
-using PdfPixel.Color.Paint;
+﻿using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
@@ -72,11 +71,11 @@ internal static class SoftMaskUtilities
     /// </summary>
     public static PdfGraphicsState CreateAlphaMaskGraphicsState(IPdfContentHost host, in PdfRectangle clipBounds, PdfGraphicsState sourceState)
     {
-        return new(host, clipBounds, sourceState)
-        {
-            StrokePaint = PdfPaint.Solid(PdfColors.White, PdfPaintStyle.Stroke),
-            FillPaint = PdfPaint.Solid(PdfColors.White, PdfPaintStyle.Fill)
-        };
+        PdfGraphicsState state = new(host, clipBounds, sourceState);
+        state.StrokePaint = PdfPaintFactory.WithGray(state.StrokePaint, PdfPaintFactory.WhiteGray);
+        state.FillPaint = PdfPaintFactory.WithGray(state.FillPaint, PdfPaintFactory.WhiteGray);
+
+        return state;
     }
 
     /// <summary>
@@ -84,11 +83,5 @@ internal static class SoftMaskUtilities
     /// with, painting in solid black.
     /// </summary>
     public static PdfGraphicsState CreateLuminosityMaskGraphicsState(IPdfContentHost host, in PdfRectangle clipBounds, PdfGraphicsState sourceState)
-    {
-        return new(host, clipBounds, sourceState)
-        {
-            StrokePaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Stroke),
-            FillPaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Fill)
-        };
-    }
+        => new(host, clipBounds, sourceState);
 }

@@ -1,6 +1,5 @@
 using System;
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Geometry;
@@ -64,18 +63,19 @@ internal class PdfShadingRenderer
             return;
         }
 
-        PdfShadingContent content = shading.GetContent(state);
+        PdfColorSpaceConverter colorSpace = state.Host.Resources.ResolveColorSpace(shading.ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
+        PdfShadingContent content = shading.GetContent(colorSpace, state);
 
         using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, content.GetBounds() ?? state.GetUserSpaceClipBounds());
 
-        DrawShadingCore(processor, shading, state, content);
+        DrawShadingCore(processor, shading, colorSpace, state, content);
     }
 
     /// <summary>
     /// Core shading dispatch logic without soft mask handling.
     /// Clips to bounding box, draws background, and emits a lazy shading command.
     /// </summary>
-    private static void DrawShadingCore(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state, PdfShadingContent content)
+    private static void DrawShadingCore(IPdfCommandProcessor processor, PdfShading shading, PdfColorSpaceConverter colorSpace, PdfGraphicsState state, PdfShadingContent content)
     {
         if (shading.BoundingBox.HasValue)
         {
@@ -84,10 +84,7 @@ internal class PdfShadingRenderer
 
         if (shading.Background != null && shading.BoundingBox.HasValue)
         {
-            PdfColorSpaceConverter colorSpace = state.Host.Resources.ResolveColorSpace(shading.ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
-            PdfColor backgroundColor = colorSpace.ToSrgb(shading.Background, new PdfColorConversionParameters(state, state.Host.Resources.DeviceColorMapping));
-
-            PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(state, colorSpace, shading.Background);
 
             PdfPathBuilder rectPath = new();
             rectPath.AddRect(shading.BoundingBox.Value);
@@ -95,6 +92,7 @@ internal class PdfShadingRenderer
             processor.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
-        processor.Process(new DrawShadingCommand(content, state.FillPaint.Color.Alpha));
+        PdfColorSpaceConverter contentColorSpace = PdfShadingContent.GetColorSpace(colorSpace);
+        processor.Process(new DrawShadingCommand(content, state.FillPaint.WithColorSpace(contentColorSpace, state.Host.Resources.DeviceColorMapping)));
     }
 }

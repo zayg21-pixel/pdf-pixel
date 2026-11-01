@@ -4,6 +4,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Imaging;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System;
 using System.Collections.Generic;
 
@@ -25,10 +26,10 @@ internal sealed class PdfImageTileCacheEntry
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfImageTileCacheEntry"/> class.
     /// </summary>
-    public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory, MaskAlphaRowSource? alphaRowSource)
+    public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo, MaskAlphaRowSource? alphaRowSource)
     {
         TileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
-        _pass = new PdfImageTileDecodingPass(decoder, tileInfo, loggerFactory);
+        _pass = new PdfImageTileDecodingPass(decoder, tileInfo);
         _alphaRowSource = alphaRowSource;
 
         _tiles = new CachedTile[tileInfo.TotalTiles];
@@ -50,13 +51,19 @@ internal sealed class PdfImageTileCacheEntry
 
     /// <summary>
     /// Returns the tile at <paramref name="tileIndex"/> as drawn under the transformation and region of interest of
-    /// <paramref name="executionContext"/>, decoding it first when it is inside that region and not decoded yet.
+    /// <paramref name="executionContext"/>, decoding it first through pipelines from <paramref name="pipelineFactory"/>
+    /// when it is inside that region and not decoded yet.
     /// </summary>
-    public PdfImageTile GetTile(PdfCommandExecutionContext executionContext, int tileIndex)
+    public PdfImageTile GetTile(PdfCommandExecutionContext executionContext, int tileIndex, IPdfImagePipelineFactory pipelineFactory)
     {
         if (executionContext == null)
         {
             throw new ArgumentNullException(nameof(executionContext));
+        }
+
+        if (pipelineFactory == null)
+        {
+            throw new ArgumentNullException(nameof(pipelineFactory));
         }
 
         if (tileIndex < 0 || tileIndex >= TileInfo.TotalTiles)
@@ -76,7 +83,7 @@ internal sealed class PdfImageTileCacheEntry
         {
             if (!_pass.IsActive || !cachedTile.IsPendingUpdate)
             {
-                BeginDecoding(executionContext);
+                BeginDecoding(executionContext, pipelineFactory);
             }
 
             DecodeUntilProduced(tileIndex, executionContext.ExecutionObserver);
@@ -215,7 +222,7 @@ internal sealed class PdfImageTileCacheEntry
     /// <summary>
     /// Starts a pass decoding every tile inside the region of interest that has no decoded image.
     /// </summary>
-    private void BeginDecoding(PdfCommandExecutionContext executionContext)
+    private void BeginDecoding(PdfCommandExecutionContext executionContext, IPdfImagePipelineFactory pipelineFactory)
     {
         HashSet<int> tileIndexesToDecode = [];
 
@@ -235,8 +242,8 @@ internal sealed class PdfImageTileCacheEntry
         PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(executionContext.Frames.TotalMatrix);
         PdfIntegerSize outputSize = ComputeOutputSize(ctm);
 
-        _pass.Begin(ctm, outputSize, passTileIndexes, executionContext.ExecutionObserver);
-        _alphaRowSource?.Initialize(outputSize, passTileIndexes, executionContext.ExecutionObserver);
+        _pass.Begin(ctm, outputSize, passTileIndexes, pipelineFactory, producesMask: false, executionContext.ExecutionObserver);
+        _alphaRowSource?.Initialize(outputSize, passTileIndexes, pipelineFactory, executionContext.ExecutionObserver);
 
         foreach (int tileIndex in tileIndexesToDecode)
         {
@@ -269,7 +276,7 @@ internal sealed class PdfImageTileCacheEntry
         PdfTileInfo tileInfo = new(new PdfIntegerSize(pdfImage.Width, pdfImage.Height), new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
         MaskAlphaRowSource? alphaRowSource = MaskAlphaRowSource.Create(decoder, tileInfo, loggerFactory);
 
-        return new PdfImageTileCacheEntry(decoder, tileInfo, loggerFactory, alphaRowSource);
+        return new PdfImageTileCacheEntry(decoder, tileInfo, alphaRowSource);
     }
 
     private sealed class CachedTile

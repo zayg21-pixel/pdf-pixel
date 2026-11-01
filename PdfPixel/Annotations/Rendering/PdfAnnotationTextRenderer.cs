@@ -1,4 +1,4 @@
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
 using PdfPixel.Fonts.Substitution;
@@ -15,6 +15,8 @@ internal static class PdfAnnotationTextRenderer
 {
     private const float LineCaptionFontSize = 12f;
     private const float LineCaptionMargin = LineCaptionFontSize / 4f;
+
+    private static readonly float[] LineCaptionColor = [0f];
 
     private static readonly PdfSubstitutionInfo LineCaptionFont = new(
         PdfStandardFontName.Helvetica,
@@ -45,18 +47,18 @@ internal static class PdfAnnotationTextRenderer
     /// <param name="matrix">The matrix from the text's coordinate space to the page.</param>
     /// <param name="origin">The start of the baseline.</param>
     /// <param name="fontSize">The font size.</param>
-    /// <param name="color">The text color.</param>
+    /// <param name="paint">The paint the text is filled with.</param>
     public static void DrawText(
         IPdfCommandProcessor processor,
         ShapedGlyph[] glyphs,
         in PdfMatrix matrix,
         in PdfPoint origin,
         float fontSize,
-        in PdfColor color)
+        PdfPaint paint)
     {
         PdfMatrix textMatrix = PdfMatrix.Concat(matrix, PdfMatrix.CreateScaleTranslation(fontSize, -fontSize, origin.X, origin.Y));
 
-        processor.Process(new DrawShapedTextCommand(textMatrix, glyphs, PdfAnnotationPaintFactory.CreateFillPaint(color)));
+        processor.Process(new DrawShapedTextCommand(textMatrix, glyphs, paint));
     }
 
     /// <summary>
@@ -125,7 +127,8 @@ internal static class PdfAnnotationTextRenderer
     /// Draws the caption laid out by <see cref="LayoutLineCaption"/> in black.
     /// </summary>
     /// <param name="processor">The command processor to emit commands to.</param>
+    /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="layout">The caption layout.</param>
-    public static void DrawLineCaption(IPdfCommandProcessor processor, in PdfLineCaptionLayout layout)
-        => DrawText(processor, layout.Glyphs, layout.LineMatrix, layout.Origin, LineCaptionFontSize, PdfColors.Black);
+    public static void DrawLineCaption(IPdfCommandProcessor processor, IPdfPageInternal page, in PdfLineCaptionLayout layout)
+        => DrawText(processor, layout.Glyphs, layout.LineMatrix, layout.Origin, LineCaptionFontSize, PdfAnnotationPaintFactory.CreatePaint(LineCaptionColor, page));
 }

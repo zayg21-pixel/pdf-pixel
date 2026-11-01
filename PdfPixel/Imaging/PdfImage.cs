@@ -5,11 +5,13 @@ using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Encoding;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.Measures;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Resources;
+using PdfPixel.Skia;
 using PdfPixel.Streams;
 using System;
 using System.Collections.Generic;
@@ -78,7 +80,7 @@ public class PdfImage : PdfXObject
         Interpolate = interpolate;
         float[]? decodeArray = decode?.GetFloatArray();
         Decode = (decodeArray != null) ? PdfRange.FromArray(decodeArray) : null;
-        RenderingIntent = (intent != null) ? intent.Value.AsEnum<PdfRenderingIntent>() : PdfRenderingIntent.RelativeColorimetric;
+        RenderingIntent = intent?.AsEnum<PdfRenderingIntent>();
 
         var type = PdfImageType.Raw;
         IReadOnlyList<PdfStreamFilter> filters = stream.Filters;
@@ -183,9 +185,9 @@ public class PdfImage : PdfXObject
     public bool Interpolate { get; }
 
     /// <summary>
-    /// Strongly-typed rendering intent parsed from /Intent. Defaults to RelativeColorimetric when not specified.
+    /// Strongly-typed rendering intent parsed from /Intent, or null when not specified.
     /// </summary>
-    public PdfRenderingIntent RenderingIntent { get; }
+    public PdfRenderingIntent? RenderingIntent { get; }
 
     /// <summary>
     /// Raw /Matte array from the image dictionary, if present.
@@ -236,12 +238,11 @@ public class PdfImage : PdfXObject
     /// <param name="parameters">Masks to apply, color conversion options and the size to fit within.</param>
     /// <param name="observer">Observer notified as decoding progresses, which can cancel it.</param>
     /// <returns>
-    /// The decoded pixels, laid out as <see cref="PdfDecodedImage.ColorFormat"/> and
-    /// <see cref="PdfDecodedImage.AlphaType"/> describe.
+    /// The decoded pixels, laid out as <see cref="PdfImageSamples.Channels"/> describes.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="parameters"/> or <paramref name="observer"/> is null.</exception>
     /// <exception cref="InvalidOperationException">The image data produced no pixels.</exception>
-    public PdfDecodedImage DecodePixels(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
+    public PdfImageSamples DecodePixels(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
     {
         if (parameters == null)
         {
@@ -262,7 +263,7 @@ public class PdfImage : PdfXObject
         }
 
         PdfTileInfo tileInfo = new(new PdfIntegerSize(Width, Height), new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
-        PdfImageTileDecodingPass pass = new(decoder, tileInfo, Document.LoggerFactory);
+        PdfImageTileDecodingPass pass = new(decoder, tileInfo);
         MaskAlphaRowSource? alphaRowSource = MaskAlphaRowSource.Create(decoder, tileInfo, Document.LoggerFactory);
 
         PdfImage? mask = decoder.AppliedMask;
@@ -273,8 +274,9 @@ public class PdfImage : PdfXObject
         PdfMatrix decodingMatrix = GetDecodingMatrix(sampleSize, parameters.MaximumSize);
         PdfIntegerSize outputSize = PdfImageCommandUtilities.GetScaledSize(decodingMatrix, sampleSize) ?? sampleSize;
 
-        pass.Begin(decodingMatrix, outputSize, tileIndexesToDecode: null, observer);
-        alphaRowSource?.Initialize(outputSize, tileIndexesToDecode: null, observer);
+        SkiaImagePipelineFactory pipelineFactory = new(executionContext: null);
+        pass.Begin(decodingMatrix, outputSize, tileIndexesToDecode: null, pipelineFactory, producesMask: false, observer);
+        alphaRowSource?.Initialize(outputSize, tileIndexesToDecode: null, pipelineFactory, observer);
 
         PdfImageTile[]? tiles = pass.DecodeNextTiles(alphaRowSource, observer);
 
@@ -300,9 +302,9 @@ public class PdfImage : PdfXObject
     /// <exception cref="InvalidOperationException">The image data produced no pixels.</exception>
     public byte[] DecodePng(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
     {
-        PdfDecodedImage decoded = DecodePixels(parameters, observer);
+        PdfImageSamples decoded = DecodePixels(parameters, observer);
 
-        return PdfDecodedImagePngEncoder.Encode(decoded);
+        return PdfImageSamplesPngEncoder.Encode(decoded);
     }
 
     /// <summary>

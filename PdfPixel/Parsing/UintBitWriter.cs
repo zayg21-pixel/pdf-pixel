@@ -7,7 +7,7 @@ namespace PdfPixel.Parsing;
 /// <summary>
 /// Bit writer for packing unsigned sample values into a destination span (MSB-first within byte).
 /// Buffers up to 64 bits internally and flushes 8 bytes at a time. Caller must call
-/// <see cref="Flush"/> after the last write.
+/// <see cref="Flush"/> after the last write. Bit widths must be a power of 2, 1-32.
 /// </summary>
 internal ref struct UintBitWriter
 {

@@ -1,7 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
-using PdfPixel.Color.Transform;
 using PdfPixel.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering.Text;
@@ -16,20 +15,6 @@ namespace PdfPixel.Rendering;
 /// </summary>
 public class PdfGraphicsState
 {
-    private PdfRenderingIntent _renderingIntent = PdfRenderingIntent.RelativeColorimetric;
-
-    private PdfColorSpaceConverter _strokeColorConverter;
-    private PdfDeviceColorMapping _strokeDeviceColorMapping;
-    private ColorTransformSampler? _strokeRgbaSampler;
-
-    private PdfColorSpaceConverter _fillColorConverter;
-    private PdfDeviceColorMapping _fillDeviceColorMapping;
-    private ColorTransformSampler? _fillRgbaSampler;
-
-    private TransferFunctionTransform? _transferFunction;
-
-    private bool _useBlackPointCompensation = true;
-
     /// <summary>
     /// Initializes a new graphics state for the given content host.
     /// </summary>
@@ -44,17 +29,12 @@ public class PdfGraphicsState
         RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
         ExecutionObserver = observer;
         RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
-        _fillColorConverter = PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
-        _fillDeviceColorMapping = stateHost.Resources.DeviceColorMapping;
-        _strokeColorConverter = PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
-        _strokeDeviceColorMapping = stateHost.Resources.DeviceColorMapping;
         ClipBounds = clipBounds;
 
-        if (stateHost.Resources.DeviceColorMapping.Gray != null)
-        {
-            FillPaint = FillPaint.WithSolidColor(FillRgbaSampler.Sample(_fillColorConverter.GetInitialComponents()).ToPdfColor());
-            StrokePaint = StrokePaint.WithSolidColor(StrokeRgbaSampler.Sample(_strokeColorConverter.GetInitialComponents()).ToPdfColor());
-        }
+        PdfColorSpaceConverter deviceGray = PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        PdfColor initialGray = new(deviceGray.GetInitialComponents());
+        FillPaint = new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(deviceGray, stateHost.Resources.DeviceColorMapping, initialGray);
+        StrokePaint = new PdfPaint(PdfPaintStyle.Stroke).WithSolidColor(deviceGray, stateHost.Resources.DeviceColorMapping, initialGray);
     }
 
     internal PdfGraphicsState(IPdfContentHost stateHost, in PdfRectangle clipBounds, PdfGraphicsState sourceState)
@@ -85,158 +65,12 @@ public class PdfGraphicsState
     /// <summary>
     /// Current stroking paint (solid color or pattern).
     /// </summary>
-    public PdfPaint StrokePaint { get; set; } = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Stroke);
+    public PdfPaint StrokePaint { get; set; }
 
     /// <summary>
     /// Current non-stroking (fill) paint (solid color or pattern).
     /// </summary>
-    public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Fill);
-
-    /// <summary>
-    /// Gets the ColorTransformSampler for fill operations, cached and invalidated as needed.
-    /// </summary>
-    public ColorTransformSampler FillRgbaSampler
-    {
-        get
-        {
-            _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this, FillDeviceColorMapping));
-
-            return _fillRgbaSampler;
-        }
-    }
-
-    /// <summary>
-    /// Gets the ColorTransformSampler for stroke operations, cached and invalidated as needed.
-    /// </summary>
-    public ColorTransformSampler StrokeRgbaSampler
-    {
-        get
-        {
-            _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(new PdfColorConversionParameters(this, StrokeDeviceColorMapping));
-            return _strokeRgbaSampler;
-        }
-    }
-
-    /// <summary>
-    /// Rendering intent (ri operator). Defaults to RelativeColorimetric per spec.
-    /// </summary>
-    public PdfRenderingIntent RenderingIntent
-    {
-        get => _renderingIntent;
-
-        set
-        {
-            if (_renderingIntent != value)
-            {
-                _renderingIntent = value;
-                InvalidateRgbaSamplers();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Current color space converter for stroking operations.
-    /// </summary>
-    public PdfColorSpaceConverter StrokeColorConverter
-    {
-        get => _strokeColorConverter;
-
-        set
-        {
-            if (_strokeColorConverter != value)
-            {
-                _strokeColorConverter = value;
-                _strokeRgbaSampler = null;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Color spaces device color values of the stroking color space are interpreted in, taken from the
-    /// resources the stroking color space was selected with.
-    /// </summary>
-    internal PdfDeviceColorMapping StrokeDeviceColorMapping
-    {
-        get => _strokeDeviceColorMapping;
-
-        set
-        {
-            if (!_strokeDeviceColorMapping.Equals(value))
-            {
-                _strokeDeviceColorMapping = value;
-                _strokeRgbaSampler = null;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Current color space converter for non-stroking (fill) operations.
-    /// </summary>
-    public PdfColorSpaceConverter FillColorConverter
-    {
-        get => _fillColorConverter;
-
-        set
-        {
-            if (_fillColorConverter != value)
-            {
-                _fillColorConverter = value;
-                _fillRgbaSampler = null;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Color spaces device color values of the non-stroking (fill) color space are interpreted in, taken from the
-    /// resources the fill color space was selected with.
-    /// </summary>
-    internal PdfDeviceColorMapping FillDeviceColorMapping
-    {
-        get => _fillDeviceColorMapping;
-
-        set
-        {
-            if (!_fillDeviceColorMapping.Equals(value))
-            {
-                _fillDeviceColorMapping = value;
-                _fillRgbaSampler = null;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Optional transfer function (TR) applied to device output prior to soft mask input or blending.
-    /// </summary>
-    internal TransferFunctionTransform? TransferFunction
-    {
-        get => _transferFunction;
-
-        set
-        {
-            if (_transferFunction != value)
-            {
-                _transferFunction = value;
-                InvalidateRgbaSamplers();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Whether black point compensation is applied in color conversions. Defaults to true.
-    /// </summary>
-    public bool UseBlackPointCompensation
-    {
-        get => _useBlackPointCompensation;
-
-        set
-        {
-            if (_useBlackPointCompensation != value)
-            {
-                _useBlackPointCompensation = value;
-                InvalidateRgbaSamplers();
-            }
-        }
-    }
+    public PdfPaint FillPaint { get; set; }
 
     /// <summary>
     /// Flatness tolerance (i operator). Controls curve flattening accuracy for path rendering.
@@ -396,15 +230,6 @@ public class PdfGraphicsState
     /// <param name="source">The state to copy from.</param>
     internal void CopyFrom(PdfGraphicsState source)
     {
-        _renderingIntent = source._renderingIntent;
-        _strokeColorConverter = source._strokeColorConverter;
-        _strokeDeviceColorMapping = source._strokeDeviceColorMapping;
-        _strokeRgbaSampler = source._strokeRgbaSampler;
-        _fillColorConverter = source._fillColorConverter;
-        _fillDeviceColorMapping = source._fillDeviceColorMapping;
-        _fillRgbaSampler = source._fillRgbaSampler;
-        _transferFunction = source._transferFunction;
-        _useBlackPointCompensation = source._useBlackPointCompensation;
         StrokePaint = source.StrokePaint;
         FillPaint = source.FillPaint;
         FlatnessTolerance = source.FlatnessTolerance;
@@ -433,11 +258,5 @@ public class PdfGraphicsState
         copy.CopyFrom(this);
 
         return copy;
-    }
-
-    private void InvalidateRgbaSamplers()
-    {
-        _fillRgbaSampler = null;
-        _strokeRgbaSampler = null;
     }
 }

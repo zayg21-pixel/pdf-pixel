@@ -1,6 +1,5 @@
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -113,10 +112,11 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfColor inkColor = ResolveColor(page);
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
-
-        processor.Process(new DrawPathCommand(DrawingPath, paint));
+        PdfPaint? inkPaint = ResolvePaint(page);
+        if (inkPaint != null)
+        {
+            processor.Process(new DrawPathCommand(DrawingPath, PdfAnnotationPaintFactory.CreateStrokePaint(inkPaint, StrokeStyle)));
+        }
 
         return true;
     }

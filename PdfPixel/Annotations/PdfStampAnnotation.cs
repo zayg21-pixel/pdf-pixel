@@ -1,5 +1,4 @@
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
@@ -23,8 +22,12 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
     private const float CornerRadiusFraction = 0.12f;
     private const float LabelWidthFraction = 0.8f;
     private const float LabelHeightFraction = 0.50f;
-    private const float ShadowGray = 0.8f;
     private const float TiltDegrees = 1.25f;
+
+    private static readonly float[] ShadowColor = [0.8f];
+    private static readonly float[] ApprovalColor = [70f / 255f, 160f / 255f, 70f / 255f];
+    private static readonly float[] DepartmentalColor = [0f, 113f / 255f, 187f / 255f];
+    private static readonly float[] WarningColor = [240f / 255f, 63f / 255f, 35f / 255f];
 
     private static readonly PdfSubstitutionInfo LabelFont = new(
         PdfStandardFontName.Times,
@@ -81,8 +84,8 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         }
 
         float opacity = (visualStateKind == PdfAnnotationVisualStateKind.Rollover) ? 0.75f : 1.0f;
-        PdfColor color = GetStampColor().WithAlpha(opacity);
-        PdfColor shadowColor = new PdfColor(ShadowGray, ShadowGray, ShadowGray).WithAlpha(color.Alpha);
+        PdfPaint paint = PdfAnnotationPaintFactory.CreatePaint(GetStampColor(), page).WithAlpha(opacity);
+        PdfPaint shadowPaint = PdfAnnotationPaintFactory.CreatePaint(ShadowColor, page).WithAlpha(opacity);
 
         float shortSide = Math.Min(Rectangle.Width, Rectangle.Height);
         float borderWidth = shortSide * BorderWidthFraction;
@@ -103,8 +106,8 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         SfntPdfTypeface labelTypeface = page.Document.FontProvider.GetTypefaceByUnicode(LabelFont, labelText);
         ShapedGlyph[] labelGlyphs = PdfAnnotationTextRenderer.Shape(labelText, labelTypeface);
 
-        DrawImpression(processor, borderPath, labelGlyphs, labelTypeface.Metrics, shadowTiltMatrix, tiltedBorderWidth, shadowColor);
-        DrawImpression(processor, borderPath, labelGlyphs, labelTypeface.Metrics, tiltMatrix, tiltedBorderWidth, color);
+        DrawImpression(processor, borderPath, labelGlyphs, labelTypeface.Metrics, shadowTiltMatrix, tiltedBorderWidth, shadowPaint);
+        DrawImpression(processor, borderPath, labelGlyphs, labelTypeface.Metrics, tiltMatrix, tiltedBorderWidth, paint);
 
         return true;
     }
@@ -119,9 +122,9 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         PdfFontMetrics labelMetrics,
         in PdfMatrix matrix,
         float borderWidth,
-        in PdfColor color)
+        PdfPaint paint)
     {
-        PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, borderWidth);
+        PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStrokePaint(paint, borderWidth);
         processor.Process(new DrawPathCommand(borderPath.Transform(matrix), borderPaint));
 
         float labelWidth = TextRenderUtilities.GetTextWidth(labelGlyphs);
@@ -140,7 +143,7 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
             Rectangle.MidX - (labelWidth * fontSize / 2f),
             Rectangle.MidY - (capHeight * fontSize / 2f));
 
-        PdfAnnotationTextRenderer.DrawText(processor, labelGlyphs, matrix, labelOrigin, fontSize, color);
+        PdfAnnotationTextRenderer.DrawText(processor, labelGlyphs, matrix, labelOrigin, fontSize, paint);
     }
 
     private PdfMatrix CreateTiltMatrix(in PdfRectangle stampBounds, out float tiltScale)
@@ -156,22 +159,22 @@ public class PdfStampAnnotation : PdfMarkupAnnotation
         return PdfMatrix.Concat(toRectangle, PdfMatrix.Concat(scaledRotation, toOrigin));
     }
 
-    private PdfColor GetStampColor()
+    private float[] GetStampColor()
     {
         switch (StampName)
         {
             case PdfStampName.Approved:
             case PdfStampName.ForComment:
             case PdfStampName.ForPublicRelease:
-                return new PdfColor(70f / 255f, 160f / 255f, 70f / 255f);
+                return ApprovalColor;
 
             case PdfStampName.Departmental:
             case PdfStampName.Experimental:
             case PdfStampName.Sold:
-                return new PdfColor(0f, 113f / 255f, 187f / 255f);
+                return DepartmentalColor;
 
             default:
-                return new PdfColor(240f / 255f, 63f / 255f, 35f / 255f);
+                return WarningColor;
         }
     }
 

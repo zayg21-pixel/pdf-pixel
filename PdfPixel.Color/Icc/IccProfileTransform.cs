@@ -115,6 +115,15 @@ public sealed class IccProfileTransform
     /// <returns>A <see cref="ChainedColorTransform"/> representing the color transformation pipeline.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChainedColorTransform GetIntentTransform(IccRenderingIntent? intent = default, bool useBlackPointCompensation = true)
+        => new(GetIntentToXyzTransform(intent, useBlackPointCompensation), IccTransforms.XyzD50ToSrgbTransform);
+
+    /// <summary>
+    /// Gets a chained color transform to CIE XYZ D50 for the specified PDF rendering intent.
+    /// </summary>
+    /// <param name="intent">The PDF rendering intent to use for the transformation. In null - default intent from ICC header will be used.</param>
+    /// <param name="useBlackPointCompensation">Whether black point compensation is applied.</param>
+    /// <returns>A <see cref="ChainedColorTransform"/> representing the color transformation pipeline.</returns>
+    public ChainedColorTransform GetIntentToXyzTransform(IccRenderingIntent? intent = default, bool useBlackPointCompensation = true)
     {
         IccRenderingIntent resolvedIntent = intent ?? _iccProfile.Header.RenderingIntent;
         if (resolvedIntent < IccRenderingIntent.Perceptual || resolvedIntent > IccRenderingIntent.AbsoluteColorimetric)
@@ -131,8 +140,7 @@ public sealed class IccProfileTransform
         return new ChainedColorTransform(
             GetDeviceToPcsTransform(resolvedIntent),
             GetPcsToXyzTransform(resolvedIntent),
-            blackPointCompensation,
-            IccTransforms.XyzD50ToSrgbTransform);
+            blackPointCompensation);
     }
 
     private IColorTransform GetDeviceToPcsTransform(IccRenderingIntent intent)

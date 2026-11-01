@@ -1,5 +1,4 @@
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -37,21 +36,24 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page);
+        PdfPaint? linePaint = ResolvePaint(page);
 
-        foreach (PdfPoint[] quad in quads)
+        if (linePaint != null)
         {
-            const float baselineOffset = 1.3f;
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(linePaint);
 
-            (PdfMatrix lineMatrix, float halfLength, float height) = GetBaselineFrame(quad);
-            float offset = MathF.Sign(height) * baselineOffset;
+            foreach (PdfPoint[] quad in quads)
+            {
+                const float baselineOffset = 1.3f;
 
-            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
+                (PdfMatrix lineMatrix, float halfLength, float height) = GetBaselineFrame(quad);
+                float offset = MathF.Sign(height) * baselineOffset;
 
-            PdfPathBuilder linePath = new(lineMatrix);
-            linePath.MoveTo(-halfLength, offset);
-            linePath.LineTo(halfLength, offset);
-            processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
+                PdfPathBuilder linePath = new(lineMatrix);
+                linePath.MoveTo(-halfLength, offset);
+                linePath.LineTo(halfLength, offset);
+                processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
+            }
         }
 
         return true;

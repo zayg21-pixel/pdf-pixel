@@ -24,23 +24,21 @@ internal readonly struct PdfPathDeviceGeometry
     private readonly PdfRectangle _rectangle;
     private readonly PdfPathFillType _fillType;
 
-    private PdfPathDeviceGeometry(PdfPath path, bool isStrokeOutline, bool isAntialias)
+    private PdfPathDeviceGeometry(PdfPath path, bool isAntialias)
     {
         _path = path;
         _rectangle = PdfRectangle.Empty;
         _fillType = path.FillType;
         SnappedRectangle = null;
-        IsStrokeOutline = isStrokeOutline;
         IsAntialias = isAntialias;
     }
 
-    private PdfPathDeviceGeometry(in PdfRectangle rectangle, PdfPathFillType fillType, PdfRectangle? snappedRectangle, bool isStrokeOutline, bool isAntialias)
+    private PdfPathDeviceGeometry(in PdfRectangle rectangle, PdfPathFillType fillType, PdfRectangle? snappedRectangle, bool isAntialias)
     {
         _path = null;
         _rectangle = rectangle;
         _fillType = fillType;
         SnappedRectangle = snappedRectangle;
-        IsStrokeOutline = isStrokeOutline;
         IsAntialias = isAntialias;
     }
 
@@ -48,11 +46,6 @@ internal readonly struct PdfPathDeviceGeometry
     /// The rectangle the geometry was snapped to, or <see langword="null"/> when it was left where it was.
     /// </summary>
     public PdfRectangle? SnappedRectangle { get; }
-
-    /// <summary>
-    /// Whether the geometry is a pen outline to be filled rather than a path to be stroked along.
-    /// </summary>
-    public bool IsStrokeOutline { get; }
 
     /// <summary>
     /// Whether the geometry is drawn with coverage.
@@ -104,7 +97,7 @@ internal readonly struct PdfPathDeviceGeometry
         PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
         PdfPathInfo rectangleInfo = new(rectangle, isRectilinear: true, isRectangle: true);
 
-        return Create(sourcePath: null, rectangleInfo, GetDeviceFillThickness(rectangleInfo, deviceMatrix), isStrokeOutline: false, deviceMatrix, executionContext);
+        return Create(sourcePath: null, rectangleInfo, GetDeviceFillThickness(rectangleInfo, deviceMatrix), deviceMatrix, executionContext);
     }
 
     /// <summary>
@@ -127,7 +120,7 @@ internal readonly struct PdfPathDeviceGeometry
     {
         PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
 
-        return Create(path, pathInfo, GetDeviceFillThickness(pathInfo, deviceMatrix), isStrokeOutline: false, deviceMatrix, executionContext);
+        return Create(path, pathInfo, GetDeviceFillThickness(pathInfo, deviceMatrix), deviceMatrix, executionContext);
     }
 
     private static PdfPathDeviceGeometry CreateStroke(PdfPath path, PdfPaint paint, PdfCommandExecutionContext executionContext)
@@ -142,14 +135,13 @@ internal readonly struct PdfPathDeviceGeometry
         PdfMatrix deviceMatrix = executionContext.Frames.TotalMatrix;
         PdfPath outline = PdfStrokeOutlineBuilder.BuildOutline(path, strokeStyle.WithLineWidth(pen.Width), pen.Matrix, deviceMatrix);
 
-        return Create(outline, outline.GetPathInfo(), pen.DeviceThickness, isStrokeOutline: true, deviceMatrix, executionContext);
+        return Create(outline, outline.GetPathInfo(), pen.DeviceThickness, deviceMatrix, executionContext);
     }
 
     private static PdfPathDeviceGeometry Create(
         PdfPath? sourcePath,
         in PdfPathInfo geometryInfo,
         float deviceThickness,
-        bool isStrokeOutline,
         in PdfMatrix deviceMatrix,
         PdfCommandExecutionContext executionContext)
     {
@@ -162,7 +154,7 @@ internal readonly struct PdfPathDeviceGeometry
         {
             PdfRectangle snappedRectangle = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(geometryInfo.Bounds, deviceMatrix);
 
-            return new PdfPathDeviceGeometry(snappedRectangle, fillType, snappedRectangle, isStrokeOutline, isAntialias: false);
+            return new PdfPathDeviceGeometry(snappedRectangle, fillType, snappedRectangle, isAntialias: false);
         }
 
         bool isAntialias = executionContext.Parameters.Antialias
@@ -170,10 +162,10 @@ internal readonly struct PdfPathDeviceGeometry
 
         if (sourcePath == null)
         {
-            return new PdfPathDeviceGeometry(geometryInfo.Bounds, fillType, snappedRectangle: null, isStrokeOutline, isAntialias);
+            return new PdfPathDeviceGeometry(geometryInfo.Bounds, fillType, snappedRectangle: null, isAntialias);
         }
 
-        return new PdfPathDeviceGeometry(sourcePath, isStrokeOutline, isAntialias);
+        return new PdfPathDeviceGeometry(sourcePath, isAntialias);
     }
 
     // Device-pixel thickness of a fill. Anything but a single rectangle covers less than its bounds and

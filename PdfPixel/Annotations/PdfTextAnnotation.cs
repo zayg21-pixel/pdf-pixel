@@ -1,6 +1,6 @@
 using PdfPixel.Annotations.Icons;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
@@ -89,7 +89,8 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, ContentBounds, PdfColors.Black, ResolveColor(page));
+        PdfPaint exteriorPaint = PdfAnnotationPaintFactory.CreatePaint(PdfAnnotationGraphics.IconExteriorColor, page);
+        PdfAnnotationGraphics.RenderIcon(processor, page, iconDefinition, ContentBounds, exteriorPaint, ResolvePaint(page));
         return true;
     }
 

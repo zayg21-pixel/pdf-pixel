@@ -1,5 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Imaging.Decoding;
 using System;
 using PdfPixel.Geometry;
@@ -8,20 +9,18 @@ using PdfPixel.Objects;
 namespace PdfPixel.Imaging.Processing;
 
 /// <summary>
-/// Describes the image sample properties required by <see cref="PdfImageRowProcessor"/>
+/// Describes the image sample properties required by <see cref="Pipeline.IPdfImagePipelineFactory"/>
 /// for a single decode pass. Callers populate this from the source <see cref="PdfImage"/>
 /// and apply any format-specific overrides (e.g. component count or bit depth derived from
-/// a JPEG or JPX stream header) before constructing the row processor.
+/// a JPEG or JPX stream header) before creating the pipelines.
 /// </summary>
-internal sealed class PdfImageRowDecodingParameters
+public sealed class PdfImageRowDecodingParameters
 {
-    public PdfImageRowDecodingParameters(
-        ImageDecodingContext context,
+    internal PdfImageRowDecodingParameters(
+        PdfPaint imagePaint,
         int width,
         int height,
         int bitsPerComponent,
-        in PdfColorConversionParameters colorConversionParameters,
-        PdfColorSpaceConverter colorSpaceConverter,
         bool hasImageMask,
         int[]? colorKeyMask,
         PdfRange[]? decode,
@@ -50,9 +49,14 @@ internal sealed class PdfImageRowDecodingParameters
             throw new ArgumentException("A stencil mask requires a sample bit depth of 1.", nameof(bitsPerComponent));
         }
 
-        if (colorSpaceConverter is PdfIndexedColorSpaceConverter && bitsPerComponent == 16)
+        if (imagePaint == null)
         {
-            throw new ArgumentException("An indexed color space does not support a sample bit depth of 16.", nameof(colorSpaceConverter));
+            throw new ArgumentNullException(nameof(imagePaint));
+        }
+
+        if (!hasImageMask && imagePaint.ColorSpace is PdfIndexedColorSpaceConverter && bitsPerComponent == 16)
+        {
+            throw new ArgumentException("An indexed color space does not support a sample bit depth of 16.", nameof(imagePaint));
         }
 
         if ((alphaType == PdfImageAlphaType.Premultiplied) != (matte != null))
@@ -63,9 +67,7 @@ internal sealed class PdfImageRowDecodingParameters
         Width = width;
         Height = height;
         BitsPerComponent = bitsPerComponent;
-        ColorConversionParameters = colorConversionParameters;
-        ColorSpaceConverter = colorSpaceConverter;
-        Context = context;
+        ImagePaint = imagePaint;
         HasImageMask = hasImageMask;
         ColorKeyMask = colorKeyMask;
         Decode = decode;
@@ -91,14 +93,10 @@ internal sealed class PdfImageRowDecodingParameters
     public int BitsPerComponent { get; }
 
     /// <summary>
-    /// Parameters applied during color conversion.
+    /// Paint the image is drawn with: the fill paint with the image's color space and color conversion, or the fill paint
+    /// unchanged for stencil masks.
     /// </summary>
-    public PdfColorConversionParameters ColorConversionParameters { get; }
-
-    /// <summary>
-    /// Converter that maps raw sample values to output colors.
-    /// </summary>
-    public PdfColorSpaceConverter ColorSpaceConverter { get; }
+    public PdfPaint ImagePaint { get; }
 
     /// <summary>
     /// True when the image is a stencil mask (PDF /ImageMask).
@@ -143,15 +141,10 @@ internal sealed class PdfImageRowDecodingParameters
     /// <summary>
     /// Number of components in each packed sample, counting interleaved alpha.
     /// </summary>
-    public int ComponentCount => ColorSpaceConverter.Components + (IsAlphaInterleaved ? 1 : 0);
+    public int ComponentCount => (HasImageMask ? 1 : ImagePaint.ColorSpace.Components) + (IsAlphaInterleaved ? 1 : 0);
 
     /// <summary>
     /// Size in bytes of one full-width row of packed samples.
     /// </summary>
     public int RowBytes => ((Width * ComponentCount * BitsPerComponent) + 7) / 8;
-
-    /// <summary>
-    /// Rendering context for the current decode pass.
-    /// </summary>
-    public ImageDecodingContext Context { get; }
 }

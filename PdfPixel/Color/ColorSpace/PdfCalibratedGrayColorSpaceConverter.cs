@@ -38,4 +38,8 @@ public sealed class PdfCalibratedGrayColorSpaceConverter : PdfCalibratedColorSpa
             new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)));
         return new ColorTransformSampler(toGrayChain);
     }
+
+    /// <inheritdoc />
+    public override ChainedColorTransform GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
+        => new(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), GetToXyzTransform(renderingIntent));
 }

@@ -79,8 +79,8 @@ internal static class PdfAnnotationIconParser
         PdfPathFillType fillType = ParseFillType(reader.GetAttribute("fill-rule") ?? "nonzero");
         PdfPath path = PdfAnnotationSvgPathParser.Parse(pathData, fillType);
 
-        (PdfAnnotationIconColorType fillColorType, PdfColor fillColor) = ParseColorValue(reader.GetAttribute("fill"));
-        (PdfAnnotationIconColorType strokeColorType, PdfColor strokeColor) = ParseColorValue(reader.GetAttribute("stroke"));
+        (PdfAnnotationIconColorType fillColorType, PdfRgbaColor? fillColor) = ParseColorValue(reader.GetAttribute("fill"));
+        (PdfAnnotationIconColorType strokeColorType, PdfRgbaColor? strokeColor) = ParseColorValue(reader.GetAttribute("stroke"));
 
         float strokeWidth = ParseFloatValue(reader.GetAttribute("stroke-width") ?? "1");
         PdfStrokeCap strokeCap = ParseStrokeCap(reader.GetAttribute("stroke-linecap") ?? "butt");
@@ -91,24 +91,24 @@ internal static class PdfAnnotationIconParser
         return new PdfAnnotationIconPath(path, fillColorType, fillColor, strokeColorType, strokeColor, strokeWidth, strokeCap, strokeJoin, fillOpacity, strokeOpacity);
     }
 
-    private static (PdfAnnotationIconColorType ColorType, PdfColor Color) ParseColorValue(string? value)
+    private static (PdfAnnotationIconColorType ColorType, PdfRgbaColor? Color) ParseColorValue(string? value)
     {
         if (value == null || value.Length == 0 || string.Equals(value, NoneValue, StringComparison.OrdinalIgnoreCase))
         {
-            return (PdfAnnotationIconColorType.None, PdfColors.Transparent);
+            return (PdfAnnotationIconColorType.None, null);
         }
 
         if (string.Equals(value, "interior", StringComparison.OrdinalIgnoreCase))
         {
-            return (PdfAnnotationIconColorType.Interior, PdfColors.Transparent);
+            return (PdfAnnotationIconColorType.Interior, null);
         }
 
         if (string.Equals(value, "exterior", StringComparison.OrdinalIgnoreCase))
         {
-            return (PdfAnnotationIconColorType.Exterior, PdfColors.Transparent);
+            return (PdfAnnotationIconColorType.Exterior, null);
         }
 
-        return (PdfAnnotationIconColorType.Override, PdfColor.ParseHexColor(value));
+        return (PdfAnnotationIconColorType.Override, PdfRgbaColor.ParseHexColor(value));
     }
 
     private static PdfMatrix ParseViewBox(string value, float width, float height)

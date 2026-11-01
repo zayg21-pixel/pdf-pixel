@@ -1,4 +1,3 @@
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -33,7 +32,7 @@ internal class TextFillRenderTarget : IRenderTarget
 
     public PdfRectangle Bounds { get; }
 
-    public PdfColor Color => _state.FillPaint.Color;
+    public PdfPaint Paint => _state.FillPaint;
 
     public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {

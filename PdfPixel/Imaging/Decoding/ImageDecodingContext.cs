@@ -1,7 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
-using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Rendering;
 using System;
@@ -36,8 +35,6 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = state.RenderingParameters.ImageTileSize;
         CacheDecodedTiles = state.RenderingParameters.CacheDecodedTiles;
-        TransferFunction = state.TransferFunction;
-        UseBlackPointCompensation = state.UseBlackPointCompensation;
         FillPaint = state.FillPaint;
         ApplyMask = true;
     }
@@ -62,9 +59,8 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = Math.Max(image.Width, image.Height);
         CacheDecodedTiles = false;
-        TransferFunction = null;
-        UseBlackPointCompensation = parameters.UseBlackPointCompensation;
-        FillPaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Fill);
+        FillPaint = new PdfPaint(PdfPaintStyle.Fill)
+            .WithColorConversion(parameters.RenderingIntent, parameters.UseBlackPointCompensation, null);
         ApplyMask = parameters.ApplyMask;
     }
 
@@ -73,7 +69,7 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
     /// and with explicit compositing overrides. Used for cases such as pattern-layer masking, where the
     /// target image and the desired blend mode and fill color differ from the original graphics state.
     /// </summary>
-    /// <param name="source">The context to derive shared values (content host, tile sizing, transfer function) from.</param>
+    /// <param name="source">The context to derive shared values (content host, tile sizing) from.</param>
     /// <param name="image">The image this context resolves a color space converter for.</param>
     /// <param name="fillPaint">
     /// Fill paint override. A mask paint (<see cref="PdfPaint.MaskParameters"/>) draws the image as the mask of what is
@@ -95,8 +91,6 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
         ColorSpaceConverter = ResolveColorSpaceConverter(image);
         DefaultTileSize = source.DefaultTileSize;
         CacheDecodedTiles = source.CacheDecodedTiles;
-        TransferFunction = source.TransferFunction;
-        UseBlackPointCompensation = source.UseBlackPointCompensation;
         FillPaint = fillPaint ?? throw new ArgumentNullException(nameof(fillPaint));
         ApplyMask = source.ApplyMask;
     }
@@ -124,16 +118,6 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
     public bool CacheDecodedTiles { get; }
 
     /// <summary>
-    /// Transfer function (TR) from the graphics state, applied during color conversion.
-    /// </summary>
-    public TransferFunctionTransform? TransferFunction { get; }
-
-    /// <summary>
-    /// Whether black point compensation from the graphics state is applied during color conversion.
-    /// </summary>
-    public bool UseBlackPointCompensation { get; }
-
-    /// <summary>
     /// Fill paint from the graphics state. Its color is used for stencil mask rendering, and its blend
     /// mode is superseded by destination-in compositing when it is a mask paint (<see cref="PdfPaint.MaskParameters"/>).
     /// </summary>
@@ -145,8 +129,8 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
     public bool ApplyMask { get; }
 
     /// <summary>
-    /// Returns whether <paramref name="other"/> decodes an image into the same tiles: the same host, color space converter,
-    /// transfer function and fill paint instances, and the same tiling and masking settings.
+    /// Returns whether <paramref name="other"/> decodes an image into the same tiles: the same host, color space converter
+    /// and fill paint instances, and the same tiling and masking settings.
     /// </summary>
     public bool Equals(ImageDecodingContext? other)
     {
@@ -162,11 +146,9 @@ internal sealed class ImageDecodingContext : IEquatable<ImageDecodingContext>
 
         return ReferenceEquals(Host, other.Host)
             && ReferenceEquals(ColorSpaceConverter, other.ColorSpaceConverter)
-            && ReferenceEquals(TransferFunction, other.TransferFunction)
             && ReferenceEquals(FillPaint, other.FillPaint)
             && DefaultTileSize == other.DefaultTileSize
             && CacheDecodedTiles == other.CacheDecodedTiles
-            && UseBlackPointCompensation == other.UseBlackPointCompensation
             && ApplyMask == other.ApplyMask;
     }
 

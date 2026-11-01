@@ -27,7 +27,7 @@ public sealed class PdfVertices
     public PdfPoint[] Positions { get; }
 
     /// <summary>
-    /// Gets the per-vertex colors, one per entry in <see cref="Positions"/>.
+    /// Gets the per-vertex colors, one per entry in <see cref="Positions"/>, in the color space of the shading content.
     /// </summary>
     public PdfColor[] Colors { get; }
 

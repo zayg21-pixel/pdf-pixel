@@ -1,6 +1,6 @@
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Forms.Rendering;
@@ -19,6 +19,8 @@ namespace PdfPixel.Annotations;
 public class PdfRedactAnnotation : PdfMarkupAnnotation
 {
     private const float OverlayTextPadding = 2f;
+
+    private static readonly float[] DefaultInteriorColor = [1f];
 
     private readonly PdfPath _regionPath;
 
@@ -151,11 +153,11 @@ public class PdfRedactAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfColor interiorColor = ResolveInteriorColor(page, PdfColors.White);
+        PdfPaint? interiorPaint = ResolveInteriorPaint(page, DefaultInteriorColor);
 
-        if (interiorColor != PdfColors.Transparent)
+        if (interiorPaint != null)
         {
-            processor.Process(new DrawPathCommand(_regionPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
+            processor.Process(new DrawPathCommand(_regionPath, interiorPaint));
         }
 
         if (OverlayText == null)

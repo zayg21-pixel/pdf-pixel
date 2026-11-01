@@ -1,5 +1,4 @@
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -36,21 +35,24 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page);
+        PdfPaint? linePaint = ResolvePaint(page);
 
-        foreach (PdfPoint[] quad in quads)
+        if (linePaint != null)
         {
-            float startX = (quad[0].X + quad[3].X) / 2;
-            float startY = (quad[0].Y + quad[3].Y) / 2;
-            float endX = (quad[1].X + quad[2].X) / 2;
-            float endY = (quad[1].Y + quad[2].Y) / 2;
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(linePaint);
 
-            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
+            foreach (PdfPoint[] quad in quads)
+            {
+                float startX = (quad[0].X + quad[3].X) / 2;
+                float startY = (quad[0].Y + quad[3].Y) / 2;
+                float endX = (quad[1].X + quad[2].X) / 2;
+                float endY = (quad[1].Y + quad[2].Y) / 2;
 
-            PdfPathBuilder linePath = new();
-            linePath.MoveTo(startX, startY);
-            linePath.LineTo(endX, endY);
-            processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
+                PdfPathBuilder linePath = new();
+                linePath.MoveTo(startX, startY);
+                linePath.LineTo(endX, endY);
+                processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
+            }
         }
 
         return true;

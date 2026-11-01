@@ -55,7 +55,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// Color uncolored tiling patterns and uncolored Type 3 glyphs adopt when replayed, or null when
     /// content is drawn with its own colors.
     /// </summary>
-    public PdfColor? TintColor { get; internal set; }
+    public PdfRgbaColor? TintColor { get; internal set; }
 
     /// <summary>
     /// Document whose commands are replayed, owning the values cached for its whole lifetime.

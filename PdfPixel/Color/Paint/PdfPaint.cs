@@ -1,4 +1,6 @@
 using System;
+using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Transform;
 using PdfPixel.Pattern;
 using PdfPixel.Rendering;
 using PdfPixel.Transparency;
@@ -14,7 +16,13 @@ public sealed class PdfPaint
 {
     private PdfPaint(
         PdfPaintStyle style,
+        PdfColorSpaceConverter colorSpace,
+        PdfDeviceColorMapping deviceColorMapping,
         in PdfColor color,
+        float alpha,
+        PdfRenderingIntent renderingIntent,
+        bool useBlackPointCompensation,
+        TransferFunctionTransform? transferFunction,
         PdfBlendMode blendMode,
         bool overprint,
         PdfPattern? pattern,
@@ -22,7 +30,13 @@ public sealed class PdfPaint
         PdfMaskPaintParameters? maskParameters)
     {
         Style = style;
+        ColorSpace = colorSpace;
+        DeviceColorMapping = deviceColorMapping;
         Color = color;
+        Alpha = alpha;
+        RenderingIntent = renderingIntent;
+        UseBlackPointCompensation = useBlackPointCompensation;
+        TransferFunction = transferFunction;
         BlendMode = blendMode;
         Overprint = overprint;
         Pattern = pattern;
@@ -35,7 +49,7 @@ public sealed class PdfPaint
     /// when <paramref name="style"/> is <see cref="PdfPaintStyle.Stroke"/>.
     /// </summary>
     public PdfPaint(PdfPaintStyle style)
-        : this(style, PdfColors.Black, PdfBlendMode.Normal, false, null, (style == PdfPaintStyle.Stroke) ? new PdfStrokeStyle() : null, null)
+        : this(style, (style == PdfPaintStyle.Stroke) ? new PdfStrokeStyle() : null)
     {
     }
 
@@ -43,7 +57,25 @@ public sealed class PdfPaint
     /// Initializes a new stroke paint that uses <paramref name="strokeStyle"/> directly.
     /// </summary>
     public PdfPaint(PdfStrokeStyle strokeStyle)
-        : this(PdfPaintStyle.Stroke, PdfColors.Black, PdfBlendMode.Normal, false, null, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)), null)
+        : this(PdfPaintStyle.Stroke, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)))
+    {
+    }
+
+    private PdfPaint(PdfPaintStyle style, PdfStrokeStyle? strokeStyle)
+        : this(
+            style,
+            PdfDeviceGrayColorSpaceConverter.Instance,
+            PdfDeviceColorMapping.None,
+            new PdfColor(PdfDeviceGrayColorSpaceConverter.Instance.GetInitialComponents()),
+            1f,
+            PdfRenderingIntent.RelativeColorimetric,
+            true,
+            null,
+            PdfBlendMode.Normal,
+            false,
+            null,
+            strokeStyle,
+            null)
     {
     }
 
@@ -53,10 +85,45 @@ public sealed class PdfPaint
     public PdfPaintStyle Style { get; }
 
     /// <summary>
-    /// Gets the resolved sRGB color for solid color paints, or a placeholder color for pattern paints.
-    /// For uncolored (stencil) patterns this color typically represents the resolved tint in the base color space.
+    /// Gets the color space <see cref="Color"/> is given in.
+    /// </summary>
+    public PdfColorSpaceConverter ColorSpace { get; }
+
+    /// <summary>
+    /// Gets the color spaces the device color spaces of <see cref="ColorSpace"/> are interpreted in.
+    /// </summary>
+    public PdfDeviceColorMapping DeviceColorMapping { get; }
+
+    /// <summary>
+    /// Gets the color components for solid color paints, or the tint of uncolored (stencil) patterns.
     /// </summary>
     public PdfColor Color { get; }
+
+    /// <summary>
+    /// Gets the alpha constant (ca for fill paints, CA for stroke paints).
+    /// </summary>
+    public float Alpha { get; }
+
+    /// <summary>
+    /// Gets the rendering intent the color is converted with.
+    /// </summary>
+    public PdfRenderingIntent RenderingIntent { get; }
+
+    /// <summary>
+    /// Gets whether black point compensation is applied when the color is converted.
+    /// </summary>
+    public bool UseBlackPointCompensation { get; }
+
+    /// <summary>
+    /// Gets the transfer function (TR) applied to the converted color, or null when none applies.
+    /// </summary>
+    internal TransferFunctionTransform? TransferFunction { get; }
+
+    /// <summary>
+    /// Gets the resolved sRGB color, with <see cref="Alpha"/> as its alpha channel.
+    /// </summary>
+    public PdfRgbaColor RgbColor
+        => ColorSpace.ToSrgb(Color.Components.Span, new PdfColorConversionParameters(RenderingIntent, TransferFunction, UseBlackPointCompensation, DeviceColorMapping)).WithAlpha(Alpha);
 
     /// <summary>
     /// Gets the blend mode (BM) used when compositing this paint.
@@ -95,7 +162,7 @@ public sealed class PdfPaint
     /// True if this paint carries partial alpha or a blend mode other than <see cref="PdfBlendMode.Normal"/>,
     /// otherwise false.
     /// </summary>
-    internal bool RequiresComposition => Color.Alpha < 1 || BlendMode != PdfBlendMode.Normal;
+    internal bool RequiresComposition => Alpha < 1 || BlendMode != PdfBlendMode.Normal;
 
     /// <summary>
     /// Returns <see cref="StrokeStyle"/>, guaranteed non-null because <see cref="Style"/> is
@@ -112,43 +179,108 @@ public sealed class PdfPaint
     }
 
     /// <summary>
-    /// Returns a copy of this paint with <see cref="Color"/> replaced.
+    /// Returns a copy of this paint with <see cref="ColorSpace"/>, <see cref="DeviceColorMapping"/> and
+    /// <see cref="Color"/> replaced, clearing any pattern.
     /// </summary>
-    public PdfPaint WithColor(in PdfColor color)
-        => new(Style, color, BlendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
+    public PdfPaint WithSolidColor(PdfColorSpaceConverter colorSpace, PdfDeviceColorMapping deviceColorMapping, in PdfColor color)
+    {
+        if (colorSpace == null)
+        {
+            throw new ArgumentNullException(nameof(colorSpace));
+        }
+
+        if (deviceColorMapping == null)
+        {
+            throw new ArgumentNullException(nameof(deviceColorMapping));
+        }
+
+        return new PdfPaint(
+            Style,
+            colorSpace,
+            deviceColorMapping,
+            color,
+            Alpha,
+            RenderingIntent,
+            UseBlackPointCompensation,
+            TransferFunction,
+            BlendMode,
+            Overprint,
+            null,
+            StrokeStyle,
+            MaskParameters);
+    }
 
     /// <summary>
-    /// Returns a copy of this paint with <see cref="Color"/>'s red, green, and blue channels replaced,
-    /// clearing any pattern.
+    /// Returns a copy of this paint with <see cref="ColorSpace"/> and <see cref="DeviceColorMapping"/> replaced and no
+    /// <see cref="Color"/>, for content that carries its own colors in <paramref name="colorSpace"/>.
     /// </summary>
-    public PdfPaint WithSolidColor(in PdfColor color)
-        => new(Style, color.WithAlpha(Color.Alpha), BlendMode, Overprint, null, StrokeStyle, MaskParameters);
+    public PdfPaint WithColorSpace(PdfColorSpaceConverter colorSpace, PdfDeviceColorMapping deviceColorMapping)
+    {
+        if (colorSpace == null)
+        {
+            throw new ArgumentNullException(nameof(colorSpace));
+        }
+
+        if (deviceColorMapping == null)
+        {
+            throw new ArgumentNullException(nameof(deviceColorMapping));
+        }
+
+        return new PdfPaint(
+            Style,
+            colorSpace,
+            deviceColorMapping,
+            PdfColor.Empty,
+            Alpha,
+            RenderingIntent,
+            UseBlackPointCompensation,
+            TransferFunction,
+            BlendMode,
+            Overprint,
+            Pattern,
+            StrokeStyle,
+            MaskParameters);
+    }
 
     /// <summary>
-    /// Returns a copy of this paint with <see cref="Pattern"/> replaced and <see cref="Color"/>'s red, green,
-    /// and blue channels set to <paramref name="resolvedTintColor"/>, the tint of an uncolored pattern.
+    /// Returns a copy of this paint with <see cref="Pattern"/> replaced and <see cref="Color"/> set to
+    /// <paramref name="tintColor"/>, the tint of an uncolored pattern in the underlying color space of
+    /// <see cref="ColorSpace"/>.
     /// </summary>
-    public PdfPaint WithPattern(PdfPattern pattern, in PdfColor resolvedTintColor)
+    public PdfPaint WithPattern(PdfPattern pattern, in PdfColor tintColor)
     {
         if (pattern == null)
         {
             throw new ArgumentNullException(nameof(pattern));
         }
 
-        return new PdfPaint(Style, resolvedTintColor.WithAlpha(Color.Alpha), BlendMode, Overprint, pattern, StrokeStyle, MaskParameters);
+        return new PdfPaint(
+            Style,
+            ColorSpace,
+            DeviceColorMapping,
+            tintColor,
+            Alpha,
+            RenderingIntent,
+            UseBlackPointCompensation,
+            TransferFunction,
+            BlendMode,
+            Overprint,
+            pattern,
+            StrokeStyle,
+            MaskParameters);
     }
 
     /// <summary>
-    /// Returns a copy of this paint with <see cref="Color"/>'s alpha channel replaced.
+    /// Returns a copy of this paint with <see cref="Alpha"/> replaced.
     /// </summary>
     public PdfPaint WithAlpha(float alpha)
-        => new(Style, Color.WithAlpha(alpha), BlendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
+        => new(Style, ColorSpace, DeviceColorMapping, Color, alpha, RenderingIntent, UseBlackPointCompensation, TransferFunction, BlendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="BlendMode"/> replaced.
     /// </summary>
     public PdfPaint WithBlendMode(PdfBlendMode blendMode)
-        => new(Style, Color, blendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
+        => new(Style, ColorSpace, DeviceColorMapping, Color, Alpha, RenderingIntent, UseBlackPointCompensation, TransferFunction, blendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="StrokeStyle"/> replaced. Only valid on stroke paints.
@@ -160,19 +292,46 @@ public sealed class PdfPaint
             throw new InvalidOperationException($"{nameof(WithStrokeStyle)} is only available on paints with {nameof(PdfPaintStyle)}.{nameof(PdfPaintStyle.Stroke)}.");
         }
 
-        return new PdfPaint(Style, Color, BlendMode, Overprint, Pattern, strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)), MaskParameters);
+        return new PdfPaint(
+            Style,
+            ColorSpace,
+            DeviceColorMapping,
+            Color,
+            Alpha,
+            RenderingIntent,
+            UseBlackPointCompensation,
+            TransferFunction,
+            BlendMode,
+            Overprint,
+            Pattern,
+            strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle)),
+            MaskParameters);
     }
 
     /// <summary>
     /// Returns a copy of this paint with <see cref="MaskParameters"/> replaced.
     /// </summary>
     public PdfPaint WithMaskParameters(PdfMaskPaintParameters? maskParameters)
-        => new(Style, Color, BlendMode, Overprint, Pattern, StrokeStyle, maskParameters);
+        => new(Style, ColorSpace, DeviceColorMapping, Color, Alpha, RenderingIntent, UseBlackPointCompensation, TransferFunction, BlendMode, Overprint, Pattern, StrokeStyle, maskParameters);
+
+    /// <summary>
+    /// Returns a copy of this paint with <see cref="RenderingIntent"/> replaced.
+    /// </summary>
+    internal PdfPaint WithRenderingIntent(PdfRenderingIntent renderingIntent)
+        => new(Style, ColorSpace, DeviceColorMapping, Color, Alpha, renderingIntent, UseBlackPointCompensation, TransferFunction, BlendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
+
+    /// <summary>
+    /// Returns a copy of this paint with <see cref="RenderingIntent"/>, <see cref="UseBlackPointCompensation"/> and
+    /// <see cref="TransferFunction"/> replaced.
+    /// </summary>
+    internal PdfPaint WithColorConversion(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation, TransferFunctionTransform? transferFunction)
+        => new(Style, ColorSpace, DeviceColorMapping, Color, Alpha, renderingIntent, useBlackPointCompensation, transferFunction, BlendMode, Overprint, Pattern, StrokeStyle, MaskParameters);
 
     /// <summary>
     /// Returns a copy of this paint with every field present in <paramref name="parameters"/> (from a <c>gs</c>
     /// ExtGState application) applied: alpha (ca for fill paints, CA for stroke paints), blend mode, overprint
-    /// (op/OP), and stroke styling. Fields absent from <paramref name="parameters"/> are left unchanged.
+    /// (op/OP), rendering intent, black point compensation, transfer function and stroke styling. Fields absent from
+    /// <paramref name="parameters"/> are left unchanged.
     /// Returns this instance unchanged when nothing in <paramref name="parameters"/> applies.
     /// </summary>
     internal PdfPaint WithGraphicsState(PdfGraphicsStateParameters parameters)
@@ -181,24 +340,44 @@ public sealed class PdfPaint
         float? alpha = isStroke ? parameters.StrokeAlpha : parameters.FillAlpha;
         bool? overprint = isStroke ? parameters.OverprintStroke : parameters.OverprintFill;
         PdfStrokeStyle? strokeStyle = StrokeStyle?.WithGraphicsState(parameters);
+        bool changesTransferFunction = parameters.TransferFunction != null || parameters.ShouldUnsetTransferFunction;
 
-        if (alpha == null && overprint == null && parameters.BlendMode == null && ReferenceEquals(strokeStyle, StrokeStyle))
+        if (alpha == null
+            && overprint == null
+            && parameters.BlendMode == null
+            && parameters.PdfRenderingIntent == null
+            && parameters.UseBlackPtComp == null
+            && !changesTransferFunction
+            && ReferenceEquals(strokeStyle, StrokeStyle))
         {
             return this;
         }
 
+        bool useBlackPointCompensation = UseBlackPointCompensation;
+        if (parameters.UseBlackPtComp != null)
+        {
+            useBlackPointCompensation = parameters.UseBlackPtComp.Value != PdfBlackPointCompensation.Off;
+        }
+
+        TransferFunctionTransform? transferFunction = TransferFunction;
+        if (changesTransferFunction)
+        {
+            transferFunction = parameters.TransferFunction;
+        }
+
         return new PdfPaint(
             Style,
-            (alpha == null) ? Color : Color.WithAlpha(alpha.Value),
+            ColorSpace,
+            DeviceColorMapping,
+            Color,
+            alpha ?? Alpha,
+            parameters.PdfRenderingIntent ?? RenderingIntent,
+            useBlackPointCompensation,
+            transferFunction,
             parameters.BlendMode ?? BlendMode,
             overprint ?? Overprint,
             Pattern,
             strokeStyle,
             MaskParameters);
     }
-
-    /// <summary>
-    /// Create a solid color paint.
-    /// </summary>
-    public static PdfPaint Solid(in PdfColor color, PdfPaintStyle style) => new PdfPaint(style).WithColor(color);
 }

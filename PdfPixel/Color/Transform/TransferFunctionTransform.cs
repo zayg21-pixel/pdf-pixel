@@ -5,6 +5,8 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Transform;
 
+// TODO: [HIGH] move and expose.
+
 /// <summary>
 /// Implements <see cref="IColorTransform"/> for PDF transfer functions (TR).
 /// Supports a single function applied to all RGB components or an array of per-component functions.
@@ -21,12 +23,18 @@ internal sealed class TransferFunctionTransform : IColorTransform
         _fx = fx;
         _fy = fy;
         _fz = fz;
+        Functions = new PdfFunction[] { fx, fy, fz };
     }
 
     /// <summary>
     /// Always <see langword="false"/>; a transfer function is never an identity transform.
     /// </summary>
     public bool IsIdentity => false;
+
+    /// <summary>
+    /// Gets the functions applied to the first three components, in component order.
+    /// </summary>
+    public PdfFunction[] Functions { get; }
 
     /// <summary>
     /// Creates a <see cref="TransferFunctionTransform"/> from a PDF function object or an array of function objects.

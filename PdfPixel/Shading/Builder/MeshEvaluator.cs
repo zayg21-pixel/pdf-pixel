@@ -84,7 +84,8 @@ internal static class MeshEvaluator
         int indicesPerTriangle = subdivisions * subdivisions * 3;
 
         var allVertices = new PdfPoint[verticesPerTriangle * triangles.Count];
-        var allColors = new PdfColor[allVertices.Length];
+        int componentCount = colorResolver.ComponentCount;
+        var allComponents = new float[allVertices.Length * componentCount];
         var allIndices = new ushort[indicesPerTriangle * triangles.Count];
 
         int vertexOffset = 0;
@@ -93,7 +94,7 @@ internal static class MeshEvaluator
         {
             MeshData triangle = triangles[triangleIndex];
             PdfPoint[] corners = triangle.Points;
-            MeshVertexColor[] cornerColors = triangle.CornerColors;
+            PdfColor[] cornerColors = triangle.CornerColors;
 
             int vertexIndex = 0;
             for (int rowIndex = 0; rowIndex <= subdivisions; rowIndex++)
@@ -107,8 +108,11 @@ internal static class MeshEvaluator
                     allVertices[vertexOffset + vertexIndex] = new PdfPoint(
                         (corners[0].X * weightA) + (corners[1].X * weightB) + (corners[2].X * weightC),
                         (corners[0].Y * weightA) + (corners[1].Y * weightB) + (corners[2].Y * weightC));
-                    allColors[vertexOffset + vertexIndex] = colorResolver.Resolve(
-                        InterpolateVertexColors(weightA, weightB, weightC, cornerColors));
+                    InterpolateVertexColors(
+                        new Vector4(weightA, weightB, weightC, 0f),
+                        cornerColors,
+                        colorResolver,
+                        allComponents.AsSpan((vertexOffset + vertexIndex) * componentCount, componentCount));
                     vertexIndex++;
                 }
 
@@ -140,7 +144,7 @@ internal static class MeshEvaluator
             indexOffset += indicesPerTriangle;
         }
 
-        return new PdfVertices(allVertices, allColors, allIndices);
+        return new PdfVertices(allVertices, CreateColors(allComponents, componentCount), allIndices);
     }
 
     /// <summary>
@@ -181,7 +185,8 @@ internal static class MeshEvaluator
         int totalIndices = indicesPerPatch * patches.Count;
 
         var allVertices = new PdfPoint[totalVertices];
-        var allColors = new PdfColor[totalVertices];
+        int componentCount = colorResolver.ComponentCount;
+        var allComponents = new float[totalVertices * componentCount];
         var allIndices = new ushort[totalIndices];
 
         int vertexOffset = 0;
@@ -212,7 +217,12 @@ internal static class MeshEvaluator
                     }
 
                     allVertices[vertexOffset + vertexIndex] = evaluatedPoint;
-                    allColors[vertexOffset + vertexIndex] = colorResolver.Resolve(InterpolateCornerColors(u, v, patch.CornerColors));
+                    InterpolateCornerColors(
+                        u,
+                        v,
+                        patch.CornerColors,
+                        colorResolver,
+                        allComponents.AsSpan((vertexOffset + vertexIndex) * componentCount, componentCount));
                     vertexIndex++;
                 }
 
@@ -242,7 +252,7 @@ internal static class MeshEvaluator
             indexOffset += indicesPerPatch;
         }
 
-        return new PdfVertices(allVertices, allColors, allIndices);
+        return new PdfVertices(allVertices, CreateColors(allComponents, componentCount), allIndices);
     }
 
     /// <summary>
@@ -401,13 +411,27 @@ internal static class MeshEvaluator
             int offset = triangleIndex * 3;
 
             Array.Copy(triangle.Points, 0, allPoints, offset, 3);
-            for (int cornerIndex = 0; cornerIndex < 3; cornerIndex++)
-            {
-                allColors[offset + cornerIndex] = triangle.CornerColors[cornerIndex].Color;
-            }
+            Array.Copy(triangle.CornerColors, 0, allColors, offset, 3);
         }
 
         return new PdfVertices(allPoints, allColors, null);
+    }
+
+    /// <summary>
+    /// Creates one color per vertex over <paramref name="allComponents"/>, each a slice of
+    /// <paramref name="componentCount"/> components.
+    /// </summary>
+    private static PdfColor[] CreateColors(float[] allComponents, int componentCount)
+    {
+        int vertexCount = (componentCount > 0) ? allComponents.Length / componentCount : 0;
+        var colors = new PdfColor[vertexCount];
+
+        for (int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
+        {
+            colors[vertexIndex] = new PdfColor(allComponents.AsMemory(vertexIndex * componentCount, componentCount));
+        }
+
+        return colors;
     }
 
     /// <summary>
@@ -427,59 +451,60 @@ internal static class MeshEvaluator
     /// <param name="u">Normalized horizontal coordinate (0..1).</param>
     /// <param name="v">Normalized vertical coordinate (0..1).</param>
     /// <param name="cornerColors">Array of 4 corner values (order: bottom-left, top-left, top-right, bottom-right).</param>
+    /// <param name="colorResolver">Resolver for the color of an interpolated parametric value.</param>
+    /// <param name="destination">Receives the interpolated color components.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static MeshVertexColor InterpolateCornerColors(float u, float v, MeshVertexColor[] cornerColors)
+    private static void InterpolateCornerColors(float u, float v, PdfColor[] cornerColors, MeshColorResolver colorResolver, in Span<float> destination)
     {
         float oneMinusU = 1.0f - u;
         float oneMinusV = 1.0f - v;
         Vector4 weights = new(oneMinusU * oneMinusV, oneMinusU * v, u * v, u * oneMinusV);
 
-        return InterpolateVertexColors(weights, cornerColors);
+        InterpolateVertexColors(weights, cornerColors, colorResolver, destination);
     }
 
     /// <summary>
-    /// Interpolates a triangle's three vertices' color data at the given barycentric weights.
+    /// Interpolates the values of up to <see cref="MaxInterpolatedVertices"/> vertices, one weight per vertex,
+    /// and writes the color components they resolve to into <paramref name="destination"/>. Lanes without a
+    /// vertex keep a zero weight.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static MeshVertexColor InterpolateVertexColors(float weightA, float weightB, float weightC, MeshVertexColor[] vertexColors)
-        => InterpolateVertexColors(new Vector4(weightA, weightB, weightC, 0f), vertexColors);
-
-    /// <summary>
-    /// Interpolates the color data of up to <see cref="MaxInterpolatedVertices"/> vertices,
-    /// one weight per vertex. Lanes without a vertex keep a zero weight.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static MeshVertexColor InterpolateVertexColors(Vector4 weights, MeshVertexColor[] vertexColors)
+    private static void InterpolateVertexColors(Vector4 weights, PdfColor[] vertexColors, MeshColorResolver colorResolver, in Span<float> destination)
     {
         if (vertexColors.Length > MaxInterpolatedVertices)
         {
             throw new ArgumentException($"At most {MaxInterpolatedVertices} vertices can be interpolated at once.");
         }
 
-        Vector4 red = default;
-        Vector4 green = default;
-        Vector4 blue = default;
-        Vector4 parameter = default;
-        ref float redRef = ref Unsafe.As<Vector4, float>(ref red);
-        ref float greenRef = ref Unsafe.As<Vector4, float>(ref green);
-        ref float blueRef = ref Unsafe.As<Vector4, float>(ref blue);
-        ref float parameterRef = ref Unsafe.As<Vector4, float>(ref parameter);
+        if (colorResolver.IsParametric)
+        {
+            colorResolver.ResolveParameter(InterpolateValue(weights, vertexColors, 0), destination);
+        }
+        else
+        {
+            for (int componentIndex = 0; componentIndex < destination.Length; componentIndex++)
+            {
+                destination[componentIndex] = InterpolateValue(weights, vertexColors, componentIndex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Interpolates value <paramref name="valueIndex"/> of up to <see cref="MaxInterpolatedVertices"/> vertices, one
+    /// weight per vertex.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float InterpolateValue(Vector4 weights, PdfColor[] vertexColors, int valueIndex)
+    {
+        Vector4 vertexValues = default;
+        ref float vertexValuesRef = ref Unsafe.As<Vector4, float>(ref vertexValues);
 
         for (int vertexIndex = 0; vertexIndex < vertexColors.Length; vertexIndex++)
         {
-            MeshVertexColor vertexColor = vertexColors[vertexIndex];
-            Unsafe.Add(ref redRef, vertexIndex) = vertexColor.Color.Red;
-            Unsafe.Add(ref greenRef, vertexIndex) = vertexColor.Color.Green;
-            Unsafe.Add(ref blueRef, vertexIndex) = vertexColor.Color.Blue;
-            Unsafe.Add(ref parameterRef, vertexIndex) = vertexColor.Parameter;
+            Unsafe.Add(ref vertexValuesRef, vertexIndex) = vertexColors[vertexIndex].Components.Span[valueIndex];
         }
 
-        PdfColor interpolatedColor = new(
-            ColorVectorUtilities.CustomDot(red, weights),
-            ColorVectorUtilities.CustomDot(green, weights),
-            ColorVectorUtilities.CustomDot(blue, weights));
-
-        return new MeshVertexColor(interpolatedColor, ColorVectorUtilities.CustomDot(parameter, weights));
+        return ColorVectorUtilities.CustomDot(vertexValues, weights);
     }
 
     /// <summary>

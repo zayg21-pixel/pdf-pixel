@@ -1,9 +1,10 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -11,22 +12,22 @@ namespace PdfPixel.Imaging.Processing;
 /// Produces the alpha plane rows of an image's mask, resampled to the output grid the image
 /// the mask applies to is produced on.
 /// </summary>
-internal sealed class MaskAlphaRowSource : IAlphaRowSource
+internal sealed class MaskAlphaRowSource
 {
     private readonly PdfImageTileDecodingPass _pass;
     private readonly PdfTileInfo _tileInfo;
-    private readonly Dictionary<int, PdfDecodedImage> _tiles = [];
+    private readonly Dictionary<int, PdfImageSamples> _tiles = [];
 
     private PdfIntegerSize _outputSize;
     private HashSet<int>? _tileIndexesToDecode;
+    private IPdfImagePipelineFactory? _pipelineFactory;
     private IPdfExecutionObserver? _observer;
     private bool _isPassPending;
     private int _remainingTileCount;
-    private byte[]? _unpackedRow;
 
-    public MaskAlphaRowSource(PdfImageDecoder decoder, PdfTileInfo tileInfo, ILoggerFactory loggerFactory)
+    public MaskAlphaRowSource(PdfImageDecoder decoder, PdfTileInfo tileInfo)
     {
-        _pass = new PdfImageTileDecodingPass(decoder, tileInfo, loggerFactory);
+        _pass = new PdfImageTileDecodingPass(decoder, tileInfo);
         _tileInfo = tileInfo;
     }
 
@@ -40,23 +41,37 @@ internal sealed class MaskAlphaRowSource : IAlphaRowSource
     /// Prepares the mask to serve the rows of the tiles in <paramref name="tileIndexesToDecode"/> on
     /// <paramref name="outputSize"/>, or of every tile when it is null.
     /// </summary>
-    public void Initialize(in PdfIntegerSize outputSize, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public void Initialize(in PdfIntegerSize outputSize, HashSet<int>? tileIndexesToDecode, IPdfImagePipelineFactory pipelineFactory, IPdfExecutionObserver? observer)
     {
         Cleanup();
 
         _outputSize = outputSize;
         _tileIndexesToDecode = tileIndexesToDecode;
+        _pipelineFactory = pipelineFactory ?? throw new ArgumentNullException(nameof(pipelineFactory));
         _observer = observer;
         _remainingTileCount = tileIndexesToDecode?.Count ?? _tileInfo.TotalTiles;
         _isPassPending = true;
     }
 
-    /// <inheritdoc />
-    public ReadOnlySpan<byte> GetRow(PdfImageRowTarget target)
-    {
-        int tileIndex = target.TileIndex;
+    /// <summary>
+    /// Returns the source serving the alpha rows of the tile at <paramref name="tileIndex"/>.
+    /// </summary>
+    public IPdfAlphaRowSource GetTileSource(int tileIndex) => new TileAlphaRowSource(this, tileIndex);
 
-        if (!_tiles.TryGetValue(tileIndex, out PdfDecodedImage? tile))
+    public void Cleanup()
+    {
+        _pass.End();
+        _tiles.Clear();
+        _tileIndexesToDecode = null;
+        _pipelineFactory = null;
+        _observer = null;
+        _isPassPending = false;
+        _remainingTileCount = 0;
+    }
+
+    private ReadOnlySpan<float> GetRow(int tileIndex, int rowIndex)
+    {
+        if (!_tiles.TryGetValue(tileIndex, out PdfImageSamples? tile))
         {
             DecodeUntilProduced(tileIndex);
 
@@ -66,55 +81,32 @@ internal sealed class MaskAlphaRowSource : IAlphaRowSource
             }
         }
 
-        int rowWithinTile = target.CurrentOutputRow - target.OutputRowStart;
-
-        if (rowWithinTile >= tile.Height)
+        if (rowIndex >= tile.Height)
         {
             return default;
         }
 
-        if (rowWithinTile == tile.Height - 1)
+        if (rowIndex == tile.Height - 1)
         {
             _tiles.Remove(tileIndex);
         }
 
-        ReadOnlySpan<byte> maskRow = tile.GetRow(rowWithinTile);
-
-        if (tile.ColorFormat != PdfImageColorFormat.Rgba)
-        {
-            return maskRow;
-        }
-
-        if (_unpackedRow == null || _unpackedRow.Length < tile.Width)
-        {
-            _unpackedRow = new byte[tile.Width];
-        }
-
-        Span<byte> unpackedRow = _unpackedRow.AsSpan(0, tile.Width);
-        UnpackRow(maskRow, unpackedRow);
-
-        return unpackedRow;
-    }
-
-    public void Cleanup()
-    {
-        _pass.End();
-        _tiles.Clear();
-        _tileIndexesToDecode = null;
-        _observer = null;
-        _isPassPending = false;
-        _remainingTileCount = 0;
-        _unpackedRow = null;
+        return MemoryMarshal.Cast<byte, float>(tile.GetRow(rowIndex));
     }
 
     private void DecodeUntilProduced(int tileIndex)
     {
+        if (_pipelineFactory == null)
+        {
+            return;
+        }
+
         if (_isPassPending)
         {
             // A transformation covering the output extent asks the decoder for the largest reduction
             // that still fills it; a mask no larger than the output reports no reduction at all.
             PdfMatrix outputExtent = PdfMatrix.CreateScale(_outputSize.Width, _outputSize.Height);
-            _pass.Begin(outputExtent, _outputSize, _tileIndexesToDecode, _observer);
+            _pass.Begin(outputExtent, _outputSize, _tileIndexesToDecode, _pipelineFactory, producesMask: true, _observer);
             _isPassPending = false;
         }
 
@@ -178,19 +170,20 @@ internal sealed class MaskAlphaRowSource : IAlphaRowSource
             throw new ArgumentException($"Mask decoder for image {mask.Type} is not defined.");
         }
 
-        return new MaskAlphaRowSource(maskDecoder, tileInfo, loggerFactory);
+        return new MaskAlphaRowSource(maskDecoder, tileInfo);
     }
 
-#if NETSTANDARD2_0
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#else
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-#endif
-    private static void UnpackRow(in ReadOnlySpan<byte> maskRow, in Span<byte> destination)
+    private sealed class TileAlphaRowSource : IPdfAlphaRowSource
     {
-        for (int x = 0; x < destination.Length; x++)
+        private readonly MaskAlphaRowSource _mask;
+        private readonly int _tileIndex;
+
+        public TileAlphaRowSource(MaskAlphaRowSource mask, int tileIndex)
         {
-            destination[x] = maskRow[x * 4];
+            _mask = mask;
+            _tileIndex = tileIndex;
         }
+
+        public ReadOnlySpan<float> GetRow(int rowIndex) => _mask.GetRow(_tileIndex, rowIndex);
     }
 }

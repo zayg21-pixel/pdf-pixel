@@ -1,10 +1,9 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
-using PdfPixel.Color.Transform;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Shading.Builder;
@@ -29,7 +28,7 @@ internal partial class PdfShadingBuilder
         PdfPoint start = new(shading.Coordinates[0], shading.Coordinates[1]);
         PdfPoint end = new(shading.Coordinates[2], shading.Coordinates[3]);
 
-        return new PdfAxialGradient(start, end, colorStops.Colors, colorStops.Positions);
+        return new PdfAxialGradient(start, end, colorStops.Colors, colorStops.Positions, shading.ExtendStart, shading.ExtendEnd);
     }
 
     /// <summary>
@@ -52,7 +51,7 @@ internal partial class PdfShadingBuilder
         float r0 = shading.Coordinates[2];
         float r1 = shading.Coordinates[5];
 
-        return new PdfRadialGradient(center0, r0, center1, r1, colorStops.Colors, colorStops.Positions);
+        return new PdfRadialGradient(center0, r0, center1, r1, colorStops.Colors, colorStops.Positions, shading.ExtendStart, shading.ExtendEnd);
     }
 
     /// <summary>
@@ -60,17 +59,20 @@ internal partial class PdfShadingBuilder
     /// across the domain range.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="sampler">RGBA sampler for color conversion.</param>
+    /// <param name="palette">Palette the function values index into, or null when the shading's color space is not Indexed.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
-    /// <returns>The computed color and position stops.</returns>
+    /// <returns>The computed color and position stops, or null when the shading has no function.</returns>
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    public PdfShadingColorStops BuildShadingColorsAndStops(
-        PdfShading shading,
-        ColorTransformSampler sampler,
-        int defaultFunctionSamples)
+    public PdfShadingColorStops? BuildShadingColorsAndStops(PdfShading shading, PdfPalette? palette, int defaultFunctionSamples)
     {
+        if (shading.Functions.Length == 0)
+        {
+            _logger.LogWarning("Axial and radial shadings require a function");
+            return null;
+        }
+
         float domainStart = 0f;
         float domainEnd = 1f;
         if (shading.Domain?.Length >= 1)
@@ -79,60 +81,34 @@ internal partial class PdfShadingBuilder
             domainEnd = shading.Domain[0].Max;
         }
 
-        PdfColor[] colors;
-        float[] positions;
+        PdfFunction primaryFunction = shading.Functions[0];
 
-        if (shading.Functions.Length > 0)
+        float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd, defaultFunctionSamples);
+
+        var positions = new float[sampleXs.Length];
+        var colors = new PdfColor[sampleXs.Length];
+
+        float domainLength = domainEnd - domainStart;
+        if (domainLength == 0f)
         {
-            PdfFunction primaryFunction = shading.Functions[0];
-
-            float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd, defaultFunctionSamples);
-
-            positions = new float[sampleXs.Length];
-            colors = new PdfColor[sampleXs.Length];
-
-            float domainLength = domainEnd - domainStart;
-            if (domainLength == 0f)
-            {
-                domainLength = 1f;
-            }
-
-            for (int i = 0; i < sampleXs.Length; i++)
-            {
-                float x = sampleXs[i];
-                float t = (x - domainStart) / domainLength;
-                ReadOnlySpan<float> comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
-                colors[i] = sampler.Sample(comps).ToPdfColor();
-                positions[i] = t;
-            }
-        }
-        else
-        {
-            colors = new PdfColor[] { PdfColors.Black, PdfColors.White };
-            positions = new float[] { 0f, 1f };
+            domainLength = 1f;
         }
 
-        if (!shading.ExtendEnd || !shading.ExtendStart)
+        for (int i = 0; i < sampleXs.Length; i++)
         {
-            List<float> listPositions = new(positions);
-            List<PdfColor> listColors = new(colors);
-
-            if (!shading.ExtendStart)
+            float x = sampleXs[i];
+            float t = (x - domainStart) / domainLength;
+            ReadOnlySpan<float> comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
+            if (palette != null)
             {
-                float start = positions[0];
-                listPositions.Insert(0, start);
-                listColors.Insert(0, PdfColors.Transparent);
+                colors[i] = palette.GetColor((comps.Length > 0) ? comps[0] : 0f);
+            }
+            else
+            {
+                colors[i] = new PdfColor(comps.ToArray());
             }
 
-            if (!shading.ExtendEnd)
-            {
-                float end = positions[positions.Length - 1];
-                listPositions.Add(end);
-                listColors.Add(PdfColors.Transparent);
-            }
-
-            positions = listPositions.ToArray();
-            colors = listColors.ToArray();
+            positions[i] = t;
         }
 
         return new PdfShadingColorStops(colors, positions);

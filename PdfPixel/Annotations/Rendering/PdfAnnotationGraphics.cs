@@ -27,12 +27,17 @@ internal static class PdfAnnotationGraphics
     /// <summary>
     /// Default border color used when rendering a bubble with no annotation color defined.
     /// </summary>
-    internal static readonly PdfColor DefaultBubbleBorderColor = new(180f / 255f, 140f / 255f, 60f / 255f);
+    internal static readonly float[] DefaultBubbleBorderColor = [180f / 255f, 140f / 255f, 60f / 255f];
 
     /// <summary>
     /// Default background color used when rendering a bubble with no annotation interior color defined.
     /// </summary>
-    internal static readonly PdfColor DefaultBubbleBackgroundColor = new(255f / 255f, 255f / 255f, 235f / 255f);
+    internal static readonly float[] DefaultBubbleBackgroundColor = [255f / 255f, 255f / 255f, 235f / 255f];
+
+    /// <summary>
+    /// Color the exterior paths of annotation icons are drawn in.
+    /// </summary>
+    internal static readonly float[] IconExteriorColor = [0f];
 
     private static readonly Dictionary<(string Name, PdfAnnotationVisualStateKind State), PdfAnnotationIconDefinition> Icons = [];
 
@@ -83,27 +88,30 @@ internal static class PdfAnnotationGraphics
     /// <param name="processor">
     /// The command processor to emit commands to.
     /// </param>
+    /// <param name="page">
+    /// The PDF page the color overrides of the icon are resolved for.
+    /// </param>
     /// <param name="icon">
     /// The icon definition to render.
     /// </param>
     /// <param name="rect">
     /// The target rectangle in current coordinate space.
     /// </param>
-    /// <param name="color">
-    /// The exterior (border/stroke) color, used for
-    /// <see cref="PdfAnnotationIconColorType.Exterior"/> paths.
+    /// <param name="paint">
+    /// The exterior (border/stroke) paint, used for
+    /// <see cref="PdfAnnotationIconColorType.Exterior"/> paths, or null to leave them out.
     /// </param>
-    /// <param name="interiorColor">
-    /// The interior (fill) color, used for
-    /// <see cref="PdfAnnotationIconColorType.Interior"/> paths.
-    /// Falls back to <paramref name="color"/> when null.
+    /// <param name="interiorPaint">
+    /// The interior (fill) paint, used for
+    /// <see cref="PdfAnnotationIconColorType.Interior"/> paths, or null to leave them out.
     /// </param>
     public static void RenderIcon(
         IPdfCommandProcessor processor,
+        IPdfPageInternal page,
         PdfAnnotationIconDefinition icon,
         in PdfRectangle rect,
-        in PdfColor color,
-        PdfColor? interiorColor)
+        PdfPaint? paint,
+        PdfPaint? interiorPaint)
     {
         float scale = Math.Min(rect.Width / icon.Width, rect.Height / icon.Height);
         float offsetX = rect.Left + ((rect.Width - (icon.Width * scale)) / 2f);
@@ -123,7 +131,7 @@ internal static class PdfAnnotationGraphics
 
         foreach (PdfAnnotationIconPath iconPath in icon.Paths)
         {
-            RenderIconPath(processor, iconPath, color, interiorColor);
+            RenderIconPath(processor, page, iconPath, paint, interiorPaint);
         }
 
         if (useOpacityLayer)
@@ -152,11 +160,11 @@ internal static class PdfAnnotationGraphics
     /// <param name="lineWidth">
     /// The line width.
     /// </param>
-    /// <param name="lineColor">
-    /// The stroke color.
+    /// <param name="linePaint">
+    /// The paint whose color the ending is stroked in, or null when the line has none.
     /// </param>
-    /// <param name="interiorColor">
-    /// The fill color for closed shapes.
+    /// <param name="interiorPaint">
+    /// The paint closed shapes are filled with, or null when they have no interior.
     /// </param>
     public static void DrawLineEnding(
         IPdfCommandProcessor processor,
@@ -164,8 +172,8 @@ internal static class PdfAnnotationGraphics
         in PdfPoint adjacent,
         PdfLineEndingStyle style,
         float lineWidth,
-        in PdfColor lineColor,
-        PdfColor? interiorColor)
+        PdfPaint? linePaint,
+        PdfPaint? interiorPaint)
     {
         PdfAnnotationLineEndingRenderer.DrawLineEnding(
             processor,
@@ -175,54 +183,66 @@ internal static class PdfAnnotationGraphics
             adjacent.Y,
             style,
             lineWidth,
-            lineColor,
-            interiorColor);
+            linePaint,
+            interiorPaint);
     }
 
     private static void RenderIconPath(
         IPdfCommandProcessor processor,
+        IPdfPageInternal page,
         PdfAnnotationIconPath iconPath,
-        in PdfColor color,
-        PdfColor? interiorColor)
+        PdfPaint? paint,
+        PdfPaint? interiorPaint)
     {
         if (iconPath.FillColorType != PdfAnnotationIconColorType.None)
         {
-            PdfColor? fillColor = iconPath.FillColorType switch
+            PdfPaint? fillPaint = iconPath.FillColorType switch
             {
-                PdfAnnotationIconColorType.Interior => interiorColor,
-                PdfAnnotationIconColorType.Override => iconPath.FillColor,
-                _ => color
+                PdfAnnotationIconColorType.Interior => interiorPaint,
+                PdfAnnotationIconColorType.Override => CreateOverridePaint(page, iconPath.FillColor),
+                _ => paint
             };
 
-            if (fillColor != null)
+            if (fillPaint != null)
             {
-                PdfPaint fillPaint = PdfAnnotationPaintFactory.CreateFillPaint(ApplyOpacity(fillColor.Value, iconPath.FillOpacity));
-                processor.Process(new DrawPathCommand(iconPath.Path, fillPaint));
+                processor.Process(new DrawPathCommand(iconPath.Path, ApplyOpacity(fillPaint, iconPath.FillOpacity)));
             }
         }
 
         if (iconPath.StrokeColorType != PdfAnnotationIconColorType.None)
         {
-            PdfColor? strokeColor = iconPath.StrokeColorType switch
+            PdfPaint? strokeColorPaint = iconPath.StrokeColorType switch
             {
-                PdfAnnotationIconColorType.Interior => interiorColor,
-                PdfAnnotationIconColorType.Override => iconPath.StrokeColor,
-                _ => color
+                PdfAnnotationIconColorType.Interior => interiorPaint,
+                PdfAnnotationIconColorType.Override => CreateOverridePaint(page, iconPath.StrokeColor),
+                _ => paint
             };
 
-            if (strokeColor != null)
+            if (strokeColorPaint != null)
             {
                 PdfStrokeStyle strokeStyle = new(
                     lineWidth: iconPath.StrokeWidth,
                     lineCap: iconPath.StrokeCap,
                     lineJoin: iconPath.StrokeJoin);
 
-                PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(ApplyOpacity(strokeColor.Value, iconPath.StrokeOpacity), strokeStyle);
+                PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(ApplyOpacity(strokeColorPaint, iconPath.StrokeOpacity), strokeStyle);
                 processor.Process(new DrawPathCommand(iconPath.Path, strokePaint));
             }
         }
     }
 
-    private static PdfColor ApplyOpacity(in PdfColor color, float opacity)
-        => (opacity >= 1f) ? color : color.WithAlpha(color.Alpha * opacity);
+    private static PdfPaint? CreateOverridePaint(IPdfPageInternal page, PdfRgbaColor? color)
+    {
+        if (color == null)
+        {
+            return null;
+        }
+
+        PdfRgbaColor overrideColor = color.Value;
+
+        return PdfAnnotationPaintFactory.CreatePaint([overrideColor.Red, overrideColor.Green, overrideColor.Blue], page).WithAlpha(overrideColor.Alpha);
+    }
+
+    private static PdfPaint ApplyOpacity(PdfPaint paint, float opacity)
+        => (opacity >= 1f) ? paint : paint.WithAlpha(paint.Alpha * opacity);
 }

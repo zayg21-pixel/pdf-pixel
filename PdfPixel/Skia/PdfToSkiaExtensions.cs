@@ -1,11 +1,13 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
+using PdfPixel.Skia.Cache;
 using PdfPixel.Skia.Converters;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 using PdfPixel.Imaging;
+using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.Commands;
 using PdfPixel.Shading;
 using PdfPixel.Transparency;
@@ -51,10 +53,10 @@ public static class PdfToSkiaExtensions
     public static SKSize ToSkSize(this in PdfSize size) => new(size.Width, size.Height);
 
     /// <summary>
-    /// Converts a <see cref="PdfColor"/> to an <see cref="SKColor"/>.
+    /// Converts a <see cref="PdfRgbaColor"/> to an <see cref="SKColor"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKColor ToSkiaColor(this in PdfColor color)
+    public static SKColor ToSkiaColor(this in PdfRgbaColor color)
         => new(ToByte(color.Red), ToByte(color.Green), ToByte(color.Blue), ToByte(color.Alpha));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -103,56 +105,16 @@ public static class PdfToSkiaExtensions
     }
 
     /// <summary>
-    /// Converts a <see cref="PdfStrokeCap"/> to the corresponding <see cref="SKStrokeCap"/>.
+    /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/>, converting its color with <paramref name="colorSampler"/>.
     /// </summary>
-    public static SKStrokeCap ToSkiaStrokeCap(this PdfStrokeCap strokeCap)
-    {
-        return strokeCap switch
-        {
-            PdfStrokeCap.Round => SKStrokeCap.Round,
-            PdfStrokeCap.Square => SKStrokeCap.Square,
-            _ => SKStrokeCap.Butt
-        };
-    }
-
-    /// <summary>
-    /// Converts a <see cref="PdfStrokeJoin"/> to the corresponding <see cref="SKStrokeJoin"/>.
-    /// </summary>
-    public static SKStrokeJoin ToSkiaStrokeJoin(this PdfStrokeJoin strokeJoin)
-    {
-        return strokeJoin switch
-        {
-            PdfStrokeJoin.Round => SKStrokeJoin.Round,
-            PdfStrokeJoin.Bevel => SKStrokeJoin.Bevel,
-            _ => SKStrokeJoin.Miter
-        };
-    }
-
-    /// <summary>
-    /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/>.
-    /// </summary>
-    public static SKPaint ToSkiaPaint(this PdfPaint paint)
+    internal static SKPaint ToSkiaPaint(this PdfPaint paint, SkiaColorSampler colorSampler)
     {
         if (paint == null)
         {
             throw new ArgumentNullException(nameof(paint));
         }
 
-        return PdfPaintConverter.ToSkiaPaint(paint);
-    }
-
-    /// <summary>
-    /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/> that fills the outline a stroke has
-    /// already been widened, dashed, capped, and joined into.
-    /// </summary>
-    public static SKPaint ToSkiaOutlineFillPaint(this PdfPaint paint)
-    {
-        if (paint == null)
-        {
-            throw new ArgumentNullException(nameof(paint));
-        }
-
-        return PdfPaintConverter.ToSkiaOutlineFillPaint(paint);
+        return PdfPaintConverter.ToSkiaPaint(paint, colorSampler);
     }
 
     /// <summary>
@@ -208,54 +170,67 @@ public static class PdfToSkiaExtensions
     }
 
     /// <summary>
-    /// Converts <see cref="PdfVertices"/> to <see cref="SKVertices"/>.
+    /// Converts <see cref="PdfImageSamples"/> to an <see cref="SKImage"/>.
     /// </summary>
-    public static SKVertices ToSkVertices(this PdfVertices vertices)
+    public static SKImage ToSkImage(this PdfImageSamples samples)
+    {
+        if (samples == null)
+        {
+            throw new ArgumentNullException(nameof(samples));
+        }
+
+        return PdfImageConverter.ToSkImage(samples);
+    }
+
+    /// <summary>
+    /// Converts <see cref="PdfVertices"/> to <see cref="SKVertices"/>, converting its colors with <paramref name="colorSampler"/>.
+    /// </summary>
+    internal static SKVertices ToSkVertices(this PdfVertices vertices, SkiaColorSampler colorSampler)
     {
         if (vertices == null)
         {
             throw new ArgumentNullException(nameof(vertices));
         }
 
-        return PdfShadingConverter.ToSkVertices(vertices);
+        return PdfShadingConverter.ToSkVertices(vertices, colorSampler);
     }
 
     /// <summary>
-    /// Builds the shader for an axial (Type 2) gradient.
+    /// Builds the shader for an axial (Type 2) gradient, converting its colors with <paramref name="colorSampler"/>.
     /// </summary>
-    public static SKShader ToSkiaShader(this PdfAxialGradient gradient)
+    internal static SKShader ToSkiaShader(this PdfAxialGradient gradient, SkiaColorSampler colorSampler)
     {
         if (gradient == null)
         {
             throw new ArgumentNullException(nameof(gradient));
         }
 
-        return PdfShadingConverter.ToSkiaShader(gradient);
+        return PdfShadingConverter.ToSkiaShader(gradient, colorSampler);
     }
 
     /// <summary>
-    /// Builds the outer-cone shader for a radial (Type 3) gradient.
+    /// Builds the outer-cone shader for a radial (Type 3) gradient, converting its colors with <paramref name="colorSampler"/>.
     /// </summary>
-    public static SKShader ToSkiaOuterShader(this PdfRadialGradient gradient)
+    internal static SKShader ToSkiaOuterShader(this PdfRadialGradient gradient, SkiaColorSampler colorSampler)
     {
         if (gradient == null)
         {
             throw new ArgumentNullException(nameof(gradient));
         }
 
-        return PdfShadingConverter.ToSkiaOuterShader(gradient);
+        return PdfShadingConverter.ToSkiaOuterShader(gradient, colorSampler);
     }
 
     /// <summary>
-    /// Builds the inner-cone shader for a radial (Type 3) gradient.
+    /// Builds the inner-cone shader for a radial (Type 3) gradient, converting its colors with <paramref name="colorSampler"/>.
     /// </summary>
-    public static SKShader ToSkiaInnerShader(this PdfRadialGradient gradient)
+    internal static SKShader ToSkiaInnerShader(this PdfRadialGradient gradient, SkiaColorSampler colorSampler)
     {
         if (gradient == null)
         {
             throw new ArgumentNullException(nameof(gradient));
         }
 
-        return PdfShadingConverter.ToSkiaInnerShader(gradient);
+        return PdfShadingConverter.ToSkiaInnerShader(gradient, colorSampler);
     }
 }

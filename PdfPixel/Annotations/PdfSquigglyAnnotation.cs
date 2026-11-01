@@ -1,5 +1,4 @@
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -36,18 +35,21 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfColor color = ResolveColor(page);
+        PdfPaint? linePaint = ResolvePaint(page);
 
-        foreach (PdfPoint[] quad in quads)
+        if (linePaint != null)
         {
-            (PdfMatrix lineMatrix, float halfLength, float height) = GetBaselineFrame(quad);
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(linePaint);
 
-            PdfPathBuilder path = new(lineMatrix);
-            DrawSquigglyLine(path, -halfLength, halfLength, 0f, GetAmplitude(height));
+            foreach (PdfPoint[] quad in quads)
+            {
+                (PdfMatrix lineMatrix, float halfLength, float height) = GetBaselineFrame(quad);
 
-            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
+                PdfPathBuilder path = new(lineMatrix);
+                DrawSquigglyLine(path, -halfLength, halfLength, 0f, GetAmplitude(height));
 
-            processor.Process(new DrawPathCommand(path.ToPath(), paint));
+                processor.Process(new DrawPathCommand(path.ToPath(), paint));
+            }
         }
 
         return true;

@@ -1,5 +1,4 @@
 using PdfPixel.Annotations;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -22,8 +21,8 @@ internal static class PdfAnnotationLineEndingRenderer
     /// <param name="otherY">The Y coordinate of the next point (used for angle calculation).</param>
     /// <param name="style">The line ending style.</param>
     /// <param name="lineWidth">The line width for rendering.</param>
-    /// <param name="lineColor">The line color.</param>
-    /// <param name="interiorColor">The interior fill color for closed shapes.</param>
+    /// <param name="linePaint">The paint whose color the ending is stroked in, or null when the line has none.</param>
+    /// <param name="interiorPaint">The paint closed shapes are filled with, or null when they have no interior.</param>
     public static void DrawLineEnding(
         IPdfCommandProcessor processor,
         float x,
@@ -32,8 +31,8 @@ internal static class PdfAnnotationLineEndingRenderer
         float otherY,
         PdfLineEndingStyle style,
         float lineWidth,
-        in PdfColor lineColor,
-        PdfColor? interiorColor)
+        PdfPaint? linePaint,
+        PdfPaint? interiorPaint)
     {
         float endingSize = GetEndingSize(lineWidth);
 
@@ -44,47 +43,47 @@ internal static class PdfAnnotationLineEndingRenderer
         {
             case PdfLineEndingStyle.OpenArrow:
                 {
-                    DrawOpenArrow(processor, endingSize, lineWidth, lineColor);
+                    DrawOpenArrow(processor, endingSize, lineWidth, linePaint);
                     break;
                 }
             case PdfLineEndingStyle.ClosedArrow:
                 {
-                    DrawClosedArrow(processor, endingSize, lineWidth, lineColor, interiorColor);
+                    DrawClosedArrow(processor, endingSize, lineWidth, linePaint, interiorPaint);
                     break;
                 }
             case PdfLineEndingStyle.Square:
                 {
-                    DrawSquare(processor, endingSize, lineWidth, lineColor, interiorColor);
+                    DrawSquare(processor, endingSize, lineWidth, linePaint, interiorPaint);
                     break;
                 }
             case PdfLineEndingStyle.Circle:
                 {
-                    DrawCircle(processor, endingSize, lineWidth, lineColor, interiorColor);
+                    DrawCircle(processor, endingSize, lineWidth, linePaint, interiorPaint);
                     break;
                 }
             case PdfLineEndingStyle.Diamond:
                 {
-                    DrawDiamond(processor, endingSize, lineWidth, lineColor, interiorColor);
+                    DrawDiamond(processor, endingSize, lineWidth, linePaint, interiorPaint);
                     break;
                 }
             case PdfLineEndingStyle.Butt:
                 {
-                    DrawButt(processor, endingSize, lineWidth, lineColor);
+                    DrawButt(processor, endingSize, lineWidth, linePaint);
                     break;
                 }
             case PdfLineEndingStyle.ROpenArrow:
                 {
-                    DrawROpenArrow(processor, endingSize, lineWidth, lineColor);
+                    DrawROpenArrow(processor, endingSize, lineWidth, linePaint);
                     break;
                 }
             case PdfLineEndingStyle.RClosedArrow:
                 {
-                    DrawRClosedArrow(processor, endingSize, lineWidth, lineColor, interiorColor);
+                    DrawRClosedArrow(processor, endingSize, lineWidth, linePaint, interiorPaint);
                     break;
                 }
             case PdfLineEndingStyle.Slash:
                 {
-                    DrawSlash(processor, endingSize, lineWidth, lineColor);
+                    DrawSlash(processor, endingSize, lineWidth, linePaint);
                     break;
                 }
         }
@@ -106,97 +105,48 @@ internal static class PdfAnnotationLineEndingRenderer
         return 2f * GetEndingSize(lineWidth);
     }
 
-    private static void DrawOpenArrow(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color)
+    private static void DrawOpenArrow(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint)
     {
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-
         PdfPathBuilder path = new();
         path.MoveTo(size, -size / 2);
         path.LineTo(0, 0);
         path.LineTo(size, size / 2);
 
-        processor.Process(new DrawPathCommand(path.ToPath(), paint));
+        DrawStroke(processor, path.ToPath(), lineWidth, paint);
     }
 
-    private static void DrawClosedArrow(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
+    private static void DrawClosedArrow(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint, PdfPaint? interiorPaint)
+        => DrawClosedShape(processor, CreateClosedArrowPath(size), lineWidth, paint, interiorPaint);
+
+    private static void DrawSquare(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint, PdfPaint? interiorPaint)
+        => DrawClosedShape(processor, CreateSquarePath(size), lineWidth, paint, interiorPaint);
+
+    private static void DrawCircle(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint, PdfPaint? interiorPaint)
+        => DrawClosedShape(processor, CreateCirclePath(size), lineWidth, paint, interiorPaint);
+
+    private static void DrawDiamond(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint, PdfPaint? interiorPaint)
+        => DrawClosedShape(processor, CreateDiamondPath(size), lineWidth, paint, interiorPaint);
+
+    private static void DrawButt(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint)
     {
-        PdfPath builtPath = CreateClosedArrowPath(size);
-
-        if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
-        {
-            PdfPaint fillPaint = PdfAnnotationPaintFactory.CreateFillPaint(interiorColor.Value);
-            processor.Process(new DrawPathCommand(builtPath, fillPaint));
-        }
-
-        PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-        processor.Process(new DrawPathCommand(builtPath, strokePaint));
-    }
-
-    private static void DrawSquare(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
-    {
-        PdfPath builtPath = CreateSquarePath(size);
-
-        if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
-        {
-            PdfPaint fillPaint = PdfAnnotationPaintFactory.CreateFillPaint(interiorColor.Value);
-            processor.Process(new DrawPathCommand(builtPath, fillPaint));
-        }
-
-        PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-        processor.Process(new DrawPathCommand(builtPath, strokePaint));
-    }
-
-    private static void DrawCircle(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
-    {
-        PdfPath builtPath = CreateCirclePath(size);
-
-        if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
-        {
-            PdfPaint fillPaint = PdfAnnotationPaintFactory.CreateFillPaint(interiorColor.Value);
-            processor.Process(new DrawPathCommand(builtPath, fillPaint));
-        }
-
-        PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-        processor.Process(new DrawPathCommand(builtPath, strokePaint));
-    }
-
-    private static void DrawDiamond(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
-    {
-        PdfPath builtPath = CreateDiamondPath(size);
-
-        if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
-        {
-            PdfPaint fillPaint = PdfAnnotationPaintFactory.CreateFillPaint(interiorColor.Value);
-            processor.Process(new DrawPathCommand(builtPath, fillPaint));
-        }
-
-        PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-        processor.Process(new DrawPathCommand(builtPath, strokePaint));
-    }
-
-    private static void DrawButt(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color)
-    {
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-
         PdfPathBuilder path = new();
         path.MoveTo(0, -size / 2);
         path.LineTo(0, size / 2);
-        processor.Process(new DrawPathCommand(path.ToPath(), paint));
+
+        DrawStroke(processor, path.ToPath(), lineWidth, paint);
     }
 
-    private static void DrawROpenArrow(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color)
+    private static void DrawROpenArrow(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint)
     {
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-
         PdfPathBuilder path = new();
         path.MoveTo(-size, size / 2);
         path.LineTo(0, 0);
         path.LineTo(-size, -size / 2);
 
-        processor.Process(new DrawPathCommand(path.ToPath(), paint));
+        DrawStroke(processor, path.ToPath(), lineWidth, paint);
     }
 
-    private static void DrawRClosedArrow(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color, PdfColor? interiorColor)
+    private static void DrawRClosedArrow(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint, PdfPaint? interiorPaint)
     {
         PdfPathBuilder path = new();
         path.MoveTo(0, 0);
@@ -204,26 +154,36 @@ internal static class PdfAnnotationLineEndingRenderer
         path.LineTo(-size, -size / 2);
         path.Close();
 
-        PdfPath builtPath = path.ToPath();
-
-        if (interiorColor.HasValue && interiorColor.Value != PdfColors.Transparent)
-        {
-            PdfPaint fillPaint = PdfAnnotationPaintFactory.CreateFillPaint(interiorColor.Value);
-            processor.Process(new DrawPathCommand(builtPath, fillPaint));
-        }
-
-        PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-        processor.Process(new DrawPathCommand(builtPath, strokePaint));
+        DrawClosedShape(processor, path.ToPath(), lineWidth, paint, interiorPaint);
     }
 
-    private static void DrawSlash(IPdfCommandProcessor processor, float size, float lineWidth, in PdfColor color)
+    private static void DrawSlash(IPdfCommandProcessor processor, float size, float lineWidth, PdfPaint? paint)
     {
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, lineWidth);
-
         PdfPathBuilder path = new();
         path.MoveTo(-size / 2, -size / 2);
         path.LineTo(size / 2, size / 2);
-        processor.Process(new DrawPathCommand(path.ToPath(), paint));
+
+        DrawStroke(processor, path.ToPath(), lineWidth, paint);
+    }
+
+    private static void DrawClosedShape(IPdfCommandProcessor processor, PdfPath path, float lineWidth, PdfPaint? paint, PdfPaint? interiorPaint)
+    {
+        if (interiorPaint != null)
+        {
+            processor.Process(new DrawPathCommand(path, interiorPaint));
+        }
+
+        DrawStroke(processor, path, lineWidth, paint);
+    }
+
+    private static void DrawStroke(IPdfCommandProcessor processor, PdfPath path, float lineWidth, PdfPaint? paint)
+    {
+        if (paint == null)
+        {
+            return;
+        }
+
+        processor.Process(new DrawPathCommand(path, PdfAnnotationPaintFactory.CreateStrokePaint(paint, lineWidth)));
     }
 
     private static float GetEndingSize(float lineWidth) => lineWidth * 6f;

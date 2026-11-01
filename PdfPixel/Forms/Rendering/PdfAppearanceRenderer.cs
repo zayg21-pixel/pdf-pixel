@@ -1,6 +1,5 @@
 using PdfPixel.Annotations;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
@@ -65,23 +64,23 @@ internal static class PdfAppearanceRenderer
 
     /// <summary>
     /// Fills the area enclosed by the border of <paramref name="borderStyle"/> inside <paramref name="box"/>, with
-    /// <paramref name="borderEffect"/> applied, with <paramref name="color"/>.
+    /// <paramref name="borderEffect"/> applied, with <paramref name="paint"/>.
     /// </summary>
     /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="box">The box the border lies inside.</param>
     /// <param name="borderStyle">The border style, or null for a solid border of width 1.</param>
     /// <param name="borderEffect">The border effect.</param>
-    /// <param name="color">The background color.</param>
+    /// <param name="paint">The paint the background is filled with.</param>
     public static void DrawBackground(
         IPdfCommandProcessor processor,
         in PdfRectangle box,
         PdfAnnotationBorderStyle? borderStyle,
         in PdfAnnotationBorderEffect borderEffect,
-        in PdfColor color)
+        PdfPaint paint)
     {
         PdfPath backgroundPath = CreateBorderPath(box, borderStyle, GetStrokeStyle(borderStyle).LineWidth, borderEffect);
 
-        processor.Process(new DrawPathCommand(backgroundPath, PdfAnnotationPaintFactory.CreateFillPaint(color)));
+        processor.Process(new DrawPathCommand(backgroundPath, paint));
     }
 
     /// <summary>
@@ -91,13 +90,13 @@ internal static class PdfAppearanceRenderer
     /// <param name="box">The box the border lies inside.</param>
     /// <param name="borderStyle">The border style, or null for a solid border of width 1.</param>
     /// <param name="borderEffect">The border effect.</param>
-    /// <param name="color">The border color.</param>
+    /// <param name="paint">The paint whose color the border is stroked in.</param>
     public static void DrawBorder(
         IPdfCommandProcessor processor,
         in PdfRectangle box,
         PdfAnnotationBorderStyle? borderStyle,
         in PdfAnnotationBorderEffect borderEffect,
-        in PdfColor color)
+        PdfPaint paint)
     {
         PdfStrokeStyle strokeStyle = GetStrokeStyle(borderStyle);
         float lineWidth = strokeStyle.LineWidth;
@@ -108,7 +107,7 @@ internal static class PdfAppearanceRenderer
 
         PdfPath borderPath = CreateBorderPath(box, borderStyle, lineWidth, borderEffect);
 
-        processor.Process(new DrawPathCommand(borderPath, PdfAnnotationPaintFactory.CreateStrokePaint(color, strokeStyle, borderEffect)));
+        processor.Process(new DrawPathCommand(borderPath, PdfAnnotationPaintFactory.CreateStrokePaint(paint, strokeStyle, borderEffect)));
     }
 
     /// <summary>

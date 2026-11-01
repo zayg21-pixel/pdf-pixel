@@ -1,35 +1,35 @@
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using System.Linq;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Represents a recorded set of commands replayed under its own matrix, with a specified tint color.
+/// Represents a recorded set of commands replayed under its own matrix, with a specified tint paint.
 /// A save/restore boundary surrounds the replay because the nested commands' state (matrix, clip).
 /// </summary>
 public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
 {
     /// <summary>
-    /// Initializes the command with a recorder, matrix, and an optional tint color.
+    /// Initializes the command with a recorder, matrix, and an optional tint paint.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, in PdfMatrix matrix, PdfColor? tintColor)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, in PdfMatrix matrix, PdfPaint? tintPaint)
     {
         Recorder = recorder;
         Matrix = matrix;
-        TintColor = tintColor;
+        TintPaint = tintPaint;
     }
 
     /// <summary>
-    /// Initializes the command with a recorder and an optional tint color; identity matrix.
+    /// Initializes the command with a recorder and an optional tint paint; identity matrix.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, PdfColor? tintColor)
-        : this(recorder, PdfMatrix.Identity, tintColor)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, PdfPaint? tintPaint)
+        : this(recorder, PdfMatrix.Identity, tintPaint)
     {
     }
 
     /// <summary>
-    /// Initializes the command with a recorder; identity matrix, no tint color applied.
+    /// Initializes the command with a recorder; identity matrix, no tint paint applied.
     /// </summary>
     public DrawRecordingCommand(PdfCommandRecorder recorder)
         : this(recorder, PdfMatrix.Identity, null)
@@ -45,9 +45,9 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
     public PdfMatrix Matrix { get; }
 
     /// <summary>
-    /// Tint color of a current command batch.
+    /// Tint paint of a current command batch.
     /// </summary>
-    public PdfColor? TintColor { get; }
+    public PdfPaint? TintPaint { get; }
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => Recorder.Commands.Aggregate(PdfCommandFeatures.None, (acc, cmd) => acc | cmd.Features);

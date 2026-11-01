@@ -376,7 +376,7 @@ internal static class DocumentDtoConverter
         };
     }
 
-    private static string ToHexColor(in PdfColor color)
+    private static string ToHexColor(in PdfRgbaColor color)
     {
         return string.Format(
             CultureInfo.InvariantCulture,

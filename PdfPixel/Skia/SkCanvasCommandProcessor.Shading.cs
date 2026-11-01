@@ -10,7 +10,8 @@ public sealed partial class SkCanvasCommandProcessor
 {
     private void ExecuteDrawShading(DrawShadingCommand command)
     {
-        ShadingCommandCacheEntry entry = GetOrBuildShadingEntry(command.Content);
+        SkiaColorSampler colorSampler = SkiaCommandUtilities.GetOrCreateColorSampler(_executionContext, command.Paint);
+        ShadingCommandCacheEntry entry = GetOrBuildShadingEntry(command.Content, colorSampler);
 
         switch (command.Content.ShadingType)
         {
@@ -41,33 +42,33 @@ public sealed partial class SkCanvasCommandProcessor
     }
 
     /// <summary>
-    /// Returns the cached primitives built for the shading content, building and storing them when the
-    /// cache holds none.
+    /// Returns the cached primitives built for the shading content with its colors converted by
+    /// <paramref name="colorSampler"/>, building and storing them when the cache holds none.
     /// </summary>
-    private ShadingCommandCacheEntry GetOrBuildShadingEntry(PdfShadingContent content)
+    private ShadingCommandCacheEntry GetOrBuildShadingEntry(PdfShadingContent content, SkiaColorSampler colorSampler)
     {
-        ShadingCommandCacheKey key = new(content);
+        ShadingCommandCacheKey key = new(content, colorSampler);
 
         if (_executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing)
         {
             return existing;
         }
 
-        SKImage? image = (content.Function != null) ? PdfImageConverter.ToSkImage(content.Function.Image) : null;
+        SKImage? image = (content.Function != null) ? PdfShadingConverter.ToSkImage(content.Function, colorSampler) : null;
         SKShader? shader = null;
         SKShader? innerShader = null;
 
         if (content.Axial != null)
         {
-            shader = content.Axial.ToSkiaShader();
+            shader = content.Axial.ToSkiaShader(colorSampler);
         }
         else if (content.Radial != null)
         {
-            shader = content.Radial.ToSkiaOuterShader();
-            innerShader = content.Radial.ToSkiaInnerShader();
+            shader = content.Radial.ToSkiaOuterShader(colorSampler);
+            innerShader = content.Radial.ToSkiaInnerShader(colorSampler);
         }
 
-        SKVertices? vertices = content.Mesh?.ToSkVertices();
+        SKVertices? vertices = content.Mesh?.ToSkVertices(colorSampler);
 
         ShadingCommandCacheEntry entry = new(image, shader, innerShader, vertices);
         _executionContext.Cache.StoreEntry(key, entry);
@@ -117,7 +118,7 @@ public sealed partial class SkCanvasCommandProcessor
 
         using SKPaint paint = new()
         {
-            Color = SkiaCommandUtilities.ApplyAlpha(SKColors.Black, command.FillAlpha),
+            Color = SkiaCommandUtilities.ApplyAlpha(SKColors.Black, command.Paint.Alpha),
             IsAntialias = _executionContext.Parameters.Antialias
         };
 
@@ -131,7 +132,7 @@ public sealed partial class SkCanvasCommandProcessor
         using SKPaint paint = new()
         {
             Shader = shader,
-            Color = SkiaCommandUtilities.ApplyAlpha(SKColors.Black, command.FillAlpha),
+            Color = SkiaCommandUtilities.ApplyAlpha(SKColors.Black, command.Paint.Alpha),
             IsAntialias = _executionContext.Parameters.Antialias
         };
 

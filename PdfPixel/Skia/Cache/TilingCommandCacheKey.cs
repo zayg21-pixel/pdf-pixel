@@ -12,11 +12,11 @@ namespace PdfPixel.Skia.Cache;
 internal sealed class TilingCommandCacheKey : ICommandCacheKey
 {
     private readonly PdfCommandRecorder _recorder;
-    private readonly PdfColor? _tintColor;
+    private readonly PdfRgbaColor? _tintColor;
     private readonly PdfMatrix _deviceMatrix;
     private readonly bool _repeating;
 
-    public TilingCommandCacheKey(DrawTilingCommand command, in PdfMatrix deviceMatrix, bool repeating)
+    public TilingCommandCacheKey(DrawTilingCommand command, PdfRgbaColor? tintColor, in PdfMatrix deviceMatrix, bool repeating)
     {
         if (command == null)
         {
@@ -24,7 +24,7 @@ internal sealed class TilingCommandCacheKey : ICommandCacheKey
         }
 
         _recorder = command.RecordingCommand.Recorder;
-        _tintColor = command.RecordingCommand.TintColor;
+        _tintColor = tintColor;
         _deviceMatrix = deviceMatrix;
         _repeating = repeating;
     }

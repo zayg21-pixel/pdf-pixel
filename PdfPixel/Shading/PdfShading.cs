@@ -1,4 +1,3 @@
-using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
@@ -18,7 +17,7 @@ namespace PdfPixel.Shading;
 /// </summary>
 public sealed class PdfShading
 {
-    private readonly Dictionary<ColorTransformSampler, PdfShadingContent> _contentBySampler = [];
+    private readonly Dictionary<PdfColorSpaceConverter, PdfShadingContent> _contentByColorSpace = [];
 
     private PdfShading(PdfObject pdfObject)
     {
@@ -130,20 +129,18 @@ public sealed class PdfShading
     /// <summary>
     /// Returns the rendering primitives for this shading drawn from the given state, using the shading's cache if available.
     /// </summary>
+    /// <param name="colorSpace">Color space resolved for the shading's /ColorSpace.</param>
     /// <param name="state">Graphics state the shading is drawn from.</param>
     /// <returns>Shading content, resolved from cache or newly built.</returns>
-    internal PdfShadingContent GetContent(PdfGraphicsState state)
+    internal PdfShadingContent GetContent(PdfColorSpaceConverter colorSpace, PdfGraphicsState state)
     {
-        PdfColorSpaceConverter converter = state.Host.Resources.ResolveColorSpace(ColorSpaceReference) ?? PdfDeviceRgbColorSpaceConverter.Instance;
-        ColorTransformSampler sampler = converter.GetRgbaSampler(new PdfColorConversionParameters(state, state.Host.Resources.DeviceColorMapping));
-
-        if (_contentBySampler.TryGetValue(sampler, out PdfShadingContent? cachedContent))
+        if (_contentByColorSpace.TryGetValue(colorSpace, out PdfShadingContent? cachedContent))
         {
             return cachedContent;
         }
 
-        PdfShadingContent content = PdfShadingContent.Build(this, sampler, state);
-        _contentBySampler[sampler] = content;
+        PdfShadingContent content = PdfShadingContent.Build(this, colorSpace, state);
+        _contentByColorSpace[colorSpace] = content;
 
         return content;
     }

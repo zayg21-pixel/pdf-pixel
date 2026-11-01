@@ -1,5 +1,5 @@
-using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Forms;
 using PdfPixel.Objects;
@@ -75,19 +75,27 @@ public class PdfSoftMask
     }
 
     /// <summary>
-    /// Retrieves the background color, converting it to sRGB if necessary.
+    /// Returns the paint the background is drawn with: the background color in the group's color space, the initial
+    /// color of that space when the background color is absent, or black when there is no group color space.
     /// </summary>
     /// <param name="state">Graphics state the mask is applied in.</param>
-    /// <returns>Background color.</returns>
-    internal PdfColor GetBackgroundColor(PdfGraphicsState state)
+    /// <returns>Background paint.</returns>
+    internal PdfPaint GetBackgroundPaint(PdfGraphicsState state)
     {
-        if (MaskForm.TransparencyGroup == null || BackgroundColorComponents == null)
+        if (MaskForm.TransparencyGroup == null)
         {
-            return PdfColors.Black;
+            return new PdfPaint(PdfPaintStyle.Fill);
         }
 
         PdfColorSpaceConverter? converter = state.Host.Resources.ResolveColorSpace(MaskForm.TransparencyGroup.ColorSpaceReference);
 
-        return converter?.ToSrgb(BackgroundColorComponents, new PdfColorConversionParameters(state, state.Host.Resources.DeviceColorMapping)) ?? PdfColors.Black;
+        if (converter == null)
+        {
+            return new PdfPaint(PdfPaintStyle.Fill);
+        }
+
+        float[] components = BackgroundColorComponents ?? converter.GetInitialComponents();
+
+        return PdfPaintFactory.CreateBackgroundPaint(state, converter, components);
     }
 }

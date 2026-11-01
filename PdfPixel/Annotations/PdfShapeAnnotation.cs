@@ -1,6 +1,5 @@
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
@@ -98,17 +97,18 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
         }
 
         PdfPath effectPath = BorderEffect.Apply(shapePath, strokeStyle.LineWidth);
-        PdfColor interiorColor = ResolveInteriorColor(page);
+        PdfPaint? interiorPaint = ResolveInteriorPaint(page);
 
-        if (interiorColor != PdfColors.Transparent)
+        if (interiorPaint != null)
         {
-            processor.Process(new DrawPathCommand(effectPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
+            processor.Process(new DrawPathCommand(effectPath, interiorPaint));
         }
 
-        if (HasBorder(strokeStyle))
+        PdfPaint? borderPaint = ResolvePaint(page);
+
+        if (HasBorder(strokeStyle) && borderPaint != null)
         {
-            PdfColor strokeColor = ResolveColor(page);
-            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, strokeStyle, BorderEffect);
+            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(borderPaint, strokeStyle, BorderEffect);
             processor.Process(new DrawPathCommand(effectPath, strokePaint));
         }
 

@@ -21,8 +21,8 @@ public sealed class PdfPanelSearch
     internal const bool DefaultMatchDiacritics = false;
     internal const bool DefaultShowHighlights = true;
 
-    internal static readonly PdfColor DefaultMatchColor = new(255f / 255f, 200f / 255f, 0f / 255f, 100f / 255f);
-    internal static readonly PdfColor DefaultCurrentMatchColor = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
+    internal static readonly PdfRgbaColor DefaultMatchColor = new(255f / 255f, 200f / 255f, 0f / 255f, 100f / 255f);
+    internal static readonly PdfRgbaColor DefaultCurrentMatchColor = new(255f / 255f, 120f / 255f, 0f / 255f, 140f / 255f);
 
     private readonly PdfPanelContext _context;
     private readonly PdfPanelText _text;
@@ -40,8 +40,8 @@ public sealed class PdfPanelSearch
     private bool _matchDiacritics;
     private string? _normalizedQuery;
     private PdfPanelSearchMatch? _drawnCurrentMatch;
-    private PdfColor _drawnMatchColor;
-    private PdfColor _drawnCurrentMatchColor;
+    private PdfRgbaColor _drawnMatchColor;
+    private PdfRgbaColor _drawnCurrentMatchColor;
     private float _drawnLineMergeThreshold;
     private bool _drawnShowHighlights = true;
 
@@ -84,12 +84,12 @@ public sealed class PdfPanelSearch
     /// <summary>
     /// Color the search matches are highlighted with.
     /// </summary>
-    public PdfColor MatchColor { get; set; } = DefaultMatchColor;
+    public PdfRgbaColor MatchColor { get; set; } = DefaultMatchColor;
 
     /// <summary>
     /// Color the current search match is highlighted with.
     /// </summary>
-    public PdfColor CurrentMatchColor { get; set; } = DefaultCurrentMatchColor;
+    public PdfRgbaColor CurrentMatchColor { get; set; } = DefaultCurrentMatchColor;
 
     /// <summary>
     /// Whether the search matches are highlighted.

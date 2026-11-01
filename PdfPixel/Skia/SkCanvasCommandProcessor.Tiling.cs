@@ -63,7 +63,7 @@ public sealed partial class SkCanvasCommandProcessor
     /// </summary>
     private TilingCommandCacheEntry GetOrBuildTile(DrawTilingCommand command, in PdfMatrix deviceMatrix)
     {
-        TilingCommandCacheKey key = new(command, deviceMatrix, repeating: true);
+        TilingCommandCacheKey key = new(command, ResolveTintColor(command.RecordingCommand), deviceMatrix, repeating: true);
 
         if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
         {
@@ -92,7 +92,7 @@ public sealed partial class SkCanvasCommandProcessor
     /// </summary>
     private TilingCommandCacheEntry GetOrBuildCell(DrawTilingCommand command, in PdfMatrix deviceMatrix)
     {
-        TilingCommandCacheKey key = new(command, deviceMatrix, repeating: false);
+        TilingCommandCacheKey key = new(command, ResolveTintColor(command.RecordingCommand), deviceMatrix, repeating: false);
 
         if (_executionContext.Cache.GetEntry(key) is TilingCommandCacheEntry existing)
         {

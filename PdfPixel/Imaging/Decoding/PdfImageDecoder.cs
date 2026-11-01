@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
@@ -158,15 +159,12 @@ internal abstract class PdfImageDecoder
     {
         PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize);
         float[]? matte = ResolveSoftMaskMatte(colorSpaceConverter);
-        PdfColorConversionParameters colorConversionParameters = new(Image.RenderingIntent, Context.TransferFunction, Context.UseBlackPointCompensation, Context.Host.Resources.DeviceColorMapping);
 
         return new PdfImageRowDecodingParameters(
-            Context,
+            CreateImagePaint(colorSpaceConverter),
             decodedSize.Width,
             decodedSize.Height,
             bitsPerComponent,
-            colorConversionParameters,
-            colorSpaceConverter,
             Image.HasImageMask,
             AppliedColorKeyMask,
             Image.Decode,
@@ -174,6 +172,27 @@ internal abstract class PdfImageDecoder
             ResolveMaskAlphaType(matte),
             isAlphaInterleaved: false,
             matte: matte);
+    }
+
+    /// <summary>
+    /// Returns the paint the image is drawn with: the fill paint unchanged for a stencil mask, otherwise the fill paint
+    /// with <paramref name="colorSpaceConverter"/> and the image's rendering intent.
+    /// </summary>
+    /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
+    protected PdfPaint CreateImagePaint(PdfColorSpaceConverter colorSpaceConverter)
+    {
+        PdfPaint fillPaint = Context.FillPaint;
+
+        if (Image.HasImageMask)
+        {
+            return fillPaint;
+        }
+
+        PdfRenderingIntent renderingIntent = Image.RenderingIntent ?? fillPaint.RenderingIntent;
+
+        return fillPaint
+            .WithColorSpace(colorSpaceConverter, Context.Host.Resources.DeviceColorMapping)
+            .WithColorConversion(renderingIntent, fillPaint.UseBlackPointCompensation, fillPaint.TransferFunction);
     }
 
 

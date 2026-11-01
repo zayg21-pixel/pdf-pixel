@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Shading.Decoding;
@@ -32,7 +33,7 @@ internal class MeshData
     /// <param name="points">Vertices or control points in user-space coordinates (decode applied).</param>
     /// <param name="cornerInputs">Color data for the patch corners or triangle vertices.</param>
     /// <param name="flag">Edge flag for the patch, as decoded from the shading stream.</param>
-    internal MeshData(PdfPoint[] points, MeshVertexColor[] cornerInputs, uint flag)
+    internal MeshData(PdfPoint[] points, PdfColor[] cornerInputs, uint flag)
     {
         Points = points;
         CornerColors = cornerInputs;
@@ -48,7 +49,7 @@ internal class MeshData
     /// <summary>
     /// Gets the color data for the patch corners or triangle vertices.
     /// </summary>
-    public MeshVertexColor[] CornerColors { get; }
+    public PdfColor[] CornerColors { get; }
 
     /// <summary>
     /// Gets the edge flag for the patch, as decoded from the shading stream.

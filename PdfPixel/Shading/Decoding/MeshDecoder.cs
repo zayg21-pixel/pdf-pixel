@@ -119,7 +119,7 @@ internal class MeshDecoder
     private MeshData DecodeMesh(ref UintBitReader bitReader, byte flag, MeshData? previousPatch)
     {
         var controlPoints = new PdfPoint[_controlPointCount];
-        var cornerColors = new MeshVertexColor[4];
+        var cornerColors = new PdfColor[4];
 
         if (flag == 0)
         {

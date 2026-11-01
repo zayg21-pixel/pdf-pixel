@@ -1,4 +1,4 @@
-using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 
@@ -24,9 +24,9 @@ internal interface IRenderTarget
     PdfRectangle Bounds { get; }
 
     /// <summary>
-    /// Returns color of the render target if applicable.
+    /// Returns paint of the render target.
     /// </summary>
-    PdfColor Color { get; }
+    PdfPaint Paint { get; }
 
     /// <summary>
     /// Called by pattern implementations before they emit their tile/shading commands.

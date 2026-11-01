@@ -21,7 +21,7 @@ public sealed class PdfPanelText
     internal const float DefaultCharacterHitRadius = 10f;
     internal const float DefaultLineMergeThreshold = 0.5f;
 
-    internal static readonly PdfColor DefaultSelectionColor = new(50f / 255f, 100f / 255f, 220f / 255f, 80f / 255f);
+    internal static readonly PdfRgbaColor DefaultSelectionColor = new(50f / 255f, 100f / 255f, 220f / 255f, 80f / 255f);
 
     private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelInput _input;
@@ -33,7 +33,7 @@ public sealed class PdfPanelText
     private int? _anchorCharIndex;
     private int? _currentCharIndex;
     private PdfPanelTextRange? _drawnSelection;
-    private PdfColor _drawnSelectionColor;
+    private PdfRgbaColor _drawnSelectionColor;
     private float _drawnLineMergeThreshold;
     private bool _isPointerOverText;
 
@@ -98,7 +98,7 @@ public sealed class PdfPanelText
     /// <summary>
     /// Color the selected text is highlighted with.
     /// </summary>
-    public PdfColor SelectionColor { get; set; } = DefaultSelectionColor;
+    public PdfRgbaColor SelectionColor { get; set; } = DefaultSelectionColor;
 
     /// <summary>
     /// Whether text can be selected with the pointer.

@@ -72,7 +72,7 @@ public sealed class PdfOutlineItem
     /// <summary>
     /// Color of the item's text (/C), or <see langword="null"/> when absent.
     /// </summary>
-    public PdfColor? Color { get; }
+    public PdfRgbaColor? Color { get; }
 
     /// <summary>
     /// Style of the item's text (/F).
@@ -116,7 +116,7 @@ public sealed class PdfOutlineItem
     }
 
 
-    private static PdfColor? ReadColor(PdfArray? components)
+    private static PdfRgbaColor? ReadColor(PdfArray? components)
     {
         if (components == null)
         {
@@ -131,6 +131,6 @@ public sealed class PdfOutlineItem
             return null;
         }
 
-        return new PdfColor(red.Value, green.Value, blue.Value);
+        return new PdfRgbaColor(red.Value, green.Value, blue.Value);
     }
 }

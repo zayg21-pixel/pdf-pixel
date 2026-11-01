@@ -45,7 +45,7 @@ public sealed class PdfOutlineItemViewModel : INotifyPropertyChanged
     /// <summary>
     /// Color of the item's text, or <see langword="null"/> when the document defines none.
     /// </summary>
-    public PdfColor? Color { get; }
+    public PdfRgbaColor? Color { get; }
 
     /// <summary>
     /// Whether the item is expanded, showing its children; initially whether the document opens it.

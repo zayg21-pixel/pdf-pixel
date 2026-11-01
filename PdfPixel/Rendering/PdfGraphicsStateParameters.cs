@@ -329,15 +329,6 @@ internal sealed class PdfGraphicsStateParameters
             graphicsState.SoftMask = null;
         }
 
-        if (TransferFunction != null)
-        {
-            graphicsState.TransferFunction = TransferFunction;
-        }
-        else if (ShouldUnsetTransferFunction)
-        {
-            graphicsState.TransferFunction = null;
-        }
-
         if (Knockout.HasValue)
         {
             graphicsState.Knockout = Knockout.Value;
@@ -362,16 +353,6 @@ internal sealed class PdfGraphicsStateParameters
         if (FontSize.HasValue)
         {
             graphicsState.FontSize = FontSize.Value;
-        }
-
-        if (PdfRenderingIntent.HasValue)
-        {
-            graphicsState.RenderingIntent = PdfRenderingIntent.Value;
-        }
-
-        if (UseBlackPtComp.HasValue)
-        {
-            graphicsState.UseBlackPointCompensation = UseBlackPtComp.Value != PdfBlackPointCompensation.Off;
         }
 
         if (AlphaIsShape.HasValue)

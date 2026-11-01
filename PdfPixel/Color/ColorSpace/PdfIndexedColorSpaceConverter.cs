@@ -1,4 +1,5 @@
 using PdfPixel.Color.Transform;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -19,12 +20,22 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
         BaseColorSpace = baseColorSpace ?? throw new ArgumentNullException(nameof(baseColorSpace));
         HighestIndex = Math.Max(0, highestIndex);
         Lookup = lookup ?? Array.Empty<byte>();
+        Palette = new PdfPalette(BaseColorSpace, HighestIndex, Lookup);
+        ComponentRanges = new PdfRange[] { new(0f, HighestIndex) };
     }
+
+    /// <inheritdoc />
+    public override PdfRange[]? ComponentRanges { get; }
 
     /// <summary>
     /// Gets the color space the palette entries are given in (base).
     /// </summary>
     public PdfColorSpaceConverter BaseColorSpace { get; }
+
+    /// <summary>
+    /// Gets the palette the indices select colors from.
+    /// </summary>
+    public PdfPalette Palette { get; }
 
     /// <summary>
     /// Gets the highest valid index (hival).
@@ -97,4 +108,7 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
     /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
         => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(parameters), HighestIndex)));
+
+    /// <inheritdoc />
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

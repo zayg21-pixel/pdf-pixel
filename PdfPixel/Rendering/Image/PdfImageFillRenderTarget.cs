@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
@@ -36,7 +35,7 @@ internal class PdfImageFillRenderTarget : IRenderTarget
     // The image occupies the unit square in current CTM space.
     public PdfRectangle Bounds => new(0, 0, 1, 1);
 
-    public PdfColor Color => _state.FillPaint.Color;
+    public PdfPaint Paint => _state.FillPaint;
 
     public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
     {

@@ -1,5 +1,4 @@
 using PdfPixel.Color.Transform;
-using PdfPixel.Rendering;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -29,14 +28,6 @@ public readonly struct PdfColorConversionParameters : IEquatable<PdfColorConvers
         TransferFunction = transferFunction;
         UseBlackPointCompensation = useBlackPointCompensation;
         _deviceColorMapping = deviceColorMapping;
-    }
-
-    /// <summary>
-    /// Initializes a new <see cref="PdfColorConversionParameters"/> from a graphics state and the mapping of device color spaces.
-    /// </summary>
-    internal PdfColorConversionParameters(PdfGraphicsState state, PdfDeviceColorMapping deviceColorMapping)
-        : this(state.RenderingIntent, state.TransferFunction, state.UseBlackPointCompensation, deviceColorMapping)
-    {
     }
 
     /// <summary>

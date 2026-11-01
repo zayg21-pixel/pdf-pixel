@@ -1,7 +1,7 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Parsing;
-using PdfPixel.Color.Transform;
 using System;
 using PdfPixel.Objects;
 using PdfPixel.Pattern;
@@ -117,8 +117,6 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = PdfColorSpaceResolver.ResolveDeviceConverter(space);
-        state.FillColorConverter = converter;
-        state.FillDeviceColorMapping = _host.Resources.DeviceColorMapping;
 
         var components = new float[converter.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
@@ -126,8 +124,7 @@ internal class ColorOperators : IOperatorProcessor
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        PdfColor color = converter.ToSrgb(components, new PdfColorConversionParameters(state, state.FillDeviceColorMapping));
-        state.FillPaint = state.FillPaint.WithSolidColor(color);
+        state.FillPaint = state.FillPaint.WithSolidColor(converter, _host.Resources.DeviceColorMapping, new PdfColor(components));
     }
 
     private void ProcessDeviceStrokeColor(PdfOperator op, PdfGraphicsState state)
@@ -167,8 +164,6 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = PdfColorSpaceResolver.ResolveDeviceConverter(space);
-        state.StrokeColorConverter = converter;
-        state.StrokeDeviceColorMapping = _host.Resources.DeviceColorMapping;
 
         var components = new float[converter.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
@@ -176,8 +171,7 @@ internal class ColorOperators : IOperatorProcessor
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        PdfColor color = converter.ToSrgb(components, new PdfColorConversionParameters(state, state.StrokeDeviceColorMapping));
-        state.StrokePaint = state.StrokePaint.WithSolidColor(color);
+        state.StrokePaint = state.StrokePaint.WithSolidColor(converter, _host.Resources.DeviceColorMapping, new PdfColor(components));
     }
 
     private void ProcessSetFillColor(PdfGraphicsState state)
@@ -188,13 +182,14 @@ internal class ColorOperators : IOperatorProcessor
             return;
         }
 
-        Span<float> components = stackalloc float[state.FillColorConverter.Components];
+        PdfPaint fillPaint = state.FillPaint;
+        var components = new float[fillPaint.ColorSpace.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
         {
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        state.FillPaint = state.FillPaint.WithSolidColor(state.FillRgbaSampler.Sample(components).ToPdfColor());
+        state.FillPaint = fillPaint.WithSolidColor(fillPaint.ColorSpace, fillPaint.DeviceColorMapping, new PdfColor(components));
     }
 
     private void ProcessSetStrokeColor(PdfGraphicsState state)
@@ -206,13 +201,14 @@ internal class ColorOperators : IOperatorProcessor
         }
 
 
-        Span<float> components = stackalloc float[state.StrokeColorConverter.Components];
+        PdfPaint strokePaint = state.StrokePaint;
+        var components = new float[strokePaint.ColorSpace.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Length; componentIndex++)
         {
             components[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        state.StrokePaint = state.StrokePaint.WithSolidColor(state.StrokeRgbaSampler.Sample(components).ToPdfColor());
+        state.StrokePaint = strokePaint.WithSolidColor(strokePaint.ColorSpace, strokePaint.DeviceColorMapping, new PdfColor(components));
     }
 
     private void ProcessSetFillColorN(PdfParseContext context, PdfGraphicsState state)
@@ -223,7 +219,8 @@ internal class ColorOperators : IOperatorProcessor
             return;
         }
 
-        PdfColorSpaceConverter converter = state.FillColorConverter;
+        PdfPaint fillPaint = state.FillPaint;
+        PdfColorSpaceConverter converter = fillPaint.ColorSpace;
         if (converter is PdfPatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].GetPdfValue(context).AsName();
@@ -231,24 +228,24 @@ internal class ColorOperators : IOperatorProcessor
 
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
-                PdfColor tintColor = PdfColors.Black;
-
                 if (tilingPattern.PaintType == PdfTilingPaintType.Uncolored)
                 {
-                    ReadOnlySpan<float> tintComponents = ExtractTintComponents(operands);
-                    tintColor = state.FillRgbaSampler.Sample(tintComponents).ToPdfColor();
+                    state.FillPaint = fillPaint.WithPattern(tilingPattern, ExtractTintComponents(operands));
+                }
+                else
+                {
+                    state.FillPaint = fillPaint.WithPattern(tilingPattern, PdfColor.Empty);
                 }
 
-                state.FillPaint = state.FillPaint.WithPattern(tilingPattern, tintColor);
                 return;
             }
             else if (resolvedPattern is PdfShadingPattern shadingPattern)
             {
-                state.FillPaint = state.FillPaint.WithPattern(shadingPattern, PdfColors.Black);
+                state.FillPaint = fillPaint.WithPattern(shadingPattern, PdfColor.Empty);
                 return;
             }
 
-            state.FillPaint = state.FillPaint.WithSolidColor(PdfColors.Black);
+            state.FillPaint = fillPaint.WithSolidColor(converter, fillPaint.DeviceColorMapping, PdfColor.Empty);
             return;
         }
 
@@ -258,7 +255,7 @@ internal class ColorOperators : IOperatorProcessor
             numericComponents[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        state.FillPaint = state.FillPaint.WithSolidColor(converter.ToSrgb(numericComponents, new PdfColorConversionParameters(state, state.FillDeviceColorMapping)));
+        state.FillPaint = fillPaint.WithSolidColor(converter, fillPaint.DeviceColorMapping, new PdfColor(numericComponents));
     }
 
     private void ProcessSetStrokeColorN(PdfParseContext context, PdfGraphicsState state)
@@ -269,31 +266,32 @@ internal class ColorOperators : IOperatorProcessor
             return;
         }
 
-        PdfColorSpaceConverter converter = state.StrokeColorConverter;
+        PdfPaint strokePaint = state.StrokePaint;
+        PdfColorSpaceConverter converter = strokePaint.ColorSpace;
         if (converter is PdfPatternColorSpaceConverter)
         {
             PdfString? patternName = operands[operands.Length - 1].GetPdfValue(context).AsName();
             PdfPattern? resolvedPattern = (patternName == null) ? null : _host.Resources.GetPattern(patternName.Value);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
-                PdfColor tintColor = PdfColors.Black;
-
                 if (tilingPattern.PaintType == PdfTilingPaintType.Uncolored)
                 {
-                    ReadOnlySpan<float> tintComponents = ExtractTintComponents(operands);
-                    tintColor = state.StrokeRgbaSampler.Sample(tintComponents).ToPdfColor();
+                    state.StrokePaint = strokePaint.WithPattern(tilingPattern, ExtractTintComponents(operands));
+                }
+                else
+                {
+                    state.StrokePaint = strokePaint.WithPattern(tilingPattern, PdfColor.Empty);
                 }
 
-                state.StrokePaint = state.StrokePaint.WithPattern(tilingPattern, tintColor);
                 return;
             }
             else if (resolvedPattern is PdfShadingPattern shadingPattern)
             {
-                state.StrokePaint = state.StrokePaint.WithPattern(shadingPattern, PdfColors.Black);
+                state.StrokePaint = strokePaint.WithPattern(shadingPattern, PdfColor.Empty);
                 return;
             }
 
-            state.StrokePaint = state.StrokePaint.WithSolidColor(PdfColors.Black);
+            state.StrokePaint = strokePaint.WithSolidColor(converter, strokePaint.DeviceColorMapping, PdfColor.Empty);
             return;
         }
 
@@ -303,7 +301,7 @@ internal class ColorOperators : IOperatorProcessor
             numericComponents[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        state.StrokePaint = state.StrokePaint.WithSolidColor(converter.ToSrgb(numericComponents, new PdfColorConversionParameters(state, state.StrokeDeviceColorMapping)));
+        state.StrokePaint = strokePaint.WithSolidColor(converter, strokePaint.DeviceColorMapping, new PdfColor(numericComponents));
     }
 
     private void ProcessSetFillColorSpace(PdfParseContext context, PdfGraphicsState state)
@@ -321,13 +319,8 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = _host.Resources.ResolveColorSpace(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
-        state.FillColorConverter = converter;
-        state.FillDeviceColorMapping = _host.Resources.DeviceColorMapping;
 
-        PdfColor initialColor = (converter is PdfPatternColorSpaceConverter)
-            ? PdfColors.Black
-            : state.FillRgbaSampler.Sample(converter.GetInitialComponents()).ToPdfColor();
-        state.FillPaint = state.FillPaint.WithSolidColor(initialColor);
+        state.FillPaint = state.FillPaint.WithSolidColor(converter, _host.Resources.DeviceColorMapping, new PdfColor(converter.GetInitialComponents()));
     }
 
     private void ProcessSetStrokeColorSpace(PdfParseContext context, PdfGraphicsState state)
@@ -345,30 +338,25 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = _host.Resources.ResolveColorSpace(raw) ?? PdfDeviceRgbColorSpaceConverter.Instance;
-        state.StrokeColorConverter = converter;
-        state.StrokeDeviceColorMapping = _host.Resources.DeviceColorMapping;
 
-        PdfColor initialColor = (converter is PdfPatternColorSpaceConverter)
-            ? PdfColors.Black
-            : state.StrokeRgbaSampler.Sample(converter.GetInitialComponents()).ToPdfColor();
-        state.StrokePaint = state.StrokePaint.WithSolidColor(initialColor);
+        state.StrokePaint = state.StrokePaint.WithSolidColor(converter, _host.Resources.DeviceColorMapping, new PdfColor(converter.GetInitialComponents()));
     }
 
-    private ReadOnlySpan<float> ExtractTintComponents(in ReadOnlySpan<PdfContentStreamValue> operands)
+    private PdfColor ExtractTintComponents(in ReadOnlySpan<PdfContentStreamValue> operands)
     {
         if (operands.Length <= 1)
         {
-            return ReadOnlySpan<float>.Empty;
+            return PdfColor.Empty;
         }
 
         int provided = operands.Length - 1; // last operand is pattern name
-        Span<float> values = new float[provided];
+        var values = new float[provided];
 
         for (int componentIndex = 0; componentIndex < provided; componentIndex++)
         {
             values[componentIndex] = operands[componentIndex].AsFloat() ?? 0f;
         }
 
-        return values;
+        return new PdfColor(values);
     }
 }

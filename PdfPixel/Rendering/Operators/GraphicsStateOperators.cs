@@ -121,7 +121,9 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.RenderingIntent = intentName.Value.AsEnum<PdfRenderingIntent>();
+        PdfRenderingIntent renderingIntent = intentName.Value.AsEnum<PdfRenderingIntent>();
+        graphicsState.FillPaint = graphicsState.FillPaint.WithRenderingIntent(renderingIntent);
+        graphicsState.StrokePaint = graphicsState.StrokePaint.WithRenderingIntent(renderingIntent);
     }
 
     private void ProcessSaveGraphicsState(PdfGraphicsState graphicsState)

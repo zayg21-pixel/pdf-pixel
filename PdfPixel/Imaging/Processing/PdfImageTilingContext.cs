@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -9,7 +9,9 @@ namespace PdfPixel.Imaging.Processing;
 internal sealed class PdfImageTilingContext
 {
     private readonly PdfTileInfo _tileInfo;
-    private readonly PdfImageRowProcessor _rowProcessor;
+    private readonly PdfImageRowDecodingParameters _imageParameters;
+    private readonly IPdfImagePipelineFactory _pipelineFactory;
+    private readonly bool _producesMask;
 
     private readonly IndexRange[] _columnSampleRanges;
     private readonly IndexRange[] _rowSampleRanges;
@@ -26,20 +28,13 @@ internal sealed class PdfImageTilingContext
         PdfImageRowDecodingParameters imageParameters,
         in PdfIntegerSize outputSize,
         HashSet<int>? tileIndexesToDecode,
-        ILoggerFactory loggerFactory)
+        IPdfImagePipelineFactory pipelineFactory,
+        bool producesMask)
     {
         _tileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
-
-        if (imageParameters == null)
-        {
-            throw new ArgumentNullException(nameof(imageParameters));
-        }
-
-        if (loggerFactory == null)
-        {
-            throw new ArgumentNullException(nameof(loggerFactory));
-        }
-
+        _imageParameters = imageParameters ?? throw new ArgumentNullException(nameof(imageParameters));
+        _pipelineFactory = pipelineFactory ?? throw new ArgumentNullException(nameof(pipelineFactory));
+        _producesMask = producesMask;
         _tileIndexesToDecode = tileIndexesToDecode;
 
         _columnSampleRanges = ComputeSampleRanges(tileInfo.TilesHorizontal, tileInfo.TileWidth, tileInfo.ImageSize.Width, imageParameters.Width);
@@ -49,8 +44,6 @@ internal sealed class PdfImageTilingContext
         // however far it sits from the decoded grid, and a tile boundary falls on the same place in both.
         _columnOutputRanges = ComputeSampleRanges(tileInfo.TilesHorizontal, tileInfo.TileWidth, tileInfo.ImageSize.Width, outputSize.Width);
         _rowOutputRanges = ComputeSampleRanges(tileInfo.TilesVertical, tileInfo.TileHeight, tileInfo.ImageSize.Height, outputSize.Height);
-
-        _rowProcessor = new PdfImageRowProcessor(imageParameters, outputSize, loggerFactory.CreateLogger<PdfImageRowProcessor>());
     }
 
     /// <summary>
@@ -66,11 +59,11 @@ internal sealed class PdfImageTilingContext
     public PdfImageTile[]? WriteRowAndTryGetTiles(
         int imageRowIndex,
         in ReadOnlySpan<byte> fullWidthRow,
-        IAlphaRowSource? alphaSource,
+        MaskAlphaRowSource? alphaSource,
         IPdfExecutionObserver? observer)
     {
-        OpenNewTileRows(imageRowIndex, observer);
-        WriteRowToOpenTileRows(imageRowIndex, fullWidthRow, alphaSource, observer);
+        OpenNewTileRows(imageRowIndex, alphaSource, observer);
+        WriteRowToOpenTileRows(imageRowIndex, fullWidthRow, observer);
         return CloseFinishedTileRows(imageRowIndex, observer);
     }
 
@@ -84,12 +77,12 @@ internal sealed class PdfImageTilingContext
 #else
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private void OpenNewTileRows(int imageRowIndex, IPdfExecutionObserver? observer)
+    private void OpenNewTileRows(int imageRowIndex, MaskAlphaRowSource? alphaSource, IPdfExecutionObserver? observer)
     {
         while (_nextTileRowToOpen < _tileInfo.TilesVertical && _rowSampleRanges[_nextTileRowToOpen].Start == imageRowIndex)
         {
             int tileRow = _nextTileRowToOpen;
-            var targets = new PdfImageRowTarget?[_tileInfo.TilesHorizontal];
+            var pipelines = new PdfImageRowProcessingPipeline?[_tileInfo.TilesHorizontal];
             IndexRange rowRange = _rowSampleRanges[tileRow];
             IndexRange rowOutputRange = _rowOutputRanges[tileRow];
 
@@ -108,13 +101,29 @@ internal sealed class PdfImageTilingContext
                 PdfIntegerRectangle sourceRegion = new(columnRange.Start, rowRange.Start, columnRange.End, rowRange.End);
                 PdfIntegerRectangle outputRegion = new(columnOutputRange.Start, rowOutputRange.Start, columnOutputRange.End, rowOutputRange.End);
 
-                targets[column] = _rowProcessor.CreateTarget(tileIndex, sourceRegion, outputRegion);
+                pipelines[column] = CreatePipeline(tileIndex, sourceRegion, outputRegion, alphaSource);
 
                 observer?.Notify();
             }
 
-            _openTileRows.Add(new OpenTileRow(tileRow, targets));
+            _openTileRows.Add(new OpenTileRow(tileRow, pipelines));
             _nextTileRowToOpen++;
+        }
+    }
+
+    private PdfImageRowProcessingPipeline CreatePipeline(
+        int tileIndex,
+        in PdfIntegerRectangle sourceRegion,
+        in PdfIntegerRectangle outputRegion,
+        MaskAlphaRowSource? alphaSource)
+    {
+        if (_producesMask)
+        {
+            return _pipelineFactory.CreateMaskPipeline(_imageParameters, sourceRegion, outputRegion);
+        }
+        else
+        {
+            return _pipelineFactory.CreateImagePipeline(_imageParameters, sourceRegion, outputRegion, alphaSource?.GetTileSource(tileIndex));
         }
     }
 
@@ -126,13 +135,20 @@ internal sealed class PdfImageTilingContext
     private void WriteRowToOpenTileRows(
         int imageRowIndex,
         in ReadOnlySpan<byte> fullWidthRow,
-        IAlphaRowSource? alphaSource,
         IPdfExecutionObserver? observer)
     {
         foreach (OpenTileRow openTileRow in _openTileRows)
         {
-            int rowWithinTile = imageRowIndex - _rowSampleRanges[openTileRow.TileRow].Start;
-            _rowProcessor.DecodeRow(rowWithinTile, fullWidthRow, alphaSource, openTileRow.Targets, observer);
+            foreach (PdfImageRowProcessingPipeline? pipeline in openTileRow.Pipelines)
+            {
+                if (pipeline == null)
+                {
+                    continue;
+                }
+
+                pipeline.ProcessRow(fullWidthRow, imageRowIndex);
+                observer?.Notify();
+            }
         }
     }
 
@@ -171,17 +187,17 @@ internal sealed class PdfImageTilingContext
         for (int column = 0; column < _tileInfo.TilesHorizontal; column++)
         {
             int tileIndex = (openTileRow.TileRow * _tileInfo.TilesHorizontal) + column;
-            PdfImageRowTarget? target = openTileRow.Targets[column];
+            PdfImageRowProcessingPipeline? pipeline = openTileRow.Pipelines[column];
 
-            if (target == null)
+            if (pipeline == null)
             {
                 destination.Add(PdfImageTile.CreateEmpty(tileIndex));
                 continue;
             }
 
-            openTileRow.Targets[column] = null;
+            openTileRow.Pipelines[column] = null;
 
-            destination.Add(new PdfImageTile(tileIndex, _tileInfo.GetTilePosition(tileIndex), target.Image));
+            destination.Add(new PdfImageTile(tileIndex, _tileInfo.GetTilePosition(tileIndex), pipeline.Image));
         }
     }
 
@@ -239,14 +255,14 @@ internal sealed class PdfImageTilingContext
 
     private sealed class OpenTileRow
     {
-        public OpenTileRow(int tileRow, PdfImageRowTarget?[] targets)
+        public OpenTileRow(int tileRow, PdfImageRowProcessingPipeline?[] pipelines)
         {
             TileRow = tileRow;
-            Targets = targets;
+            Pipelines = pipelines;
         }
 
         public int TileRow { get; }
 
-        public PdfImageRowTarget?[] Targets { get; }
+        public PdfImageRowProcessingPipeline?[] Pipelines { get; }
     }
 }
