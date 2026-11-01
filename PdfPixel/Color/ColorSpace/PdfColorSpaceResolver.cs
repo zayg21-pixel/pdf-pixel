@@ -158,12 +158,12 @@ internal sealed partial class PdfColorSpaceResolver
             }
             case PdfColorSpaceType.CalGray:
             {
-                PdfColorSpaceConverter? conv = CreateCalGrayColorSpace(originalValue);
+                PdfColorSpaceConverter? conv = CreateCalibratedGrayColorSpace(originalValue);
                 return conv ?? PdfDeviceGrayColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.CalRGB:
             {
-                PdfColorSpaceConverter? conv = CreateCalRrgbColorSpace(originalValue);
+                PdfColorSpaceConverter? conv = CreateCalibratedRgbColorSpace(originalValue);
                 return conv ?? PdfDeviceRgbColorSpaceConverter.Instance;
             }
             case PdfColorSpaceType.Lab:

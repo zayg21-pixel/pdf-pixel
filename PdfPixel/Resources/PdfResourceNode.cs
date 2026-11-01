@@ -259,11 +259,6 @@ internal sealed class PdfResourceNode
         if (defaultColorSpace.IsPresent)
         {
             PdfColorSpaceConverter? converter = ResolveColorSpace(defaultColorSpace, -1);
-            if (converter is PdfIccColorSpaceConverter iccConverter && iccConverter.N == componentCount)
-            {
-                return iccConverter;
-            }
-
             if (converter != null && converter.Components == componentCount)
             {
                 return converter;
@@ -271,7 +266,7 @@ internal sealed class PdfResourceNode
         }
 
         PdfIccColorSpaceConverter? outputIntentConverter = document.OutputIntentConverter;
-        if (outputIntentConverter != null && outputIntentConverter.N == componentCount)
+        if (outputIntentConverter != null && outputIntentConverter.Components == componentCount)
         {
             return outputIntentConverter;
         }

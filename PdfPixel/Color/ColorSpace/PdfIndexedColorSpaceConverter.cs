@@ -12,22 +12,29 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly PdfColorSpaceConverter _baseConv;
-    private readonly int _hiVal;
-    private readonly byte[] _lookup;
-
     private readonly Dictionary<PdfColorConversionParameters, Vector4[]> _paletteCache = [];
 
-    /// <summary>
-    /// Initializes the space from its base color space, its highest valid index, and the bytes of
-    /// its palette.
-    /// </summary>
-    public PdfIndexedColorSpaceConverter(PdfColorSpaceConverter baseConv, int hiVal, byte[] lookup)
+    internal PdfIndexedColorSpaceConverter(PdfColorSpaceConverter baseColorSpace, int highestIndex, byte[] lookup)
     {
-        _baseConv = baseConv ?? throw new ArgumentNullException(nameof(baseConv));
-        _hiVal = Math.Max(0, hiVal);
-        _lookup = lookup ?? Array.Empty<byte>();
+        BaseColorSpace = baseColorSpace ?? throw new ArgumentNullException(nameof(baseColorSpace));
+        HighestIndex = Math.Max(0, highestIndex);
+        Lookup = lookup ?? Array.Empty<byte>();
     }
+
+    /// <summary>
+    /// Gets the color space the palette entries are given in (base).
+    /// </summary>
+    public PdfColorSpaceConverter BaseColorSpace { get; }
+
+    /// <summary>
+    /// Gets the highest valid index (hival).
+    /// </summary>
+    public int HighestIndex { get; }
+
+    /// <summary>
+    /// Gets the palette, one byte per base component for each index from 0 to <see cref="HighestIndex"/> (lookup).
+    /// </summary>
+    public byte[] Lookup { get; }
 
     /// <inheritdoc />
     public override int Components => 1;
@@ -45,10 +52,10 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
             return existing;
         }
 
-        ColorTransformSampler sampler = _baseConv.GetRgbaSampler(parameters, normalize: false);
+        ColorTransformSampler sampler = BaseColorSpace.GetRgbaSampler(parameters, normalize: false);
 
-        int baseComps = _baseConv.Components;
-        int paletteSize = _hiVal + 1;
+        int baseComps = BaseColorSpace.Components;
+        int paletteSize = HighestIndex + 1;
         var palette = new Vector4[paletteSize];
 
         var comps = new float[baseComps];
@@ -59,7 +66,7 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
             for (int c = 0; c < baseComps; c++)
             {
                 int p = offset + c;
-                byte b = (p >= 0 && p < _lookup.Length) ? _lookup[p] : (byte)0;
+                byte b = (p >= 0 && p < Lookup.Length) ? Lookup[p] : (byte)0;
                 comps[c] = b / 255f;
             }
 
@@ -89,5 +96,5 @@ public sealed class PdfIndexedColorSpaceConverter : PdfColorSpaceConverter
 
     /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-        => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(parameters), _hiVal)));
+        => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(parameters), HighestIndex)));
 }

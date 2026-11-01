@@ -11,17 +11,12 @@ namespace PdfPixel.Color.ColorSpace;
 public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly bool _useDefault;
-    private readonly PdfColorSpaceConverter _default;
     private readonly IccProfileTransform? _iccTransform;
     private readonly bool _isStandardRgbOrGray;
 
-    /// <summary>
-    /// Initializes the space from its component count, alternate color space, and parsed ICC profile.
-    /// </summary>
-    public PdfIccColorSpaceConverter(int n, PdfColorSpaceConverter? alternate, IccProfile? profile)
+    internal PdfIccColorSpaceConverter(int n, PdfColorSpaceConverter? alternate, IccProfile? profile)
     {
         Profile = profile;
-        N = n;
 
         _isStandardRgbOrGray = profile != null && (IccProfileAnalyzer.IsStandardSrgb(profile) || IccProfileAnalyzer.IsStandardGray(profile));
         if (profile == null || profile.ChannelsCount != n || _isStandardRgbOrGray)
@@ -33,7 +28,7 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
             _iccTransform = new IccProfileTransform(profile);
         }
 
-        _default = alternate
+        Alternate = alternate
             ?? n switch
             {
                 1 => PdfDeviceGrayColorSpaceConverter.Instance,
@@ -43,10 +38,7 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
             };
     }
 
-    /// <summary>
-    /// Initializes the space from its component count, alternate color space, and raw ICC profile bytes.
-    /// </summary>
-    public PdfIccColorSpaceConverter(int n, PdfColorSpaceConverter? alternate, byte[]? iccProfileBytes)
+    internal PdfIccColorSpaceConverter(int n, PdfColorSpaceConverter? alternate, byte[]? iccProfileBytes)
         : this(n, alternate, GetProfile(iccProfileBytes))
     {
     }
@@ -57,18 +49,18 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
     public IccProfile? Profile { get; }
 
     /// <inheritdoc />
-    public override int Components => _default.Components;
+    public override int Components => Alternate.Components;
 
     /// <inheritdoc />
     public override bool IsDevice => _isStandardRgbOrGray;
 
     /// <summary>
-    /// Gets the number of components the space declares.
+    /// Gets the alternate color space (/Alternate), or the device space with the same number of components when absent.
     /// </summary>
-    public int N { get; }
+    public PdfColorSpaceConverter Alternate { get; }
 
     /// <inheritdoc />
-    public override IColorTransform? NormalizeTransform => _default.NormalizeTransform;
+    public override IColorTransform? NormalizeTransform => Alternate.NormalizeTransform;
 
     private static IccProfile? GetProfile(byte[]? bytes)
     {
@@ -98,11 +90,11 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
     {
         if (_useDefault || _iccTransform == null)
         {
-            return _default.GetRgbaSampler(parameters, normalize);
+            return Alternate.GetRgbaSampler(parameters, normalize);
         }
 
         IColorTransform iccPipeline = _iccTransform.GetIntentTransform(parameters.RenderingIntent.ToIccRenderingIntent(), parameters.UseBlackPointCompensation);
-        IColorTransform? normalizeTransform = normalize ? _default.NormalizeTransform : null;
+        IColorTransform? normalizeTransform = normalize ? Alternate.NormalizeTransform : null;
         ChainedColorTransform chained = new(normalizeTransform, iccPipeline, parameters.TransferFunction);
         return new ColorTransformSampler(chained);
     }

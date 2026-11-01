@@ -1,6 +1,8 @@
+using System;
 using System.Numerics;
 using PdfPixel.Color.Transform;
 using PdfPixel.Color.Icc;
+using PdfPixel.Objects;
 
 namespace PdfPixel.Color.ColorSpace;
 
@@ -12,42 +14,45 @@ public sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
 {
     private static readonly Vector4 _labOffset = new(0, 128, 128, 0);
     private static readonly Vector4 _labScale = new(1f / 100, 1f / 255, 1f / 255, 1);
-    private static readonly Vector4 _defaultMin = new(0f, -100f, -100f, 0f);
-    private static readonly Vector4 _defaultMax = new(100f, 100f, 100f, 1f);
 
     private readonly FunctionColorTransform _normalizeTransform;
     private readonly FunctionColorTransform _rangeTransform;
     private readonly ChainedColorTransform _labTransform;
     private readonly ChainedColorTransform _absoluteLabTransform;
 
-    /// <summary>
-    /// Initializes the space from its white point, black point, and the ranges bounding a* and b*.
-    /// </summary>
-    public PdfLabColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? rangeArray)
+    internal PdfLabColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? range)
     {
-        Vector4 whitePointVector;
         if (whitePoint?.Length >= 3)
         {
-            whitePointVector = ColorVectorUtilities.ToVector4WithOnePadding(whitePoint);
+            WhitePoint = whitePoint.AsSpan(0, 3).ToArray();
         }
         else
         {
-            whitePointVector = IccTransforms.D65WhitePoint;
+            Vector4 d65 = IccTransforms.D65WhitePoint;
+            WhitePoint = new float[] { d65.X, d65.Y, d65.Z };
         }
 
-        Vector4 labMinVector;
-        Vector4 labMaxVector;
-
-        if (rangeArray?.Length >= 4)
+        if (blackPoint?.Length >= 3)
         {
-            labMinVector = new Vector4(0f, rangeArray[0], rangeArray[2], 0);
-            labMaxVector = new Vector4(100f, rangeArray[1], rangeArray[3], 1);
+            BlackPoint = blackPoint.AsSpan(0, 3).ToArray();
         }
         else
         {
-            labMinVector = _defaultMin;
-            labMaxVector = _defaultMax;
+            BlackPoint = new float[] { 0f, 0f, 0f };
         }
+
+        if (range?.Length >= 4)
+        {
+            Range = [new PdfRange(range[0], range[1]), new PdfRange(range[2], range[3])];
+        }
+        else
+        {
+            Range = [new PdfRange(-100f, 100f), new PdfRange(-100f, 100f)];
+        }
+
+        Vector4 whitePointVector = new(WhitePoint[0], WhitePoint[1], WhitePoint[2], 1f);
+        Vector4 labMinVector = new(0f, Range[0].Min, Range[1].Min, 0f);
+        Vector4 labMaxVector = new(100f, Range[0].Max, Range[1].Max, 1f);
 
         FunctionColorTransform normalizeTransform = new(x => (Vector4.Clamp(x, labMinVector, labMaxVector) + _labOffset) * _labScale);
 
@@ -61,6 +66,21 @@ public sealed class PdfLabColorSpaceConverter : PdfColorSpaceConverter
         _labTransform = new ChainedColorTransform(IccTransforms.LabD50ToXyzTransform, IccTransforms.XyzD50ToSrgbTransform);
         _absoluteLabTransform = new ChainedColorTransform(IccTransforms.BuildLabToXyzTransform(whitePointVector), IccTransforms.XyzD50ToSrgbTransform);
     }
+
+    /// <summary>
+    /// Gets the diffuse white point in CIE XYZ (/WhitePoint), or D65 when absent.
+    /// </summary>
+    public float[] WhitePoint { get; }
+
+    /// <summary>
+    /// Gets the diffuse black point in CIE XYZ (/BlackPoint), or [0 0 0] when absent.
+    /// </summary>
+    public float[] BlackPoint { get; }
+
+    /// <summary>
+    /// Gets the valid ranges of a* and b* (/Range), or [-100 100] for each when absent.
+    /// </summary>
+    public PdfRange[] Range { get; }
 
     /// <inheritdoc />
     public override int Components => 3;

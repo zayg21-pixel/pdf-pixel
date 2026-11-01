@@ -6,54 +6,62 @@ using System.Numerics;
 namespace PdfPixel.Color.ColorSpace;
 
 /// <summary>
-/// The CalRGB color space: red, green, and blue components defined by CIE colorimetry rather than
-/// by the output device.
+/// A CIE-based color space defined by a white point, a black point, gamma, and a matrix to CIE XYZ:
+/// CalGray or CalRGB.
 /// </summary>
-public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
+public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly ChainedColorTransform _toSrgbTransform;
     private readonly ChainedColorTransform _absoluteToSrgbTransform;
 
-    /// <summary>
-    /// Initializes the space from its white point, black point, per-component gamma, and the matrix
-    /// mapping its components to CIE XYZ.
-    /// </summary>
-    public PdfCalRgbColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)
+    private protected PdfCalibratedColorSpaceConverter(float[] whitePoint, float[] blackPoint, float[] gamma, float[] matrix)
     {
-        Vector4 whitePointVector;
-
-        if (whitePoint?.Length >= 3)
+        if (whitePoint == null)
         {
-            whitePointVector = ColorVectorUtilities.ToVector4WithOnePadding(whitePoint);
-        }
-        else
-        {
-            whitePointVector = IccTransforms.D65WhitePoint;
+            throw new ArgumentNullException(nameof(whitePoint));
         }
 
-        Vector4 blackPointVector = Vector4.Zero;
-
-        if (blackPoint?.Length >= 3)
+        if (blackPoint == null)
         {
-            blackPointVector = ColorVectorUtilities.ToVector4WithZeroPadding(blackPoint.AsSpan(0, 3));
+            throw new ArgumentNullException(nameof(blackPoint));
         }
 
-        if (gamma == null || gamma.Length < 3)
+        if (gamma == null)
         {
-            gamma = new float[] { 1.0f, 1.0f, 1.0f };
+            throw new ArgumentNullException(nameof(gamma));
         }
 
-        matrix3x3 ??= new float[3, 3]
+        if (matrix == null)
         {
-            { 1, 0, 0 },
-            { 0, 1, 0 },
-            { 0, 0, 1 }
-        };
+            throw new ArgumentNullException(nameof(matrix));
+        }
+
+        WhitePoint = whitePoint;
+        BlackPoint = blackPoint;
+
+        Vector4 whitePointVector = new(whitePoint[0], whitePoint[1], whitePoint[2], 1f);
+        Vector4 blackPointVector = new(blackPoint[0], blackPoint[1], blackPoint[2], 0f);
 
         PerChannelTrcTransform trcTransform = new([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);
 
         Matrix4x4 chadMatrix = IccTransforms.BuildBradfordAdaptMatrix(whitePointVector, IccTransforms.D50WhitePoint);
-        Matrix4x4 primariesMatrix = ColorVectorUtilities.ToMatrix4x4(matrix3x3);
+        Matrix4x4 primariesMatrix = new(
+            matrix[0],
+            matrix[1],
+            matrix[2],
+            0f,
+            matrix[3],
+            matrix[4],
+            matrix[5],
+            0f,
+            matrix[6],
+            matrix[7],
+            matrix[8],
+            0f,
+            0f,
+            0f,
+            0f,
+            1f);
         primariesMatrix = Matrix4x4.Transpose(primariesMatrix); // this matches how PDF specifies the matrix
 
         Matrix4x4 blackPointScaleMatrix = Matrix4x4.Identity;
@@ -82,8 +90,15 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
         _absoluteToSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform, IccTransforms.XyzD50ToSrgbTransform);
     }
 
-    /// <inheritdoc />
-    public override int Components => 3;
+    /// <summary>
+    /// Gets the diffuse white point in CIE XYZ (/WhitePoint), or D65 when absent.
+    /// </summary>
+    public float[] WhitePoint { get; }
+
+    /// <summary>
+    /// Gets the diffuse black point in CIE XYZ (/BlackPoint), or [0 0 0] when absent.
+    /// </summary>
+    public float[] BlackPoint { get; }
 
     /// <inheritdoc />
     public override bool IsDevice => false;
@@ -91,7 +106,7 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
     /// <summary>
     /// Gets the transform taking this space's components to sRGB under the specified rendering intent.
     /// </summary>
-    protected ChainedColorTransform GetToSrgbTransform(PdfRenderingIntent renderingIntent)
+    private protected ChainedColorTransform GetToSrgbTransform(PdfRenderingIntent renderingIntent)
     {
         if (renderingIntent == PdfRenderingIntent.AbsoluteColorimetric)
         {
@@ -101,7 +116,30 @@ public class PdfCalRgbColorSpaceConverter : PdfColorSpaceConverter
         return _toSrgbTransform;
     }
 
-    /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-        => new(new ChainedColorTransform(GetToSrgbTransform(parameters.RenderingIntent), parameters.TransferFunction));
+    /// <summary>
+    /// Gets the white point to use: the first three values of the dictionary's, or D65.
+    /// </summary>
+    private protected static float[] GetWhitePointOrDefault(float[]? whitePoint)
+    {
+        if (whitePoint?.Length >= 3)
+        {
+            return whitePoint.AsSpan(0, 3).ToArray();
+        }
+
+        Vector4 d65 = IccTransforms.D65WhitePoint;
+        return new float[] { d65.X, d65.Y, d65.Z };
+    }
+
+    /// <summary>
+    /// Gets the black point to use: the first three values of the dictionary's, or [0 0 0].
+    /// </summary>
+    private protected static float[] GetBlackPointOrDefault(float[]? blackPoint)
+    {
+        if (blackPoint?.Length >= 3)
+        {
+            return blackPoint.AsSpan(0, 3).ToArray();
+        }
+
+        return new float[] { 0f, 0f, 0f };
+    }
 }

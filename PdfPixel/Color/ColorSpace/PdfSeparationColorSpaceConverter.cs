@@ -9,23 +9,27 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public sealed class PdfSeparationColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly PdfColorSpaceConverter _alternate;
-    private readonly PdfFunction? _tintFunction;
-
-    /// <summary>
-    /// Initializes the space from its colorant name, alternate color space, and tint transform function.
-    /// </summary>
-    public PdfSeparationColorSpaceConverter(PdfString? name, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
+    internal PdfSeparationColorSpaceConverter(PdfString? name, PdfColorSpaceConverter? alternateSpace, PdfFunction? tintTransform)
     {
         Name = name;
-        _alternate = alternate ?? PdfDeviceGrayColorSpaceConverter.Instance;
-        _tintFunction = tintFunction;
+        AlternateSpace = alternateSpace ?? PdfDeviceGrayColorSpaceConverter.Instance;
+        TintTransform = tintTransform;
     }
 
     /// <summary>
-    /// Gets the name of the colorant this space's tints apply to.
+    /// Gets the name of the colorant this space's tints apply to (name).
     /// </summary>
     public PdfString? Name { get; }
+
+    /// <summary>
+    /// Gets the alternate color space (alternateSpace), or DeviceGray when absent.
+    /// </summary>
+    public PdfColorSpaceConverter AlternateSpace { get; }
+
+    /// <summary>
+    /// Gets the function mapping a tint to the alternate color space (tintTransform), or <see langword="null"/> when absent.
+    /// </summary>
+    public PdfFunction? TintTransform { get; }
 
     /// <inheritdoc />
     public override int Components => 1;
@@ -39,13 +43,13 @@ public sealed class PdfSeparationColorSpaceConverter : PdfColorSpaceConverter
     /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
     {
-        ColorTransformSampler alternateSampler = _alternate.GetRgbaSampler(parameters, normalize: true);
+        ColorTransformSampler alternateSampler = AlternateSpace.GetRgbaSampler(parameters, normalize: true);
 
-        if (_tintFunction == null)
+        if (TintTransform == null)
         {
             return alternateSampler;
         }
 
-        return new ColorTransformSampler(alternateSampler.ColorTransform, _tintFunction.Evaluate);
+        return new ColorTransformSampler(alternateSampler.ColorTransform, TintTransform.Evaluate);
     }
 }

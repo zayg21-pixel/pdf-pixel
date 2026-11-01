@@ -109,7 +109,7 @@ internal partial class PdfColorSpaceResolver
         return new PdfDeviceNColorSpaceConverter(colorantNames, alternateConverter, tintFunction);
     }
 
-    private PdfCalGrayColorSpaceConverter? CreateCalGrayColorSpace(PdfValue colorSpaceValue)
+    private PdfCalibratedGrayColorSpaceConverter? CreateCalibratedGrayColorSpace(PdfValue colorSpaceValue)
     {
         PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
         if (dictionary == null)
@@ -122,10 +122,10 @@ internal partial class PdfColorSpaceResolver
         float[]? blackPoint = dictionary.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
         float? gamma = dictionary.GetFloat(PdfTokens.GammaKey);
 
-        return new PdfCalGrayColorSpaceConverter(whitePoint, blackPoint, gamma);
+        return new PdfCalibratedGrayColorSpaceConverter(whitePoint, blackPoint, gamma);
     }
 
-    private PdfCalRgbColorSpaceConverter? CreateCalRrgbColorSpace(PdfValue colorSpaceValue)
+    private PdfCalibratedRgbColorSpaceConverter? CreateCalibratedRgbColorSpace(PdfValue colorSpaceValue)
     {
         PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
         if (dictionary == null)
@@ -150,20 +150,9 @@ internal partial class PdfColorSpaceResolver
 
         float[]? blackPoint = dictionary.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
 
-        float[,]? matrix = null;
+        float[]? matrix = dictionary.GetArray(PdfTokens.MatrixKey)?.GetFloatArray();
 
-        float[]? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey)?.GetFloatArray();
-        if (matrixArray?.Length >= 9)
-        {
-            matrix = new float[3, 3]
-            {
-                { matrixArray[0], matrixArray[1], matrixArray[2] },
-                { matrixArray[3], matrixArray[4], matrixArray[5] },
-                { matrixArray[6], matrixArray[7], matrixArray[8] }
-            };
-        }
-
-        return new PdfCalRgbColorSpaceConverter(whitePoint, blackPoint, gamma, matrix);
+        return new PdfCalibratedRgbColorSpaceConverter(whitePoint, blackPoint, gamma, matrix);
     }
 
     private PdfIccColorSpaceConverter? CreateIccColorSpace(PdfValue colorSpaceValue)

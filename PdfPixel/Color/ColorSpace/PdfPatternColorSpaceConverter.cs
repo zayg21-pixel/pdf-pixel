@@ -7,20 +7,20 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public sealed class PdfPatternColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly PdfColorSpaceConverter? _baseColorSpace;
+    internal PdfPatternColorSpaceConverter(PdfColorSpaceConverter? underlyingColorSpace) => UnderlyingColorSpace = underlyingColorSpace;
 
     /// <summary>
-    /// Initializes the space with the base color space an uncolored pattern's tint is given in.
+    /// Gets the color space an uncolored pattern's tint is given in, or <see langword="null"/> when absent.
     /// </summary>
-    public PdfPatternColorSpaceConverter(PdfColorSpaceConverter? baseColorSpace) => _baseColorSpace = baseColorSpace;
+    public PdfColorSpaceConverter? UnderlyingColorSpace { get; }
 
     /// <inheritdoc />
     public override bool IsDevice => false;
 
     /// <inheritdoc />
-    public override int Components => _baseColorSpace?.Components ?? 0;
+    public override int Components => UnderlyingColorSpace?.Components ?? 0;
 
     /// <inheritdoc />
     protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-        => _baseColorSpace?.GetRgbaSampler(parameters, normalize) ?? new ColorTransformSampler(new ChainedColorTransform(parameters.TransferFunction));
+        => UnderlyingColorSpace?.GetRgbaSampler(parameters, normalize) ?? new ColorTransformSampler(new ChainedColorTransform(parameters.TransferFunction));
 }
