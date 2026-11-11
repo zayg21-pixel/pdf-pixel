@@ -37,10 +37,16 @@ public class SfntFont
     public SfntMaxp? Maxp { get; set; }
 
     /// <summary>
-    /// Gets or sets the parsed "hmtx" table, or null if the font has none, or "hhea"/"maxp" (which
-    /// "hmtx" depends on to parse) are themselves missing or unparsable.
+    /// Gets or sets the parsed "hmtx" table once <see cref="SfntFontProcessor.GetHmtx"/> has parsed it, through which
+    /// it is reached, or the one a font built in memory states.
     /// </summary>
-    public SfntHmtx? Hmtx { get; set; }
+    internal SfntHmtx? Hmtx { get; set; }
+
+    /// <summary>
+    /// Gets or sets the "hmtx" table's byte range within the stream this font was read from. Used to parse
+    /// <see cref="Hmtx"/> on first use.
+    /// </summary>
+    internal SfntTableRecord? HmtxRecord { get; set; }
 
     /// <summary>
     /// Gets or sets the parsed "OS/2" table, or null if the font has none or it failed to parse.
@@ -71,6 +77,12 @@ public class SfntFont
     public SfntPost? Post { get; set; }
 
     /// <summary>
+    /// Gets or sets the "post" table's byte range within the stream this font was read from, set alongside
+    /// <see cref="Post"/>. Used to read the glyph names on first use.
+    /// </summary>
+    internal SfntTableRecord? PostRecord { get; set; }
+
+    /// <summary>
     /// Gets or sets the parsed "gasp" table, or null if the font has none or it failed to parse.
     /// </summary>
     public SfntGasp? Gasp { get; set; }
@@ -87,6 +99,12 @@ public class SfntFont
     /// <see cref="Tables"/> on every call.
     /// </summary>
     internal SfntTableRecord? GlyfRecord { get; set; }
+
+    /// <summary>
+    /// Gets or sets the "loca" table's byte range within the stream this font was read from, set
+    /// alongside <see cref="Glyf"/>. Used to parse the glyph ranges on first use.
+    /// </summary>
+    internal SfntTableRecord? LocaRecord { get; set; }
 
     /// <summary>
     /// Gets or sets the parsed "CFF " table, or null if the font has none (e.g. a TrueType-flavored

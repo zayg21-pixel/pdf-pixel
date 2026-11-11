@@ -13,13 +13,11 @@ internal class PathFillRenderTarget : IRenderTarget
     private readonly PdfPath _path;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
-    private PdfRectangle _layerBounds;
 
     public PathFillRenderTarget(PdfPath path, PdfGraphicsState state)
     {
         _path = path;
         _state = state;
-        Bounds = path.GetBounds();
 
         if (state.FillPaint.IsPattern)
         {
@@ -27,34 +25,27 @@ internal class PathFillRenderTarget : IRenderTarget
         }
     }
 
-    public PdfRectangle Bounds { get; }
-
     public PdfPaint Paint => _state.FillPaint;
-
-    public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
-    {
-        _layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
-        processor.Process(new SaveLayerCommand(_layerBounds));
-    }
-
-    public void AfterPatternRender(IPdfCommandProcessor processor)
-    {
-        // The pattern is kept within the path by masking it with the path's shape instead of clipping it to the path.
-        processor.Process(new SaveLayerCommand(_layerBounds, PdfPaintFactory.CreateShapeMaskPaint()));
-        processor.Process(new DrawPathCommand(_path, PdfPaintFactory.CreateMaskShapePaint(_state.FillPaint)));
-        processor.Process(RestoreLayerCommand.Instance);
-        processor.Process(RestoreLayerCommand.Instance);
-    }
 
     public void Render(IPdfCommandProcessor processor)
     {
         if (_pattern != null)
         {
-            _pattern.RenderPattern(processor, _state, this);
+            RenderPattern(processor, _pattern);
         }
         else
         {
             processor.Process(new DrawPathCommand(_path, _state.FillPaint));
+        }
+    }
+
+    private void RenderPattern(IPdfCommandProcessor processor, PdfPattern pattern)
+    {
+        PdfGroupSource? source = pattern.GetGroupSource(_state, _state.FillPaint);
+
+        if (source != null)
+        {
+            processor.Process(new DrawPathCommand(_path, _state.FillPaint, source));
         }
     }
 }

@@ -52,18 +52,8 @@ public sealed class PdfDeviceNColorSpaceConverter : PdfColorSpaceConverter
     }
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-    {
-        ColorTransformSampler alternateSampler = AlternateSpace.GetRgbaSampler(parameters, normalize: true);
-
-        if (TintTransform == null)
-        {
-            return alternateSampler;
-        }
-
-        return new ColorTransformSampler(alternateSampler.ColorTransform, TintTransform.Evaluate);
-    }
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 
     /// <inheritdoc />
-    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
+    public override ChainedColorTransform? GetFromProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

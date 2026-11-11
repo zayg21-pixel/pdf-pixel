@@ -21,12 +21,8 @@ public sealed class PdfDeviceGrayColorSpaceConverter : PdfColorSpaceConverter
     public override bool IsDevice => true;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-    {
-        ChainedColorTransform chained = new(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), parameters.TransferFunction);
-        return new ColorTransformSampler(chained);
-    }
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 
     /// <inheritdoc />
-    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
+    public override ChainedColorTransform? GetFromProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

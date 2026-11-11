@@ -117,4 +117,14 @@ public sealed partial class IccProfile
     /// Parsed B2A LUT pipeline (Perceptual intent) if available.
     /// </summary>
     public IccLutPipeline? B2ALut0 { get; set; }
+
+    /// <summary>
+    /// Parsed B2A LUT pipeline (Relative Colorimetric intent) if available.
+    /// </summary>
+    public IccLutPipeline? B2ALut1 { get; set; }
+
+    /// <summary>
+    /// Parsed B2A LUT pipeline (Saturation intent) if available.
+    /// </summary>
+    public IccLutPipeline? B2ALut2 { get; set; }
 }

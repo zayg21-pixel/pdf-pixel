@@ -1,6 +1,6 @@
 using PdfPixel.Navigation;
 using PdfPixel.PdfPanel.Rendering;
-using SkiaSharp;
+using PdfPixel.Snap;
 using System;
 
 namespace PdfPixel.PdfPanel.Mvvm;
@@ -43,7 +43,8 @@ public class PdfPanelInterface
     public void RequestRedraw() => Request(PdfPanelInterfaceAction.RequestRedraw);
 
     /// <summary>
-    /// Requests <see cref="OnAfterDraw"/> without full page rendering.
+    /// Requests the panel to be drawn again from the content already produced, running <see cref="OnPanelPageRendered"/>
+    /// and <see cref="OnPanelRendered"/> again.
     /// </summary>
     public void RequestPresent() => Request(PdfPanelInterfaceAction.RequestPresent);
 
@@ -62,9 +63,16 @@ public class PdfPanelInterface
     }
 
     /// <summary>
-    /// Gets or sets the action invoked after each present with the canvas in panel pixels and the presented <see cref="PdfPanelFrame"/>.
+    /// Gets or sets the action that draws over each page every time it is drawn, as
+    /// <see cref="PdfPanelRenderer.OnPanelPageRendered"/>.
     /// </summary>
-    public Action<SKCanvas, PdfPanelFrame>? OnAfterDraw { get; set; }
+    public Action<PdfSnapSurface, PdfPanelFramePage>? OnPanelPageRendered { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action that draws over the panel every time a part of it is drawn, as
+    /// <see cref="PdfPanelRenderer.OnPanelRendered"/>.
+    /// </summary>
+    public Action<PdfSnapSurface, PdfPanelFrame>? OnPanelRendered { get; set; }
 
     private void Request(PdfPanelInterfaceAction action) => Requested?.Invoke(this, new PdfPanelInterfaceActionEventArgs(action, null));
 }

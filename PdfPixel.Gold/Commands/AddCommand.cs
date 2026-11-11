@@ -1,6 +1,6 @@
 using PdfPixel.Gold.Manifest;
 using PdfPixel.Gold.Utilities;
-using SkiaSharp;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System.Diagnostics;
 
 namespace PdfPixel.Gold.Commands;
@@ -114,11 +114,10 @@ internal static class AddCommand
         {
             stopwatch.Start();
 
-            foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PdfUtilities.RenderPages(reader, pdfPath, pages, password))
+            foreach ((int PageNumber, PdfImageSamples Samples) renderedPage in PdfUtilities.RenderPages(reader, pdfPath, pages, password))
             {
                 stopwatch.Stop();
 
-                using SKBitmap bitmap = renderedPage.Bitmap;
                 string goldenPath = Path.Combine(snapshotDirectory, $"{renderedPage.PageNumber}_source.png");
                 pageCount++;
 
@@ -127,7 +126,7 @@ internal static class AddCommand
                 if (!File.Exists(goldenPath))
                 {
                     Directory.CreateDirectory(snapshotDirectory);
-                    ImageUtilities.SavePng(bitmap, goldenPath);
+                    ImageUtilities.SavePng(renderedPage.Samples, goldenPath);
                     writtenCount++;
                 }
 

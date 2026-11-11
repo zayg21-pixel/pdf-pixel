@@ -5,13 +5,9 @@
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible>false</IsAotCompatible>
-    <Description>WPF PDF viewer control for .NET built on PdfPixel and PdfPixel.PdfPanel, with scrolling, zooming, text selection and search, rendered through SkiaSharp.</Description>
-    <PackageTags>pdf;viewer;wpf;control;skia;skiasharp</PackageTags>
+    <Description>WPF PDF viewer control for .NET built on PdfPixel and PdfPixel.PdfPanel, with scrolling, zooming, text selection and search.</Description>
+    <PackageTags>pdf;viewer;wpf;control</PackageTags>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj" />

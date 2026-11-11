@@ -82,7 +82,7 @@ public class JpxDecodingTests
     /// their first cell.
     /// </summary>
     [Theory(Skip = "Needs the reference grid origin: the image spans Xsiz - XOsiz by Ysiz - YOsiz, "
-        + "and a tile starts at XTOsiz + index * XTsiz. See the TODO in JpxTileToRowConverter.")]
+        + "and a tile starts at XTOsiz + index * XTsiz. See the TODO in JpxTileReader.")]
     [InlineData("baboon-offset-image.j2k")]
     [InlineData("baboon-offset-tile.j2k")]
     public void ReferenceGridOffsets_DecodeCloseToGolden(string fileName) => AssertDecodesCloseToGolden(fileName);
@@ -404,8 +404,8 @@ public class JpxDecodingTests
 
         byte[] data = File.ReadAllBytes(filePath);
         JpxHeader header = JpxHeader.Parse(data);
-        JpxTileProvider provider = new(header, data.AsMemory(header.CodestreamOffset));
-        JpxTileToRowConverter converter = new(header, provider);
+        JpxTileReader tileReader = new(header, data.AsMemory(header.CodestreamOffset));
+        JpxTileToRowConverter converter = new(header, tileReader);
 
         // TODO: [MEDIUM] Accept grayscale, four-component and non-8-bit images so the corpus can
         // cover them. Each needs mapping onto the RGBA buffer the comparison and the PNG snapshot

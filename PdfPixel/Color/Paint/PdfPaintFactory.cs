@@ -2,6 +2,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
 using PdfPixel.Rendering;
 using PdfPixel.Transparency;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Paint;
@@ -53,39 +54,5 @@ internal static class PdfPaintFactory
         return new PdfPaint(PdfPaintStyle.Fill)
             .WithColorConversion(fillPaint.RenderingIntent, fillPaint.UseBlackPointCompensation, fillPaint.TransferFunction)
             .WithSolidColor(colorSpace, state.Host.Resources.DeviceColorMapping, new PdfColor(components));
-    }
-
-    /// <summary>
-    /// Create paint for soft-mask application: composites the previously-rendered mask content onto
-    /// the layer below. <paramref name="subtype"/> and <paramref name="transferFunction"/> travel with
-    /// the paint as <see cref="PdfMaskPaintParameters"/>, so the Skia conversion can build the
-    /// subtype-appropriate color filter (luminosity-to-alpha, plus the transfer function) at replay time.
-    /// Antialiasing is deferred to command Execute time via <see cref="Commands.Execution.PdfCommandExecutionContext"/>.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfPaint CreateSoftMaskPaint(PdfSoftMaskSubtype subtype, TransferFunctionTransform? transferFunction)
-        => new PdfPaint(PdfPaintStyle.Fill).WithMaskParameters(new PdfMaskPaintParameters(PdfMaskPaintKind.SoftMask, subtype, transferFunction));
-
-    /// <summary>
-    /// Create opaque white paint that masks a pattern painted beneath with a shape, so the pattern shows within the shape
-    /// without being clipped to it: the paint of the layer a path or text target draws its shape into, or the fill a stencil
-    /// image is drawn with over the whole area of the pattern.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static PdfPaint CreateShapeMaskPaint()
-        => WithGray(new PdfPaint(PdfPaintStyle.Fill), WhiteGray).WithMaskParameters(new PdfMaskPaintParameters(PdfMaskPaintKind.Shape, PdfSoftMaskSubtype.Alpha, null));
-
-    /// <summary>
-    /// Create paint that draws a shape opaque into the layer of <see cref="CreateShapeMaskPaint"/>: opaque white, with the
-    /// style of <paramref name="paint"/> and its stroke styling when it strokes, and no pattern, alpha or blend mode.
-    /// </summary>
-    /// <param name="paint">The paint the shape is filled or stroked with.</param>
-    public static PdfPaint CreateMaskShapePaint(PdfPaint paint)
-    {
-        PdfPaint shapePaint = (paint.Style == PdfPaintStyle.Stroke)
-            ? new PdfPaint(paint.RequireStrokeStyle())
-            : new PdfPaint(PdfPaintStyle.Fill);
-
-        return WithGray(shapePaint, WhiteGray);
     }
 }

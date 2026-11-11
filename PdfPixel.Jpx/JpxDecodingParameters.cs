@@ -29,18 +29,11 @@ public readonly struct JpxDecodingParameters
     public int LevelsToSkip { get; }
 
     /// <summary>
-    /// Regions, in full-resolution (not descaled) image coordinates, that must be decoded.
-    /// Tiles outside every region are skipped and left as placeholder (zeroed) data.
-    /// Null means every tile must be decoded.
+    /// The components that are reconstructed, by index in the codestream, in the order they are output. Components left
+    /// out are never entropy decoded, transformed or allocated. Null means every component, the one the cdef box
+    /// declares as opacity last.
     /// </summary>
-    public IReadOnlyList<JpxRectangle>? RegionsOfInterest { get; }
-
-    /// <summary>
-    /// Whether the component the cdef box declares as opacity is reconstructed. When false it is
-    /// left out of the component selection entirely, so it is never entropy decoded, transformed,
-    /// or allocated, and the produced rows carry color components only.
-    /// </summary>
-    public bool IncludeOpacityComponent { get; }
+    public IReadOnlyList<int>? ComponentSelection { get; }
 
     /// <summary>
     /// Default parameters representing full-resolution decoding of the entire image.
@@ -48,13 +41,12 @@ public readonly struct JpxDecodingParameters
     public static JpxDecodingParameters Default { get; } = new(1);
 
     /// <summary>
-    /// Initializes decoding parameters with the given descale factor and regions of interest.
+    /// Initializes decoding parameters with the given descale factor and component selection.
     /// </summary>
     /// <param name="descaleFactor">Power-of-2 reduction factor. Must be &gt;= 1.</param>
-    /// <param name="regionsOfInterest">Regions, in full-resolution image coordinates, that must be decoded. Null means every tile must be decoded.</param>
-    /// <param name="includeOpacityComponent">Whether the cdef opacity component is reconstructed.</param>
+    /// <param name="componentSelection">The components to reconstruct, in output order; null for every component.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="descaleFactor"/> is less than 1 or not a power of 2.</exception>
-    public JpxDecodingParameters(int descaleFactor, IReadOnlyList<JpxRectangle>? regionsOfInterest = null, bool includeOpacityComponent = true)
+    public JpxDecodingParameters(int descaleFactor, IReadOnlyList<int>? componentSelection = null)
     {
         if (descaleFactor < 1)
         {
@@ -68,8 +60,7 @@ public readonly struct JpxDecodingParameters
 
         DescaleFactor = descaleFactor;
         LevelsToSkip = Log2(descaleFactor);
-        RegionsOfInterest = regionsOfInterest;
-        IncludeOpacityComponent = includeOpacityComponent;
+        ComponentSelection = componentSelection;
     }
 
     /// <summary>

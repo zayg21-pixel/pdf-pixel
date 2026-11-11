@@ -49,15 +49,6 @@ public class PdfWidgetAnnotation : PdfAnnotation
     /// </summary>
     public PdfFormField? Field { get; }
 
-    /// <summary>
-    /// Gets whether this annotation carries text to show in a pop-up window.
-    /// </summary>
-    public override bool HasPopupContent => false;
-
-    /// <summary>
-    /// Gets a value indicating whether this widget should not display a content bubble.
-    /// </summary>
-    public override bool ShouldDisplayBubble => false;
 
     internal override bool RenderFallback(
         IPdfCommandProcessor processor,
@@ -228,26 +219,6 @@ public class PdfWidgetAnnotation : PdfAnnotation
     /// Removes focus from the widget's field.
     /// </summary>
     public void Blur() => Field?.Blur();
-
-    /// <inheritdoc/>
-    public override PdfAnnotationCursorType CursorType
-    {
-        get
-        {
-            if (Field?.IsReadOnly != false)
-            {
-                return PdfAnnotationCursorType.Arrow;
-            }
-
-            return Field.FieldType switch
-            {
-                PdfFormFieldType.Text => PdfAnnotationCursorType.IBeam,
-                PdfFormFieldType.Button => PdfAnnotationCursorType.Hand,
-                PdfFormFieldType.Choice => PdfAnnotationCursorType.Hand,
-                _ => PdfAnnotationCursorType.Arrow
-            };
-        }
-    }
 
     /// <summary>
     /// Converts a position in PDF page coordinates to coordinates relative to the widget's rectangle.

@@ -1,11 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Annotations;
-using PdfPixel.Skia;
+﻿using PdfPixel.Annotations;
 using PdfPixel.Geometry;
-using SkiaSharp;
-using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Content;
 using PdfPixel.PdfPanel.Input;
@@ -14,15 +9,20 @@ using PdfPixel.Commands.Execution;
 using PdfPixel.Commands;
 using PdfPixel.Content;
 using PdfPixel.Imaging;
+using PdfPixel.OptionalContent;
 
 namespace PdfPixel.PdfPanel.Caching;
 
 internal static class PdfDocumentContentExtensions
 {
+    /// <summary>
+    /// Records every annotation of the page once, as a <see cref="DrawAnnotationCommand"/> holding the appearance of
+    /// each visual state it supports, drawn in the state the execution context gives it; <see langword="null"/> when the
+    /// page has no annotations.
+    /// </summary>
     public static PdfCommandRecorder? GetAnnotationRecording(
         this IPdfDocument document,
         int pageNumber,
-        PagesDrawingRequest request,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
@@ -40,46 +40,73 @@ internal static class PdfDocumentContentExtensions
 
         foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
         {
-            bool isActive = pageAnnotation == request.ActiveAnnotation?.PageAnnotation;
+            PdfAnnotationVisualStateKind supportedStates = pageAnnotation.Content.SupportedStates;
+            PdfCommandRecorder normal = RecordAppearance(pageAnnotation, PdfAnnotationVisualStateKind.Normal, renderingParameters, observer);
+            PdfCommandRecorder? rollover = null;
+            PdfCommandRecorder? down = null;
 
-            if (!pageAnnotation.Content.IsVisible(isActive))
+            if ((supportedStates & PdfAnnotationVisualStateKind.Rollover) != 0)
             {
-                continue;
+                rollover = RecordAppearance(pageAnnotation, PdfAnnotationVisualStateKind.Rollover, renderingParameters, observer);
             }
 
-            PdfAnnotationVisualStateKind visualStateKind = isActive
-                ? ConvertToVisualStateKind(request.ActiveAnnotationState)
-                : PdfAnnotationVisualStateKind.Normal;
-
-            int rotation = request.GetPage(pageNumber).Rotation;
-
-            recorder.Process(SaveStateCommand.Instance);
-            recorder.Process(new ConcatMatrixCommand(pageAnnotation.Content.GetDisplayMatrix(request.Scale, request.ReferenceScale, rotation)));
-            if (pageAnnotation.Content.ShouldDisplayBubble)
+            if ((supportedStates & PdfAnnotationVisualStateKind.Down) != 0)
             {
-                PdfPoint bubbleAnchor = pageAnnotation.Content.ContentStart;
-
-                recorder.Process(SaveStateCommand.Instance);
-                recorder.Process(new ConcatMatrixCommand(pageAnnotation.Content.GetBubbleMatrix(bubbleAnchor, request.Scale, request.ReferenceScale, rotation, pdfPage.CropBox)));
-                pageAnnotation.RenderBubble(recorder, bubbleAnchor, visualStateKind);
-                recorder.Process(RestoreStateCommand.Instance);
+                down = RecordAppearance(pageAnnotation, PdfAnnotationVisualStateKind.Down, renderingParameters, observer);
             }
 
-            pageAnnotation.Render(recorder, visualStateKind, renderingParameters, observer);
-            recorder.Process(RestoreStateCommand.Instance);
+            recorder.Process(new DrawAnnotationCommand(pageAnnotation.Content, normal, rollover, down));
         }
 
         return recorder;
     }
 
-    private static PdfAnnotationVisualStateKind ConvertToVisualStateKind(PdfPanelPointerState pointerState)
+    private static PdfCommandRecorder RecordAppearance(
+        PdfPageAnnotation pageAnnotation,
+        PdfAnnotationVisualStateKind visualState,
+        PdfRenderingParameters renderingParameters,
+        IPdfExecutionObserver observer)
     {
-        return pointerState switch
+        PdfCommandRecorder recorder = new();
+
+        pageAnnotation.Render(recorder, visualState, renderingParameters, observer);
+
+        return recorder;
+    }
+
+    /// <summary>
+    /// Creates the execution context the content of <paramref name="page"/> is followed with, its content tree
+    /// collecting the content for words and content items.
+    /// </summary>
+    /// <param name="page">The page whose content is followed.</param>
+    /// <param name="optionalContentStates">
+    /// The optional content states to follow the content with, or <see langword="null"/> for the document's default
+    /// configuration.
+    /// </param>
+    /// <param name="observer">Execution observer to notify on long-running operations.</param>
+    public static PdfCommandExecutionContext CreateContentExecutionContext(
+        this PdfPanelPage page,
+        PdfOptionalContentStates? optionalContentStates,
+        IPdfExecutionObserver observer)
+    {
+        PdfOptionalContentStates statesToFollow;
+
+        if (optionalContentStates != null)
         {
-            PdfPanelPointerState.Pressed => PdfAnnotationVisualStateKind.Down,
-            PdfPanelPointerState.Hovered => PdfAnnotationVisualStateKind.Rollover,
-            _ => PdfAnnotationVisualStateKind.Normal
-        };
+            statesToFollow = optionalContentStates;
+        }
+        else
+        {
+            statesToFollow = page.PanelDocument.Document.OptionalContentProperties.GetDefaultStates();
+        }
+
+        return new PdfCommandExecutionContext(
+            page.PanelDocument.CommandCache,
+            new PdfCommandExecutionParameters(),
+            page.PanelDocument.DocumentLocker,
+            statesToFollow,
+            PdfAnnotationStates.Empty,
+            observer);
     }
 
     /// <summary>
@@ -100,47 +127,6 @@ internal static class PdfDocumentContentExtensions
         pdfPage.Render(commandRecording, renderingParameters, observer);
 
         return commandRecording;
-    }
-
-    /// <summary>
-    /// Replays the command recording onto <paramref name="canvas"/>.
-    /// The caller is responsible for creating the <see cref="SKPictureRecorder"/>,
-    /// beginning recording, constructing the <see cref="PdfCommandExecutionContext"/>,
-    /// and calling <see cref="SKPictureRecorder.EndRecording"/> after this method returns.
-    /// </summary>
-    public static async ValueTask RecordingToSkPictureAsync(
-        PdfCommandRecorder commandRecording,
-        PdfCommandExecutionContext executionContext,
-        SKCanvas canvas,
-        float pictureScale,
-        ILoggerFactory loggerFactory)
-    {
-        if (commandRecording == null)
-        {
-            throw new ArgumentNullException(nameof(commandRecording));
-        }
-
-        if (executionContext == null)
-        {
-            throw new ArgumentNullException(nameof(executionContext));
-        }
-
-        if (canvas == null)
-        {
-            throw new ArgumentNullException(nameof(canvas));
-        }
-
-        if (loggerFactory == null)
-        {
-            throw new ArgumentNullException(nameof(loggerFactory));
-        }
-
-        SkCanvasCommandProcessor processor = new(canvas, executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
-
-        await processor.ProcessAsync(new ConcatMatrixCommand(PdfMatrix.CreateScale(pictureScale, pictureScale))).ConfigureAwait(false);
-        await commandRecording.ReplayAsync(processor).ConfigureAwait(false);
-
-        canvas.Flush();
     }
 
     /// <summary>

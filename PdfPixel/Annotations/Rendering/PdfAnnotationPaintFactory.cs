@@ -16,40 +16,40 @@ namespace PdfPixel.Annotations.Rendering;
 internal static class PdfAnnotationPaintFactory
 {
     /// <summary>
-    /// Resolves an annotation color array, or <paramref name="defaultColor"/> when it is absent or empty.
+    /// Resolves an annotation color array to a fill paint in the device color space its component count selects, with
+    /// the device color mapping of <paramref name="page"/>.
     /// </summary>
     /// <param name="colorComponents">The color component array from the annotation.</param>
-    /// <param name="page">The PDF page for color space resolution.</param>
-    /// <param name="defaultColor">Components to use if the annotation has no color specified, or null for none.</param>
+    /// <param name="page">The page the annotation is on.</param>
     /// <returns>The fill paint of the color, or null when there is no color or its component count selects no color space.</returns>
-    public static PdfPaint? ResolvePaint(float[]? colorComponents, IPdfPageInternal page, float[]? defaultColor = null)
+    public static PdfPaint? ResolvePaint(float[]? colorComponents, IPdfPageInternal page)
     {
-        float[]? components = colorComponents;
-        if (components == null || components.Length == 0)
-        {
-            components = defaultColor;
-        }
-
-        if (components == null || PdfColorSpaceResolver.ResolveDeviceConverter(components.Length) == null)
+        if (colorComponents == null || PdfColorSpaceResolver.ResolveDeviceConverter(colorComponents.Length) == null)
         {
             return null;
         }
 
-        return CreatePaint(components, page);
+        return CreatePaint(colorComponents, page.Resources.DeviceColorMapping);
     }
 
     /// <summary>
-    /// Creates the fill paint of <paramref name="colorComponents"/> in DeviceGray, DeviceRGB or DeviceCMYK by their count.
+    /// Creates the fill paint of a fixed color of the fallback rendering in DeviceGray, DeviceRGB or DeviceCMYK by its
+    /// component count.
     /// </summary>
     /// <param name="colorComponents">One, three or four color components.</param>
-    /// <param name="page">The PDF page for color space resolution.</param>
-    public static PdfPaint CreatePaint(float[] colorComponents, IPdfPageInternal page)
+    public static PdfPaint CreatePaint(float[] colorComponents) => CreatePaint(colorComponents, PdfDeviceColorMapping.None);
+
+    /// <summary>
+    /// Creates the fill paint of a fixed DeviceRGB color of the fallback rendering, with its alpha.
+    /// </summary>
+    public static PdfPaint CreatePaint(in PdfRgbaColor color) => CreatePaint([color.Red, color.Green, color.Blue]).WithAlpha(color.Alpha);
+
+    private static PdfPaint CreatePaint(float[] colorComponents, PdfDeviceColorMapping deviceColorMapping)
     {
         PdfColorSpaceConverter colorSpace = PdfColorSpaceResolver.ResolveDeviceConverter(colorComponents.Length)
             ?? throw new ArgumentException("An annotation color has one, three or four components.", nameof(colorComponents));
 
-        return new PdfPaint(PdfPaintStyle.Fill)
-            .WithSolidColor(colorSpace, page.Document.ContentHost.Resources.DeviceColorMapping, new PdfColor(colorComponents));
+        return new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(colorSpace, deviceColorMapping, new PdfColor(colorComponents));
     }
 
     /// <summary>

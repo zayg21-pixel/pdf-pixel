@@ -138,7 +138,7 @@ internal sealed class PdfGraphicsStateParameters
         // /Default for TR2) clears any inherited transfer function.
         if (dictionary.HasKey(PdfTokens.TransferFunction2Key))
         {
-            TransferFunction = TransferFunctionTransform.GetTransferFunction(dictionary, PdfTokens.TransferFunction2Key);
+            TransferFunction = PdfTransferFunction.GetTransferFunction(dictionary, PdfTokens.TransferFunction2Key);
             if (TransferFunction == null && dictionary.GetName(PdfTokens.TransferFunction2Key) == PdfTokens.DefaultValue)
             {
                 ShouldUnsetTransferFunction = true;
@@ -146,7 +146,7 @@ internal sealed class PdfGraphicsStateParameters
         }
         else if (dictionary.HasKey(PdfTokens.TransferFunctionKey))
         {
-            TransferFunction = TransferFunctionTransform.GetTransferFunction(dictionary, PdfTokens.TransferFunctionKey);
+            TransferFunction = PdfTransferFunction.GetTransferFunction(dictionary, PdfTokens.TransferFunctionKey);
             if (TransferFunction == null && dictionary.GetName(PdfTokens.TransferFunctionKey) == PdfTokens.IdentityKey)
             {
                 ShouldUnsetTransferFunction = true;
@@ -289,7 +289,7 @@ internal sealed class PdfGraphicsStateParameters
     /// <summary>
     /// Optional transfer function (TR or TR2) parsed from ExtGState.
     /// </summary>
-    public TransferFunctionTransform? TransferFunction { get; }
+    public PdfTransferFunction? TransferFunction { get; }
 
     /// <summary>
     /// True when TR was explicitly set to /Identity, or TR2 to /Default, meaning any inherited transfer function must be cleared.
@@ -319,16 +319,6 @@ internal sealed class PdfGraphicsStateParameters
         graphicsState.StrokePaint = graphicsState.StrokePaint.WithGraphicsState(this);
         graphicsState.FillPaint = graphicsState.FillPaint.WithGraphicsState(this);
 
-        if (SoftMask != null)
-        {
-            graphicsState.SoftMask = SoftMask;
-            graphicsState.SoftMaskCTM = graphicsState.CTM;
-        }
-        else if (ShouldUnsetSoftMask)
-        {
-            graphicsState.SoftMask = null;
-        }
-
         if (Knockout.HasValue)
         {
             graphicsState.Knockout = Knockout.Value;
@@ -353,11 +343,6 @@ internal sealed class PdfGraphicsStateParameters
         if (FontSize.HasValue)
         {
             graphicsState.FontSize = FontSize.Value;
-        }
-
-        if (AlphaIsShape.HasValue)
-        {
-            graphicsState.AlphaIsShape = AlphaIsShape.Value;
         }
     }
 

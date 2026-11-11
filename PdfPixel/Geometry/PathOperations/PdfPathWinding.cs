@@ -7,52 +7,19 @@ namespace PdfPixel.Geometry.PathOperations;
 /// </summary>
 internal static class PdfPathWinding
 {
+    // Largest distance, in the path's own units, a flattened curve may stray from the true curve.
+    private const float FlatteningTolerance = 0.01f;
+
     /// <summary>
-    /// The winding number of <paramref name="path"/> around <paramref name="point"/>, curves walked along the chords
-    /// they are measured by and an open subpath closed back to its start.
+    /// The winding number of <paramref name="path"/> around <paramref name="point"/>, curves flattened within
+    /// <see cref="FlatteningTolerance"/> and an open subpath closed back to its start.
     /// </summary>
     public static int GetWinding(PdfPath path, Vector2 point)
     {
-        int winding = 0;
+        WindingSink sink = new(point);
+        PdfPathFlattener.Flatten(path, PdfMatrix.Identity, FlatteningTolerance, ref sink);
 
-        foreach (PdfContourMeasure contour in PdfPathMeasure.GetContours(path))
-        {
-            winding += GetContourWinding(contour, point);
-        }
-
-        return winding;
-    }
-
-    private static int GetContourWinding(PdfContourMeasure contour, Vector2 point)
-    {
-        int winding = 0;
-
-        foreach (IPdfContourSegment segment in contour.Segments)
-        {
-            if (segment is PdfCubicContourSegment cubic)
-            {
-                int sampleCount = cubic.GetSampleCount();
-                Vector2 previous = cubic.Start;
-
-                for (int index = 1; index <= sampleCount; index++)
-                {
-                    Vector2 sample = cubic.Evaluate(index / (float)sampleCount);
-                    winding += GetEdgeWinding(previous, sample, point);
-                    previous = sample;
-                }
-            }
-            else
-            {
-                winding += GetEdgeWinding(segment.Start, segment.End, point);
-            }
-        }
-
-        if (!contour.IsClosed && contour.Segments.Count > 0)
-        {
-            winding += GetEdgeWinding(contour.Segments[contour.Segments.Count - 1].End, contour.Segments[0].Start, point);
-        }
-
-        return winding;
+        return sink.Winding;
     }
 
     /// <summary>
@@ -71,5 +38,21 @@ internal static class PdfPathWinding
         {
             return (end.Y <= point.Y && side < 0) ? -1 : 0;
         }
+    }
+
+    private struct WindingSink : IPdfLineSink
+    {
+        private readonly Vector2 _point;
+
+        public WindingSink(Vector2 point)
+        {
+            _point = point;
+            Winding = 0;
+        }
+
+        public int Winding { get; private set; }
+
+        public void AddLine(in PdfPoint lineStart, in PdfPoint lineEnd)
+            => Winding += GetEdgeWinding(PdfVectorMath.ToVector2(lineStart), PdfVectorMath.ToVector2(lineEnd), _point);
     }
 }

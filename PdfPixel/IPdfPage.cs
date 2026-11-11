@@ -9,6 +9,7 @@ using PdfPixel.Imaging;
 using PdfPixel.Measures;
 using PdfPixel.Objects;
 using PdfPixel.Annotations;
+using PdfPixel.Color;
 
 namespace PdfPixel;
 
@@ -125,6 +126,12 @@ public interface IPdfPage : IPdfAssociatedFilesHost
     IReadOnlyList<PdfViewport> Viewports { get; }
 
     /// <summary>
+    /// Gets the output intents in effect for the page: its own (/OutputIntents), which replace the document's,
+    /// otherwise the document's; <see langword="null"/> when neither has any.
+    /// </summary>
+    IReadOnlyList<PdfOutputIntent>? OutputIntents { get; }
+
+    /// <summary>
     /// Returns the annotations of the page (/Annots) in array order, each bound to the page.
     /// </summary>
     IReadOnlyList<PdfPageAnnotation> GetAnnotations();
@@ -137,4 +144,9 @@ public interface IPdfPage : IPdfAssociatedFilesHost
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
     void Render(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, IPdfExecutionObserver observer);
 
+    /// <summary>
+    /// Returns the command that draws <paramref name="content"/> as the page group.
+    /// </summary>
+    /// <param name="content">The recording drawn as the page group.</param>
+    DrawGroupCommand CreatePageGroup(DrawRecordingCommand content);
 }

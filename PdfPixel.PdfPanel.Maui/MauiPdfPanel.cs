@@ -133,7 +133,6 @@ public partial class MauiPdfPanel : SKCanvasView
         }
 
         canvas.DrawImage(_presentedImage, 0, 0, SKSamplingOptions.Default);
-        PanelInterface?.OnAfterDraw?.Invoke(canvas, _presentedFrame);
     }
 
     private void OnLoaded(object? sender, EventArgs e)
@@ -323,11 +322,6 @@ public partial class MauiPdfPanel : SKCanvasView
             case PdfPanelInterfaceAction.RequestRedraw:
                 {
                     RequestRedraw();
-                    break;
-                }
-            case PdfPanelInterfaceAction.RequestPresent:
-                {
-                    _context?.Present();
                     break;
                 }
             case PdfPanelInterfaceAction.ScrollToDestination when e.Destination != null:

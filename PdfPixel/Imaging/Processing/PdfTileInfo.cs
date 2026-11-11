@@ -7,12 +7,12 @@ namespace PdfPixel.Imaging.Processing;
 /// Precomputed tile grid metrics for a PDF image: tile dimensions clamped to the image boundary,
 /// and the total tile counts in each axis.
 /// </summary>
-internal sealed class PdfTileInfo
+public sealed class PdfTileInfo
 {
     /// <summary>
     /// Computes the tile grid for an image of <paramref name="imageSize"/> divided into tiles of
     /// at most <paramref name="tileSize"/>. Tile dimensions are clamped so they never exceed the
-    /// corresponding image dimension.
+    /// corresponding image dimension; an image without samples has no tiles.
     /// </summary>
     /// <param name="imageSize">Full size of the image in samples.</param>
     /// <param name="tileSize">Requested maximum tile size in samples.</param>
@@ -21,15 +21,18 @@ internal sealed class PdfTileInfo
         ImageSize = imageSize;
         TileWidth = Math.Min(tileSize.Width, imageSize.Width);
         TileHeight = Math.Min(tileSize.Height, imageSize.Height);
-        TilesHorizontal = (imageSize.Width + TileWidth - 1) / TileWidth;
-        TilesVertical = (imageSize.Height + TileHeight - 1) / TileHeight;
+
+        if (TileWidth > 0 && TileHeight > 0)
+        {
+            TilesHorizontal = (imageSize.Width + TileWidth - 1) / TileWidth;
+            TilesVertical = (imageSize.Height + TileHeight - 1) / TileHeight;
+        }
+
         TotalTiles = TilesHorizontal * TilesVertical;
     }
 
     /// <summary>
-    /// Full size of the image this grid was computed for, in samples. Tile positions returned by
-    /// <see cref="GetTilePosition"/> are expressed in this coordinate space, regardless of the
-    /// resolution at which the image is actually decoded.
+    /// Size of the decoded samples the grid covers; tile positions are in these samples.
     /// </summary>
     public PdfIntegerSize ImageSize { get; }
 
@@ -59,8 +62,7 @@ internal sealed class PdfTileInfo
     public int TotalTiles { get; }
 
     /// <summary>
-    /// Returns the position and size of the tile at <paramref name="tileIndex"/> in original
-    /// (un-descaled, un-downscaled) image coordinates — i.e. where the tile must be placed.
+    /// Returns the position and size of the tile at <paramref name="tileIndex"/> in decoded samples.
     /// </summary>
     /// <param name="tileIndex">Zero-based index of the tile in row-major order.</param>
     public PdfIntegerRectangle GetTilePosition(int tileIndex)
@@ -76,12 +78,12 @@ internal sealed class PdfTileInfo
 
     /// <summary>
     /// Returns the columns and rows of the tiles covering <paramref name="imageRegion"/>, as an end-exclusive
-    /// rectangle in tile units; empty when the region is empty.
+    /// rectangle in tile units; empty when the region is empty or the grid has no tiles.
     /// </summary>
-    /// <param name="imageRegion">Region in original image coordinates.</param>
+    /// <param name="imageRegion">Region in decoded samples.</param>
     public PdfIntegerRectangle GetTileRange(in PdfIntegerRectangle imageRegion)
     {
-        if (imageRegion.IsEmpty)
+        if (imageRegion.IsEmpty || TotalTiles == 0)
         {
             return PdfIntegerRectangle.Empty;
         }

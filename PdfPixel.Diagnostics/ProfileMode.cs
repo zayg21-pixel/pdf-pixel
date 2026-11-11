@@ -3,7 +3,7 @@ namespace PdfPixel.Diagnostics;
 /// <summary>
 /// What a run collects about itself while it processes the pages.
 /// </summary>
-internal enum ProfileMode
+public enum ProfileMode
 {
     /// <summary>
     /// Nothing; the run only reports its own timings.

@@ -7,17 +7,6 @@ namespace PdfPixel;
 public class PdfRenderingParameters
 {
     /// <summary>
-    /// Tile size used when splitting large images into tiles during command recording.
-    /// </summary>
-    public int ImageTileSize { get; set; } = 256;
-
-    /// <summary>
-    /// When true, decoded tiles are retained across renders for the tiles inside the drawn region.
-    /// When false, only the tile row currently being drawn is held.
-    /// </summary>
-    public bool CacheDecodedTiles { get; set; }
-
-    /// <summary>
     /// Default number of samples for Postscript and Exponential functions when the point count is unknown.
     /// </summary>
     public int DefaultFunctionSamples { get; set; } = 64;
@@ -26,17 +15,6 @@ public class PdfRenderingParameters
     /// Maximum number of tessellation vertices for mesh-based shadings.
     /// </summary>
     public int MaxTessellationVertices { get; set; } = 32;
-
-    /// <summary>
-    /// When true, stencil masks of at most <see cref="MaxStencilMaskSizeForPathConversion"/> samples are converted to
-    /// paths and drawn as filled paths instead of images.
-    /// </summary>
-    public bool ConvertStencilMasksToPaths { get; set; } = true;
-
-    /// <summary>
-    /// Largest number of samples, width times height, of a stencil mask converted to a path.
-    /// </summary>
-    public int MaxStencilMaskSizeForPathConversion { get; set; } = 100000;
 
     /// <summary>
     /// When false, paths are neither rendered nor extracted.

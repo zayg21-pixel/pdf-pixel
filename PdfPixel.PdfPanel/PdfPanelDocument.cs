@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Geometry;
 using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.Annotations;
@@ -89,6 +90,11 @@ public sealed class PdfPanelDocument : IDisposable
     internal PdfPanelScheduler Scheduler { get; }
 
     /// <summary>
+    /// Cache of the values command execution reuses across every replay of the pages.
+    /// </summary>
+    internal CommandCache CommandCache { get; } = new();
+
+    /// <summary>
     /// Optional content states the words and thumbnails are produced with.
     /// </summary>
     internal PdfOptionalContentStates? OptionalContentStates { get; set; }
@@ -130,12 +136,6 @@ public sealed class PdfPanelDocument : IDisposable
     }
 
     /// <summary>
-    /// Returns the currently cached <see cref="PdfContentPictures"/> for the specified 1-based page number.
-    /// Returns empty pictures if the page has not been decoded yet.
-    /// </summary>
-    internal PdfContentPictures GetContentPictures(int pageNumber) => _pages[pageNumber - 1].CacheEntry.GetContentPictures();
-
-    /// <summary>
     /// Returns the extracted words of the specified 1-based page number in reading order,
     /// or <see langword="null"/> if they have not been extracted yet.
     /// </summary>
@@ -147,17 +147,6 @@ public sealed class PdfPanelDocument : IDisposable
     }
 
     /// <summary>
-    /// Returns the thumbnail of the specified 1-based page number as a PNG file,
-    /// or <see langword="null"/> if it has not been produced yet.
-    /// </summary>
-    internal byte[]? GetThumbnail(int pageNumber)
-    {
-        using LockedContent<byte[]> lockedThumbnail = _pages[pageNumber - 1].CacheEntry.Thumbnail.GetContent();
-
-        return lockedThumbnail.Content;
-    }
-
-    /// <summary>
     /// Returns the extracted content items of the specified 1-based page number in drawing order,
     /// or <see langword="null"/> if they have not been extracted yet.
     /// </summary>
@@ -166,36 +155,6 @@ public sealed class PdfPanelDocument : IDisposable
         using LockedContent<PdfPanelContentItem[]> lockedContentItems = _pages[pageNumber - 1].CacheEntry.Content.ContentItems.GetContent();
 
         return lockedContentItems.Content;
-    }
-
-    /// <summary>
-    /// Returns the information about the rendered content of the specified 1-based page number,
-    /// or <see langword="null"/> if it has not been rendered yet.
-    /// </summary>
-    internal PdfPanelRenderedLayerInfo? GetRenderedContentInfo(int pageNumber) => _pages[pageNumber - 1].CacheEntry.Content.GetRenderedLayerInfo();
-
-    /// <summary>
-    /// Returns the information about the rendered annotations of the specified 1-based page number,
-    /// or <see langword="null"/> if they have not been rendered yet.
-    /// </summary>
-    internal PdfPanelRenderedLayerInfo? GetRenderedAnnotationsInfo(int pageNumber) => _pages[pageNumber - 1].CacheEntry.AnnotationContent.GetRenderedLayerInfo();
-
-    /// <summary>
-    /// Returns <see langword="true"/> when the content picture of the specified 1-based page number
-    /// must be regenerated for <paramref name="request"/>.
-    /// </summary>
-    internal bool NeedsContentUpdate(int pageNumber, PagesDrawingRequest request) => _pages[pageNumber - 1].CacheEntry.Content.NeedsPictureUpdate(request);
-
-    /// <summary>
-    /// Returns <see langword="true"/> when the annotation recording of the specified 1-based page number
-    /// must be regenerated for <paramref name="request"/>.
-    /// </summary>
-    internal bool NeedsAnnotationUpdate(int pageNumber, PagesDrawingRequest request)
-    {
-        PdfPanelPage page = _pages[pageNumber - 1];
-
-        return page.CacheEntry.GetAnnotations(page).Length > 0
-            && page.CacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(page, request);
     }
 
     /// <summary>
@@ -281,6 +240,8 @@ public sealed class PdfPanelDocument : IDisposable
             {
                 page.CacheEntry.Dispose();
             }
+
+            CommandCache.Dispose();
         }
     }
 }

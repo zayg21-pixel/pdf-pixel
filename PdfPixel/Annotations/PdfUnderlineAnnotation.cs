@@ -36,7 +36,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfPaint? linePaint = ResolvePaint(page);
+        PdfPaint? linePaint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
 
         if (linePaint != null)
         {

@@ -5,6 +5,9 @@ using PdfPixel.Demo.Wpf.Handlers;
 using PdfPixel.Demo.Wpf.Logging;
 using PdfPixel.Demo.Wpf.Utilities;
 using PdfPixel.Demo.Wpf.Views;
+using PdfPixel.Color;
+using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Encryption;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
@@ -13,8 +16,8 @@ using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf;
-using PdfPixel.Skia.Fonts;
-using SkiaSharp;
+using PdfPixel.Fonts.Substitution;
+using PdfPixel.Snap;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -33,7 +36,7 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
 {
     private const string EmptyTabTitle = "New tab";
 
-    private readonly SkiaFontSubstitutor _fontSubstitutor;
+    private readonly PdfFontSubstitutor _fontSubstitutor;
     private readonly PdfDocumentReader _reader;
     private readonly ObservableLoggerFactory _loggerFactory;
     private readonly DocumentActionHandler _actionHandler;
@@ -65,11 +68,10 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
         System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, _logMessagesLock);
         _loggerFactory = new ObservableLoggerFactory(LogMessages, _logMessagesLock);
         _actionHandler = new DocumentActionHandler(this, openTab, _loggerFactory.CreateLogger<DocumentActionHandler>());
-        _fontSubstitutor = new SkiaFontSubstitutor(_loggerFactory);
+        _fontSubstitutor = PdfFontSubstitutorFactory.Create(_loggerFactory);
         _reader = new PdfDocumentReader(_loggerFactory, _fontSubstitutor);
 
-        PanelInterface = new PdfPanelInterface();
-        PanelInterface.OnAfterDraw = OnAfterDraw;
+        PanelInterface = new PdfPanelInterface { OnPanelRendered = OnPanelRendered };
         RotatePageCommand = new RelayCommand(RotatePage);
         RotateAllPagesCommand = new RelayCommand(RotateAllPages);
         ZoomInCommand = new RelayCommand(PanelInterface.ZoomIn);
@@ -325,22 +327,13 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
         return fileName;
     }
 
-    private void OnAfterDraw(SKCanvas canvas, PdfPanelFrame frame)
+    private void OnPanelRendered(PdfSnapSurface surface, PdfPanelFrame frame)
     {
-        SKColor defaultColor = SKColor.Parse("#21232B").WithAlpha(128);
-        SKColor accentColor = SKColor.Parse("#4695EB").WithAlpha(128);
+        PdfPaint defaultPaint = CreateOverlayPaint(0x21 / 255f, 0x23 / 255f, 0x2B / 255f);
+        PdfPaint accentPaint = CreateOverlayPaint(0x46 / 255f, 0x95 / 255f, 0xEB / 255f);
 
-        using var defaultPaint = new SKPaint { Color = defaultColor, Style = SKPaintStyle.Fill };
-        using var accentPaint = new SKPaint { Color = accentColor, Style = SKPaintStyle.Fill };
-
-        var layerPaint = new SKPaint
-        {
-            Color = SKColors.White.WithAlpha(128),
-            Style = SKPaintStyle.Fill,
-        };
-
-        canvas.Translate(frame.PanelSize.Width - 58, frame.PanelSize.Height - 48);
-        canvas.Scale(0.5f, 0.5f);
+        surface.Save();
+        surface.Concat(PdfMatrix.CreateScaleTranslation(0.5f, 0.5f, frame.PanelSize.Width - 58, frame.PanelSize.Height - 48));
 
         const float cellSize = 18;
         const float padding = 4;
@@ -351,17 +344,28 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
             {
                 float x = i * (cellSize + padding);
                 float y = j * (cellSize + padding);
+                PdfPathBuilder cell = new();
+                cell.AddRect(PdfRectangle.FromLocationAndSize(x, y, cellSize, cellSize));
 
                 if (i == 1 && j == 1)
                 {
-                    canvas.DrawRect(x, y, cellSize, cellSize, accentPaint);
+                    surface.DrawPath(cell.ToPath(), accentPaint);
                 }
                 else
                 {
-                    canvas.DrawRect(x, y, cellSize, cellSize, defaultPaint);
+                    surface.DrawPath(cell.ToPath(), defaultPaint);
                 }
             }
         }
+
+        surface.Restore();
+    }
+
+    private static PdfPaint CreateOverlayPaint(float red, float green, float blue)
+    {
+        return new PdfPaint(PdfPaintStyle.Fill)
+            .WithSolidColor(PdfDeviceRgbColorSpaceConverter.Instance, PdfDeviceColorMapping.None, new PdfColor([red, green, blue]))
+            .WithAlpha(0.5f);
     }
 
     private void RotatePage()

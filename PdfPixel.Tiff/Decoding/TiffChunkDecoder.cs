@@ -231,8 +231,8 @@ internal sealed class TiffChunkDecoder
     private static void DecodeJpeg2000(in ReadOnlyMemory<byte> encoded, int chunkWidth, int chunkRows, int[] sampleBits, int rowBytes, byte[] destination)
     {
         var header = JpxHeader.Parse(encoded.Span);
-        JpxTileProvider tileProvider = new(header, encoded.Slice(header.CodestreamOffset));
-        JpxTileToRowConverter rowConverter = new(header, tileProvider);
+        JpxTileReader tileReader = new(header, encoded.Slice(header.CodestreamOffset));
+        JpxTileToRowConverter rowConverter = new(header, tileReader);
 
         if (rowConverter.Width != chunkWidth
             || rowConverter.ComponentCount != sampleBits.Length

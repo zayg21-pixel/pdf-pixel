@@ -112,7 +112,7 @@ public class PdfInkAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfPaint? inkPaint = ResolvePaint(page);
+        PdfPaint? inkPaint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
         if (inkPaint != null)
         {
             processor.Process(new DrawPathCommand(DrawingPath, PdfAnnotationPaintFactory.CreateStrokePaint(inkPaint, StrokeStyle)));

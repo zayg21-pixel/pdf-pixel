@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
     <ProjectReference Include="..\PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj" />
+    <ProjectReference Include="..\PdfPixel.Diagnostics\PdfPixel.Diagnostics.csproj" />
   </ItemGroup>
 
   <ItemGroup>

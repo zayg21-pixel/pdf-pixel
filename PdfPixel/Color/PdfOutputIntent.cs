@@ -2,13 +2,12 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
-using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Color;
 
 /// <summary>
-/// Output intent dictionary, an entry of the catalog /OutputIntents array, describing the color
+/// Output intent dictionary, an entry of the catalog or page /OutputIntents array, describing the color
 /// characteristics of an output device.
 /// </summary>
 public sealed class PdfOutputIntent
@@ -22,7 +21,8 @@ public sealed class PdfOutputIntent
         OutputConditionIdentifier = dictionary.GetString(PdfTokens.OutputConditionIdentifierKey);
         RegistryName = dictionary.GetString(PdfTokens.RegistryNameKey);
         Info = dictionary.GetString(PdfTokens.OutputIntentInfoKey);
-        DestinationOutputProfile = ReadProfile(dictionary.GetObject(PdfTokens.DestOutputProfileKey));
+        DestinationOutputColorSpace = dictionary.Document.ColorSpaceResolver.ResolveIccProfile(dictionary, PdfTokens.DestOutputProfileKey);
+        DestinationOutputProfile = DestinationOutputColorSpace?.Profile;
 
         PdfDictionary? profileReference = dictionary.GetDictionary(PdfTokens.DestOutputProfileRefKey);
         if (profileReference != null)
@@ -72,6 +72,12 @@ public sealed class PdfOutputIntent
     public IccProfile? DestinationOutputProfile { get; }
 
     /// <summary>
+    /// ICCBased color space of <see cref="DestinationOutputProfile"/>, or <see langword="null"/> when /DestOutputProfile
+    /// is absent.
+    /// </summary>
+    public PdfIccColorSpaceConverter? DestinationOutputColorSpace { get; }
+
+    /// <summary>
     /// Information about referenced ICC profiles (/DestOutputProfileRef, PDF 2.0), or <see langword="null"/> when absent.
     /// </summary>
     public PdfOutputProfileReference? DestinationOutputProfileReference { get; }
@@ -89,10 +95,10 @@ public sealed class PdfOutputIntent
         List<PdfOutputIntent> outputIntents = new(array.Count);
         for (int index = 0; index < array.Count; index++)
         {
-            PdfDictionary? entry = array.GetDictionary(index);
-            if (entry != null)
+            PdfOutputIntent? outputIntent = GetOutputIntent(array, index);
+            if (outputIntent != null)
             {
-                outputIntents.Add(new PdfOutputIntent(entry));
+                outputIntents.Add(outputIntent);
             }
         }
 
@@ -100,83 +106,22 @@ public sealed class PdfOutputIntent
     }
 
     /// <summary>
-    /// Converter for the profile of the output intent used in rendering: the first with a usable profile,
-    /// preferring PDF/X, then PDF/A, then PDF/E. <see langword="null"/> when none has a usable profile.
+    /// Returns the output intent at <paramref name="index"/> of <paramref name="array"/>, using the document's cache.
     /// </summary>
-    internal static PdfIccColorSpaceConverter? CreateConverter(IReadOnlyList<PdfOutputIntent>? outputIntents)
+    /// <param name="array">Array holding the output intent entry.</param>
+    /// <param name="index">Index of the output intent entry.</param>
+    /// <returns>The output intent, or <see langword="null"/> when absent or not a dictionary.</returns>
+    private static PdfOutputIntent? GetOutputIntent(PdfArray array, int index)
+        => array.Document.ObjectCache.GetOrCreate(array, index, FromObject);
+
+    private static PdfOutputIntent? FromObject(PdfObject outputIntentObject)
     {
-        if (outputIntents == null)
+        PdfDictionary? outputIntentDictionary = outputIntentObject.Value.AsDictionary();
+        if (outputIntentDictionary == null)
         {
             return null;
         }
 
-        IccProfile? bestProfile = null;
-        int bestRank = int.MaxValue;
-
-        foreach (PdfOutputIntent outputIntent in outputIntents)
-        {
-            IccProfile? profile = outputIntent.DestinationOutputProfile;
-            if (profile == null || profile.ChannelsCount == 0)
-            {
-                continue;
-            }
-
-            int rank = GetRank(outputIntent.Subtype);
-            if (rank < bestRank)
-            {
-                bestRank = rank;
-                bestProfile = profile;
-            }
-        }
-
-        if (bestProfile == null)
-        {
-            return null;
-        }
-
-        return new PdfIccColorSpaceConverter(bestProfile.ChannelsCount, default, bestProfile);
-    }
-
-    private static int GetRank(PdfOutputIntentSubtype? subtype)
-    {
-        switch (subtype)
-        {
-            case PdfOutputIntentSubtype.GtsPdfX:
-                return 0;
-
-            case PdfOutputIntentSubtype.GtsPdfA1:
-                return 1;
-
-            case PdfOutputIntentSubtype.IsoPdfE1:
-                return 2;
-
-            default:
-                return 3;
-        }
-    }
-
-    private static IccProfile? ReadProfile(PdfObject? profileObject)
-    {
-        if (profileObject?.HasStream != true)
-        {
-            return null;
-        }
-
-        ReadOnlyMemory<byte> profileData = profileObject.Stream.DecodeAsMemory();
-        if (profileData.IsEmpty)
-        {
-            return null;
-        }
-
-#pragma warning disable CA1031
-        try
-        {
-            return IccProfile.Parse(profileData.ToArray());
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-#pragma warning restore CA1031
+        return new PdfOutputIntent(outputIntentDictionary);
     }
 }

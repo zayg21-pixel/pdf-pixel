@@ -22,7 +22,7 @@ internal static class JpxBandGeometry
     // gives its subbands the wrong bounds and its samples decode to noise. Fixing it means
     // threading the component through here, through JpxPrecinctState and JpxPacketHeaderParser,
     // sizing each component's tile buffer to its own sample count, and stretching the samples
-    // back over the reference grid in JpxTileToRowConverter.
+    // back over the reference grid in JpxTileReader.
     // Covered by the failing baboon-subsample-uniform and baboon-subsample-chroma corpus files.
 
     /// <summary>

@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering;
 using PdfPixel.Shading;
+using PdfPixel.Transparency;
 
 namespace PdfPixel.Pattern;
 
@@ -15,6 +16,8 @@ namespace PdfPixel.Pattern;
 /// </summary>
 public sealed class PdfShadingPattern : PdfPattern
 {
+    private static readonly PdfTransparencyGroupContext ShadingGroup = new(null, isolated: false, knockout: true);
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfShadingPattern"/> class with the specified parameters.
     /// </summary>
@@ -42,7 +45,7 @@ public sealed class PdfShadingPattern : PdfPattern
     /// </summary>
     internal PdfGraphicsStateParameters? ExtGState { get; }
 
-    internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
+    internal override PdfGroupSource GetGroupSource(PdfGraphicsState state, PdfPaint paint)
     {
         PdfGraphicsState shadingState = state;
 
@@ -62,7 +65,9 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.BoundingBox.HasValue)
         {
-            recorder.Process(new ClipRectangleCommand(Shading.BoundingBox.Value, PdfClipOperation.Intersect));
+            PdfPathBuilder clipBuilder = new();
+            clipBuilder.AddRect(Shading.BoundingBox.Value);
+            recorder.Process(new DrawPathCommand(clipBuilder.ToPath(), new PdfPaint(PdfPaintStyle.Clip)));
         }
 
         if (Shading.Background != null && Shading.BoundingBox.HasValue)
@@ -78,24 +83,15 @@ public sealed class PdfShadingPattern : PdfPattern
         PdfShadingContent content = Shading.GetContent(colorSpace, shadingState);
 
         PdfColorSpaceConverter contentColorSpace = PdfShadingContent.GetColorSpace(colorSpace);
-        recorder.Process(new DrawShadingCommand(content, shadingState.FillPaint.WithColorSpace(contentColorSpace, shadingState.Host.Resources.DeviceColorMapping)));
+        PdfPaint shadingPaint = shadingState.FillPaint
+            .WithColorSpace(contentColorSpace, shadingState.Host.Resources.DeviceColorMapping)
+            .WithAlpha(1f)
+            .WithBlendMode(PdfBlendMode.Normal);
+
+        recorder.Process(new DrawShadingCommand(content, shadingPaint, Shading.BoundingBox));
 
         recorder.Process(RestoreStateCommand.Instance);
 
-        renderTarget.BeforePatternRender(processor, GetPatternBounds(content, matrix));
-        processor.Process(new DrawRecordingCommand(recorder));
-        renderTarget.AfterPatternRender(processor);
-    }
-
-    private static PdfRectangle? GetPatternBounds(PdfShadingContent content, in PdfMatrix matrix)
-    {
-        PdfRectangle? bounds = content.GetBounds();
-
-        if (bounds == null)
-        {
-            return null;
-        }
-
-        return matrix.MapRect(bounds.Value);
+        return new PdfGroupSource(new DrawRecordingCommand(recorder), ShadingGroup, null, null);
     }
 }

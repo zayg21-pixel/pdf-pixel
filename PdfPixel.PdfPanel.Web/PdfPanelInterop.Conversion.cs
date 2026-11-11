@@ -24,7 +24,6 @@ internal static partial class PdfPanelInterop
         target.PageGap = ReadFloat(source, "pageGap", target.PageGap);
         target.PanelBackgroundColor = ReadColor(source, "panelBackgroundColor", target.PanelBackgroundColor);
         target.PageCornerRadius = ReadFloat(source, "pageCornerRadius", target.PageCornerRadius);
-        target.ShowPageLoadingAnimation = ReadBoolean(source, "showPageLoadingAnimation", target.ShowPageLoadingAnimation);
         target.ExtractAllText = ReadBoolean(source, "extractAllText", target.ExtractAllText);
         target.TextSelectionColor = ReadColor(source, "textSelectionColor", target.TextSelectionColor);
         target.SearchMatchCase = ReadBoolean(source, "searchMatchCase", target.SearchMatchCase);
@@ -42,9 +41,7 @@ internal static partial class PdfPanelInterop
         target.ThumbnailMaximumCount = ReadInt32(source, "thumbnailMaximumCount", target.ThumbnailMaximumCount);
         target.ThumbnailPlaceholderMode = ReadThumbnailPlaceholderMode(source, "thumbnailPlaceholderMode", target.ThumbnailPlaceholderMode);
         target.Antialias = ReadBoolean(source, "antialias", target.Antialias);
-        target.SnapToDevicePixels = ReadBoolean(source, "snapToDevicePixels", target.SnapToDevicePixels);
         target.TileSize = ReadInt32(source, "tileSize", target.TileSize);
-        target.AnimationFps = ReadInt32(source, "animationFps", target.AnimationFps);
         target.ScrollContentUpdateDelay = ReadMilliseconds(source, "scrollContentUpdateDelay", target.ScrollContentUpdateDelay);
         target.ZoomContentUpdateDelay = ReadMilliseconds(source, "zoomContentUpdateDelay", target.ZoomContentUpdateDelay);
         target.LookAheadPageCount = ReadInt32(source, "lookAheadPageCount", target.LookAheadPageCount);

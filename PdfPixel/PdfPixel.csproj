@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>A native C# PDF rendering library for .NET, built around SkiaSharp, with no dependency on external PDF frameworks.</Description>
+    <Description>A native C# PDF rendering library for .NET, with no dependency on external PDF frameworks.</Description>
     <PackageTags>pdf;rendering;skiasharp;raster</PackageTags>
   </PropertyGroup>
 
@@ -24,7 +24,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageReference Include="SkiaSharp" Version="4.150.1" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.10" />
   </ItemGroup>
 

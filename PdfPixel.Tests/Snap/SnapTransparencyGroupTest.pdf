@@ -1,0 +1,79 @@
+%PDF-1.7
+% SnapTransparencyGroupTest.pdf
+% Snap transparency group test (ISO 32000-2 11.4) over a rainbow backdrop.
+% Top left: isolated group, two gray circles with /BM /Multiply: they darken each other, not the backdrop.
+% Top right: the same group non-isolated: the circles also darken the backdrop.
+% Bottom left: isolated knockout group, red then blue rectangle at ca 0.6: where they overlap only blue shows.
+% Bottom right: the same group without knockout: the overlap mixes red and blue.
+1 0 obj
+<< /Type /ExtGState /BM /Multiply >>
+endobj
+2 0 obj
+<< /Type /ExtGState /ca 0.6 >>
+endobj
+3 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 160 80] /Group << /S /Transparency /I true /K false >> /Resources << /ExtGState << /GS1 1 0 R /GS2 2 0 R >> >> /Length 206 >>
+stream
+/GS1 gs 0.8 0.8 0.8 rg 20 40 m 20 62 38 80 60 80 c 82 80 100 62 100 40 c 100 18 82 0 60 0 c 38 0 20 18 20 40 c f 60 40 m 60 62 78 80 100 80 c 122 80 140 62 140 40 c 140 18 122 0 100 0 c 78 0 60 18 60 40 c f
+endstream
+endobj
+4 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 160 80] /Group << /S /Transparency /I false /K false >> /Resources << /ExtGState << /GS1 1 0 R /GS2 2 0 R >> >> /Length 206 >>
+stream
+/GS1 gs 0.8 0.8 0.8 rg 20 40 m 20 62 38 80 60 80 c 82 80 100 62 100 40 c 100 18 82 0 60 0 c 38 0 20 18 20 40 c f 60 40 m 60 62 78 80 100 80 c 122 80 140 62 140 40 c 140 18 122 0 100 0 c 78 0 60 18 60 40 c f
+endstream
+endobj
+5 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 160 80] /Group << /S /Transparency /I true /K true >> /Resources << /ExtGState << /GS1 1 0 R /GS2 2 0 R >> >> /Length 57 >>
+stream
+/GS2 gs 1 0 0 rg 20 0 80 80 re f 0 0 1 rg 60 0 80 80 re f
+endstream
+endobj
+6 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 160 80] /Group << /S /Transparency /I true /K false >> /Resources << /ExtGState << /GS1 1 0 R /GS2 2 0 R >> >> /Length 57 >>
+stream
+/GS2 gs 1 0 0 rg 20 0 80 80 re f 0 0 1 rg 60 0 80 80 re f
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+8 0 obj
+<<  /Length 859 >>
+stream
+1 0 0 rg 0 0 30 400 re f 1 0.5 0 rg 30 0 30 400 re f 1 1 0 rg 60 0 30 400 re f 0 1 0 rg 90 0 30 400 re f 0 1 1 rg 120 0 30 400 re f 0 0 1 rg 150 0 30 400 re f 0.5 0 1 rg 180 0 30 400 re f 1 0 1 rg 210 0 30 400 re f 1 0 0 rg 240 0 30 400 re f 1 0.5 0 rg 270 0 30 400 re f 1 1 0 rg 300 0 30 400 re f 0 1 0 rg 330 0 30 400 re f 0 1 1 rg 360 0 30 400 re f 0 0 1 rg 390 0 30 400 re f 0.5 0 1 rg 420 0 30 400 re f 1 0 1 rg 450 0 30 400 re f 1 0 0 rg 480 0 30 400 re f 1 0.5 0 rg 510 0 30 400 re f 1 1 0 rg 540 0 30 400 re f 0 1 0 rg 570 0 30 400 re f 
+q 1 0 0 1 40 300 cm /FI Do Q  q 1 0 0 1 320 300 cm /FN Do Q
+q 1 0 0 1 40 150 cm /FK Do Q  q 1 0 0 1 320 150 cm /FO Do Q
+BT /F 11 Tf 0 0 0 rg 40 385 Td (Isolated, Multiply circles) Tj 280 0 Td (Non-isolated, Multiply circles) Tj ET
+BT /F 11 Tf 40 235 Td (Knockout, ca 0.6) Tj 280 0 Td (Not knockout, ca 0.6) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 10 0 R /MediaBox [0 0 600 400] /Contents 8 0 R /Resources << /XObject << /FI 3 0 R /FN 4 0 R /FK 5 0 R /FO 6 0 R >> /Font << /F 7 0 R >> >> >>
+endobj
+10 0 obj
+<< /Type /Pages /Kids [9 0 R] /Count 1 >>
+endobj
+11 0 obj
+<< /Type /Catalog /Pages 10 0 R >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000495 00000 n 
+0000000547 00000 n 
+0000000593 00000 n 
+0000001002 00000 n 
+0000001412 00000 n 
+0000001670 00000 n 
+0000001929 00000 n 
+0000001999 00000 n 
+0000002910 00000 n 
+0000003091 00000 n 
+0000003149 00000 n 
+trailer
+<< /Size 12 /Root 11 0 R >>
+startxref
+3200
+%%EOF

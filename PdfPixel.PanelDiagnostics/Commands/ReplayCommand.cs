@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Diagnostics;
 using PdfPixel.PanelDiagnostics.Utilities;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.Skia.Fonts;
-using SkiaSharp;
+using PdfPixel.Fonts.Substitution;
 using System.Diagnostics;
 
 namespace PdfPixel.PanelDiagnostics.Commands;
@@ -18,14 +18,15 @@ internal static class ReplayCommand
     private const int DefaultPanelHeight = 960;
 
     /// <summary>
-    /// Opens <paramref name="pdfFile"/> in a panel and replays <paramref name="scriptFile"/> against it.
+    /// Opens <paramref name="pdfFile"/> in a panel and replays <paramref name="scriptFile"/> against it, profiled as
+    /// <paramref name="profile"/> asks, the trace written next to the script.
     /// </summary>
-    public static void Run(FileInfo pdfFile, FileInfo scriptFile)
+    public static void Run(FileInfo pdfFile, FileInfo scriptFile, ProfileMode profile)
     {
         List<PanelScriptLine> script = PanelScriptLine.ParseFile(scriptFile.FullName);
 
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        PdfDocumentReader reader = new(loggerFactory, new SkiaFontSubstitutor(loggerFactory));
+        PdfDocumentReader reader = new(loggerFactory, PdfFontSubstitutorFactory.Create(loggerFactory));
         using IPdfDocument document = reader.Read(new MemoryStream(File.ReadAllBytes(pdfFile.FullName)));
 
         Stopwatch clock = Stopwatch.StartNew();
@@ -33,24 +34,51 @@ internal static class ReplayCommand
         SynchronizationContext.SetSynchronizationContext(synchronizationContext);
 
         using PdfPanelDocument panelDocument = PdfPanelDocument.FromDocument(document, loggerFactory, synchronizationContext);
-        using CpuSkSurfaceFactory surfaceFactory = new(SKColorType.Rgba8888, SKAlphaType.Premul);
         PanelRenderTarget renderTarget = new(clock);
-        using PdfPanelContext context = new(panelDocument, surfaceFactory, renderTarget);
+        using PdfPanelContext context = new(panelDocument, renderTarget);
+
+        // TODO: temporary tile size override for the retained-memory investigation, remove when done.
+        string? tileSize = Environment.GetEnvironmentVariable("PDFPIXEL_TILE_SIZE");
+
+        if (tileSize != null)
+        {
+            context.Renderer.TileSize = int.Parse(tileSize, System.Globalization.CultureInfo.InvariantCulture);
+        }
 
         context.PanelWidth = DefaultPanelWidth;
         context.PanelHeight = DefaultPanelHeight;
-        Execute(context, clock, "open", null);
 
-        foreach (PanelScriptLine line in script)
+        void Replay()
         {
-            if (line.Name == "sleep")
-            {
-                Console.WriteLine($"{clock.Elapsed.TotalMilliseconds,10:F1} ms  > {line.Text}");
-                synchronizationContext.Run(TimeSpan.FromSeconds(line.Arguments[0]));
-                continue;
-            }
+            Execute(context, clock, "open", null);
 
-            Execute(context, clock, line.Text, line);
+            foreach (PanelScriptLine line in script)
+            {
+                if (line.Name == "sleep")
+                {
+                    Console.WriteLine($"{clock.Elapsed.TotalMilliseconds,10:F1} ms  > {line.Text}");
+                    synchronizationContext.Run(TimeSpan.FromSeconds(line.Arguments[0]));
+                    continue;
+                }
+
+                Execute(context, clock, line.Text, line);
+            }
+        }
+
+        string outputDirectory = scriptFile.DirectoryName ?? Environment.CurrentDirectory;
+
+        if (profile == ProfileMode.None || profile == ProfileMode.Heap)
+        {
+            Replay();
+        }
+        else
+        {
+            Profiler.Collect(profile, outputDirectory, Replay);
+        }
+
+        if (profile == ProfileMode.Heap)
+        {
+            Profiler.CollectHeapDump(outputDirectory);
         }
     }
 

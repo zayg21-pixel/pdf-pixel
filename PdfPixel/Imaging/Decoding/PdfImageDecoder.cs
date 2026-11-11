@@ -2,72 +2,66 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Objects;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace PdfPixel.Imaging.Decoding;
 
 /// <summary>
 /// Base class for PDF image decoders.
 /// </summary>
-internal abstract class PdfImageDecoder
+internal abstract class PdfImageDecoder : IPdfImageDecoder
 {
     /// <summary>
-    /// Initializes the base decoder with the source image, decoding context, and logger factory.
+    /// The key of samples decoded whole, at their stored size.
+    /// </summary>
+    protected static readonly PdfImageCacheKey WholeImageKey = new(plane: 0, descaleFactor: 1, part: 0);
+
+    private IPdfImageCache? _cache;
+
+    /// <summary>
+    /// Initializes the base decoder of <paramref name="image"/>.
     /// </summary>
     /// <param name="image">The PDF image descriptor to decode.</param>
-    /// <param name="context">Decoding context holding the content host and color space resolved for <paramref name="image"/>.</param>
-    /// <param name="loggerFactory">Logger factory used to create per-decoder loggers.</param>
-    protected PdfImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
+    protected PdfImageDecoder(PdfImage image)
     {
         Image = image ?? throw new ArgumentNullException(nameof(image));
-        LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-        Logger = loggerFactory.CreateLogger(GetType());
-
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        Context = context;
+        LoggerFactory = image.Document.LoggerFactory;
+        Logger = LoggerFactory.CreateLogger(GetType());
     }
 
     /// <summary>
     /// Source PDF image to decode.
     /// </summary>
-    public PdfImage Image { get; }
+    protected PdfImage Image { get; }
 
     /// <summary>
-    /// Decoding context this decoder was constructed with, holding the content host and the color space
-    /// resolved for <see cref="Image"/>.
+    /// Gets the cache the selected tiles are decoded into and kept in.
     /// </summary>
-    public ImageDecodingContext Context { get; }
+    /// <exception cref="InvalidOperationException">No tiles are selected.</exception>
+    protected IPdfImageCache Cache => _cache ?? throw new InvalidOperationException("No tiles are selected.");
 
-    /// <summary>
-    /// Image applied to <see cref="Image"/> as alpha: its soft mask when it has one, otherwise its mask;
-    /// null when it has neither or <see cref="Context"/> applies no mask.
-    /// </summary>
-    internal PdfImage? AppliedMask
-    {
-        get
-        {
-            if (!Context.ApplyMask)
-            {
-                return null;
-            }
+    /// <inheritdoc />
+    public PdfImageMaskKind MaskKind => Image.MaskKind;
 
-            // The soft mask overrides the mask (ISO 32000-2, Table 87).
-            return Image.SoftMask ?? Image.Mask;
-        }
-    }
+    /// <inheritdoc />
+    public bool HasImageMask => Image.HasImageMask;
 
-    /// <summary>
-    /// Color key mask ranges (/Mask array) applied to <see cref="Image"/>, or null when none applies.
-    /// </summary>
-    protected int[]? AppliedColorKeyMask => (Context.ApplyMask) ? Image.ColorKeyMask : null;
+    /// <inheritdoc />
+    public PdfRange[]? Decode => Image.Decode;
+
+    /// <inheritdoc />
+    public bool Interpolate => Image.Interpolate;
+
+    /// <inheritdoc />
+    public int[]? ColorKeyMask => Image.ColorKeyMask;
+
+    /// <inheritdoc />
+    public float[]? Matte => Image.SoftMask?.Matte;
 
     /// <summary>
     /// Logger instance for this decoder.
@@ -84,166 +78,152 @@ internal abstract class PdfImageDecoder
     /// Returns null for unsupported encodings.
     /// </summary>
     /// <param name="pdfImage">The image descriptor to decode.</param>
-    /// <param name="context">Decoding context holding the content host and color space resolved for <paramref name="pdfImage"/>.</param>
-    /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns>A concrete <see cref="PdfImageDecoder"/> instance, or null if unsupported.</returns>
-    public static PdfImageDecoder? GetDecoder(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
+    public static PdfImageDecoder? GetDecoder(PdfImage pdfImage)
     {
         if (pdfImage == null)
         {
-            return null;
-        }
-
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
+            throw new ArgumentNullException(nameof(pdfImage));
         }
 
         switch (pdfImage.Type)
         {
             case PdfImageType.Raw:
-                return new RawImageDecoder(pdfImage, context, loggerFactory);
+                return new RawImageDecoder(pdfImage);
 
             case PdfImageType.JPEG:
-                return new JpegImageDecoder(pdfImage, context, loggerFactory);
+                return new JpegImageDecoder(pdfImage);
 
             case PdfImageType.JPEG2000:
-                return new JpxImageDecoder(pdfImage, context, loggerFactory);
+                return new JpxImageDecoder(pdfImage);
 
             case PdfImageType.CCITT:
-                return new CcittImageDecoder(pdfImage, context, loggerFactory);
+                return new CcittImageDecoder(pdfImage);
 
             case PdfImageType.JBIG2:
-                return new Jbig2ImageDecoder(pdfImage, context, loggerFactory);
+                return new Jbig2ImageDecoder(pdfImage);
 
             default:
                 return null;
         }
     }
 
-    /// <summary>
-    /// Prepares the decoder for a decode pass and reports the sample grid it will produce.
-    /// Derived classes parse format-specific stream headers and allocate buffers here.
-    /// </summary>
-    /// <param name="regionsOfInterest">Regions, in original image sample coordinates, that must be reconstructed; every other region may be produced blank. Null means the whole image must be reconstructed.</param>
-    /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
-    /// <param name="observer">Observer notified during initialization steps.</param>
-    /// <returns>The parameters describing the rows this decoder will produce.</returns>
-    public abstract PdfImageRowDecodingParameters Initialize(
-        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        in PdfMatrix ctm,
-        IPdfExecutionObserver? observer);
-
-    /// <summary>
-    /// Reads the next full-width row of decoded samples into <paramref name="destination"/>, in the
-    /// layout reported by <see cref="Initialize"/>. Returns false once no further row can be produced.
-    /// </summary>
-    /// <param name="destination">Row buffer, at least <see cref="PdfImageRowDecodingParameters.RowBytes"/> long.</param>
-    /// <param name="observer">Observer notified on progress; may be null.</param>
-    /// <returns>True when a row was produced; false when the decoder is exhausted.</returns>
-    public abstract bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer);
-
-    /// <summary>
-    /// Builds the row decoding parameters for a decode pass, taking the entries that describe the
-    /// samples from the caller and the rest from the image dictionary.
-    /// </summary>
-    /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
-    /// <param name="decodedSize">Size of the sample grid this decoder produces.</param>
-    /// <param name="bitsPerComponent">Bit depth of the samples this decoder produces.</param>
-    /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
-    protected PdfImageRowDecodingParameters CreateRowDecodingParameters(
-        in PdfMatrix ctm,
-        in PdfIntegerSize decodedSize,
-        int bitsPerComponent,
-        PdfColorSpaceConverter colorSpaceConverter)
+    /// <inheritdoc />
+    public PdfImageDecodeInfo SelectTiles(in PdfIntegerSize targetSize, PdfRectangle? region, IPdfImageCache cache, IPdfExecutionObserver? observer)
     {
-        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, decodedSize);
-        float[]? matte = ResolveSoftMaskMatte(colorSpaceConverter);
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
 
-        return new PdfImageRowDecodingParameters(
-            CreateImagePaint(colorSpaceConverter),
-            decodedSize.Width,
-            decodedSize.Height,
-            bitsPerComponent,
-            Image.HasImageMask,
-            AppliedColorKeyMask,
-            Image.Decode,
-            downscaledSize,
-            ResolveMaskAlphaType(matte),
-            isAlphaInterleaved: false,
-            matte: matte);
+        return SelectTiles(targetSize, region, observer);
+    }
+
+    /// <inheritdoc />
+    public abstract PdfImageTile? GetTile(int tileIndex, IPdfExecutionObserver? observer);
+
+    /// <inheritdoc />
+    public virtual PdfImageTile? GetAlphaTile(int tileIndex, IPdfExecutionObserver? observer) => null;
+
+    /// <inheritdoc />
+    public void ReleaseTiles()
+    {
+        DropTiles();
+
+        if (_cache != null)
+        {
+            _cache.Release(Image);
+            _cache = null;
+        }
     }
 
     /// <summary>
-    /// Returns the paint the image is drawn with: the fill paint unchanged for a stencil mask, otherwise the fill paint
-    /// with <paramref name="colorSpaceConverter"/> and the image's rendering intent.
+    /// Selects the tiles <see cref="GetTile"/> returns until the next selection, decoded into and kept in
+    /// <see cref="Cache"/>.
     /// </summary>
-    /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
-    protected PdfPaint CreateImagePaint(PdfColorSpaceConverter colorSpaceConverter)
-    {
-        PdfPaint fillPaint = Context.FillPaint;
+    protected abstract PdfImageDecodeInfo SelectTiles(in PdfIntegerSize targetSize, PdfRectangle? region, IPdfExecutionObserver? observer);
 
-        if (Image.HasImageMask)
+    /// <summary>
+    /// Drops the decoder's references to the selected tiles, which go back to the cache.
+    /// </summary>
+    protected virtual void DropTiles()
+    {
+    }
+
+    /// <summary>
+    /// Returns the tile grid over <paramref name="sampleSize"/> decoded samples, in tiles of the cache's tile size
+    /// rounded up to whole bytes of samples.
+    /// </summary>
+    protected PdfTileInfo CreateGrid(in PdfIntegerSize sampleSize)
+    {
+        int tileSize = (Math.Max(1, Cache.TileSize) + 7) & ~7;
+
+        return new PdfTileInfo(sampleSize, new PdfIntegerSize(tileSize, tileSize));
+    }
+
+    /// <summary>
+    /// Returns a view over the tile at <paramref name="tileIndex"/> of samples held whole in <paramref name="data"/>,
+    /// <paramref name="rowStride"/> bytes per row.
+    /// </summary>
+    protected static PdfImageTile CreateBitmapTile(PdfImageSampleInfo samples, in ReadOnlyMemory<byte> data, int rowStride, int tileIndex)
+    {
+        PdfIntegerRectangle bounds = samples.Grid.GetTilePosition(tileIndex);
+
+        return new PdfImageTile(data.Slice(bounds.Top * rowStride), rowStride, bounds, 0, samples.BitsPerComponent, samples.ComponentCount);
+    }
+
+    /// <summary>
+    /// Returns the tile columns and rows of <paramref name="samples"/> that <paramref name="region"/> of the unit square
+    /// reaches, rounded outward.
+    /// </summary>
+    protected static PdfIntegerRectangle GetRegionTileRange(PdfImageSampleInfo samples, PdfRectangle? region)
+    {
+        PdfIntegerSize size = samples.Grid.ImageSize;
+        PdfIntegerRectangle allSamples = new(0, 0, size.Width, size.Height);
+
+        if (region == null)
         {
-            return fillPaint;
+            return samples.Grid.GetTileRange(allSamples);
         }
 
-        PdfRenderingIntent renderingIntent = Image.RenderingIntent ?? fillPaint.RenderingIntent;
+        PdfRectangle unitRegion = region.Value;
+        PdfIntegerRectangle sampleRegion = new(
+            (int)Math.Floor(Math.Max(0, Math.Min(1, unitRegion.Left)) * size.Width),
+            (int)Math.Floor(Math.Max(0, Math.Min(1, unitRegion.Top)) * size.Height),
+            (int)Math.Ceiling(Math.Max(0, Math.Min(1, unitRegion.Right)) * size.Width),
+            (int)Math.Ceiling(Math.Max(0, Math.Min(1, unitRegion.Bottom)) * size.Height));
 
-        return fillPaint
-            .WithColorSpace(colorSpaceConverter, Context.Host.Resources.DeviceColorMapping)
-            .WithColorConversion(renderingIntent, fillPaint.UseBlackPointCompensation, fillPaint.TransferFunction);
+        return samples.Grid.GetTileRange(PdfIntegerRectangle.Intersect(sampleRegion, allSamples));
     }
 
-
     /// <summary>
-    /// Maps the regions onto the sample grid this decoder reconstructs from, so a format-specific
-    /// region only has to be given the decoder's own rectangle type. The tile grid is laid out over
-    /// the size the image dictionary declares while the stream carries its own, and a tile boundary
-    /// lands on the descaled grid, so every region is widened by one descaled sample on each side.
+    /// Maps regions of the grid samples are decoded on at <paramref name="descaleFactor"/> onto the stored sample grid,
+    /// widened by one decoded sample on each side.
     /// </summary>
-    /// <param name="regionsOfInterest">Regions in the coordinates of the image dictionary's sample grid.</param>
-    /// <param name="sampleSize">Size of the stored sample grid this decoder reconstructs from.</param>
+    /// <param name="regions">Regions in decoded samples.</param>
     /// <param name="descaleFactor">Power-of-two reduction the samples are reconstructed at.</param>
-    protected List<PdfIntegerRectangle>? MapRegionsToSampleGrid(
-        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        in PdfIntegerSize sampleSize,
-        int descaleFactor)
+    protected static List<PdfIntegerRectangle> MapRegionsToStoredGrid(IReadOnlyList<PdfIntegerRectangle> regions, int descaleFactor)
     {
-        if (regionsOfInterest == null)
+        List<PdfIntegerRectangle> mappedRegions = new(regions.Count);
+
+        for (int index = 0; index < regions.Count; index++)
         {
-            return null;
-        }
+            PdfIntegerRectangle region = regions[index];
 
-        float scaleX = (float)sampleSize.Width / Image.Width;
-        float scaleY = (float)sampleSize.Height / Image.Height;
-
-        List<PdfIntegerRectangle> mappedRegions = new(regionsOfInterest.Count);
-        for (int index = 0; index < regionsOfInterest.Count; index++)
-        {
-            PdfIntegerRectangle region = regionsOfInterest[index];
-            int left = (int)Math.Floor(region.Left * scaleX) - descaleFactor;
-            int top = (int)Math.Floor(region.Top * scaleY) - descaleFactor;
-            int right = (int)Math.Ceiling(region.Right * scaleX) + descaleFactor;
-            int bottom = (int)Math.Ceiling(region.Bottom * scaleY) + descaleFactor;
-
-            mappedRegions.Add(new PdfIntegerRectangle(left, top, right, bottom));
+            mappedRegions.Add(new PdfIntegerRectangle(
+                (region.Left - 1) * descaleFactor,
+                (region.Top - 1) * descaleFactor,
+                (region.Right + 1) * descaleFactor,
+                (region.Bottom + 1) * descaleFactor));
         }
 
         return mappedRegions;
     }
 
     /// <summary>
-    /// Largest power-of-two reduction whose reconstruction still carries at least as many samples as the
-    /// placed image needs. Samples the target size cannot show are never reconstructed in the first place.
+    /// Returns the largest power-of-two reduction, up to <paramref name="maxDescaleFactor"/>, whose reconstruction
+    /// still carries at least <paramref name="targetSize"/> samples per axis.
     /// </summary>
-    /// <param name="sampleSize">Size of the stored sample grid.</param>
-    /// <param name="ctm">Current transformation matrix, used to compute the placed size.</param>
-    /// <param name="colorSpaceConverter">Converter resolved for the decoded samples.</param>
-    /// <param name="maxDescaleFactor">Largest reduction the format can reconstruct.</param>
-    protected static int ComputeDescaleFactor(
+    protected static int SelectDescaleFactor(
         in PdfIntegerSize sampleSize,
-        in PdfMatrix ctm,
+        in PdfIntegerSize targetSize,
         PdfColorSpaceConverter colorSpaceConverter,
         int maxDescaleFactor)
     {
@@ -253,17 +233,11 @@ internal abstract class PdfImageDecoder
             return 1;
         }
 
-        PdfIntegerSize? targetSize = PdfImageCommandUtilities.GetScaledSize(ctm, sampleSize);
-        if (!targetSize.HasValue)
-        {
-            return 1;
-        }
-
         int descaleFactor = 1;
         for (int candidate = 2; candidate <= maxDescaleFactor; candidate *= 2)
         {
-            if (Descale(sampleSize.Width, candidate) < targetSize.Value.Width
-                || Descale(sampleSize.Height, candidate) < targetSize.Value.Height)
+            if (Descale(sampleSize.Width, candidate) < targetSize.Width
+                || Descale(sampleSize.Height, candidate) < targetSize.Height)
             {
                 break;
             }
@@ -281,49 +255,7 @@ internal abstract class PdfImageDecoder
     /// <param name="descaleFactor">Power-of-two reduction.</param>
     protected static int Descale(int sampleCount, int descaleFactor) => Math.Max(1, (sampleCount + descaleFactor - 1) / descaleFactor);
 
-    /// <summary>
-    /// Returns the alpha type contributed by the image's mask, or Opaque when it has none.
-    /// </summary>
-    /// <param name="matte">Matte components returned by <see cref="ResolveSoftMaskMatte"/>.</param>
-    protected PdfImageAlphaType ResolveMaskAlphaType(float[]? matte)
-    {
-        if (AppliedMask == null)
-        {
-            return PdfImageAlphaType.Opaque;
-        }
-
-        return (matte != null)
-            ? PdfImageAlphaType.Premultiplied
-            : PdfImageAlphaType.Unpremultiplied;
-    }
-
-    /// <summary>
-    /// Returns the soft mask's /Matte components when they match this image's component count,
-    /// or null when the mask declares none.
-    /// </summary>
-    /// <param name="colorSpaceConverter">Converter resolved for the produced samples.</param>
-    protected float[]? ResolveSoftMaskMatte(PdfColorSpaceConverter colorSpaceConverter)
-    {
-        if (colorSpaceConverter == null)
-        {
-            throw new ArgumentNullException(nameof(colorSpaceConverter));
-        }
-
-        float[]? matte = (Context.ApplyMask) ? Image.SoftMask?.Matte : null;
-
-        if (matte == null || matte.Length != colorSpaceConverter.Components)
-        {
-            return null;
-        }
-
-        return matte;
-    }
-
-    /// <summary>
-    /// Releases all transient state accumulated during a single decode pass.
-    /// Safe to call multiple times; does not affect the lifetime of the decoder itself.
-    /// </summary>
-    public virtual void Cleanup()
-    {
-    }
+    /// <inheritdoc />
+    public override string ToString()
+        => $"{Image.Width.ToString(CultureInfo.InvariantCulture)}x{Image.Height.ToString(CultureInfo.InvariantCulture)}";
 }

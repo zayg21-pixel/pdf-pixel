@@ -1,4 +1,5 @@
 using PdfPixel.Color;
+using PdfPixel.Snap;
 using System;
 
 namespace PdfPixel.PdfPanel.Rendering;
@@ -6,12 +7,9 @@ namespace PdfPixel.PdfPanel.Rendering;
 public sealed partial class PdfPanelRenderer
 {
     internal const float DefaultPageCornerRadius = 0f;
-    internal const bool DefaultShowPageLoadingAnimation = true;
     internal const bool DefaultAntialias = true;
-    internal const bool DefaultSnapToDevicePixels = true;
-    internal const int DefaultTileSize = 1024;
-    internal const int DefaultAnimationFps = 60;
-    internal const int DefaultLookAheadPageCount = 2;
+    internal const int DefaultTileSize = 512;
+    internal const int DefaultLookAheadPageCount = 1;
 
     internal static readonly PdfRgbaColor DefaultBackgroundColor = new(211f / 255f, 211f / 255f, 211f / 255f);
     internal static readonly TimeSpan DefaultScrollContentUpdateDelay = TimeSpan.Zero;
@@ -29,29 +27,14 @@ public sealed partial class PdfPanelRenderer
     public float PageCornerRadius { get; set; } = DefaultPageCornerRadius;
 
     /// <summary>
-    /// Draws an animated placeholder over pages that have no decoded content yet.
-    /// </summary>
-    public bool ShowPageLoadingAnimation { get; set; } = DefaultShowPageLoadingAnimation;
-
-    /// <summary>
     /// If true - antialiasing is enabled for page content.
     /// </summary>
     public bool Antialias { get; set; } = DefaultAntialias;
 
     /// <summary>
-    /// If true - rects and image tiles are snapped to whole device pixels.
-    /// </summary>
-    public bool SnapToDevicePixels { get; set; } = DefaultSnapToDevicePixels;
-
-    /// <summary>
     /// Edge length of a single content tile in device pixels.
     /// </summary>
     public int TileSize { get; set; } = DefaultTileSize;
-
-    /// <summary>
-    /// Frames per second the renderer drives its animations at.
-    /// </summary>
-    public int AnimationFps { get; set; } = DefaultAnimationFps;
 
     /// <summary>
     /// Time a scrolled request waits before the content of the pages that stayed visible is decoded again.
@@ -69,5 +52,19 @@ public sealed partial class PdfPanelRenderer
     /// Number of pages ahead of the visible pages in the scroll direction whose content is decoded after them.
     /// </summary>
     public int LookAheadPageCount { get; set; } = DefaultLookAheadPageCount;
+
+    /// <summary>
+    /// Gets or sets the action that draws over a page each time the page is drawn, onto the frame surface in the page's
+    /// content coordinates (top-left origin, unrotated), clipped to the page; it draws over the page content and the
+    /// panel's own page graphics. It only draws: it must not reset the surface, change its context or read its pixels.
+    /// </summary>
+    public Action<PdfSnapSurface, PdfPanelFramePage>? OnPanelPageRendered { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action that draws over the panel each time a part of it is drawn, onto the frame surface in
+    /// panel pixels, clipped to the part drawn: the whole panel, or one page when only that page is drawn again. It
+    /// only draws: it must not reset the surface, change its context or read its pixels.
+    /// </summary>
+    public Action<PdfSnapSurface, PdfPanelFrame>? OnPanelRendered { get; set; }
 }
 

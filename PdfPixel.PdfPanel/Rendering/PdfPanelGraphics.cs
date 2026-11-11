@@ -1,6 +1,4 @@
-using PdfPixel.Geometry;
-using SkiaSharp;
-using System;
+using PdfPixel.Commands;
 using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Rendering;
@@ -8,26 +6,20 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// <summary>
 /// User interface graphics drawn over page content, stored per page and per <see cref="PdfPanelGraphicsLayer"/>.
 /// </summary>
-internal sealed class PdfPanelGraphics : IDisposable
+internal sealed class PdfPanelGraphics
 {
-    private readonly PdfPanelDocument _panelDocument;
     private readonly Dictionary<int, PdfPanelPageGraphics> _pages = [];
     private readonly List<int> _updatedPageNumbers = [];
 
     /// <summary>
-    /// Initializes empty graphics for the pages of <paramref name="panelDocument"/>.
+    /// Replaces the recording of <paramref name="layer"/> on the given page. A <see langword="null"/> recording empties
+    /// the layer.
     /// </summary>
-    internal PdfPanelGraphics(PdfPanelDocument panelDocument)
-        => _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
-
-    /// <summary>
-    /// Replaces the picture of <paramref name="layer"/> on the given page. A <see langword="null"/> picture empties the layer.
-    /// </summary>
-    internal void Update(int pageNumber, PdfPanelGraphicsLayer layer, SKPicture? picture)
+    internal void Update(int pageNumber, PdfPanelGraphicsLayer layer, PdfCommandRecorder? recording)
     {
         if (!_pages.TryGetValue(pageNumber, out PdfPanelPageGraphics? page))
         {
-            if (picture == null)
+            if (recording == null)
             {
                 return;
             }
@@ -36,13 +28,13 @@ internal sealed class PdfPanelGraphics : IDisposable
             _pages[pageNumber] = page;
         }
 
-        page.Update(layer, picture);
+        page.Update(layer, recording);
     }
 
     /// <summary>
-    /// Composes the picture of every page with an updated layer.
+    /// Composes the recording of every page with an updated layer.
     /// </summary>
-    /// <returns>Numbers of the pages whose picture changed.</returns>
+    /// <returns>Numbers of the pages whose recording changed.</returns>
     internal IReadOnlyList<int> Update()
     {
         _updatedPageNumbers.Clear();
@@ -54,18 +46,14 @@ internal sealed class PdfPanelGraphics : IDisposable
                 continue;
             }
 
-            PdfSize pageSize = _panelDocument.Pages[page.Key - 1].Size;
-            page.Value.Compose(SKRect.Create(pageSize.Width, pageSize.Height));
+            page.Value.Compose();
             _updatedPageNumbers.Add(page.Key);
         }
 
         foreach (int pageNumber in _updatedPageNumbers)
         {
-            PdfPanelPageGraphics page = _pages[pageNumber];
-
-            if (page.IsEmpty)
+            if (_pages[pageNumber].IsEmpty)
             {
-                page.Dispose();
                 _pages.Remove(pageNumber);
             }
         }
@@ -74,19 +62,8 @@ internal sealed class PdfPanelGraphics : IDisposable
     }
 
     /// <summary>
-    /// Returns the composed picture of the given page, or <see langword="null"/> if the page has no graphics.
+    /// Returns the composed recording of the given page, or <see langword="null"/> if the page has no graphics.
     /// </summary>
-    internal SKPicture? GetPicture(int pageNumber)
-        => (_pages.TryGetValue(pageNumber, out PdfPanelPageGraphics? page)) ? page.Picture : null;
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        foreach (PdfPanelPageGraphics page in _pages.Values)
-        {
-            page.Dispose();
-        }
-
-        _pages.Clear();
-    }
+    internal PdfCommandRecorder? GetRecording(int pageNumber)
+        => (_pages.TryGetValue(pageNumber, out PdfPanelPageGraphics? page)) ? page.Recording : null;
 }

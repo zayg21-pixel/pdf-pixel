@@ -1,6 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Thumbnails;
 using System;
 
 namespace PdfPixel.PdfPanel.Caching;
@@ -12,7 +12,6 @@ internal sealed class PdfPageCacheEntry : IDisposable
 {
     private readonly object _renderingLocker = new();
     private PdfAnnotationPopup[]? _annotations;
-    private PagesDrawingRequest? _pendingRequest;
     private bool _disposed;
 
     /// <summary>
@@ -27,6 +26,7 @@ internal sealed class PdfPageCacheEntry : IDisposable
 
         Content = new PdfPageCacheEntryItem(pageNumber);
         AnnotationContent = new PdfPageCacheEntryItem(pageNumber);
+        Thumbnail.SetContent(new PdfPageThumbnail());
     }
 
     /// <summary>
@@ -40,9 +40,30 @@ internal sealed class PdfPageCacheEntry : IDisposable
     public PdfPageCacheEntryItem AnnotationContent { get; }
 
     /// <summary>
-    /// Thumbnail of the page as a PNG file. Kept when the content is cleared.
+    /// Rasterized tiles of the page's visible region, cleared with the content.
     /// </summary>
-    public ContentLocker<byte[]> Thumbnail { get; } = new();
+    public ContentLocker<PdfPageTiles> Tiles { get; } = new();
+
+    /// <summary>
+    /// Thumbnail of the page in the forms produced so far, always set; its forms are changed under the write lock.
+    /// Kept when the content is cleared.
+    /// </summary>
+    public ContentLocker<PdfPageThumbnail> Thumbnail { get; } = new();
+
+    /// <summary>
+    /// Returns the forms the page's thumbnail was produced in.
+    /// </summary>
+    public PdfPanelThumbnailFormats GetThumbnailFormats()
+    {
+        using LockedContent<PdfPageThumbnail> lockedThumbnail = Thumbnail.GetContent();
+
+        if (lockedThumbnail.Content == null)
+        {
+            return PdfPanelThumbnailFormats.None;
+        }
+
+        return lockedThumbnail.Content.Formats;
+    }
 
     /// <summary>
     /// Returns the page's annotation popups, creating them on first call.
@@ -68,20 +89,6 @@ internal sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// Request the queued or running decode pass of this entry works for, or <see langword="null"/> when none is pending.
-    /// </summary>
-    public PagesDrawingRequest? PendingRequest
-    {
-        get
-        {
-            lock (_renderingLocker)
-            {
-                return _pendingRequest;
-            }
-        }
-    }
-
-    /// <summary>
     /// Observer used during page command recording. Held here so the provider can cancel it.
     /// </summary>
     public IPdfCancellableExecutionObserver? ParseObserver { get; private set; }
@@ -92,11 +99,11 @@ internal sealed class PdfPageCacheEntry : IDisposable
     public IPdfCancellableExecutionObserver? ContentObserver { get; private set; }
 
     /// <summary>
-    /// Prepares the entry for a new decode pass for <paramref name="request"/>.
+    /// Prepares the entry for a new decode pass.
     /// Keeps the parse observer if one already exists, creating it only when missing;
     /// always cancels and replaces the content observer.
     /// </summary>
-    public void InitializeForRendering(IPdfExecutionObserverFactory observerFactory, PagesDrawingRequest request, int pageNumber)
+    public void InitializeForRendering(IPdfExecutionObserverFactory observerFactory, int pageNumber)
     {
         if (observerFactory == null)
         {
@@ -115,23 +122,9 @@ internal sealed class PdfPageCacheEntry : IDisposable
             ContentObserver?.Cancel();
             ContentObserver?.Dispose();
             ContentObserver = observerFactory.CreateContentObserver(pageNumber);
-            _pendingRequest = request ?? throw new ArgumentNullException(nameof(request));
         }
     }
 
-    /// <summary>
-    /// Ends the pending decode pass when <paramref name="contentObserver"/> is still the entry's content observer.
-    /// </summary>
-    public void CompleteRendering(IPdfCancellableExecutionObserver contentObserver)
-    {
-        lock (_renderingLocker)
-        {
-            if (ReferenceEquals(ContentObserver, contentObserver))
-            {
-                _pendingRequest = null;
-            }
-        }
-    }
 
     /// <summary>
     /// Cancels any in-progress work and clears the observers. Safe to call from any thread.
@@ -149,7 +142,6 @@ internal sealed class PdfPageCacheEntry : IDisposable
             ContentObserver?.Cancel();
             ContentObserver?.Dispose();
             ContentObserver = null;
-            _pendingRequest = null;
         }
     }
 
@@ -163,11 +155,8 @@ internal sealed class PdfPageCacheEntry : IDisposable
         if ((contentTypes & CachedContentType.Content) != 0)
         {
             Content.ClearContent();
-        }
-
-        if ((contentTypes & CachedContentType.Annotations) != 0)
-        {
             AnnotationContent.ClearContent();
+            Tiles.SetContent(null);
         }
 
         if ((contentTypes & CachedContentType.Words) != 0)
@@ -177,23 +166,14 @@ internal sealed class PdfPageCacheEntry : IDisposable
 
         if ((contentTypes & CachedContentType.Thumbnail) != 0)
         {
-            Thumbnail.SetContent(null);
+            using WriteLockedContent<PdfPageThumbnail> lockedThumbnail = Thumbnail.GetContentForWriting();
+
+            if (lockedThumbnail.Content != null)
+            {
+                lockedThumbnail.Content.Png = null;
+                lockedThumbnail.Content.Samples = null;
+            }
         }
-    }
-
-    /// <summary>
-    /// Returns collection of content pictures for main content, annotations and thumbnail.
-    /// </summary>
-    public PdfContentPictures GetContentPictures()
-    {
-        ThrowIfDisposed();
-
-        return new PdfContentPictures
-        {
-            Content = Content.ContentPicture,
-            Annotations = AnnotationContent.ContentPicture,
-            Thumbnail = Thumbnail
-        };
     }
 
     private void ThrowIfDisposed()
@@ -214,6 +194,7 @@ internal sealed class PdfPageCacheEntry : IDisposable
 
         Cancel();
         Clear(CachedContentType.All);
+        Tiles.Dispose();
         Thumbnail.Dispose();
         _disposed = true;
     }

@@ -5,7 +5,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Streams;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -13,56 +12,64 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 {
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    private CcittBitmap? _cachedBitmap;
-    private int _currentImageRow;
+    private ReadOnlyMemory<byte>? _data;
+    private PdfImageSampleInfo? _sampleInfo;
 
-    public CcittImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
-        : base(image, context, loggerFactory)
+    public CcittImageDecoder(PdfImage image)
+        : base(image)
     {
-        _colorSpaceConverter = context.ColorSpaceConverter
+        _colorSpaceConverter = image.ColorSpace
             ?? PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
 
-    public override PdfImageRowDecodingParameters Initialize(
-        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        in PdfMatrix ctm,
-        IPdfExecutionObserver? observer)
+    protected override PdfImageDecodeInfo SelectTiles(in PdfIntegerSize targetSize, PdfRectangle? region, IPdfExecutionObserver? observer)
     {
-        CcittBitmap bitmap = EnsureBitmapDecoded(observer);
+        PdfImageSampleInfo sampleInfo = EnsureSampleInfo();
 
-        PdfImageRowDecodingParameters rowDecodingParameters = CreateRowDecodingParameters(
-            ctm,
-            new PdfIntegerSize(bitmap.Width, bitmap.Height),
-            Image.BitsPerComponent,
-            _colorSpaceConverter);
+        _data = Cache.Find(Image, WholeImageKey);
 
-        _currentImageRow = 0;
-
-        return rowDecodingParameters;
-    }
-
-    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
-    {
-        if (_cachedBitmap == null || _currentImageRow >= _cachedBitmap.DecodedRowCount)
+        if (_data == null)
         {
-            return false;
+            int rowStride = PdfImageTileSelection.GetRowStride(sampleInfo, sampleInfo.Grid.ImageSize.Width);
+            byte[] data = DecodeBitmap(sampleInfo.Grid.ImageSize, rowStride, observer);
+
+            _data = data;
+            Cache.Put(Image, WholeImageKey, data);
         }
 
-        _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(destination);
-        _currentImageRow++;
-
-        return true;
+        return new PdfImageDecodeInfo(sampleInfo, null);
     }
 
-    public override void Cleanup() => _currentImageRow = 0;
-
-    private CcittBitmap EnsureBitmapDecoded(IPdfExecutionObserver? observer)
+    public override PdfImageTile? GetTile(int tileIndex, IPdfExecutionObserver? observer)
     {
-        if (_cachedBitmap != null)
+        if (_sampleInfo == null || _data == null)
         {
-            return _cachedBitmap;
+            throw new InvalidOperationException("No tiles are selected.");
         }
 
+        int rowStride = PdfImageTileSelection.GetRowStride(_sampleInfo, _sampleInfo.Grid.ImageSize.Width);
+
+        return CreateBitmapTile(_sampleInfo, _data.Value, rowStride, tileIndex);
+    }
+
+    protected override void DropTiles() => _data = null;
+
+    private PdfImageSampleInfo EnsureSampleInfo()
+    {
+        if (_sampleInfo == null)
+        {
+            var parameters = Image.DecodeParameters as PdfCcittFaxDecodeParameters;
+            int columns = parameters?.Columns ?? Image.Width;
+            int rows = parameters?.Rows ?? Image.Height;
+
+            _sampleInfo = new PdfImageSampleInfo(CreateGrid(new PdfIntegerSize(columns, rows)), descaleFactor: 1, Image.BitsPerComponent, 1, _colorSpaceConverter);
+        }
+
+        return _sampleInfo;
+    }
+
+    private byte[] DecodeBitmap(in PdfIntegerSize size, int rowStride, IPdfExecutionObserver? observer)
+    {
         ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
 
         if (encodedData.IsEmpty)
@@ -71,16 +78,14 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         }
 
         var parameters = Image.DecodeParameters as PdfCcittFaxDecodeParameters;
-        int columns = parameters?.Columns ?? Image.Width;
-        int rows = parameters?.Rows ?? Image.Height;
         int k = parameters?.CompressionScheme ?? 0;
         bool endOfLine = parameters?.EndOfLine ?? false;
         bool byteAlign = parameters?.EncodedByteAlign ?? false;
         bool blackIs1 = parameters?.BlackIs1 ?? false;
         bool endOfBlock = parameters?.EndOfBlock ?? true;
+        int rows = size.Height;
 
-        CcittRowDecoder rowDecoder = new(encodedData, columns, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);
-        int rowStride = rowDecoder.RowStride;
+        CcittRowDecoder rowDecoder = new(encodedData, size.Width, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);
         var data = new byte[rowStride * rows];
         int decodedRowCount = 0;
 
@@ -96,32 +101,6 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Reference={Reference}).", decodedRowCount, Image.Reference);
         }
 
-        _cachedBitmap = new CcittBitmap(columns, rows, rowStride, decodedRowCount, data);
-
-        return _cachedBitmap;
-    }
-
-    private sealed class CcittBitmap
-    {
-        private readonly byte[] _data;
-
-        public CcittBitmap(int width, int height, int rowStride, int decodedRowCount, byte[] data)
-        {
-            Width = width;
-            Height = height;
-            RowStride = rowStride;
-            DecodedRowCount = decodedRowCount;
-            _data = data;
-        }
-
-        public int Width { get; }
-
-        public int Height { get; }
-
-        public int RowStride { get; }
-
-        public int DecodedRowCount { get; }
-
-        public ReadOnlySpan<byte> GetRowReadOnly(int row) => _data.AsSpan(row * RowStride, RowStride);
+        return data;
     }
 }

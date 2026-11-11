@@ -8,10 +8,8 @@ namespace PdfPixel.Color;
 /// </summary>
 public static class ProfileResources
 {
-    // The perceptual mapping is modeled on the appearance of Adobe's U.S. Web Coated (SWOP) v2 profile,
-    // which is the long-time Photoshop default for North American users -- though it is not intended to be a direct replacement for the Adobe profile.
-    // Due to the small size of the 4D LUT, this profile will not match the Adobe profile's output exactly,
-    // but it should give a correct overall appearance to an image when converted for display.
+    // CGATS001Compat-v2-micro.icc from Compact ICC Profiles: a 6-point A2B0 modeled on U.S. Web Coated (SWOP) v2,
+    // plus a 17-point B2A0 generated with ArgyllCMS by inverting that A2B0.
     private const string CompactCmyk = "CompactCmyk.icc";
     private const string ResourcePrefix = $"{nameof(PdfPixel)}.{nameof(Color)}.EmbeddedData.";
 

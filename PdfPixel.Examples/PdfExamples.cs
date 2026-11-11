@@ -4,13 +4,19 @@ using System.IO;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using PdfPixel.Annotations;
+using PdfPixel.Color;
+using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Execution;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Encoding;
+using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.OptionalContent;
-using PdfPixel.Skia;
-using PdfPixel.Skia.Fonts;
-using SkiaSharp;
+using PdfPixel.Fonts.Substitution;
+using PdfPixel.Snap;
 
 namespace PdfPixel.Examples;
 
@@ -59,7 +65,7 @@ internal static class PdfExamples
         ILoggerFactory loggerFactory = NullLoggerFactory.Instance;
 
         // ...and a font substitutor, which supplies system fonts for fonts not embedded in the PDF.
-        SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
+        PdfFontSubstitutor fontSubstitutor = PdfFontSubstitutorFactory.Create(loggerFactory);
         PdfDocumentReader reader = new(loggerFactory, fontSubstitutor);
 
         // The reader parses lazily from the stream it is handed, so give it the whole file in memory.
@@ -78,10 +84,12 @@ internal static class PdfExamples
         // Rotating and scaling the box gives the output image size, with width and height swapped
         // when the rotation is a quarter turn.
         PdfSize outputSize = pageBox.GetTransformedSize(rotation, scale);
-        SKImageInfo imageInfo = new((int)outputSize.Width, (int)outputSize.Height);
-        using SKSurface surface = SKSurface.Create(imageInfo);
-        SKCanvas canvas = surface.Canvas;
-        canvas.Clear(SKColors.White);
+        int width = (int)outputSize.Width;
+        int height = (int)outputSize.Height;
+
+        // The pixels the page is drawn onto: 8-bit red, green, blue and alpha, premultiplied.
+        PdfImageChannel[] rgbaChannels = [PdfImageChannel.Component(0), PdfImageChannel.Component(1), PdfImageChannel.Component(2), PdfImageChannel.Alpha];
+        PdfImageSamples pixels = new(width, height, PdfImageSampleFormat.Integer, 8, rgbaChannels, isPremultiplied: true);
 
         // Held while each drawing command executes; share one object per document with any other
         // code that reads the same document from another thread.
@@ -90,48 +98,69 @@ internal static class PdfExamples
         // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.
         IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
-        // Optional content groups are the PDF's layers (e.g. "Notes", "Watermark"). Passing the
-        // document's default configuration renders every layer in its default visibility state.
-        PdfUserOptionalContentConfiguration? optionalContentConfiguration = document.OptionalContentProperties.DefaultConfiguration?.ToUserConfiguration();
+        // Optional content groups are the PDF's layers (e.g. "Notes", "Watermark"). The default
+        // states render every layer in its default visibility state.
+        PdfOptionalContentStates optionalContentStates = document.OptionalContentProperties.GetDefaultStates();
 
-        // Bundles the canvas, rendering options, and the objects above into the state every
-        // drawing command reads from while the page is replayed.
+        // Holds the values drawing commands reuse; share one per document across its renders.
+        using CommandCache commandCache = new();
+
+        // Bundles the rendering options and the objects above into the state every drawing command
+        // reads from while the page is replayed.
         PdfCommandExecutionParameters executionParameters = new();
-        using PdfCommandExecutionContext executionContext = new(
-            document,
+        PdfCommandExecutionContext executionContext = new(
+            commandCache,
             executionParameters,
             contentLocker,
-            optionalContentConfiguration?.ToStates(),
+            optionalContentStates,
+            PdfAnnotationStates.Empty,
             executionObserver);
 
-        // Executes each drawing command immediately against the canvas.
-        SkCanvasCommandProcessor processor = new(canvas, executionContext, NullLogger<SkCanvasCommandProcessor>.Instance);
+        // Snap blends in DeviceRGB, reuses its working memory through the pool, and keeps decoded
+        // image tiles in the cache.
+        PdfSnapMemoryPool memoryPool = new();
+        PdfSnapImageCache imageCache = new();
+        PdfSnapSurfaceParameters surfaceParameters = new(PdfDeviceRgbColorSpaceConverter.Instance, memoryPool, imageCache);
 
-        // Saves canvas and execution state before the page transform, to restore both afterwards.
-        processor.Process(SaveStateCommand.Instance);
+        // Executes each drawing command immediately onto the pixels.
+        using PdfSnapSurface surface = new(pixels, surfaceParameters, executionContext, NullLogger<PdfSnapSurface>.Instance);
+
+        // White paper under the page, so the image is opaque; the page group composites over it.
+        PdfPathBuilder paperArea = new();
+        paperArea.AddRect(new PdfRectangle(0, 0, width, height));
+        PdfRgbaColor paperColor = new(1f, 1f, 1f, 1f);
+        PdfPaint paperPaint = new(PdfPaintStyle.Fill, paperColor);
+        DrawPathCommand drawPaper = new(paperArea.ToPath(), paperPaint);
+        surface.Process(drawPaper);
+
+        // Saves the surface's drawing state before the page transform, to restore it afterwards.
+        surface.Process(SaveStateCommand.Instance);
 
         try
         {
-            // Clips to the box, flips the page onto the canvas' top-left origin, applies the
+            // Clips to the box, flips the page onto the image's top-left origin, applies the
             // rotation, and scales to the requested output resolution.
-            processor.ApplyPageTransformations(pageBox, rotation, scale);
+            surface.ApplyPageTransformations(pageBox, rotation, scale);
 
-            // Draws the page content: paths, text, images, and shadings.
+            // Records the page content: paths, text, images, and shadings.
             PdfRenderingParameters renderingParameters = new();
-            page.Render(processor, renderingParameters, executionObserver);
+            PdfCommandRecorder pageContent = new();
+            page.Render(pageContent, renderingParameters, executionObserver);
+
+            // Draws the recorded content as the page group, blended in the page's own color space.
+            DrawRecordingCommand drawPageContent = new(pageContent);
+            surface.Process(page.CreatePageGroup(drawPageContent));
         }
         finally
         {
-            processor.Process(RestoreStateCommand.Instance);
+            surface.Process(RestoreStateCommand.Instance);
         }
 
-        // The rendered page is already a Skia image, so Skia's own PNG encoder writes it out.
+        // Writes the pixels as a PNG file; opaque pixels are stored without alpha.
         string outputPath = ExamplePaths.Output(Format, outputFileName);
-        using SKImage image = surface.Snapshot();
-        using SKData encoded = image.Encode(SKEncodedImageFormat.Png, 100);
-        using FileStream output = File.Create(outputPath);
-        encoded.SaveTo(output);
+        byte[] png = PdfImageSamplesPngEncoder.Encode(pixels);
+        File.WriteAllBytes(outputPath, png);
 
-        Console.WriteLine($"[Pdf]   {imageInfo.Width}x{imageInfo.Height} -> {ExamplePaths.Relative(outputPath)}");
+        Console.WriteLine($"[Pdf]   {width}x{height} -> {ExamplePaths.Relative(outputPath)}");
     }
 }

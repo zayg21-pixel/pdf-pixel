@@ -139,7 +139,7 @@ internal static class PdfAppearanceRenderer
         PdfFontMetrics metrics = GetMetrics(state, font);
         float lineHeight = GetLineHeight(state, metrics);
 
-        ShapedGlyphBuffer glyphs = new();
+        PdfValueList<ShapedGlyph> glyphs = new();
         List<string> lines = [];
         foreach (string paragraph in text.Split(LineBreaks, StringSplitOptions.None))
         {
@@ -154,7 +154,7 @@ internal static class PdfAppearanceRenderer
         foreach (string line in lines)
         {
             font.Shape(line, state, glyphs);
-            float lineWidth = TextRenderUtilities.GetTextWidth(glyphs.Glyphs) * horizontalScale;
+            float lineWidth = PdfTextRenderUtilities.GetTextWidth(glyphs.Items) * horizontalScale;
             float lineStart = alignment switch
             {
                 PdfTextAlignment.Centered => textBox.Left + ((textBox.Width - lineWidth) / 2f),
@@ -163,7 +163,7 @@ internal static class PdfAppearanceRenderer
             };
 
             state.TextMatrix = new PdfMatrix(textMatrix.ScaleX, textMatrix.SkewX, lineStart, textMatrix.SkewY, textMatrix.ScaleY, baseline);
-            renderer.DrawTextSequence(processor, glyphs.Glyphs, state, font);
+            renderer.DrawTextSequence(processor, glyphs.Items, state, font);
 
             textLeft = MathF.Min(textLeft, lineStart);
             textRight = MathF.Max(textRight, lineStart + lineWidth);
@@ -181,8 +181,8 @@ internal static class PdfAppearanceRenderer
         ref PdfGraphicsState state)
     {
         IPdfDocumentInternal document = host.Document;
-        PdfOperandStack operandStack = new();
-        GraphicsStateOperators graphicsStateOperators = new(host, processor, operandStack, new Stack<PdfGraphicsState>());
+        PdfValueList<PdfContentStreamValue> operandStack = new();
+        GraphicsStateOperators graphicsStateOperators = new(renderer, host, processor, operandStack, new Stack<PdfGraphicsState>());
         ColorOperators colorOperators = new(operandStack, host);
         TextOperators textOperators = new(renderer, host, processor, operandStack);
 
@@ -193,7 +193,7 @@ internal static class PdfAppearanceRenderer
         {
             if (value.Kind != PdfContentStreamValueKind.Operator)
             {
-                operandStack.Push(value);
+                operandStack.Add(value);
                 continue;
             }
 
@@ -266,7 +266,7 @@ internal static class PdfAppearanceRenderer
         string paragraph,
         PdfNamedFont font,
         PdfGraphicsState state,
-        ShapedGlyphBuffer glyphs,
+        PdfValueList<ShapedGlyph> glyphs,
         float horizontalScale,
         float maximumWidth,
         List<string> lines)
@@ -300,7 +300,7 @@ internal static class PdfAppearanceRenderer
         string word,
         PdfNamedFont font,
         PdfGraphicsState state,
-        ShapedGlyphBuffer glyphs,
+        PdfValueList<ShapedGlyph> glyphs,
         float horizontalScale,
         float maximumWidth,
         List<string> lines)
@@ -334,16 +334,16 @@ internal static class PdfAppearanceRenderer
         return remainder;
     }
 
-    private static float MeasureWidth(string text, PdfNamedFont font, PdfGraphicsState state, ShapedGlyphBuffer glyphs, float horizontalScale)
+    private static float MeasureWidth(string text, PdfNamedFont font, PdfGraphicsState state, PdfValueList<ShapedGlyph> glyphs, float horizontalScale)
     {
         font.Shape(text, state, glyphs);
 
-        return TextRenderUtilities.GetTextWidth(glyphs.Glyphs) * horizontalScale;
+        return PdfTextRenderUtilities.GetTextWidth(glyphs.Items) * horizontalScale;
     }
 
-    private static PdfString? GetFontName(PdfOperandStack operandStack, PdfParseContext parseContext)
+    private static PdfString? GetFontName(PdfValueList<PdfContentStreamValue> operandStack, PdfParseContext parseContext)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = operandStack.AsSpan();
+        ReadOnlySpan<PdfContentStreamValue> operands = operandStack.Items;
         if (operands.Length < 2)
         {
             return null;

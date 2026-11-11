@@ -4,7 +4,7 @@
 [![Publish NuGet Package](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml)
 [![CI](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml)
 
-PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp as its rendering engine. It renders PDF documents to raster output with full fidelity, optimized for both CPU and GPU rendering, with no dependency on external PDF frameworks — just SkiaSharp, standard Microsoft libraries, bundled Adobe CMap resources for character mapping, and the bundled URW Core 35 fonts used for the Standard 14 fonts. Coverage spans the full PDF specification for static content, with all essential rendering features supported. A ready-made panel component makes it straightforward to embed PDF viewing directly into any application.
+PDF Pixel is a native C# PDF library for .NET, designed for specification-compliant PDF rendering. Its rasterizer, PdfPixel.Snap, implements the ISO 32000-2 imaging model, transparency included, in managed code. It depends on no external PDF framework: only standard Microsoft libraries, bundled Adobe CMap resources for character mapping and the bundled URW Core 35 fonts for the Standard 14 fonts. A viewer panel embeds PDF viewing in WPF and browser applications.
 
 ---
 
@@ -120,7 +120,6 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 | Content rendering | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Annotation rendering | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | User graphics | ✅ | ✅ | ✅ *(overlay canvas)* | ❌ | ❌ | ❌ |
-| GPU rendering | — | ✅ OpenGL | ✅ WebGL | ❌ | ❌ | ❌ |
 | View manipulation (zoom, scroll, rotation) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Page layout | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Presentation mode | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |

@@ -1,8 +1,9 @@
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Wpf.Drawing;
-using SkiaSharp;
 using System;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -11,6 +12,13 @@ namespace PdfPixel.PdfPanel.Wpf;
 
 internal sealed partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 {
+    private const int BitsPerComponent = 8;
+
+    // WPF's Pbgra32 stores blue, green, red, then premultiplied alpha.
+    private static readonly PdfImageChannel[] BgraChannels = [PdfImageChannel.Component(2), PdfImageChannel.Component(1), PdfImageChannel.Component(0), PdfImageChannel.Alpha];
+
+    private PdfImageSamples? _samples;
+
     public WpfPdfPanelRenderTarget(WriteableBitmap writeableBitmap, WpfPdfPanel panel, in PdfSize panelSize, in PdfPoint hostScale, in PdfPoint hostOffset)
     {
         WriteableBitmap = writeableBitmap ?? throw new ArgumentNullException(nameof(writeableBitmap));
@@ -35,33 +43,44 @@ internal sealed partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
     public PdfMatrix HostToPanel { get; }
 
     /// <inheritdoc />
-    public void Render(SKSurface surface, PdfPanelFrame frame) => DrawOnWritableBitmap(surface, frame);
-
-    private void DrawOnWritableBitmap(SKSurface surface, PdfPanelFrame frame)
+    public PdfImageSamples GetFrameSamples(int width, int height)
     {
-        if (Panel.DrawingVisual == null)
+        if (_samples == null || _samples.Width != width || _samples.Height != height)
+        {
+            _samples = new PdfImageSamples(width, height, PdfImageSampleFormat.Integer, BitsPerComponent, BgraChannels, isPremultiplied: true);
+        }
+
+        return _samples;
+    }
+
+    /// <inheritdoc />
+    public void Present(PdfPanelFrame frame)
+    {
+        if (Panel.DrawingVisual == null || _samples == null)
         {
             return;
         }
 
-        if (WriteableBitmap.PixelWidth != surface.Canvas.DeviceClipBounds.Width || WriteableBitmap.PixelHeight != surface.Canvas.DeviceClipBounds.Height)
+        int width = WriteableBitmap.PixelWidth;
+        int height = WriteableBitmap.PixelHeight;
+
+        if (width != _samples.Width || height != _samples.Height)
         {
             return;
+        }
+
+        GCHandle pixels = _samples.PinBuffer();
+
+        try
+        {
+            WriteableBitmap.WritePixels(new Int32Rect(0, 0, width, height), pixels.AddrOfPinnedObject(), _samples.RowBytes * height, _samples.RowBytes);
+        }
+        finally
+        {
+            pixels.Free();
         }
 
         WriteableBitmap.Lock();
-
-        SKImageInfo imageInfo = new(WriteableBitmap.PixelWidth, WriteableBitmap.PixelHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
-
-        surface.ReadPixels(imageInfo, WriteableBitmap.BackBuffer, WriteableBitmap.BackBufferStride, 0, 0);
-
-        if (Panel.PanelInterface?.OnAfterDraw != null)
-        {
-            using SKSurface drawSurface = SKSurface.Create(imageInfo, WriteableBitmap.BackBuffer, WriteableBitmap.BackBufferStride);
-            Panel.PanelInterface.OnAfterDraw(drawSurface.Canvas, frame);
-        }
-
-        WriteableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));
 
         DrawingVisual drawingVisual = Panel.DrawingVisual;
         DrawingContext render = drawingVisual.RenderOpen();

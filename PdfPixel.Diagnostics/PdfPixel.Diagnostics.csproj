@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
+    <ProjectReference Include="..\PdfPixel.Snap\PdfPixel.Snap.csproj" />
     </ItemGroup>
 
   <ItemGroup>

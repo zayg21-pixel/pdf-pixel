@@ -17,7 +17,7 @@ public sealed class PdfAxialGradient
     /// <param name="positions">Gradient positions in the range [0, 1].</param>
     /// <param name="extendStart">Whether the gradient extends beyond its start point.</param>
     /// <param name="extendEnd">Whether the gradient extends beyond its end point.</param>
-    internal PdfAxialGradient(in PdfPoint start, in PdfPoint end, PdfColor[] colors, float[] positions, bool extendStart, bool extendEnd)
+    public PdfAxialGradient(in PdfPoint start, in PdfPoint end, PdfColor[] colors, float[] positions, bool extendStart, bool extendEnd)
     {
         Start = start;
         End = end;

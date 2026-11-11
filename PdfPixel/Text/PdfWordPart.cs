@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using System;
 
 namespace PdfPixel.Text;
 
@@ -7,21 +8,41 @@ namespace PdfPixel.Text;
 /// </summary>
 public sealed class PdfWordPart
 {
+    private readonly ReadOnlyMemory<PdfCharacter> _characters;
+
     /// <summary>
     /// Initializes a new <see cref="PdfWordPart"/> with the given geometry and character data.
     /// </summary>
-    public PdfWordPart(in PdfRectangle boundingBox, int lineIndex, int startIndex, PdfCharacter[] characters)
+    public PdfWordPart(int lineIndex, int startIndex, in ReadOnlyMemory<PdfCharacter> characters)
     {
-        BoundingBox = boundingBox;
+        if (characters.IsEmpty)
+        {
+            throw new ArgumentException("A word part has at least one character.", nameof(characters));
+        }
+
         LineIndex = lineIndex;
         StartIndex = startIndex;
-        Characters = characters;
+        _characters = characters;
     }
 
     /// <summary>
-    /// Bounding box of the part in page coordinates.
+    /// Bounding box of the part in page coordinates: the union of its characters' bounding boxes.
     /// </summary>
-    public PdfRectangle BoundingBox { get; }
+    public PdfRectangle BoundingBox
+    {
+        get
+        {
+            ReadOnlySpan<PdfCharacter> characters = _characters.Span;
+            PdfRectangle boundingBox = characters[0].BoundingBox;
+
+            for (int index = 1; index < characters.Length; index++)
+            {
+                boundingBox = PdfRectangle.Union(boundingBox, characters[index].BoundingBox);
+            }
+
+            return boundingBox;
+        }
+    }
 
     /// <summary>
     /// Zero-based index of the text line this part belongs to.
@@ -36,5 +57,5 @@ public sealed class PdfWordPart
     /// <summary>
     /// The individual characters that make up this part.
     /// </summary>
-    public PdfCharacter[] Characters { get; }
+    public ReadOnlySpan<PdfCharacter> Characters => _characters.Span;
 }

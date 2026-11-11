@@ -1,3 +1,4 @@
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering;
@@ -30,10 +31,10 @@ public abstract class PdfPattern
     public PdfPatternType PatternType { get; }
 
     /// <summary>
-    /// Renders the pattern using the given command processor and graphics state.
+    /// Returns the group an object painted with the pattern takes as its source (ISO 32000-2 11.6.7), or
+    /// <see langword="null"/> when the pattern paints nothing.
     /// </summary>
-    /// <param name="processor">Command processor to draw through.</param>
-    /// <param name="state">Actual graphics state.</param>
-    /// <param name="renderTarget">Pattern render target.</param>
-    internal abstract void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget);
+    /// <param name="state">Graphics state the object is painted in.</param>
+    /// <param name="paint">The paint the object is painted with.</param>
+    internal abstract PdfGroupSource? GetGroupSource(PdfGraphicsState state, PdfPaint paint);
 }

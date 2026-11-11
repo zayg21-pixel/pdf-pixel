@@ -1,11 +1,10 @@
+using PdfPixel.Annotations;
 using PdfPixel.Color;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Content;
 using PdfPixel.Geometry;
-using PdfPixel.Objects;
 using PdfPixel.OptionalContent;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands.Execution;
 
@@ -14,53 +13,36 @@ namespace PdfPixel.Commands.Execution;
 /// Groups rendering parameters and cancellation into a single object so the shape stays
 /// stable as new per-replay concerns are added.
 /// </summary>
-public sealed class PdfCommandExecutionContext : IDisposable
+public sealed class PdfCommandExecutionContext
 {
     /// <summary>
-    /// Initializes a new execution context with the document being replayed, execution parameters,
-    /// a content locker, and an observer.
+    /// Initializes a new execution context with the cache commands reuse values from, execution parameters,
+    /// a content locker, the optional content states, the annotation states and an observer.
     /// </summary>
     public PdfCommandExecutionContext(
-        IPdfDocument document,
+        CommandCache cache,
         PdfCommandExecutionParameters parameters,
         object contentLocker,
-        PdfOptionalContentStates? optionalContentStates,
+        PdfOptionalContentStates optionalContentStates,
+        PdfAnnotationStates annotationStates,
         IPdfExecutionObserver executionObserver,
-        PdfRectangle? pageRegionOfInterest = null)
+        PdfRectangle? visibleRegion = null)
     {
-        Document = document ?? throw new ArgumentNullException(nameof(document));
+        Cache = cache ?? throw new ArgumentNullException(nameof(cache));
         Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
-
-        if (optionalContentStates == null)
-        {
-            PdfOptionalContentConfiguration? defaultConfiguration = document.OptionalContentProperties.DefaultConfiguration;
-            if (defaultConfiguration == null)
-            {
-                optionalContentStates = new PdfOptionalContentStates(new Dictionary<PdfReference, bool>());
-            }
-            else
-            {
-                optionalContentStates = defaultConfiguration.ToUserConfiguration().ToStates();
-            }
-        }
-
-        OptionalContentStates = optionalContentStates;
-        ContentTree = new PdfContentTreeBuilder(optionalContentStates);
+        OptionalContentStates = optionalContentStates ?? throw new ArgumentNullException(nameof(optionalContentStates));
+        AnnotationStates = annotationStates ?? throw new ArgumentNullException(nameof(annotationStates));
+        ContentScopes = new PdfContentScopeState(optionalContentStates);
+        ContentTree = new PdfContentTreeBuilder();
         ExecutionObserver = executionObserver;
-        PageRegionOfInterest = pageRegionOfInterest;
+        VisibleRegion = visibleRegion;
     }
 
     /// <summary>
-    /// Color uncolored tiling patterns and uncolored Type 3 glyphs adopt when replayed, or null when
-    /// content is drawn with its own colors.
+    /// General-purpose cache for values commands want to reuse, owned by the caller.
     /// </summary>
-    public PdfRgbaColor? TintColor { get; internal set; }
-
-    /// <summary>
-    /// Document whose commands are replayed, owning the values cached for its whole lifetime.
-    /// </summary>
-    public IPdfDocument Document { get; }
+    public CommandCache Cache { get; }
 
     /// <summary>
     /// Execution parameters that may vary between replays (e.g. scale factor, antialias).
@@ -68,7 +50,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public PdfCommandExecutionParameters Parameters { get; }
 
     /// <summary>
-    /// Locker to prevent multi-threaded access to PDF content stream and lazy-initialized data.
+    /// Locker to prevent multi-threaded access to PDF content streams.
     /// </summary>
     public object ContentLocker { get; }
 
@@ -78,24 +60,18 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public IPdfExecutionObserver ExecutionObserver { get; }
 
     /// <summary>
-    /// Visible region of the page in page coordinates. Null means the full page is visible.
-    /// Used to skip decoding of image tiles outside the visible area.
+    /// Part of the page visible across the replays that share decoded image tiles, in the device space of the surface
+    /// the commands are replayed on; it may reach beyond that surface. Null means the full page.
     /// </summary>
-    public PdfRectangle? PageRegionOfInterest { get; }
+    public PdfRectangle? VisibleRegion { get; }
 
     /// <summary>
-    /// Tracks the total transformation matrix and current clip derived purely from processed commands,
-    /// mirroring the save/restore stack independently of how commands are actually drawn.
+    /// Tracks active scopes and evaluates optional content visibility.
     /// </summary>
-    public PdfCommandExecutionFrames Frames { get; } = new();
+    public PdfContentScopeState ContentScopes { get; }
 
     /// <summary>
-    /// General-purpose cache for values commands want to reuse across this execution's replay.
-    /// </summary>
-    public CommandCache Cache { get; } = new();
-
-    /// <summary>
-    /// Tracks active scopes, evaluates optional content visibility and builds the content tree.
+    /// Builds the content tree.
     /// </summary>
     public PdfContentTreeBuilder ContentTree { get; }
 
@@ -104,6 +80,8 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// </summary>
     public PdfOptionalContentStates OptionalContentStates { get; }
 
-    /// <inheritdoc />
-    public void Dispose() => Cache.Dispose();
+    /// <summary>
+    /// States the annotations of recorded <see cref="DrawAnnotationCommand"/>s are drawn in.
+    /// </summary>
+    public PdfAnnotationStates AnnotationStates { get; }
 }

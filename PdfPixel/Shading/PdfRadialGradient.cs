@@ -19,7 +19,7 @@ public sealed class PdfRadialGradient
     /// <param name="positions">Gradient positions in the range [0, 1].</param>
     /// <param name="extendStart">Whether the gradient extends beyond its start circle.</param>
     /// <param name="extendEnd">Whether the gradient extends beyond its end circle.</param>
-    internal PdfRadialGradient(
+    public PdfRadialGradient(
         in PdfPoint center0,
         float radius0,
         in PdfPoint center1,

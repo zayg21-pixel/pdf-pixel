@@ -97,14 +97,14 @@ public abstract class PdfShapeAnnotation : PdfMarkupAnnotation
         }
 
         PdfPath effectPath = BorderEffect.Apply(shapePath, strokeStyle.LineWidth);
-        PdfPaint? interiorPaint = ResolveInteriorPaint(page);
+        PdfPaint? interiorPaint = PdfAnnotationPaintFactory.ResolvePaint(InteriorColor, page);
 
         if (interiorPaint != null)
         {
             processor.Process(new DrawPathCommand(effectPath, interiorPaint));
         }
 
-        PdfPaint? borderPaint = ResolvePaint(page);
+        PdfPaint? borderPaint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
 
         if (HasBorder(strokeStyle) && borderPaint != null)
         {

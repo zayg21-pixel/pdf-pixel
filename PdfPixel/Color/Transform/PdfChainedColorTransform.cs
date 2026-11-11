@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Transform;
 
@@ -11,7 +12,6 @@ public sealed class PdfChainedColorTransform : IPdfColorTransform
     private const int MaximumComponentCount = 4;
 
     private readonly ChainedColorTransform _colorTransform;
-    private readonly float[] _buffer;
 
     /// <summary>
     /// Initializes a transform converting through <paramref name="colorTransform"/>.
@@ -34,7 +34,6 @@ public sealed class PdfChainedColorTransform : IPdfColorTransform
         _colorTransform = colorTransform ?? throw new ArgumentNullException(nameof(colorTransform));
         InputComponentCount = inputComponentCount;
         OutputComponentCount = outputComponentCount;
-        _buffer = new float[MaximumComponentCount];
     }
 
     /// <inheritdoc />
@@ -44,15 +43,76 @@ public sealed class PdfChainedColorTransform : IPdfColorTransform
     public int OutputComponentCount { get; }
 
     /// <inheritdoc />
-    public ReadOnlySpan<float> Transform(ReadOnlySpan<float> input)
+    public void Transform(ref float input, ref float output)
     {
-        Vector4 color = _colorTransform.Transform(ColorVectorUtilities.ToVector4WithOnePadding(input.Slice(0, Math.Min(input.Length, InputComponentCount))));
+        Vector4 color = _colorTransform.Transform(LoadWithOnePadding(ref input, InputComponentCount));
 
-        _buffer[0] = color.X;
-        _buffer[1] = color.Y;
-        _buffer[2] = color.Z;
-        _buffer[3] = color.W;
+        StoreComponents(color, ref output, OutputComponentCount);
+    }
 
-        return _buffer.AsSpan(0, OutputComponentCount);
+    /// <summary>
+    /// Returns the <paramref name="count"/> components at <paramref name="input"/> as a vector, the components it
+    /// lacks set to 1.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector4 LoadWithOnePadding(ref float input, int count)
+    {
+        switch (count)
+        {
+            case 0:
+            {
+                return Vector4.One;
+            }
+            case 1:
+            {
+                return new Vector4(input, 1f, 1f, 1f);
+            }
+            case 2:
+            {
+                return new Vector4(input, Unsafe.Add(ref input, 1), 1f, 1f);
+            }
+            case 3:
+            {
+                return new Vector4(input, Unsafe.Add(ref input, 1), Unsafe.Add(ref input, 2), 1f);
+            }
+            default:
+            {
+                return Unsafe.As<float, Vector4>(ref input);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes the first <paramref name="count"/> components of <paramref name="color"/> to <paramref name="output"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void StoreComponents(Vector4 color, ref float output, int count)
+    {
+        switch (count)
+        {
+            case 1:
+            {
+                output = color.X;
+                break;
+            }
+            case 2:
+            {
+                output = color.X;
+                Unsafe.Add(ref output, 1) = color.Y;
+                break;
+            }
+            case 3:
+            {
+                output = color.X;
+                Unsafe.Add(ref output, 1) = color.Y;
+                Unsafe.Add(ref output, 2) = color.Z;
+                break;
+            }
+            default:
+            {
+                Unsafe.As<float, Vector4>(ref output) = color;
+                break;
+            }
+        }
     }
 }

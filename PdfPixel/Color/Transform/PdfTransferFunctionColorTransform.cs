@@ -1,5 +1,6 @@
 using PdfPixel.Functions;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Transform;
 
@@ -10,7 +11,6 @@ namespace PdfPixel.Color.Transform;
 public sealed class PdfTransferFunctionColorTransform : IPdfColorTransform
 {
     private readonly PdfFunction[] _componentFunctions;
-    private readonly float[] _buffer;
 
     /// <summary>
     /// Initializes a transform applying <paramref name="functions"/> to <paramref name="componentCount"/> components.
@@ -35,8 +35,6 @@ public sealed class PdfTransferFunctionColorTransform : IPdfColorTransform
         {
             _componentFunctions[componentIndex] = (functions.Length == 1) ? functions[0] : functions[componentIndex];
         }
-
-        _buffer = new float[componentCount];
     }
 
     /// <inheritdoc />
@@ -46,27 +44,21 @@ public sealed class PdfTransferFunctionColorTransform : IPdfColorTransform
     public int OutputComponentCount => _componentFunctions.Length;
 
     /// <inheritdoc />
-    public ReadOnlySpan<float> Transform(ReadOnlySpan<float> input)
+    public void Transform(ref float input, ref float output)
     {
-        if (input.Length < _componentFunctions.Length)
-        {
-            throw new ArgumentException("The input holds fewer components than the transform maps.", nameof(input));
-        }
-
         for (int componentIndex = 0; componentIndex < _componentFunctions.Length; componentIndex++)
         {
-            ReadOnlySpan<float> result = _componentFunctions[componentIndex].Evaluate(input[componentIndex]);
+            float value = Unsafe.Add(ref input, componentIndex);
+            ReadOnlySpan<float> result = _componentFunctions[componentIndex].Evaluate(value);
 
             if (result.IsEmpty)
             {
-                _buffer[componentIndex] = input[componentIndex];
+                Unsafe.Add(ref output, componentIndex) = value;
             }
             else
             {
-                _buffer[componentIndex] = result[0];
+                Unsafe.Add(ref output, componentIndex) = result[0];
             }
         }
-
-        return _buffer;
     }
 }

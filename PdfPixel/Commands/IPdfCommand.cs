@@ -6,11 +6,6 @@ namespace PdfPixel.Commands;
 public interface IPdfCommand
 {
     /// <summary>
-    /// Decoding capabilities of this command that determine when a cached picture must be regenerated.
-    /// </summary>
-    PdfCommandFeatures Features { get; }
-
-    /// <summary>
     /// Identifies the concrete type of this command.
     /// </summary>
     PdfCommandKind Kind { get; }

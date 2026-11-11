@@ -31,7 +31,7 @@ public enum PdfPanelInterfaceAction
     RequestRedraw,
 
     /// <summary>
-    /// Requests <see cref="PdfPanelInterface.OnAfterDraw"/> without full page rendering.
+    /// Request the panel to be drawn again from the content already produced, running its drawing callbacks.
     /// </summary>
     RequestPresent,
 

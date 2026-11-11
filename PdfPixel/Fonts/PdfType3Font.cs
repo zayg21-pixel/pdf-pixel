@@ -45,7 +45,13 @@ public class PdfType3Font : PdfSingleByteFont
 
         FontMatrix = PdfMatrix.FromArray(dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? PdfMatrix.CreateScale(0.001f, 0.001f);
 
-        FontBoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.FontBBoxKey));
+        PdfRectangle? fontBoundingBox = PdfRectangle.FromArray(dictionary.GetArray(PdfTokens.FontBBoxKey));
+
+        if (fontBoundingBox != null && !fontBoundingBox.Value.IsEmpty)
+        {
+            FontBoundingBox = fontBoundingBox;
+        }
+
         Widths.RescaleWidths(FontMatrix.ScaleX / PdfSingleByteFontWidths.WidthToUserSpaceCoeff);
 
         if (Encoding.BaseEncoding == PdfEncoding.Unknown)
@@ -83,6 +89,8 @@ public class PdfType3Font : PdfSingleByteFont
     /// <summary>
     /// Font bounding box in glyph coordinate space (required for Type3 fonts per PDF spec §9.6.5, Table 110).
     /// Used as the recording bounds for d0 glyphs that do not define a per-glyph bounding box via d1.
+    /// <see langword="null"/> when the font declares none or all four of its values are zero, which makes no assumption
+    /// about glyph sizes.
     /// </summary>
     public PdfRectangle? FontBoundingBox { get; }
 
@@ -126,11 +134,6 @@ public class PdfType3Font : PdfSingleByteFont
         PdfParseContext parseContext = new(info.Content, sourceHost.Document);
         PdfGraphicsState charState = sourceState.CloneForType3Glyph(glyphHost);
 
-        // TODO: [MEDIUM] Type3 text not selectable (issue19624.pdf): d0 glyphs without d1 bbox and FontBBox [0 0 0 0]
-        // get zero-size character bounds. Treat an all-zero FontBBox as absent (spec: no assumptions), add
-        // IContentRenderCommand with Bounds on every Draw*Command (render targets already compute them, outer space,
-        // independent of the command's own matrix), a general bounds walker over recordings, then take glyph bounds
-        // live from the recording when d1 bbox is absent.
         PdfRectangle? glyphBounds = info.BoundingBox ?? FontBoundingBox;
         if (glyphBounds != null)
         {
@@ -181,7 +184,7 @@ public class PdfType3Font : PdfSingleByteFont
     private (PdfSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
         PdfParser parser = new(parseContext, Document, PdfParserMode.ContentStream);
-        PdfOperandStack operandStack = new();
+        PdfValueList<PdfContentStreamValue> operandStack = new();
 
         PdfSize type3Advancement = new(0, 0);
         PdfRectangle? type3BoundingBox = null;
@@ -193,7 +196,7 @@ public class PdfType3Font : PdfSingleByteFont
                 {
                     case PdfOperator.GlyphWidth:
                     {
-                            ReadOnlySpan<PdfContentStreamValue> operands = operandStack.Pop(6);
+                            ReadOnlySpan<PdfContentStreamValue> operands = operandStack.RemoveLast(6);
 
                         if (operands.Length < 2)
                         {
@@ -213,7 +216,7 @@ public class PdfType3Font : PdfSingleByteFont
                     }
                     case PdfOperator.GlyphWidthAndBoundingBox:
                     {
-                            ReadOnlySpan<PdfContentStreamValue> operands = operandStack.Pop(6);
+                            ReadOnlySpan<PdfContentStreamValue> operands = operandStack.RemoveLast(6);
 
                         if (operands.Length < 6)
                         {
@@ -246,7 +249,7 @@ public class PdfType3Font : PdfSingleByteFont
             }
             else
             {
-                operandStack.Push(value);
+                operandStack.Add(value);
             }
         }
 

@@ -8,8 +8,9 @@ namespace PdfPixel.Fonts.Sfnt;
 /// <summary>
 /// Reads and writes a full SFNT font through its per-table models: decodes the container via
 /// <see cref="SfntContainerProcessor"/>, then parses every table that has a dedicated processor
-/// (head, hhea, maxp, hmtx, OS/2, name, cmap, post, gasp, glyf/loca, CFF). Tables without one remain
-/// accessible only as a byte range on <see cref="SfntFont.Tables"/>, and writing drops them.
+/// (head, hhea, maxp, OS/2, name, cmap, post, gasp, CFF); "hmtx", "loca" and the "post" glyph names, like the
+/// "cmap" subtables, are parsed on first use. Tables without a processor remain accessible only as a byte range on
+/// <see cref="SfntFont.Tables"/>, and writing drops them.
 /// </summary>
 public class SfntFontProcessor
 {
@@ -151,10 +152,7 @@ public class SfntFontProcessor
 
         font.Hhea = hhea;
 
-        if (hmtxRecord != null)
-        {
-            font.Hmtx = _hmtxProcessor.Read(stream.GetMemory(hmtxRecord.Value), hhea.NumberOfHMetrics, maxp.NumGlyphs);
-        }
+        font.HmtxRecord = hmtxRecord;
 
         SfntTableRecord? os2Record = container.FindTable(SfntTableTags.Os2);
         if (os2Record != null)
@@ -179,6 +177,7 @@ public class SfntFontProcessor
         if (postRecord != null)
         {
             font.Post = _postProcessor.Read(stream.GetMemory(postRecord.Value));
+            font.PostRecord = postRecord;
         }
 
         SfntTableRecord? gaspRecord = container.FindTable(SfntTableTags.Gasp);
@@ -194,9 +193,9 @@ public class SfntFontProcessor
 
         if (locaRecord != null && glyfRecord != null && font.Head != null && font.Maxp != null)
         {
-            SfntLoca loca = _locaProcessor.Read(stream.GetMemory(locaRecord.Value), font.Maxp.NumGlyphs, font.Head.IndexToLocFormat, glyfRecord.Value.Length);
-            font.Glyf = new SfntGlyf { Loca = loca };
+            font.Glyf = new SfntGlyf();
             font.GlyfRecord = glyfRecord;
+            font.LocaRecord = locaRecord;
         }
 
         return font;
@@ -255,12 +254,71 @@ public class SfntFontProcessor
             throw new ArgumentNullException(nameof(font));
         }
 
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
         if (font.Glyf == null || font.GlyfRecord == null)
         {
             return ReadOnlyMemory<byte>.Empty;
         }
 
+        ResolveLoca(font, font.Glyf, stream);
+
         return _glyfProcessor.ResolvePath(font.Glyf, gid, new SfntGlyfSource(stream, font.GlyfRecord.Value), matrix);
+    }
+
+    /// <summary>
+    /// Returns the font's "hmtx" table, parsing it from <paramref name="stream"/> on first use, or null if the font
+    /// has none.
+    /// </summary>
+    /// <param name="font">The font to get the table of.</param>
+    /// <param name="stream">The stream <paramref name="font"/> was read from.</param>
+    public SfntHmtx? GetHmtx(SfntFont font, ReadOnlyFontStream stream)
+    {
+        if (font == null)
+        {
+            throw new ArgumentNullException(nameof(font));
+        }
+
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
+        if (font.Hmtx == null && font.HmtxRecord != null && font.Hhea != null && font.Maxp != null)
+        {
+            font.Hmtx = _hmtxProcessor.Read(stream.GetMemory(font.HmtxRecord.Value), font.Hhea.NumberOfHMetrics, font.Maxp.NumGlyphs);
+        }
+
+        return font.Hmtx;
+    }
+
+    /// <summary>
+    /// Returns the font's mapping from glyph name to glyph ID, reading its "post" glyph names from
+    /// <paramref name="stream"/> on first use, or null if the font has no "post" table or one without names.
+    /// </summary>
+    /// <param name="font">The font to get the mapping of.</param>
+    /// <param name="stream">The stream <paramref name="font"/> was read from.</param>
+    public IReadOnlyDictionary<PdfFontString, ushort>? GetNameToGid(SfntFont font, ReadOnlyFontStream stream)
+    {
+        if (font == null)
+        {
+            throw new ArgumentNullException(nameof(font));
+        }
+
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
+        if (font.Post != null && !font.Post.IsNameToGidResolved && font.PostRecord != null)
+        {
+            font.Post.SetNameToGid(_postProcessor.ReadNameToGid(stream.GetMemory(font.PostRecord.Value)));
+        }
+
+        return font.Post?.NameToGid;
     }
 
     /// <summary>
@@ -331,9 +389,11 @@ public class SfntFontProcessor
             tables.Add(new SfntTableData(SfntTableTags.Maxp, _maxpProcessor.Write(font.Maxp, numGlyphs)));
         }
 
-        if (font.Hmtx != null && font.Hhea != null)
+        SfntHmtx? sourceHmtx = GetHmtx(font, sourceStream);
+
+        if (sourceHmtx != null && font.Hhea != null)
         {
-            SfntHmtx hmtx = (glyphOrder != null) ? ReorderHmtx(font.Hmtx, glyphOrder) : font.Hmtx;
+            SfntHmtx hmtx = (glyphOrder != null) ? ReorderHmtx(sourceHmtx, glyphOrder) : sourceHmtx;
             ushort numberOfHMetrics = (glyphOrder != null) ? numGlyphs : font.Hhea.NumberOfHMetrics;
             tables.Add(new SfntTableData(SfntTableTags.Hmtx, _hmtxProcessor.Write(hmtx, numberOfHMetrics)));
         }
@@ -365,6 +425,8 @@ public class SfntFontProcessor
         {
             if (font.GlyfRecord != null)
             {
+                ResolveLoca(font, font.Glyf, sourceStream);
+
                 SfntGlyfWriteResult glyfResult = _glyfProcessor.Write(font.Glyf, new SfntGlyfSource(sourceStream, font.GlyfRecord.Value), glyphOrder);
                 tables.Add(new SfntTableData(SfntTableTags.Glyf, glyfResult.GlyfData));
 
@@ -382,6 +444,17 @@ public class SfntFontProcessor
         tables.Add(new SfntTableData(SfntTableTags.Post, SfntPostProcessor.CreateEmptyStub()));
 
         return _containerProcessor.Write(font.Version, tables);
+    }
+
+    /// <summary>
+    /// Parses the glyph ranges of <paramref name="glyf"/> from the font's "loca" table on first use.
+    /// </summary>
+    private void ResolveLoca(SfntFont font, SfntGlyf glyf, ReadOnlyFontStream stream)
+    {
+        if (!glyf.IsLocaResolved && font.LocaRecord != null && font.GlyfRecord != null && font.Head != null && font.Maxp != null)
+        {
+            glyf.SetLoca(_locaProcessor.Read(stream.GetMemory(font.LocaRecord.Value), font.Maxp.NumGlyphs, font.Head.IndexToLocFormat, font.GlyfRecord.Value.Length));
+        }
     }
 
     /// <summary>

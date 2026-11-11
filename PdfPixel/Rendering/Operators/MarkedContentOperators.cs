@@ -14,12 +14,12 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class MarkedContentOperators : IOperatorProcessor
 {
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfStructureTree _structureTree;
 
-    public MarkedContentOperators(PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public MarkedContentOperators(PdfValueList<PdfContentStreamValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _operandStack = operandStack;
         _host = host;
@@ -72,7 +72,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessMarkedContentPoint(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -90,7 +90,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessMarkedContentPointWithProperties(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;
@@ -108,7 +108,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessBeginMarkedContent(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -127,7 +127,7 @@ internal class MarkedContentOperators : IOperatorProcessor
 
     private void ProcessBeginMarkedContentWithProperties(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;

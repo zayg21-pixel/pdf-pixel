@@ -17,7 +17,7 @@ internal class PdfOperatorProcessor
     private readonly PdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly PdfPathBuilder _currentPath;
     private readonly GraphicsStateOperators _graphicsStateOperators;
@@ -33,7 +33,7 @@ internal class PdfOperatorProcessor
         PdfRenderer renderer,
         IPdfContentHost host,
         IPdfCommandProcessor processor,
-        PdfOperandStack operandStack,
+        PdfValueList<PdfContentStreamValue> operandStack,
         Stack<PdfGraphicsState> graphicsStack,
         PdfPathBuilder currentPath)
     {
@@ -43,7 +43,7 @@ internal class PdfOperatorProcessor
         _operandStack = operandStack;
         _graphicsStack = graphicsStack;
         _currentPath = currentPath;
-        _graphicsStateOperators = new GraphicsStateOperators(host, processor, operandStack, graphicsStack);
+        _graphicsStateOperators = new GraphicsStateOperators(renderer, host, processor, operandStack, graphicsStack);
         _textOperators = new TextOperators(renderer, host, processor, operandStack);
         _pathOperators = new PathOperators(renderer, operandStack, processor, currentPath, host);
         _colorOperators = new ColorOperators(operandStack, host);

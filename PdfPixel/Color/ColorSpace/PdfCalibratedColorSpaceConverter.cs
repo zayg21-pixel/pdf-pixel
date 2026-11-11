@@ -11,10 +11,10 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly ChainedColorTransform _toSrgbTransform;
-    private readonly ChainedColorTransform _absoluteToSrgbTransform;
     private readonly ChainedColorTransform _toXyzTransform;
     private readonly ChainedColorTransform _absoluteToXyzTransform;
+    private readonly ChainedColorTransform _fromXyzTransform;
+    private readonly ChainedColorTransform _absoluteFromXyzTransform;
 
     private protected PdfCalibratedColorSpaceConverter(float[] whitePoint, float[] blackPoint, float[] gamma, float[] matrix)
     {
@@ -44,7 +44,9 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
         Vector4 whitePointVector = new(whitePoint[0], whitePoint[1], whitePoint[2], 1f);
         Vector4 blackPointVector = new(blackPoint[0], blackPoint[1], blackPoint[2], 0f);
 
-        PerChannelTrcTransform trcTransform = new([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);
+        IccTrc[] gammaTrcs = [IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])];
+        PerChannelTrcTransform trcTransform = new(gammaTrcs);
+        PerChannelTrcTransform inverseTrcTransform = new(gammaTrcs, inverse: true);
 
         Matrix4x4 chadMatrix = IccTransforms.BuildBradfordAdaptMatrix(whitePointVector, IccTransforms.D50WhitePoint);
         Matrix4x4 primariesMatrix = new(
@@ -68,7 +70,9 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
 
         Matrix4x4 blackPointScaleMatrix = Matrix4x4.Identity;
         FunctionColorTransform? blackPointOffsetTransform = null;
+        FunctionColorTransform? inverseBlackPointOffsetTransform = null;
         IColorTransform? blackPointCompensationTransform = null;
+        IColorTransform? inverseBlackPointCompensationTransform = null;
 
         // BlackPoint is the media black: the components decode into [BlackPoint, WhitePoint], then black point
         // compensation maps the neutral black at its lightness, at most L* 50, to zero; absolute colorimetry
@@ -79,19 +83,23 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
             blackPointScaleMatrix = Matrix4x4.CreateScale(blackPointScale.X, blackPointScale.Y, blackPointScale.Z);
 
             Vector4 adaptedBlackPoint = Vector4.Transform(blackPointVector, Matrix4x4.Transpose(chadMatrix));
+            Vector4 neutralBlackPoint = IccBlackPoint.GetNeutralBlackPoint(adaptedBlackPoint);
             blackPointOffsetTransform = new FunctionColorTransform(x => x + adaptedBlackPoint);
-            blackPointCompensationTransform = IccBlackPoint.BuildBlackPointCompensationTransform(IccBlackPoint.GetNeutralBlackPoint(adaptedBlackPoint));
+            inverseBlackPointOffsetTransform = new FunctionColorTransform(x => x - adaptedBlackPoint);
+            blackPointCompensationTransform = IccBlackPoint.BuildBlackPointCompensationTransform(neutralBlackPoint, inverse: false);
+            inverseBlackPointCompensationTransform = IccBlackPoint.BuildBlackPointCompensationTransform(neutralBlackPoint, inverse: true);
         }
 
         Matrix4x4 adaptedMatrix = Matrix4x4.Multiply(chadMatrix, Matrix4x4.Multiply(blackPointScaleMatrix, primariesMatrix));
         adaptedMatrix = Matrix4x4.Transpose(adaptedMatrix);
 
         MatrixColorTransform matrixTransform = new(adaptedMatrix);
+        MatrixColorTransform inverseMatrixTransform = new(adaptedMatrix, inverse: true);
 
         _toXyzTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform, blackPointCompensationTransform);
         _absoluteToXyzTransform = new ChainedColorTransform(trcTransform, matrixTransform, blackPointOffsetTransform);
-        _toSrgbTransform = new ChainedColorTransform(_toXyzTransform, IccTransforms.XyzD50ToSrgbTransform);
-        _absoluteToSrgbTransform = new ChainedColorTransform(_absoluteToXyzTransform, IccTransforms.XyzD50ToSrgbTransform);
+        _fromXyzTransform = new ChainedColorTransform(inverseBlackPointCompensationTransform, inverseBlackPointOffsetTransform, inverseMatrixTransform, inverseTrcTransform);
+        _absoluteFromXyzTransform = new ChainedColorTransform(inverseBlackPointOffsetTransform, inverseMatrixTransform, inverseTrcTransform);
     }
 
     /// <summary>
@@ -108,19 +116,6 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
     public override bool IsDevice => false;
 
     /// <summary>
-    /// Gets the transform taking this space's components to sRGB under the specified rendering intent.
-    /// </summary>
-    private protected ChainedColorTransform GetToSrgbTransform(PdfRenderingIntent renderingIntent)
-    {
-        if (renderingIntent == PdfRenderingIntent.AbsoluteColorimetric)
-        {
-            return _absoluteToSrgbTransform;
-        }
-
-        return _toSrgbTransform;
-    }
-
-    /// <summary>
     /// Gets the transform taking this space's components to CIE XYZ D50 under the specified rendering intent.
     /// </summary>
     private protected ChainedColorTransform GetToXyzTransform(PdfRenderingIntent renderingIntent)
@@ -131,6 +126,20 @@ public abstract class PdfCalibratedColorSpaceConverter : PdfColorSpaceConverter
         }
 
         return _toXyzTransform;
+    }
+
+    /// <summary>
+    /// Gets the transform taking CIE XYZ D50 to this space's components under the specified rendering intent: the
+    /// inverse of <see cref="GetToXyzTransform"/>.
+    /// </summary>
+    private protected ChainedColorTransform GetFromXyzTransform(PdfRenderingIntent renderingIntent)
+    {
+        if (renderingIntent == PdfRenderingIntent.AbsoluteColorimetric)
+        {
+            return _absoluteFromXyzTransform;
+        }
+
+        return _fromXyzTransform;
     }
 
     /// <summary>

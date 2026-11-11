@@ -9,6 +9,7 @@ using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Resources;
+using PdfPixel.Transparency;
 
 namespace PdfPixel.Annotations;
 
@@ -20,7 +21,9 @@ public class PdfRedactAnnotation : PdfMarkupAnnotation
 {
     private const float OverlayTextPadding = 2f;
 
-    private static readonly float[] DefaultInteriorColor = [1f];
+    private static readonly PdfPaint DefaultInteriorPaint = PdfAnnotationPaintFactory.CreatePaint([1f]);
+
+    private static readonly PdfTransparencyGroupContext OverlayTextGroup = new(null, isolated: false, knockout: false);
 
     private readonly PdfPath _regionPath;
 
@@ -87,11 +90,23 @@ public class PdfRedactAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfTextAlignment TextAlignment { get; }
 
-    /// <inheritdoc/>
-    public override bool IsInteractive => true;
+    /// <inheritdoc />
+    public override PdfAnnotationVisualStateKind SupportedStates
+    {
+        get
+        {
+            PdfAnnotationVisualStateKind appearanceStates = base.SupportedStates;
 
-    /// <inheritdoc/>
-    public override bool ShouldDisplayBubble => false;
+            if (appearanceStates == PdfAnnotationVisualStateKind.None)
+            {
+                return PdfAnnotationVisualStateKind.Normal | PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down;
+            }
+            else
+            {
+                return appearanceStates;
+            }
+        }
+    }
 
     /// <inheritdoc/>
     protected override bool UsesOpacityLayer => false;
@@ -153,12 +168,9 @@ public class PdfRedactAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfPaint? interiorPaint = ResolveInteriorPaint(page, DefaultInteriorColor);
+        PdfPaint interiorPaint = PdfAnnotationPaintFactory.ResolvePaint(InteriorColor, page) ?? DefaultInteriorPaint;
 
-        if (interiorPaint != null)
-        {
-            processor.Process(new DrawPathCommand(_regionPath, interiorPaint));
-        }
+        processor.Process(new DrawPathCommand(_regionPath, interiorPaint));
 
         if (OverlayText == null)
         {
@@ -166,7 +178,7 @@ public class PdfRedactAnnotation : PdfMarkupAnnotation
         }
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipPathCommand(_regionPath, PdfClipOperation.Intersect));
+        processor.Process(new DrawPathCommand(_regionPath, new PdfPaint(PdfPaintStyle.Clip)));
 
         PdfGraphicsState state = PdfAppearanceRenderer.CreateState(processor, page, renderer, DefaultAppearance, renderingParameters, observer);
         string text = OverlayText.Value.DecodePdfString();
@@ -224,12 +236,12 @@ public class PdfRedactAnnotation : PdfMarkupAnnotation
             return;
         }
 
-        DrawRecordingCommand recordingCommand = new(cellRecorder);
+        PdfGroupSource source = new(new DrawRecordingCommand(cellRecorder), OverlayTextGroup, null, new PdfTiling(cellBox, cellBox.Width, cellBox.Height));
 
-        processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipRectangleCommand(textBox, PdfClipOperation.Intersect));
-        processor.Process(new DrawTilingCommand(PdfMatrix.Identity, textBox, cellBox, cellBox.Width, cellBox.Height, recordingCommand));
-        processor.Process(RestoreStateCommand.Instance);
+        PdfPathBuilder boxPath = new();
+        boxPath.AddRect(textBox);
+
+        processor.Process(new DrawPathCommand(boxPath.ToPath(), new PdfPaint(PdfPaintStyle.Fill), source));
     }
 
     /// <summary>

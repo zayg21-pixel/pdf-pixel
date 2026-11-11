@@ -1,6 +1,7 @@
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
 using PdfPixel.PdfPanel.Caching;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Thumbnails;
 using System;
 using System.Collections.Generic;
@@ -12,9 +13,11 @@ internal sealed partial class PdfPanelScheduler
 {
     private readonly object _thumbnailLocker = new();
     private readonly Dictionary<int, IPdfCancellableExecutionObserver?> _thumbnailRequestsObservers = [];
-    private readonly HashSet<int> _pinnedThumbnailPageNumbers = [];
+    private readonly Dictionary<int, PdfPanelThumbnailFormats> _thumbnailRequestsFormats = [];
+    private readonly Dictionary<int, PdfPanelThumbnailFormats> _pinnedThumbnailFormats = [];
     private IPdfCancellableExecutionObserver? _thumbnailPreloadObserver;
     private PdfPanelThumbnailSchedulingSettings _thumbnailSettings;
+    private PdfPageThumbnailRasterizer? _thumbnailRasterizer;
     private int[] _thumbnailVisiblePageNumbers = [];
     private int? _thumbnailCenterPageNumber;
 
@@ -43,26 +46,30 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Starts producing the thumbnail of the specified 1-based page number unless it is ready or pending;
-    /// <see cref="PdfPanelDocument.PageThumbnailRendered"/> is raised when it is produced.
-    /// A pinned thumbnail is never evicted and is produced again after it is cleared, until it is released.
+    /// Starts producing the <paramref name="formats"/> of the thumbnail of the specified 1-based page number unless they
+    /// are ready or pending; <see cref="PdfPanelDocument.PageThumbnailRendered"/> is raised when they are produced.
+    /// A pinned thumbnail is never evicted and its formats are produced again after it is cleared, until it is released.
     /// </summary>
-    public void RequestThumbnail(int pageNumber, bool pin)
+    public void RequestThumbnail(int pageNumber, PdfPanelThumbnailFormats formats, bool pin)
     {
         lock (_thumbnailLocker)
         {
             if (pin)
             {
-                _pinnedThumbnailPageNumbers.Add(pageNumber);
+                _pinnedThumbnailFormats.TryGetValue(pageNumber, out PdfPanelThumbnailFormats pinnedFormats);
+                _pinnedThumbnailFormats[pageNumber] = pinnedFormats | formats;
             }
 
-            if (_thumbnailRequestsObservers.ContainsKey(pageNumber)
-                || _panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.HasContent)
+            _thumbnailRequestsFormats.TryGetValue(pageNumber, out PdfPanelThumbnailFormats pendingFormats);
+
+            if ((pendingFormats & formats) == formats
+                || HasThumbnail(_panelDocument.Pages[pageNumber - 1], formats))
             {
                 return;
             }
 
-            EnqueueThumbnailRequest(pageNumber, GetPageThumbnail(pageNumber));
+            CancelThumbnailRequest(pageNumber);
+            EnqueueThumbnailRequest(pageNumber, pendingFormats | formats);
         }
     }
 
@@ -73,16 +80,23 @@ internal sealed partial class PdfPanelScheduler
     {
         lock (_thumbnailLocker)
         {
-            _pinnedThumbnailPageNumbers.Remove(pageNumber);
-
-            if (_thumbnailRequestsObservers.TryGetValue(pageNumber, out IPdfCancellableExecutionObserver? observer))
-            {
-                _thumbnailRequestsObservers.Remove(pageNumber);
-                observer?.Cancel();
-                observer?.Dispose();
-            }
-
+            _pinnedThumbnailFormats.Remove(pageNumber);
+            CancelThumbnailRequest(pageNumber);
             EnforceThumbnailLimit();
+        }
+    }
+
+    /// <summary>
+    /// Cancels the pending request of the thumbnail of the specified 1-based page number, if any, and forgets it.
+    /// </summary>
+    private void CancelThumbnailRequest(int pageNumber)
+    {
+        if (_thumbnailRequestsObservers.TryGetValue(pageNumber, out IPdfCancellableExecutionObserver? observer))
+        {
+            _thumbnailRequestsObservers.Remove(pageNumber);
+            _thumbnailRequestsFormats.Remove(pageNumber);
+            observer?.Cancel();
+            observer?.Dispose();
         }
     }
 
@@ -132,23 +146,42 @@ internal sealed partial class PdfPanelScheduler
 
             IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(nextPage.PageNumber);
             _thumbnailPreloadObserver = observer;
-            _processingQueue.Enqueue(CreateThumbnailWorkItem(nextPage, GetPageThumbnail(nextPage.PageNumber), observer, OnThumbnailPreloadCompleted));
+            _processingQueue.Enqueue(CreateThumbnailWorkItem(nextPage, PdfPanelThumbnailFormats.Samples, GetPageThumbnail(nextPage.PageNumber), observer, OnThumbnailPreloadCompleted));
         }
     }
 
     private PdfPageThumbnailWorkItem CreateThumbnailWorkItem(
         PdfPanelPage page,
+        PdfPanelThumbnailFormats formats,
         PdfImage? pageThumbnail,
         IPdfCancellableExecutionObserver observer,
         Action<BackgroundWorkItemComplete> onCompleted)
     {
         return new(
             page,
+            formats,
             pageThumbnail,
-            _thumbnailSettings.RenderMaximumSize,
+            GetThumbnailRasterizer(),
             _panelDocument.OptionalContentStates,
             observer,
             onCompleted);
+    }
+
+    /// <summary>
+    /// Returns the rasterizer every thumbnail is rendered with, created again when the maximum thumbnail size changes.
+    /// </summary>
+    private PdfPageThumbnailRasterizer GetThumbnailRasterizer()
+    {
+        PdfPageThumbnailRasterizer? rasterizer = _thumbnailRasterizer;
+
+        if (rasterizer == null || rasterizer.MaximumSize != _thumbnailSettings.RenderMaximumSize)
+        {
+            rasterizer?.Dispose();
+            rasterizer = new PdfPageThumbnailRasterizer(_thumbnailSettings.RenderMaximumSize, _panelDocument, _surfaceParameters);
+            _thumbnailRasterizer = rasterizer;
+        }
+
+        return rasterizer;
     }
 
     private PdfImage? GetPageThumbnail(int pageNumber)
@@ -175,8 +208,10 @@ internal sealed partial class PdfPanelScheduler
             if (_thumbnailRequestsObservers.TryGetValue(complete.PageNumber, out IPdfCancellableExecutionObserver? observer)
                 && observer == complete.Observer)
             {
+                PdfPanelThumbnailFormats formats = _thumbnailRequestsFormats[complete.PageNumber];
                 _thumbnailRequestsObservers.Remove(complete.PageNumber);
-                isRendered = _panelDocument.Pages[complete.PageNumber - 1].CacheEntry.Thumbnail.HasContent;
+                _thumbnailRequestsFormats.Remove(complete.PageNumber);
+                isRendered = HasThumbnail(_panelDocument.Pages[complete.PageNumber - 1], formats);
             }
 
             EnforceThumbnailLimit();
@@ -188,11 +223,12 @@ internal sealed partial class PdfPanelScheduler
         }
     }
 
-    private void EnqueueThumbnailRequest(int pageNumber, PdfImage? pageThumbnail)
+    private void EnqueueThumbnailRequest(int pageNumber, PdfPanelThumbnailFormats formats)
     {
         IPdfCancellableExecutionObserver observer = _observerFactory.CreateContentObserver(pageNumber);
         _thumbnailRequestsObservers[pageNumber] = observer;
-        _processingQueue.Enqueue(CreateThumbnailWorkItem(_panelDocument.Pages[pageNumber - 1], pageThumbnail, observer, OnThumbnailRequestCompleted));
+        _thumbnailRequestsFormats[pageNumber] = formats;
+        _processingQueue.Enqueue(CreateThumbnailWorkItem(_panelDocument.Pages[pageNumber - 1], formats, GetPageThumbnail(pageNumber), observer, OnThumbnailRequestCompleted));
     }
 
     private void RequeueThumbnailRequests()
@@ -201,24 +237,24 @@ internal sealed partial class PdfPanelScheduler
         {
             foreach (int pageNumber in _thumbnailRequestsObservers.Keys.ToList())
             {
-                EnqueueThumbnailRequest(pageNumber, GetPageThumbnail(pageNumber));
+                EnqueueThumbnailRequest(pageNumber, _thumbnailRequestsFormats[pageNumber]);
             }
         }
     }
 
     /// <summary>
-    /// Starts producing the pinned thumbnails that are neither ready nor pending.
+    /// Starts producing the formats of pinned thumbnails that are neither ready nor pending.
     /// </summary>
     private void RequestPinnedThumbnails()
     {
         lock (_thumbnailLocker)
         {
-            foreach (int pageNumber in _pinnedThumbnailPageNumbers)
+            foreach (KeyValuePair<int, PdfPanelThumbnailFormats> pinned in _pinnedThumbnailFormats)
             {
-                if (!_thumbnailRequestsObservers.ContainsKey(pageNumber)
-                    && !_panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.HasContent)
+                if (!_thumbnailRequestsObservers.ContainsKey(pinned.Key)
+                    && !HasThumbnail(_panelDocument.Pages[pinned.Key - 1], pinned.Value))
                 {
-                    EnqueueThumbnailRequest(pageNumber, GetPageThumbnail(pageNumber));
+                    EnqueueThumbnailRequest(pinned.Key, pinned.Value);
                 }
             }
         }
@@ -232,10 +268,23 @@ internal sealed partial class PdfPanelScheduler
     {
         int pageNumber = index + 1;
 
-        return _pinnedThumbnailPageNumbers.Contains(pageNumber)
+        return _pinnedThumbnailFormats.ContainsKey(pageNumber)
             || (_thumbnailSettings.PlaceholderMode != PdfPanelThumbnailPlaceholderMode.None
                 && Array.IndexOf(_thumbnailVisiblePageNumbers, pageNumber) >= 0);
     }
+
+    /// <summary>
+    /// Returns whether the thumbnail of <paramref name="page"/> was produced in every form of
+    /// <paramref name="formats"/>.
+    /// </summary>
+    private static bool HasThumbnail(PdfPanelPage page, PdfPanelThumbnailFormats formats)
+        => (page.CacheEntry.GetThumbnailFormats() & formats) == formats;
+
+    /// <summary>
+    /// Returns whether the thumbnail of <paramref name="page"/> was produced in any form.
+    /// </summary>
+    private static bool HasAnyThumbnail(PdfPanelPage page)
+        => page.CacheEntry.GetThumbnailFormats() != PdfPanelThumbnailFormats.None;
 
     private void OnThumbnailPreloadCompleted(BackgroundWorkItemComplete complete)
     {
@@ -281,7 +330,7 @@ internal sealed partial class PdfPanelScheduler
 
         for (int index = 0; index < pages.Count; index++)
         {
-            if (!pages[index].CacheEntry.Thumbnail.HasContent)
+            if (!HasAnyThumbnail(pages[index]))
             {
                 continue;
             }
@@ -308,7 +357,8 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Returns the next page without a thumbnail selected by the placeholder mode, or <see langword="null"/>.
+    /// Returns the next page without thumbnail samples to draw as its placeholder, selected by the placeholder mode, or
+    /// <see langword="null"/>.
     /// </summary>
     private PdfPanelPage? FindNextPageWithoutThumbnail(int centerPageNumber)
     {
@@ -326,7 +376,7 @@ internal sealed partial class PdfPanelScheduler
 
         for (int index = 0; index < pages.Count; index++)
         {
-            if (!pages[index].CacheEntry.Thumbnail.HasContent)
+            if (!HasAnyThumbnail(pages[index]))
             {
                 continue;
             }
@@ -350,7 +400,7 @@ internal sealed partial class PdfPanelScheduler
             {
                 int index = pageNumber - 1;
 
-                if (!pages[index].CacheEntry.Thumbnail.HasContent)
+                if (!HasThumbnail(pages[index], PdfPanelThumbnailFormats.Samples))
                 {
                     return SelectThumbnailPage(index, centerIndex, storedCount, farthestIndex);
                 }
@@ -370,7 +420,7 @@ internal sealed partial class PdfPanelScheduler
 
                 int index = (direction == 0) ? centerIndex + distance : centerIndex - distance;
 
-                if (index >= 0 && index < pages.Count && !pages[index].CacheEntry.Thumbnail.HasContent)
+                if (index >= 0 && index < pages.Count && !HasThumbnail(pages[index], PdfPanelThumbnailFormats.Samples))
                 {
                     return SelectThumbnailPage(index, centerIndex, storedCount, farthestIndex);
                 }

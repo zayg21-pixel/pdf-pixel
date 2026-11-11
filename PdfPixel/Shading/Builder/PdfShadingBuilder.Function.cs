@@ -76,7 +76,7 @@ internal partial class PdfShadingBuilder
             channels[componentIndex] = PdfImageChannel.Component(componentIndex);
         }
 
-        PdfImageSamples samples = new(bitmapWidth, bitmapHeight, PdfImageSampleFormat.Float, FloatBitsPerComponent, channels);
+        PdfImageSamples samples = new(bitmapWidth, bitmapHeight, PdfImageSampleFormat.Float, FloatBitsPerComponent, channels, isPremultiplied: false);
 
         for (int yIndex = 0; yIndex < bitmapHeight; yIndex++)
         {

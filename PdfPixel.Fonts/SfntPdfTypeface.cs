@@ -5,6 +5,7 @@ using PdfPixel.Fonts.Encodings;
 using PdfPixel.Fonts.Geometry;
 using PdfPixel.Fonts.Sfnt;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -135,7 +136,12 @@ public sealed class SfntPdfTypeface : IPdfTypeface
     public bool IsGidExists(ushort gid) => (_cffFont != null) ? gid < _cffFont.Characters.Length : gid < _maxp.NumGlyphs;
 
     /// <inheritdoc/>
-    public float? GetWidth(ushort gid) => (_font.Hmtx != null && gid < _font.Hmtx.Metrics.Count) ? _font.Hmtx.Metrics[gid].AdvanceWidth / (float)_head.UnitsPerEm : null;
+    public float? GetWidth(ushort gid)
+    {
+        SfntHmtx? hmtx = _processor.GetHmtx(_font, _fontStream);
+
+        return (hmtx != null && gid < hmtx.Metrics.Count) ? hmtx.Metrics[gid].AdvanceWidth / (float)_head.UnitsPerEm : null;
+    }
 
     /// <inheritdoc/>
     public ReadOnlyMemory<byte> GetPath(ushort gid)
@@ -155,6 +161,12 @@ public sealed class SfntPdfTypeface : IPdfTypeface
 
         return _processor.ResolvePath(_font, gid, _fontStream, matrix);
     }
+
+    /// <summary>
+    /// Gets the mapping from glyph name to glyph ID the "post" table states, read on first use, or
+    /// <see langword="null"/> when the font carries no glyph names.
+    /// </summary>
+    public IReadOnlyDictionary<PdfFontString, ushort>? GetNameToGid() => _processor.GetNameToGid(_font, _fontStream);
 
     /// <inheritdoc/>
     public ushort? GetGid(string unicode)

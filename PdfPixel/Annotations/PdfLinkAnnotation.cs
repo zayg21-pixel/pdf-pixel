@@ -18,7 +18,7 @@ public class PdfLinkAnnotation : PdfAnnotation
 {
     private const float HighlightLineWidth = 1f;
 
-    private static readonly float[] PushHighlightColor = [0f];
+    private static readonly PdfPaint PushHighlightPaint = PdfAnnotationPaintFactory.CreateStrokePaint(PdfAnnotationPaintFactory.CreatePaint([0f]), HighlightLineWidth);
 
     private readonly PdfPath _activePath;
 
@@ -59,14 +59,12 @@ public class PdfLinkAnnotation : PdfAnnotation
         }
     }
 
-    /// <inheritdoc/>
-    public override bool ShouldDisplayBubble => false;
+    /// <inheritdoc />
+    public override PdfAnnotationVisualStateKind SupportedStates
+        => base.SupportedStates | PdfAnnotationVisualStateKind.Normal | PdfAnnotationVisualStateKind.Down;
 
     /// <inheritdoc/>
     public override PdfPoint ContentStart => Quadrilaterals[0][2];
-
-    /// <inheritdoc/>
-    public override bool IsInteractive => true;
 
     /// <summary>
     /// Gets the quadrilaterals the link is active in, each as four points, e.g. one per line of a link
@@ -114,7 +112,7 @@ public class PdfLinkAnnotation : PdfAnnotation
             && Appearance != null
             && (Appearance.SupportedStates & PdfAnnotationVisualStateKind.Down) == 0)
         {
-            RenderHighlight(processor, page, BorderStyle?.StrokeStyle ?? new PdfStrokeStyle());
+            RenderHighlight(processor, BorderStyle?.StrokeStyle ?? new PdfStrokeStyle());
         }
 
         return rendered;
@@ -129,7 +127,7 @@ public class PdfLinkAnnotation : PdfAnnotation
         IPdfExecutionObserver observer)
     {
         PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
-        PdfPaint? borderPaint = ResolvePaint(page);
+        PdfPaint? borderPaint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
 
         if (strokeStyle.LineWidth > 0 && borderPaint != null)
         {
@@ -138,7 +136,7 @@ public class PdfLinkAnnotation : PdfAnnotation
 
         if (visualStateKind == PdfAnnotationVisualStateKind.Down)
         {
-            RenderHighlight(processor, page, strokeStyle);
+            RenderHighlight(processor, strokeStyle);
         }
 
         return true;
@@ -167,7 +165,7 @@ public class PdfLinkAnnotation : PdfAnnotation
         }
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipPathCommand(_activePath, PdfClipOperation.Intersect));
+        processor.Process(new DrawPathCommand(_activePath, new PdfPaint(PdfPaintStyle.Clip)));
         processor.Process(new DrawPathCommand(borderPath, paint));
         processor.Process(RestoreStateCommand.Instance);
     }
@@ -178,7 +176,7 @@ public class PdfLinkAnnotation : PdfAnnotation
     /// </summary>
     private static PdfStrokeStyle GetInsideStrokeStyle(PdfStrokeStyle strokeStyle) => strokeStyle.WithLineWidth(strokeStyle.LineWidth * 2f);
 
-    private void RenderHighlight(IPdfCommandProcessor processor, IPdfPageInternal page, PdfStrokeStyle strokeStyle)
+    private void RenderHighlight(IPdfCommandProcessor processor, PdfStrokeStyle strokeStyle)
     {
         switch (HighlightMode)
         {
@@ -195,7 +193,7 @@ public class PdfLinkAnnotation : PdfAnnotation
             }
             case PdfLinkHighlightMode.Push:
             {
-                Push(processor, page, strokeStyle.LineWidth);
+                Push(processor, strokeStyle.LineWidth);
                 break;
             }
         }
@@ -205,9 +203,8 @@ public class PdfLinkAnnotation : PdfAnnotation
     /// Draws lines along the left and top inside every active quadrilateral, inset by <paramref name="borderWidth"/>
     /// plus half the line, ending <paramref name="borderWidth"/> short of the bottom and right edges.
     /// </summary>
-    private void Push(IPdfCommandProcessor processor, IPdfPageInternal page, float borderWidth)
+    private void Push(IPdfCommandProcessor processor, float borderWidth)
     {
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(PdfAnnotationPaintFactory.CreatePaint(PushHighlightColor, page), HighlightLineWidth);
         float lineInset = borderWidth + (HighlightLineWidth / 2);
         PdfPathBuilder pushPath = new();
 
@@ -216,7 +213,7 @@ public class PdfLinkAnnotation : PdfAnnotation
             PdfAnnotationGeometry.AddInsetLeftTopEdges(pushPath, quadrilateral, lineInset, borderWidth);
         }
 
-        processor.Process(new DrawPathCommand(pushPath.ToPath(), paint));
+        processor.Process(new DrawPathCommand(pushPath.ToPath(), PushHighlightPaint));
     }
 
     /// <summary>

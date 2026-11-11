@@ -79,8 +79,8 @@ internal static class PdfAnnotationIconParser
         PdfPathFillType fillType = ParseFillType(reader.GetAttribute("fill-rule") ?? "nonzero");
         PdfPath path = PdfAnnotationSvgPathParser.Parse(pathData, fillType);
 
-        (PdfAnnotationIconColorType fillColorType, PdfRgbaColor? fillColor) = ParseColorValue(reader.GetAttribute("fill"));
-        (PdfAnnotationIconColorType strokeColorType, PdfRgbaColor? strokeColor) = ParseColorValue(reader.GetAttribute("stroke"));
+        (PdfAnnotationIconColorType fillColorType, PdfPaint? fillPaint) = ParseColorValue(reader.GetAttribute("fill"));
+        (PdfAnnotationIconColorType strokeColorType, PdfPaint? strokePaint) = ParseColorValue(reader.GetAttribute("stroke"));
 
         float strokeWidth = ParseFloatValue(reader.GetAttribute("stroke-width") ?? "1");
         PdfStrokeCap strokeCap = ParseStrokeCap(reader.GetAttribute("stroke-linecap") ?? "butt");
@@ -88,10 +88,13 @@ internal static class PdfAnnotationIconParser
         float fillOpacity = ParseFloatValue(reader.GetAttribute("fill-opacity") ?? "1");
         float strokeOpacity = ParseFloatValue(reader.GetAttribute("stroke-opacity") ?? "1");
 
-        return new PdfAnnotationIconPath(path, fillColorType, fillColor, strokeColorType, strokeColor, strokeWidth, strokeCap, strokeJoin, fillOpacity, strokeOpacity);
+        return new PdfAnnotationIconPath(path, fillColorType, fillPaint, strokeColorType, strokePaint, strokeWidth, strokeCap, strokeJoin, fillOpacity, strokeOpacity);
     }
 
-    private static (PdfAnnotationIconColorType ColorType, PdfRgbaColor? Color) ParseColorValue(string? value)
+    /// <summary>
+    /// Returns where a path's color comes from and, for a color given in the icon resource, its paint.
+    /// </summary>
+    private static (PdfAnnotationIconColorType ColorType, PdfPaint? Paint) ParseColorValue(string? value)
     {
         if (value == null || value.Length == 0 || string.Equals(value, NoneValue, StringComparison.OrdinalIgnoreCase))
         {
@@ -108,7 +111,7 @@ internal static class PdfAnnotationIconParser
             return (PdfAnnotationIconColorType.Exterior, null);
         }
 
-        return (PdfAnnotationIconColorType.Override, PdfRgbaColor.ParseHexColor(value));
+        return (PdfAnnotationIconColorType.Override, PdfAnnotationPaintFactory.CreatePaint(PdfRgbaColor.ParseHexColor(value)));
     }
 
     private static PdfMatrix ParseViewBox(string value, float width, float height)

@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Transparency;
 using System;
 using System.Collections.Generic;
 
@@ -12,15 +13,22 @@ namespace PdfPixel.Rendering.Operators;
 
 internal class GraphicsStateOperators : IOperatorProcessor
 {
+    private readonly PdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly Stack<PdfGraphicsState> _freeStates = [];
     private readonly ILogger<GraphicsStateOperators> _logger;
 
-    public GraphicsStateOperators(IPdfContentHost host, IPdfCommandProcessor processor, PdfOperandStack operandStack, Stack<PdfGraphicsState> graphicsStack)
+    public GraphicsStateOperators(
+        PdfRenderer renderer,
+        IPdfContentHost host,
+        IPdfCommandProcessor processor,
+        PdfValueList<PdfContentStreamValue> operandStack,
+        Stack<PdfGraphicsState> graphicsStack)
     {
+        _renderer = renderer;
         _host = host;
         _processor = processor;
         _operandStack = operandStack;
@@ -109,7 +117,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetRenderingIntent(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -158,7 +166,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessConcatenateMatrix(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(6);
         if (operands.Length < 6)
         {
             return;
@@ -173,7 +181,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineWidth(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -192,7 +200,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineCap(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -219,7 +227,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineJoin(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -246,7 +254,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetMiterLimit(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -265,7 +273,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetDashPattern(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;
@@ -289,7 +297,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetGraphicsStateParameters(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -307,6 +315,17 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
+        if (parameters.SoftMask != null)
+        {
+            graphicsState.SoftMask = SoftMaskUtilities.CreateSource(_renderer, parameters.SoftMask, graphicsState);
+            _processor.Process(new SetSoftMaskCommand(graphicsState.SoftMask));
+        }
+        else if (parameters.ShouldUnsetSoftMask)
+        {
+            graphicsState.SoftMask = null;
+            _processor.Process(ClearSoftMaskCommand.Instance);
+        }
+
         parameters.ApplyToGraphicsState(graphicsState);
         if (parameters.TransformMatrix.HasValue)
         {
@@ -316,7 +335,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;

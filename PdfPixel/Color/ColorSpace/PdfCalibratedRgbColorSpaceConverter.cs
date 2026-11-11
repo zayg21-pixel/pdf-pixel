@@ -9,7 +9,14 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public sealed class PdfCalibratedRgbColorSpaceConverter : PdfCalibratedColorSpaceConverter
 {
-    internal PdfCalibratedRgbColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[]? matrix)
+    /// <summary>
+    /// Initializes a CalRGB color space.
+    /// </summary>
+    /// <param name="whitePoint">The diffuse white point in CIE XYZ, or <see langword="null"/> for D65.</param>
+    /// <param name="blackPoint">The diffuse black point in CIE XYZ, or <see langword="null"/> for [0 0 0].</param>
+    /// <param name="gamma">The gamma of the red, green and blue components, or <see langword="null"/> for [1 1 1].</param>
+    /// <param name="matrix">The matrix mapping the decoded components to CIE XYZ, or <see langword="null"/> for the identity.</param>
+    public PdfCalibratedRgbColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[]? matrix)
         : base(GetWhitePointOrDefault(whitePoint), GetBlackPointOrDefault(blackPoint), GetGammaOrDefault(gamma), GetMatrixOrDefault(matrix))
     {
         Gamma = GetGammaOrDefault(gamma);
@@ -30,12 +37,12 @@ public sealed class PdfCalibratedRgbColorSpaceConverter : PdfCalibratedColorSpac
     public override int Components => 3;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-        => new(new ChainedColorTransform(GetToSrgbTransform(parameters.RenderingIntent), parameters.TransferFunction));
-
-    /// <inheritdoc />
     public override ChainedColorTransform GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
         => GetToXyzTransform(renderingIntent);
+
+    /// <inheritdoc />
+    public override ChainedColorTransform GetFromProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
+        => GetFromXyzTransform(renderingIntent);
 
     private static float[] GetGammaOrDefault(float[]? gamma)
     {

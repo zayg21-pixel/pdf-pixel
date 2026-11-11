@@ -1,5 +1,6 @@
-using SkiaSharp;
-using System.Runtime.InteropServices;
+using PdfPixel.Imaging.Encoding;
+using PdfPixel.Imaging.Processing.Pipeline;
+using PdfPixel.Png;
 
 namespace PdfPixel.Gold.Utilities;
 
@@ -9,41 +10,52 @@ namespace PdfPixel.Gold.Utilities;
 internal static class ImageUtilities
 {
     private const int BytesPerPixel = 4;
+    private const int BitsPerComponent = 8;
     private const int ChannelTolerance = 3;
+
+    // Straight (unpremultiplied) RGBA is the layout a PNG stores, so a page written to disk and read
+    // back gives the exact same bytes, which is what a pixel-perfect comparison needs.
+    private static readonly PdfImageChannel[] RgbaChannels = [PdfImageChannel.Component(0), PdfImageChannel.Component(1), PdfImageChannel.Component(2), PdfImageChannel.Alpha];
 
     /// <summary>
     /// Writes a rendered page as a PNG, replacing any file already there.
     /// </summary>
-    public static void SavePng(SKBitmap bitmap, string path)
-    {
-        using SKImage image = SKImage.FromPixelCopy(bitmap.Info, bitmap.GetPixels(), bitmap.RowBytes);
-        using SKData pngData = image.Encode(SKEncodedImageFormat.Png, 100);
-        using FileStream output = File.Create(path);
-        pngData.SaveTo(output);
-    }
+    public static void SavePng(PdfImageSamples samples, string path) => File.WriteAllBytes(path, PdfImageSamplesPngEncoder.Encode(samples));
 
     /// <summary>
-    /// Reads a PNG written by an earlier run.
+    /// Reads an 8-bit RGBA PNG written by an earlier run.
     /// </summary>
-    public static SKBitmap LoadPng(string path)
+    public static PdfImageSamples LoadPng(string path)
     {
-        using SKImage image = SKImage.FromEncodedData(path);
+        byte[] png = File.ReadAllBytes(path);
+        PngImageInfo info = PngImageInfo.Parse(png);
+        PngRowDecoder rows = new(info, png);
 
-        if (image == null)
+        if (rows.BitsPerComponent != BitsPerComponent || rows.ComponentCount != BytesPerPixel || rows.ColorType != PngColorType.TruecolorAlpha)
         {
-            throw new InvalidDataException($"{path} could not be decoded.");
+            throw new InvalidDataException($"{path} is not an 8-bit RGBA PNG.");
         }
 
-        return ReadPixels(image);
+        PdfImageSamples samples = new(rows.Width, rows.Height, PdfImageSampleFormat.Integer, BitsPerComponent, RgbaChannels, isPremultiplied: false);
+
+        for (int row = 0; row < rows.Height; row++)
+        {
+            if (!rows.TryReadRow(samples.GetRow(row)))
+            {
+                throw new InvalidDataException($"{path} ends before row {row}.");
+            }
+        }
+
+        return samples;
     }
 
     /// <summary>
     /// Number of pixels that differ by more than the channel tolerance between two pages of the same size.
     /// </summary>
-    public static int CountDifferentPixels(SKBitmap golden, SKBitmap rendered)
+    public static int CountDifferentPixels(PdfImageSamples golden, PdfImageSamples rendered)
     {
-        ReadOnlySpan<byte> goldenPixels = golden.GetPixelSpan();
-        ReadOnlySpan<byte> renderedPixels = rendered.GetPixelSpan();
+        ReadOnlySpan<byte> goldenPixels = golden.Pixels;
+        ReadOnlySpan<byte> renderedPixels = rendered.Pixels;
 
         if (goldenPixels.SequenceEqual(renderedPixels))
         {
@@ -67,26 +79,27 @@ internal static class ImageUtilities
     /// Builds a diff image the same size as <paramref name="golden"/>: white where it matches
     /// <paramref name="rendered"/>, solid magenta where the two differ.
     /// </summary>
-    public static SKBitmap CreateDiffImage(SKBitmap golden, SKBitmap rendered)
+    public static PdfImageSamples CreateDiffImage(PdfImageSamples golden, PdfImageSamples rendered)
     {
-        ReadOnlySpan<byte> goldenPixels = golden.GetPixelSpan();
-        ReadOnlySpan<byte> renderedPixels = rendered.GetPixelSpan();
+        ReadOnlySpan<byte> goldenPixels = golden.Pixels;
+        ReadOnlySpan<byte> renderedPixels = rendered.Pixels;
+        PdfImageSamples diff = new(golden.Width, golden.Height, PdfImageSampleFormat.Integer, BitsPerComponent, RgbaChannels, isPremultiplied: false);
 
-        byte[] diffPixels = new byte[goldenPixels.Length];
-
-        for (int offset = 0; offset + BytesPerPixel <= goldenPixels.Length; offset += BytesPerPixel)
+        for (int row = 0; row < diff.Height; row++)
         {
-            bool matches = PixelsMatch(goldenPixels, renderedPixels, offset);
+            Span<byte> diffRow = diff.GetRow(row);
+            int rowOffset = row * diff.RowBytes;
 
-            diffPixels[offset] = 255;
-            diffPixels[offset + 1] = matches ? (byte)255 : (byte)0;
-            diffPixels[offset + 2] = 255;
-            diffPixels[offset + 3] = 255;
+            for (int offset = 0; offset + BytesPerPixel <= diffRow.Length; offset += BytesPerPixel)
+            {
+                bool matches = PixelsMatch(goldenPixels, renderedPixels, rowOffset + offset);
+
+                diffRow[offset] = 255;
+                diffRow[offset + 1] = matches ? (byte)255 : (byte)0;
+                diffRow[offset + 2] = 255;
+                diffRow[offset + 3] = 255;
+            }
         }
-
-        SKImageInfo imageInfo = new(golden.Width, golden.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        SKBitmap diff = new(imageInfo);
-        Marshal.Copy(diffPixels, 0, diff.GetPixels(), diffPixels.Length);
 
         return diff;
     }
@@ -102,22 +115,5 @@ internal static class ImageUtilities
         }
 
         return true;
-    }
-
-    // Straight (unpremultiplied) RGBA is the layout a PNG stores, so a page written to disk and read
-    // back gives the exact same bytes, which is what a pixel-perfect comparison needs.
-    private static SKBitmap ReadPixels(SKImage image)
-    {
-        SKImageInfo imageInfo = new(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        SKBitmap bitmap = new(imageInfo);
-
-        if (!image.ReadPixels(imageInfo, bitmap.GetPixels(), imageInfo.RowBytes, 0, 0))
-        {
-            bitmap.Dispose();
-
-            throw new InvalidOperationException("pixels could not be read back.");
-        }
-
-        return bitmap;
     }
 }

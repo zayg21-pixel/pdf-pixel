@@ -5,6 +5,9 @@ using System.Numerics;
 
 namespace PdfPixel.Color.Icc;
 
+// TODO: [LOW] Every A2B and B2A tag of a profile is parsed into a pipeline eagerly, used or not; resolve them lazily on
+// first use. The CLUT is kept twice once the transform is built: as Clut here and as the Vector4 copy in ClutTransform.
+
 /// <summary>
 /// Represents a parsed ICC LUT pipeline (AToB style) consisting of optional curve, matrix and CLUT stages.
 /// Supports classic lut8/lut16 (uniform grids with input/output tables) and multi-process element (mAB) pipelines

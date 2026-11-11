@@ -1,21 +1,21 @@
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Geometry;
-using PdfPixel.Skia;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.Text;
 
 /// <summary>
-/// Draws text highlights in unscaled page space.
+/// Records text highlights in unscaled page space.
 /// </summary>
 internal static class PdfPanelHighlightBuilder
 {
     /// <summary>
-    /// Draws the characters of <paramref name="range"/> as one strip per line, merging characters whose top differs
+    /// Records the characters of <paramref name="range"/> as one strip per line, merging characters whose top differs
     /// by less than <paramref name="lineMergeThreshold"/> of the strip height.
     /// </summary>
-    public static void DrawHighlight(SKCanvas canvas, PdfWord[] words, in PdfPanelTextRange range, SKPaint paint, float lineMergeThreshold)
+    public static void DrawHighlight(PdfCommandRecorder recorder, PdfWord[] words, in PdfPanelTextRange range, PdfPaint paint, float lineMergeThreshold)
     {
         PdfRectangle? currentStrip = null;
 
@@ -33,14 +33,22 @@ internal static class PdfPanelHighlightBuilder
             }
             else
             {
-                canvas.DrawRect(currentStrip.Value.ToSkRect(), paint);
+                DrawStrip(recorder, currentStrip.Value, paint);
                 currentStrip = box;
             }
         }
 
         if (currentStrip != null)
         {
-            canvas.DrawRect(currentStrip.Value.ToSkRect(), paint);
+            DrawStrip(recorder, currentStrip.Value, paint);
         }
+    }
+
+    private static void DrawStrip(PdfCommandRecorder recorder, in PdfRectangle strip, PdfPaint paint)
+    {
+        PdfPathBuilder builder = new();
+        builder.AddRect(strip);
+
+        recorder.Process(new DrawPathCommand(builder.ToPath(), paint));
     }
 }

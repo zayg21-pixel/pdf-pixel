@@ -12,14 +12,14 @@ public enum PdfCommandKind
     BeginScope,
 
     /// <summary>
-    /// <see cref="ClipPathCommand"/>.
+    /// <see cref="BeginTextObjectCommand"/>.
     /// </summary>
-    ClipPath,
+    BeginTextObject,
 
     /// <summary>
-    /// <see cref="ClipRectangleCommand"/>.
+    /// <see cref="ClearSoftMaskCommand"/>.
     /// </summary>
-    ClipRectangle,
+    ClearSoftMask,
 
     /// <summary>
     /// <see cref="ConcatMatrixCommand"/>.
@@ -32,9 +32,19 @@ public enum PdfCommandKind
     Content,
 
     /// <summary>
-    /// <see cref="DrawImageTileCommand"/>.
+    /// <see cref="DrawAnnotationCommand"/>.
     /// </summary>
-    DrawImageTile,
+    DrawAnnotation,
+
+    /// <summary>
+    /// <see cref="DrawGroupCommand"/>.
+    /// </summary>
+    DrawGroup,
+
+    /// <summary>
+    /// <see cref="DrawImageCommand"/>.
+    /// </summary>
+    DrawImage,
 
     /// <summary>
     /// <see cref="DrawPathCommand"/>.
@@ -57,19 +67,14 @@ public enum PdfCommandKind
     DrawShapedText,
 
     /// <summary>
-    /// <see cref="DrawTilingCommand"/>.
-    /// </summary>
-    DrawTiling,
-
-    /// <summary>
     /// <see cref="EndScopeCommand"/>.
     /// </summary>
     EndScope,
 
     /// <summary>
-    /// <see cref="RestoreLayerCommand"/>.
+    /// <see cref="EndTextObjectCommand"/>.
     /// </summary>
-    RestoreLayer,
+    EndTextObject,
 
     /// <summary>
     /// <see cref="RestoreStateCommand"/>.
@@ -77,12 +82,12 @@ public enum PdfCommandKind
     RestoreState,
 
     /// <summary>
-    /// <see cref="SaveLayerCommand"/>.
-    /// </summary>
-    SaveLayer,
-
-    /// <summary>
     /// <see cref="SaveStateCommand"/>.
     /// </summary>
-    SaveState
+    SaveState,
+
+    /// <summary>
+    /// <see cref="SetSoftMaskCommand"/>.
+    /// </summary>
+    SetSoftMask
 }

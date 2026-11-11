@@ -1,5 +1,6 @@
 using PdfPixel.Objects;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Transform;
 
@@ -9,7 +10,6 @@ namespace PdfPixel.Color.Transform;
 public sealed class PdfDecodeColorTransform : IPdfColorTransform
 {
     private readonly PdfRange[] _decode;
-    private readonly float[] _buffer;
 
     /// <summary>
     /// Initializes a transform mapping each component onto the matching entry of <paramref name="decode"/>.
@@ -23,7 +23,6 @@ public sealed class PdfDecodeColorTransform : IPdfColorTransform
         }
 
         _decode = decode;
-        _buffer = new float[decode.Length];
     }
 
     /// <inheritdoc />
@@ -33,18 +32,11 @@ public sealed class PdfDecodeColorTransform : IPdfColorTransform
     public int OutputComponentCount => _decode.Length;
 
     /// <inheritdoc />
-    public ReadOnlySpan<float> Transform(ReadOnlySpan<float> input)
+    public void Transform(ref float input, ref float output)
     {
-        if (input.Length < _decode.Length)
-        {
-            throw new ArgumentException("The input holds fewer components than the transform decodes.", nameof(input));
-        }
-
         for (int componentIndex = 0; componentIndex < _decode.Length; componentIndex++)
         {
-            _buffer[componentIndex] = _decode[componentIndex].Denormalize(input[componentIndex]);
+            Unsafe.Add(ref output, componentIndex) = _decode[componentIndex].Denormalize(Unsafe.Add(ref input, componentIndex));
         }
-
-        return _buffer;
     }
 }

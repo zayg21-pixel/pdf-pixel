@@ -1,12 +1,16 @@
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
+using PdfPixel.Imaging.Processing.Pipeline;
+using PdfPixel.PdfPanel.Caching;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Scheduling;
 using System;
 
 namespace PdfPixel.PdfPanel.Thumbnails;
 
 /// <summary>
-/// Page thumbnails of the panel: the page's embedded thumbnail image or a rendering of the page, as PNG files.
+/// Page thumbnails of the panel: the page's embedded thumbnail image or a rendering of the page, as PNG files, opaque
+/// 8-bit RGB samples or both.
 /// </summary>
 public sealed class PdfPanelThumbnails
 {
@@ -31,7 +35,8 @@ public sealed class PdfPanelThumbnails
     }
 
     /// <summary>
-    /// Raised when the thumbnail of a requested page is ready; it is read with <see cref="GetPng"/>.
+    /// Raised when the thumbnail of a requested page is ready in its requested forms; it is read with
+    /// <see cref="GetPng"/> or <see cref="GetSamples"/>.
     /// </summary>
     public event EventHandler<PdfPanelThumbnailEventArgs>? ThumbnailReady;
 
@@ -124,26 +129,44 @@ public sealed class PdfPanelThumbnails
             return GetDecodedSize(pageThumbnail);
         }
 
-        PdfIntegerSize renderSize = PdfPageThumbnailWorkItem.GetRenderSize(_panelDocument.Pages[pageNumber - 1].Size, _renderMaximumSize);
+        PdfIntegerSize renderSize = PdfPageThumbnailRasterizer.GetRenderSize(_panelDocument.Pages[pageNumber - 1].Size, _renderMaximumSize);
 
         return new PdfSize(renderSize.Width, renderSize.Height);
     }
 
     /// <summary>
-    /// Returns the thumbnail of a page as a PNG file, or <see langword="null"/> when it is not ready.
+    /// Returns the thumbnail of a page as a PNG file, or <see langword="null"/> when it is not ready in that form.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
-    public byte[]? GetPng(int pageNumber) => _panelDocument.GetThumbnail(pageNumber);
+    public byte[]? GetPng(int pageNumber)
+    {
+        using LockedContent<PdfPageThumbnail> lockedThumbnail = _panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.GetContent();
+
+        return lockedThumbnail.Content?.Png;
+    }
 
     /// <summary>
-    /// Starts producing the thumbnail of a page, unless it is ready or pending.
-    /// <see cref="ThumbnailReady"/> is raised when it is produced.
-    /// A pinned thumbnail is kept beyond <see cref="MaximumCount"/> and produced again after the thumbnails are cleared,
-    /// until <see cref="Release"/> is called for the page.
+    /// Returns the thumbnail of a page as opaque 8-bit RGB samples, or <see langword="null"/> when it is not ready in
+    /// that form.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
+    public PdfImageSamples? GetSamples(int pageNumber)
+    {
+        using LockedContent<PdfPageThumbnail> lockedThumbnail = _panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.GetContent();
+
+        return lockedThumbnail.Content?.Samples;
+    }
+
+    /// <summary>
+    /// Starts producing the thumbnail of a page in <paramref name="formats"/>, unless it is ready or pending in them.
+    /// <see cref="ThumbnailReady"/> is raised when it is produced in every requested form.
+    /// A pinned thumbnail is kept beyond <see cref="MaximumCount"/> and produced again in its requested forms after the
+    /// thumbnails are cleared, until <see cref="Release"/> is called for the page.
+    /// </summary>
+    /// <param name="pageNumber">1-based page number.</param>
+    /// <param name="formats">Forms the thumbnail is produced in.</param>
     /// <param name="pin">Whether the thumbnail is pinned.</param>
-    public void Request(int pageNumber, bool pin) => _scheduler.RequestThumbnail(pageNumber, pin);
+    public void Request(int pageNumber, PdfPanelThumbnailFormats formats, bool pin) => _scheduler.RequestThumbnail(pageNumber, formats, pin);
 
     /// <summary>
     /// Cancels producing the thumbnail of a page and unpins it; a ready thumbnail is kept until it is evicted.

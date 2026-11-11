@@ -1,12 +1,12 @@
-using SkiaSharp;
+using PdfPixel.Commands;
 using System;
 
 namespace PdfPixel.PdfPanel.Rendering;
 
 /// <summary>
-/// User interface graphics of a page: one picture per <see cref="PdfPanelGraphicsLayer"/> and their composite.
+/// User interface graphics of a page: one recording per <see cref="PdfPanelGraphicsLayer"/> and their composite.
 /// </summary>
-internal sealed class PdfPanelPageGraphics : IDisposable
+internal sealed class PdfPanelPageGraphics
 {
 #if NETSTANDARD2_0
     private static readonly int LayerCount = Enum.GetValues(typeof(PdfPanelGraphicsLayer)).Length;
@@ -14,13 +14,13 @@ internal sealed class PdfPanelPageGraphics : IDisposable
     private static readonly int LayerCount = Enum.GetValues<PdfPanelGraphicsLayer>().Length;
 #endif
 
-    private readonly SKPicture?[] _layers = new SKPicture?[LayerCount];
+    private readonly PdfCommandRecorder?[] _layers = new PdfCommandRecorder?[LayerCount];
     private readonly bool[] _updatedLayers = new bool[LayerCount];
 
     /// <summary>
-    /// Composite of all layers, or <see langword="null"/> if every layer is empty.
+    /// Composite of all layers, in layer order, or <see langword="null"/> if every layer is empty.
     /// </summary>
-    public SKPicture? Picture { get; private set; }
+    public PdfCommandRecorder? Recording { get; private set; }
 
     /// <summary>
     /// Whether any layer was updated since the last <see cref="Compose"/>.
@@ -33,24 +33,22 @@ internal sealed class PdfPanelPageGraphics : IDisposable
     public bool IsEmpty => Array.TrueForAll(_layers, IsLayerEmpty);
 
     /// <summary>
-    /// Replaces the picture of <paramref name="layer"/>, disposing the previous one.
+    /// Replaces the recording of <paramref name="layer"/>.
     /// </summary>
-    public void Update(PdfPanelGraphicsLayer layer, SKPicture? picture)
+    public void Update(PdfPanelGraphicsLayer layer, PdfCommandRecorder? recording)
     {
         var layerIndex = (int)layer;
 
-        _layers[layerIndex]?.Dispose();
-        _layers[layerIndex] = picture;
+        _layers[layerIndex] = recording;
         _updatedLayers[layerIndex] = true;
     }
 
     /// <summary>
-    /// Records <see cref="Picture"/> from the layers within <paramref name="bounds"/> and clears the updated state.
+    /// Records <see cref="Recording"/> from the layers and clears the updated state.
     /// </summary>
-    public void Compose(SKRect bounds)
+    public void Compose()
     {
-        Picture?.Dispose();
-        Picture = null;
+        Recording = null;
         Array.Clear(_updatedLayers, 0, _updatedLayers.Length);
 
         if (IsEmpty)
@@ -58,30 +56,18 @@ internal sealed class PdfPanelPageGraphics : IDisposable
             return;
         }
 
-        using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(bounds);
+        PdfCommandRecorder recorder = new();
 
-        foreach (SKPicture? layer in _layers)
+        foreach (PdfCommandRecorder? layer in _layers)
         {
             if (layer != null)
             {
-                canvas.DrawPicture(layer);
+                recorder.Process(new DrawRecordingCommand(layer));
             }
         }
 
-        Picture = recorder.EndRecording();
+        Recording = recorder;
     }
 
-    private static bool IsLayerEmpty(SKPicture? layer) => layer == null;
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        foreach (SKPicture? layer in _layers)
-        {
-            layer?.Dispose();
-        }
-
-        Picture?.Dispose();
-    }
+    private static bool IsLayerEmpty(PdfCommandRecorder? layer) => layer == null;
 }

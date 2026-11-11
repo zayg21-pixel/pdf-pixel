@@ -1,5 +1,5 @@
-﻿using PdfPixel.Commands.Processing;
-using PdfPixel.Geometry;
+﻿using PdfPixel.Geometry;
+using PdfPixel.Snap.Rasterization;
 
 namespace PdfPixel.PdfPanel.Rendering;
 
@@ -29,15 +29,6 @@ internal readonly struct RequestPageInfo
         VisibleRegion = (PdfRectangle.IntersectsWith(visibleContent, pageBounds))
             ? PdfRectangle.Intersect(PdfPageContentTiler.SnapToTileGrid(visibleContent, scale, tileSize), pageBounds)
             : PdfRectangle.Empty;
-
-        if (pageBounds.Width * scale <= panelSize.Width && pageBounds.Height * scale <= panelSize.Height)
-        {
-            RegionOfInterest = null;
-        }
-        else
-        {
-            RegionOfInterest = VisibleRegion;
-        }
     }
 
     /// <summary>
@@ -68,12 +59,6 @@ internal readonly struct RequestPageInfo
     public PdfRectangle VisibleRegion { get; }
 
     /// <summary>
-    /// Gets the part of the page its content is decoded for: <see langword="null"/> for the whole page when the page
-    /// fits within the canvas at the current scale, otherwise <see cref="VisibleRegion"/>.
-    /// </summary>
-    public PdfRectangle? RegionOfInterest { get; }
-
-    /// <summary>
     /// Gets the rotated size of the page.
     /// </summary>
     public PdfSize RotatedSize => Page.GetRotatedSize(Rotation);
@@ -96,8 +81,8 @@ internal readonly struct RequestPageInfo
         return PdfMatrix.CreateRotationDegrees(Rotation)
             .PostConcat(PdfMatrix.CreateScale(scale, scale))
             .PostConcat(PdfMatrix.CreateTranslation(
-                PdfCommandProcessingUtilities.SnapToWholePixel((Offset.X + rotationOffsetX) * scale),
-                PdfCommandProcessingUtilities.SnapToWholePixel((Offset.Y + rotationOffsetY) * scale)));
+                PdfSnapGrid.SnapToWholePixel((Offset.X + rotationOffsetX) * scale),
+                PdfSnapGrid.SnapToWholePixel((Offset.Y + rotationOffsetY) * scale)));
     }
 
     /// <summary>
@@ -115,24 +100,5 @@ internal readonly struct RequestPageInfo
             (cropBox.Height + cropBox.Top - pdfRect.Bottom) * userUnit,
             pdfRect.Width * userUnit,
             pdfRect.Height * userUnit);
-    }
-
-    /// <summary>
-    /// Returns whether content decoded for <paramref name="decodedRegion"/> covers <paramref name="requestedRegion"/>,
-    /// where <see langword="null"/> stands for the whole page and an empty region needs no content.
-    /// </summary>
-    public static bool CoversRegion(PdfRectangle? decodedRegion, PdfRectangle? requestedRegion)
-    {
-        if (decodedRegion == null)
-        {
-            return true;
-        }
-
-        if (requestedRegion == null)
-        {
-            return false;
-        }
-
-        return requestedRegion.Value.IsEmpty || decodedRegion.Value.Contains(requestedRegion.Value);
     }
 }

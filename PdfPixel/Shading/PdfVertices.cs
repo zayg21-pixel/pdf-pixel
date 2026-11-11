@@ -14,7 +14,7 @@ public sealed class PdfVertices
     /// <param name="positions">Vertex positions in shading space.</param>
     /// <param name="colors">Per-vertex colors, one per entry in <paramref name="positions"/>.</param>
     /// <param name="indices">Triangle indices into <paramref name="positions"/>/<paramref name="colors"/>; null when vertices are already in triangle order.</param>
-    internal PdfVertices(PdfPoint[] positions, PdfColor[] colors, ushort[]? indices)
+    public PdfVertices(PdfPoint[] positions, PdfColor[] colors, ushort[]? indices)
     {
         Positions = positions;
         Colors = colors;

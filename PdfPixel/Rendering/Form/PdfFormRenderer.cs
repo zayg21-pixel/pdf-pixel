@@ -89,30 +89,42 @@ internal class PdfFormRenderer
 
     private void DrawFormContent(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
-        PdfRectangle contentBounds = formXObject.Matrix.MapRect(formXObject.BoundingBox);
-
-        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, graphicsState, contentBounds);
-
         processor.Process(SaveStateCommand.Instance);
 
         // Apply form matrix if present
         processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
         // Clip to /BBox
-        processor.Process(new ClipRectangleCommand(formXObject.BoundingBox, PdfClipOperation.Intersect));
+        PdfPathBuilder clipBuilder = new();
+        clipBuilder.AddRect(formXObject.BoundingBox);
+        processor.Process(new DrawPathCommand(clipBuilder.ToPath(), new PdfPaint(PdfPaintStyle.Clip)));
 
-        bool needsGroupLayer = graphicsState.RenderingParameters.RenderContent
-            && formXObject.TransparencyGroup != null
-            && (formXObject.TransparencyGroup.RequiresLayer
-                || graphicsState.FillPaint.RequiresComposition);
+        PdfTransparencyGroup? group = (graphicsState.RenderingParameters.RenderContent) ? formXObject.TransparencyGroup : null;
 
-        if (needsGroupLayer)
+        if (group != null)
         {
-            PdfPaint formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
-            processor.Process(new SaveLayerCommand(formXObject.BoundingBox, formPaint));
+            DrawGroup(processor, formXObject, graphicsState, group);
+        }
+        else
+        {
+            processor.Process(new DrawRecordingCommand(RecordContent(formXObject, graphicsState, startsGroup: false)));
         }
 
-        // Decode and render content with a cloned state that clears parent soft mask
+        processor.Process(RestoreStateCommand.Instance);
+    }
+
+    private void DrawGroup(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState, PdfTransparencyGroup group)
+    {
+        PdfTransparencyGroupContext groupContext = new(group.ResolveColorSpace(graphicsState.Host.Resources), group.Isolated, group.Knockout);
+        DrawRecordingCommand recording = new(RecordContent(formXObject, graphicsState, startsGroup: true));
+        PdfGroupSource source = new(recording, groupContext, formXObject.BoundingBox, null);
+        PdfPaint formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
+
+        processor.Process(new DrawGroupCommand(source, formPaint));
+    }
+
+    private PdfCommandRecorder RecordContent(PdfForm formXObject, PdfGraphicsState graphicsState, bool startsGroup)
+    {
         PdfCommandRecorder recorder = new();
 
         ReadOnlyMemory<byte> content = formXObject.Stream.DecodeAsMemory();
@@ -121,15 +133,14 @@ internal class PdfFormRenderer
             PdfContentHost formHost = formXObject.GetFormHost(graphicsState);
 
             PdfGraphicsState localGs = graphicsState.CloneForHost(formHost);
-            localGs.SoftMask = null;
-            localGs.TextClipPath = null;
             localGs.CTM = formXObject.Matrix;
             localGs.ClipBounds = localGs.CTM.MapRect(formXObject.BoundingBox);
 
-            if (needsGroupLayer)
+            if (startsGroup)
             {
                 localGs.FillPaint = localGs.FillPaint.WithAlpha(1f).WithBlendMode(PdfBlendMode.Normal);
                 localGs.StrokePaint = localGs.StrokePaint.WithAlpha(1f).WithBlendMode(PdfBlendMode.Normal);
+                localGs.SoftMask = null;
             }
 
             PdfContentStreamRenderer renderer = new(_renderer, formHost);
@@ -138,14 +149,6 @@ internal class PdfFormRenderer
             renderer.RenderContext(recorder, ref parseContext, localGs);
         }
 
-        DrawRecordingCommand recording = new(recorder);
-        processor.Process(recording);
-
-        if (needsGroupLayer)
-        {
-            processor.Process(RestoreLayerCommand.Instance);
-        }
-
-        processor.Process(RestoreStateCommand.Instance);
+        return recorder;
     }
 }

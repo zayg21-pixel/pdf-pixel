@@ -19,12 +19,12 @@ namespace PdfPixel.Rendering.Operators;
 internal class MiscellaneousOperators : IOperatorProcessor
 {
     private readonly PdfRenderer _renderer;
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public MiscellaneousOperators(PdfRenderer renderer, PdfValueList<PdfContentStreamValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;
@@ -78,7 +78,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessInvokeXObject(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -147,7 +147,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessShading(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;

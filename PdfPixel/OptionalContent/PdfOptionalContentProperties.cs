@@ -78,4 +78,20 @@ public sealed class PdfOptionalContentProperties
     /// Document /Lang, the language resolution falls back to when none is given.
     /// </summary>
     internal PdfString? DocumentLanguage { get; }
+
+    /// <summary>
+    /// Returns the ON/OFF states of the default configuration, or empty states when the document has no
+    /// /OCProperties.
+    /// </summary>
+    public PdfOptionalContentStates GetDefaultStates()
+    {
+        if (DefaultConfiguration == null)
+        {
+            return new PdfOptionalContentStates(new Dictionary<PdfReference, bool>());
+        }
+        else
+        {
+            return DefaultConfiguration.ToUserConfiguration().ToStates();
+        }
+    }
 }

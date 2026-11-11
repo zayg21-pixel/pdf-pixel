@@ -51,11 +51,9 @@ public class SfntPostProcessor
     }
 
     /// <summary>
-    /// Parses a "post" table from its raw content bytes. Returns null if it is shorter than the
-    /// fixed 32-byte header. The header fields (italic angle, underline metrics, fixed-pitch flag)
-    /// are present in every format and always read; <see cref="SfntPost.NameToGid"/> is populated only
-    /// for formats 1.0 and 2.0 - the only ones that carry glyph names - and left null for every other
-    /// format, since that legitimately carries no names to extract, not a parse failure.
+    /// Parses the fixed 32-byte header of a "post" table from its raw content bytes: italic angle, underline
+    /// metrics and fixed-pitch flag, present in every format. Returns null if it is shorter than the header. The
+    /// glyph names are read by <see cref="ReadNameToGid"/>.
     /// </summary>
     public SfntPost? Read(in ReadOnlyMemory<byte> data)
     {
@@ -66,36 +64,48 @@ public class SfntPostProcessor
         }
 
         SfntReader reader = new(data.Span);
-        int formatFixed = reader.ReadInt32OrDefault();
+        reader.ReadInt32OrDefault(); // format
         int italicAngleFixed = reader.ReadInt32OrDefault();
         short underlinePosition = reader.ReadInt16OrDefault();
         short underlineThickness = reader.ReadInt16OrDefault();
         uint isFixedPitch = reader.ReadUInt32OrDefault();
-
-        float format = formatFixed / 65536f;
-
-        Dictionary<PdfFontString, ushort>? nameToGid = null;
-        if (format == 1.0f)
-        {
-            nameToGid = ReadFormat1();
-        }
-        else if (format == 2.0f)
-        {
-            nameToGid = ReadFormat2NameToGid(data.Span);
-            if (nameToGid == null)
-            {
-                return null;
-            }
-        }
 
         return new SfntPost
         {
             ItalicAngle = italicAngleFixed / 65536f,
             UnderlinePosition = underlinePosition,
             UnderlineThickness = underlineThickness,
-            IsFixedPitch = isFixedPitch != 0,
-            NameToGid = nameToGid
+            IsFixedPitch = isFixedPitch != 0
         };
+    }
+
+    /// <summary>
+    /// Reads the mapping from glyph name to glyph ID of a "post" table from its raw content bytes. Only formats 1.0
+    /// and 2.0 carry glyph names; every other format, a table shorter than its header and a truncated format 2.0
+    /// name index give null.
+    /// </summary>
+    public IReadOnlyDictionary<PdfFontString, ushort>? ReadNameToGid(in ReadOnlyMemory<byte> data)
+    {
+        if (data.Length < HeaderLength)
+        {
+            return null;
+        }
+
+        SfntReader reader = new(data.Span);
+        float format = reader.ReadInt32OrDefault() / 65536f;
+
+        if (format == 1.0f)
+        {
+            return ReadFormat1();
+        }
+        else if (format == 2.0f)
+        {
+            return ReadFormat2NameToGid(data.Span);
+        }
+        else
+        {
+            return null;
+        }
     }
 
     private static Dictionary<PdfFontString, ushort> ReadFormat1()

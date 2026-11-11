@@ -14,10 +14,10 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class ColorOperators : IOperatorProcessor
 {
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly IPdfContentHost _host;
 
-    public ColorOperators(PdfOperandStack operandStack, IPdfContentHost host)
+    public ColorOperators(PdfValueList<PdfContentStreamValue> operandStack, IPdfContentHost host)
     {
         _operandStack = operandStack;
         _host = host;
@@ -110,7 +110,7 @@ internal class ColorOperators : IOperatorProcessor
             }
         }
 
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(expected);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(expected);
         if (operands.Length < expected && expected > 1)
         {
             return;
@@ -157,7 +157,7 @@ internal class ColorOperators : IOperatorProcessor
             }
         }
 
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(expected);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(expected);
         if (operands.Length < expected && expected > 1)
         {
             return;
@@ -176,7 +176,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetFillColor(PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -194,7 +194,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetStrokeColor(PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -213,7 +213,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetFillColorN(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -260,7 +260,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetStrokeColorN(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -306,7 +306,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetFillColorSpace(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;
@@ -325,7 +325,7 @@ internal class ColorOperators : IOperatorProcessor
 
     private void ProcessSetStrokeColorSpace(PdfParseContext context, PdfGraphicsState state)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(_operandStack.Count);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(_operandStack.Count);
         if (operands.Length == 0)
         {
             return;

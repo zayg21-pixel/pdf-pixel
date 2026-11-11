@@ -75,25 +75,46 @@ public static class IccTransforms
         (16f / 116f) + (128f / 200f),
         1f);
 
-    private static readonly IColorTransform SrgbLinearToSrgbTransform = BuildSrgbLinearToSrgbTransform();
+    private static readonly PerChannelTrcTransform SrgbLinearToSrgbTransform = BuildSrgbLinearToSrgbTransform();
+    private static readonly PerChannelTrcTransform SrgbToSrgbLinearTransform = BuildSrgbToSrgbLinearTransform();
 
     static IccTransforms()
     {
         BradfordTransposedMatrix = Matrix4x4.Transpose(BradfordMatrix);
         Matrix4x4.Invert(BradfordMatrix, out BradfordInvertedMatrix);
         XyzD50ToSrgbTransform = BuildXyzD50ToSrgbTransform();
+        SrgbToXyzD50Transform = BuildSrgbToXyzD50Transform();
+        XyzD50ToSrgbGrayTransform = BuildXyzD50ToSrgbGrayTransform();
         LabD50ToXyzTransform = BuildLabD50ToXyzTransform();
+        XyzD50ToLabTransform = BuildXyzToLabTransform(D50WhitePoint);
     }
 
     /// <summary>
     /// Gets the color transform that converts from CIE XYZ (D50) to sRGB.
     /// </summary>
-    public static IColorTransform XyzD50ToSrgbTransform { get; }
+    public static ChainedColorTransform XyzD50ToSrgbTransform { get; }
+
+    /// <summary>
+    /// Gets the color transform that converts from sRGB to CIE XYZ (D50).
+    /// </summary>
+    public static ChainedColorTransform SrgbToXyzD50Transform { get; }
+
+    /// <summary>
+    /// Gets the color transform that converts from CIE XYZ (D50) to the sRGB gray of the same luminance, in the
+    /// first component.
+    /// </summary>
+    public static ChainedColorTransform XyzD50ToSrgbGrayTransform { get; }
 
     /// <summary>
     /// Gets the color transform that converts from CIE Lab (D50) to CIE XYZ.
     /// </summary>
-    public static IColorTransform LabD50ToXyzTransform { get; }
+    public static ChainedColorTransform LabD50ToXyzTransform { get; }
+
+    /// <summary>
+    /// Gets the color transform that converts from CIE XYZ to CIE Lab (D50), encoded as
+    /// <see cref="LabD50ToXyzTransform"/> takes it.
+    /// </summary>
+    public static ChainedColorTransform XyzD50ToLabTransform { get; }
 
     /// <summary>
     /// Gets the D50 white point as a Vector4.
@@ -108,8 +129,8 @@ public static class IccTransforms
     /// <summary>
     /// Builds a color transform from CIE XYZ (D50) to sRGB.
     /// </summary>
-    /// <returns>An <see cref="IColorTransform"/> that converts XYZ D50 to sRGB.</returns>
-    public static IColorTransform BuildXyzD50ToSrgbTransform()
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts XYZ D50 to sRGB.</returns>
+    public static ChainedColorTransform BuildXyzD50ToSrgbTransform()
     {
         Matrix4x4 d50ToD65 = BuildBradfordAdaptMatrix(D50WhitePoint, D65WhitePoint);
         return BuildXyzToSrgbTransform(d50ToD65);
@@ -119,8 +140,8 @@ public static class IccTransforms
     /// Builds a color transform from CIE XYZ (with the specified source white point) to sRGB.
     /// </summary>
     /// <param name="sourceWhite">The source white point.</param>
-    /// <returns>An <see cref="IColorTransform"/> that converts XYZ to sRGB.</returns>
-    public static IColorTransform BuildXyzToSrgbTransform(Vector4 sourceWhite)
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts XYZ to sRGB.</returns>
+    public static ChainedColorTransform BuildXyzToSrgbTransform(Vector4 sourceWhite)
     {
         Matrix4x4 adaptationMatrix4x4 = BuildBradfordAdaptMatrix(sourceWhite, D65WhitePoint);
         return BuildXyzToSrgbTransform(adaptationMatrix4x4);
@@ -130,13 +151,59 @@ public static class IccTransforms
     /// Builds a color transform from CIE XYZ to sRGB using the specified adaptation matrix.
     /// </summary>
     /// <param name="adaptationMatrix">The chromatic adaptation matrix.</param>
-    /// <returns>An <see cref="IColorTransform"/> that converts XYZ to sRGB.</returns>
-    public static IColorTransform BuildXyzToSrgbTransform(Matrix4x4 adaptationMatrix)
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts XYZ to sRGB.</returns>
+    public static ChainedColorTransform BuildXyzToSrgbTransform(Matrix4x4 adaptationMatrix)
     {
         Matrix4x4 d50ToSrgbLinearMatrix4x4 = Matrix4x4.Multiply(XyzD65ToRgbLinearMatrix, adaptationMatrix);
         Matrix4x4 transposed = Matrix4x4.Transpose(d50ToSrgbLinearMatrix4x4);
 
         return new ChainedColorTransform(new MatrixColorTransform(transposed), SrgbLinearToSrgbTransform);
+    }
+
+    /// <summary>
+    /// Builds a color transform from sRGB to CIE XYZ (D50).
+    /// </summary>
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts sRGB to XYZ D50.</returns>
+    public static ChainedColorTransform BuildSrgbToXyzD50Transform()
+    {
+        Matrix4x4 d50ToD65 = BuildBradfordAdaptMatrix(D50WhitePoint, D65WhitePoint);
+        Matrix4x4 d50ToSrgbLinearMatrix4x4 = Matrix4x4.Multiply(XyzD65ToRgbLinearMatrix, d50ToD65);
+        Matrix4x4.Invert(d50ToSrgbLinearMatrix4x4, out Matrix4x4 srgbLinearToD50Matrix4x4);
+        Matrix4x4 transposed = Matrix4x4.Transpose(srgbLinearToD50Matrix4x4);
+
+        return new ChainedColorTransform(SrgbToSrgbLinearTransform, new MatrixColorTransform(transposed));
+    }
+
+    /// <summary>
+    /// Builds a color transform from CIE XYZ (D50) to the sRGB gray of the same luminance, in the first component.
+    /// </summary>
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts XYZ D50 to sRGB gray.</returns>
+    public static ChainedColorTransform BuildXyzD50ToSrgbGrayTransform()
+    {
+        FunctionColorTransform luminanceTransform = new(color => new Vector4(color.Y, color.Y, color.Y, color.W));
+
+        return new ChainedColorTransform(luminanceTransform, SrgbLinearToSrgbTransform);
+    }
+
+    private static PerChannelTrcTransform BuildSrgbToSrgbLinearTransform()
+    {
+        // sRGB decoding as an ICC parametric type 4 TRC:
+        // For x < d: y = c * x + f
+        // For x >= d: y = (a * x + b)^g + e
+        // if x < 0.04045 -> x / 12.92; else ((x + 0.055) / 1.055)^2.4
+        const float g = 2.4f;
+        const float a = 1f / 1.055f;
+        const float b = 0.055f / 1.055f;
+        const float c = 1f / 12.92f;
+        const float d = 0.04045f;
+        const float e = 0.0f;
+        const float f = 0.0f;
+
+        float[] parameters = [g, a, b, c, d, e, f];
+
+        IccTrc srgbParametric = IccTrc.FromParametric(IccTrcParametricType.PowerWithLinearSegmentAndOffset, parameters);
+
+        return new PerChannelTrcTransform([srgbParametric, srgbParametric, srgbParametric]);
     }
 
     private static PerChannelTrcTransform BuildSrgbLinearToSrgbTransform()
@@ -158,7 +225,7 @@ public static class IccTransforms
 
         IccTrc srgbParametric = IccTrc.FromParametric(IccTrcParametricType.PowerWithLinearSegmentAndOffset, parameters);
 
-        return new PerChannelTrcTransform(srgbParametric, srgbParametric, srgbParametric);
+        return new PerChannelTrcTransform([srgbParametric, srgbParametric, srgbParametric]);
     }
 
     /// <summary>
@@ -186,15 +253,15 @@ public static class IccTransforms
     /// <summary>
     /// Builds a color transform from CIE Lab (D50) to CIE XYZ.
     /// </summary>
-    /// <returns>An <see cref="IColorTransform"/> that converts Lab D50 to XYZ.</returns>
-    public static IColorTransform BuildLabD50ToXyzTransform() => BuildLabToXyzTransform(D50WhitePoint);
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts Lab D50 to XYZ.</returns>
+    public static ChainedColorTransform BuildLabD50ToXyzTransform() => BuildLabToXyzTransform(D50WhitePoint);
 
     /// <summary>
     /// Builds a color transform from CIE Lab to CIE XYZ using the specified white point.
     /// </summary>
     /// <param name="whitePoint">The reference white point.</param>
-    /// <returns>An <see cref="IColorTransform"/> that converts Lab to XYZ.</returns>
-    public static IColorTransform BuildLabToXyzTransform(Vector4 whitePoint)
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts Lab to XYZ.</returns>
+    public static ChainedColorTransform BuildLabToXyzTransform(Vector4 whitePoint)
     {
         MatrixColorTransform matrixTransform = new(LabMatrixTransform);
 
@@ -211,5 +278,46 @@ public static class IccTransforms
         });
 
         return new ChainedColorTransform(matrixTransform, cubeWhitePointTransform);
+    }
+
+    /// <summary>
+    /// Builds a color transform from CIE XYZ to CIE Lab using the specified white point, encoded as
+    /// <see cref="BuildLabToXyzTransform"/> takes it: L* / 100, (a* + 128) / 255 and (b* + 128) / 255.
+    /// </summary>
+    /// <param name="whitePoint">The reference white point.</param>
+    /// <returns>A <see cref="ChainedColorTransform"/> that converts XYZ to Lab.</returns>
+    public static ChainedColorTransform BuildXyzToLabTransform(Vector4 whitePoint)
+    {
+        FunctionColorTransform labTransform = new(x =>
+        {
+            Vector4 relative = x / whitePoint;
+            float fx = GetLabFunction(relative.X);
+            float fy = GetLabFunction(relative.Y);
+            float fz = GetLabFunction(relative.Z);
+
+            return new Vector4(
+                ((116f * fy) - 16f) / 100f,
+                ((500f * (fx - fy)) + 128f) / 255f,
+                ((200f * (fy - fz)) + 128f) / 255f,
+                x.W);
+        });
+
+        return new ChainedColorTransform(labTransform);
+    }
+
+    /// <summary>
+    /// Returns f(t) of the CIE Lab definition: the cube root of <paramref name="value"/> above (6/29)³, its linear
+    /// continuation below.
+    /// </summary>
+    private static float GetLabFunction(float value)
+    {
+        if (value > LabBreakpoint * LabBreakpoint * LabBreakpoint)
+        {
+            return (float)Math.Pow(value, 1.0 / 3.0);
+        }
+        else
+        {
+            return (value / (3f * LabBreakpoint * LabBreakpoint)) + (4f / 29f);
+        }
     }
 }

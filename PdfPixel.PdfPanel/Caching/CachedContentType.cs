@@ -9,27 +9,22 @@ namespace PdfPixel.PdfPanel.Caching;
 internal enum CachedContentType
 {
     /// <summary>
-    /// Command recording and picture of the page content.
+    /// Command recordings of the page content and annotations, and the tiles rasterized from them.
     /// </summary>
     Content = 1 << 0,
 
     /// <summary>
-    /// Command recording and picture of the page annotations.
-    /// </summary>
-    Annotations = 1 << 1,
-
-    /// <summary>
     /// Extracted words of the page.
     /// </summary>
-    Words = 1 << 2,
+    Words = 1 << 1,
 
     /// <summary>
     /// Thumbnail of the page.
     /// </summary>
-    Thumbnail = 1 << 3,
+    Thumbnail = 1 << 2,
 
     /// <summary>
     /// Every kind of cached content.
     /// </summary>
-    All = Content | Annotations | Words | Thumbnail
+    All = Content | Words | Thumbnail
 }

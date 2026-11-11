@@ -1,6 +1,5 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
-using PdfPixel.Color.Transform;
 using PdfPixel.Forms;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
@@ -14,7 +13,7 @@ namespace PdfPixel.Transparency;
 /// </summary>
 public class PdfSoftMask
 {
-    private PdfSoftMask(PdfSoftMaskSubtype subtype, PdfForm maskForm, float[]? backgroundColorComponents, TransferFunctionTransform? transferFunction)
+    private PdfSoftMask(PdfSoftMaskSubtype subtype, PdfForm maskForm, float[]? backgroundColorComponents, PdfTransferFunction? transferFunction)
     {
         Subtype = subtype;
         MaskForm = maskForm;
@@ -39,9 +38,8 @@ public class PdfSoftMask
 
     /// <summary>
     /// Optional transfer function transform (TR) applied to device output before using as soft mask input.
-    /// Internal to avoid exposing internal transform type on a public API.
     /// </summary>
-    internal TransferFunctionTransform? TransferFunction { get; }
+    internal PdfTransferFunction? TransferFunction { get; }
 
     /// <summary>
     /// Parses a soft mask dictionary, or returns <see langword="null"/> when it is absent or its /G entry is not a form XObject.
@@ -69,7 +67,7 @@ public class PdfSoftMask
             backgroundColorComponents = backgroundColorArray.GetFloatArray();
         }
 
-        TransferFunctionTransform? transferFunction = TransferFunctionTransform.GetTransferFunction(softMaskDictionary, PdfTokens.TransferFunctionKey);
+        PdfTransferFunction? transferFunction = PdfTransferFunction.GetTransferFunction(softMaskDictionary, PdfTokens.TransferFunctionKey);
 
         return new PdfSoftMask(subtype, maskForm, backgroundColorComponents, transferFunction);
     }

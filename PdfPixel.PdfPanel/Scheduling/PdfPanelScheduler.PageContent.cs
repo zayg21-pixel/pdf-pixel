@@ -12,100 +12,85 @@ internal sealed partial class PdfPanelScheduler
 {
     private static readonly PdfContentKind[] ExtractedContentKinds = [PdfContentKind.Path, PdfContentKind.Image, PdfContentKind.Shading, PdfContentKind.Form];
 
-    private readonly HashSet<int> _visiblePageNumbers = [];
-    private readonly HashSet<int> _lookAheadPageNumbers = [];
+    private readonly HashSet<int> _requestedPageNumbers = [];
     private readonly HashSet<int> _contentCachePageNumbers = [];
-    private PagesDrawingRequest? _lastLookAheadRequest;
+    private PdfPageTilePool? _tilePool;
     private readonly PdfContentExtractor _contentExtractor = new();
     private readonly PdfContentExtractionParameters _contentExtractionParameters = new() { ContentKinds = ExtractedContentKinds };
 
     /// <summary>
-    /// Starts or updates decoding for the pages described by <paramref name="request"/>.
+    /// Cancels and evicts the content of the pages <paramref name="request"/> no longer holds, then starts decoding its
+    /// pages in their order.
     /// </summary>
-    public void UpdateContent(PagesDrawingRequest request)
+    public void UpdateContent(ContentUpdateRequest request)
     {
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));
         }
 
-        HashSet<int> requestedPageNumbers = new(request.Pages.Select(page => page.PageNumber));
-
-        if (request.IsLookAhead)
+        if (_tilePool == null || _tiler == null || _tilePool.TileSize != request.TileSize)
         {
-            CancelPages(_lookAheadPageNumbers.Except(requestedPageNumbers));
-            _lookAheadPageNumbers.Clear();
-            _lookAheadPageNumbers.UnionWith(requestedPageNumbers);
-            _lastLookAheadRequest = request;
-            EnqueueContentUpdates(request);
-            EvictContentCache();
-            return;
+            _tiler?.Dispose();
+            _tilePool = new PdfPageTilePool(request.TileSize);
+            _tiler = new PdfPageContentTiler(_panelDocument, _tilePool, _surfaceParameters);
         }
+
+        _tilePool.UpdateCapacity(request.TileCapacity);
+
+        HashSet<int> requestedPageNumbers = new(request.Pages.Select(page => page.Page.PageNumber));
+        int[] visiblePageNumbers = request.Pages.Where(page => page.IsVisible).Select(page => page.Page.PageNumber).ToArray();
 
         CancelThumbnails();
         CancelTextExtraction();
 
-        CancelPages(_lookAheadPageNumbers.Union(_visiblePageNumbers).Except(requestedPageNumbers));
-        _visiblePageNumbers.Clear();
-        _visiblePageNumbers.UnionWith(requestedPageNumbers);
-        _lookAheadPageNumbers.ExceptWith(requestedPageNumbers);
+        CancelPages(_requestedPageNumbers.Except(requestedPageNumbers));
+        _requestedPageNumbers.Clear();
+        _requestedPageNumbers.UnionWith(requestedPageNumbers);
 
-        lock (_thumbnailLocker)
+        if (visiblePageNumbers.Length > 0)
         {
-            _thumbnailVisiblePageNumbers = request.Pages.Select(page => page.PageNumber).ToArray();
-            _thumbnailCenterPageNumber = request.Pages[0].PageNumber;
-        }
-
-        lock (_textExtractionLocker)
-        {
-            _textExtractionStartPageNumber = request.Pages[0].PageNumber;
-        }
-
-        EnqueueContentUpdates(request);
-
-        if (_lastLookAheadRequest != null)
-        {
-            foreach (int pageNumber in _lookAheadPageNumbers)
+            lock (_thumbnailLocker)
             {
-                EnqueueContentUpdate(_panelDocument.Pages[pageNumber - 1], _lastLookAheadRequest);
+                _thumbnailVisiblePageNumbers = visiblePageNumbers;
+                _thumbnailCenterPageNumber = visiblePageNumbers[0];
+            }
+
+            lock (_textExtractionLocker)
+            {
+                _textExtractionStartPageNumber = visiblePageNumbers[0];
             }
         }
 
         EvictContentCache();
+
+        foreach (ContentUpdatePage page in request.Pages)
+        {
+            EnqueueContentUpdate(page, request);
+        }
+
         RequeueThumbnailRequests();
         EnqueueNextThumbnail();
         EnqueueNextTextExtraction();
     }
 
-    private void EnqueueContentUpdate(PdfPanelPage page, PagesDrawingRequest request)
+    private void EnqueueContentUpdate(ContentUpdatePage requestPage, ContentUpdateRequest request)
     {
+        PdfPanelPage page = requestPage.Page;
+
         _contentCachePageNumbers.Add(page.PageNumber);
-
-        PagesDrawingRequest? pendingRequest = page.CacheEntry.PendingRequest;
-
-        if (pendingRequest != null && pendingRequest.CoversPage(page.PageNumber, request))
-        {
-            return;
-        }
-
-        page.CacheEntry.InitializeForRendering(_observerFactory, request, page.PageNumber);
+        page.CacheEntry.InitializeForRendering(_observerFactory, page.PageNumber);
         _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(
-            page,
+            requestPage,
+            _tiler,
             _textExtractor,
             _textExtractionProperties,
             _contentExtractor,
             _contentExtractionParameters,
+            _surfaceParameters,
             request,
             _panelDocument.NotifyPageUpdated,
             _panelDocument.NotifyPageTextExtracted));
-    }
-
-    private void EnqueueContentUpdates(PagesDrawingRequest request)
-    {
-        foreach (RequestPageInfo page in request.Pages)
-        {
-            EnqueueContentUpdate(_panelDocument.Pages[page.PageNumber - 1], request);
-        }
     }
 
     private void CancelPages(IEnumerable<int> pageNumbers)
@@ -117,7 +102,7 @@ internal sealed partial class PdfPanelScheduler
     }
 
     /// <summary>
-    /// Clears the decoded content of the pages that are neither visible nor ahead of the visible pages.
+    /// Clears the decoded content of the pages that are not in the last request.
     /// </summary>
     private void EvictContentCache()
     {
@@ -125,7 +110,7 @@ internal sealed partial class PdfPanelScheduler
 
         foreach (int pageNumber in _contentCachePageNumbers)
         {
-            if (_visiblePageNumbers.Contains(pageNumber) || _lookAheadPageNumbers.Contains(pageNumber))
+            if (_requestedPageNumbers.Contains(pageNumber))
             {
                 continue;
             }
@@ -142,7 +127,7 @@ internal sealed partial class PdfPanelScheduler
 
         if (evictedPages.Count > 0)
         {
-            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(evictedPages, _panelDocument.DocumentLocker, CachedContentType.Content | CachedContentType.Annotations, null));
+            _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(evictedPages, _panelDocument.DocumentLocker, CachedContentType.Content, null));
         }
     }
 }

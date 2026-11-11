@@ -1,4 +1,5 @@
-﻿using PdfPixel.Geometry;
+﻿using PdfPixel.Color;
+using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Caching;
@@ -20,6 +21,7 @@ public class PdfPanelPage
         PanelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         Label = pdfPage.PageLabel.DecodePdfString();
         CacheEntry = new PdfPageCacheEntry(pageNumber);
+        DeviceProfiles = PdfDeviceProfiles.FromPage(pdfPage);
         _rotation = (pdfPage.Rotation % 90 == 0) ? pdfPage.Rotation : 0;
     }
 
@@ -85,4 +87,9 @@ public class PdfPanelPage
     /// Content produced for this page.
     /// </summary>
     internal PdfPageCacheEntry CacheEntry { get; }
+
+    /// <summary>
+    /// Device profiles of the page's output intents, the same for every render.
+    /// </summary>
+    internal PdfDeviceProfiles DeviceProfiles { get; }
 }

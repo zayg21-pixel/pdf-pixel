@@ -232,11 +232,6 @@ public partial class WpfPdfPanel
     }
 
     /// <summary>
-    /// Gets or sets the rendering backend for the panel.
-    /// </summary>
-    public WpfRenderMode RenderMode { get; set; } = WpfRenderMode.Software;
-
-    /// <summary>
     /// Gets or sets the displayed document.
     /// </summary>
     public PdfPanelDocument? Document

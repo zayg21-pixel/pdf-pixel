@@ -1,6 +1,6 @@
 using PdfPixel.Gold.Manifest;
 using PdfPixel.Gold.Utilities;
-using SkiaSharp;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System.Diagnostics;
 
 namespace PdfPixel.Gold.Commands;
@@ -29,8 +29,6 @@ internal static class GenerateCommand
                 failedCount++;
                 ConsoleUtilities.Write(ConsoleColor.Magenta, $"{entry.Name,-60} FAILED {exception.Message}");
             }
-
-            PdfUtilities.PurgeSkiaCaches();
         }
 
         runStopwatch.Stop();
@@ -48,11 +46,9 @@ internal static class GenerateCommand
 
         int pageCount = 0;
 
-        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PdfUtilities.RenderPages(reader, paths.GetSourcePath(entry.Name), entry.Pages, entry.Password))
+        foreach ((int PageNumber, PdfImageSamples Samples) renderedPage in PdfUtilities.RenderPages(reader, paths.GetSourcePath(entry.Name), entry.Pages, entry.Password))
         {
-            using SKBitmap bitmap = renderedPage.Bitmap;
-
-            ImageUtilities.SavePng(bitmap, Path.Combine(snapshotDirectory, $"{renderedPage.PageNumber}_source.png"));
+            ImageUtilities.SavePng(renderedPage.Samples, Path.Combine(snapshotDirectory, $"{renderedPage.PageNumber}_source.png"));
 
             // The previous run's comparison output describes the snapshot that was just replaced.
             File.Delete(Path.Combine(snapshotDirectory, $"{renderedPage.PageNumber}_result.png"));

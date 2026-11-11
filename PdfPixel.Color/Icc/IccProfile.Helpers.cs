@@ -40,4 +40,33 @@ public sealed partial class IccProfile
                 }
         }
     }
+
+    /// <summary>
+    /// Gets the profile's own B2A LUT pipeline for the specified rendering intent.
+    /// </summary>
+    /// <param name="intent">The rendering intent.</param>
+    /// <returns>The B2A LUT pipeline, or null when the intent's own B2A LUT is absent.</returns>
+    public IccLutPipeline? GetB2ALut(IccRenderingIntent intent)
+    {
+        switch (intent)
+        {
+            case IccRenderingIntent.Perceptual:
+                {
+                    return B2ALut0;
+                }
+            case IccRenderingIntent.RelativeColorimetric:
+            case IccRenderingIntent.AbsoluteColorimetric:
+                {
+                    return B2ALut1;
+                }
+            case IccRenderingIntent.Saturation:
+                {
+                    return B2ALut2;
+                }
+            default:
+                {
+                    return null;
+                }
+        }
+    }
 }

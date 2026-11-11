@@ -43,11 +43,6 @@ public sealed class PdfPanelActions
     public event EventHandler<PdfPanelActionEventArgs>? ActionRequested;
 
     /// <summary>
-    /// Whether a performed action changed how annotations are drawn since <see cref="ClearAnnotationUpdate"/>.
-    /// </summary>
-    internal bool IsAnnotationUpdateRequested { get; private set; }
-
-    /// <summary>
     /// Scrolls the panel to a destination of the panel's document, applying its zoom, on the next
     /// <see cref="PdfPanelContext.Synchronize"/> once the panel has a size; it follows the document's open action.
     /// </summary>
@@ -72,11 +67,6 @@ public sealed class PdfPanelActions
     /// <param name="item">The activated outline item.</param>
     public void ActivateOutlineItem(PdfOutlineItem item)
         => _requestedOutlineItem = item ?? throw new ArgumentNullException(nameof(item));
-
-    /// <summary>
-    /// Clears <see cref="IsAnnotationUpdateRequested"/>.
-    /// </summary>
-    internal void ClearAnnotationUpdate() => IsAnnotationUpdateRequested = false;
 
     /// <summary>
     /// Performs the pending actions and navigation. Navigation sets the scale and records the target, which
@@ -309,8 +299,6 @@ public sealed class PdfPanelActions
                 annotation.IsHidden = action.Hide;
             }
         }
-
-        IsAnnotationUpdateRequested = true;
     }
 
     private void RaiseActionRequested(PdfAction action, PdfPanelActionSource source, object sourceObject)

@@ -1,4 +1,7 @@
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.PdfPanel.Caching;
+using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.Snap;
 using PdfPixel.Text;
 using System;
 
@@ -14,6 +17,13 @@ internal sealed partial class PdfPanelScheduler : IDisposable
     private readonly IPdfExecutionObserverFactory _observerFactory;
     private readonly PdfTextExtractor _textExtractor = new();
     private readonly PdfTextExtractionProperties _textExtractionProperties = new();
+
+    private readonly PdfSnapSurfaceParameters _surfaceParameters = new(
+        PdfDeviceRgbColorSpaceConverter.Instance,
+        new PdfSnapMemoryPool(),
+        new PdfSnapImageCache());
+
+    private PdfPageContentTiler? _tiler;
 
     /// <summary>
     /// Initializes the scheduler for <paramref name="panelDocument"/>.
@@ -47,5 +57,7 @@ internal sealed partial class PdfPanelScheduler : IDisposable
         SetTextExtractionSettings(false);
         CancelThumbnails();
         _processingQueue.Dispose();
+        _tiler?.Dispose();
+        _thumbnailRasterizer?.Dispose();
     }
 }

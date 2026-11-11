@@ -15,62 +15,71 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 {
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    private Jbig2Bitmap? _cachedBitmap;
+    private ReadOnlyMemory<byte>? _samples;
+    private int _rowStride;
+    private PdfImageSampleInfo? _sampleInfo;
 
-    private int _currentImageRow;
-    private int _rowCount;
-
-    public Jbig2ImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
-        : base(image, context, loggerFactory)
+    public Jbig2ImageDecoder(PdfImage image)
+        : base(image)
     {
-        _colorSpaceConverter = context.ColorSpaceConverter
+        _colorSpaceConverter = image.ColorSpace
             ?? PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
 
-    public override PdfImageRowDecodingParameters Initialize(
-        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        in PdfMatrix ctm,
-        IPdfExecutionObserver? observer)
+    protected override PdfImageDecodeInfo SelectTiles(in PdfIntegerSize targetSize, PdfRectangle? region, IPdfExecutionObserver? observer)
     {
-        EnsureBitmapDecoded(observer);
-        if (_cachedBitmap == null)
+        PdfImageSampleInfo sampleInfo = EnsureSampleInfo();
+
+        _samples = Cache.Find(Image, WholeImageKey);
+
+        if (_samples == null)
         {
-            throw new InvalidOperationException($"JBIG2 page decoding failed (Reference={Image.Reference}).");
+            _samples = DecodeSamples(observer);
         }
 
-        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
-            ctm,
-            new PdfIntegerSize(Image.Width, Image.Height),
-            Image.BitsPerComponent,
-            _colorSpaceConverter);
-
-        _currentImageRow = 0;
-        _rowCount = parameters.Height;
-
-        return parameters;
+        return new PdfImageDecodeInfo(sampleInfo, null);
     }
 
-    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
+    public override PdfImageTile? GetTile(int tileIndex, IPdfExecutionObserver? observer)
     {
-        if (_cachedBitmap == null || _currentImageRow >= _rowCount)
+        if (_sampleInfo == null || _samples == null)
         {
-            return false;
+            throw new InvalidOperationException("No tiles are selected.");
         }
 
-        _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(destination);
-        InvertRow(destination);
-        _currentImageRow++;
-
-        return true;
+        return CreateBitmapTile(_sampleInfo, _samples.Value, _rowStride, tileIndex);
     }
 
-    private void EnsureBitmapDecoded(IPdfExecutionObserver? observer)
+    protected override void DropTiles() => _samples = null;
+
+    private PdfImageSampleInfo EnsureSampleInfo()
     {
-        if (_cachedBitmap != null)
+        if (_sampleInfo == null)
         {
-            return;
+            _sampleInfo = new PdfImageSampleInfo(CreateGrid(new PdfIntegerSize(Image.Width, Image.Height)), descaleFactor: 1, Image.BitsPerComponent, 1, _colorSpaceConverter);
         }
 
+        return _sampleInfo;
+    }
+
+    /// <summary>
+    /// Decodes the page and puts its rows, every bit inverted, into the cache.
+    /// </summary>
+    private byte[] DecodeSamples(IPdfExecutionObserver? observer)
+    {
+        Jbig2Bitmap bitmap = DecodeBitmap(observer);
+        byte[] samples = bitmap.ReadOnlyData.ToArray();
+
+        Invert(samples);
+
+        _rowStride = bitmap.Stride;
+        Cache.Put(Image, WholeImageKey, samples);
+
+        return samples;
+    }
+
+    private Jbig2Bitmap DecodeBitmap(IPdfExecutionObserver? observer)
+    {
         ReadOnlyMemory<byte> imageData = Image.Stream.DecodeAsMemory(observer);
 
         if (imageData.IsEmpty)
@@ -81,11 +90,18 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         Jbig2SegmentCache? globalCache = ResolveGlobalsCache();
         Jbig2PageDecoder pageDecoder = new();
         Jbig2Observer jbig2Observer = new(observer);
-        _cachedBitmap = pageDecoder.Decode(imageData.Span, Image.Width, Image.Height, globalCache, jbig2Observer);
+        Jbig2Bitmap? bitmap = pageDecoder.Decode(imageData.Span, Image.Width, Image.Height, globalCache, jbig2Observer);
+
+        if (bitmap == null)
+        {
+            throw new InvalidOperationException($"JBIG2 page decoding failed (Reference={Image.Reference}).");
+        }
+
+        return bitmap;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void InvertRow(in Span<byte> buffer)
+    private static void Invert(in Span<byte> buffer)
     {
         for (int i = 0; i < buffer.Length; i++)
         {
@@ -101,7 +117,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return Context.Host.Document.ObjectCache.GetOrCreate(decodeParameters.Jbig2GlobalsReference, DecodeGlobalsCache, requiresStream: true);
+        return Image.Document.ObjectCache.GetOrCreate(decodeParameters.Jbig2GlobalsReference, DecodeGlobalsCache, requiresStream: true);
     }
 
     private static Jbig2SegmentCache? DecodeGlobalsCache(PdfObject globalsObject)
@@ -124,11 +140,5 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         public Jbig2Observer(IPdfExecutionObserver? pdfObserver) => _pdfObserver = pdfObserver;
 
         public void Notify() => _pdfObserver?.Notify();
-    }
-
-    public override void Cleanup()
-    {
-        _currentImageRow = 0;
-        _rowCount = 0;
     }
 }

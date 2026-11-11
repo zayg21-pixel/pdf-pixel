@@ -226,7 +226,7 @@ internal static class PdfTokens
     public static readonly PdfString GammaKey = (PdfString)"Gamma"u8;
     public static readonly PdfString BlackPointKey = (PdfString)"BlackPoint"u8;
     public static readonly PdfString RangeKey = (PdfString)"Range"u8; // /Lab range specification
-    public static readonly PdfString OutputIntentsKey = (PdfString)"OutputIntents"u8;        // Catalog array of output intents
+    public static readonly PdfString OutputIntentsKey = (PdfString)"OutputIntents"u8;        // Catalog or page array of output intents
     public static readonly PdfString DestOutputProfileKey = (PdfString)"DestOutputProfile"u8; // Output intent profile stream
     public static readonly PdfString OutputIntentSubtypeKey = (PdfString)"S"u8;               // Output intent subtype
     public static readonly PdfString OutputConditionKey = (PdfString)"OutputCondition"u8;

@@ -3,77 +3,39 @@
 #include <emscripten/console.h>
 #include <stdint.h>
 
-// Makes the given WebGL context current.
-int dotnet_webgl_make_context_current(int ctx) {
-	return (int)emscripten_webgl_make_context_current((EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)ctx);
-}
-
-// Destroys the given WebGL context.
-int dotnet_webgl_destroy_context(int ctx) {
-	return (int)emscripten_webgl_destroy_context((EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)ctx);
-}
-
-// Acquires the WEBGL_debug_renderer_info extension on the given context handle so that
-// Emscripten's glGetString shim can call getParameter(UNMASKED_RENDERER/VENDOR_WEBGL)
-// without triggering an INVALID_ENUM browser warning.
-EM_JS(void, dotnet_webgl_enable_debug_renderer_info, (int ctx), {
-	if (typeof GL === 'undefined' || !GL.contexts || !GL.contexts[ctx]) {
-		return;
-	}
-	const glCtx = GL.contexts[ctx].GLctx;
-	if (glCtx) {
-		glCtx.getExtension('WEBGL_debug_renderer_info');
-	}
-});
-
-// Sets an RGBA image (bytes) to a canvas identified by selector (e.g. "#myCanvas").
-// pixelsPtr must point to width*height*4 bytes in RGBA order.
+// Puts an RGBA image (bytes) on a canvas identified by selector (e.g. "#myCanvas").
+// pixelsPtr must point to width*height*4 bytes in RGBA order; they are read in place from the heap, and the 2D
+// context of each canvas is kept while the canvas stays in the document.
 EM_JS(void, dotnet_set_canvas_rgba_js, (const char* canvasIdPtr, const uint8_t* pixelsPtr, int width, int height), {
 	const canvasId = UTF8ToString(canvasIdPtr);
+	const contexts = Module.pdfPixelCanvasContexts || (Module.pdfPixelCanvasContexts = new Map());
+	let ctx = contexts.get(canvasId);
 
-	const canvas = document.querySelector(canvasId);
+	if (!ctx || !ctx.canvas.isConnected) {
+		const canvas = document.querySelector(canvasId);
 
-	if (!canvas) {
-		return;
+		if (!canvas) {
+			contexts.delete(canvasId);
+			return;
+		}
+
+		ctx = canvas.getContext('2d');
+
+		if (!ctx) {
+			contexts.delete(canvasId);
+			return;
+		}
+
+		contexts.set(canvasId, ctx);
 	}
 
-	const ctx = canvas.getContext('2d');
-	if (!ctx) {
-		return;
-	}
-
-	const size = width * height * 4;
-	const src = HEAPU8.subarray(pixelsPtr, pixelsPtr + size);
-	// Create a copy as Uint8ClampedArray required by ImageData
-	const clamped = new Uint8ClampedArray(src);
-	const imageData = new ImageData(clamped, width, height);
-	ctx.putImageData(imageData, 0, 0);
+	const pixels = new Uint8ClampedArray(HEAPU8.buffer, pixelsPtr, width * height * 4);
+	ctx.putImageData(new ImageData(pixels, width, height), 0, 0);
 });
 
 // C wrapper for the EM_JS function. Call this from C/C# with a pointer to RGBA bytes.
 void dotnet_set_canvas_rgba(const char* canvasId, const uint8_t* pixels, int width, int height) {
 	dotnet_set_canvas_rgba_js(canvasId, pixels, width, height);
-}
-
-// Creates a WebGL context on the specified canvas.
-// Returns the handle (> 0) on success, or a negative EMSCRIPTEN_RESULT error code.
-int dotnet_webgl_create_context(const char* canvasId, int alpha, int depth, int stencil, int antialias, int majorVersion) {
-	EmscriptenWebGLContextAttributes attrs;
-	emscripten_webgl_init_context_attributes(&attrs);
-	attrs.alpha = alpha;
-	attrs.depth = depth;
-	attrs.stencil = stencil;
-	attrs.antialias = antialias;
-	attrs.majorVersion = majorVersion;
-	attrs.minorVersion = 0;
-	attrs.enableExtensionsByDefault = 1;
-	attrs.preserveDrawingBuffer = 1;
-
-	int handle = (int)emscripten_webgl_create_context(canvasId, &attrs);
-	if (handle > 0) {
-		dotnet_webgl_enable_debug_renderer_info(handle);
-	}
-	return handle;
 }
 
 // Writes a log message to the browser console using the channel that matches log_level.

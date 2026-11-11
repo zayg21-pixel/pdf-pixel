@@ -3,7 +3,7 @@ namespace PdfPixel.Annotations.Icons;
 /// <summary>
 /// How a path's colors are sourced at render time.
 /// </summary>
-internal enum PdfAnnotationIconColorType
+public enum PdfAnnotationIconColorType
 {
     /// <summary>
     /// Do not apply this paint operation.

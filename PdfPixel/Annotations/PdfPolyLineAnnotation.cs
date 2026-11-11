@@ -147,14 +147,14 @@ public class PdfPolyLineAnnotation : PdfMarkupAnnotation
 
         PdfPathEnds ends = pathEnds.Value;
 
-        PdfPaint? linePaint = ResolvePaint(page);
+        PdfPaint? linePaint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
 
         if (linePaint != null)
         {
             processor.Process(new DrawPathCommand(DrawingPath, PdfAnnotationPaintFactory.CreateStrokePaint(linePaint, StrokeStyle)));
         }
 
-        PdfPaint? interiorPaint = ResolveInteriorPaint(page);
+        PdfPaint? interiorPaint = PdfAnnotationPaintFactory.ResolvePaint(InteriorColor, page);
 
         if (StartLineEnding != PdfLineEndingStyle.None)
         {

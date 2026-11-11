@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Actions;
 using PdfPixel.Color;
-using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption;
 using PdfPixel.Files;
 using PdfPixel.Fonts.Substitution;
@@ -143,12 +142,6 @@ public interface IPdfDocument : IPdfAssociatedFilesHost, IDisposable
     /// Gets the document-level font provider.
     /// </summary>
     FontProvider FontProvider { get; }
-
-    /// <summary>
-    /// Gets the cache holding values built during command execution that stay valid for the lifetime
-    /// of the document, so every replay of any of its pages reuses the same entries.
-    /// </summary>
-    CommandCache CommandCache { get; }
 
     /// <summary>
     /// Gets the logger factory used for creating loggers.

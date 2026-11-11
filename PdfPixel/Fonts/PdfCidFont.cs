@@ -6,7 +6,7 @@ using PdfPixel.Parsing;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Fonts;
+namespace PdfPixel.Fonts; // TODO: [HIGH] issue18062 - renders chars, but incorrect ones
 
 /// <summary>
 /// CID fonts: CIDFontType0, CIDFontType2

@@ -8,7 +8,6 @@ internal enum PageDrawFlags
     Shadow = 1 << 0,
     Background = 1 << 1,
     Content = 1 << 2,
-    Placeholder = 1 << 3,
-    Thumbnail = 1 << 4,
+    Thumbnail = 1 << 3,
     AllContent = Shadow | Background | Thumbnail | Content
 }

@@ -6,10 +6,8 @@ using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
 using PdfPixel.PdfPanel.Wpf.Drawing;
-using PdfPixel.PdfPanel.Wpf.OpenGl;
 using PdfPixel.Geometry;
 using PdfPixel.Navigation;
-using SkiaSharp;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -22,7 +20,7 @@ namespace PdfPixel.PdfPanel.Wpf;
 
 
 /// <summary>
-/// Represents a panel that displays a PDF document using SkiaSharp.
+/// Represents a panel that displays a PDF document.
 /// </summary>
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable")]
 public partial class WpfPdfPanel : FrameworkElement
@@ -40,7 +38,6 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private PdfPanelContext? _context;
     private IPdfPanelRenderTargetFactory? _renderTargetFactory;
-    private ISkSurfaceFactory? _surfaceFactory;
     private bool _updatingScale;
     private bool _updatingPages;
     private PdfDestination? _pendingDestination;
@@ -104,17 +101,7 @@ public partial class WpfPdfPanel : FrameworkElement
         DrawingVisual = new DrawingVisual();
         children.Add(DrawingVisual);
 
-        if (RenderMode == WpfRenderMode.OpenGl)
-        {
-            OpenGlRenderTargetFactory glFactory = new(this, sampleCount: 1);
-            _surfaceFactory = glFactory;
-            _renderTargetFactory = glFactory;
-        }
-        else
-        {
-            _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul);
-            _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
-        }
+        _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
 
         InvalidateVisual();
     }
@@ -127,8 +114,6 @@ public partial class WpfPdfPanel : FrameworkElement
         DisposeContext();
         _context = null;
 
-        _surfaceFactory?.Dispose();
-        _surfaceFactory = null;
         _renderTargetFactory = null;
     }
 
@@ -222,7 +207,7 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        if (Document == null || _surfaceFactory == null || _renderTargetFactory == null)
+        if (Document == null || _renderTargetFactory == null)
         {
             return;
         }
@@ -230,7 +215,7 @@ public partial class WpfPdfPanel : FrameworkElement
         DisposeContext();
         ClearSearchResults();
 
-        _context = new PdfPanelContext(Document, _surfaceFactory, _renderTargetFactory);
+        _context = new PdfPanelContext(Document, _renderTargetFactory);
         _context.ReferenceScale = ReferenceScale;
         _context.Scale = (float)Scale * _context.ReferenceScale;
         _context.AutoScaleMode = AutoScaleMode;
@@ -327,6 +312,8 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.ReferenceScale = ReferenceScale;
         _context.Layout = Layout;
         (Configuration ?? PdfPanelConfiguration.Default).ApplyConfiguration(_context);
+        _context.Renderer.OnPanelPageRendered = PanelInterface?.OnPanelPageRendered;
+        _context.Renderer.OnPanelRendered = PanelInterface?.OnPanelRendered;
         _context.Search.Query = SearchQuery;
         _context.Search.CurrentMatch = CurrentSearchResult;
 
@@ -395,7 +382,7 @@ public partial class WpfPdfPanel : FrameworkElement
             case PdfPanelInterfaceAction.RequestRedraw:
                 {
                     Update();
-                    _context?.Render();
+                    _context?.Present();
                     break;
                 }
             case PdfPanelInterfaceAction.RequestPresent:

@@ -1,6 +1,7 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Fonts;
 using PdfPixel.Geometry;
 using PdfPixel.Rendering.Text;
@@ -81,19 +82,7 @@ public class PdfGraphicsState
     /// <summary>
     /// Active soft mask (SMask entry in ExtGState) or null when none.
     /// </summary>
-    public PdfSoftMask? SoftMask { get; set; }
-
-    /// <summary>
-    /// CTM in effect when the <c>gs</c> operator assigned <see cref="SoftMask"/>. Per spec, the soft mask's
-    /// BBox/Matrix map through this frozen CTM, not the CTM in effect when the mask is later applied to painted content.
-    /// </summary>
-    public PdfMatrix SoftMaskCTM { get; set; } = PdfMatrix.Identity;
-
-    /// <summary>
-    /// Alpha-is-shape flag (AIS entry in ExtGState). When true, alpha is treated as shape, not opacity.
-    /// Default false.
-    /// </summary>
-    public bool AlphaIsShape { get; set; }
+    public PdfSoftMaskSource? SoftMask { get; set; }
 
     /// <summary>
     /// Mask rendering mode used internally while rendering soft mask content streams.
@@ -101,9 +90,9 @@ public class PdfGraphicsState
     public PdfMaskRenderMode MaskRenderMode { get; set; } = PdfMaskRenderMode.None;
 
     /// <summary>
-    /// Knockout flag (TK). Default false.
+    /// Knockout flag (TK). Default true.
     /// </summary>
-    public bool Knockout { get; set; }
+    public bool Knockout { get; set; } = true;
 
     /// <summary>
     /// Overprint mode (OPM). Default 0.
@@ -177,11 +166,6 @@ public class PdfGraphicsState
     public PdfRectangle ClipBounds { get; set; }
 
     /// <summary>
-    /// Gets or sets the clipping path used to define the area where text can be rendered.
-    /// </summary>
-    public PdfPathBuilder? TextClipPath { get; set; }
-
-    /// <summary>
     /// Narrows <see cref="ClipBounds"/> by <paramref name="bounds"/>, given in current user space.
     /// </summary>
     public void IntersectClipBounds(in PdfRectangle bounds)
@@ -209,8 +193,7 @@ public class PdfGraphicsState
 
     /// <summary>
     /// Create a copy for the glyph description of a Type 3 character shown in this state. The glyph inherits the
-    /// graphics state aside from the CTM, which starts in glyph space; the soft mask is left out because it applies
-    /// to the shown text as a whole.
+    /// graphics state aside from the CTM, which starts in glyph space.
     /// </summary>
     /// <param name="glyphHost">The content host the glyph description resolves resources against.</param>
     /// <returns>The graphics state the glyph description starts in.</returns>
@@ -218,8 +201,6 @@ public class PdfGraphicsState
     {
         PdfGraphicsState glyphState = Copy(glyphHost, RenderingParameters.ForType3Rendering());
         glyphState.CTM = PdfMatrix.Identity;
-        glyphState.SoftMask = null;
-        glyphState.SoftMaskCTM = PdfMatrix.Identity;
 
         return glyphState;
     }
@@ -234,8 +215,7 @@ public class PdfGraphicsState
         FillPaint = source.FillPaint;
         FlatnessTolerance = source.FlatnessTolerance;
         SoftMask = source.SoftMask;
-        SoftMaskCTM = source.SoftMaskCTM;
-        AlphaIsShape = source.AlphaIsShape;
+        Knockout = source.Knockout;
         OverprintMode = source.OverprintMode;
         CurrentFont = source.CurrentFont;
         FontSize = source.FontSize;
@@ -249,7 +229,6 @@ public class PdfGraphicsState
         TextLineMatrix = source.TextLineMatrix;
         CTM = source.CTM;
         ClipBounds = source.ClipBounds;
-        TextClipPath = source.TextClipPath;
     }
 
     private PdfGraphicsState Copy(IPdfContentHost stateHost, PdfRenderingParameters renderingParameters)

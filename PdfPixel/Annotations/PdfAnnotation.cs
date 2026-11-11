@@ -1,7 +1,6 @@
 using PdfPixel.Files;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
-using PdfPixel.Annotations.Icons;
 using PdfPixel.Annotations.Parsing;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color.Paint;
@@ -105,39 +104,16 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     protected virtual bool UsesOpacityLayer => Opacity < 1.0f;
 
     /// <summary>
-    /// Gets whether this annotation carries text to show in a pop-up window.
+    /// Gets the visual states the annotation is drawn in, <see cref="PdfAnnotationVisualStateKind.None"/> when it has
+    /// no appearance.
     /// </summary>
-    public virtual bool HasPopupContent => Contents != null;
-
-    /// <summary>
-    /// Gets whether this annotation should display a content bubble indicator.
-    /// </summary>
-    public virtual bool ShouldDisplayBubble => false;
-
-    /// <summary>
-    /// Gets the pointer cursor to display when hovering over this annotation.
-    /// </summary>
-    public virtual PdfAnnotationCursorType CursorType => IsInteractive ? PdfAnnotationCursorType.Hand : PdfAnnotationCursorType.Arrow;
-
-    /// <summary>
-    /// Gets whether this annotation responds to pointer interaction with a visual state change.
-    /// </summary>
-    public virtual bool IsInteractive
-    {
-        get
-        {
-            PdfAnnotationVisualStateKind supportedStates = Appearance?.SupportedStates ?? PdfAnnotationVisualStateKind.None;
-
-            return (supportedStates & (PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down)) != 0
-                || HasPopupContent;
-        }
-    }
+    public virtual PdfAnnotationVisualStateKind SupportedStates => Appearance?.SupportedStates ?? PdfAnnotationVisualStateKind.None;
 
     /// <summary>
     /// Gets the annotation's contents, which is typically the text displayed
     /// for the annotation or associated with it.
     /// </summary>
-    public PdfString? Contents { get; protected set; }
+    public virtual PdfString? Contents { get; }
 
     /// <summary>
     /// Gets the annotation's name, a text string uniquely identifying it among
@@ -227,14 +203,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         => PdfAnnotationGeometry.CreateRectanglePath(Rectangle.Inflate(tolerance), borderStyle: null);
 
     /// <summary>
-    /// Gets the rectangle of the content bubble indicator placed at <paramref name="anchor"/>: above and to the left
-    /// of it, its lower-right corner at the anchor.
-    /// </summary>
-    /// <param name="anchor">The point the bubble is placed at, such as <see cref="ContentStart"/>.</param>
-    public static PdfRectangle GetBubbleRectangle(in PdfPoint anchor)
-        => new(anchor.X - PdfAnnotationGraphics.DefaultBubbleSize, anchor.Y, anchor.X, anchor.Y + PdfAnnotationGraphics.DefaultBubbleSize);
-
-    /// <summary>
     /// Renders this annotation via the command processor.
     /// </summary>
     /// <param name="processor">The command processor to emit commands to.</param>
@@ -273,25 +241,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
         }
 
         return rendered;
-    }
-
-    /// <summary>
-    /// Renders the content bubble indicator of this annotation via the command processor.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="anchor">The point the bubble is placed at, such as <see cref="ContentStart"/>.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    internal void RenderBubble(IPdfCommandProcessor processor, IPdfPageInternal page, in PdfPoint anchor, PdfAnnotationVisualStateKind visualStateKind)
-    {
-        PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
-
-        if (bubbleIcon != null)
-        {
-            PdfPaint? borderPaint = ResolvePaint(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-            PdfPaint? backgroundPaint = ResolveInteriorPaint(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-            PdfAnnotationGraphics.RenderIcon(processor, page, bubbleIcon, GetBubbleRectangle(anchor), borderPaint, backgroundPaint);
-        }
     }
 
     /// <summary>
@@ -359,22 +308,6 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
     }
 
     /// <summary>
-    /// Resolves the annotation color to a fill paint.
-    /// </summary>
-    /// <param name="page">The PDF page for color space resolution.</param>
-    /// <param name="defaultColor">Components to use if the annotation has no color specified, or null for none.</param>
-    /// <returns>The paint of the color, or null when the annotation has no color.</returns>
-    internal PdfPaint? ResolvePaint(IPdfPageInternal page, float[]? defaultColor = null) => PdfAnnotationPaintFactory.ResolvePaint(Color, page, defaultColor);
-
-    /// <summary>
-    /// Resolves the annotation interior color to a fill paint.
-    /// </summary>
-    /// <param name="page">The PDF page for color space resolution.</param>
-    /// <param name="defaultColor">Components to use if the annotation has no interior color specified, or null for none.</param>
-    /// <returns>The paint of the interior color, or null when the annotation has no interior color.</returns>
-    internal PdfPaint? ResolveInteriorPaint(IPdfPageInternal page, float[]? defaultColor = null) => PdfAnnotationPaintFactory.ResolvePaint(InteriorColor, page, defaultColor);
-
-    /// <summary>
     /// Returns a string representation of this annotation.
     /// </summary>
     /// <returns>A string containing the annotation subtype and basic information.</returns>
@@ -405,7 +338,9 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
 
         if (Appearance != null)
         {
-            processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
+            PdfPathBuilder clipBuilder = new();
+            clipBuilder.AddRect(Rectangle);
+            processor.Process(new DrawPathCommand(clipBuilder.ToPath(), new PdfPaint(PdfPaintStyle.Clip)));
 
             if (RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
             {
@@ -414,17 +349,17 @@ public abstract class PdfAnnotation : IPdfAssociatedFilesHost
             }
         }
 
-        bool useOpacityLayer = UsesOpacityLayer;
-        if (useOpacityLayer)
+        bool rendered;
+
+        if (UsesOpacityLayer)
         {
-            processor.Process(new SaveLayerCommand(ContentBounds, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));
+            PdfCommandRecorder recorder = new();
+            rendered = RenderFallback(recorder, page, visualStateKind, renderer, renderingParameters, observer);
+            PdfAnnotationGraphics.DrawOpacityGroup(processor, ContentBounds, recorder, Opacity);
         }
-
-        bool rendered = RenderFallback(processor, page, visualStateKind, renderer, renderingParameters, observer);
-
-        if (useOpacityLayer)
+        else
         {
-            processor.Process(RestoreLayerCommand.Instance);
+            rendered = RenderFallback(processor, page, visualStateKind, renderer, renderingParameters, observer);
         }
 
         processor.Process(RestoreStateCommand.Instance);

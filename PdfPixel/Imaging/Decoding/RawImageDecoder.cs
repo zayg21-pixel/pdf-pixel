@@ -3,9 +3,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Processing;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -13,71 +11,73 @@ internal class RawImageDecoder : PdfImageDecoder
 {
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    private byte[]? _buffer;
-    private Stream? _dataStream;
+    private PdfImageSampleInfo? _sampleInfo;
+    private ReadOnlyMemory<byte>? _data;
 
-    public RawImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
-        : base(image, context, loggerFactory)
+    public RawImageDecoder(PdfImage image)
+        : base(image)
     {
         PdfColorSpaceType defaultColorSpace = (image.BitsPerComponent == 1)
             ? PdfColorSpaceType.DeviceGray
             : PdfColorSpaceType.DeviceRGB;
 
-        _colorSpaceConverter = context.ColorSpaceConverter
+        _colorSpaceConverter = image.ColorSpace
             ?? PdfColorSpaceResolver.ResolveDeviceConverter(defaultColorSpace);
     }
 
-    public override PdfImageRowDecodingParameters Initialize(
-        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        in PdfMatrix ctm,
-        IPdfExecutionObserver? observer)
+    protected override PdfImageDecodeInfo SelectTiles(in PdfIntegerSize targetSize, PdfRectangle? region, IPdfExecutionObserver? observer)
     {
-        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
-            ctm,
-            new PdfIntegerSize(Image.Width, Image.Height),
-            Image.BitsPerComponent,
-            _colorSpaceConverter);
+        PdfImageSampleInfo sampleInfo = EnsureSampleInfo();
 
-        _buffer = new byte[parameters.RowBytes];
+        _data = Cache.Find(Image, WholeImageKey);
 
-        _dataStream = Image.Stream.DecodeAsStream();
-
-        return parameters;
-    }
-
-    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
-    {
-        if (_dataStream == null || _buffer == null)
+        if (_data == null)
         {
-            return false;
+            int rowStride = PdfImageTileSelection.GetRowStride(sampleInfo, Image.Width);
+            ReadOnlyMemory<byte> data = ReadData(rowStride * Image.Height, observer);
+
+            _data = data;
+            Cache.Put(Image, WholeImageKey, data);
         }
 
-        ReadFull(_dataStream, _buffer);
-
-        _buffer.CopyTo(destination);
-
-        return true;
+        return new PdfImageDecodeInfo(sampleInfo, null);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ReadFull(Stream stream, in byte[] buffer)
+    public override PdfImageTile? GetTile(int tileIndex, IPdfExecutionObserver? observer)
     {
-        int bytesRead = 0;
-        while (bytesRead < buffer.Length)
+        if (_sampleInfo == null || _data == null)
         {
-            int read = stream.Read(buffer, bytesRead, buffer.Length - bytesRead);
-            if (read == 0)
-            {
-                throw new EndOfStreamException("Premature end of raw stream at image row");
-            }
-
-            bytesRead += read;
+            throw new InvalidOperationException("No tiles are selected.");
         }
+
+        int rowStride = PdfImageTileSelection.GetRowStride(_sampleInfo, Image.Width);
+
+        return CreateBitmapTile(_sampleInfo, _data.Value, rowStride, tileIndex);
     }
 
-    public override void Cleanup()
+    protected override void DropTiles() => _data = null;
+
+    private PdfImageSampleInfo EnsureSampleInfo()
     {
-        _dataStream?.Dispose();
-        _dataStream = null;
+        if (_sampleInfo == null)
+        {
+            int componentCount = (Image.HasImageMask) ? 1 : _colorSpaceConverter.Components;
+
+            _sampleInfo = new PdfImageSampleInfo(CreateGrid(new PdfIntegerSize(Image.Width, Image.Height)), descaleFactor: 1, Image.BitsPerComponent, componentCount, _colorSpaceConverter);
+        }
+
+        return _sampleInfo;
+    }
+
+    private ReadOnlyMemory<byte> ReadData(int length, IPdfExecutionObserver? observer)
+    {
+        ReadOnlyMemory<byte> data = Image.Stream.DecodeAsMemory(observer);
+
+        if (data.Length < length)
+        {
+            throw new EndOfStreamException("Premature end of raw stream at image row");
+        }
+
+        return data;
     }
 }

@@ -1,4 +1,3 @@
-using PdfPixel.Color.Icc;
 using PdfPixel.Color.Transform;
 
 namespace PdfPixel.Color.ColorSpace;
@@ -14,14 +13,6 @@ public sealed class PdfDeviceCmykColorSpaceConverter : PdfColorSpaceConverter
     /// </summary>
     public static readonly PdfDeviceCmykColorSpaceConverter Instance = new();
 
-    private static readonly IccProfileTransform _iccTransform;
-
-    static PdfDeviceCmykColorSpaceConverter()
-    {
-        IccProfile cmykProfile = ProfileResources.GetCmykProfile();
-        _iccTransform = new IccProfileTransform(cmykProfile);
-    }
-
     /// <inheritdoc />
     public override int Components => 4;
 
@@ -32,9 +23,8 @@ public sealed class PdfDeviceCmykColorSpaceConverter : PdfColorSpaceConverter
     internal override float[] GetInitialComponents() => [0f, 0f, 0f, 1f];
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-        => new(new ChainedColorTransform(_iccTransform.GetIntentTransform(parameters.RenderingIntent.ToIccRenderingIntent(), parameters.UseBlackPointCompensation), parameters.TransferFunction));
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 
     /// <inheritdoc />
-    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
+    public override ChainedColorTransform? GetFromProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }

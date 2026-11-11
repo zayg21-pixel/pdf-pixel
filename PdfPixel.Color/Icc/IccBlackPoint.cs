@@ -129,11 +129,13 @@ public static class IccBlackPoint
     public static Vector4 GetNeutralBlackPoint(Vector4 blackPoint) => ToNeutralBlackPoint(XyzToLab(blackPoint));
 
     /// <summary>
-    /// Builds a black point compensation transform that maps the specified black point to zero in CIE XYZ (D50).
+    /// Builds a black point compensation transform that maps the specified black point to zero in CIE XYZ (D50), or,
+    /// inverse, zero back to the black point.
     /// </summary>
-    /// <param name="blackPoint">The source black point in CIE XYZ (D50).</param>
+    /// <param name="blackPoint">The black point in CIE XYZ (D50).</param>
+    /// <param name="inverse">Whether the transform maps zero to the black point instead of the black point to zero.</param>
     /// <returns>An <see cref="IColorTransform"/> that applies black point compensation, or null when the black point is already zero.</returns>
-    public static IColorTransform? BuildBlackPointCompensationTransform(Vector4 blackPoint)
+    public static IColorTransform? BuildBlackPointCompensationTransform(Vector4 blackPoint, bool inverse)
     {
         Vector4 black = new(blackPoint.X, blackPoint.Y, blackPoint.Z, 0f);
         if (black == Vector4.Zero)
@@ -142,8 +144,19 @@ public static class IccBlackPoint
         }
 
         Vector4 white = IccTransforms.D50WhitePoint;
-        Vector4 scale = white / (white - black);
-        Vector4 offset = -black * scale;
+        Vector4 scale;
+        Vector4 offset;
+
+        if (inverse)
+        {
+            scale = (white - black) / white;
+            offset = black;
+        }
+        else
+        {
+            scale = white / (white - black);
+            offset = -black * scale;
+        }
 
         return new FunctionColorTransform(x => (x * scale) + offset);
     }

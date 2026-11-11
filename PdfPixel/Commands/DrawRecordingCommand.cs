@@ -1,6 +1,5 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
-using System.Linq;
 
 namespace PdfPixel.Commands;
 
@@ -48,9 +47,6 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
     /// Tint paint of a current command batch.
     /// </summary>
     public PdfPaint? TintPaint { get; }
-
-    /// <inheritdoc />
-    public override PdfCommandFeatures Features => Recorder.Commands.Aggregate(PdfCommandFeatures.None, (acc, cmd) => acc | cmd.Features);
 
     /// <inheritdoc />
     public override PdfCommandKind Kind => PdfCommandKind.DrawRecording;

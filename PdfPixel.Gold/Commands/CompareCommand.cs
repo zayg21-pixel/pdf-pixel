@@ -1,6 +1,6 @@
 using PdfPixel.Gold.Manifest;
 using PdfPixel.Gold.Utilities;
-using SkiaSharp;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System.Diagnostics;
 
 namespace PdfPixel.Gold.Commands;
@@ -46,8 +46,6 @@ internal static class CompareCommand
                 failedCount++;
                 ConsoleUtilities.Write(ConsoleColor.Magenta, $"{entry.Name,-60} FAILED {exception.Message}");
             }
-
-            PdfUtilities.PurgeSkiaCaches();
         }
 
         runStopwatch.Stop();
@@ -67,9 +65,9 @@ internal static class CompareCommand
 
         bool matched = true;
 
-        foreach ((int PageNumber, SKBitmap Bitmap) renderedPage in PdfUtilities.RenderPages(reader, pdfPath, entry.Pages, entry.Password))
+        foreach ((int PageNumber, PdfImageSamples Samples) renderedPage in PdfUtilities.RenderPages(reader, pdfPath, entry.Pages, entry.Password))
         {
-            using SKBitmap page = renderedPage.Bitmap;
+            PdfImageSamples page = renderedPage.Samples;
             int pageNumber = renderedPage.PageNumber;
             string sourcePath = Path.Combine(snapshotDirectory, $"{pageNumber}_source.png");
             string resultPath = Path.Combine(snapshotDirectory, $"{pageNumber}_result.png");
@@ -83,7 +81,7 @@ internal static class CompareCommand
                 continue;
             }
 
-            using SKBitmap golden = ImageUtilities.LoadPng(sourcePath);
+            PdfImageSamples golden = ImageUtilities.LoadPng(sourcePath);
 
             if (golden.Width != page.Width || golden.Height != page.Height)
             {
@@ -122,7 +120,7 @@ internal static class CompareCommand
     // Gathers everything needed to eyeball one differing page - the source PDF and its golden,
     // result, and diff images - flat into the inspect folder, named by PDF and page so files from
     // different PDFs never collide.
-    private static void CopyToInspect(string inspectDirectory, string pdfPath, string pdfName, int pageNumber, string sourcePath, string resultPath, SKBitmap golden, SKBitmap rendered)
+    private static void CopyToInspect(string inspectDirectory, string pdfPath, string pdfName, int pageNumber, string sourcePath, string resultPath, PdfImageSamples golden, PdfImageSamples rendered)
     {
         string stem = Path.GetFileNameWithoutExtension(pdfName);
 
@@ -130,7 +128,7 @@ internal static class CompareCommand
         File.Copy(sourcePath, Path.Combine(inspectDirectory, $"{stem}_{pageNumber}_source.png"), overwrite: true);
         File.Copy(resultPath, Path.Combine(inspectDirectory, $"{stem}_{pageNumber}_result.png"), overwrite: true);
 
-        using SKBitmap diff = ImageUtilities.CreateDiffImage(golden, rendered);
+        PdfImageSamples diff = ImageUtilities.CreateDiffImage(golden, rendered);
         ImageUtilities.SavePng(diff, Path.Combine(inspectDirectory, $"{stem}_{pageNumber}_diff.png"));
     }
 }

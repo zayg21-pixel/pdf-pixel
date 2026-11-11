@@ -1,17 +1,23 @@
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Rendering;
-using SkiaSharp;
 using System.Diagnostics;
 
 namespace PdfPixel.PanelDiagnostics.Utilities;
 
 /// <summary>
-/// Render target that logs every presented frame with the pages it shows.
+/// Render target that logs every presented frame.
 /// </summary>
 internal sealed class PanelRenderTarget : IPdfPanelRenderTarget, IPdfPanelRenderTargetFactory
 {
+    private const int BitsPerComponent = 8;
+
+    // The layout WPF presents: blue, green, red, then premultiplied alpha.
+    private static readonly PdfImageChannel[] BgraChannels = [PdfImageChannel.Component(2), PdfImageChannel.Component(1), PdfImageChannel.Component(0), PdfImageChannel.Alpha];
+
     private readonly Stopwatch _clock;
+    private PdfImageSamples? _samples;
 
     /// <summary>
     /// Initializes the render target with the clock its log timestamps are read from.
@@ -25,24 +31,21 @@ internal sealed class PanelRenderTarget : IPdfPanelRenderTarget, IPdfPanelRender
     public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context) => this;
 
     /// <inheritdoc />
-    public void Render(SKSurface surface, PdfPanelFrame frame)
+    public PdfImageSamples GetFrameSamples(int width, int height)
     {
-        string pages = string.Join(", ", frame.Pages.Select(FormatPage));
-        Console.WriteLine($"{_clock.Elapsed.TotalMilliseconds,10:F1} ms  frame, pages {pages}");
-    }
-
-    private static string FormatPage(PdfPanelFramePage page)
-        => $"{page.PageNumber} [content {FormatLayer(page.RenderedContent)}, annotations {FormatLayer(page.RenderedAnnotations)}]";
-
-    private static string FormatLayer(PdfPanelRenderedLayerInfo? layer)
-    {
-        if (layer == null)
+        if (_samples == null || _samples.Width != width || _samples.Height != height)
         {
-            return "-";
+            _samples = new PdfImageSamples(width, height, PdfImageSampleFormat.Integer, BitsPerComponent, BgraChannels, isPremultiplied: true);
         }
 
-        string region = (layer.Value.RegionOfInterest == null) ? "full" : $"roi {layer.Value.RegionOfInterest.Value}";
+        return _samples;
+    }
 
-        return $"scale {layer.Value.Scale} {region}";
+    /// <inheritdoc />
+    public void Present()
+    {
+        // TODO: log the pages of the frame and the scale and region their content was rendered at, which the render
+        // target no longer receives.
+        Console.WriteLine($"{_clock.Elapsed.TotalMilliseconds,10:F1} ms  frame {_samples?.Width}x{_samples?.Height}");
     }
 }

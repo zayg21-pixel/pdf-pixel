@@ -6,6 +6,7 @@ using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace PdfPixel.Diagnostics;
@@ -14,7 +15,7 @@ namespace PdfPixel.Diagnostics;
 /// Runs a workload under a runtime event session and reports where it spent its time or what it
 /// allocated. The trace is collected from this process itself, so no external profiler is needed.
 /// </summary>
-internal static class Profiler
+public static class Profiler
 {
     private const int TopCount = 25;
 
@@ -81,6 +82,13 @@ internal static class Profiler
         int gen0Before = GC.CollectionCount(0);
         int gen1Before = GC.CollectionCount(1);
         int gen2Before = GC.CollectionCount(2);
+        MemorySampler? memorySampler = null;
+
+        if (mode == ProfileMode.Memory)
+        {
+            memorySampler = MemorySampler.Start();
+        }
+
         Stopwatch stopwatch = Stopwatch.StartNew();
 
         workload();
@@ -107,6 +115,7 @@ internal static class Profiler
 
         Console.WriteLine(
             $"Allocated {allocatedBytes / BytesPerMegabyte:F1} MB, collected gen0 {gen0Count} / gen1 {gen1Count} / gen2 {gen2Count}, paused for {pauseTime.TotalMilliseconds:F1} ms");
+        memorySampler?.Finish(outputDirectory);
 
         PrintMemoryReport(tracePath, allocatedBytes);
     }
@@ -260,7 +269,12 @@ internal static class Profiler
 
             for (TraceCallStack? frame = stack; frame != null; frame = frame.Caller)
             {
-                frameNames.Add(DescribeFrame(frame));
+                string frameName = DescribeFrame(frame);
+
+                if (!IsExcludedFrame(frameName))
+                {
+                    frameNames.Add(frameName);
+                }
 
                 if (IsRenderingFrame(frame))
                 {
@@ -314,6 +328,9 @@ internal static class Profiler
     {
         Dictionary<string, int> ticksByType = new();
         Dictionary<string, int> ticksByMethod = new();
+        Dictionary<string, long> largeBytesByType = new();
+        Dictionary<string, long> largeBytesByCaller = new();
+        long largeBytes = 0;
         int totalTicks = 0;
 
         using TraceLog traceLog = OpenTraceLog(tracePath);
@@ -334,6 +351,24 @@ internal static class Profiler
             {
                 Add(ticksByMethod, DescribeFrame(stack), 1);
             }
+
+            // A large object heap tick carries the bytes allocated there since the previous one, so these totals are
+            // exact per tick, and the caller is the first frame in the libraries under test.
+            if (allocation.AllocationKind == GCAllocationKind.Large)
+            {
+                largeBytes += allocation.AllocationAmount64;
+                Add(largeBytesByType, allocation.TypeName, allocation.AllocationAmount64);
+                Add(largeBytesByCaller, DescribeLibraryCallers(stack), allocation.AllocationAmount64);
+            }
+        }
+
+        if (largeBytes > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Large object heap: {largeBytes / BytesPerMegabyte:F1} MB allocated");
+            PrintLargeByteTable("Large object heap type", largeBytesByType);
+            PrintLargeByteTable("Large object heap allocated from (first library frames, innermost first)", largeBytesByCaller);
+            Console.WriteLine();
         }
 
         if (totalTicks == 0)
@@ -380,6 +415,34 @@ internal static class Profiler
         }
     }
 
+    private static void PrintLargeByteTable(string title, Dictionary<string, long> bytes)
+    {
+        Console.WriteLine();
+        Console.WriteLine(title);
+
+        foreach (KeyValuePair<string, long> entry in bytes.OrderByDescending(static entry => entry.Value).Take(TopCount))
+        {
+            Console.WriteLine($"{entry.Value / BytesPerMegabyte,10:F1} MB  {entry.Key}");
+        }
+    }
+
+    // The first two frames of the stack in the libraries under test, the allocating one first, so an allocation made
+    // through a runtime helper is billed to the library method that called it.
+    private static string DescribeLibraryCallers(TraceCallStack? stack)
+    {
+        List<string> callers = [];
+
+        for (TraceCallStack? frame = stack; frame != null && callers.Count < 2; frame = frame.Caller)
+        {
+            if (IsRenderingFrame(frame))
+            {
+                callers.Add(DescribeFrame(frame));
+            }
+        }
+
+        return (callers.Count == 0) ? "outside the libraries" : string.Join("  <-  ", callers);
+    }
+
     private static void Add<TValue>(Dictionary<string, TValue> totals, string key, TValue value)
         where TValue : struct, System.Numerics.IAdditionOperators<TValue, TValue, TValue>
     {
@@ -393,14 +456,22 @@ internal static class Profiler
         }
     }
 
-    // This tool's own assembly drives the run and appears on every thread it starts, so a stack
+    // The tool running the profiler drives the run and appears on every thread it starts, so a stack
     // counts as rendering work only once it reaches one of the libraries under test.
     private static bool IsRenderingFrame(TraceCallStack frame)
     {
         string moduleName = frame.CodeAddress.ModuleName;
 
         return moduleName.StartsWith("PdfPixel", StringComparison.Ordinal)
-            && !moduleName.Equals("PdfPixel.Diagnostics", StringComparison.Ordinal);
+            && !moduleName.Equals(Assembly.GetEntryAssembly()?.GetName().Name, StringComparison.Ordinal);
+    }
+
+    // The runtime's GC poll and its bulk memory move are left out of every stack, so the sample counts for
+    // the method that called them.
+    private static bool IsExcludedFrame(string frameName)
+    {
+        return frameName.Contains("g__PollGCWorker|", StringComparison.Ordinal)
+            || frameName.StartsWith("System.Buffer.MemmoveInternal(", StringComparison.Ordinal);
     }
 
     // A frame whose method the runtime never reported - native code, or a stack walked past the

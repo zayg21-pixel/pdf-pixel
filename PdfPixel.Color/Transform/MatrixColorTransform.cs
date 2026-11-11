@@ -18,11 +18,18 @@ public sealed class MatrixColorTransform : IColorTransform
     private readonly Vector4 _col4;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class with a specified 4x4 matrix.
+    /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class with a specified 4x4 matrix, or
+    /// with its inverse. A matrix that cannot be inverted gives the identity.
     /// </summary>
     /// <param name="matrix">The transformation matrix.</param>
-    public MatrixColorTransform(Matrix4x4 matrix)
+    /// <param name="inverse">Whether the transform maps through the inverse of the matrix.</param>
+    public MatrixColorTransform(Matrix4x4 matrix, bool inverse = false)
     {
+        if (inverse && !Matrix4x4.Invert(matrix, out matrix))
+        {
+            matrix = Matrix4x4.Identity;
+        }
+
         _matrix = matrix;
         IsIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
@@ -59,11 +66,13 @@ public sealed class MatrixColorTransform : IColorTransform
     public bool IsIdentity { get; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class from an array of ICC XYZ components.
+    /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class from an array of ICC XYZ components,
+    /// or from the inverse of the matrix they form. A matrix that cannot be inverted gives the identity.
     /// </summary>
     /// <param name="components">Array of ICC XYZ color components.</param>
+    /// <param name="inverse">Whether the transform maps through the inverse of the matrix.</param>
     /// <exception cref="NotSupportedException">Thrown if more than 4 components are provided.</exception>
-    public MatrixColorTransform(IccXyz[] components)
+    public MatrixColorTransform(IccXyz[] components, bool inverse = false)
     {
         if (components == null)
         {
@@ -155,7 +164,14 @@ public sealed class MatrixColorTransform : IColorTransform
             m44 = 1;
         }
 
-        _matrix = new Matrix4x4(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
+        Matrix4x4 matrix = new(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
+
+        if (inverse && !Matrix4x4.Invert(matrix, out matrix))
+        {
+            matrix = Matrix4x4.Identity;
+        }
+
+        _matrix = matrix;
         IsIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }

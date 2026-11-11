@@ -14,12 +14,12 @@ namespace PdfPixel.Rendering.Operators;
 internal class InlineImageOperators : IOperatorProcessor
 {
     private readonly PdfRenderer _renderer;
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
     private PdfImage? _inlineImage;
 
-    public InlineImageOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
+    public InlineImageOperators(PdfRenderer renderer, PdfValueList<PdfContentStreamValue> operandStack, IPdfContentHost host, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;
@@ -39,7 +39,7 @@ internal class InlineImageOperators : IOperatorProcessor
             case PdfOperator.InlineImageData:
             {
                 // The data is read even when images are not processed, so the stream resumes past it.
-                _inlineImage = PdfImage.FromInline(context, _operandStack);
+                _inlineImage = PdfImage.FromInline(context, _operandStack, graphicsState.Host.Resources);
                 break;
             }
             case PdfOperator.EndInlineImage:

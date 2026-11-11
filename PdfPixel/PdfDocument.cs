@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Actions;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands.Cache;
 using PdfPixel.Encryption;
 using PdfPixel.Encryption.Decryption;
 using PdfPixel.Files;
@@ -33,7 +32,6 @@ internal class PdfDocument : IPdfDocumentInternal
     private readonly PdfStreamDecoder _streamDecoder;
     private readonly BufferedStream _stream;
     private readonly PdfTreeReader _treeReader;
-    private readonly PdfIccColorSpaceConverter? _outputIntentConverter;
     private readonly PdfColorSpaceResolver _colorSpaceResolver;
     private PdfContentHost? _contentHost;
 
@@ -80,7 +78,6 @@ internal class PdfDocument : IPdfDocumentInternal
             catalog = GetCatalog(crossReference);
             Destinations = PdfDestinationResolver.FromCatalog(catalog);
             OutputIntents = GetOutputIntents(catalog);
-            _outputIntentConverter = PdfOutputIntent.CreateConverter(OutputIntents);
             Pages = pageExtractor.ExtractPages(catalog);
         }
         catch (PdfInvalidDocumentException ex)
@@ -93,7 +90,6 @@ internal class PdfDocument : IPdfDocumentInternal
             catalog = GetCatalog(crossReference);
             Destinations = PdfDestinationResolver.FromCatalog(catalog);
             OutputIntents = GetOutputIntents(catalog);
-            _outputIntentConverter = PdfOutputIntent.CreateConverter(OutputIntents);
             Pages = pageExtractor.ExtractPages(catalog);
         }
 
@@ -138,9 +134,6 @@ internal class PdfDocument : IPdfDocumentInternal
 
     /// <inheritdoc />
     public FontProvider FontProvider { get; }
-
-    /// <inheritdoc />
-    public CommandCache CommandCache { get; } = new();
 
     /// <inheritdoc />
     public IReadOnlyList<IPdfPageInternal> Pages { get; }
@@ -223,8 +216,6 @@ internal class PdfDocument : IPdfDocumentInternal
 
     PdfDocumentObjectCache IPdfDocumentInternal.ObjectCache => _objectCache;
 
-    PdfIccColorSpaceConverter? IPdfDocumentInternal.OutputIntentConverter => _outputIntentConverter;
-
     PdfColorSpaceResolver IPdfDocumentInternal.ColorSpaceResolver => _colorSpaceResolver;
 
     IPdfContentHost IPdfDocumentInternal.ContentHost
@@ -281,7 +272,6 @@ internal class PdfDocument : IPdfDocumentInternal
     /// <inheritdoc/>
     public void Dispose()
     {
-        CommandCache.Dispose();
         _objectCache.Dispose();
         FontProvider.Dispose();
         _stream.Dispose();

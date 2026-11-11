@@ -21,10 +21,9 @@ internal sealed class PdfPanelResources
     /// <summary>
     /// Initializes the resources of the panel in the container with the given id.
     /// </summary>
-    public PdfPanelResources(string containerId, ISkSurfaceFactory skSurfaceFactory, IPdfPanelRenderTargetFactory renderTargetFactory)
+    public PdfPanelResources(string containerId, IPdfPanelRenderTargetFactory renderTargetFactory)
     {
         ContainerId = containerId;
-        SkSurfaceFactory = skSurfaceFactory;
         RenderTargetFactory = renderTargetFactory;
     }
 
@@ -37,11 +36,6 @@ internal sealed class PdfPanelResources
     /// Gets the render target factory for the panel.
     /// </summary>
     public IPdfPanelRenderTargetFactory RenderTargetFactory { get; }
-
-    /// <summary>
-    /// Gets the Skia surface factory for the panel.
-    /// </summary>
-    public ISkSurfaceFactory SkSurfaceFactory { get; }
 
     /// <summary>
     /// Gets or sets the PDF panel context instance, or null when no document is loaded.

@@ -5,8 +5,7 @@ namespace PdfPixel.Color.ColorSpace;
 
 /// <summary>
 /// Color spaces that device color values are interpreted in: the default color spaces of the resources
-/// a device color space was selected with, or the document's output intent. A device color space without
-/// a mapped color space is converted as is.
+/// a device color space was selected with. A device color space without one is converted by the device profiles.
 /// </summary>
 public sealed class PdfDeviceColorMapping : IEquatable<PdfDeviceColorMapping>
 {

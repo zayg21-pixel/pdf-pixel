@@ -4,16 +4,18 @@ using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using PdfPixel.Annotations;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Execution;
 using PdfPixel.Content;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Objects;
-using PdfPixel.Skia;
-using PdfPixel.Skia.Fonts;
+using PdfPixel.Fonts.Substitution;
+using PdfPixel.Snap;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Examples;
 
@@ -41,7 +43,7 @@ internal static class ContentExamples
 
         // PdfDocumentReader needs a logger factory and a font substitutor, as for rendering.
         ILoggerFactory loggerFactory = NullLoggerFactory.Instance;
-        SkiaFontSubstitutor fontSubstitutor = new(loggerFactory);
+        PdfFontSubstitutor fontSubstitutor = PdfFontSubstitutorFactory.Create(loggerFactory);
         PdfDocumentReader reader = new(loggerFactory, fontSubstitutor);
 
         // The reader parses lazily from the stream it is handed, so give it the whole file in memory.
@@ -55,33 +57,37 @@ internal static class ContentExamples
         IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
         // Replaying a page builds its content tree: every piece of text, path, image and shading with the
-        // marked content around it. Null optional content states keep every layer in its default state.
+        // marked content around it. The default optional content states keep every layer in its default state.
+        using CommandCache commandCache = new();
         PdfCommandExecutionParameters executionParameters = new();
-        using PdfCommandExecutionContext executionContext = new(
-            document,
+        PdfCommandExecutionContext executionContext = new(
+            commandCache,
             executionParameters,
             contentLocker,
-            null,
+            document.OptionalContentProperties.GetDefaultStates(),
+            PdfAnnotationStates.Empty,
             executionObserver);
 
-        // Extraction needs no pixels: the commands run against a canvas that draws nothing.
-        using SKNoDrawCanvas canvas = new((int)page.CropBox.Width, (int)page.CropBox.Height);
-        SkCanvasCommandProcessor processor = new(canvas, executionContext, NullLogger<SkCanvasCommandProcessor>.Instance);
+        // Extraction needs no pixels: a Snap surface of zero size draws nothing and only builds the content tree.
+        PdfSnapMemoryPool memoryPool = new();
+        PdfSnapImageCache imageCache = new();
+        PdfSnapSurfaceParameters surfaceParameters = new(PdfDeviceRgbColorSpaceConverter.Instance, memoryPool, imageCache);
+        using PdfSnapSurface surface = new(0, 0, surfaceParameters, executionContext, NullLogger<PdfSnapSurface>.Instance);
 
         // Content is collected into the tree, and nothing is rendered.
         PdfRenderingParameters renderingParameters = new() { RenderContent = false, ExtractContent = true };
 
-        processor.Process(SaveStateCommand.Instance);
+        surface.Process(SaveStateCommand.Instance);
 
         try
         {
-            // Maps the page onto the canvas, so the content tree is measured in page units from the top-left.
-            processor.ApplyPageTransformations(page.CropBox);
-            page.Render(processor, renderingParameters, executionObserver);
+            // Maps the page onto the surface, so the content tree is measured in page units from the top-left.
+            surface.ApplyPageTransformations(page.CropBox);
+            page.Render(surface, renderingParameters, executionObserver);
         }
         finally
         {
-            processor.Process(RestoreStateCommand.Instance);
+            surface.Process(RestoreStateCommand.Instance);
         }
 
         PdfContentNode contentRoot = executionContext.ContentTree.Root;
@@ -149,8 +155,17 @@ internal static class ContentExamples
 
             PdfImage image = imageCommand.Content;
 
-            // Decodes the whole image at its stored size and encodes it as a PNG file.
-            byte[] png = image.DecodePng(decodingParameters, executionObserver);
+            // Decodes the whole image at its stored size and encodes it as a PNG file, or returns null when it
+            // cannot be decoded.
+            byte[]? png = image.DecodePng(decodingParameters, executionObserver);
+
+            // TODO: PdfImage.DecodePng always returns null until the image decoding pipeline moves out of Snap;
+            // drop this check when it decodes again.
+            if (png == null)
+            {
+                Console.WriteLine($"[Content]   {image.Width}x{image.Height} image not decoded");
+                continue;
+            }
 
             string outputPath = ExamplePaths.Output(Format, $"image-{entryIndex}.png");
             File.WriteAllBytes(outputPath, png);

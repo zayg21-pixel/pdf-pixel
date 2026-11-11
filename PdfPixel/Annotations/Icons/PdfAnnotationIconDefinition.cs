@@ -6,12 +6,12 @@ namespace PdfPixel.Annotations.Icons;
 /// <summary>
 /// A complete icon definition parsed from a resource XML element.
 /// </summary>
-internal sealed class PdfAnnotationIconDefinition
+public sealed class PdfAnnotationIconDefinition
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfAnnotationIconDefinition"/> class.
     /// </summary>
-    public PdfAnnotationIconDefinition(
+    internal PdfAnnotationIconDefinition(
         string name,
         float width,
         float height,

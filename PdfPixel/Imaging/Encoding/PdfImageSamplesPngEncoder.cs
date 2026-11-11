@@ -10,7 +10,7 @@ namespace PdfPixel.Imaging.Encoding;
 /// <summary>
 /// Encodes 8-bit <see cref="PdfImageSamples"/> as a PNG file.
 /// </summary>
-internal static class PdfImageSamplesPngEncoder
+public static class PdfImageSamplesPngEncoder
 {
     private const int RgbaChannelCount = 4;
     private const byte OpaqueAlpha = byte.MaxValue;
@@ -21,6 +21,11 @@ internal static class PdfImageSamplesPngEncoder
     /// </summary>
     public static byte[] Encode(PdfImageSamples samples)
     {
+        if (samples == null)
+        {
+            throw new ArgumentNullException(nameof(samples));
+        }
+
         if (samples.Format != PdfImageSampleFormat.Integer || samples.BitsPerComponent != 8)
         {
             throw new NotSupportedException("Only 8-bit integer samples can be encoded.");
@@ -49,6 +54,10 @@ internal static class PdfImageSamplesPngEncoder
             info.ColorType = PngColorType.Truecolor;
             pixels = DropAlpha(samples);
             rowBytes = samples.Width * 3;
+        }
+        else if (channels.Count == RgbaChannelCount && samples.IsPremultiplied)
+        {
+            throw new NotSupportedException("Premultiplied samples can only be encoded when they are opaque.");
         }
         else if (channels.Count == RgbaChannelCount)
         {

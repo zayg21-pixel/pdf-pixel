@@ -1,5 +1,3 @@
-using System;
-
 namespace PdfPixel.Color.Transform;
 
 /// <summary>
@@ -18,9 +16,10 @@ public interface IPdfColorTransform
     int OutputComponentCount { get; }
 
     /// <summary>
-    /// Converts the components in <paramref name="input"/>.
+    /// Converts the <see cref="InputComponentCount"/> components at <paramref name="input"/> into the
+    /// <see cref="OutputComponentCount"/> components at <paramref name="output"/>.
     /// </summary>
-    /// <param name="input">Components to convert.</param>
-    /// <returns>The converted components.</returns>
-    ReadOnlySpan<float> Transform(ReadOnlySpan<float> input);
+    /// <param name="input">The first component to convert.</param>
+    /// <param name="output">The first component receiving the converted color.</param>
+    void Transform(ref float input, ref float output);
 }

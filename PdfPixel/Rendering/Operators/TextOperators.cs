@@ -15,15 +15,15 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class TextOperators : IOperatorProcessor
 {
-    private readonly ShapedGlyphBuffer _glyphBuffer = new();
+    private readonly PdfValueList<ShapedGlyph> _glyphBuffer = new();
 
     private readonly PdfRenderer _renderer;
     private readonly IPdfContentHost _host;
     private readonly IPdfCommandProcessor _processor;
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly ILogger<TextOperators> _logger;
 
-    public TextOperators(PdfRenderer renderer, IPdfContentHost host, IPdfCommandProcessor processor, PdfOperandStack operandStack)
+    public TextOperators(PdfRenderer renderer, IPdfContentHost host, IPdfCommandProcessor processor, PdfValueList<PdfContentStreamValue> operandStack)
     {
         _renderer = renderer;
         _host = host;
@@ -132,10 +132,17 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessBeginText(PdfGraphicsState graphicsState)
     {
-        graphicsState.TextClipPath = null;
-
         graphicsState.TextMatrix = PdfMatrix.Identity;
         graphicsState.TextLineMatrix = PdfMatrix.Identity;
+
+        if (graphicsState.Knockout)
+        {
+            _processor.Process(BeginTextObjectCommand.KnockoutInstance);
+        }
+        else
+        {
+            _processor.Process(BeginTextObjectCommand.Instance);
+        }
     }
 
     private void ProcessEndText(PdfGraphicsState graphicsState)
@@ -143,18 +150,12 @@ internal class TextOperators : IOperatorProcessor
         graphicsState.TextMatrix = PdfMatrix.Identity;
         graphicsState.TextLineMatrix = PdfMatrix.Identity;
 
-        if (graphicsState.TextClipPath != null)
-        {
-            PdfPath textClipPath = graphicsState.TextClipPath.ToPath();
-            _processor.Process(new ClipPathCommand(textClipPath, PdfClipOperation.Intersect));
-            graphicsState.IntersectClipBounds(textClipPath.GetBounds());
-            graphicsState.TextClipPath = null;
-        }
+        _processor.Process(EndTextObjectCommand.Instance);
     }
 
     private void ProcessSetFont(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;
@@ -174,7 +175,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetCharacterSpacing(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -192,7 +193,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetWordSpacing(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -210,7 +211,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetHorizontalScaling(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -228,7 +229,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextLeading(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -246,7 +247,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRise(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -264,7 +265,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRenderingMode(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -289,7 +290,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessMoveTextPosition(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;
@@ -311,7 +312,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessMoveTextPositionAndSetLeading(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;
@@ -334,7 +335,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowText(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -358,7 +359,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowTextWithPositioning(PdfParseContext context, PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(1);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(1);
         if (operands.Length == 0)
         {
             return;
@@ -383,7 +384,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextMatrix(PdfGraphicsState graphicsState)
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(6);
         if (operands.Length < 6)
         {
             return;
@@ -398,7 +399,7 @@ internal class TextOperators : IOperatorProcessor
     {
         ProcessNextLine(graphicsState);
 
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(3);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(3);
         if (operands.Length < 3)
         {
             return;
@@ -426,7 +427,7 @@ internal class TextOperators : IOperatorProcessor
         ProcessSequence(graphicsState, _glyphBuffer);
     }
 
-    private void ProcessSequence(PdfGraphicsState graphicsState, ShapedGlyphBuffer glyphs)
+    private void ProcessSequence(PdfGraphicsState graphicsState, PdfValueList<ShapedGlyph> glyphs)
     {
         if (graphicsState.CurrentFont == null)
         {
@@ -434,7 +435,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs.Glyphs, graphicsState, graphicsState.CurrentFont);
+        PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs.Items, graphicsState, graphicsState.CurrentFont);
         PdfMatrix advanceMatrix = PdfMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = PdfMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }

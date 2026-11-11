@@ -1,4 +1,6 @@
-﻿using System;
+﻿using PdfPixel.Color;
+using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands;
 
@@ -19,9 +21,9 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
     public int ImageTileSize { get; set; } = 1024;
 
     /// <summary>
-    /// If true - rects and image tiles are snapped to whole device pixels.
+    /// The color spaces device gray, RGB and CMYK values are converted with.
     /// </summary>
-    public bool SnapToDevicePixels { get; set; } = true;
+    public PdfDeviceProfiles DeviceProfiles { get; set; } = PdfDeviceProfiles.Default;
 
     /// <inheritdoc />
     public bool Equals(PdfCommandExecutionParameters? other)
@@ -38,7 +40,7 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
 
         return Antialias == other.Antialias
             && ImageTileSize == other.ImageTileSize
-            && SnapToDevicePixels == other.SnapToDevicePixels;
+            && ReferenceEquals(DeviceProfiles, other.DeviceProfiles);
     }
 
     /// <inheritdoc />
@@ -50,7 +52,7 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         return HashCode.Combine(
             Antialias,
             ImageTileSize,
-            SnapToDevicePixels);
+            RuntimeHelpers.GetHashCode(DeviceProfiles));
     }
 
     /// <summary>
@@ -78,7 +80,7 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         {
             Antialias = Antialias,
             ImageTileSize = ImageTileSize,
-            SnapToDevicePixels = SnapToDevicePixels
+            DeviceProfiles = DeviceProfiles
         };
     }
 

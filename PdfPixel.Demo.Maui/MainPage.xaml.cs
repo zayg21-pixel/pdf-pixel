@@ -4,7 +4,7 @@ using PdfPixel.Objects;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Actions;
 using PdfPixel.PdfPanel.Mvvm;
-using PdfPixel.Skia.Fonts;
+using PdfPixel.Fonts.Substitution;
 using System.ComponentModel;
 
 namespace PdfPixel.Demo.Maui;
@@ -22,7 +22,7 @@ public partial class MainPage : ContentPage
         InitializeComponent();
 
         _loggerFactory = loggerFactory;
-        _reader = new PdfDocumentReader(loggerFactory, new SkiaFontSubstitutor(loggerFactory));
+        _reader = new PdfDocumentReader(loggerFactory, PdfFontSubstitutorFactory.Create(loggerFactory));
 
         PdfPanelConfiguration configuration = new()
         {

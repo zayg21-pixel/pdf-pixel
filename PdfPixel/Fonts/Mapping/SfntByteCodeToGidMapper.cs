@@ -45,7 +45,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             singleByteCodeToGid = ExtractSingleByteCodeToGid(typeface, cmapSubtables, hasEncoding);
         }
 
-        IReadOnlyDictionary<PdfFontString, ushort> nameToGid = font.Post?.NameToGid ?? new Dictionary<PdfFontString, ushort>();
+        IReadOnlyDictionary<PdfFontString, ushort> nameToGid = typeface.GetNameToGid() ?? new Dictionary<PdfFontString, ushort>();
         List<SfntCmapSubtable> orderedCmapSubtables = cmapSubtables.OrderBy(GetCMapPriority).ToList();
 
         for (int code = 0; code < 256; code++)

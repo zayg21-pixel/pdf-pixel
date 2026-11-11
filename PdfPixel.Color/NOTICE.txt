@@ -1,8 +1,10 @@
 [ Compact ICC Profiles ]
 
-The CMYK profile in 'Profiles/CompactCmyk.icc' is the original, unmodified
+The CMYK profile in 'Profiles/CompactCmyk.icc' is
 'CGATS001Compat-v2-micro.icc' published at
-https://github.com/saucecontrol/Compact-ICC-Profiles. It is embedded into
+https://github.com/saucecontrol/Compact-ICC-Profiles, with one tag added: a
+'B2A0' table, generated with ArgyllCMS by inverting the profile's own 'A2B0'
+table. The original tags are unchanged. It is embedded into
 'PdfPixel.Color.dll'.
 
 The profile is dedicated to the public domain under the Creative Commons Zero

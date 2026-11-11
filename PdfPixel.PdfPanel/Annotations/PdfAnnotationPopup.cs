@@ -59,23 +59,51 @@ public class PdfAnnotationPopup
     /// scale and the scale of a zoom of 100%. Used for hit-testing.
     /// </summary>
     public bool HitTest(in PdfPoint pdfPoint, float scale, float referenceScale)
+        => IsOverContent(pdfPoint, scale, referenceScale) || IsOverBubble(pdfPoint, scale, referenceScale);
+
+    /// <summary>
+    /// Gets whether <paramref name="pdfPoint"/>, in PDF coordinates, is over the annotation itself, not its bubble, at the
+    /// given scale and the scale of a zoom of 100%.
+    /// </summary>
+    public bool IsOverContent(in PdfPoint pdfPoint, float scale, float referenceScale)
     {
         PdfAnnotation annotation = PageAnnotation.Content;
-        int rotation = _panelDocument.Pages[PageAnnotation.Page.PageNumber - 1].Rotation;
-        PdfMatrix displayMatrix = annotation.GetDisplayMatrix(scale, referenceScale, rotation);
-        PdfPoint annotationPoint = displayMatrix.Invert().MapPoint(pdfPoint);
+        (PdfPoint annotationPoint, _) = ToAnnotationPoint(pdfPoint, scale, referenceScale);
         float displayScale = (annotation.IsNoZoom()) ? referenceScale : scale;
         float tolerance = HoverTolerance / (displayScale * PageAnnotation.Page.UserUnit);
 
-        return PageAnnotation.GetHoverPath(tolerance).Contains(annotationPoint)
-            || (annotation.ShouldDisplayBubble && IsOverBubble(annotationPoint, scale, referenceScale, rotation));
+        return PageAnnotation.GetHoverPath(tolerance).Contains(annotationPoint);
     }
 
-    private bool IsOverBubble(in PdfPoint annotationPoint, float scale, float referenceScale, int rotation)
+    /// <summary>
+    /// Gets whether <paramref name="pdfPoint"/>, in PDF coordinates, is over the bubble of the annotation at the given
+    /// scale and the scale of a zoom of 100%; never when it shows none.
+    /// </summary>
+    public bool IsOverBubble(in PdfPoint pdfPoint, float scale, float referenceScale)
     {
-        PdfPoint bubbleAnchor = PageAnnotation.Content.ContentStart;
-        PdfMatrix bubbleMatrix = PageAnnotation.Content.GetBubbleMatrix(bubbleAnchor, scale, referenceScale, rotation, PageAnnotation.Page.CropBox);
+        PdfAnnotation annotation = PageAnnotation.Content;
 
-        return PdfAnnotation.GetBubbleRectangle(bubbleAnchor).Contains(bubbleMatrix.Invert().MapPoint(annotationPoint));
+        if (!annotation.ShouldDisplayBubble())
+        {
+            return false;
+        }
+
+        (PdfPoint annotationPoint, int rotation) = ToAnnotationPoint(pdfPoint, scale, referenceScale);
+        PdfPoint bubbleAnchor = annotation.ContentStart;
+        PdfMatrix bubbleMatrix = annotation.GetBubbleMatrix(bubbleAnchor, scale, referenceScale, rotation, PageAnnotation.Page.CropBox);
+
+        return PdfAnnotationExtensions.GetBubbleRectangle(bubbleAnchor).Contains(bubbleMatrix.Invert().MapPoint(annotationPoint));
+    }
+
+    /// <summary>
+    /// Returns <paramref name="pdfPoint"/> in the space the annotation is drawn in at the given scale and the scale of a
+    /// zoom of 100%, and the rotation of its page.
+    /// </summary>
+    private (PdfPoint AnnotationPoint, int Rotation) ToAnnotationPoint(in PdfPoint pdfPoint, float scale, float referenceScale)
+    {
+        int rotation = _panelDocument.Pages[PageAnnotation.Page.PageNumber - 1].Rotation;
+        PdfMatrix displayMatrix = PageAnnotation.Content.GetDisplayMatrix(scale, referenceScale, rotation);
+
+        return (displayMatrix.Invert().MapPoint(pdfPoint), rotation);
     }
 }

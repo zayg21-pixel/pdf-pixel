@@ -110,7 +110,6 @@ class PdfPanelView {
         containerElement.prepend(this.canvas, this.overlayCanvas, this.scrollHost);
 
         const defaults = {
-            useWebGL: true,
             scrollStep: 20,
             yieldInterval: 16
         };
@@ -301,7 +300,8 @@ class PdfPanelView {
         void this.scrollHost.offsetHeight;
 
         if (typeof this.onStateChanged === 'function') {
-            this.onStateChanged({ ...this.state });
+            const { forcePageSet, zoomRequest, ...state } = this.state;
+            this.onStateChanged(state);
         }
 
         if (redrawState.actionRequests && typeof this.onActionRequested === 'function') {
@@ -504,7 +504,7 @@ class PdfPanelView {
 
     /**
      * Updates the configuration keys that are set in `configuration`; keys that are not set keep their current values.
-     * `useWebGL` and `yieldInterval` apply only to the initial configuration.
+     * `yieldInterval` applies only to the initial configuration.
      * @param {object} configuration `scrollStep` and the properties of `PdfPanelConfiguration` in camelCase.
      */
     updateConfiguration(configuration) {
@@ -647,8 +647,8 @@ export async function initialize(setModuleImports, getAssemblyExports) {
  * Register a PDF panel view bound to a container element.
  * @param {string} id Unique view id.
  * @param {HTMLElement} containerElement The container element with the id `id`; the panel adds its canvases and scroll host to it.
- * @param {object} [configuration] `useWebGL`, `scrollStep`, `yieldInterval` (ms) and the properties of `PdfPanelConfiguration` in camelCase.
- * @returns {Promise<boolean>} True if registration succeeded.
+ * @param {object} [configuration] `scrollStep`, `yieldInterval` (ms) and the properties of `PdfPanelConfiguration` in camelCase.
+ * @returns {boolean} True if registration succeeded.
  */
 export function registerPanel(id, containerElement, configuration) {
     if (!containerElement) {
@@ -676,7 +676,7 @@ export function registerPanel(id, containerElement, configuration) {
 /**
  * Unregister and dispose a PDF panel view.
  * @param {string} id View id to unregister.
- * @returns {Promise<boolean>} True if unregistered.
+ * @returns {boolean} True if unregistered.
  */
 export function unregisterPanel(id) {
     if (!views.has(id)) {
@@ -876,7 +876,8 @@ export function getThumbnail(id, pageNumber) {
         console.error(`View not found for id '${id}'`);
         return null;
     }
-    return interop.GetThumbnail(id, pageNumber);
+    const png = interop.GetThumbnail(id, pageNumber);
+    return png ? new Uint8Array(png) : null;
 }
 
 /**
@@ -1021,7 +1022,7 @@ export function setPage(id, pageNumber) {
 
 /**
  * Subscribe to state change notifications for the specified view.
- * The callback receives a snapshot of the full view state after every completed render.
+ * The callback receives a snapshot of the view state after every completed render.
  * @param {string} id View id.
  * @param {(state: object) => void} callback Called with the current state snapshot.
  * @returns {boolean} True if the view was found and the callback was registered.
@@ -1109,7 +1110,7 @@ export function previousSearchResult(id) {
 
 /**
  * Update the configuration of the specified view. Only the keys that are set change; the others keep their current values.
- * `useWebGL` and `yieldInterval` apply only to the configuration passed to `registerPanel`.
+ * `yieldInterval` applies only to the configuration passed to `registerPanel`.
  * @param {string} id View id.
  * @param {object} configuration `scrollStep` and the properties of `PdfPanelConfiguration` in camelCase.
  * @returns {boolean} True if the view was found and the configuration was updated.
@@ -1187,12 +1188,12 @@ export function framePresented(id, frameJson) {
  * Called from C# via JSImport.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
- * @param {Uint8Array} png The thumbnail PNG.
+ * @param {number[]} png The bytes of the thumbnail PNG, passed on as a `Uint8Array`.
  */
 export function thumbnailUpdated(id, pageNumber, png) {
     const view = views.get(id);
     if (view) {
-        view.updateThumbnail({ pageNumber: pageNumber, png: png });
+        view.updateThumbnail({ pageNumber: pageNumber, png: new Uint8Array(png) });
     }
 }
 

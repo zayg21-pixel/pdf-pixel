@@ -66,7 +66,7 @@ internal sealed class PdfNamedFont : PdfFont
     /// <param name="text">The Unicode text to shape.</param>
     /// <param name="state">The graphics state supplying font size and spacing.</param>
     /// <param name="buffer">The buffer to clear and fill with the shaped glyphs.</param>
-    public void Shape(string text, PdfGraphicsState state, ShapedGlyphBuffer buffer)
+    public void Shape(string text, PdfGraphicsState state, PdfValueList<ShapedGlyph> buffer)
     {
         var codes = new PdfCharacterCode[text.Length];
         int count = 0;

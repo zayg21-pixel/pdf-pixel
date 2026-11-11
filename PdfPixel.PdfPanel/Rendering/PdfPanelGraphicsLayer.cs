@@ -18,5 +18,10 @@ internal enum PdfPanelGraphicsLayer
     /// <summary>
     /// Border of the selected content.
     /// </summary>
-    ContentSelection
+    ContentSelection,
+
+    /// <summary>
+    /// Bubbles of the annotations with content to show.
+    /// </summary>
+    Bubbles
 }

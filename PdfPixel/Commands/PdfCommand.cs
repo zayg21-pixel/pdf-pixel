@@ -7,7 +7,4 @@ public abstract class PdfCommand : IPdfCommand
 {
     /// <inheritdoc />
     public abstract PdfCommandKind Kind { get; }
-
-    /// <inheritdoc />
-    public virtual PdfCommandFeatures Features => PdfCommandFeatures.None;
 }

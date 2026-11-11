@@ -1,6 +1,5 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Encoding;
@@ -11,7 +10,6 @@ using PdfPixel.Objects;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Resources;
-using PdfPixel.Skia;
 using PdfPixel.Streams;
 using System;
 using System.Collections.Generic;
@@ -40,7 +38,7 @@ public class PdfImage : PdfXObject
             imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey),
             imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
             imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey),
-            PdfColorSpaceReference.FromDictionary(imageXObject.Dictionary, PdfTokens.ColorSpaceKey),
+            imageXObject.Document.ColorSpaceResolver.Resolve(PdfColorSpaceReference.FromDictionary(imageXObject.Dictionary, PdfTokens.ColorSpaceKey), defaultComponents: -1),
             imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey),
             imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey),
             imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey),
@@ -60,7 +58,7 @@ public class PdfImage : PdfXObject
         int width,
         int height,
         int bitsPerComponent,
-        in PdfColorSpaceReference colorSpaceReference,
+        PdfColorSpaceConverter? colorSpace,
         bool hasImageMask,
         bool interpolate,
         PdfArray? decode,
@@ -75,8 +73,14 @@ public class PdfImage : PdfXObject
 
         // allowed for 1 bit images.
         BitsPerComponent = (bitsPerComponent == 0) ? 1 : bitsPerComponent;
-        ColorSpaceReference = colorSpaceReference;
         HasImageMask = hasImageMask;
+
+        // An image mask has no color space (ISO 32000-2 Table 87), and a JPEG 2000 image may leave it to its data.
+        if (!hasImageMask)
+        {
+            ColorSpace = colorSpace;
+        }
+
         Interpolate = interpolate;
         float[]? decodeArray = decode?.GetFloatArray();
         Decode = (decodeArray != null) ? PdfRange.FromArray(decodeArray) : null;
@@ -92,6 +96,7 @@ public class PdfImage : PdfXObject
         }
 
         Type = type;
+        Decoder = PdfImageDecoder.GetDecoder(this);
 
         if (dictionary == null)
         {
@@ -119,6 +124,7 @@ public class PdfImage : PdfXObject
         SoftMaskInData = MapSoftMaskInData(dictionary.GetIntegerOrDefault(PdfTokens.SoftMaskInDataKey));
         SoftMask = GetImage(dictionary, PdfTokens.SoftMaskKey);
         Measure = PdfMeasure.GetMeasure(dictionary, PdfTokens.MeasureKey);
+        MaskKind = ResolveMaskKind();
     }
 
     /// <summary>
@@ -148,9 +154,10 @@ public class PdfImage : PdfXObject
     public int BitsPerComponent { get; }
 
     /// <summary>
-    /// Color space (/ColorSpace) as written, resolved on demand.
+    /// Color space of the samples (/ColorSpace), or <see langword="null"/> for an image mask and for a JPEG 2000 image
+    /// whose data specifies it.
     /// </summary>
-    internal PdfColorSpaceReference ColorSpaceReference { get; }
+    public PdfColorSpaceConverter? ColorSpace { get; }
 
     /// <summary>
     /// Simplified image type classification derived from /Filter (e.g., JPEG, JPEG2000, CCITT, JBIG2, Raw).
@@ -218,6 +225,17 @@ public class PdfImage : PdfXObject
     public PdfMeasure? Measure { get; }
 
     /// <summary>
+    /// Gets what masks the image: its soft mask, which overrides any other mask, its opacity channel, its stencil mask
+    /// or its color key.
+    /// </summary>
+    public PdfImageMaskKind MaskKind { get; }
+
+    /// <summary>
+    /// Gets the decoder of the image's samples, or <see langword="null"/> when its encoding is not supported.
+    /// </summary>
+    public IPdfImageDecoder? Decoder { get; }
+
+    /// <summary>
     /// Returns the extended geospatial data of the image (/PtData). Empty when absent.
     /// </summary>
     public IReadOnlyList<PdfPointData> GetPointData()
@@ -238,11 +256,11 @@ public class PdfImage : PdfXObject
     /// <param name="parameters">Masks to apply, color conversion options and the size to fit within.</param>
     /// <param name="observer">Observer notified as decoding progresses, which can cancel it.</param>
     /// <returns>
-    /// The decoded pixels, laid out as <see cref="PdfImageSamples.Channels"/> describes.
+    /// The decoded pixels, laid out as <see cref="PdfImageSamples.Channels"/> describes, or
+    /// <see langword="null"/> when none are produced.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="parameters"/> or <paramref name="observer"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">The image data produced no pixels.</exception>
-    public PdfImageSamples DecodePixels(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
+    public PdfImageSamples? DecodePixels(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
     {
         if (parameters == null)
         {
@@ -254,41 +272,42 @@ public class PdfImage : PdfXObject
             throw new ArgumentNullException(nameof(observer));
         }
 
-        ImageDecodingContext context = new(this, Document.ContentHost, parameters);
-        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(this, context, Document.LoggerFactory);
-
-        if (decoder == null)
-        {
-            throw new ArgumentException($"Decoder for image {Type} is not defined.");
-        }
-
-        PdfTileInfo tileInfo = new(new PdfIntegerSize(Width, Height), new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
-        PdfImageTileDecodingPass pass = new(decoder, tileInfo);
-        MaskAlphaRowSource? alphaRowSource = MaskAlphaRowSource.Create(decoder, tileInfo, Document.LoggerFactory);
-
-        PdfImage? mask = decoder.AppliedMask;
-        PdfIntegerSize sampleSize = new(
-            Math.Max(Width, mask?.Width ?? 0),
-            Math.Max(Height, mask?.Height ?? 0));
-
-        PdfMatrix decodingMatrix = GetDecodingMatrix(sampleSize, parameters.MaximumSize);
-        PdfIntegerSize outputSize = PdfImageCommandUtilities.GetScaledSize(decodingMatrix, sampleSize) ?? sampleSize;
-
-        SkiaImagePipelineFactory pipelineFactory = new(executionContext: null);
-        pass.Begin(decodingMatrix, outputSize, tileIndexesToDecode: null, pipelineFactory, producesMask: false, observer);
-        alphaRowSource?.Initialize(outputSize, tileIndexesToDecode: null, pipelineFactory, observer);
-
-        PdfImageTile[]? tiles = pass.DecodeNextTiles(alphaRowSource, observer);
-
-        pass.End();
-        alphaRowSource?.Cleanup();
-
-        if (tiles == null)
-        {
-            throw new InvalidOperationException($"Image {Reference} produced no pixels.");
-        }
-
-        return tiles[0].Image ?? throw new InvalidOperationException($"Image {Reference} produced no pixels.");
+        // ImageDecodingContext context = new(this, Document.ContentHost, parameters);
+        // PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(this, context, Document.LoggerFactory);
+        //
+        // if (decoder == null)
+        // {
+        //     throw new ArgumentException($"Decoder for image {Type} is not defined.");
+        // }
+        //
+        // PdfTileInfo tileInfo = new(new PdfIntegerSize(Width, Height), new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
+        // PdfImageTileDecodingPass pass = new(decoder, tileInfo);
+        // MaskAlphaRowSource? alphaRowSource = MaskAlphaRowSource.Create(decoder, tileInfo, Document.LoggerFactory);
+        //
+        // PdfImage? mask = decoder.AppliedMask;
+        // PdfIntegerSize sampleSize = new(
+        //     Math.Max(Width, mask?.Width ?? 0),
+        //     Math.Max(Height, mask?.Height ?? 0));
+        //
+        // PdfMatrix decodingMatrix = GetDecodingMatrix(sampleSize, parameters.MaximumSize);
+        // PdfIntegerSize outputSize = PdfImageCommandUtilities.GetScaledSize(decodingMatrix, sampleSize) ?? sampleSize;
+        //
+        // SkiaImagePipelineFactory pipelineFactory = new(executionContext: null);
+        // pass.Begin(decodingMatrix, outputSize, tileIndexesToDecode: null, pipelineFactory, producesMask: false, observer);
+        // alphaRowSource?.Initialize(outputSize, tileIndexesToDecode: null, pipelineFactory, observer);
+        //
+        // PdfImageTile[]? tiles = pass.DecodeNextTiles(alphaRowSource, observer);
+        //
+        // pass.End();
+        // alphaRowSource?.Cleanup();
+        //
+        // if (tiles == null)
+        // {
+        //     throw new InvalidOperationException($"Image {Reference} produced no pixels.");
+        // }
+        //
+        // return tiles[0].Image ?? throw new InvalidOperationException($"Image {Reference} produced no pixels.");
+        return null;
     }
 
     /// <summary>
@@ -297,14 +316,57 @@ public class PdfImage : PdfXObject
     /// </summary>
     /// <param name="parameters">Masks to apply, color conversion options and the size to fit within.</param>
     /// <param name="observer">Observer notified as decoding progresses, which can cancel it.</param>
-    /// <returns>The complete PNG file.</returns>
+    /// <returns>The complete PNG file, or <see langword="null"/> when no pixels are produced.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="parameters"/> or <paramref name="observer"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">The image data produced no pixels.</exception>
-    public byte[] DecodePng(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
+    public byte[]? DecodePng(PdfImageDecodingParameters parameters, IPdfExecutionObserver observer)
     {
-        PdfImageSamples decoded = DecodePixels(parameters, observer);
+        PdfImageSamples? decoded = DecodePixels(parameters, observer);
+
+        if (decoded == null)
+        {
+            return null;
+        }
 
         return PdfImageSamplesPngEncoder.Encode(decoded);
+    }
+
+    /// <summary>
+    /// Returns what masks the image: the soft mask overrides the mask (ISO 32000-2 Table 87), and /SMaskInData applies
+    /// only to JPEG 2000 images.
+    /// </summary>
+    private PdfImageMaskKind ResolveMaskKind()
+    {
+        if (HasImageMask)
+        {
+            return PdfImageMaskKind.None;
+        }
+
+        if (SoftMask != null)
+        {
+            return PdfImageMaskKind.SoftMask;
+        }
+
+        if (Type == PdfImageType.JPEG2000 && SoftMaskInData == PdfImageSoftMaskInData.Alpha)
+        {
+            return PdfImageMaskKind.SoftMaskInData;
+        }
+
+        if (Type == PdfImageType.JPEG2000 && SoftMaskInData == PdfImageSoftMaskInData.PremultipliedAlpha)
+        {
+            return PdfImageMaskKind.PremultipliedSoftMaskInData;
+        }
+
+        if (Mask != null)
+        {
+            return PdfImageMaskKind.Mask;
+        }
+
+        if (ColorKeyMask != null)
+        {
+            return PdfImageMaskKind.ColorKey;
+        }
+
+        return PdfImageMaskKind.None;
     }
 
     /// <summary>
@@ -319,22 +381,29 @@ public class PdfImage : PdfXObject
     /// Reads the inline image whose ID operator was just read from the content stream <paramref name="context"/> reads. Its
     /// entries are read from the <paramref name="operands"/> written between its BI and ID operators, under their full or
     /// abbreviated keys, and its data from the context up to its EI operator; an image that is not a stencil mask and declares
-    /// no /BitsPerComponent or /ColorSpace is read as 8-bit DeviceGray. When the entries and data repeat an inline image the
+    /// no /BitsPerComponent or /ColorSpace is read as 8-bit DeviceGray, and a /ColorSpace name is looked up in
+    /// <paramref name="resources"/>. When the entries, the resolved color space and the data repeat an inline image the
     /// document read before, that image is returned; otherwise the document keeps the image under its
     /// <see cref="InlineImageKey"/>. Either way the parser is told, through <see cref="PdfContentStreamCursor.SkipPositions"/>,
     /// to resume at the EI operator.
     /// </summary>
     /// <param name="context">The content stream the image is read from.</param>
     /// <param name="operands">The entries written between the BI and ID operators.</param>
+    /// <param name="resources">The resources of the content stream, which hold the color spaces it names.</param>
     /// <returns>
     /// The inline image as the document keeps it, or null when the end of its data is not found, in which case the rest of
     /// the stream is skipped.
     /// </returns>
-    internal static PdfImage? FromInline(PdfParseContext context, PdfOperandStack operands)
+    internal static PdfImage? FromInline(PdfParseContext context, PdfValueList<PdfContentStreamValue> operands, PdfResourceNode resources)
     {
         if (operands == null)
         {
             throw new ArgumentNullException(nameof(operands));
+        }
+
+        if (resources == null)
+        {
+            throw new ArgumentNullException(nameof(resources));
         }
 
         PdfContentStreamCursor cursor = context.Cursor ?? throw new InvalidOperationException("Inline images are read only from a content stream context.");
@@ -353,7 +422,7 @@ public class PdfImage : PdfXObject
         PdfValue? filter = null;
         PdfValue? decodeParms = null;
         PdfValue? intent = null;
-        ReadOnlySpan<PdfContentStreamValue> entries = operands.AsSpan();
+        ReadOnlySpan<PdfContentStreamValue> entries = operands.Items;
 
         for (int index = 0; index + 1 < entries.Length; index += 2)
         {
@@ -440,13 +509,19 @@ public class PdfImage : PdfXObject
         }
 
         byte[] data = content.Slice(dataOffset, dataEnd - dataOffset).ToArray();
-        InlineImageKey inlineImageKey = new(context.Slice(imageStart, dataStart - imageStart), data);
+        PdfValue? writtenColorSpace = colorSpace ?? (hasImageMask ? null : DefaultInlineColorSpace);
+        PdfColorSpaceConverter? resolvedColorSpace = null;
+
+        if (writtenColorSpace != null)
+        {
+            resolvedColorSpace = resources.ResolveColorSpace(writtenColorSpace, defaultComponents: -1);
+        }
+
+        InlineImageKey inlineImageKey = new(context.Slice(imageStart, dataStart - imageStart), resolvedColorSpace, data);
         PdfImage? image = imageCache.GetInlineImage(inlineImageKey);
 
         if (image == null)
         {
-            PdfValue? resolvedColorSpace = colorSpace ?? (hasImageMask ? null : DefaultInlineColorSpace);
-
             image = new PdfImage(
                 document,
                 null,
@@ -455,7 +530,7 @@ public class PdfImage : PdfXObject
                 width ?? 0,
                 height ?? 0,
                 resolvedBitsPerComponent,
-                (resolvedColorSpace != null) ? PdfColorSpaceReference.FromValue(resolvedColorSpace) : default,
+                resolvedColorSpace,
                 hasImageMask,
                 interpolate ?? false,
                 decode.AsArray(),

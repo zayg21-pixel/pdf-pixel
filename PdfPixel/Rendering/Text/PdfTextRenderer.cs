@@ -65,12 +65,12 @@ internal class PdfTextRenderer
 
         if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWritingMode.Vertical)
         {
-            return new PdfSize(0, -TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
+            return new PdfSize(0, -PdfTextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
         }
         else
         {
             float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
-            return new PdfSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
+            return new PdfSize(PdfTextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
         }
     }
 
@@ -90,15 +90,13 @@ internal class PdfTextRenderer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ProcessType3(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> glyphsSpan, PdfGraphicsState state, PdfType3Font type3Font)
     {
+        var glyphCommands = new DrawRecordingCommand?[glyphsSpan.Length];
+
         if (state.RenderingParameters.RenderContent
             && state.TextRenderingMode != PdfTextRenderingMode.Invisible
             && state.TextRenderingMode != PdfTextRenderingMode.Clip)
         {
-            PdfMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
-
-            PdfRectangle contentBounds = TextRenderUtilities.GetType3Bounds(glyphsSpan, type3Font, fullTextMatrix) ?? state.GetUserSpaceClipBounds();
-
-            using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, contentBounds);
+            PdfMatrix fullTextMatrix = PdfTextRenderUtilities.GetFullTextMatrix(state, inverse: false);
 
             // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
             processor.Process(SaveStateCommand.Instance);
@@ -118,7 +116,9 @@ internal class PdfTextRenderer
 
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).
                     PdfMatrix glyphMatrix = PdfMatrix.CreateTranslation(glyph.X, glyph.Y).PreConcat(type3Font.FontMatrix);
-                    processor.Process(new DrawRecordingCommand(recording, glyphMatrix, tintPaint));
+                    DrawRecordingCommand glyphCommand = new(recording, glyphMatrix, tintPaint);
+                    glyphCommands[i] = glyphCommand;
+                    processor.Process(glyphCommand);
                 }
             }
 
@@ -133,24 +133,40 @@ internal class PdfTextRenderer
             {
                 ShapedGlyph glyph = glyphsSpan[i];
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode);
-                PdfRectangle? glyphBoundingBox = charInfo.BoundingBox ?? type3Font.FontBoundingBox;
-                PdfRectangle bounds;
-
-                if (glyphBoundingBox.HasValue)
-                {
-                    PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBoundingBox.Value);
-                    bounds = new PdfRectangle(glyph.X + mapped.Left, glyph.Y + mapped.Top, glyph.X + mapped.Right, glyph.Y + mapped.Bottom);
-                }
-                else
-                {
-                    bounds = new PdfRectangle(glyph.X, glyph.Y, glyph.X + glyph.Advance, glyph.Y);
-                }
-
-                characters[i] = new PdfCharacter(glyph.CharacterInfo.Unicode, bounds);
+                characters[i] = new PdfCharacter(glyph.CharacterInfo.Unicode, GetType3CharacterBounds(glyph, charInfo, type3Font, glyphCommands[i]));
             }
 
-            PdfMatrix extractMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+            PdfMatrix extractMatrix = PdfTextRenderUtilities.GetFullTextMatrix(state, inverse: false);
             EmitTextCharacters(processor, extractMatrix, characters);
+        }
+    }
+
+    /// <summary>
+    /// Returns the box of a Type 3 character in text space: the box its glyph declares through d1 or the font's box,
+    /// otherwise the area its drawn glyph paints, otherwise its advance along the baseline.
+    /// </summary>
+    private static PdfRectangle GetType3CharacterBounds(in ShapedGlyph glyph, PdfType3CharacterInfo charInfo, PdfType3Font type3Font, DrawRecordingCommand? glyphCommand)
+    {
+        PdfRectangle? glyphBoundingBox = charInfo.BoundingBox ?? type3Font.FontBoundingBox;
+        PdfRectangle? recordedBounds = null;
+
+        if (glyphBoundingBox == null && glyphCommand != null)
+        {
+            recordedBounds = glyphCommand.Recorder.GetBounds();
+        }
+
+        if (glyphBoundingBox != null)
+        {
+            PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBoundingBox.Value);
+            return new PdfRectangle(glyph.X + mapped.Left, glyph.Y + mapped.Top, glyph.X + mapped.Right, glyph.Y + mapped.Bottom);
+        }
+        else if (recordedBounds != null && glyphCommand != null)
+        {
+            return glyphCommand.Matrix.MapRect(recordedBounds.Value);
+        }
+        else
+        {
+            return new PdfRectangle(glyph.X, glyph.Y, glyph.X + glyph.Advance, glyph.Y);
         }
     }
 
@@ -189,7 +205,7 @@ internal class PdfTextRenderer
             case PdfTextRenderingMode.FillAndStrokeAndClip:
             case PdfTextRenderingMode.Clip:
             {
-                AppendTextClip(shapingResult, state);
+                AddTextClip(processor, shapingResult, state);
                 break;
             }
         }
@@ -217,7 +233,7 @@ internal class PdfTextRenderer
                 characterIndex++;
             }
 
-            PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
+            PdfMatrix textMatrix = PdfTextRenderUtilities.GetFullTextMatrix(state);
             EmitTextCharacters(processor, textMatrix, characters);
         }
     }
@@ -226,49 +242,27 @@ internal class PdfTextRenderer
     private void DrawTextFill(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         TextFillRenderTarget textFillTarget = new(shapingResult.ToArray(), state);
-
-        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, textFillTarget.Bounds);
         textFillTarget.Render(processor);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawTextStroke(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
-
-        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, textStrokeTarget.Bounds);
+        TextStrokeRenderTarget textStrokeTarget = new(shapingResult.ToArray(), state);
         textStrokeTarget.Render(processor);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawTextFillAndStroke(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        TextStrokeRenderTarget textStrokeTarget = new(shapingResult, state);
+        ShapedGlyph[] glyphs = shapingResult.ToArray();
+        TextFillRenderTarget textFillTarget = new(glyphs, state);
+        TextStrokeRenderTarget textStrokeTarget = new(glyphs, state);
 
-        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, textStrokeTarget.Bounds);
-
-        bool overlapAffectsCompositing = state.FillPaint.RequiresComposition
-            || state.StrokePaint.RequiresComposition;
-
-        if (overlapAffectsCompositing)
-        {
-            PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, state);
-
-            processor.Process(SaveStateCommand.Instance);
-            processor.Process(new ClipPathCommand(textPath, PdfClipOperation.Difference, state.StrokePaint));
-
-            TextFillRenderTarget clippedFillTarget = new(shapingResult.ToArray(), state);
-            clippedFillTarget.Render(processor);
-
-            processor.Process(RestoreStateCommand.Instance);
-        }
-        else
-        {
-            TextFillRenderTarget textFillTarget = new(shapingResult.ToArray(), state);
-            textFillTarget.Render(processor);
-        }
-
-        textStrokeTarget.Render(processor);
+        PdfCommandRecorder recorder = ImplicitKnockoutGroup.Begin(state);
+        textFillTarget.Render(recorder);
+        textStrokeTarget.Render(recorder);
+        ImplicitKnockoutGroup.Draw(processor, recorder, state);
     }
 
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
@@ -288,15 +282,15 @@ internal class PdfTextRenderer
         processor.Process(new PdfContentCommand<PdfCharacter[]>(PdfContentKind.Text, matrix, bounds, characters));
     }
 
+    /// <summary>
+    /// Adds the glyphs' outlines to the clip the current text object sets at its end (ISO 32000-2 9.3.6).
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AppendTextClip(in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private static void AddTextClip(IPdfCommandProcessor processor, in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, state);
-        if (!textPath.IsEmpty)
-        {
-            state.TextClipPath ??= new PdfPathBuilder();
-            state.TextClipPath.AddPath(textPath);
-        }
+        PdfMatrix textMatrix = PdfTextRenderUtilities.GetFullTextMatrix(state);
+
+        processor.Process(new DrawShapedTextCommand(textMatrix, shapingResult.ToArray(), new PdfPaint(PdfPaintStyle.Clip)));
     }
 
     private static bool IsCharacterStart(in ShapedGlyph glyph) => glyph.GroupId == null || glyph.GroupId.Value == 0;

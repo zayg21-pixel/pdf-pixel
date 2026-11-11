@@ -1,5 +1,5 @@
-using PdfPixel.Parsing;
 using System;
+using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -7,90 +7,87 @@ using System.Runtime.InteropServices;
 namespace PdfPixel.Imaging.Processing.Pipeline;
 
 /// <summary>
-/// Converts float samples in the range 0 to 1 to packed integer samples of 1, 2, 4, 8 or 16 bits,
-/// rounded to nearest and clamped.
+/// Converts float samples in the range 0 to 1 to integer samples of 8 or 16 bits, rounded to nearest and clamped; 16-bit
+/// samples are stored most significant byte first.
 /// </summary>
 public sealed class PdfImageRowFloatToByteStep : IPdfImageRowProcessingStep
 {
     private const float MaximumByteValue = byte.MaxValue;
+    private const float MaximumShortValue = ushort.MaxValue;
     private const float RoundingOffset = 0.5f;
     private const int ByteBitsPerComponent = 8;
+    private const int ShortBitsPerComponent = 16;
 
     private readonly int _bitsPerComponent;
-    private readonly int _sampleCount;
-    private readonly byte[] _buffer;
 
     /// <summary>
-    /// Initializes a step converting rows of <paramref name="width"/> pixels.
+    /// Initializes a step converting to samples of <paramref name="bitsPerComponent"/> bits.
     /// </summary>
-    /// <param name="width">Number of pixels in each row.</param>
-    /// <param name="componentCount">Number of components in each pixel.</param>
-    /// <param name="bitsPerComponent">Bit depth of each output sample: 1, 2, 4, 8 or 16.</param>
-    public PdfImageRowFloatToByteStep(int width, int componentCount, int bitsPerComponent)
+    /// <param name="bitsPerComponent">Bit depth of each output sample: 8 or 16.</param>
+    public PdfImageRowFloatToByteStep(int bitsPerComponent)
     {
-        if (width <= 0)
+        if (bitsPerComponent != ByteBitsPerComponent && bitsPerComponent != ShortBitsPerComponent)
         {
-            throw new ArgumentOutOfRangeException(nameof(width), "Width must be positive.");
-        }
-
-        if (componentCount <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(componentCount), "Component count must be positive.");
-        }
-
-        if (bitsPerComponent != 1 && bitsPerComponent != 2 && bitsPerComponent != 4 && bitsPerComponent != 8 && bitsPerComponent != 16)
-        {
-            throw new ArgumentOutOfRangeException(nameof(bitsPerComponent), "Bits per component must be 1, 2, 4, 8 or 16.");
+            throw new ArgumentOutOfRangeException(nameof(bitsPerComponent), "Bits per component must be 8 or 16.");
         }
 
         _bitsPerComponent = bitsPerComponent;
-        _sampleCount = width * componentCount;
-        _buffer = new byte[((_sampleCount * bitsPerComponent) + 7) / 8];
     }
+
+    /// <inheritdoc />
+    public int GetOutputLength(int inputLength) => inputLength / sizeof(float) * (_bitsPerComponent / ByteBitsPerComponent);
+
+    /// <inheritdoc />
+    public PdfImageOutputRow GetOutputRow(int inputRowIndex) => new(inputRowIndex, hasNextRow: false);
+
+    /// <inheritdoc />
+    public void Process(ReadOnlySpan<byte> input, Span<byte> output, int inputRowIndex) => Process(input, output);
 
     /// <inheritdoc />
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    public PdfImageRow Process(ReadOnlySpan<byte> input, int inputRowIndex)
+    public void Process(ReadOnlySpan<byte> input, Span<byte> output)
     {
         ReadOnlySpan<float> samples = MemoryMarshal.Cast<byte, float>(input);
 
-        if (samples.Length < _sampleCount)
-        {
-            throw new ArgumentException("The input row holds fewer samples than the step converts.", nameof(input));
-        }
-
         if (_bitsPerComponent == ByteBitsPerComponent)
         {
-            ConvertSamples(samples, _buffer);
+            ConvertSamples(samples, output);
         }
         else
         {
-            PackSamples(samples);
+            ConvertShortSamples(samples, output);
         }
-
-        return new PdfImageRow(_buffer, inputRowIndex, hasNextRow: false);
     }
 
+    /// <summary>
+    /// Writes each sample as two bytes, most significant first, from the first to the last; a sample is read before its
+    /// narrower output is written, so the output may start where the input does.
+    /// </summary>
 #if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private void PackSamples(in ReadOnlySpan<float> source)
+    private static void ConvertShortSamples(in ReadOnlySpan<float> source, in Span<byte> destination)
     {
-        float maximumCode = (1 << _bitsPerComponent) - 1;
+        int sampleCount = source.Length;
         ref float sourceReference = ref MemoryMarshal.GetReference(source);
-        UintBitWriter writer = new(_buffer);
+        ref byte destinationReference = ref MemoryMarshal.GetReference(destination);
 
-        for (int sampleIndex = 0; sampleIndex < _sampleCount; sampleIndex++)
+        for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
         {
-            float scaled = (Unsafe.Add(ref sourceReference, sampleIndex) * maximumCode) + RoundingOffset;
-            writer.WriteBits(_bitsPerComponent, (uint)Math.Min(Math.Max(scaled, 0f), maximumCode));
-        }
+            float scaled = (Unsafe.Add(ref sourceReference, sampleIndex) * MaximumShortValue) + RoundingOffset;
+            var value = (ushort)Math.Min(Math.Max(scaled, 0f), MaximumShortValue);
 
-        writer.Flush();
+            if (BitConverter.IsLittleEndian)
+            {
+                value = BinaryPrimitives.ReverseEndianness(value);
+            }
+
+            Unsafe.WriteUnaligned(ref Unsafe.Add(ref destinationReference, sampleIndex * sizeof(ushort)), value);
+        }
     }
 
 #if NETSTANDARD2_0
@@ -100,7 +97,7 @@ public sealed class PdfImageRowFloatToByteStep : IPdfImageRowProcessingStep
 #endif
     private static void ConvertSamples(in ReadOnlySpan<float> source, in Span<byte> destination)
     {
-        int sampleCount = destination.Length;
+        int sampleCount = source.Length;
         ref float sourceReference = ref MemoryMarshal.GetReference(source);
         ref byte destinationReference = ref MemoryMarshal.GetReference(destination);
         int sampleIndex = 0;

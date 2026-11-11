@@ -1,71 +1,72 @@
-﻿using PdfPixel.Commands;
+﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using PdfPixel.Commands.Execution;
 using PdfPixel.Content;
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Caching;
 using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.Snap;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Scheduling;
 
 /// <summary>
-/// Work item that decodes a page's content and annotation pictures and stores them in the page's cache entry.
-/// Invokes the page-updated callback when finished.
+/// Work item that records a page's content and annotation commands and rasterizes the tiles of its visible region
+/// into the page's cache entry. Invokes the page-updated callback once, when the tiles are done.
 /// </summary>
 internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
 {
-    private static readonly PdfRenderingParameters RenderingParameters = new() { CacheDecodedTiles = true };
+    private static readonly PdfRenderingParameters RenderingParameters = new();
 
-    private readonly PdfPanelPage _page;
+    private readonly PdfPageContentTiler? _tiler;
     private readonly PdfTextExtractor _textExtractor;
     private readonly PdfTextExtractionProperties _textExtractionProperties;
     private readonly PdfContentExtractor _contentExtractor;
     private readonly PdfContentExtractionParameters _contentExtractionParameters;
-    private readonly PagesDrawingRequest _request;
-    private readonly PdfCommandExecutionParameters _executionParameters;
+    private readonly PdfSnapSurfaceParameters _surfaceParameters;
+    private readonly ContentUpdateRequest _request;
+    private readonly ContentUpdatePage _requestPage;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
     private readonly Action<int> _onPageTextExtracted;
     private readonly IPdfCancellableExecutionObserver? _parseObserver;
     private readonly IPdfCancellableExecutionObserver? _contentObserver;
 
     /// <summary>
-    /// Initializes the work item for the given page and rendering request.
+    /// Initializes the work item for the given page of a content update request.
     /// Snapshots the current observers from the cache entry so replacements made by
     /// subsequent <see cref="PdfPageCacheEntry.InitializeForRendering"/> calls on the
     /// UI thread cannot affect this already-enqueued item.
     /// </summary>
     public PdfPageUpdateCacheWorkItem(
-        PdfPanelPage page,
+        ContentUpdatePage requestPage,
+        PdfPageContentTiler? tiler,
         PdfTextExtractor textExtractor,
         PdfTextExtractionProperties textExtractionProperties,
         PdfContentExtractor contentExtractor,
         PdfContentExtractionParameters contentExtractionParameters,
-        PagesDrawingRequest request,
+        PdfSnapSurfaceParameters surfaceParameters,
+        ContentUpdateRequest request,
         Action<PageUpdatedArgs>? onPageUpdated,
         Action<int> onPageTextExtracted)
     {
-        _page = page ?? throw new ArgumentNullException(nameof(page));
+        _requestPage = requestPage ?? throw new ArgumentNullException(nameof(requestPage));
+        _tiler = tiler;
         _textExtractor = textExtractor;
         _textExtractionProperties = textExtractionProperties;
         _contentExtractor = contentExtractor;
         _contentExtractionParameters = contentExtractionParameters;
+        _surfaceParameters = surfaceParameters ?? throw new ArgumentNullException(nameof(surfaceParameters));
         _request = request ?? throw new ArgumentNullException(nameof(request));
-        _executionParameters = new PdfCommandExecutionParameters
-        {
-            Antialias = request.Antialias,
-            SnapToDevicePixels = request.SnapToDevicePixels
-        };
         _onPageUpdated = onPageUpdated;
         _onPageTextExtracted = onPageTextExtracted ?? throw new ArgumentNullException(nameof(onPageTextExtracted));
-        _parseObserver = _page.CacheEntry.ParseObserver;
-        _contentObserver = _page.CacheEntry.ContentObserver;
+        _parseObserver = _requestPage.Page.CacheEntry.ParseObserver;
+        _contentObserver = _requestPage.Page.CacheEntry.ContentObserver;
     }
 
     /// <inheritdoc />
-    public bool IsSkippable => !ReferenceEquals(_contentObserver, _page.CacheEntry.ContentObserver);
+    public bool IsSkippable => !ReferenceEquals(_contentObserver, _requestPage.Page.CacheEntry.ContentObserver);
 
     /// <inheritdoc />
     public async ValueTask ProcessAsync()
@@ -75,164 +76,92 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
             return;
         }
 
-        try
-        {
-            await ProcessContentAsync(_parseObserver, _contentObserver).ConfigureAwait(false);
-        }
-        finally
-        {
-            _page.CacheEntry.CompleteRendering(_contentObserver);
-        }
+        await ProcessContentAsync(_parseObserver, _contentObserver).ConfigureAwait(false);
     }
 
     private async ValueTask ProcessContentAsync(IPdfCancellableExecutionObserver parseObserver, IPdfCancellableExecutionObserver contentObserver)
     {
-
-        var contentUpdated = false;
-        var contentIsPartial = false;
-
-        lock (_page.PanelDocument.DocumentLocker)
+        lock (_requestPage.Page.PanelDocument.DocumentLocker)
         {
-            if (!_page.CacheEntry.Content.ContentCommandRecording.HasContent)
+            if (!_requestPage.Page.CacheEntry.Content.ContentCommandRecording.HasContent)
             {
-                PdfCommandRecorder recording = _page.PanelDocument.Document.GeneratePageCommandRecording(_page.PageNumber, RenderingParameters, parseObserver);
-                _page.CacheEntry.Content.UpdateContentCommandRecording(recording);
+                PdfCommandRecorder recording = _requestPage.Page.PanelDocument.Document.GeneratePageCommandRecording(_requestPage.Page.PageNumber, RenderingParameters, parseObserver);
+                _requestPage.Page.CacheEntry.Content.UpdateContentCommandRecording(recording);
             }
         }
 
         await parseObserver.YieldAsync().ConfigureAwait(false);
 
-        if (_page.CacheEntry.Content.NeedsPictureUpdate(_request))
+        lock (_requestPage.Page.PanelDocument.DocumentLocker)
         {
-            PdfCommandRecorder? contentRecording;
-
-            using (LockedContent<PdfCommandRecorder> lockedRecording = _page.CacheEntry.Content.ContentCommandRecording.GetContent())
+            if (_requestPage.Page.CacheEntry.GetAnnotations(_requestPage.Page).Length > 0
+                && !_requestPage.Page.CacheEntry.AnnotationContent.ContentCommandRecording.HasContent)
             {
-                contentRecording = lockedRecording.Content;
-            }
-
-            if (contentRecording != null)
-            {
-                using SKPictureRecorder recorder = new();
-                float pictureScale = _page.CacheEntry.Content.GetPictureScale(_request);
-                SKCanvas canvas = recorder.BeginRecording(SKRect.Create(_page.Size.Width * pictureScale, _page.Size.Height * pictureScale));
-                using PdfCommandExecutionContext executionContext = new(
-                    _page.PanelDocument.Document,
-                    _executionParameters,
-                    _page.PanelDocument.DocumentLocker,
-                    _request.OptionalContentStates,
-                    contentObserver,
-                    ToPictureRegion(_request.GetPage(_page.PageNumber).RegionOfInterest, pictureScale));
-
-                await PdfDocumentContentExtensions
-                    .RecordingToSkPictureAsync(contentRecording, executionContext, canvas, pictureScale, _page.PanelDocument.Document.LoggerFactory)
-                    .ConfigureAwait(false);
-
-                SKPicture? contentPicture = recorder.EndRecording();
-                _page.CacheEntry.Content.UpdateContent(contentPicture, _request);
-
-                PdfMatrix pictureToPage = PdfMatrix.CreateScale(1f / pictureScale, 1f / pictureScale);
-
-                if (!_page.CacheEntry.Content.Words.HasContent)
-                {
-                    PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, pictureToPage, _textExtractionProperties);
-                    _page.CacheEntry.Content.Words.SetContent(words);
-                    _onPageTextExtracted(_page.PageNumber);
-                }
-
-                if (!_page.CacheEntry.Content.ContentItems.HasContent)
-                {
-                    PdfContentEntry[] entries = _contentExtractor.ExtractContent(executionContext.ContentTree.Root, _contentExtractionParameters);
-                    _page.CacheEntry.Content.ContentItems.SetContent(PdfDocumentContentExtensions.CreateContentItems(_page.PageNumber, entries, pictureToPage));
-                }
-
-                contentUpdated = true;
-                contentIsPartial = (_page.CacheEntry.Content.Features & PdfCommandFeatures.Region) != 0;
-            }
-        }
-
-        if (contentUpdated)
-        {
-            _onPageUpdated?.Invoke(
-                new PageUpdatedArgs(_page.PageNumber, _page.CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, _request.GetPage(_page.PageNumber).RegionOfInterest));
-
-            await contentObserver.YieldAsync().ConfigureAwait(false);
-        }
-
-        var annotationRecordingUpdated = false;
-
-        lock (_page.PanelDocument.DocumentLocker)
-        {
-            if (_page.CacheEntry.GetAnnotations(_page).Length > 0
-                && _page.CacheEntry.AnnotationContent.NeedsAnnotationRecordingUpdate(_page, _request))
-            {
-                PdfCommandRecorder? annotationRecording = _page.PanelDocument.Document.GetAnnotationRecording(
-                    _page.PageNumber,
-                    _request,
+                PdfCommandRecorder? annotationRecording = _requestPage.Page.PanelDocument.Document.GetAnnotationRecording(
+                    _requestPage.Page.PageNumber,
                     RenderingParameters,
                     contentObserver);
-                _page.CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
-                annotationRecordingUpdated = true;
+                _requestPage.Page.CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
             }
         }
 
-        if (_page.CacheEntry.AnnotationContent.ContentCommandRecording.HasContent
-            && (annotationRecordingUpdated || _page.CacheEntry.AnnotationContent.NeedsPictureUpdate(_request)))
+        var tilesUpdate = TilesUpdateResult.Unchanged;
+
+        if (_tiler != null)
         {
-            PdfCommandRecorder? annotationContentRecording;
+            tilesUpdate = await _tiler.UpdateTilesAsync(_requestPage, _request, contentObserver).ConfigureAwait(false);
+        }
 
-            using (LockedContent<PdfCommandRecorder> lockedRecording = _page.CacheEntry.AnnotationContent.ContentCommandRecording.GetContent())
-            {
-                annotationContentRecording = lockedRecording.Content;
-            }
+        bool needsWords = !_requestPage.Page.CacheEntry.Content.Words.HasContent;
+        bool needsContentItems = !_requestPage.Page.CacheEntry.Content.ContentItems.HasContent;
 
-            var annotationIsPartial = false;
+        if (needsWords || needsContentItems)
+        {
+            await ExtractContentAsync(extractsWords: needsWords, extractsContentItems: needsContentItems, contentObserver).ConfigureAwait(false);
+        }
 
-            if (annotationContentRecording != null)
-            {
-                using SKPictureRecorder annotationRecorder = new();
-                float annotationPictureScale = _page.CacheEntry.AnnotationContent.GetPictureScale(_request);
-                SKCanvas annotationCanvas = annotationRecorder.BeginRecording(
-                    SKRect.Create(_page.Size.Width * annotationPictureScale, _page.Size.Height * annotationPictureScale));
-                using PdfCommandExecutionContext annotationContext = new(
-                    _page.PanelDocument.Document,
-                    _executionParameters,
-                    _page.PanelDocument.DocumentLocker,
-                    _request.OptionalContentStates,
-                    contentObserver,
-                    ToPictureRegion(_request.GetPage(_page.PageNumber).RegionOfInterest, annotationPictureScale));
-
-                await PdfDocumentContentExtensions
-                    .RecordingToSkPictureAsync(annotationContentRecording, annotationContext, annotationCanvas, annotationPictureScale, _page.PanelDocument.Document.LoggerFactory)
-                    .ConfigureAwait(false);
-
-                SKPicture? annotationPicture = annotationRecorder.EndRecording();
-
-                _page.CacheEntry.AnnotationContent.UpdateContent(annotationPicture, _request);
-                annotationIsPartial = (_page.CacheEntry.AnnotationContent.Features & PdfCommandFeatures.Region) != 0;
-            }
-
-            _onPageUpdated?.Invoke(
-                new PageUpdatedArgs(
-                    _page.PageNumber,
-                    _page.CacheEntry.GetContentPictures(),
-                    UpdatedContentType.Annotations,
-                    annotationIsPartial,
-                    _request.GetPage(_page.PageNumber).RegionOfInterest));
+        if (tilesUpdate == TilesUpdateResult.Updated)
+        {
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(_requestPage.Page.PageNumber, UpdatedContentType.Content));
         }
     }
 
     /// <summary>
-    /// Maps <paramref name="regionOfInterest"/> from page content coordinates into the coordinates of
-    /// a picture recorded at <paramref name="pictureScale"/>.
+    /// Follows the page's content recording on a surface without pixels and stores the words and content items its
+    /// content tree collected, each only when asked for.
     /// </summary>
-    private static PdfRectangle? ToPictureRegion(PdfRectangle? regionOfInterest, float pictureScale)
+    private async ValueTask ExtractContentAsync(bool extractsWords, bool extractsContentItems, IPdfCancellableExecutionObserver contentObserver)
     {
-        if (regionOfInterest == null)
+        PdfCommandRecorder? recording;
+
+        using (LockedContent<PdfCommandRecorder> lockedRecording = _requestPage.Page.CacheEntry.Content.ContentCommandRecording.GetContent())
         {
-            return null;
+            recording = lockedRecording.Content;
         }
 
-        return PdfMatrix.CreateScale(pictureScale, pictureScale).MapRect(regionOfInterest.Value);
+        if (recording == null)
+        {
+            return;
+        }
+
+        PdfCommandExecutionContext executionContext = _requestPage.Page.CreateContentExecutionContext(_request.OptionalContentStates, contentObserver);
+
+        using (PdfSnapSurface surface = new(0, 0, _surfaceParameters, executionContext, _requestPage.Page.PanelDocument.Document.LoggerFactory.CreateLogger<PdfSnapSurface>()))
+        {
+            await recording.ReplayAsync(surface).ConfigureAwait(false);
+        }
+
+        if (extractsWords)
+        {
+            PdfWord[] words = _textExtractor.ExtractWords(executionContext.ContentTree.Root, PdfMatrix.Identity, _textExtractionProperties);
+            _requestPage.Page.CacheEntry.Content.Words.SetContent(words);
+            _onPageTextExtracted(_requestPage.Page.PageNumber);
+        }
+
+        if (extractsContentItems)
+        {
+            PdfContentEntry[] entries = _contentExtractor.ExtractContent(executionContext.ContentTree.Root, _contentExtractionParameters);
+            _requestPage.Page.CacheEntry.Content.ContentItems.SetContent(PdfDocumentContentExtensions.CreateContentItems(_requestPage.Page.PageNumber, entries, PdfMatrix.Identity));
+        }
     }
 }

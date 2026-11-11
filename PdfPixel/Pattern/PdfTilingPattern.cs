@@ -4,6 +4,7 @@ using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.Rendering;
 using PdfPixel.Streams;
+using PdfPixel.Transparency;
 
 namespace PdfPixel.Pattern;
 
@@ -12,6 +13,8 @@ namespace PdfPixel.Pattern;
 /// </summary>
 public sealed class PdfTilingPattern : PdfPattern
 {
+    private static readonly PdfTransparencyGroupContext CellGroup = new(null, isolated: false, knockout: false);
+
     internal PdfTilingPattern(
         in PdfReference sourceReference,
         PdfObjectStream sourceStream,
@@ -81,7 +84,7 @@ public sealed class PdfTilingPattern : PdfPattern
     /// </summary>
     internal PdfCommandRecorder? CellRecording { get; set; }
 
-    internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
+    internal override PdfGroupSource? GetGroupSource(PdfGraphicsState state, PdfPaint paint)
     {
         PdfCommandRecorder? tileRecorder = CellRecording;
 
@@ -102,23 +105,17 @@ public sealed class PdfTilingPattern : PdfPattern
 
         if (tileRecorder == null)
         {
-            return;
+            return null;
         }
 
         PdfMatrix matrix = PdfMatrix.Concat(state.CTM.Invert(), Matrix);
 
         PdfPaint? tintPaint = (PaintType == PdfTilingPaintType.Uncolored)
-            ? renderTarget.Paint
+            ? paint
             : null;
 
-        PdfRectangle bounds = matrix.Invert().MapRect(renderTarget.Bounds);
+        DrawRecordingCommand recordingCommand = new(tileRecorder, matrix, tintPaint);
 
-        DrawRecordingCommand recordingCommand = new(tileRecorder, tintPaint);
-        DrawTilingCommand tilingCommand = new(matrix, bounds, BoundingBox, XStep, YStep, recordingCommand);
-
-        renderTarget.BeforePatternRender(processor, matrix.MapRect(tilingCommand.PaintedArea));
-        processor.Process(tilingCommand);
-
-        renderTarget.AfterPatternRender(processor);
+        return new PdfGroupSource(recordingCommand, CellGroup, null, new PdfTiling(BoundingBox, XStep, YStep));
     }
 }

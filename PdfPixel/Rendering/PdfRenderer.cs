@@ -38,10 +38,10 @@ internal class PdfRenderer
         _logger = _loggerFactory.CreateLogger<PdfRenderer>();
 
         _textRenderer = new PdfTextRenderer(this, _loggerFactory);
-        _pathRenderer = new PdfPathRenderer(this, _loggerFactory);
-        _imageRenderer = new PdfImageRenderer(this, _loggerFactory);
+        _pathRenderer = new PdfPathRenderer(_loggerFactory);
+        _imageRenderer = new PdfImageRenderer();
         _formRenderer = new PdfFormRenderer(this, _loggerFactory);
-        _shadingRenderer = new PdfShadingRenderer(this, _loggerFactory);
+        _shadingRenderer = new PdfShadingRenderer(_loggerFactory);
     }
 
 
@@ -71,16 +71,7 @@ internal class PdfRenderer
             throw new ArgumentNullException(nameof(state));
         }
 
-        PdfPath? stencilOutline = GetStencilOutline(pdfImage, state);
-
-        if (stencilOutline != null)
-        {
-            _pathRenderer.DrawPath(processor, stencilOutline, state, PdfPaintOperation.Fill);
-        }
-        else
-        {
-            _imageRenderer.DrawImage(processor, pdfImage, state);
-        }
+        _imageRenderer.DrawImage(processor, pdfImage, state);
     }
 
     /// <summary>
@@ -97,20 +88,4 @@ internal class PdfRenderer
     /// <param name="shading">Shading object defining the gradient/pattern.</param>
     /// <param name="state">Current graphics state providing CTM and soft mask.</param>
     public void DrawShading(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state) => _shadingRenderer.DrawShading(processor, shading, state);
-
-    private static PdfPath? GetStencilOutline(PdfImage pdfImage, PdfGraphicsState state)
-    {
-        // A small stencil mask painted with a color is filled as the shape of its painted samples, antialiased at the size it
-        // is drawn. A pattern fill stays on the image path, which Skia draws far cheaper than a pattern masked by a path.
-        if (!pdfImage.HasImageMask
-            || state.FillPaint.IsPattern
-            || !state.RenderingParameters.ProcessImages
-            || !state.RenderingParameters.ConvertStencilMasksToPaths
-            || ((long)pdfImage.Width * pdfImage.Height) > state.RenderingParameters.MaxStencilMaskSizeForPathConversion)
-        {
-            return null;
-        }
-
-        return PdfStencilOutline.GetOutline(pdfImage);
-    }
 }

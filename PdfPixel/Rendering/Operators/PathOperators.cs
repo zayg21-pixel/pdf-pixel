@@ -15,7 +15,7 @@ namespace PdfPixel.Rendering.Operators;
 internal class PathOperators : IOperatorProcessor
 {
     private readonly PdfRenderer _renderer;
-    private readonly PdfOperandStack _operandStack;
+    private readonly PdfValueList<PdfContentStreamValue> _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly PdfPathBuilder _currentPath;
     private readonly IPdfContentHost _host;
@@ -24,7 +24,7 @@ internal class PathOperators : IOperatorProcessor
     private PdfPoint _lastPoint;
     private PdfPoint _subPathStart;
 
-    public PathOperators(PdfRenderer renderer, PdfOperandStack operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfContentHost host)
+    public PathOperators(PdfRenderer renderer, PdfValueList<PdfContentStreamValue> operandStack, IPdfCommandProcessor processor, PdfPathBuilder currentPath, IPdfContentHost host)
     {
         _renderer = renderer;
         _operandStack = operandStack;
@@ -150,7 +150,7 @@ internal class PathOperators : IOperatorProcessor
     // ---------------------- Helper Implementations --------------------------
     private void ProcessMoveTo()
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;
@@ -172,7 +172,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessLineTo()
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(2);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(2);
         if (operands.Length < 2)
         {
             return;
@@ -193,7 +193,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveTo()
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(6);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(6);
         if (operands.Length < 6)
         {
             return;
@@ -223,7 +223,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToV()
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(4);
         if (operands.Length < 4)
         {
             return;
@@ -246,7 +246,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessCurveToY()
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(4);
         if (operands.Length < 4)
         {
             return;
@@ -275,7 +275,7 @@ internal class PathOperators : IOperatorProcessor
 
     private void ProcessRectangle()
     {
-        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.Pop(4);
+        ReadOnlySpan<PdfContentStreamValue> operands = _operandStack.RemoveLast(4);
         if (operands.Length < 4)
         {
             return;
@@ -309,7 +309,7 @@ internal class PathOperators : IOperatorProcessor
         if (!_currentPath.IsEmpty)
         {
             PdfPath clipPath = _currentPath.ToPath(_pendingClipFillType.Value);
-            _processor.Process(new ClipPathCommand(clipPath, PdfClipOperation.Intersect));
+            _processor.Process(new DrawPathCommand(clipPath, new PdfPaint(PdfPaintStyle.Clip)));
             graphicsState.IntersectClipBounds(clipPath.GetBounds());
         }
 

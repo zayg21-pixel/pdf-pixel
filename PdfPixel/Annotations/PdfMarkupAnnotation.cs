@@ -25,11 +25,7 @@ public abstract class PdfMarkupAnnotation : PdfAnnotation
         }
 
         RichContents = annotationObject.Dictionary.GetString(PdfTokens.RichContentsKey);
-
-        if (Contents == null)
-        {
-            Contents = PdfRichTextContentParser.ExtractPlainText(RichContents);
-        }
+        Contents = base.Contents ?? PdfRichTextContentParser.ExtractPlainText(RichContents);
 
         Title = annotationObject.Dictionary.GetString(PdfTokens.TitleKey);
         Subject = annotationObject.Dictionary.GetString(PdfTokens.SubjectKey);
@@ -40,8 +36,10 @@ public abstract class PdfMarkupAnnotation : PdfAnnotation
         Intent = annotationObject.Dictionary.GetNameOrDefault(PdfTokens.ITKey).AsEnum<PdfAnnotationIntent>();
     }
 
-    /// <inheritdoc />
-    public override bool ShouldDisplayBubble => HasPopupContent;
+    /// <summary>
+    /// Gets the annotation's contents, or the plain text of <see cref="RichContents"/> when it has none.
+    /// </summary>
+    public override PdfString? Contents { get; }
 
     /// <summary>
     /// Gets the annotation's rich text contents (the RC entry), an XHTML-subset

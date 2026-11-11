@@ -32,8 +32,23 @@ public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
         }
     }
 
-    /// <inheritdoc/>
-    public override bool ShouldDisplayBubble => false;
+    /// <inheritdoc />
+    public override PdfAnnotationVisualStateKind SupportedStates
+    {
+        get
+        {
+            PdfAnnotationVisualStateKind appearanceStates = base.SupportedStates;
+
+            if (appearanceStates == PdfAnnotationVisualStateKind.None)
+            {
+                return PdfAnnotationGraphics.GetAnnotationIconStates(GetIconName());
+            }
+            else
+            {
+                return appearanceStates;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the icon rectangle grown by <paramref name="tolerance"/>.
@@ -41,9 +56,6 @@ public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
     /// <param name="tolerance">Distance the hover area reaches beyond what is drawn.</param>
     internal override PdfPath GetHoverPath(float tolerance)
         => PdfAnnotationGeometry.CreateRectanglePath(Rectangle.Inflate(tolerance), borderStyle: null);
-
-    /// <inheritdoc/>
-    public override bool IsInteractive => true;
 
     /// <summary>
     /// File specification of the attached file (FS), or <see langword="null"/> when absent.
@@ -68,20 +80,30 @@ public class PdfFileAttachmentAnnotation : PdfMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        string iconName = (Icon == PdfFileAttachmentIcon.Unknown)
-            ? nameof(PdfFileAttachmentIcon.PushPin)
-            : Icon.ToString();
-
-        PdfAnnotationIconDefinition? iconDefinition = PdfAnnotationGraphics.GetAnnotationIcon(iconName, visualStateKind);
+        PdfAnnotationIconDefinition? iconDefinition = PdfAnnotationGraphics.GetAnnotationIcon(GetIconName(), visualStateKind);
 
         if (iconDefinition == null)
         {
             return false;
         }
 
-        PdfPaint exteriorPaint = PdfAnnotationPaintFactory.CreatePaint(PdfAnnotationGraphics.IconExteriorColor, page);
-        PdfAnnotationGraphics.RenderIcon(processor, page, iconDefinition, Rectangle, exteriorPaint, ResolvePaint(page));
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, PdfAnnotationGraphics.IconExteriorPaint, PdfAnnotationPaintFactory.ResolvePaint(Color, page));
         return true;
+    }
+
+    /// <summary>
+    /// Returns the name of the icon drawn without an appearance: <see cref="Icon"/>, the push pin when it is unknown.
+    /// </summary>
+    private string GetIconName()
+    {
+        if (Icon == PdfFileAttachmentIcon.Unknown)
+        {
+            return nameof(PdfFileAttachmentIcon.PushPin);
+        }
+        else
+        {
+            return Icon.ToString();
+        }
     }
 
     /// <inheritdoc/>

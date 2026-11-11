@@ -15,14 +15,29 @@ public class SfntGlyf
     private ReadOnlyMemory<byte>[]? _paths;
 
     /// <summary>
-    /// Gets or sets this font's parsed "loca" table, used to look up each glyph's byte range within "glyf".
+    /// Gets this font's parsed "loca" table, used to look up each glyph's byte range within "glyf"; empty until
+    /// <see cref="SetLoca"/>.
     /// </summary>
-    internal SfntLoca Loca { get; set; } = new();
+    internal SfntLoca Loca { get; private set; } = new();
+
+    /// <summary>
+    /// Gets whether <see cref="Loca"/> has been parsed.
+    /// </summary>
+    internal bool IsLocaResolved { get; private set; }
 
     /// <summary>
     /// Gets the number of glyphs, derived from <see cref="Loca"/>.
     /// </summary>
-    public int NumGlyphs => Loca.Ranges.Count;
+    internal int NumGlyphs => Loca.Ranges.Count;
+
+    /// <summary>
+    /// Sets the parsed "loca" table.
+    /// </summary>
+    internal void SetLoca(SfntLoca loca)
+    {
+        Loca = loca;
+        IsLocaResolved = true;
+    }
 
     /// <summary>
     /// Gets the cached path for the given glyph id, empty when none has been emitted for it yet.

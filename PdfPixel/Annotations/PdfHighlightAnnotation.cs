@@ -38,7 +38,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        PdfPaint? paint = ResolvePaint(page);
+        PdfPaint? paint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
         if (paint != null)
         {
             PdfPathBuilder path = new();

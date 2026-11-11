@@ -10,15 +10,7 @@ namespace PdfPixel.Annotations;
 /// </summary>
 public class PdfPopupAnnotation : PdfAnnotation
 {
-    /// <summary>
-    /// Gets whether this annotation carries text to show in a pop-up window.
-    /// </summary>
-    public override bool HasPopupContent => false;
 
-    /// <summary>
-    /// Gets whether this annotation should display a content bubble indicator.
-    /// </summary>
-    public override bool ShouldDisplayBubble => false;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfPopupAnnotation"/> class.

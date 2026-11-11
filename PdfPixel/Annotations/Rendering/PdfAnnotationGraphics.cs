@@ -5,6 +5,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.EmbeddedData;
 using PdfPixel.Geometry;
+using PdfPixel.Transparency;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,31 +16,18 @@ namespace PdfPixel.Annotations.Rendering;
 /// <summary>
 /// Unified entry point for annotation fallback graphics rendering.
 /// </summary>
-internal static class PdfAnnotationGraphics
+public static class PdfAnnotationGraphics
 {
     private const string BubbleIconName = "Bubble";
 
     /// <summary>
-    /// Default size of the annotation bubble in user units.
+    /// Paint the exterior paths of annotation icons are drawn with.
     /// </summary>
-    internal const float DefaultBubbleSize = 16f;
-
-    /// <summary>
-    /// Default border color used when rendering a bubble with no annotation color defined.
-    /// </summary>
-    internal static readonly float[] DefaultBubbleBorderColor = [180f / 255f, 140f / 255f, 60f / 255f];
-
-    /// <summary>
-    /// Default background color used when rendering a bubble with no annotation interior color defined.
-    /// </summary>
-    internal static readonly float[] DefaultBubbleBackgroundColor = [255f / 255f, 255f / 255f, 235f / 255f];
-
-    /// <summary>
-    /// Color the exterior paths of annotation icons are drawn in.
-    /// </summary>
-    internal static readonly float[] IconExteriorColor = [0f];
+    internal static readonly PdfPaint IconExteriorPaint = PdfAnnotationPaintFactory.CreatePaint([0f]);
 
     private static readonly Dictionary<(string Name, PdfAnnotationVisualStateKind State), PdfAnnotationIconDefinition> Icons = [];
+
+    private static readonly PdfTransparencyGroupContext OpacityGroup = new(null, isolated: true, knockout: false);
 
     static PdfAnnotationGraphics()
     {
@@ -59,7 +47,7 @@ internal static class PdfAnnotationGraphics
     /// <see cref="PdfAnnotationVisualStateKind.Rollover"/> then
     /// <see cref="PdfAnnotationVisualStateKind.Normal"/> if the requested state is not defined.
     /// </summary>
-    public static PdfAnnotationIconDefinition? GetAnnotationIcon(string name, PdfAnnotationVisualStateKind state)
+    internal static PdfAnnotationIconDefinition? GetAnnotationIcon(string name, PdfAnnotationVisualStateKind state)
     {
         if (Icons.TryGetValue((name, state), out PdfAnnotationIconDefinition? definition))
         {
@@ -83,13 +71,41 @@ internal static class PdfAnnotationGraphics
         => GetAnnotationIcon(BubbleIconName, state);
 
     /// <summary>
+    /// Returns the visual states the icon of the given name has a definition for, or
+    /// <see cref="PdfAnnotationVisualStateKind.None"/> when there is no such icon.
+    /// </summary>
+    internal static PdfAnnotationVisualStateKind GetAnnotationIconStates(string name)
+    {
+        var states = PdfAnnotationVisualStateKind.None;
+
+        if (Icons.ContainsKey((name, PdfAnnotationVisualStateKind.Normal)))
+        {
+            states |= PdfAnnotationVisualStateKind.Normal;
+        }
+
+        if (Icons.ContainsKey((name, PdfAnnotationVisualStateKind.Rollover)))
+        {
+            states |= PdfAnnotationVisualStateKind.Rollover;
+        }
+
+        if (Icons.ContainsKey((name, PdfAnnotationVisualStateKind.Down)))
+        {
+            states |= PdfAnnotationVisualStateKind.Down;
+        }
+
+        return states;
+    }
+
+    /// <summary>
+    /// Returns the visual states of the annotation speech bubble icon.
+    /// </summary>
+    internal static PdfAnnotationVisualStateKind GetAnnotationBubbleIconStates() => GetAnnotationIconStates(BubbleIconName);
+
+    /// <summary>
     /// Renders an icon definition scaled to fit <paramref name="rect"/>.
     /// </summary>
     /// <param name="processor">
     /// The command processor to emit commands to.
-    /// </param>
-    /// <param name="page">
-    /// The PDF page the color overrides of the icon are resolved for.
     /// </param>
     /// <param name="icon">
     /// The icon definition to render.
@@ -107,39 +123,54 @@ internal static class PdfAnnotationGraphics
     /// </param>
     public static void RenderIcon(
         IPdfCommandProcessor processor,
-        IPdfPageInternal page,
         PdfAnnotationIconDefinition icon,
         in PdfRectangle rect,
         PdfPaint? paint,
         PdfPaint? interiorPaint)
     {
+        if (processor == null)
+        {
+            throw new ArgumentNullException(nameof(processor));
+        }
+
+        if (icon == null)
+        {
+            throw new ArgumentNullException(nameof(icon));
+        }
+
         float scale = Math.Min(rect.Width / icon.Width, rect.Height / icon.Height);
         float offsetX = rect.Left + ((rect.Width - (icon.Width * scale)) / 2f);
         float offsetY = rect.Top + ((rect.Height - (icon.Height * scale)) / 2f);
 
+        PdfMatrix iconMatrix = PdfMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY);
+
         processor.Process(SaveStateCommand.Instance);
 
-        bool useOpacityLayer = icon.Opacity < 1f;
-        if (useOpacityLayer)
+        if (icon.Opacity < 1f)
         {
-            processor.Process(new SaveLayerCommand(rect, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(icon.Opacity)));
+            PdfCommandRecorder recorder = new();
+            RenderIconPaths(recorder, icon, iconMatrix, paint, interiorPaint);
+            DrawOpacityGroup(processor, rect, recorder, icon.Opacity);
         }
-
-        processor.Process(new ConcatMatrixCommand(
-            PdfMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY)));
-        processor.Process(new ConcatMatrixCommand(icon.ViewportMatrix));
-
-        foreach (PdfAnnotationIconPath iconPath in icon.Paths)
+        else
         {
-            RenderIconPath(processor, page, iconPath, paint, interiorPaint);
-        }
-
-        if (useOpacityLayer)
-        {
-            processor.Process(RestoreLayerCommand.Instance);
+            RenderIconPaths(processor, icon, iconMatrix, paint, interiorPaint);
         }
 
         processor.Process(RestoreStateCommand.Instance);
+    }
+
+    /// <summary>
+    /// Paints <paramref name="recorder"/> as an isolated group composited with <paramref name="opacity"/>.
+    /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
+    /// <param name="bounds">The area the recorded content can reach, in current coordinate space.</param>
+    /// <param name="recorder">The recorded content.</param>
+    /// <param name="opacity">The opacity the group is composited with.</param>
+    internal static void DrawOpacityGroup(IPdfCommandProcessor processor, in PdfRectangle bounds, PdfCommandRecorder recorder, float opacity)
+    {
+        PdfGroupSource source = new(new DrawRecordingCommand(recorder), OpacityGroup, bounds, null);
+        processor.Process(new DrawGroupCommand(source, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(opacity)));
     }
 
     /// <summary>
@@ -166,7 +197,7 @@ internal static class PdfAnnotationGraphics
     /// <param name="interiorPaint">
     /// The paint closed shapes are filled with, or null when they have no interior.
     /// </param>
-    public static void DrawLineEnding(
+    internal static void DrawLineEnding(
         IPdfCommandProcessor processor,
         in PdfPoint point,
         in PdfPoint adjacent,
@@ -187,9 +218,24 @@ internal static class PdfAnnotationGraphics
             interiorPaint);
     }
 
+    private static void RenderIconPaths(
+        IPdfCommandProcessor processor,
+        PdfAnnotationIconDefinition icon,
+        in PdfMatrix iconMatrix,
+        PdfPaint? paint,
+        PdfPaint? interiorPaint)
+    {
+        processor.Process(new ConcatMatrixCommand(iconMatrix));
+        processor.Process(new ConcatMatrixCommand(icon.ViewportMatrix));
+
+        foreach (PdfAnnotationIconPath iconPath in icon.Paths)
+        {
+            RenderIconPath(processor, iconPath, paint, interiorPaint);
+        }
+    }
+
     private static void RenderIconPath(
         IPdfCommandProcessor processor,
-        IPdfPageInternal page,
         PdfAnnotationIconPath iconPath,
         PdfPaint? paint,
         PdfPaint? interiorPaint)
@@ -199,7 +245,7 @@ internal static class PdfAnnotationGraphics
             PdfPaint? fillPaint = iconPath.FillColorType switch
             {
                 PdfAnnotationIconColorType.Interior => interiorPaint,
-                PdfAnnotationIconColorType.Override => CreateOverridePaint(page, iconPath.FillColor),
+                PdfAnnotationIconColorType.Override => iconPath.FillPaint,
                 _ => paint
             };
 
@@ -214,7 +260,7 @@ internal static class PdfAnnotationGraphics
             PdfPaint? strokeColorPaint = iconPath.StrokeColorType switch
             {
                 PdfAnnotationIconColorType.Interior => interiorPaint,
-                PdfAnnotationIconColorType.Override => CreateOverridePaint(page, iconPath.StrokeColor),
+                PdfAnnotationIconColorType.Override => iconPath.StrokePaint,
                 _ => paint
             };
 
@@ -229,18 +275,6 @@ internal static class PdfAnnotationGraphics
                 processor.Process(new DrawPathCommand(iconPath.Path, strokePaint));
             }
         }
-    }
-
-    private static PdfPaint? CreateOverridePaint(IPdfPageInternal page, PdfRgbaColor? color)
-    {
-        if (color == null)
-        {
-            return null;
-        }
-
-        PdfRgbaColor overrideColor = color.Value;
-
-        return PdfAnnotationPaintFactory.CreatePaint([overrideColor.Red, overrideColor.Green, overrideColor.Blue], page).WithAlpha(overrideColor.Alpha);
     }
 
     private static PdfPaint ApplyOpacity(PdfPaint paint, float opacity)

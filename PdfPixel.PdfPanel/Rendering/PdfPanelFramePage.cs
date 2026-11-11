@@ -11,16 +11,10 @@ public readonly struct PdfPanelFramePage
     private readonly PdfPanelPage _page;
     private readonly PdfMatrix _contentToPanel;
 
-    internal PdfPanelFramePage(
-        in RequestPageInfo page,
-        float scale,
-        PdfPanelRenderedLayerInfo? renderedContent,
-        PdfPanelRenderedLayerInfo? renderedAnnotations)
+    internal PdfPanelFramePage(in RequestPageInfo page, float scale)
     {
         _page = page.Page;
         Rotation = page.Rotation;
-        RenderedContent = renderedContent;
-        RenderedAnnotations = renderedAnnotations;
         _contentToPanel = page.GetContentToPanelMatrix(scale);
     }
 
@@ -43,16 +37,6 @@ public readonly struct PdfPanelFramePage
     /// Clockwise rotation of the page in degrees, normalized to 0-359.
     /// </summary>
     public int Rotation { get; }
-
-    /// <summary>
-    /// Gets the information about the rendered page content, or <see langword="null"/> if it has not been rendered yet.
-    /// </summary>
-    public PdfPanelRenderedLayerInfo? RenderedContent { get; }
-
-    /// <summary>
-    /// Gets the information about the rendered page annotations, or <see langword="null"/> if they have not been rendered yet.
-    /// </summary>
-    public PdfPanelRenderedLayerInfo? RenderedAnnotations { get; }
 
     /// <summary>
     /// Gets the rotated size of the page.

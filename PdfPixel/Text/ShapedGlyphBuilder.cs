@@ -18,7 +18,7 @@ public static class ShapedGlyphBuilder
     /// <param name="text">The Unicode text to shape.</param>
     /// <param name="typeface">The typeface resolving glyph ids and advances.</param>
     /// <param name="buffer">The buffer to clear and fill with the shaped glyphs.</param>
-    public static void BuildFromText(string text, IPdfTypeface typeface, ShapedGlyphBuffer buffer)
+    public static void BuildFromText(string text, IPdfTypeface typeface, PdfValueList<ShapedGlyph> buffer)
     {
         if (typeface == null)
         {
@@ -74,7 +74,7 @@ public static class ShapedGlyphBuilder
     public static void BuildFromArray(
         PdfValue arrayOperand,
         PdfGraphicsState state,
-        ShapedGlyphBuffer buffer)
+        PdfValueList<ShapedGlyph> buffer)
     {
         if (arrayOperand is not PdfArrayValue || state == null || buffer == null)
         {
@@ -143,7 +143,7 @@ public static class ShapedGlyphBuilder
     public static void BuildFromString(
         PdfValue stringOperand,
         PdfGraphicsState state,
-        ShapedGlyphBuffer buffer)
+        PdfValueList<ShapedGlyph> buffer)
     {
         if (stringOperand is not PdfStringValue || state == null || buffer == null)
         {
@@ -176,7 +176,7 @@ public static class ShapedGlyphBuilder
         in ReadOnlySpan<PdfCharacterCode> codes,
         PdfFont font,
         PdfGraphicsState state,
-        ShapedGlyphBuffer buffer)
+        PdfValueList<ShapedGlyph> buffer)
     {
         if (font == null)
         {
@@ -209,7 +209,7 @@ public static class ShapedGlyphBuilder
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private static void AddShapedGlyphs(in ReadOnlySpan<PdfCharacterCode> codes, PdfFont font, PdfGraphicsState state, ShapedGlyphBuffer output, ref float x, ref float y)
+    private static void AddShapedGlyphs(in ReadOnlySpan<PdfCharacterCode> codes, PdfFont font, PdfGraphicsState state, PdfValueList<ShapedGlyph> output, ref float x, ref float y)
     {
         bool isVertical = font.WritingMode == Fonts.Mapping.CMapWritingMode.Vertical;
 

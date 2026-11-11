@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Snap, the CPU rasterizer of PdfPixel: draws recorded PDF page commands into pixels in managed C#, covering scan conversion, clipping, images, shadings, patterns, text and transparency groups.</Description>
+    <PackageTags>pdf;rendering;rasterizer;raster</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>PdfPixel.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
+  </ItemGroup>
+
+</Project>

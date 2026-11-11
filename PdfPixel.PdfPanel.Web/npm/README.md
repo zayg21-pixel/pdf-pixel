@@ -1,6 +1,6 @@
 # PDF Pixel
 
-PDF viewer panel for the browser. PDF Pixel is a native C# PDF rendering library built around SkiaSharp; this package runs it in the browser compiled to WebAssembly, rendering with WebGL or on the CPU. Documents are parsed and rendered entirely on the client — no server-side processing and no dependency on external PDF frameworks.
+PDF viewer panel for the browser. PDF Pixel is a native C# PDF rendering library; this package runs it in the browser compiled to WebAssembly, rendering on the CPU. Documents are parsed and rendered entirely on the client — no server-side processing and no dependency on external PDF frameworks.
 
 [Live demo](https://zayg21-pixel.github.io/pdf-pixel/)
 
@@ -76,7 +76,6 @@ The panel logs warnings and errors to the browser console.
 
 ```js
 pdfPixel.registerPanel(container.id, container, {
-    useWebGL: true,
     scrollStep: 20,
     yieldInterval: 16,
     minScale: 0.1,
@@ -86,7 +85,6 @@ pdfPixel.registerPanel(container.id, container, {
     layoutPadding: { left: 10, top: 10, right: 10, bottom: 10 },
     panelBackgroundColor: '#D3D3D3',
     pageCornerRadius: 0,
-    showPageLoadingAnimation: true,
     extractAllText: false,
     textSelectionColor: '#3264DC50',
     searchMatchCase: false,
@@ -107,7 +105,6 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 
 | Key | Description |
 | --- | --- |
-| `useWebGL` | Render with WebGL instead of the CPU. Initial configuration only. |
 | `yieldInterval` | Minimum time in milliseconds between two yields of page decoding to the browser. Initial configuration only. |
 | `scrollStep` | Pixels scrolled per mouse wheel line. |
 | `minScale`, `maxScale` | Zoom limits. |
@@ -116,7 +113,6 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `layoutPadding` | Padding around the pages, in device pixels. |
 | `panelBackgroundColor` | Background color of the panel behind the pages. |
 | `pageCornerRadius` | Corner radius of the pages, in unscaled page space. |
-| `showPageLoadingAnimation` | Animate pages that are not decoded yet. |
 | `extractAllText` | Extract the text of every page, not only of the rendered pages. Search covers every page only while this is set. |
 | `textSelectionColor` | Color of the text selection. |
 | `searchMatchCase`, `searchMatchWholeWord`, `searchMatchDiacritics` | Match options of the text search. |

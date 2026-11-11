@@ -1,3 +1,5 @@
+using PdfPixel.Color.Paint;
+using PdfPixel.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -26,6 +28,99 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// Gets the list of recorded commands.
     /// </summary>
     public IReadOnlyList<IPdfCommand> Commands => _commands;
+
+    /// <summary>
+    /// Returns the area the recorded commands paint, in the space they are recorded in: the union of the area of every
+    /// paint command and nested recording, each mapped through the matrix in effect where it is recorded.
+    /// <see cref="PdfRectangle.Empty"/> when nothing is painted, <see langword="null"/> when a command is not bounded.
+    /// </summary>
+    public PdfRectangle? GetBounds()
+    {
+        Stack<PdfMatrix> savedMatrices = [];
+        PdfMatrix matrix = PdfMatrix.Identity;
+        PdfRectangle? bounds = null;
+
+        foreach (IPdfCommand command in _commands)
+        {
+            PdfRectangle? commandBounds;
+
+            switch (command.Kind)
+            {
+                case PdfCommandKind.SaveState:
+                {
+                    savedMatrices.Push(matrix);
+                    continue;
+                }
+                case PdfCommandKind.RestoreState:
+                {
+                    if (savedMatrices.Count > 0)
+                    {
+                        matrix = savedMatrices.Pop();
+                    }
+
+                    continue;
+                }
+                case PdfCommandKind.ConcatMatrix:
+                {
+                    matrix = matrix.PreConcat(((ConcatMatrixCommand)command).Matrix);
+                    continue;
+                }
+                case PdfCommandKind.DrawRecording:
+                {
+                    var recordingCommand = (DrawRecordingCommand)command;
+                    PdfRectangle? recordingBounds = recordingCommand.Recorder.GetBounds();
+                    commandBounds = null;
+
+                    if (recordingBounds != null)
+                    {
+                        commandBounds = recordingCommand.Matrix.MapRect(recordingBounds.Value);
+                    }
+
+                    break;
+                }
+                case PdfCommandKind.DrawAnnotation:
+                {
+                    commandBounds = null;
+                    break;
+                }
+                default:
+                {
+                    var paintCommand = command as IPaintCommand;
+
+                    if (paintCommand == null || paintCommand.Paint?.Style == PdfPaintStyle.Clip)
+                    {
+                        continue;
+                    }
+
+                    commandBounds = paintCommand.Bounds;
+                    break;
+                }
+            }
+
+            if (commandBounds == null)
+            {
+                return null;
+            }
+
+            PdfRectangle mappedBounds = matrix.MapRect(commandBounds.Value);
+
+            if (bounds == null)
+            {
+                bounds = mappedBounds;
+            }
+            else
+            {
+                bounds = PdfRectangle.Union(bounds.Value, mappedBounds);
+            }
+        }
+
+        if (bounds == null)
+        {
+            return PdfRectangle.Empty;
+        }
+
+        return bounds;
+    }
 
     /// <summary>
     /// Replays all recorded commands by submitting each one to <paramref name="processor"/>.

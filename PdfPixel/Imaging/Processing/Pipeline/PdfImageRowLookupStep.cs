@@ -20,7 +20,7 @@ public sealed class PdfImageRowLookupStep : IPdfImageRowProcessingStep
     private readonly int _requiredInputBits;
     private readonly float _alphaScale;
     private readonly float[] _colors;
-    private readonly float[] _buffer;
+    private readonly int _outputSampleCount;
 
     /// <summary>
     /// Initializes a step converting rows of <paramref name="width"/> pixels.
@@ -64,16 +64,26 @@ public sealed class PdfImageRowLookupStep : IPdfImageRowProcessingStep
         _colors = new float[codeCount * outputComponentCount];
 
         var component = new float[1];
+        var color = new float[Math.Max(outputComponentCount, sampler.OutputComponentCount)];
 
         for (int code = 0; code < codeCount; code++)
         {
             component[0] = code / maximumCode;
-            ReadOnlySpan<float> color = sampler.Sample(component);
-            color.Slice(0, outputComponentCount).CopyTo(_colors.AsSpan(code * outputComponentCount, outputComponentCount));
+            sampler.Sample(ref component[0], ref color[0]);
+            color.AsSpan(0, outputComponentCount).CopyTo(_colors.AsSpan(code * outputComponentCount, outputComponentCount));
         }
 
-        _buffer = new float[width * (outputComponentCount + (hasAlpha ? 1 : 0))];
+        _outputSampleCount = width * (outputComponentCount + (hasAlpha ? 1 : 0));
     }
+
+    /// <inheritdoc />
+    public int GetOutputLength(int inputLength) => _outputSampleCount * sizeof(float);
+
+    /// <inheritdoc />
+    public PdfImageOutputRow GetOutputRow(int inputRowIndex) => new(inputRowIndex, hasNextRow: false);
+
+    /// <inheritdoc />
+    public void Process(ReadOnlySpan<byte> input, Span<byte> output, int inputRowIndex) => Process(input, output);
 
     /// <inheritdoc />
 #if NETSTANDARD2_0
@@ -81,23 +91,71 @@ public sealed class PdfImageRowLookupStep : IPdfImageRowProcessingStep
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    public PdfImageRow Process(ReadOnlySpan<byte> input, int inputRowIndex)
+    public void Process(ReadOnlySpan<byte> input, Span<byte> output)
     {
         if ((long)input.Length * 8 < _requiredInputBits)
         {
             throw new ArgumentException("The input row holds fewer samples than the step converts.", nameof(input));
         }
 
-        if (_hasAlpha)
+        Span<float> destination = MemoryMarshal.Cast<byte, float>(output);
+
+        if (Unsafe.AreSame(ref MemoryMarshal.GetReference(input), ref MemoryMarshal.GetReference(output)))
         {
-            LookupWithAlpha(input);
+            LookupFromEnd(input, destination);
+        }
+        else if (_hasAlpha)
+        {
+            LookupWithAlpha(input, destination);
         }
         else
         {
-            LookupOpaque(input);
+            LookupOpaque(input, destination);
         }
+    }
 
-        return new PdfImageRow(MemoryMarshal.AsBytes(_buffer.AsSpan()), inputRowIndex, hasNextRow: false);
+    /// <summary>
+    /// Looks the pixels up from the last to the first, each pixel's codes read before its floats are written, so that
+    /// the floats, wider than the codes, never reach a code still to be read in the row they share.
+    /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private void LookupFromEnd(in ReadOnlySpan<byte> input, in Span<float> destination)
+    {
+        ref byte sourceReference = ref MemoryMarshal.GetReference(input);
+        ref float colorsReference = ref _colors[0];
+        int samplesPerPixel = _hasAlpha ? 2 : 1;
+        int pixelStride = _outputComponentCount + (_hasAlpha ? 1 : 0);
+        ref float pixel = ref Unsafe.Add(ref MemoryMarshal.GetReference(destination), (_width - 1) * pixelStride);
+
+        for (int x = _width - 1; x >= 0; x--)
+        {
+            int sampleIndex = x * samplesPerPixel;
+            uint code = PdfPackedSamples.Read(ref sourceReference, sampleIndex, _bitsPerComponent);
+            float alpha = 0;
+
+            if (_hasAlpha)
+            {
+                alpha = PdfPackedSamples.Read(ref sourceReference, sampleIndex + 1, _bitsPerComponent) * _alphaScale;
+            }
+
+            ref float color = ref Unsafe.Add(ref colorsReference, (int)code * _outputComponentCount);
+
+            for (int component = 0; component < _outputComponentCount; component++)
+            {
+                Unsafe.Add(ref pixel, component) = Unsafe.Add(ref color, component);
+            }
+
+            if (_hasAlpha)
+            {
+                Unsafe.Add(ref pixel, _outputComponentCount) = alpha;
+            }
+
+            pixel = ref Unsafe.Add(ref pixel, -pixelStride);
+        }
     }
 
 #if NETSTANDARD2_0
@@ -105,11 +163,11 @@ public sealed class PdfImageRowLookupStep : IPdfImageRowProcessingStep
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private void LookupOpaque(in ReadOnlySpan<byte> input)
+    private void LookupOpaque(in ReadOnlySpan<byte> input, in Span<float> destination)
     {
         UintBitReaderFixedLength reader = new(input, _bitsPerComponent);
         ref float colorsReference = ref _colors[0];
-        ref float destinationReference = ref _buffer[0];
+        ref float destinationReference = ref MemoryMarshal.GetReference(destination);
         int destinationIndex = 0;
 
         for (int x = 0; x < _width; x++)
@@ -128,11 +186,11 @@ public sealed class PdfImageRowLookupStep : IPdfImageRowProcessingStep
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private void LookupWithAlpha(in ReadOnlySpan<byte> input)
+    private void LookupWithAlpha(in ReadOnlySpan<byte> input, in Span<float> destination)
     {
         UintBitReaderFixedLength reader = new(input, _bitsPerComponent);
         ref float colorsReference = ref _colors[0];
-        ref float destinationReference = ref _buffer[0];
+        ref float destinationReference = ref MemoryMarshal.GetReference(destination);
         int destinationIndex = 0;
 
         for (int x = 0; x < _width; x++)

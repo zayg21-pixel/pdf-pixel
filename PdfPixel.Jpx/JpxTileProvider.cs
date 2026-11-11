@@ -71,7 +71,6 @@ public readonly struct JpxTileProvider
     /// </summary>
     public IReadOnlyList<int> ComponentSelection { get; }
 
-
     /// <summary>
     /// Decodes a single tile by its index into <paramref name="destination"/>, which is
     /// re-targeted at that tile. Produces a zeroed tile when no data is present in the
@@ -129,32 +128,66 @@ public readonly struct JpxTileProvider
     public JpxTile CreateTile() => new(_header, ComponentSelection);
 
     /// <summary>
-    /// Resolves which components are reconstructed, leaving out the cdef opacity component when
-    /// the parameters say it is not needed.
+    /// Resolves which components are reconstructed: the parameters' selection, or every component with the cdef
+    /// opacity component last. A selection holding some but not all of the components the multiple component
+    /// transform combines is rejected (ITU-T T.800 Annex G).
     /// </summary>
     private static int[] ResolveComponentSelection(JpxHeader header, in JpxDecodingParameters decodingParameters)
     {
-        int opacityComponentIndex = header.OpacityComponentIndex;
+        IReadOnlyList<int>? requestedSelection = decodingParameters.ComponentSelection;
 
-        if (decodingParameters.IncludeOpacityComponent || opacityComponentIndex < 0)
+        if (requestedSelection == null)
         {
-            var allComponents = new int[header.ComponentCount];
-            for (int component = 0; component < allComponents.Length; component++)
-            {
-                allComponents[component] = component;
-            }
-
-            return allComponents;
+            return CreateDefaultComponentSelection(header);
         }
 
-        var selection = new int[header.ComponentCount - 1];
+        var selection = new int[requestedSelection.Count];
+        int transformedCount = 0;
+
+        for (int index = 0; index < selection.Length; index++)
+        {
+            int component = requestedSelection[index];
+
+            if (component < 0 || component >= header.ComponentCount)
+            {
+                throw new ArgumentOutOfRangeException(nameof(decodingParameters), $"Component {component} is outside the {header.ComponentCount} components of the codestream.");
+            }
+
+            if (component < 3)
+            {
+                transformedCount++;
+            }
+
+            selection[index] = component;
+        }
+
+        bool hasTransform = header.CodingStyle != null && header.CodingStyle.MultiComponentTransform != 0 && header.ComponentCount >= 3;
+
+        if (hasTransform && transformedCount != 0 && transformedCount != 3)
+        {
+            throw new ArgumentException("A component selection takes all or none of the first three components when the multiple component transform is on.", nameof(decodingParameters));
+        }
+
+        return selection;
+    }
+
+    private static int[] CreateDefaultComponentSelection(JpxHeader header)
+    {
+        int opacityComponentIndex = header.OpacityComponentIndex;
+        var selection = new int[header.ComponentCount];
         int selectionIndex = 0;
+
         for (int component = 0; component < header.ComponentCount; component++)
         {
             if (component != opacityComponentIndex)
             {
                 selection[selectionIndex++] = component;
             }
+        }
+
+        if (opacityComponentIndex >= 0)
+        {
+            selection[selectionIndex] = opacityComponentIndex;
         }
 
         return selection;

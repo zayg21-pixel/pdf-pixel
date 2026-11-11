@@ -1,45 +1,56 @@
 using PdfPixel.Commands;
-using PdfPixel.Commands.Execution;
-using PdfPixel.Geometry;
 using PdfPixel.Imaging;
+using PdfPixel.Imaging.Encoding;
+using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.Caching;
-using SkiaSharp;
+using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Thumbnails;
+using PdfPixel.Png;
 using System;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Scheduling;
 
 /// <summary>
-/// Work item that produces the thumbnail of a page as a PNG file and stores it in the page's cache entry:
-/// its thumbnail image when given, otherwise its content without annotations, rendered on white.
+/// Work item that adds the requested forms a page's thumbnail is missing to its cache entry: a missing form is made
+/// from the form the thumbnail has; a thumbnail with none is produced from the page's thumbnail image when given,
+/// otherwise its content without annotations, rendered on white.
 /// </summary>
 internal sealed class PdfPageThumbnailWorkItem : IWorkItem
 {
+    private const int ThumbnailBitsPerComponent = 8;
+    private const int RgbChannelCount = 3;
+
     private static readonly PdfRenderingParameters RenderingParameters = new();
+    private static readonly PdfImageChannel[] RgbChannels = [PdfImageChannel.Component(0), PdfImageChannel.Component(1), PdfImageChannel.Component(2)];
 
     private readonly PdfPanelPage _page;
+    private readonly PdfPanelThumbnailFormats _formats;
     private readonly PdfImage? _pageThumbnail;
-    private readonly PdfIntegerSize _maximumSize;
+    private readonly PdfPageThumbnailRasterizer _rasterizer;
     private readonly PdfOptionalContentStates? _optionalContentStates;
     private readonly IPdfCancellableExecutionObserver _observer;
     private readonly Action<BackgroundWorkItemComplete> _onCompleted;
 
     /// <summary>
-    /// Initializes the work item for the given page and thumbnail request. The work item takes ownership of <paramref name="observer"/>
-    /// and invokes <paramref name="onCompleted"/> with its completion once it finishes.
+    /// Initializes the work item for the given page and the <paramref name="formats"/> requested of its thumbnail. The
+    /// work item takes ownership of <paramref name="observer"/> and invokes <paramref name="onCompleted"/> with its
+    /// completion once it finishes.
     /// </summary>
     public PdfPageThumbnailWorkItem(
         PdfPanelPage page,
+        PdfPanelThumbnailFormats formats,
         PdfImage? pageThumbnail,
-        in PdfIntegerSize maximumSize,
+        PdfPageThumbnailRasterizer rasterizer,
         PdfOptionalContentStates? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
         Action<BackgroundWorkItemComplete> onCompleted)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        _formats = formats;
         _pageThumbnail = pageThumbnail;
-        _maximumSize = maximumSize;
+        _rasterizer = rasterizer ?? throw new ArgumentNullException(nameof(rasterizer));
         _optionalContentStates = optionalContentStates;
         _observer = observer ?? throw new ArgumentNullException(nameof(observer));
         _onCompleted = onCompleted ?? throw new ArgumentNullException(nameof(onCompleted));
@@ -57,10 +68,33 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
         {
             _observer.Notify();
 
-            if (!_page.CacheEntry.Thumbnail.HasContent)
+            byte[]? png = null;
+            PdfImageSamples? samples = null;
+
+            using (LockedContent<PdfPageThumbnail> lockedThumbnail = _page.CacheEntry.Thumbnail.GetContent())
             {
-                byte[] png = await ProducePngAsync().ConfigureAwait(false);
-                _page.CacheEntry.Thumbnail.SetContent(png);
+                if (lockedThumbnail.Content != null)
+                {
+                    png = lockedThumbnail.Content.Png;
+                    samples = lockedThumbnail.Content.Samples;
+                }
+            }
+
+            PdfPanelThumbnailFormats missingFormats = _formats;
+
+            if (png != null)
+            {
+                missingFormats &= ~PdfPanelThumbnailFormats.Png;
+            }
+
+            if (samples != null)
+            {
+                missingFormats &= ~PdfPanelThumbnailFormats.Samples;
+            }
+
+            if (missingFormats != PdfPanelThumbnailFormats.None)
+            {
+                await AddFormatsAsync(png, samples, missingFormats).ConfigureAwait(false);
             }
 
             result = BackgroundWorkItemResult.Success;
@@ -77,14 +111,63 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
         }
     }
 
-    private async ValueTask<byte[]> ProducePngAsync()
+    /// <summary>
+    /// Adds <paramref name="missingFormats"/> to the page's thumbnail, which holds <paramref name="png"/> and
+    /// <paramref name="samples"/>, making them from the form it has or producing the thumbnail when it has none.
+    /// </summary>
+    private async ValueTask AddFormatsAsync(byte[]? png, PdfImageSamples? samples, PdfPanelThumbnailFormats missingFormats)
+    {
+        if (png == null && samples == null)
+        {
+            png = DecodePageThumbnail();
+        }
+
+        if (samples == null && png != null && (missingFormats & PdfPanelThumbnailFormats.Samples) != 0)
+        {
+            samples = DecodePng(png);
+        }
+
+        if (samples == null && (png == null || (missingFormats & PdfPanelThumbnailFormats.Samples) != 0))
+        {
+            samples = await RenderPageAsync().ConfigureAwait(false);
+        }
+
+        if (png == null && samples != null && (missingFormats & PdfPanelThumbnailFormats.Png) != 0)
+        {
+            png = PdfImageSamplesPngEncoder.Encode(samples);
+        }
+
+        using WriteLockedContent<PdfPageThumbnail> lockedThumbnail = _page.CacheEntry.Thumbnail.GetContentForWriting();
+        PdfPageThumbnail? thumbnail = lockedThumbnail.Content;
+
+        if (thumbnail == null)
+        {
+            return;
+        }
+
+        if (thumbnail.Png == null && (missingFormats & PdfPanelThumbnailFormats.Png) != 0)
+        {
+            thumbnail.Png = png;
+        }
+
+        if (thumbnail.Samples == null && (missingFormats & PdfPanelThumbnailFormats.Samples) != 0)
+        {
+            thumbnail.Samples = samples;
+        }
+    }
+
+    /// <summary>
+    /// Returns the page's thumbnail image as a PNG file, or <see langword="null"/> when no thumbnail image is used or
+    /// it cannot be decoded.
+    /// </summary>
+    private byte[]? DecodePageThumbnail()
     {
         if (_pageThumbnail == null)
         {
-            return await RenderPageAsync().ConfigureAwait(false);
+            return null;
         }
 
-        PdfImageDecodingParameters decodingParameters = new() { MaximumSize = _maximumSize };
+        PdfImageDecodingParameters decodingParameters = new() { MaximumSize = _rasterizer.MaximumSize };
 
         lock (_page.PanelDocument.DocumentLocker)
         {
@@ -92,7 +175,31 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
         }
     }
 
-    private async ValueTask<byte[]> RenderPageAsync()
+    /// <summary>
+    /// Decodes an 8-bit RGB thumbnail PNG into samples, or returns <see langword="null"/> for any other kind, which is
+    /// rendered instead.
+    /// </summary>
+    private static PdfImageSamples? DecodePng(byte[] png)
+    {
+        var info = PngImageInfo.Parse(png);
+        PngRowDecoder rows = new(info, png);
+
+        if (rows.BitsPerComponent != ThumbnailBitsPerComponent || rows.ComponentCount != RgbChannelCount)
+        {
+            return null;
+        }
+
+        PdfImageSamples samples = new(rows.Width, rows.Height, PdfImageSampleFormat.Integer, ThumbnailBitsPerComponent, RgbChannels, isPremultiplied: false);
+
+        for (int row = 0; row < rows.Height; row++)
+        {
+            rows.TryReadRow(samples.GetRow(row));
+        }
+
+        return samples;
+    }
+
+    private ValueTask<PdfImageSamples> RenderPageAsync()
     {
         PdfCommandRecorder? recording;
 
@@ -109,46 +216,6 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
             }
         }
 
-        PdfSize pageSize = _page.Size;
-        PdfIntegerSize renderSize = GetRenderSize(pageSize, _maximumSize);
-        SKImageInfo imageInfo = new(renderSize.Width, renderSize.Height);
-        using SKSurface surface = SKSurface.Create(imageInfo);
-        SKCanvas canvas = surface.Canvas;
-        canvas.Clear(SKColors.White);
-        canvas.SaveLayer();
-
-        PdfCommandExecutionParameters executionParameters = new();
-        using PdfCommandExecutionContext executionContext = new(
-            _page.PanelDocument.Document,
-            executionParameters,
-            _page.PanelDocument.DocumentLocker,
-            _optionalContentStates,
-            _observer);
-
-        await PdfDocumentContentExtensions
-            .RecordingToSkPictureAsync(recording, executionContext, canvas, GetRenderScale(pageSize, _maximumSize), _page.PanelDocument.Document.LoggerFactory)
-            .ConfigureAwait(false);
-
-        canvas.Restore();
-
-        using SKImage image = surface.Snapshot();
-        using SKData encoded = image.Encode(SKEncodedImageFormat.Png, 100);
-
-        return encoded.ToArray();
+        return _rasterizer.RenderAsync(_page, recording, _optionalContentStates, _observer);
     }
-
-    /// <summary>
-    /// Returns the size in pixels a page of <paramref name="pageSize"/> is rendered at when fitted within <paramref name="maximumSize"/>.
-    /// </summary>
-    public static PdfIntegerSize GetRenderSize(in PdfSize pageSize, in PdfIntegerSize maximumSize)
-    {
-        float scale = GetRenderScale(pageSize, maximumSize);
-
-        return new PdfIntegerSize(
-            Math.Max(1, (int)Math.Round(pageSize.Width * scale)),
-            Math.Max(1, (int)Math.Round(pageSize.Height * scale)));
-    }
-
-    private static float GetRenderScale(in PdfSize pageSize, in PdfIntegerSize maximumSize)
-        => Math.Min(maximumSize.Width / pageSize.Width, maximumSize.Height / pageSize.Height);
 }

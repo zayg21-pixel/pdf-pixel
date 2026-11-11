@@ -1,9 +1,9 @@
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.Skia;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -262,9 +262,9 @@ public sealed class PdfPanelSearch
     }
 
     private void UpdateGraphics(int pageNumber)
-        => _graphics.Update(pageNumber, PdfPanelGraphicsLayer.SearchMatches, CreateMatchesPicture(pageNumber));
+        => _graphics.Update(pageNumber, PdfPanelGraphicsLayer.SearchMatches, CreateMatchesRecording(pageNumber));
 
-    private SKPicture? CreateMatchesPicture(int pageNumber)
+    private PdfCommandRecorder? CreateMatchesRecording(int pageNumber)
     {
         if (!_drawnShowHighlights || !_pageMatches.TryGetValue(pageNumber, out List<PdfPanelSearchMatch>? pageMatches))
         {
@@ -278,30 +278,17 @@ public sealed class PdfPanelSearch
             return null;
         }
 
-        PdfSize pageSize = _panelDocument.Pages[pageNumber - 1].Size;
-
-        using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageSize.Width, pageSize.Height));
-
-        using SKPaint matchPaint = new()
-        {
-            Style = SKPaintStyle.Fill,
-            Color = _drawnMatchColor.ToSkiaColor()
-        };
-
-        using SKPaint currentMatchPaint = new()
-        {
-            Style = SKPaintStyle.Fill,
-            Color = _drawnCurrentMatchColor.ToSkiaColor()
-        };
+        PdfCommandRecorder recorder = new();
+        PdfPaint matchPaint = new(PdfPaintStyle.Fill, _drawnMatchColor);
+        PdfPaint currentMatchPaint = new(PdfPaintStyle.Fill, _drawnCurrentMatchColor);
 
         foreach (PdfPanelSearchMatch match in pageMatches)
         {
-            SKPaint paint = (match.Range == _drawnCurrentMatch?.Range) ? currentMatchPaint : matchPaint;
-            PdfPanelHighlightBuilder.DrawHighlight(canvas, words, match.Range, paint, _drawnLineMergeThreshold);
+            PdfPaint paint = (match.Range == _drawnCurrentMatch?.Range) ? currentMatchPaint : matchPaint;
+            PdfPanelHighlightBuilder.DrawHighlight(recorder, words, match.Range, paint, _drawnLineMergeThreshold);
         }
 
-        return recorder.EndRecording();
+        return recorder;
     }
 
     private bool SearchPageCharacters(int pageNumber)

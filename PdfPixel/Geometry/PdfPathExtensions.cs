@@ -13,6 +13,7 @@ namespace PdfPixel.Geometry;
 public static class PdfPathExtensions
 {
     private const float OvalKappa = 0.5522847498f;
+    private const float SquareCapReach = 1.4142135624f;
 
     /// <summary>
     /// Computes a loose bounding rectangle for <paramref name="path"/> stroked with <paramref name="strokePaint"/>:
@@ -46,7 +47,8 @@ public static class PdfPathExtensions
 
     /// <summary>
     /// Grows <paramref name="bounds"/> by the reach a stroke with <paramref name="strokeStyle"/> adds beyond
-    /// the geometry it follows, so the result covers the stroked shape rather than its centre line.
+    /// the geometry it follows, so the result covers the stroked shape rather than its centre line. A square cap
+    /// reaches half the line width times √2 past an endpoint along each axis when the line is diagonal.
     /// </summary>
     public static PdfRectangle InflateForStroke(this in PdfRectangle bounds, PdfStrokeStyle strokeStyle)
     {
@@ -57,6 +59,11 @@ public static class PdfPathExtensions
 
         float halfWidth = strokeStyle.LineWidth / 2f;
         float inflate = (strokeStyle.LineJoin == PdfStrokeJoin.Miter) ? halfWidth * Math.Max(strokeStyle.MiterLimit, 1f) : halfWidth;
+
+        if (strokeStyle.LineCap == PdfStrokeCap.Square)
+        {
+            inflate = Math.Max(inflate, halfWidth * SquareCapReach);
+        }
 
         return bounds.Inflate(inflate);
     }
@@ -216,8 +223,7 @@ public static class PdfPathExtensions
 
     /// <summary>
     /// Adds an elliptical arc as a new (unclosed) subpath, inscribed within <paramref name="oval"/>.
-    /// Angles follow Skia's <c>SKPath.AddArc</c> convention: degrees measured from the positive
-    /// x-axis, with positive values sweeping clockwise.
+    /// Angles are degrees measured from the positive x-axis, with positive values sweeping clockwise.
     /// </summary>
     public static void AddArc(this PdfPathBuilder path, in PdfRectangle oval, float startAngleDegrees, float sweepAngleDegrees)
     {

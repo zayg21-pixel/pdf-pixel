@@ -15,9 +15,9 @@ public sealed class PdfImageRowUnpackStep : IPdfImageRowProcessingStep
     private const int ByteValueCount = 256;
 
     private readonly int _bitsPerComponent;
+    private readonly int _sampleCount;
     private readonly int _requiredInputBits;
     private readonly float _scale;
-    private readonly float[] _buffer;
 
     // For 1 bit per component: the eight samples of every byte value, in reading order.
     private readonly float[]? _bitSamples;
@@ -46,8 +46,8 @@ public sealed class PdfImageRowUnpackStep : IPdfImageRowProcessingStep
         }
 
         _bitsPerComponent = bitsPerComponent;
-        _buffer = new float[width * componentCount];
-        _requiredInputBits = _buffer.Length * bitsPerComponent;
+        _sampleCount = width * componentCount;
+        _requiredInputBits = _sampleCount * bitsPerComponent;
 
         uint maxCode = (1u << bitsPerComponent) - 1u;
         _scale = 1f / maxCode;
@@ -59,32 +59,66 @@ public sealed class PdfImageRowUnpackStep : IPdfImageRowProcessingStep
     }
 
     /// <inheritdoc />
+    public int GetOutputLength(int inputLength) => _sampleCount * sizeof(float);
+
+    /// <inheritdoc />
+    public PdfImageOutputRow GetOutputRow(int inputRowIndex) => new(inputRowIndex, hasNextRow: false);
+
+    /// <inheritdoc />
+    public void Process(ReadOnlySpan<byte> input, Span<byte> output, int inputRowIndex) => Process(input, output);
+
+    /// <inheritdoc />
 #if NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    public PdfImageRow Process(ReadOnlySpan<byte> input, int inputRowIndex)
+    public void Process(ReadOnlySpan<byte> input, Span<byte> output)
     {
         if ((long)input.Length * 8 < _requiredInputBits)
         {
             throw new ArgumentException("The input row holds fewer samples than the step unpacks.", nameof(input));
         }
 
+        Span<float> destination = MemoryMarshal.Cast<byte, float>(output);
+        bool sharesBuffer = Unsafe.AreSame(ref MemoryMarshal.GetReference(input), ref MemoryMarshal.GetReference(output));
+
         if (_bitSamples != null)
         {
-            UnpackSingleBits(input, _bitSamples);
+            UnpackSingleBits(input, _bitSamples, destination, sharesBuffer);
+        }
+        else if (sharesBuffer)
+        {
+            UnpackFromEnd(input, destination);
         }
         else if (_bitsPerComponent == 8)
         {
-            UnpackBytes(input);
+            UnpackBytes(input, destination);
         }
         else
         {
-            UnpackBits(input);
+            UnpackBits(input, destination);
         }
+    }
 
-        return new PdfImageRow(MemoryMarshal.AsBytes(_buffer.AsSpan()), inputRowIndex, hasNextRow: false);
+    /// <summary>
+    /// Unpacks the samples from the last to the first, so that the floats, wider than the samples, never reach a
+    /// sample still to be read in the row they share.
+    /// </summary>
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#endif
+    private void UnpackFromEnd(in ReadOnlySpan<byte> input, in Span<float> destination)
+    {
+        ref byte sourceReference = ref MemoryMarshal.GetReference(input);
+        ref float destinationReference = ref MemoryMarshal.GetReference(destination);
+
+        for (int sampleIndex = _sampleCount - 1; sampleIndex >= 0; sampleIndex--)
+        {
+            Unsafe.Add(ref destinationReference, sampleIndex) = PdfPackedSamples.Read(ref sourceReference, sampleIndex, _bitsPerComponent) * _scale;
+        }
     }
 
 #if NETSTANDARD2_0
@@ -92,25 +126,35 @@ public sealed class PdfImageRowUnpackStep : IPdfImageRowProcessingStep
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private void UnpackSingleBits(in ReadOnlySpan<byte> input, float[] bitSamples)
+    private void UnpackSingleBits(in ReadOnlySpan<byte> input, float[] bitSamples, in Span<float> destination, bool fromEnd)
     {
         ref byte sourceReference = ref MemoryMarshal.GetReference(input);
         ref EightSampleBlock samplesBlock = ref Unsafe.As<float, EightSampleBlock>(ref bitSamples[0]);
-        ref EightSampleBlock destinationBlock = ref Unsafe.As<float, EightSampleBlock>(ref _buffer[0]);
-        int fullByteCount = _buffer.Length / BitsPerByte;
+        ref EightSampleBlock destinationBlock = ref Unsafe.As<float, EightSampleBlock>(ref MemoryMarshal.GetReference(destination));
+        int fullByteCount = _sampleCount / BitsPerByte;
+        int remainingSamples = _sampleCount - (fullByteCount * BitsPerByte);
 
-        for (int byteIndex = 0; byteIndex < fullByteCount; byteIndex++)
-        {
-            Unsafe.Add(ref destinationBlock, byteIndex) = Unsafe.Add(ref samplesBlock, Unsafe.Add(ref sourceReference, byteIndex));
-        }
-
-        int remainingSamples = _buffer.Length - (fullByteCount * BitsPerByte);
-
+        // From the end, every byte's eight floats land past the bytes still to be read, the last partial byte first.
         if (remainingSamples > 0)
         {
             ref byte samples = ref Unsafe.As<EightSampleBlock, byte>(ref Unsafe.Add(ref samplesBlock, Unsafe.Add(ref sourceReference, fullByteCount)));
-            ref byte destination = ref Unsafe.As<EightSampleBlock, byte>(ref Unsafe.Add(ref destinationBlock, fullByteCount));
-            Unsafe.CopyBlockUnaligned(ref destination, ref samples, (uint)(remainingSamples * sizeof(float)));
+            ref byte remainder = ref Unsafe.As<EightSampleBlock, byte>(ref Unsafe.Add(ref destinationBlock, fullByteCount));
+            Unsafe.CopyBlockUnaligned(ref remainder, ref samples, (uint)(remainingSamples * sizeof(float)));
+        }
+
+        if (fromEnd)
+        {
+            for (int byteIndex = fullByteCount - 1; byteIndex >= 0; byteIndex--)
+            {
+                Unsafe.Add(ref destinationBlock, byteIndex) = Unsafe.Add(ref samplesBlock, Unsafe.Add(ref sourceReference, byteIndex));
+            }
+        }
+        else
+        {
+            for (int byteIndex = 0; byteIndex < fullByteCount; byteIndex++)
+            {
+                Unsafe.Add(ref destinationBlock, byteIndex) = Unsafe.Add(ref samplesBlock, Unsafe.Add(ref sourceReference, byteIndex));
+            }
         }
     }
 
@@ -119,17 +163,17 @@ public sealed class PdfImageRowUnpackStep : IPdfImageRowProcessingStep
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private void UnpackBytes(in ReadOnlySpan<byte> input)
+    private void UnpackBytes(in ReadOnlySpan<byte> input, in Span<float> destination)
     {
         ref byte sourceReference = ref MemoryMarshal.GetReference(input);
-        ref float destinationReference = ref _buffer[0];
+        ref float destinationReference = ref MemoryMarshal.GetReference(destination);
         int sampleIndex = 0;
 
-        if (Vector.IsHardwareAccelerated && _buffer.Length >= Vector<byte>.Count)
+        if (Vector.IsHardwareAccelerated && _sampleCount >= Vector<byte>.Count)
         {
             Vector<float> scale = new(_scale);
             int floatCount = Vector<float>.Count;
-            int lastBlock = _buffer.Length - Vector<byte>.Count;
+            int lastBlock = _sampleCount - Vector<byte>.Count;
 
             for (; sampleIndex <= lastBlock; sampleIndex += Vector<byte>.Count)
             {
@@ -138,16 +182,16 @@ public sealed class PdfImageRowUnpackStep : IPdfImageRowProcessingStep
                 Vector.Widen(lowWords, out Vector<uint> first, out Vector<uint> second);
                 Vector.Widen(highWords, out Vector<uint> third, out Vector<uint> fourth);
 
-                ref byte destination = ref Unsafe.As<float, byte>(ref Unsafe.Add(ref destinationReference, sampleIndex));
+                ref byte block = ref Unsafe.As<float, byte>(ref Unsafe.Add(ref destinationReference, sampleIndex));
                 int vectorBytes = floatCount * sizeof(float);
-                Unsafe.WriteUnaligned(ref destination, Vector.ConvertToSingle(Vector.AsVectorInt32(first)) * scale);
-                Unsafe.WriteUnaligned(ref Unsafe.Add(ref destination, vectorBytes), Vector.ConvertToSingle(Vector.AsVectorInt32(second)) * scale);
-                Unsafe.WriteUnaligned(ref Unsafe.Add(ref destination, vectorBytes * 2), Vector.ConvertToSingle(Vector.AsVectorInt32(third)) * scale);
-                Unsafe.WriteUnaligned(ref Unsafe.Add(ref destination, vectorBytes * 3), Vector.ConvertToSingle(Vector.AsVectorInt32(fourth)) * scale);
+                Unsafe.WriteUnaligned(ref block, Vector.ConvertToSingle(Vector.AsVectorInt32(first)) * scale);
+                Unsafe.WriteUnaligned(ref Unsafe.Add(ref block, vectorBytes), Vector.ConvertToSingle(Vector.AsVectorInt32(second)) * scale);
+                Unsafe.WriteUnaligned(ref Unsafe.Add(ref block, vectorBytes * 2), Vector.ConvertToSingle(Vector.AsVectorInt32(third)) * scale);
+                Unsafe.WriteUnaligned(ref Unsafe.Add(ref block, vectorBytes * 3), Vector.ConvertToSingle(Vector.AsVectorInt32(fourth)) * scale);
             }
         }
 
-        for (; sampleIndex < _buffer.Length; sampleIndex++)
+        for (; sampleIndex < _sampleCount; sampleIndex++)
         {
             Unsafe.Add(ref destinationReference, sampleIndex) = Unsafe.Add(ref sourceReference, sampleIndex) * _scale;
         }
@@ -158,12 +202,12 @@ public sealed class PdfImageRowUnpackStep : IPdfImageRowProcessingStep
 #else
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 #endif
-    private void UnpackBits(in ReadOnlySpan<byte> input)
+    private void UnpackBits(in ReadOnlySpan<byte> input, in Span<float> destination)
     {
         UintBitReaderFixedLength reader = new(input, _bitsPerComponent);
-        ref float destinationReference = ref _buffer[0];
+        ref float destinationReference = ref MemoryMarshal.GetReference(destination);
 
-        for (int sampleIndex = 0; sampleIndex < _buffer.Length; sampleIndex++)
+        for (int sampleIndex = 0; sampleIndex < _sampleCount; sampleIndex++)
         {
             Unsafe.Add(ref destinationReference, sampleIndex) = reader.Read() * _scale;
         }

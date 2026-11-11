@@ -14,6 +14,8 @@ namespace PdfPixel.Annotations;
 /// </summary>
 public class PdfTextAnnotation : PdfMarkupAnnotation
 {
+    private const float IconSize = 16f;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfTextAnnotation"/> class.
     /// </summary>
@@ -27,10 +29,9 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
         StateModel = annotationObject.Dictionary.GetName(PdfTokens.StateModelKey);
         State = annotationObject.Dictionary.GetName(PdfTokens.StateKey);
 
-        float iconSize = PdfAnnotationGraphics.DefaultBubbleSize;
         ContentBounds = (Rectangle.Width > 0 && Rectangle.Height > 0)
             ? Rectangle
-            : PdfRectangle.FromLocationAndSize(Rectangle.Left, Rectangle.Bottom - iconSize, iconSize, iconSize);
+            : PdfRectangle.FromLocationAndSize(Rectangle.Left, Rectangle.Bottom - IconSize, IconSize, IconSize);
     }
 
     /// <summary>
@@ -49,11 +50,28 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
     /// </summary>
     public PdfTextAnnotationIcon Icon { get; }
 
-    /// <inheritdoc/>
-    public override bool ShouldDisplayBubble => false;
+    /// <inheritdoc />
+    public override PdfAnnotationVisualStateKind SupportedStates
+    {
+        get
+        {
+            PdfAnnotationVisualStateKind appearanceStates = base.SupportedStates;
+            PdfAnnotationVisualStateKind iconStates = PdfAnnotationGraphics.GetAnnotationIconStates(Icon.ToString());
 
-    /// <inheritdoc/>
-    public override bool IsInteractive => true;
+            if (appearanceStates != PdfAnnotationVisualStateKind.None)
+            {
+                return appearanceStates;
+            }
+            else if (iconStates != PdfAnnotationVisualStateKind.None)
+            {
+                return iconStates;
+            }
+            else
+            {
+                return PdfAnnotationGraphics.GetAnnotationBubbleIconStates();
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the icon rectangle grown by <paramref name="tolerance"/>.
@@ -89,8 +107,7 @@ public class PdfTextAnnotation : PdfMarkupAnnotation
             return false;
         }
 
-        PdfPaint exteriorPaint = PdfAnnotationPaintFactory.CreatePaint(PdfAnnotationGraphics.IconExteriorColor, page);
-        PdfAnnotationGraphics.RenderIcon(processor, page, iconDefinition, ContentBounds, exteriorPaint, ResolvePaint(page));
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, ContentBounds, PdfAnnotationGraphics.IconExteriorPaint, PdfAnnotationPaintFactory.ResolvePaint(Color, page));
         return true;
     }
 

@@ -9,7 +9,13 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public sealed class PdfCalibratedGrayColorSpaceConverter : PdfCalibratedColorSpaceConverter
 {
-    internal PdfCalibratedGrayColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float? gamma)
+    /// <summary>
+    /// Initializes a CalGray color space.
+    /// </summary>
+    /// <param name="whitePoint">The diffuse white point in CIE XYZ, or <see langword="null"/> for D65.</param>
+    /// <param name="blackPoint">The diffuse black point in CIE XYZ, or <see langword="null"/> for [0 0 0].</param>
+    /// <param name="gamma">The gamma of the gray component, or <see langword="null"/> for 1.</param>
+    public PdfCalibratedGrayColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float? gamma)
         : this(GetWhitePointOrDefault(whitePoint), GetBlackPointOrDefault(blackPoint), gamma ?? 1f)
     {
     }
@@ -29,17 +35,10 @@ public sealed class PdfCalibratedGrayColorSpaceConverter : PdfCalibratedColorSpa
     public override int Components => 1;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-    {
-        ChainedColorTransform toGrayChain = new(
-            new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)),
-            GetToSrgbTransform(parameters.RenderingIntent),
-            parameters.TransferFunction,
-            new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)));
-        return new ColorTransformSampler(toGrayChain);
-    }
-
-    /// <inheritdoc />
     public override ChainedColorTransform GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
         => new(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), GetToXyzTransform(renderingIntent));
+
+    /// <inheritdoc />
+    public override ChainedColorTransform GetFromProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
+        => GetFromXyzTransform(renderingIntent);
 }

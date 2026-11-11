@@ -23,7 +23,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private PdfRectangle _layoutPadding = PdfPanelVerticalLayout.DefaultPadding;
     private PdfRgbaColor _panelBackgroundColor = PdfPanelRenderer.DefaultBackgroundColor;
     private float _pageCornerRadius = PdfPanelRenderer.DefaultPageCornerRadius;
-    private bool _showPageLoadingAnimation = PdfPanelRenderer.DefaultShowPageLoadingAnimation;
     private bool _extractAllText = PdfPanelText.DefaultExtractText;
     private PdfRgbaColor _textSelectionColor = PdfPanelText.DefaultSelectionColor;
     private bool _searchMatchCase = PdfPanelSearch.DefaultMatchCase;
@@ -42,9 +41,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private int _thumbnailMaximumCount = PdfPanelThumbnails.DefaultMaximumCount;
     private PdfPanelThumbnailPlaceholderMode _thumbnailPlaceholderMode = PdfPanelThumbnails.DefaultPlaceholderMode;
     private bool _antialias = PdfPanelRenderer.DefaultAntialias;
-    private bool _snapToDevicePixels = PdfPanelRenderer.DefaultSnapToDevicePixels;
     private int _tileSize = PdfPanelRenderer.DefaultTileSize;
-    private int _animationFps = PdfPanelRenderer.DefaultAnimationFps;
     private TimeSpan _scrollContentUpdateDelay = PdfPanelRenderer.DefaultScrollContentUpdateDelay;
     private TimeSpan _zoomContentUpdateDelay = PdfPanelRenderer.DefaultZoomContentUpdateDelay;
     private int _lookAheadPageCount = PdfPanelRenderer.DefaultLookAheadPageCount;
@@ -120,15 +117,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     {
         get => _pageCornerRadius;
         set => SetProperty(ref _pageCornerRadius, value, nameof(PageCornerRadius));
-    }
-
-    /// <summary>
-    /// Whether an animated placeholder is drawn over pages that have no decoded content yet.
-    /// </summary>
-    public bool ShowPageLoadingAnimation
-    {
-        get => _showPageLoadingAnimation;
-        set => SetProperty(ref _showPageLoadingAnimation, value, nameof(ShowPageLoadingAnimation));
     }
 
     /// <summary>
@@ -295,30 +283,12 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Whether rectangles and image tiles are snapped to whole device pixels.
-    /// </summary>
-    public bool SnapToDevicePixels
-    {
-        get => _snapToDevicePixels;
-        set => SetProperty(ref _snapToDevicePixels, value, nameof(SnapToDevicePixels));
-    }
-
-    /// <summary>
     /// Edge length of a single content tile, in device pixels.
     /// </summary>
     public int TileSize
     {
         get => _tileSize;
         set => SetProperty(ref _tileSize, value, nameof(TileSize));
-    }
-
-    /// <summary>
-    /// Frames per second animations are driven at.
-    /// </summary>
-    public int AnimationFps
-    {
-        get => _animationFps;
-        set => SetProperty(ref _animationFps, value, nameof(AnimationFps));
     }
 
     /// <summary>
@@ -385,7 +355,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Layout.Padding = LayoutPadding;
         context.Renderer.BackgroundColor = PanelBackgroundColor;
         context.Renderer.PageCornerRadius = PageCornerRadius;
-        context.Renderer.ShowPageLoadingAnimation = ShowPageLoadingAnimation;
         context.Text.ExtractText = ExtractAllText;
         context.Text.SelectionColor = TextSelectionColor;
         context.Text.AllowSelection = AllowTextSelection;
@@ -404,9 +373,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Thumbnails.MaximumCount = ThumbnailMaximumCount;
         context.Thumbnails.PlaceholderMode = ThumbnailPlaceholderMode;
         context.Renderer.Antialias = Antialias;
-        context.Renderer.SnapToDevicePixels = SnapToDevicePixels;
         context.Renderer.TileSize = TileSize;
-        context.Renderer.AnimationFps = AnimationFps;
         context.Renderer.ScrollContentUpdateDelay = ScrollContentUpdateDelay;
         context.Renderer.ZoomContentUpdateDelay = ZoomContentUpdateDelay;
         context.Renderer.LookAheadPageCount = LookAheadPageCount;

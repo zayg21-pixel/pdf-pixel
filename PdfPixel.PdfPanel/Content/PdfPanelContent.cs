@@ -1,9 +1,10 @@
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.Skia;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.Content;
@@ -119,7 +120,7 @@ public sealed class PdfPanelContent
 
         if (selection != null)
         {
-            _graphics.Update(selection.PageNumber, PdfPanelGraphicsLayer.ContentSelection, CreateSelectionPicture(selection, scale));
+            _graphics.Update(selection.PageNumber, PdfPanelGraphicsLayer.ContentSelection, CreateSelectionRecording(selection, scale));
         }
 
         _drawnSelection = selection;
@@ -128,24 +129,15 @@ public sealed class PdfPanelContent
         _drawnScale = scale;
     }
 
-    private SKPicture CreateSelectionPicture(PdfPanelImageContentItem selection, float scale)
+    private PdfCommandRecorder CreateSelectionRecording(PdfPanelImageContentItem selection, float scale)
     {
-        PdfPanelPage page = _panelDocument.Pages[selection.PageNumber - 1];
+        PdfCommandRecorder recorder = new();
+        PdfPathBuilder border = new();
+        border.AddRect(selection.BoundingBox);
 
-        using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(page.Size.Width, page.Size.Height));
+        recorder.Process(new DrawPathCommand(border.ToPath(), new PdfPaint(new PdfStrokeStyle(SelectionBorderThickness / scale), SelectionBorderColor)));
 
-        using SKPaint borderPaint = new()
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = SelectionBorderThickness / scale,
-            Color = SelectionBorderColor.ToSkiaColor(),
-            IsAntialias = true
-        };
-
-        canvas.DrawRect(selection.BoundingBox.ToSkRect(), borderPaint);
-
-        return recorder.EndRecording();
+        return recorder;
     }
 
     private void OnPointerMoved(object? sender, PdfPanelPointerEventArgs args) => UpdateActiveContent(args);

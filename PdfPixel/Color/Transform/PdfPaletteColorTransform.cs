@@ -1,5 +1,7 @@
 using PdfPixel.Color.ColorSpace;
 using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Color.Transform;
 
@@ -11,6 +13,7 @@ public sealed class PdfPaletteColorTransform : IPdfColorTransform
 {
     private readonly int _highestIndex;
     private readonly float[] _colors;
+    private readonly uint _colorByteCount;
 
     /// <summary>
     /// Initializes a transform looking up colors of <paramref name="palette"/>.
@@ -37,11 +40,17 @@ public sealed class PdfPaletteColorTransform : IPdfColorTransform
         _highestIndex = palette.HighestIndex;
         OutputComponentCount = baseTransform.OutputComponentCount;
         _colors = new float[(_highestIndex + 1) * OutputComponentCount];
+        _colorByteCount = (uint)(OutputComponentCount * sizeof(float));
+
+        var baseColor = new float[Math.Max(1, baseTransform.InputComponentCount)];
 
         for (int index = 0; index <= _highestIndex; index++)
         {
-            ReadOnlySpan<float> color = baseTransform.Transform(palette.GetColor(index).Components.Span);
-            color.Slice(0, OutputComponentCount).CopyTo(_colors.AsSpan(index * OutputComponentCount, OutputComponentCount));
+            ReadOnlySpan<float> components = palette.GetColor(index).Components.Span;
+
+            Array.Clear(baseColor, 0, baseColor.Length);
+            components.Slice(0, Math.Min(components.Length, baseColor.Length)).CopyTo(baseColor);
+            baseTransform.Transform(ref baseColor[0], ref _colors[index * OutputComponentCount]);
         }
     }
 
@@ -52,16 +61,12 @@ public sealed class PdfPaletteColorTransform : IPdfColorTransform
     public int OutputComponentCount { get; }
 
     /// <inheritdoc />
-    public ReadOnlySpan<float> Transform(ReadOnlySpan<float> input)
+    public void Transform(ref float input, ref float output)
     {
-        if (input.IsEmpty)
-        {
-            throw new ArgumentException("The input holds no index.", nameof(input));
-        }
-
-        var index = (int)(input[0] + 0.5f);
+        var index = (int)(input + 0.5f);
         index = Math.Max(0, Math.Min(_highestIndex, index));
 
-        return _colors.AsSpan(index * OutputComponentCount, OutputComponentCount);
+        ref float color = ref Unsafe.Add(ref MemoryMarshal.GetReference(_colors.AsSpan()), index * OutputComponentCount);
+        Unsafe.CopyBlockUnaligned(ref Unsafe.As<float, byte>(ref output), ref Unsafe.As<float, byte>(ref color), _colorByteCount);
     }
 }

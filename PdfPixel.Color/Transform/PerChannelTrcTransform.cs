@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Color.Icc;
+using PdfPixel.Color.Icc.Trc;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -16,6 +17,7 @@ namespace PdfPixel.Color.Transform;
 public sealed class PerChannelTrcTransform : IColorTransform
 {
     private const int MinSamplesCount = 1024; // Optimal value for 8-bit transform pipeline to eliminate rounding errors.
+    private const int InverseOversampling = 4;
 
     private readonly int _channelCount;
     private readonly float[] _samples0;
@@ -25,13 +27,16 @@ public sealed class PerChannelTrcTransform : IColorTransform
     private readonly Vector4 _scale;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PerChannelTrcTransform"/> class from ICC transfer curves.
+    /// Initializes a new instance of the <see cref="PerChannelTrcTransform"/> class from ICC transfer curves, or from
+    /// their inverses. An inverse maps each output value to the smallest input the curve reaches it at, and clamps at
+    /// the curve's ends; the curves are non-decreasing.
     /// </summary>
     /// <param name="trcs">Array of ICC transfer curves. Maximum 4 channels supported.</param>
+    /// <param name="inverse">Whether each channel maps through the inverse of its curve.</param>
 #if !NETSTANDARD2_0
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-    public PerChannelTrcTransform(params IccTrc[] trcs)
+    public PerChannelTrcTransform(IccTrc[] trcs, bool inverse = false)
     {
         if (trcs == null || trcs.Length == 0)
         {
@@ -62,16 +67,24 @@ public sealed class PerChannelTrcTransform : IColorTransform
         var samples = new float[_channelCount][];
         for (int i = 0; i < _channelCount; i++)
         {
-            IccTrc trc = trcs[i];
-            var channelSamples = new float[MinSamplesCount];
+            IIccTrcEvaluator evaluator = trcs[i].Evaluator;
 
-            for (int j = 0; j < channelSamples.Length; j++)
+            if (inverse)
             {
-                float t = j / (float)(channelSamples.Length - 1);
-                channelSamples[j] = trc.Evaluator.Evaluate(t);
+                samples[i] = SampleInverse(evaluator);
             }
+            else
+            {
+                var channelSamples = new float[MinSamplesCount];
 
-            samples[i] = channelSamples;
+                for (int j = 0; j < channelSamples.Length; j++)
+                {
+                    float t = j / (float)(channelSamples.Length - 1);
+                    channelSamples[j] = evaluator.Evaluate(t);
+                }
+
+                samples[i] = channelSamples;
+            }
         }
 
         _samples0 = samples[0];
@@ -174,4 +187,52 @@ public sealed class PerChannelTrcTransform : IColorTransform
         return (index < 0) ? 0f : 1f;
     }
 
+    /// <summary>
+    /// Samples the inverse of the curve of <paramref name="evaluator"/>: the curve is evaluated once at
+    /// <see cref="InverseOversampling"/> times the sample density, kept non-decreasing, and each output value is
+    /// interpolated between the two curve samples around it in one sweep. Values below the curve's start map to 0,
+    /// values above its end to 1.
+    /// </summary>
+    private static float[] SampleInverse(IIccTrcEvaluator evaluator)
+    {
+        int curveCount = MinSamplesCount * InverseOversampling;
+        var curve = new float[curveCount];
+        float highest = float.MinValue;
+
+        for (int index = 0; index < curveCount; index++)
+        {
+            highest = Math.Max(highest, evaluator.Evaluate(index / (float)(curveCount - 1)));
+            curve[index] = highest;
+        }
+
+        var inverse = new float[MinSamplesCount];
+        int curveIndex = 0;
+
+        for (int index = 0; index < inverse.Length; index++)
+        {
+            float value = index / (float)(inverse.Length - 1);
+
+            if (value <= curve[0])
+            {
+                inverse[index] = 0f;
+            }
+            else if (value >= curve[curveCount - 1])
+            {
+                inverse[index] = 1f;
+            }
+            else
+            {
+                while (curve[curveIndex + 1] < value)
+                {
+                    curveIndex++;
+                }
+
+                float span = curve[curveIndex + 1] - curve[curveIndex];
+                float fraction = (span > 0f) ? (value - curve[curveIndex]) / span : 0f;
+                inverse[index] = (curveIndex + fraction) / (curveCount - 1);
+            }
+        }
+
+        return inverse;
+    }
 }

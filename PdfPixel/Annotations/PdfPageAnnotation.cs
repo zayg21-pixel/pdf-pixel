@@ -58,19 +58,4 @@ public sealed class PdfPageAnnotation
         PdfRenderer renderer = new(_page.Document.LoggerFactory);
         Content.Render(processor, _page, visualStateKind, renderer, renderingParameters, observer);
     }
-
-    /// <summary>
-    /// Renders the content bubble indicator of this annotation via the command processor.
-    /// </summary>
-    /// <param name="processor">
-    /// The command processor to emit drawing commands to.
-    /// </param>
-    /// <param name="anchor">
-    /// The point the bubble is placed at, such as <see cref="PdfAnnotation.ContentStart"/>.
-    /// </param>
-    /// <param name="visualStateKind">
-    /// Visual state to apply to the bubble.
-    /// </param>
-    public void RenderBubble(IPdfCommandProcessor processor, in PdfPoint anchor, PdfAnnotationVisualStateKind visualStateKind)
-        => Content.RenderBubble(processor, _page, anchor, visualStateKind);
 }

@@ -1,3 +1,4 @@
+using PdfPixel.Diagnostics;
 using PdfPixel.PanelDiagnostics.Commands;
 using System.CommandLine;
 
@@ -17,10 +18,17 @@ internal sealed class Program
             Description = "Path to the script to replay, one command per line: size <w> <h>, zoom <scale>, scroll <x> <y>, scroll_relative <dx> <dy>, page <n>, sleep <seconds>."
         };
 
+        Option<ProfileMode> profileOption = new("--profile")
+        {
+            Description = "Profiles the replay: 'cpu' reports the methods the time went to, 'memory' the types allocated and the peak memory, 'heap' what the panel holds at the end.",
+            DefaultValueFactory = _ => ProfileMode.None
+        };
+
         RootCommand rootCommand = new("Replays a script of user interactions against a PDF panel, logging frames and blocked time.")
         {
             pdfArgument,
-            scriptArgument
+            scriptArgument,
+            profileOption
         };
 
         rootCommand.SetAction(parseResult =>
@@ -33,7 +41,7 @@ internal sealed class Program
                 return 1;
             }
 
-            ReplayCommand.Run(pdfFile, scriptFile);
+            ReplayCommand.Run(pdfFile, scriptFile, parseResult.GetValue(profileOption));
 
             return 0;
         });

@@ -16,6 +16,35 @@ namespace PdfPixel.Transparency;
 /// </summary>
 internal static class SoftMaskUtilities
 {
+    private static readonly PdfTransparencyGroupContext UndeclaredMaskGroup = new(null, isolated: true, knockout: false);
+
+    /// <summary>
+    /// Returns <paramref name="softMask"/> as it is set in <paramref name="state"/>: its group positioned in the
+    /// state's current space.
+    /// </summary>
+    public static PdfSoftMaskSource CreateSource(PdfRenderer renderer, PdfSoftMask softMask, PdfGraphicsState state)
+    {
+        PdfForm maskForm = softMask.MaskForm;
+        PdfMatrix worldToMaskForm = PdfMatrix.Concat(state.CTM, maskForm.Matrix);
+
+        // TODO: The mask group is recorded at every gs that sets it. Cache the recording once its key covers the host's
+        // resources when the form has none of its own, and the graphics state the mask content starts from.
+        PdfCommandRecorder recorder = GetMaskFormRecording(renderer, softMask, maskForm, state, worldToMaskForm) ?? new PdfCommandRecorder();
+
+        PdfTransparencyGroupContext groupContext = UndeclaredMaskGroup;
+        PdfTransparencyGroup? group = maskForm.TransparencyGroup;
+
+        if (group != null)
+        {
+            groupContext = new PdfTransparencyGroupContext(group.ResolveColorSpace(state.Host.Resources), group.Isolated, group.Knockout);
+        }
+
+        PdfGroupSource source = new(new DrawRecordingCommand(recorder, maskForm.Matrix, null), groupContext, maskForm.Matrix.MapRect(maskForm.BoundingBox), null);
+        PdfPaint? backdropPaint = (softMask.Subtype == PdfSoftMaskSubtype.Luminosity) ? softMask.GetBackgroundPaint(state) : null;
+
+        return new PdfSoftMaskSource(softMask.Subtype, source, maskForm.BoundingBox, backdropPaint, softMask.TransferFunction);
+    }
+
     /// <summary>
     /// Records the commands that draw <paramref name="softMask"/>'s form content, in the mask form's own
     /// space. Returns <see langword="null"/> when the form carries no content, or when it is already

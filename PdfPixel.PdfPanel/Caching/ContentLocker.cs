@@ -57,6 +57,20 @@ internal sealed class ContentLocker<T> : IDisposable
         return new LockedContent<T>(_content, _lock);
     }
 
+    /// <summary>
+    /// Gets the content wrapped in a <see cref="WriteLockedContent{T}"/> which holds the write lock on the content, for
+    /// changing the content in place. The caller must dispose the <see cref="WriteLockedContent{T}"/> to release the
+    /// lock.
+    /// </summary>
+    /// <returns>The locked content.</returns>
+    public WriteLockedContent<T> GetContentForWriting()
+    {
+        CheckIfDisposed();
+        _lock.EnterWriteLock();
+
+        return new WriteLockedContent<T>(_content, _lock);
+    }
+
     private void CheckIfDisposed()
     {
         if (_disposed)

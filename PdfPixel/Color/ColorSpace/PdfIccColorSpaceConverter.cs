@@ -45,6 +45,15 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
     }
 
     /// <summary>
+    /// Initializes an ICCBased color space with the components of <paramref name="profile"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The profile has neither 1, 3 nor 4 channels.</exception>
+    public PdfIccColorSpaceConverter(IccProfile profile)
+        : this(GetChannelCount(profile), null, profile)
+    {
+    }
+
+    /// <summary>
     /// Gets the embedded ICC profile, or null when the space carries none or it could not be parsed.
     /// </summary>
     public IccProfile? Profile { get; }
@@ -64,7 +73,27 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
     public override IColorTransform? NormalizeTransform => Alternate.NormalizeTransform;
 
     /// <inheritdoc />
+    public override IColorTransform? DenormalizeTransform => Alternate.DenormalizeTransform;
+
+    /// <inheritdoc />
     public override PdfRange[]? ComponentRanges => Alternate.ComponentRanges;
+
+    private static int GetChannelCount(IccProfile profile)
+    {
+        if (profile == null)
+        {
+            throw new ArgumentNullException(nameof(profile));
+        }
+
+        int channelCount = profile.ChannelsCount;
+
+        if (channelCount != 1 && channelCount != 3 && channelCount != 4)
+        {
+            throw new ArgumentException("An ICCBased color space has 1, 3 or 4 components.", nameof(profile));
+        }
+
+        return channelCount;
+    }
 
     private static IccProfile? GetProfile(byte[]? bytes)
     {
@@ -90,20 +119,6 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
     }
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-    {
-        if (_useDefault || _iccTransform == null)
-        {
-            return Alternate.GetRgbaSampler(parameters, normalize);
-        }
-
-        IColorTransform iccPipeline = _iccTransform.GetIntentTransform(parameters.RenderingIntent.ToIccRenderingIntent(), parameters.UseBlackPointCompensation);
-        IColorTransform? normalizeTransform = normalize ? Alternate.NormalizeTransform : null;
-        ChainedColorTransform chained = new(normalizeTransform, iccPipeline, parameters.TransferFunction);
-        return new ColorTransformSampler(chained);
-    }
-
-    /// <inheritdoc />
     public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
     {
         if (_useDefault || _iccTransform == null)
@@ -114,6 +129,28 @@ public sealed class PdfIccColorSpaceConverter : PdfColorSpaceConverter
         {
             ChainedColorTransform iccPipeline = _iccTransform.GetIntentToXyzTransform(renderingIntent.ToIccRenderingIntent(), useBlackPointCompensation);
             return new ChainedColorTransform(Alternate.NormalizeTransform, iccPipeline);
+        }
+    }
+
+    /// <inheritdoc />
+    public override ChainedColorTransform? GetFromProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation)
+    {
+        if (_useDefault || _iccTransform == null)
+        {
+            return Alternate.GetFromProfileConnectionTransform(renderingIntent, useBlackPointCompensation);
+        }
+        else
+        {
+            ChainedColorTransform? iccPipeline = _iccTransform.GetXyzToDeviceTransform(renderingIntent.ToIccRenderingIntent(), useBlackPointCompensation);
+
+            if (iccPipeline != null)
+            {
+                return new ChainedColorTransform(iccPipeline, Alternate.DenormalizeTransform);
+            }
+            else
+            {
+                return Alternate.GetFromProfileConnectionTransform(renderingIntent, useBlackPointCompensation);
+            }
         }
     }
 }

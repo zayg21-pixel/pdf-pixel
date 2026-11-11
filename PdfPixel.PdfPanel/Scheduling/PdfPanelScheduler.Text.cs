@@ -70,6 +70,7 @@ internal sealed partial class PdfPanelScheduler
                 _textExtractor,
                 _textExtractionProperties,
                 _panelDocument.OptionalContentStates,
+                _surfaceParameters,
                 observer,
                 OnTextExtractionCompleted));
         }

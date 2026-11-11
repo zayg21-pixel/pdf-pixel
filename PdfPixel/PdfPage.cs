@@ -8,6 +8,9 @@ using System;
 using System.Collections.Generic;
 using PdfPixel.Geometry;
 using PdfPixel.Actions;
+using PdfPixel.Color;
+using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Imaging;
 using PdfPixel.Measures;
@@ -106,6 +109,7 @@ internal class PdfPage : IPdfPageInternal
         Id = pageDictionary.GetString(PdfTokens.WebCaptureIdKey);
         PreferredZoom = pageDictionary.GetFloat(PdfTokens.PZKey);
         AdditionalActions = PdfPageAdditionalActions.FromPage(pageDictionary);
+        OutputIntents = PdfOutputIntent.FromArray(pageDictionary.GetArray(PdfTokens.OutputIntentsKey)) ?? document.OutputIntents;
     }
 
     /// <inheritdoc/>
@@ -174,6 +178,9 @@ internal class PdfPage : IPdfPageInternal
     /// <inheritdoc/>
     public IReadOnlyList<PdfViewport> Viewports { get; }
 
+    /// <inheritdoc/>
+    public IReadOnlyList<PdfOutputIntent>? OutputIntents { get; }
+
     PdfResourceNode IPdfContentHost.Resources => _resources;
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
@@ -220,19 +227,31 @@ internal class PdfPage : IPdfPageInternal
         PdfRenderer renderer = new(_document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(renderer, this);
 
-        bool needsGroupLayer = _transparencyGroup != null && _transparencyGroup.RequiresLayer;
-
-        if (needsGroupLayer)
-        {
-            processor.Process(new SaveLayerCommand(CropBox));
-        }
-
         contentRenderer.RenderContent(processor, _contentStreams, MediaBox, renderingParameters, observer);
+    }
 
-        if (needsGroupLayer)
+    /// <inheritdoc/>
+    public DrawGroupCommand CreatePageGroup(DrawRecordingCommand content)
+    {
+        if (content == null)
         {
-            processor.Process(RestoreLayerCommand.Instance);
+            throw new ArgumentNullException(nameof(content));
         }
+
+        PdfColorSpaceConverter? colorSpace = null;
+        var knockout = false;
+
+        if (_transparencyGroup != null)
+        {
+            colorSpace = _transparencyGroup.ResolveColorSpace(_resources);
+            knockout = _transparencyGroup.Knockout;
+        }
+
+        PdfTransparencyGroupContext pageGroupContext = new(colorSpace, isolated: true, knockout);
+        PdfGroupSource source = new(content, pageGroupContext, null, null);
+        PdfPaint paint = new(PdfPaintStyle.Fill);
+
+        return new DrawGroupCommand(source, paint);
     }
 
     /// <summary>

@@ -26,8 +26,6 @@ export type PdfPixelFitType = 'XYZ' | 'Fit' | 'FitH' | 'FitV' | 'FitR' | 'FitB' 
 
 /** Panel configuration; every key is optional and keys that are not set keep their current values. */
 export interface PdfPixelConfiguration {
-    /** Render with WebGL instead of the CPU. Initial configuration only. */
-    useWebGL?: boolean;
     /** Minimum time in milliseconds between two yields of page decoding to the browser. Initial configuration only. */
     yieldInterval?: number;
     /** Pixels scrolled per mouse wheel line. */
@@ -42,7 +40,6 @@ export interface PdfPixelConfiguration {
     panelBackgroundColor?: PdfPixelColor;
     /** Corner radius of the pages, in unscaled page space. */
     pageCornerRadius?: number;
-    showPageLoadingAnimation?: boolean;
     /** Extract the text of every page, not only of the rendered pages. */
     extractAllText?: boolean;
     textSelectionColor?: PdfPixelColor;
@@ -58,7 +55,7 @@ export interface PdfPixelConfiguration {
     allowPageContentHover?: boolean;
     allowImageSelection?: boolean;
     showSearchHighlights?: boolean;
-    /** Use the page's embedded thumbnail image as its thumbnail when present. */
+    /** Use the page's embedded thumbnail image as its thumbnail when present and decodable; otherwise the page is rendered. */
     usePageThumbnails?: boolean;
     /** Size in pixels a rendered page thumbnail is fitted within, keeping its aspect ratio. */
     thumbnailRenderMaximumSize?: Partial<PdfPixelSize>;
@@ -67,11 +64,8 @@ export interface PdfPixelConfiguration {
     /** With 'none', no thumbnail is drawn in place of a page, even when it exists. */
     thumbnailPlaceholderMode?: PdfPixelThumbnailPlaceholderMode;
     antialias?: boolean;
-    /** Snap rectangles and image tiles to whole device pixels. */
-    snapToDevicePixels?: boolean;
     /** Edge length of a single content tile, in device pixels. */
     tileSize?: number;
-    animationFps?: number;
     /** Time in milliseconds a scrolled view waits before the content of the pages that stayed visible is decoded again; a page that comes into view is decoded at once. */
     scrollContentUpdateDelay?: number;
     /** Time in milliseconds a zoomed view waits before the content of the pages that stayed visible is decoded again; a page that comes into view is decoded at once. */
@@ -99,7 +93,7 @@ export interface PdfPixelSearchResult {
 /** Message of an annotation popup, with its replies. */
 export interface PdfPixelAnnotationMessage {
     title: string | null;
-    contents: string | null;
+    contents: string;
     /** ISO 8601 creation date. */
     creationDate: string | null;
     replies: PdfPixelAnnotationMessage[];
@@ -175,17 +169,20 @@ export interface PdfPixelFrame {
     pages: PdfPixelFramePage[];
 }
 
-/** Destination of `scrollToDestination`, in the page's PDF user space. */
+/**
+ * Destination in the page's PDF user space, for `scrollToDestination` and in requested actions; a coordinate the fit
+ * type does not use, or leaves unchanged, is absent or `null`.
+ */
 export interface PdfPixelDestination {
     /** 1-based page number. */
     pageNumber: number;
     fitType: PdfPixelFitType;
-    left?: number;
-    top?: number;
-    right?: number;
-    bottom?: number;
+    left?: number | null;
+    top?: number | null;
+    right?: number | null;
+    bottom?: number | null;
     /** Zoom of the `XYZ` fit type, `1` = 100%. */
-    zoom?: number;
+    zoom?: number | null;
 }
 
 /** Static info of a page, the shape of the frame page `info`. */

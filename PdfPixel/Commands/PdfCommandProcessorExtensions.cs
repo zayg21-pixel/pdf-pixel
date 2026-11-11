@@ -1,3 +1,4 @@
+using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using System;
 
@@ -54,9 +55,9 @@ public static class PdfCommandProcessorExtensions
         {
             PdfSize clipSize = pageBox.GetTransformedSize(rotation, scale);
 
-            processor.Process(new ClipRectangleCommand(
-                new PdfRectangle(0, 0, clipSize.Width, clipSize.Height),
-                PdfClipOperation.Intersect));
+            PdfPathBuilder clipBuilder = new();
+            clipBuilder.AddRect(new PdfRectangle(0, 0, clipSize.Width, clipSize.Height));
+            processor.Process(new DrawPathCommand(clipBuilder.ToPath(), new PdfPaint(PdfPaintStyle.Clip)));
         }
 
         PdfMatrix pageToDevice = PdfMatrix.CreateScaleTranslation(1, -1, -pageBox.Left, pageBox.Bottom);

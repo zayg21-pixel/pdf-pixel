@@ -29,9 +29,23 @@ public class SfntPost
     public bool IsFixedPitch { get; set; }
 
     /// <summary>
-    /// Gets or sets the mapping from glyph name to glyph ID. Null for formats 2.5/3.0/4.0, which by
-    /// spec carry no glyph names (format 3.0 - no names to save space - is the common case in
-    /// practice).
+    /// Gets the mapping from glyph name to glyph ID once <see cref="SfntFontProcessor.GetNameToGid"/> has read it,
+    /// through which it is reached. Null for formats 2.5/3.0/4.0, which by spec carry no glyph names (format 3.0 - no
+    /// names to save space - is the common case in practice).
     /// </summary>
-    public IReadOnlyDictionary<PdfFontString, ushort>? NameToGid { get; set; }
+    internal IReadOnlyDictionary<PdfFontString, ushort>? NameToGid { get; private set; }
+
+    /// <summary>
+    /// Gets whether <see cref="NameToGid"/> has been read.
+    /// </summary>
+    internal bool IsNameToGidResolved { get; private set; }
+
+    /// <summary>
+    /// Sets the mapping from glyph name to glyph ID read from the table.
+    /// </summary>
+    internal void SetNameToGid(IReadOnlyDictionary<PdfFontString, ushort>? nameToGid)
+    {
+        NameToGid = nameToGid;
+        IsNameToGidResolved = true;
+    }
 }

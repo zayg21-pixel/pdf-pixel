@@ -6,8 +6,7 @@ const container = document.getElementById('canvasContainer');
 const containerId = container.id;
 
 await pdfPixel.registerPanel(containerId, container, {
-    panelBackgroundColor: '#D3D3D3',
-    showPageLoadingAnimation: false
+    panelBackgroundColor: '#D3D3D3'
 });
 
 pdfPixel.setAutoScaleMode(containerId, 'scaleToHeight');

@@ -1,6 +1,6 @@
 # PdfPixel.PdfPanel.Wpf
 
-A WPF PDF viewer control for .NET, `WpfPdfPanel`, with scrolling, zooming, text selection and search, rendered through SkiaSharp. Targets .NET Framework 4.8 and .NET 8, 9 and 10 on Windows.
+A WPF PDF viewer control for .NET, `WpfPdfPanel`, with scrolling, zooming, text selection and search, rendered through PdfPixel.Snap. Targets .NET Framework 4.8 and .NET 8, 9 and 10 on Windows.
 
 Part of [PDF Pixel](https://github.com/zayg21-pixel/pdf-pixel), built on `PdfPixel.PdfPanel`.
 

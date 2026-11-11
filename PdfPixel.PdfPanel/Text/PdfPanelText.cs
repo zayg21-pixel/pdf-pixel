@@ -1,10 +1,10 @@
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Input;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.Skia;
+using PdfPixel.Commands;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -305,7 +305,7 @@ public sealed class PdfPanelText
             return;
         }
 
-        PdfWordPart[] lastParts = words[words.Length - 1].Parts;
+        ReadOnlySpan<PdfWordPart> lastParts = words[words.Length - 1].Parts;
         PdfWordPart lastPart = lastParts[lastParts.Length - 1];
         int characterCount = lastPart.StartIndex + lastPart.Characters.Length;
 
@@ -322,7 +322,7 @@ public sealed class PdfPanelText
 
         if (selection != null)
         {
-            _graphics.Update(selection.Value.PageNumber, PdfPanelGraphicsLayer.Selection, CreateSelectionPicture(selection.Value));
+            _graphics.Update(selection.Value.PageNumber, PdfPanelGraphicsLayer.Selection, CreateSelectionRecording(selection.Value));
         }
 
         _drawnSelection = selection;
@@ -330,7 +330,7 @@ public sealed class PdfPanelText
         _drawnLineMergeThreshold = LineMergeThreshold;
     }
 
-    private SKPicture? CreateSelectionPicture(in PdfPanelTextRange selection)
+    private PdfCommandRecorder? CreateSelectionRecording(in PdfPanelTextRange selection)
     {
         PdfWord[]? words = GetWords(selection.PageNumber);
 
@@ -339,20 +339,10 @@ public sealed class PdfPanelText
             return null;
         }
 
-        PdfSize pageSize = _panelDocument.Pages[selection.PageNumber - 1].Size;
+        PdfCommandRecorder recorder = new();
+        PdfPanelHighlightBuilder.DrawHighlight(recorder, words, selection, new PdfPaint(PdfPaintStyle.Fill, SelectionColor), LineMergeThreshold);
 
-        using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageSize.Width, pageSize.Height));
-
-        using SKPaint selectionPaint = new()
-        {
-            Style = SKPaintStyle.Fill,
-            Color = SelectionColor.ToSkiaColor()
-        };
-
-        PdfPanelHighlightBuilder.DrawHighlight(canvas, words, selection, selectionPaint, LineMergeThreshold);
-
-        return recorder.EndRecording();
+        return recorder;
     }
 
     private void OnPointerMoved(object? sender, PdfPanelPointerEventArgs args)
@@ -453,9 +443,9 @@ public sealed class PdfPanelText
 
         _currentCharIndex = charIndex;
 
-        PdfWordPart[] lastParts = words[words.Length - 1].Parts;
+        ReadOnlySpan<PdfWordPart> lastParts = words[words.Length - 1].Parts;
         PdfWordPart lastPart = lastParts[lastParts.Length - 1];
-        int start = Math.Max(Math.Min(_anchorCharIndex.Value, charIndex.Value), 0);
+        int start =Math.Max(Math.Min(_anchorCharIndex.Value, charIndex.Value), 0);
         int end = Math.Min(Math.Max(_anchorCharIndex.Value, charIndex.Value), lastPart.StartIndex + lastPart.Characters.Length - 1);
 
         SelectionPageNumber = _anchorPageNumber.Value;
@@ -502,8 +492,10 @@ public sealed class PdfPanelText
 
         foreach (PdfWord word in words)
         {
-            foreach (PdfWordPart part in word.Parts)
+            for (int partIndex = 0; partIndex < word.Parts.Length; partIndex++)
             {
+                PdfWordPart part = word.Parts[partIndex];
+
                 if (part.StartIndex >= end)
                 {
                     yield break;

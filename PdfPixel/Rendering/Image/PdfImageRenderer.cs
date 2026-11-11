@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
@@ -13,21 +12,9 @@ namespace PdfPixel.Rendering.Image;
 /// </summary>
 internal class PdfImageRenderer
 {
-    private readonly PdfRenderer _renderer;
-    private readonly ILoggerFactory _factory;
-
-    /// <summary>
-    /// Initializes the renderer with the PDF renderer pipeline and logger factory.
-    /// </summary>
-    public PdfImageRenderer(PdfRenderer renderer, ILoggerFactory loggerFactory)
-    {
-        _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
-        _factory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-    }
-
     /// <summary>
     /// Renders a PDF image using the provided command processor and graphics state.
-    /// Wraps the image in a soft-mask scope when required and delegates to <see cref="PdfImageFillRenderTarget"/>.
+    /// Delegates to <see cref="PdfImageFillRenderTarget"/>.
     /// </summary>
     /// <param name="processor">The command processor to draw through.</param>
     /// <param name="pdfImage">The <see cref="PdfImage"/> to be rendered. Must not be <see langword="null"/> and must have positive
@@ -71,23 +58,7 @@ internal class PdfImageRenderer
             return;
         }
 
-        PdfImageFillRenderTarget target = new(pdfImage, state, _factory);
-
-        if (HasOwnMask(pdfImage))
-        {
-            target.Render(processor);
-            return;
-        }
-
-        using SoftMaskDrawingScope? softMaskScope = SoftMaskDrawingScope.Begin(_renderer, processor, state, target.Bounds);
-
+        PdfImageFillRenderTarget target = new(pdfImage, state);
         target.Render(processor);
-    }
-
-    private static bool HasOwnMask(PdfImage pdfImage)
-    {
-        return pdfImage.SoftMask != null
-            || pdfImage.Mask != null
-            || pdfImage.ColorKeyMask != null;
     }
 }

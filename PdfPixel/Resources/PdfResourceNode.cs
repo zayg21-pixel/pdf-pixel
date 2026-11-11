@@ -37,9 +37,9 @@ internal sealed class PdfResourceNode
         _parent = parent;
         _colorSpaceResolver = document.ColorSpaceResolver;
         DeviceColorMapping = new PdfDeviceColorMapping(
-            ResolveDeviceColorSpace(document, PdfTokens.DefaultGrayKey, 1),
-            ResolveDeviceColorSpace(document, PdfTokens.DefaultRGBKey, 3),
-            ResolveDeviceColorSpace(document, PdfTokens.DefaultCMYKKey, 4));
+            ResolveDeviceColorSpace(PdfTokens.DefaultGrayKey, 1),
+            ResolveDeviceColorSpace(PdfTokens.DefaultRGBKey, 3),
+            ResolveDeviceColorSpace(PdfTokens.DefaultCMYKKey, 4));
     }
 
     /// <summary>
@@ -253,7 +253,7 @@ internal sealed class PdfResourceNode
         return default;
     }
 
-    private PdfColorSpaceConverter? ResolveDeviceColorSpace(IPdfDocumentInternal document, in PdfString defaultKey, int componentCount)
+    private PdfColorSpaceConverter? ResolveDeviceColorSpace(in PdfString defaultKey, int componentCount)
     {
         PdfColorSpaceReference defaultColorSpace = GetColorSpace(defaultKey);
         if (defaultColorSpace.IsPresent)
@@ -263,12 +263,6 @@ internal sealed class PdfResourceNode
             {
                 return converter;
             }
-        }
-
-        PdfIccColorSpaceConverter? outputIntentConverter = document.OutputIntentConverter;
-        if (outputIntentConverter != null && outputIntentConverter.Components == componentCount)
-        {
-            return outputIntentConverter;
         }
 
         return null;

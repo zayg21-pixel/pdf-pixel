@@ -15,9 +15,13 @@ public sealed class IccProfileTransform
 
     private readonly IccLutPipeline?[] _intentLuts = new IccLutPipeline?[IntentCount];
     private readonly IColorTransform?[] _blackPointCompensationTransforms = new IColorTransform?[IntentCount];
+    private readonly IColorTransform?[] _inverseBlackPointCompensationTransforms = new IColorTransform?[IntentCount];
     private readonly IColorTransform _modelTransform;
+    private readonly IColorTransform? _modelInverseTransform;
     private readonly IColorTransform? _lutPcsToXyzTransform;
     private readonly IColorTransform? _modelPcsToXyzTransform;
+    private readonly IColorTransform _lutXyzToPcsTransform;
+    private readonly IColorTransform? _modelXyzToPcsTransform;
     private readonly IccProfile _iccProfile;
 
     /// <summary>
@@ -36,10 +40,13 @@ public sealed class IccProfileTransform
         {
             _lutPcsToXyzTransform = IccTransforms.LabD50ToXyzTransform;
             _modelPcsToXyzTransform = IccTransforms.LabD50ToXyzTransform;
+            _lutXyzToPcsTransform = IccTransforms.XyzD50ToLabTransform;
+            _modelXyzToPcsTransform = IccTransforms.XyzD50ToLabTransform;
         }
         else
         {
             _lutPcsToXyzTransform = new FunctionColorTransform(x => x * 2.0f);
+            _lutXyzToPcsTransform = new FunctionColorTransform(x => x * 0.5f);
         }
 
         if (profile.GrayTrc != null)
@@ -50,12 +57,16 @@ public sealed class IccProfileTransform
                 _modelTransform = new ChainedColorTransform(
                     new PerChannelTrcTransform([profile.GrayTrc]),
                     new FunctionColorTransform(x => new Vector4(x.X, 0.5f, 0.5f, 1f)));
+                _modelInverseTransform = new PerChannelTrcTransform([profile.GrayTrc], inverse: true);
             }
             else
             {
                 _modelTransform = new ChainedColorTransform(
                     new PerChannelTrcTransform([profile.GrayTrc]),
                     new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1)));
+                _modelInverseTransform = new ChainedColorTransform(
+                    new FunctionColorTransform(x => new Vector4(x.Y, x.Y, x.Y, 1)),
+                    new PerChannelTrcTransform([profile.GrayTrc], inverse: true));
             }
 
             hasTrcModel = true;
@@ -63,15 +74,18 @@ public sealed class IccProfileTransform
         else if (profile.Header.ColorSpace == IccColorSpace.Lab)
         {
             _modelTransform = IccTransforms.LabD50ToXyzTransform;
+            _modelInverseTransform = IccTransforms.XyzD50ToLabTransform;
         }
         else if (profile.RedMatrix.HasValue && profile.GreenMatrix.HasValue && profile.BlueMatrix.HasValue)
         {
             List<IColorTransform> matrixTransforms = [];
+            PerChannelTrcTransform? inverseTrcLuts = null;
 
             if (profile.RedTrc != null && profile.GreenTrc != null && profile.BlueTrc != null)
             {
                 PerChannelTrcTransform trcLuts = new([profile.RedTrc, profile.GreenTrc, profile.BlueTrc]);
                 matrixTransforms.Add(trcLuts);
+                inverseTrcLuts = new PerChannelTrcTransform([profile.RedTrc, profile.GreenTrc, profile.BlueTrc], inverse: true);
                 hasTrcModel = true;
             }
 
@@ -79,6 +93,9 @@ public sealed class IccProfileTransform
             matrixTransforms.Add(matrixTransform);
 
             _modelTransform = new ChainedColorTransform(matrixTransforms.ToArray());
+
+            MatrixColorTransform inverseMatrixTransform = new([profile.RedMatrix.Value, profile.GreenMatrix.Value, profile.BlueMatrix.Value], inverse: true);
+            _modelInverseTransform = new ChainedColorTransform(inverseMatrixTransform, inverseTrcLuts);
         }
         else
         {
@@ -125,12 +142,7 @@ public sealed class IccProfileTransform
     /// <returns>A <see cref="ChainedColorTransform"/> representing the color transformation pipeline.</returns>
     public ChainedColorTransform GetIntentToXyzTransform(IccRenderingIntent? intent = default, bool useBlackPointCompensation = true)
     {
-        IccRenderingIntent resolvedIntent = intent ?? _iccProfile.Header.RenderingIntent;
-        if (resolvedIntent < IccRenderingIntent.Perceptual || resolvedIntent > IccRenderingIntent.AbsoluteColorimetric)
-        {
-            resolvedIntent = IccRenderingIntent.Perceptual;
-        }
-
+        IccRenderingIntent resolvedIntent = ResolveIntent(intent);
         IColorTransform? blackPointCompensation = null;
         if (useBlackPointCompensation)
         {
@@ -142,6 +154,58 @@ public sealed class IccProfileTransform
             GetPcsToXyzTransform(resolvedIntent),
             blackPointCompensation);
     }
+
+    /// <summary>
+    /// Gets a chained color transform from CIE XYZ D50 to the profile's color space for the specified PDF rendering
+    /// intent: the intent's B2A LUT, otherwise the perceptual one, otherwise the inverted matrix and TRC model. With
+    /// black point compensation, zero is mapped back to the profile's black point first.
+    /// </summary>
+    /// <param name="intent">The PDF rendering intent to use for the transformation. In null - default intent from ICC header will be used.</param>
+    /// <param name="useBlackPointCompensation">Whether black point compensation is applied.</param>
+    /// <returns>A <see cref="ChainedColorTransform"/> representing the color transformation pipeline, or null when the profile cannot convert from the profile connection space.</returns>
+    public ChainedColorTransform? GetXyzToDeviceTransform(IccRenderingIntent? intent = default, bool useBlackPointCompensation = true)
+    {
+        IccRenderingIntent resolvedIntent = ResolveIntent(intent);
+        IColorTransform? blackPointCompensation = null;
+
+        if (useBlackPointCompensation)
+        {
+            blackPointCompensation = _inverseBlackPointCompensationTransforms[(int)resolvedIntent];
+        }
+
+        IccLutPipeline? intentLut = _iccProfile.GetB2ALut(resolvedIntent) ?? _iccProfile.B2ALut0;
+
+        if (intentLut == null && _modelInverseTransform == null)
+        {
+            intentLut = _iccProfile.B2ALut1 ?? _iccProfile.B2ALut2;
+        }
+
+        if (intentLut != null)
+        {
+            return new ChainedColorTransform(blackPointCompensation, _lutXyzToPcsTransform, intentLut.Transform);
+        }
+        else if (_modelInverseTransform != null)
+        {
+            return new ChainedColorTransform(blackPointCompensation, _modelXyzToPcsTransform, _modelInverseTransform);
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    private IccRenderingIntent ResolveIntent(IccRenderingIntent? intent)
+    {
+        IccRenderingIntent resolvedIntent = intent ?? _iccProfile.Header.RenderingIntent;
+
+        if (resolvedIntent < IccRenderingIntent.Perceptual || resolvedIntent > IccRenderingIntent.AbsoluteColorimetric)
+        {
+            resolvedIntent = IccRenderingIntent.Perceptual;
+        }
+
+        return resolvedIntent;
+    }
+
 
     private IColorTransform GetDeviceToPcsTransform(IccRenderingIntent intent)
     {
@@ -171,7 +235,8 @@ public sealed class IccProfileTransform
             Vector4? blackPoint = GetBlackPoint((IccRenderingIntent)intentIndex, hasTrcModel);
             if (blackPoint != null)
             {
-                _blackPointCompensationTransforms[intentIndex] = IccBlackPoint.BuildBlackPointCompensationTransform(blackPoint.Value);
+                _blackPointCompensationTransforms[intentIndex] = IccBlackPoint.BuildBlackPointCompensationTransform(blackPoint.Value, inverse: false);
+                _inverseBlackPointCompensationTransforms[intentIndex] = IccBlackPoint.BuildBlackPointCompensationTransform(blackPoint.Value, inverse: true);
             }
         }
     }

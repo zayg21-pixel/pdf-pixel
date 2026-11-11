@@ -2,7 +2,7 @@
 
 The color space model (`PdfPixel/Color/ColorSpace`): what every color space family reads from the file, what it exposes, and how it renders.
 
-Scope: the families of ISO 32000-2 8.6 (device, CIE-based, special). Output is sRGB.
+Scope: the families of ISO 32000-2 8.6 (device, CIE-based, special). Output is a device space characterized by `PdfDeviceProfiles`, sRGB by default.
 
 Test file: `PdfPixel.Tests/CalibratedColorTest.pdf` (pages 1-8 CalRGB and CalGray, 9-14 Lab). Its header comment holds the layout rules for adding pages.
 
@@ -30,7 +30,7 @@ The spec decides wherever it defines the behavior. Acrobat is the reference only
 - The XML summary names the PDF key or array operand: "Gets the … (/WhitePoint), or … when absent." Array operands keep the spec's operand name: (base), (hival), (alternateSpace).
 - Property and parameter names match; abbreviated names are expanded (`hival` → `HighestIndex`); class names never abbreviate (`Calibrated`, not `Cal`).
 - Number arrays from the file stay `float[]` in PDF order; component ranges are `PdfRange[]`. No `PdfPixel.Color` type appears in the exposed model.
-- Color spaces are created only inside PdfPixel: constructors are internal, without summaries.
+- CalGray, CalRGB, Lab, ICCBased (from an `IccProfile`) and Indexed have public constructors taking the same values the file gives, with the same defaults; Separation, DeviceN and Pattern are created only inside PdfPixel, and the device spaces are shared instances.
 
 ### Rejected designs, do not revisit
 
@@ -73,24 +73,20 @@ To decide: whether images, shadings and groups expose their resolved color space
 
 ## 5. Image pipeline shape
 
-All image decoding runs on `PdfImageRowProcessingPipeline` (`Imaging/Processing/Pipeline`): one pipeline per tile, built by an `IPdfImagePipelineFactory`; `SkiaImagePipelineFactory` builds the Skia routes (stencil, direct gray/RGB, lookup, color). The shape is a first cut and gets a cleanup round.
+Decoders hand out tiles of samples at their source depth; Snap reads each source of an image (the image, its soft mask or stencil mask, the JPX opacity channel) row by row and runs it through a `PdfImageRowProcessingPipeline` (`Imaging/Processing/Pipeline`) built for one draw, down to device rows. Color is never part of a pipeline: the painter undoes Matte and converts with the paint's converter. SNAP-TODO.md holds the details.
 
 Rules that stay:
 
-- Steps are atomic and own their buffers; a pipeline belongs to one tile and one thread.
-- Packed input is cropped to start at bit 0 (`PdfImageRowCropStep`), so no later step reads from an arbitrary pixel.
-- Resampling is float in, float out (`PdfImageRowBoxAverageStep`, `PdfImageRowNearestNeighborStep`), after unpack or lookup.
+- Steps are atomic and own their buffers; a pipeline belongs to one draw and one thread.
+- Packed input starts at bit 0: the reader copies the visible sample columns from the tiles into its row, so no step reads from an arbitrary pixel.
+- Resampling is one step, `PdfImageRowResizeStep`, on a `PdfImageRowAxisMapping` per axis: the mean over each destination sample's footprint, a box where an axis shrinks and the nearest sample where it grows, float out. A source without a palette or color key is resized from its packed codes, Decode after it; a palette or color key source is resized from the floats of the lookup or unpack.
 - Fast paths only for the common depths: unpack 1 bpc (eight-float lookup block) and 8 bpc (vectorized), pack 8 bits (vectorized). Every other depth uses the bit reader or writer; depths above 8 are too rare to optimize.
-- Color key compares raw codes before Decode and before resampling; Matte is undone before color conversion, in the 0..1 domain mapped through the inverse Decode; a soft mask overrides a color key (Table 87).
+- Color key compares raw codes before Decode and before resampling, and the colors are weighted by its shape through the resize; Matte is undone before color conversion, in the image's own space (the base space for Indexed); a soft mask overrides a color key (Table 87).
 - The default Decode follows Table 88: Indexed `[0 2^bpc−1]`, otherwise the color space's `ComponentRanges`, otherwise `[0 1]`.
 
 Remaining work:
 
-- Decide whether `ImageDecodingContext` survives now that the decoders hand over one image paint (`PdfImageRowDecodingParameters.ImagePaint`).
-- Remove the temporary crutches: `PdfImage.DecodePixels` creating a `SkiaImagePipelineFactory` (core must not depend on Skia), and the factory's null-context path that builds an uncached `SkiaColorSampler`.
-- Replace the flag parameters (`hasAlpha`, `producesMask`, the factory's packed-alpha handling) with a clearer shape.
 - Resolve a missing `/ColorSpace` from the component count the data defines, never a fixed device space: JPX from its header (Table 87 allows absence only there), JPEG from its SOF instead of DeviceRGB, CCITT and JBIG2 as 1 component; raw images have no count and are not drawn. `RawImageDecoder` guessing DeviceGray at 1 bit and DeviceRGB otherwise, and the resolver's `defaultComponents = 3`, go away.
-- Split `IPdfImagePipelineFactory`: `CreateImagePipeline` and `CreateMaskPipeline` become two implementations of one factory interface, and function-based shadings get a third that takes their float samples. Until then `PdfShadingConverter.ToSkImage` builds the shading's color steps itself.
 
 ## 6. Color sampling cleanup
 
@@ -101,35 +97,24 @@ Remaining work:
 - Drop `ToSrgb` and the per-converter sampler cache: samplers live in the page's cache, built from the paint. Move `PdfPaint.RgbColor` users (stencil paint color, mask paint, annotations) to the sampler.
 - Remove the old sampling path: `GetRgbaSampler`, `GetRgbaSamplerCore`, `ColorTransformSampler`, the `normalize` flag, `SpanConverter`, the sRGB tails of Cal, Lab and ICC with `IccProfileTransform.GetIntentTransform`, `IndexedColorTransform`, `BuildPalette` and `BuildPackedPalette`.
 - `TransferFunctionTransform` stops implementing `IColorTransform` once nothing chains it.
-- The CMYK profile is parsed twice (`PdfDeviceCmykColorSpaceConverter` and `SkiaColorSampler`); keep one.
 - Black point compensation still compensates toward a zero black inside the source half. Its join between the source and destination halves gets a shape when a target needs it.
 - CMYK targets are additive, not part of this cleanup: black generation and undercolor removal on `PdfPaint`, DeviceRGB → DeviceCMYK (10.3.5) and DeviceGray → DeviceCMYK (10.3.4).
 
-## 7. Output intents (undecided)
+## 7. Device profiles and output intents
 
-Today `PdfOutputIntent.CreateConverter` picks one catalog output intent (PDF/X, then PDF/A, then PDF/E) and `PdfResourceNode.ResolveDeviceColorSpace` uses its profile as the fallback `DefaultGray`, `DefaultRGB` or `DefaultCMYK` of every resource node.
+- `PdfDeviceProfiles` holds the CIE-based color space (CalGray, CalRGB, Lab or ICCBased of the matching count) that device gray, RGB and CMYK values mean whenever they cross the profile connection space, as sources and as targets alike. A null entry keeps the built-in one: sRGB gray, sRGB, or the bundled CMYK profile (`PdfDeviceProfiles.Default`, the only owner of that profile).
+- It is a render-time choice on `PdfCommandExecutionParameters.DeviceProfiles`, never part of a recording, so one recording replays under any profiles. Snap keeps one converter cache per document and profile set.
+- A device color resolves in order: the resource's `DefaultGray`, `DefaultRGB` or `DefaultCMYK` (`PdfDeviceColorMapping`, which holds nothing else), then the device profile of its count. A device target uses the same profiles, so device CMYK into a CMYK target of the same profile is copied unchanged (8.6.5.7).
+- The output intent describes the target device (Table 401) and is never a source substitution. `IPdfPage.OutputIntents`, read when the page loads as the document's are, holds the page's `/OutputIntents` (PDF 2.0), which replace the catalog's (14.11.5), otherwise the document's. `PdfDeviceProfiles.FromPage` and `FromDocument` take the first intent with a profile for each component count; choosing another intent is the caller's, through the constructor.
+- Keeping one profile set across renders is the caller's: each call builds a new set, and Snap keys its converter cache by the set. The panel keeps one per page (`PdfPanelPage.GetDeviceProfiles`).
 
-What is wrong with it:
-
-- The output intent describes the target device (Table 401, `DestOutputProfile`), not the source; the default color spaces describe source colors, and the output intent supplements them (14.11.5). Inside `PdfDeviceColorMapping` it is applied before the target is known, so a CMYK target matching the output intent cannot pass device CMYK through (8.6.5.7).
-- Choosing among several output intents is the PDF processor's workflow decision (14.11.5), not the model's.
-- Page `/OutputIntents` (PDF 2.0, Table 31) is not read. When present, it replaces the catalog's for that page (14.11.5).
-
-Direction: the mapping holds only the resources' default spaces; the output intent profile becomes the device profile `SkiaColorSampler.CreateDeviceTransform` uses for its component count in place of the built-in one, with the selection next to it.
-
-Why it is parked: page-level intents make rendering depend on the page.
-
-- Resource nodes of forms, tiling patterns, Type 3 fonts and `/DR` are shared across the document, so `PdfDeviceColorMapping` cannot carry page intents.
-- Content hosts are created per use and could carry `page ?? document` down; `PdfTilingPattern.CellRecording` (one slot per pattern object, reused on every page) would then need the intents in its reuse condition.
-- Resolving at replay instead needs the page on `PdfCommandExecutionContext`, passed by every host.
-
-Output intents are the only reason for a page dependency today; decide when a target needs them.
-
-The same host question applies to `PdfShading.GetContent`: mesh shadings without a function store one value per component of their color space, so building the content needs the resolved color space, and resolving it needs a host. The content is cached per resolved color space until that is decided.
+The open host question applies to `PdfShading.GetContent`: mesh shadings without a function store one value per component of their color space, so building the content needs the resolved color space, and resolving it needs a host. The content is cached per resolved color space until that is decided.
 
 ## 8. Model colors converted at parse time
 
 `PdfOutlineItem.Color` (/C) and the color attributes of `PdfLayoutAttribute` (BackgroundColor, BorderColor, Color, TextDecorationColor) are exposed as `PdfRgbaColor`, converted when parsed. They should expose the components as written, in the device space their count selects, and be converted only where they are drawn.
+
+`PdfRgbaColor` then moves to the panel; `ParseHexColor` splits into its two formats, the icon parser's XML colors and the Web interop's page script colors.
 
 ## Parked, unrelated
 

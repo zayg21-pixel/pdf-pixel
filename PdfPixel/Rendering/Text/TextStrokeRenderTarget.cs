@@ -12,53 +12,44 @@ namespace PdfPixel.Rendering.Text;
 /// </summary>
 internal class TextStrokeRenderTarget : IRenderTarget
 {
-    private readonly PdfPath _path;
+    private readonly ReadOnlyMemory<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
-    private PdfRectangle _layerBounds;
 
-    public TextStrokeRenderTarget(in ReadOnlySpan<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public TextStrokeRenderTarget(in ReadOnlyMemory<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        _path = TextRenderUtilities.GetTextPath(shapingResult, state);
+        _shapingResult = shapingResult;
         _state = state;
 
         if (state.StrokePaint.IsPattern)
         {
             _pattern = state.StrokePaint.Pattern;
         }
-
-        Bounds = _path.GetStrokeBounds(state.StrokePaint);
     }
-
-    public PdfRectangle Bounds { get; }
 
     public PdfPaint Paint => _state.StrokePaint;
-
-    public void BeforePatternRender(IPdfCommandProcessor processor, PdfRectangle? patternBounds)
-    {
-        _layerBounds = (patternBounds != null) ? PdfRectangle.Intersect(Bounds, patternBounds.Value) : Bounds;
-        processor.Process(new SaveLayerCommand(_layerBounds));
-    }
-
-    public void AfterPatternRender(IPdfCommandProcessor processor)
-    {
-        // The pattern is kept within the stroke by masking it with the stroke drawn as a stroke, instead of clipping it to
-        // the stroke's outline.
-        processor.Process(new SaveLayerCommand(_layerBounds, PdfPaintFactory.CreateShapeMaskPaint()));
-        processor.Process(new DrawPathCommand(_path, PdfPaintFactory.CreateMaskShapePaint(_state.StrokePaint)));
-        processor.Process(RestoreLayerCommand.Instance);
-        processor.Process(RestoreLayerCommand.Instance);
-    }
 
     public void Render(IPdfCommandProcessor processor)
     {
         if (_pattern != null)
         {
-            _pattern.RenderPattern(processor, _state, this);
+            RenderPattern(processor, _pattern);
         }
         else
         {
-            processor.Process(new DrawPathCommand(_path, _state.StrokePaint));
+            PdfMatrix textMatrix = PdfTextRenderUtilities.GetFullTextMatrix(_state);
+            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, _state.StrokePaint));
+        }
+    }
+
+    private void RenderPattern(IPdfCommandProcessor processor, PdfPattern pattern)
+    {
+        PdfGroupSource? source = pattern.GetGroupSource(_state, _state.StrokePaint);
+
+        if (source != null)
+        {
+            PdfMatrix textMatrix = PdfTextRenderUtilities.GetFullTextMatrix(_state);
+            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult, _state.StrokePaint, source));
         }
     }
 }

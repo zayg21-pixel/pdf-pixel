@@ -41,9 +41,6 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         ContentRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
     }
 
-    /// <inheritdoc/>
-    public override bool ShouldDisplayBubble => false;
-
     /// <summary>
     /// Gets the default appearance string the text is formatted with (DA entry).
     /// </summary>
@@ -106,7 +103,7 @@ public class PdfFreeTextAnnotation : PdfMarkupAnnotation
         PdfPaint paint = state.FillPaint;
         PdfStrokeStyle strokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
 
-        PdfPaint? backgroundPaint = ResolvePaint(page);
+        PdfPaint? backgroundPaint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
         if (backgroundPaint != null)
         {
             PdfAppearanceRenderer.DrawBackground(processor, ContentRectangle, BorderStyle, BorderEffect, backgroundPaint);

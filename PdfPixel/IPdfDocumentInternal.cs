@@ -30,12 +30,6 @@ internal interface IPdfDocumentInternal : IPdfDocument
     PdfDocumentObjectCache ObjectCache { get; }
 
     /// <summary>
-    /// Converter of the catalog output intent profile used for device colors. Null when no catalog output
-    /// intent has a usable profile.
-    /// </summary>
-    PdfIccColorSpaceConverter? OutputIntentConverter { get; }
-
-    /// <summary>
     /// Gets the resolver of the document's color spaces.
     /// </summary>
     PdfColorSpaceResolver ColorSpaceResolver { get; }

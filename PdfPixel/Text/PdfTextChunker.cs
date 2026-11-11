@@ -14,12 +14,13 @@ public sealed class PdfTextChunker
     private const string LineBreak = "\n";
     private const char SoftHyphen = '­';
 
-    private readonly List<PdfWord> _words = [];
-    private readonly List<PdfWordPart> _wordParts = [];
-    private readonly List<PdfCharacter> _partCharacters = [];
+    private readonly List<PdfCharacter> _characters = [];
+    private readonly List<PartRange> _parts = [];
+    private readonly List<WordRange> _words = [];
     private PdfWordType _wordType;
     private int _lineIndex;
-    private int _characterCount;
+    private int _partStart;
+    private int _wordFirstPart;
     private float _wordGapRatio;
     private float _lineOffsetRatio;
 
@@ -45,11 +46,12 @@ public sealed class PdfTextChunker
 
         _wordGapRatio = properties.WordGapRatio;
         _lineOffsetRatio = properties.LineOffsetRatio;
+        _characters.Clear();
+        _parts.Clear();
         _words.Clear();
-        _wordParts.Clear();
-        _partCharacters.Clear();
         _lineIndex = 0;
-        _characterCount = 0;
+        _partStart = 0;
+        _wordFirstPart = 0;
 
         PdfRectangle? previousContentBox = null;
         var previousIsSpace = false;
@@ -69,7 +71,7 @@ public sealed class PdfTextChunker
 
                     if (!previousIsSpace && IsHyphenation(character))
                     {
-                        _partCharacters.Add(lineBreak);
+                        _characters.Add(lineBreak);
                         FlushPart();
                     }
                     else
@@ -98,12 +100,12 @@ public sealed class PdfTextChunker
 
         FlushWord();
 
-        return _words.ToArray();
+        return CreateWords();
     }
 
     private void AppendCharacter(in PdfCharacter character, PdfWordType type)
     {
-        bool hasWord = _partCharacters.Count > 0 || _wordParts.Count > 0;
+        bool hasWord = _characters.Count > _partStart || _parts.Count > _wordFirstPart;
 
         if (hasWord && (type != _wordType || type == PdfWordType.Punctuation))
         {
@@ -111,14 +113,14 @@ public sealed class PdfTextChunker
         }
 
         _wordType = type;
-        _partCharacters.Add(character);
+        _characters.Add(character);
     }
 
     private void AddSeparator(in PdfCharacter separator)
     {
         FlushWord();
         _wordType = PdfWordType.Space;
-        _partCharacters.Add(separator);
+        _characters.Add(separator);
         FlushWord();
     }
 
@@ -128,15 +130,15 @@ public sealed class PdfTextChunker
     /// </summary>
     private bool IsHyphenation(in PdfCharacter current)
     {
-        int count = _partCharacters.Count;
+        int count = _characters.Count;
 
-        if (_wordType != PdfWordType.Normal || count < 2)
+        if (_wordType != PdfWordType.Normal || count - _partStart < 2)
         {
             return false;
         }
 
-        string? hyphenText = _partCharacters[count - 1].Text;
-        string? letterText = _partCharacters[count - 2].Text;
+        string? hyphenText = _characters[count - 1].Text;
+        string? letterText = _characters[count - 2].Text;
 
         return IsHyphen(hyphenText)
             && IsLetter(letterText)
@@ -145,34 +147,56 @@ public sealed class PdfTextChunker
 
     private void FlushPart()
     {
-        if (_partCharacters.Count == 0)
+        int count = _characters.Count - _partStart;
+
+        if (count == 0)
         {
             return;
         }
 
-        PdfRectangle bounds = _partCharacters[0].BoundingBox;
-
-        for (int index = 1; index < _partCharacters.Count; index++)
-        {
-            bounds = PdfRectangle.Union(bounds, _partCharacters[index].BoundingBox);
-        }
-
-        _wordParts.Add(new PdfWordPart(bounds, _lineIndex, _characterCount, _partCharacters.ToArray()));
-        _characterCount += _partCharacters.Count;
-        _partCharacters.Clear();
+        _parts.Add(new PartRange(_lineIndex, _partStart, count));
+        _partStart = _characters.Count;
     }
 
     private void FlushWord()
     {
         FlushPart();
 
-        if (_wordParts.Count == 0)
+        int partCount = _parts.Count - _wordFirstPart;
+
+        if (partCount == 0)
         {
             return;
         }
 
-        _words.Add(new PdfWord(_wordType, _wordParts.ToArray()));
-        _wordParts.Clear();
+        _words.Add(new WordRange(_wordType, _wordFirstPart, partCount));
+        _wordFirstPart = _parts.Count;
+    }
+
+    /// <summary>
+    /// Creates the page's words over one array of its characters and one array of its parts, each part a slice of the
+    /// characters and each word a slice of the parts.
+    /// </summary>
+    private PdfWord[] CreateWords()
+    {
+        PdfCharacter[] characters = _characters.ToArray();
+        var parts = new PdfWordPart[_parts.Count];
+
+        for (int index = 0; index < parts.Length; index++)
+        {
+            PartRange part = _parts[index];
+            parts[index] = new PdfWordPart(part.LineIndex, part.Start, characters.AsMemory(part.Start, part.Count));
+        }
+
+        var words = new PdfWord[_words.Count];
+
+        for (int index = 0; index < words.Length; index++)
+        {
+            WordRange word = _words[index];
+            words[index] = new PdfWord(word.Type, parts.AsMemory(word.FirstPart, word.PartCount));
+        }
+
+        return words;
     }
 
     private static PdfWordType GetWordType(string? text)
@@ -249,5 +273,45 @@ public sealed class PdfTextChunker
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// A word part found while chunking: its characters are the <see cref="Count"/> from <see cref="Start"/> among the
+    /// page's characters.
+    /// </summary>
+    private readonly struct PartRange
+    {
+        public PartRange(int lineIndex, int start, int count)
+        {
+            LineIndex = lineIndex;
+            Start = start;
+            Count = count;
+        }
+
+        public int LineIndex { get; }
+
+        public int Start { get; }
+
+        public int Count { get; }
+    }
+
+    /// <summary>
+    /// A word found while chunking: its parts are the <see cref="PartCount"/> from <see cref="FirstPart"/> among the
+    /// page's parts.
+    /// </summary>
+    private readonly struct WordRange
+    {
+        public WordRange(PdfWordType type, int firstPart, int partCount)
+        {
+            Type = type;
+            FirstPart = firstPart;
+            PartCount = partCount;
+        }
+
+        public PdfWordType Type { get; }
+
+        public int FirstPart { get; }
+
+        public int PartCount { get; }
     }
 }

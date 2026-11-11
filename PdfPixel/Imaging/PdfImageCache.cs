@@ -1,4 +1,3 @@
-using PdfPixel.Geometry;
 using System;
 using System.Collections.Generic;
 
@@ -12,7 +11,6 @@ namespace PdfPixel.Imaging;
 internal sealed class PdfImageCache
 {
     private readonly Dictionary<InlineImageKey, PdfImage> _inlineImages = [];
-    private readonly Dictionary<PdfImage, PdfPath> _stencilOutlines = [];
 
     /// <summary>
     /// Returns the inline image kept under <paramref name="key"/>, or null when none is.
@@ -31,27 +29,7 @@ internal sealed class PdfImageCache
         => _inlineImages[key] = image ?? throw new ArgumentNullException(nameof(image));
 
     /// <summary>
-    /// Returns the outline kept for the stencil mask <paramref name="image"/>, or null when none is.
-    /// </summary>
-    public PdfPath? GetStencilOutline(PdfImage image)
-    {
-        _stencilOutlines.TryGetValue(image, out PdfPath? outline);
-
-        return outline;
-    }
-
-    /// <summary>
-    /// Keeps <paramref name="outline"/> as the outline of the stencil mask <paramref name="image"/>.
-    /// </summary>
-    public void AddStencilOutline(PdfImage image, PdfPath outline)
-        => _stencilOutlines[image] = outline ?? throw new ArgumentNullException(nameof(outline));
-
-    /// <summary>
     /// Drops every kept image.
     /// </summary>
-    public void Clear()
-    {
-        _inlineImages.Clear();
-        _stencilOutlines.Clear();
-    }
+    public void Clear() => _inlineImages.Clear();
 }

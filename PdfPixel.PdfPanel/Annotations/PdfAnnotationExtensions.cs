@@ -1,13 +1,64 @@
 using PdfPixel.Annotations;
+using PdfPixel.Annotations.Icons;
+using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Objects;
 using PdfPixel.PdfPanel.Input;
+using PdfPixel.PdfPanel.Rendering;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Annotations;
 
 internal static class PdfAnnotationExtensions
 {
+    private const float BubbleSize = 16f;
+
+    private static readonly PdfPaint BubbleBorderPaint = new(PdfPaintStyle.Fill, new PdfRgbaColor(180f / 255f, 140f / 255f, 60f / 255f));
+
+    private static readonly PdfPaint BubbleBackgroundPaint = new(PdfPaintStyle.Fill, new PdfRgbaColor(1f, 1f, 235f / 255f));
+
+    /// <summary>
+    /// Gets whether the panel shows a bubble for the annotation: a markup annotation with content to show in a popup,
+    /// unless it shows its content itself or is itself an icon.
+    /// </summary>
+    public static bool ShouldDisplayBubble(this PdfAnnotation annotation)
+    {
+        return annotation switch
+        {
+            PdfTextAnnotation or PdfFreeTextAnnotation or PdfFileAttachmentAnnotation or PdfStampAnnotation or PdfCaretAnnotation or PdfRedactAnnotation => false,
+            PdfLineAnnotation line => !line.HasCaption && line.Contents != null,
+            PdfMarkupAnnotation markup => markup.Contents != null,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Gets whether the panel shows the annotation's content in a popup: a markup annotation with contents.
+    /// </summary>
+    public static bool HasPopupContent(this PdfAnnotation annotation) => annotation is PdfMarkupAnnotation && annotation.Contents != null;
+
+    /// <summary>
+    /// Gets the rectangle of a bubble placed at <paramref name="anchor"/>, in the space of its bubble matrix.
+    /// </summary>
+    public static PdfRectangle GetBubbleRectangle(in PdfPoint anchor) => new(anchor.X - BubbleSize, anchor.Y, anchor.X, anchor.Y + BubbleSize);
+
+    /// <summary>
+    /// Records the bubble placed at <paramref name="anchor"/> in <paramref name="visualState"/>.
+    /// </summary>
+    public static void RenderBubble(IPdfCommandProcessor processor, in PdfPoint anchor, PdfAnnotationVisualStateKind visualState)
+    {
+        PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualState);
+
+        if (bubbleIcon != null)
+        {
+            PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetBubbleRectangle(anchor), BubbleBorderPaint, BubbleBackgroundPaint);
+        }
+    }
+
     /// <summary>
     /// Gets whether the panel lets the user interact with the annotation.
     /// </summary>
@@ -18,7 +69,7 @@ internal static class PdfAnnotationExtensions
 
         return !IsHiddenFromView(annotation)
             && !isReadOnly
-            && (annotation.IsInteractive || (annotation.Flags & PdfAnnotationFlags.ToggleNoView) != 0);
+            && (RespondsToPointer(annotation) || (annotation.Flags & PdfAnnotationFlags.ToggleNoView) != 0);
     }
 
     /// <summary>
@@ -34,6 +85,79 @@ internal static class PdfAnnotationExtensions
         }
 
         return !IsHiddenFromView(annotation) && !isNoView;
+    }
+
+    /// <summary>
+    /// Gets the state the panel draws the annotation in at the given scale, the scale of a zoom of 100% and the page
+    /// rotation in degrees, given whether it is the active annotation, whether the pointer is over its content rather
+    /// than its bubble, and the pointer state over it; an annotation drawn the same in every pointer state stays normal.
+    /// </summary>
+    public static PdfAnnotationState GetState(
+        this PdfAnnotation annotation,
+        bool isActive,
+        bool isOverContent,
+        PdfPanelPointerState pointerState,
+        float scale,
+        float referenceScale,
+        int rotation)
+    {
+        var visualState = PdfAnnotationVisualStateKind.Normal;
+
+        if (isActive && (annotation.SupportedStates & (PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down)) != 0)
+        {
+            visualState = GetVisualState(pointerState);
+        }
+
+        return new PdfAnnotationState(visualState, annotation.GetDisplayMatrix(scale, referenceScale, rotation), isHidden: !annotation.IsVisible(isActive && isOverContent));
+    }
+
+    /// <summary>
+    /// Returns the areas in page space of the annotations of <paramref name="page"/> whose state in
+    /// <paramref name="states"/> differs from the one in <paramref name="previousStates"/>, under the previous and the
+    /// new matrix; empty when none changed.
+    /// </summary>
+    public static PdfRectangle[] GetChangedAnnotationRegions(this PdfPanelPage page, PdfAnnotationStates previousStates, PdfAnnotationStates states)
+    {
+        if (ReferenceEquals(previousStates, states))
+        {
+            return Array.Empty<PdfRectangle>();
+        }
+
+        List<PdfRectangle> regions = [];
+        IReadOnlyList<PdfPageAnnotation> pageAnnotations;
+
+        lock (page.PanelDocument.DocumentLocker)
+        {
+            pageAnnotations = page.PdfPage.GetAnnotations();
+        }
+
+        foreach (PdfPageAnnotation pageAnnotation in pageAnnotations)
+        {
+            PdfAnnotation annotation = pageAnnotation.Content;
+            PdfAnnotationState previousState = previousStates.GetState(annotation);
+            PdfAnnotationState state = states.GetState(annotation);
+
+            if (!state.Equals(previousState))
+            {
+                regions.Add(page.FromPdfRect(previousState.Matrix.MapRect(annotation.ContentBounds)));
+                regions.Add(page.FromPdfRect(state.Matrix.MapRect(annotation.ContentBounds)));
+            }
+        }
+
+        return regions.ToArray();
+    }
+
+    /// <summary>
+    /// Gets the visual state the active annotation is drawn in under <paramref name="pointerState"/>.
+    /// </summary>
+    public static PdfAnnotationVisualStateKind GetVisualState(PdfPanelPointerState pointerState)
+    {
+        return pointerState switch
+        {
+            PdfPanelPointerState.Pressed => PdfAnnotationVisualStateKind.Down,
+            PdfPanelPointerState.Hovered => PdfAnnotationVisualStateKind.Rollover,
+            _ => PdfAnnotationVisualStateKind.Normal
+        };
     }
 
     /// <summary>
@@ -75,7 +199,7 @@ internal static class PdfAnnotationExtensions
         PdfMatrix displayMatrix = annotation.GetDisplayMatrix(scale, referenceScale, rotation);
         PdfMatrix bubbleMatrix = CreateScreenFixedMatrix(anchor, !annotation.IsNoZoom(), !annotation.IsNoRotate(), scale, referenceScale, rotation);
         PdfMatrix bubbleToPage = bubbleMatrix.PostConcat(displayMatrix);
-        PdfPoint shift = GetShiftIntoCropBox(bubbleToPage.MapRect(PdfAnnotation.GetBubbleRectangle(anchor)), cropBox);
+        PdfPoint shift = GetShiftIntoCropBox(bubbleToPage.MapRect(GetBubbleRectangle(anchor)), cropBox);
 
         return bubbleToPage
             .PostConcat(PdfMatrix.CreateTranslation(shift.X, shift.Y))
@@ -91,14 +215,13 @@ internal static class PdfAnnotationExtensions
         {
             return PdfPanelCursor.Arrow;
         }
+        else if (RespondsToPointer(annotation))
+        {
+            return PdfPanelCursor.Hand;
+        }
         else
         {
-            return annotation.CursorType switch
-            {
-                PdfAnnotationCursorType.Hand => PdfPanelCursor.Hand,
-                PdfAnnotationCursorType.IBeam => PdfPanelCursor.IBeam,
-                _ => PdfPanelCursor.Arrow
-            };
+            return PdfPanelCursor.Arrow;
         }
     }
 
@@ -124,6 +247,20 @@ internal static class PdfAnnotationExtensions
         DateTimeOffset? messageDate = (annotation.CreationDate.HasValue) ? new DateTimeOffset(annotation.CreationDate.Value) : (DateTimeOffset?)null;
 
         return new PdfAnnotationMessage(messageDate, messageTitle, contents, replies);
+    }
+
+    /// <summary>
+    /// Returns whether the pointer does something over the annotation: links, file attachments, redactions and text
+    /// annotations always, others when they are drawn differently under it or have content to show in a popup.
+    /// </summary>
+    private static bool RespondsToPointer(PdfAnnotation annotation)
+    {
+        return annotation switch
+        {
+            PdfLinkAnnotation or PdfFileAttachmentAnnotation or PdfRedactAnnotation or PdfTextAnnotation => true,
+            _ => (annotation.SupportedStates & (PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down)) != 0
+                || annotation.HasPopupContent()
+        };
     }
 
     private static bool IsHiddenFromView(PdfAnnotation annotation)

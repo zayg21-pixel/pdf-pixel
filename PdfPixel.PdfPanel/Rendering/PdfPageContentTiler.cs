@@ -1,148 +1,140 @@
-using PdfPixel.Commands.Processing;
+using Microsoft.Extensions.Logging;
+using PdfPixel.Annotations;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
+using PdfPixel.Commands.Execution;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Processing.Pipeline;
+using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Caching;
-using PdfPixel.Skia;
-using SkiaSharp;
+using PdfPixel.PdfPanel.Scheduling;
+using PdfPixel.Snap;
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Rendering;
 
 /// <summary>
-/// Rasterizes content <see cref="SKPicture"/> recordings into cached tile images
-/// for visible page regions.
+/// Rasterizes page content and annotation commands with Snap into the tiles of visible page regions.
 /// </summary>
 internal sealed class PdfPageContentTiler : IDisposable
 {
-    private readonly ISkSurfaceFactory _surfaceFactory;
-    private readonly int _tileSize;
-    private readonly Dictionary<int, PageTileCache> _pageCache = [];
+    private readonly object _locker = new();
+    private readonly PdfPageTilePool _pool;
+    private readonly byte[] _tileBuffer;
+    private readonly PdfImageSamples _tileSamples;
+    private readonly PdfSnapSurface _surface;
+    private bool _rasterizing;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfPageContentTiler"/> class.
     /// </summary>
-    /// <param name="surfaceFactory">Factory used to create surfaces for tile rasterization.</param>
-    /// <param name="tileSize">Edge length of a single tile in device pixels.</param>
-    public PdfPageContentTiler(ISkSurfaceFactory surfaceFactory, int tileSize)
+    /// <param name="panelDocument">Document whose pages are tiled.</param>
+    /// <param name="pool">Pool the pixels of the tiles are rented from, its tile size the size of the tiles.</param>
+    /// <param name="surfaceParameters">Parameters of the Snap surface the tiles are rasterized on.</param>
+    public PdfPageContentTiler(PdfPanelDocument panelDocument, PdfPageTilePool pool, PdfSnapSurfaceParameters surfaceParameters)
     {
-        _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
-        _tileSize = tileSize;
+        if (panelDocument == null)
+        {
+            throw new ArgumentNullException(nameof(panelDocument));
+        }
+
+        _pool = pool ?? throw new ArgumentNullException(nameof(pool));
+
+        PdfCommandExecutionContext initialContext = new(
+            panelDocument.CommandCache,
+            new PdfCommandExecutionParameters(),
+            panelDocument.DocumentLocker,
+            panelDocument.Document.OptionalContentProperties.GetDefaultStates(),
+            PdfAnnotationStates.Empty,
+            new PdfCancellationExecutionObserver(CancellationToken.None));
+
+        _tileBuffer = new byte[pool.TileSize * pool.TileSize * PdfPageRasterExtensions.RasterBytesPerPixel];
+        _tileSamples = PdfPageRasterExtensions.CreateRasterSamples(_tileBuffer, pool.TileSize, pool.TileSize);
+        _surface = new PdfSnapSurface(_tileSamples, surfaceParameters, initialContext, panelDocument.Document.LoggerFactory.CreateLogger<PdfSnapSurface>());
     }
 
     /// <summary>
     /// Edge length of a single tile in device pixels.
     /// </summary>
-    public int TileSize => _tileSize;
+    public int TileSize => _pool.TileSize;
 
     /// <summary>
-    /// Ensures tiles are rasterized for the visible region of the given page, dropping tiles outside it.
+    /// Rasterizes the tiles of the visible region of <paramref name="page"/> from the content and annotation
+    /// recordings of its cache entry into the entry's tiles, the annotations drawn over the content in the page group:
+    /// on the grid of the stored set, the set is kept, its tiles outside the region dropped, and the empty ones and
+    /// the ones rasterized with other settings or annotation states than <paramref name="request"/> rasterized in
+    /// place; on another grid, a new set is rasterized and stored only when it is complete.
     /// </summary>
-    /// <param name="contentLocker">Locked content picture to rasterize.</param>
-    /// <param name="pageInfo">Visible page layout snapshot.</param>
-    /// <param name="request">Current drawing request.</param>
-    /// <param name="forceClearVisible">When true, re-rasterizes tiles in the visible region.</param>
-    public void UpdateTiles(
-        ContentLocker<SKPicture>? contentLocker,
-        in RequestPageInfo pageInfo,
-        PagesDrawingRequest request,
-        bool forceClearVisible)
+    /// <param name="page">The page of the request the tiles are rasterized for.</param>
+    /// <param name="request">The request the tiles are rasterized for.</param>
+    /// <param name="observer">The observer that cancels the rasterization.</param>
+    public async ValueTask<TilesUpdateResult> UpdateTilesAsync(ContentUpdatePage page, ContentUpdateRequest request, IPdfCancellableExecutionObserver observer)
     {
+        if (page == null)
+        {
+            throw new ArgumentNullException(nameof(page));
+        }
+
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));
         }
 
-        if (contentLocker?.HasContent != true)
+        if (observer == null)
         {
-            return;
+            throw new ArgumentNullException(nameof(observer));
         }
 
-        if (!_pageCache.TryGetValue(pageInfo.PageNumber, out PageTileCache? pageCache))
+        PdfPageCacheEntry cacheEntry = page.Page.CacheEntry;
+        PdfCommandRecorder? content;
+        PdfCommandRecorder? annotations;
+
+        using (LockedContent<PdfCommandRecorder> lockedContent = cacheEntry.Content.ContentCommandRecording.GetContent())
         {
-            pageCache = new PageTileCache();
-            _pageCache[pageInfo.PageNumber] = pageCache;
+            content = lockedContent.Content;
         }
 
-        float pageScale = request.Scale;
-
-        if (pageCache.Scale != pageScale)
+        using (LockedContent<PdfCommandRecorder> lockedAnnotations = cacheEntry.AnnotationContent.ContentCommandRecording.GetContent())
         {
-            pageCache.Clear();
-            pageCache.Scale = pageScale;
+            annotations = lockedAnnotations.Content;
         }
 
-        PdfRectangle pageBounds = PdfRectangle.FromLocationAndSize(0, 0, pageInfo.Page.Size.Width, pageInfo.Page.Size.Height);
-
-        PdfIntegerRectangle visiblePixels = ToPixels(pageInfo.VisibleRegion, pageScale);
-        PdfIntegerRectangle pagePixels = ToPixels(pageBounds, pageScale);
-        PdfIntegerRectangle visibleTileRange = ToTileRange(visiblePixels);
-
-        EvictTilesOutside(pageCache, visibleTileRange);
-        RasterizeTiles(pageCache, contentLocker, pageScale, visibleTileRange, pagePixels, forceClearVisible);
-    }
-
-    /// <summary>
-    /// Draws cached tiles for the given page onto the canvas.
-    /// </summary>
-    /// <param name="canvas">The canvas to draw on.</param>
-    /// <param name="pageInfo">Visible page layout snapshot.</param>
-    /// <param name="currentScale">Current rendering scale.</param>
-    /// <param name="deviceMatrix">Matrix mapping page content coordinates to panel pixels.</param>
-    public void DrawTiles(SKCanvas canvas, in RequestPageInfo pageInfo, float currentScale, in PdfMatrix deviceMatrix)
-    {
-        if (canvas == null)
+        if (content == null)
         {
-            throw new ArgumentNullException(nameof(canvas));
+            return TilesUpdateResult.Unchanged;
         }
 
-        if (!_pageCache.TryGetValue(pageInfo.PageNumber, out PageTileCache? pageCache))
+        lock (_locker)
         {
-            return;
+            if (_disposed)
+            {
+                return TilesUpdateResult.Unchanged;
+            }
+
+            _rasterizing = true;
         }
 
-        SKSamplingOptions sampling = (pageCache.Scale != currentScale)
-            ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)
-            : SKSamplingOptions.Default;
-
-        using SKPaint backgroundPaint = new()
+        try
         {
-            Style = SKPaintStyle.Fill,
-            Color = SKColors.White
-        };
+            IPdfCommand pageContent = CreatePageGroup(page.Page, content, annotations).GetRootContent();
 
-        foreach (CachedTile tile in pageCache.Tiles.Values)
-        {
-            SKRect snappedDestination = PdfCommandProcessingUtilities.SnapToWholeDevicePixels(tile.Destination, deviceMatrix).ToSkRect();
-            canvas.DrawRect(snappedDestination, backgroundPaint);
-            canvas.DrawImage(tile.Image, snappedDestination, sampling);
+            return await RasterizeVisibleTilesAsync(cacheEntry.Tiles, pageContent, page, request, observer).ConfigureAwait(false);
         }
-    }
-
-    /// <summary>
-    /// Evicts cached tiles for pages not in the given visible set.
-    /// </summary>
-    /// <param name="visiblePages">Pages to keep tiles for.</param>
-    public void EvictExcept(IReadOnlyList<RequestPageInfo> visiblePages)
-    {
-        foreach (int pageNumber in _pageCache.Keys.Where(key => !visiblePages.Any(page => page.PageNumber == key)).ToList())
+        finally
         {
-            _pageCache[pageNumber].Clear();
-            _pageCache.Remove(pageNumber);
-        }
-    }
+            lock (_locker)
+            {
+                _rasterizing = false;
 
-    /// <summary>
-    /// Clears all cached tiles for all pages.
-    /// </summary>
-    public void Clear()
-    {
-        foreach (PageTileCache cache in _pageCache.Values)
-        {
-            cache.Clear();
+                if (_disposed)
+                {
+                    _surface.Dispose();
+                }
+            }
         }
-
-        _pageCache.Clear();
     }
 
     /// <summary>
@@ -162,128 +154,226 @@ internal sealed class PdfPageContentTiler : IDisposable
             MathF.Ceiling(region.Bottom / tileContentSize) * tileContentSize);
     }
 
-    /// <inheritdoc />
-    public void Dispose() => Clear();
-
-    private void RasterizeTiles(
-        PageTileCache pageCache,
-        ContentLocker<SKPicture> contentLocker,
-        float scale,
-        in PdfIntegerRectangle visibleTileRange,
-        in PdfIntegerRectangle pagePixels,
-        bool forceClearVisible)
+    /// <summary>
+    /// Returns the columns and rows of the tile grid of <paramref name="scale"/> and <paramref name="tileSize"/> whose
+    /// tiles <paramref name="region"/> of <paramref name="page"/> reaches within the page bounds.
+    /// </summary>
+    public static PdfIntegerRectangle GetTileGrid(PdfPanelPage page, in PdfRectangle region, float scale, int tileSize)
     {
-        for (int row = visibleTileRange.Top; row < visibleTileRange.Bottom; row++)
+        if (page == null)
         {
-            for (int column = visibleTileRange.Left; column < visibleTileRange.Right; column++)
-            {
-                PdfIntegerPoint index = new(column, row);
+            throw new ArgumentNullException(nameof(page));
+        }
 
-                if (pageCache.Tiles.TryGetValue(index, out CachedTile? cached))
+        PdfIntegerRectangle pagePixels = ToPixels(PdfRectangle.FromLocationAndSize(0, 0, page.Size.Width, page.Size.Height), scale);
+        PdfIntegerRectangle regionPixels = PdfIntegerRectangle.Intersect(ToPixels(region, scale), pagePixels);
+
+        if (regionPixels.Width <= 0 || regionPixels.Height <= 0)
+        {
+            return PdfIntegerRectangle.Empty;
+        }
+        else
+        {
+            return new PdfIntegerRectangle(
+                regionPixels.Left / tileSize,
+                regionPixels.Top / tileSize,
+                (regionPixels.Right + tileSize - 1) / tileSize,
+                (regionPixels.Bottom + tileSize - 1) / tileSize);
+        }
+    }
+
+    /// <summary>
+    /// Returns the command that draws <paramref name="content"/> and <paramref name="annotations"/> over it as the page
+    /// group of <paramref name="page"/>.
+    /// </summary>
+    private static DrawGroupCommand CreatePageGroup(PdfPanelPage page, PdfCommandRecorder content, PdfCommandRecorder? annotations)
+    {
+        PdfCommandRecorder pageGroupContent = new();
+        pageGroupContent.Process(new DrawRecordingCommand(content));
+
+        if (annotations != null)
+        {
+            pageGroupContent.Process(new DrawRecordingCommand(annotations));
+        }
+
+        lock (page.PanelDocument.DocumentLocker)
+        {
+            return page.PdfPage.CreatePageGroup(new DrawRecordingCommand(pageGroupContent));
+        }
+    }
+
+    private async ValueTask<TilesUpdateResult> RasterizeVisibleTilesAsync(
+        ContentLocker<PdfPageTiles> tiles,
+        IPdfCommand pageContent,
+        ContentUpdatePage page,
+        ContentUpdateRequest request,
+        IPdfCancellableExecutionObserver observer)
+    {
+        PdfIntegerRectangle grid = GetTileGrid(page.Page, page.VisibleRegion, request.Scale, TileSize);
+        PdfPageTiles? current;
+
+        using (LockedContent<PdfPageTiles> lockedTiles = tiles.GetContent())
+        {
+            current = lockedTiles.Content;
+        }
+
+        if (current != null && current.IsOnGrid(request.Scale, TileSize))
+        {
+            using (WriteLockedContent<PdfPageTiles> lockedTiles = tiles.GetContentForWriting())
+            {
+                current.Initialize(grid);
+            }
+
+            return await RasterizeTilesAsync(tiles, current, pageContent, page.Page, request, observer).ConfigureAwait(false);
+        }
+        else
+        {
+            PdfPageTiles replacement = new(request.Scale, _pool);
+            replacement.Initialize(grid);
+
+            TilesUpdateResult result = await RasterizeTilesAsync(tiles, replacement, pageContent, page.Page, request, observer).ConfigureAwait(false);
+
+            if (result == TilesUpdateResult.Cancelled)
+            {
+                replacement.Dispose();
+
+                return TilesUpdateResult.Cancelled;
+            }
+            else
+            {
+                tiles.SetContent(replacement);
+
+                return TilesUpdateResult.Updated;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rasterizes the empty and out-of-date tiles of <paramref name="target"/>, writing each under the write lock of
+    /// <paramref name="tiles"/>.
+    /// </summary>
+    private async ValueTask<TilesUpdateResult> RasterizeTilesAsync(
+        ContentLocker<PdfPageTiles> tiles,
+        PdfPageTiles target,
+        IPdfCommand pageContent,
+        PdfPanelPage page,
+        ContentUpdateRequest request,
+        IPdfCancellableExecutionObserver observer)
+    {
+        PdfIntegerRectangle grid = target.Grid;
+        PdfIntegerRectangle pagePixels = ToPixels(PdfRectangle.FromLocationAndSize(0, 0, page.Size.Width, page.Size.Height), request.Scale);
+        PdfIntegerRectangle gridPixels = new(grid.Left * TileSize, grid.Top * TileSize, grid.Right * TileSize, grid.Bottom * TileSize);
+        PdfIntegerRectangle passPixels = PdfIntegerRectangle.Intersect(gridPixels, pagePixels);
+        var result = TilesUpdateResult.Unchanged;
+
+        for (int row = grid.Top; row < grid.Bottom && result != TilesUpdateResult.Cancelled; row++)
+        {
+            for (int column = grid.Left; column < grid.Right && result != TilesUpdateResult.Cancelled; column++)
+            {
+                PdfIntegerPoint gridPoint = new(column, row);
+                PdfPageTile tile = target.GetTile(gridPoint);
+
+                if (!tile.IsOutOfDate(request.Antialias, request.OptionalContentStates, request.AnnotationStates, page))
                 {
-                    if (!forceClearVisible)
+                    continue;
+                }
+
+                PdfIntegerRectangle tilePixels = GetTilePixels(gridPoint);
+                PdfRectangle visibleRegion = new(
+                    passPixels.Left - tilePixels.Left,
+                    passPixels.Top - tilePixels.Top,
+                    passPixels.Right - tilePixels.Left,
+                    passPixels.Bottom - tilePixels.Top);
+                PdfCommandExecutionContext executionContext = CreateExecutionContext(page, request, visibleRegion, observer);
+
+                try
+                {
+                    RasterizeTile(executionContext, pageContent, request.Scale, tilePixels, pagePixels);
+
+                    if (!observer.IsCancelled)
                     {
-                        continue;
+                        using (WriteLockedContent<PdfPageTiles> lockedTiles = tiles.GetContentForWriting())
+                        {
+                            _tileSamples.CopyOverPaper(new PdfIntegerRectangle(0, 0, TileSize, TileSize), tile.Samples);
+                            tile.SetRasterized(request.Antialias, request.OptionalContentStates, request.AnnotationStates);
+                        }
+
+                        result = TilesUpdateResult.Updated;
                     }
 
-                    cached.Dispose();
-                    pageCache.Tiles.Remove(index);
+                    await observer.YieldAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    result = TilesUpdateResult.Cancelled;
                 }
 
-                CachedTile? tile = RasterizeTile(contentLocker, scale, index, pagePixels);
-                if (tile != null)
+                if (observer.IsCancelled)
                 {
-                    pageCache.Tiles.Add(index, tile);
+                    result = TilesUpdateResult.Cancelled;
                 }
             }
         }
+
+        return result;
     }
 
-    private CachedTile? RasterizeTile(
-        ContentLocker<SKPicture> contentLocker,
+    /// <summary>
+    /// Creates the execution context a tile of a pass is replayed with, its visible region the pixels the pass covers
+    /// in the device space of the tile.
+    /// </summary>
+    private static PdfCommandExecutionContext CreateExecutionContext(
+        PdfPanelPage page,
+        ContentUpdateRequest request,
+        in PdfRectangle visibleRegion,
+        IPdfCancellableExecutionObserver observer)
+    {
+        PdfCommandExecutionParameters executionParameters = new() { Antialias = request.Antialias, DeviceProfiles = page.DeviceProfiles };
+
+        return new PdfCommandExecutionContext(
+            page.PanelDocument.CommandCache,
+            executionParameters,
+            page.PanelDocument.DocumentLocker,
+            request.OptionalContentStates,
+            request.AnnotationStates,
+            observer,
+            visibleRegion);
+    }
+
+    /// <summary>
+    /// Rasterizes the tile at <paramref name="tilePixels"/> on the transparent tile surface: the page content clipped to
+    /// the part of the page the tile covers.
+    /// </summary>
+    private void RasterizeTile(
+        PdfCommandExecutionContext executionContext,
+        IPdfCommand pageContent,
         float scale,
-        in PdfIntegerPoint index,
+        in PdfIntegerRectangle tilePixels,
         in PdfIntegerRectangle pagePixels)
     {
-        PdfIntegerRectangle tilePixels = new(
-            index.X * _tileSize,
-            index.Y * _tileSize,
-            (index.X + 1) * _tileSize,
-            (index.Y + 1) * _tileSize);
-
         PdfIntegerRectangle coveredPixels = PdfIntegerRectangle.Intersect(tilePixels, pagePixels);
 
-        if (coveredPixels.Width <= 0 || coveredPixels.Height <= 0)
-        {
-            return null;
-        }
+        executionContext.ContentScopes.Reset();
+        executionContext.ContentTree.Reset();
+        _tileBuffer.AsSpan().Clear();
+        _surface.Reset();
+        _surface.UpdateContext(executionContext);
 
-        using LockedContent<SKPicture> lockedPicture = contentLocker.GetContent();
-        if (lockedPicture.Content == null)
-        {
-            return null;
-        }
-
-        SKSurface tileSurface = _surfaceFactory.GetTilingSurface(_tileSize, _tileSize);
-        SKCanvas tileCanvas = tileSurface.Canvas;
-
-        int savedCount = tileCanvas.Save();
-        tileCanvas.Clear(SKColors.Transparent);
-
-        // The tile grid spans the page in device pixels and the picture spans its own recorded scale,
-        // so the difference between the two is what the picture is rasterized through.
-        SKRect cullRect = lockedPicture.Content.CullRect;
-
-        tileCanvas.Translate(-tilePixels.Left, -tilePixels.Top);
-        tileCanvas.Scale(pagePixels.Width / cullRect.Width, pagePixels.Height / cullRect.Height);
-
-        tileCanvas.DrawPicture(lockedPicture.Content);
-        tileCanvas.RestoreToCount(savedCount);
-
-        PdfIntegerRectangle surfacePixels = new(
-            coveredPixels.Left - tilePixels.Left,
-            coveredPixels.Top - tilePixels.Top,
-            coveredPixels.Right - tilePixels.Left,
-            coveredPixels.Bottom - tilePixels.Top);
-
-        PdfRectangle destination = PdfRectangle.FromLocationAndSize(
-            coveredPixels.Left / scale,
-            coveredPixels.Top / scale,
-            coveredPixels.Width / scale,
-            coveredPixels.Height / scale);
-
-        return new CachedTile(tileSurface.Snapshot(surfacePixels.ToSkRectI()), destination);
+        PdfPathBuilder coveredArea = new();
+        coveredArea.AddRect(new PdfRectangle(coveredPixels.Left, coveredPixels.Top, coveredPixels.Right, coveredPixels.Bottom));
+        _surface.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(-tilePixels.Left, -tilePixels.Top)));
+        _surface.Process(new DrawPathCommand(coveredArea.ToPath(), new PdfPaint(PdfPaintStyle.Clip)));
+        _surface.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(scale, scale)));
+        _surface.Process(pageContent);
     }
 
-    private static void EvictTilesOutside(PageTileCache pageCache, in PdfIntegerRectangle visibleTileRange)
-    {
-        List<PdfIntegerPoint> evictedIndexes = [];
-
-        foreach (PdfIntegerPoint index in pageCache.Tiles.Keys)
-        {
-            if (index.X < visibleTileRange.Left
-                || index.X >= visibleTileRange.Right
-                || index.Y < visibleTileRange.Top
-                || index.Y >= visibleTileRange.Bottom)
-            {
-                evictedIndexes.Add(index);
-            }
-        }
-
-        foreach (PdfIntegerPoint index in evictedIndexes)
-        {
-            pageCache.Tiles[index].Dispose();
-            pageCache.Tiles.Remove(index);
-        }
-    }
-
-    private PdfIntegerRectangle ToTileRange(in PdfIntegerRectangle pixels)
+    private PdfIntegerRectangle GetTilePixels(in PdfIntegerPoint gridPoint)
     {
         return new(
-            pixels.Left / _tileSize,
-            pixels.Top / _tileSize,
-            (pixels.Right + _tileSize - 1) / _tileSize,
-            (pixels.Bottom + _tileSize - 1) / _tileSize);
+            gridPoint.X * TileSize,
+            gridPoint.Y * TileSize,
+            (gridPoint.X + 1) * TileSize,
+            (gridPoint.Y + 1) * TileSize);
     }
 
     private static PdfIntegerRectangle ToPixels(in PdfRectangle rectangle, float scale)
@@ -295,29 +385,17 @@ internal sealed class PdfPageContentTiler : IDisposable
             (int)Math.Ceiling(rectangle.Bottom * scale));
     }
 
-    private sealed class CachedTile(SKImage image, in PdfRectangle destination) : IDisposable
+    /// <inheritdoc />
+    public void Dispose()
     {
-        public SKImage Image { get; } = image;
-
-        public PdfRectangle Destination { get; } = destination;
-
-        public void Dispose() => Image.Dispose();
-    }
-
-    private sealed class PageTileCache
-    {
-        public Dictionary<PdfIntegerPoint, CachedTile> Tiles { get; } = [];
-
-        public float Scale { get; set; }
-
-        public void Clear()
+        lock (_locker)
         {
-            foreach (CachedTile tile in Tiles.Values)
-            {
-                tile.Dispose();
-            }
+            _disposed = true;
 
-            Tiles.Clear();
+            if (!_rasterizing)
+            {
+                _surface.Dispose();
+            }
         }
     }
 }

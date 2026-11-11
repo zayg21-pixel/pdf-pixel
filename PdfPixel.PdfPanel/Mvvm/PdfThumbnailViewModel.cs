@@ -66,7 +66,7 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
 
             if (value)
             {
-                _thumbnails.Request(PageNumber, pin: true);
+                _thumbnails.Request(PageNumber, PdfPanelThumbnailFormats.Png, pin: true);
             }
             else
             {

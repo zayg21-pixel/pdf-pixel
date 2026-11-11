@@ -1,6 +1,6 @@
 using PdfPixel.Gold.Manifest;
 using PdfPixel.Gold.Utilities;
-using SkiaSharp;
+using PdfPixel.Imaging.Processing.Pipeline;
 using System.Diagnostics;
 
 namespace PdfPixel.Gold.Commands;
@@ -44,8 +44,6 @@ internal static class AnalyzeCommand
                 failedCount++;
                 ConsoleUtilities.Write(ConsoleColor.Magenta, $"{entry.Name,-60} FAILED {exception.Message}");
             }
-
-            PdfUtilities.PurgeSkiaCaches();
         }
 
         runStopwatch.Stop();
@@ -86,7 +84,7 @@ internal static class AnalyzeCommand
 
         // The pages are pulled one at a time, so the clock and the memory reading cover the render of
         // a single page; the first page carries the cost of opening the document with it.
-        using IEnumerator<(int PageNumber, SKBitmap Bitmap)> renderedPages = PdfUtilities.RenderPages(reader, paths.GetSourcePath(entry.Name), entry.Pages, entry.Password).GetEnumerator();
+        using IEnumerator<(int PageNumber, PdfImageSamples Samples)> renderedPages = PdfUtilities.RenderPages(reader, paths.GetSourcePath(entry.Name), entry.Pages, entry.Password).GetEnumerator();
 
         while (true)
         {
@@ -116,11 +114,11 @@ internal static class AnalyzeCommand
                 break;
             }
 
-            (int PageNumber, SKBitmap Bitmap) renderedPage = renderedPages.Current;
+            (int PageNumber, PdfImageSamples Samples) renderedPage = renderedPages.Current;
 
-            // The bitmap is this page's output rather than something the document holds on to, so it
-            // is released before the memory is read back.
-            renderedPage.Bitmap.Dispose();
+            // The samples are this page's output rather than something the document holds on to; the
+            // enumerator keeps them until the next page, so they are left out of the memory held.
+            long outputBytes = renderedPage.Samples.Pixels.Length;
 
             PageMemory? pageMemory = null;
 
@@ -128,7 +126,7 @@ internal static class AnalyzeCommand
             {
                 heldManagedBytes = GC.GetTotalMemory(forceFullCollection: true);
 
-                pageMemory = new(peakPrivateBytes - privateBefore, peakManagedBytes - managedBefore, heldManagedBytes - managedBefore);
+                pageMemory = new(peakPrivateBytes - privateBefore, peakManagedBytes - managedBefore, heldManagedBytes - managedBefore - outputBytes);
                 documentPeakBytes = Math.Max(documentPeakBytes, pageMemory.PeakBytes);
                 documentPeakManagedBytes = Math.Max(documentPeakManagedBytes, pageMemory.PeakManagedBytes);
                 documentRetainedBytes += pageMemory.RetainedBytes;

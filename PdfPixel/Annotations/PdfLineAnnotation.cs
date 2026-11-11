@@ -59,9 +59,6 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
     /// </summary>
     public override PdfPoint ContentStart => PdfAnnotationGeometry.GetStartPoint(DrawingPath) ?? base.ContentStart;
 
-    /// <inheritdoc/>
-    public override bool ShouldDisplayBubble => !HasCaption && base.ShouldDisplayBubble;
-
     /// <summary>
     /// Gets the stroked bounds of the line, its leader lines and its caption grown by the reach of its line endings,
     /// or <see cref="PdfAnnotation.Rectangle"/> when there is no line.
@@ -210,12 +207,12 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
 
         if (caption != null)
         {
-            PdfAnnotationTextRenderer.DrawLineCaption(processor, page, caption.Value);
+            PdfAnnotationTextRenderer.DrawLineCaption(processor, caption.Value);
         }
 
         PdfRectangle? captionArea = caption?.Area;
 
-        PdfPaint? linePaint = ResolvePaint(page);
+        PdfPaint? linePaint = PdfAnnotationPaintFactory.ResolvePaint(Color, page);
 
         if (linePaint != null)
         {
@@ -230,7 +227,7 @@ public class PdfLineAnnotation : PdfMarkupAnnotation
             }
         }
 
-        PdfPaint? interiorPaint = ResolveInteriorPaint(page);
+        PdfPaint? interiorPaint = PdfAnnotationPaintFactory.ResolvePaint(InteriorColor, page);
 
         if (StartLineEnding != PdfLineEndingStyle.None)
         {

@@ -61,6 +61,16 @@ internal sealed partial class PdfColorSpaceResolver
     }
 
     /// <summary>
+    /// Resolves the ICCBased color space of the ICC profile stream in the entry <paramref name="key"/> of
+    /// <paramref name="dictionary"/>, cached by the stream's reference as an ICCBased color space array naming it is.
+    /// </summary>
+    /// <param name="dictionary">The dictionary holding the profile stream.</param>
+    /// <param name="key">The key of the profile stream.</param>
+    /// <returns>The color space, or <see langword="null"/> when the entry is absent or not a stream.</returns>
+    public PdfIccColorSpaceConverter? ResolveIccProfile(PdfDictionary dictionary, in PdfString key)
+        => _document.ObjectCache.GetOrCreate(dictionary, key, CreateIccColorSpaceFromProfile, requiresStream: true);
+
+    /// <summary>
     /// Resolve a color space converter from a generic value which may be:
     ///1) A color space family name
     ///2) A parameter array (e.g. [/ICCBased obj])

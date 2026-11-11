@@ -9,69 +9,51 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Imaging.Decoding;
 
-internal sealed class JpegImageDecoder : PdfImageDecoder
+internal sealed class JpegImageDecoder : PdfRowImageDecoder
 {
     private const int MaxDescaleFactor = 8;
 
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
+    private ReadOnlyMemory<byte> _encodedData;
+    private JpegHeader? _header;
+    private PdfImageSampleInfo? _sampleInfo;
+    private int _descaleFactor;
     private IJpegDecoder? _jpegRowDecoder;
 
-    public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
-        : base(image, context, loggerFactory)
+    public JpegImageDecoder(PdfImage image)
+        : base(image)
     {
-        _colorSpaceConverter = context.ColorSpaceConverter
+        _colorSpaceConverter = image.ColorSpace
             ?? PdfColorSpaceResolver.ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
     }
 
-    public override PdfImageRowDecodingParameters Initialize(
-        IReadOnlyList<PdfIntegerRectangle>? regionsOfInterest,
-        in PdfMatrix ctm,
-        IPdfExecutionObserver? observer)
+    protected override PdfImageSampleInfo SelectSamples(in PdfIntegerSize targetSize, IPdfExecutionObserver? observer)
     {
-        ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
+        JpegHeader header = EnsureHeader(observer);
+        PdfIntegerSize sampleSize = GetSampleSize(header);
+        int descaleFactor = SelectDescaleFactor(sampleSize, targetSize, _colorSpaceConverter, MaxDescaleFactor);
 
-        var header = JpegHeader.Parse(encodedData.Span);
-
-        if (header == null || header.ContentOffset < 0)
+        if (_sampleInfo == null || _descaleFactor != descaleFactor)
         {
-            throw new InvalidOperationException($"JPEG header is invalid (Reference={Image.Reference}).");
+            PdfIntegerSize decodedSize = new(Descale(sampleSize.Width, descaleFactor), Descale(sampleSize.Height, descaleFactor));
+
+            _sampleInfo = new PdfImageSampleInfo(CreateGrid(decodedSize), descaleFactor, Image.BitsPerComponent, _colorSpaceConverter.Components, _colorSpaceConverter);
+            _descaleFactor = descaleFactor;
         }
 
-        PdfColorSpaceConverter resolvedConverter = _colorSpaceConverter;
-        if (Context.ColorSpaceConverter == null || Context.Host.Resources.DeviceColorMapping.Map(resolvedConverter).IsDevice)
-        {
-            byte[]? profileBytes = header.GetIccProfile();
-            if (profileBytes != null)
-            {
-                resolvedConverter = new PdfIccColorSpaceConverter(header.ComponentCount, resolvedConverter, profileBytes);
-            }
-        }
-
-        // The row count is the smaller of the two declared heights. A frame header may carry a
-        // placeholder line count — that is what the DNL marker exists for — and rows past the
-        // dictionary's height have no entropy-coded data behind them, so decoding up to a larger
-        // SOF height yields blank rows and stretches the tile grid over them. The width stays the
-        // SOF's, because it is the stride the row decoder writes and the row buffer must hold it.
-        int decodedHeight = Math.Min(header.Height, Image.Height);
-
-        PdfIntegerSize sampleSize = new(header.Width, decodedHeight);
-        int descaleFactor = ComputeDescaleFactor(sampleSize, ctm, resolvedConverter, MaxDescaleFactor);
-
-        PdfImageRowDecodingParameters parameters = CreateRowDecodingParameters(
-            ctm,
-            new PdfIntegerSize(Descale(sampleSize.Width, descaleFactor), Descale(sampleSize.Height, descaleFactor)),
-            Image.BitsPerComponent,
-            resolvedConverter);
-
-        List<PdfIntegerRectangle>? mappedRegions = MapRegionsToSampleGrid(regionsOfInterest, sampleSize, descaleFactor);
-
-        _jpegRowDecoder = CreateJpegDecoder(encodedData, header, descaleFactor, ToJpegRegions(mappedRegions));
-
-        return parameters;
+        return _sampleInfo;
     }
 
-    public override bool TryReadNextRow(in Span<byte> destination, IPdfExecutionObserver? observer)
+    protected override void BeginRows(PdfImageSampleInfo samples, IReadOnlyList<PdfIntegerRectangle> regions, IPdfExecutionObserver? observer)
+    {
+        JpegHeader header = EnsureHeader(observer);
+        List<PdfIntegerRectangle> mappedRegions = MapRegionsToStoredGrid(regions, _descaleFactor);
+
+        _jpegRowDecoder = CreateJpegDecoder(_encodedData, header, _descaleFactor, ToJpegRegions(mappedRegions));
+    }
+
+    protected override bool TryReadRow(in Span<byte> destination, IPdfExecutionObserver? observer)
     {
         if (_jpegRowDecoder == null)
         {
@@ -84,6 +66,42 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
         }
 
         return true;
+    }
+
+    protected override void EndRows() => _jpegRowDecoder = null;
+
+    private JpegHeader EnsureHeader(IPdfExecutionObserver? observer)
+    {
+        if (_header != null)
+        {
+            return _header;
+        }
+
+        ReadOnlyMemory<byte> encodedData = Image.Stream.DecodeAsMemory(observer);
+
+        var header = JpegHeader.Parse(encodedData.Span);
+
+        if (header == null || header.ContentOffset < 0)
+        {
+            throw new InvalidOperationException($"JPEG header is invalid (Reference={Image.Reference}).");
+        }
+
+        _encodedData = encodedData;
+        _header = header;
+
+        return header;
+    }
+
+    private PdfIntegerSize GetSampleSize(JpegHeader header)
+    {
+        // The row count is the smaller of the two declared heights. A frame header may carry a
+        // placeholder line count — that is what the DNL marker exists for — and rows past the
+        // dictionary's height have no entropy-coded data behind them, so decoding up to a larger
+        // SOF height yields blank rows and stretches the tile grid over them. The width stays the
+        // SOF's, because it is the stride the row decoder writes and the row buffer must hold it.
+        int decodedHeight = Math.Min(header.Height, Image.Height);
+
+        return new PdfIntegerSize(header.Width, decodedHeight);
     }
 
     private static List<JpegRectangle>? ToJpegRegions(List<PdfIntegerRectangle>? regionsOfInterest)
@@ -128,6 +146,4 @@ internal sealed class JpegImageDecoder : PdfImageDecoder
 
         return JpegDecoderFactory.Create(header, encodedData, decoderOptions);
     }
-
-    public override void Cleanup() => _jpegRowDecoder = null;
 }

@@ -15,7 +15,7 @@ using PdfPixel.PdfPanel.Web.Dto;
 using PdfPixel.PdfPanel.Web.Dto.Converters;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
-using PdfPixel.Skia.Fonts;
+using PdfPixel.Fonts.Substitution;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -35,7 +35,8 @@ internal static partial class PdfPanelInterop
 
     private static readonly ILogger Logger = LoggerFactory.CreateLogger(typeof(PdfPanelInterop));
 
-    private static readonly PdfDocumentReader DocumentReader = new(LoggerFactory, new SkiaFontSubstitutor(LoggerFactory));
+    // TODO: The browser has no system fonts, so the fallback family cannot load; fonts to substitute are still to be supplied.
+    private static readonly PdfDocumentReader DocumentReader = new(LoggerFactory, new PdfFontSubstitutor([], "Helvetica", LoggerFactory));
 
     private static bool _isInitialized;
 
@@ -67,21 +68,9 @@ internal static partial class PdfPanelInterop
 
         try
         {
-            bool webGl = configuration.GetPropertyAsBoolean("useWebGL");
             string selector = $"#{containerId} .pdf-panel-canvas";
-
-            PdfPanelResources resources;
-
-            if (webGl)
-            {
-                WebGlSkiaRenderer renderer = new(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
-                resources = new PdfPanelResources(containerId, renderer, renderer);
-            }
-            else
-            {
-                CpuSkiaRenderer renderer = new(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), selector, frame => OnFramePresented(containerId, frame));
-                resources = new PdfPanelResources(containerId, renderer, renderer);
-            }
+            CanvasRenderTarget renderTarget = new(LoggerFactory.CreateLogger<CanvasRenderTarget>(), selector, frame => OnFramePresented(containerId, frame));
+            PdfPanelResources resources = new(containerId, renderTarget);
 
             resources.YieldInterval = TimeSpan.FromMilliseconds(configuration.GetPropertyAsDouble("yieldInterval"));
             ReadConfiguration(configuration, resources.Configuration);
@@ -132,7 +121,8 @@ internal static partial class PdfPanelInterop
 
     /// <summary>
     /// Returns the selected content of the given container: <c>{ type: 'image', png }</c> for a selected image,
-    /// <c>{ type: 'text', text }</c> for selected text, or null when nothing is selected.
+    /// <c>{ type: 'text', text }</c> for selected text, or null when nothing is selected or the selected image cannot be
+    /// decoded.
     /// </summary>
     [JSExport]
     public static JSObject? GetSelectedContent(string containerId)
@@ -147,9 +137,9 @@ internal static partial class PdfPanelInterop
         if (selectedImage != null)
         {
             PdfCancellationExecutionObserver observer = new(CancellationToken.None);
-            byte[] png = selectedImage.Image.DecodePng(PdfImageDecodingParameters.Default, observer);
+            byte[]? png = selectedImage.Image.DecodePng(PdfImageDecodingParameters.Default, observer);
 
-            return CreateSelectedImage(png);
+            return (png == null) ? null : CreateSelectedImage(png);
         }
 
         string text = resources.Context.Text.SelectedText;
@@ -175,7 +165,6 @@ internal static partial class PdfPanelInterop
             DisposeContext(resources);
             resources.Document?.Dispose();
             resources.Document?.Document.Dispose();
-            resources.SkSurfaceFactory.Dispose();
 
             ResourcesMap.Remove(containerId);
         }
@@ -245,7 +234,7 @@ internal static partial class PdfPanelInterop
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Document.Pages.Count);
 
             DisposeContext(resources);
-            resources.Context = new PdfPanelContext(resources.Document, resources.SkSurfaceFactory, resources.RenderTargetFactory);
+            resources.Context = new PdfPanelContext(resources.Document, resources.RenderTargetFactory);
             resources.Configuration.ApplyConfiguration(resources.Context);
             resources.Context.Actions.ActionRequested += resources.OnActionRequested;
             resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;

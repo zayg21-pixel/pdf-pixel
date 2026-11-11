@@ -82,7 +82,12 @@ public partial class WpfPdfPanel
     private static void CopyImage(PdfImage image)
     {
         PdfCancellationExecutionObserver observer = new(CancellationToken.None);
-        byte[] png = image.DecodePng(PdfImageDecodingParameters.Default, observer);
+        byte[]? png = image.DecodePng(PdfImageDecodingParameters.Default, observer);
+
+        if (png == null)
+        {
+            return;
+        }
 
         BitmapFrame bitmap = BitmapFrame.Create(new MemoryStream(png), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
 

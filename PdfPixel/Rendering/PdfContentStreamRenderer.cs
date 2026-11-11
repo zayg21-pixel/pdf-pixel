@@ -85,7 +85,7 @@ internal class PdfContentStreamRenderer
     public void RenderContext(IPdfCommandProcessor processor, ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
     {
         Stack<PdfGraphicsState> graphicsStack = [];
-        PdfOperandStack operandStack = new();
+        PdfValueList<PdfContentStreamValue> operandStack = new();
         PdfPathBuilder currentPath = new();
         PdfOperatorProcessor operatorProcessor = new(_renderer, _host, processor, operandStack, graphicsStack, currentPath);
         PdfParser parser = new(parseContext, _host.Document, PdfParserMode.ContentStream);
@@ -99,7 +99,7 @@ internal class PdfContentStreamRenderer
             }
             else
             {
-                operandStack.Push(value);
+                operandStack.Add(value);
             }
 
             graphicsState.ExecutionObserver?.Notify();

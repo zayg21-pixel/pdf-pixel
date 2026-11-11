@@ -1,6 +1,7 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Objects;
 using PdfPixel.Parsing;
+using PdfPixel.Resources;
 
 namespace PdfPixel.Transparency;
 
@@ -27,14 +28,25 @@ public class PdfTransparencyGroup
     public bool Isolated { get; }
 
     /// <summary>
-    /// Knockout flag (K). Parsed but not yet applied during compositing.
+    /// Knockout flag (K).
     /// </summary>
     public bool Knockout { get; }
 
     /// <summary>
-    /// True when the group is isolated or knockout.
+    /// Returns the converter of the group's color space (CS), or <see langword="null"/> when the group declares none.
     /// </summary>
-    public bool RequiresLayer => Isolated || Knockout;
+    /// <param name="resources">Resources the group is painted with.</param>
+    internal PdfColorSpaceConverter? ResolveColorSpace(PdfResourceNode resources)
+    {
+        if (ColorSpaceReference.IsPresent)
+        {
+            return resources.ResolveColorSpace(ColorSpaceReference);
+        }
+        else
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// The transparency group <paramref name="ownerDictionary"/> holds under <paramref name="key"/>, or

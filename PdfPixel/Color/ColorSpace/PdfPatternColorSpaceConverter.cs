@@ -21,9 +21,8 @@ public sealed class PdfPatternColorSpaceConverter : PdfColorSpaceConverter
     public override int Components => UnderlyingColorSpace?.Components ?? 0;
 
     /// <inheritdoc />
-    protected override ColorTransformSampler GetRgbaSamplerCore(in PdfColorConversionParameters parameters, bool normalize)
-        => UnderlyingColorSpace?.GetRgbaSampler(parameters, normalize) ?? new ColorTransformSampler(new ChainedColorTransform(parameters.TransferFunction));
+    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 
     /// <inheritdoc />
-    public override ChainedColorTransform? GetProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
+    public override ChainedColorTransform? GetFromProfileConnectionTransform(PdfRenderingIntent renderingIntent, bool useBlackPointCompensation) => null;
 }
