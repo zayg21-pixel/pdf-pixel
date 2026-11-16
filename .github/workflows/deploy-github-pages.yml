@@ -24,23 +24,20 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
-          workloads: wasm-tools
 
-      - name: Verify SDK and workloads
-        run: |
-          dotnet --info
-          dotnet workload list
+      - name: Install WASM tools
+        run: dotnet workload install wasm-tools wasm-tools-net10
 
       - name: Publish
-        run: dotnet publish PdfPixel.Demo.Web/PdfPixel.Demo.Web.csproj -c Release -o publish
+        run: dotnet publish PdfPixel.Demo.Web/PdfPixel.Demo.Web.csproj --configuration Release --output publish
 
-      - name: Add .nojekyll
+      - name: Add .nojekyll file
         run: touch publish/wwwroot/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'publish/wwwroot'
+          path: publish/wwwroot
 
   deploy:
     environment:
