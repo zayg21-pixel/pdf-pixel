@@ -35,29 +35,38 @@ public sealed class PdfPanelContext : IDisposable
     private const float ScaleTolerance = 0.001f;
     private const float MaximumLookAheadPageToPanelRatio = 1.5f;
 
-    private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
     private readonly PdfPanelScheduler _scheduler;
     private readonly PdfPanelGraphics _graphics;
     private readonly Timer _contentUpdateTimer;
     private IPdfPanelLayout _layout = new PdfPanelVerticalLayout();
     private ContentUpdateRequest? _sentContentRequest;
     private ContentUpdateRequest? _pendingContentRequest;
-    private PagesDrawingRequest? _drawnRequest;
-    private bool _presentRequested;
     private float? _lastVerticalOffset;
     private bool _isScrollingUp;
 
     /// <summary>
-    /// Initializes the context with the given document and render target factory.
-    /// Page and animation callbacks are posted to the synchronization context <paramref name="document"/> was created with,
-    /// or invoked on the calling thread when it was created without one.
+    /// Initializes the context with the given document and the factories of the host's pixels of content tiles and
+    /// of page thumbnails.
+    /// Page, tile and thumbnail callbacks are posted to the synchronization context <paramref name="document"/> was
+    /// created with, or invoked on the calling thread when it was created without one.
     /// </summary>
     public PdfPanelContext(
         PdfPanelDocument document,
-        IPdfPanelRenderTargetFactory renderTargetFactory)
+        IPdfPanelTileResourceFactory tileResourceFactory,
+        IPdfPanelThumbnailResourceFactory thumbnailResourceFactory)
     {
         Document = document ?? throw new ArgumentNullException(nameof(document));
-        _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
+
+        if (tileResourceFactory == null)
+        {
+            throw new ArgumentNullException(nameof(tileResourceFactory));
+        }
+
+        if (thumbnailResourceFactory == null)
+        {
+            throw new ArgumentNullException(nameof(thumbnailResourceFactory));
+        }
+
         _scheduler = document.Scheduler;
         _scheduler.ClearExtractedContent();
         _graphics = new PdfPanelGraphics();
@@ -68,14 +77,14 @@ public sealed class PdfPanelContext : IDisposable
         Search = new PdfPanelSearch(this, Text, Document, _graphics);
         Content = new PdfPanelContent(Document, Input, _graphics);
         Layers = new PdfPanelLayers(Document);
-        Thumbnails = new PdfPanelThumbnails(Document, _scheduler);
+        Thumbnails = new PdfPanelThumbnails(Document, _scheduler, thumbnailResourceFactory);
         Actions = new PdfPanelActions(this, Document, Annotations, Layers);
-        Renderer = new PdfPanelRenderer(Document, _graphics);
+        Renderer = new PdfPanelRenderer();
+        Tiles = new PdfPanelTiles(Document, tileResourceFactory);
         Document.OptionalContentStates = Layers.Configuration?.ToStates();
         _contentUpdateTimer = new Timer(OnContentUpdateDue, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
         Document.PageTextExtracted += OnPageTextExtracted;
-        Document.PageThumbnailRendered += OnPageThumbnailRendered;
         Document.ExtractedContentCleared += OnExtractedContentCleared;
     }
 
@@ -203,6 +212,16 @@ public sealed class PdfPanelContext : IDisposable
     public PdfPanelRenderer Renderer { get; }
 
     /// <summary>
+    /// Content tiles of the visible pages and of the pages ahead of them, which the host shows.
+    /// </summary>
+    public PdfPanelTiles Tiles { get; }
+
+    /// <summary>
+    /// Pages visible at the last <see cref="Render"/>, in render order, with where each is drawn on the panel.
+    /// </summary>
+    public IReadOnlyList<PdfPanelFramePage> VisiblePages { get; private set; } = [];
+
+    /// <summary>
     /// Gets the panel rectangle in scaled coordinate space.
     /// </summary>
     public PdfRectangle PanelRectangle => PdfRectangle.FromLocationAndSize(HorizontalOffset, VerticalOffset, PanelWidth, PanelHeight);
@@ -236,7 +255,8 @@ public sealed class PdfPanelContext : IDisposable
     }
 
     /// <summary>
-    /// Renders the visible pages and starts producing the content of the visible pages and of the pages ahead of them.
+    /// Updates <see cref="VisiblePages"/> and the tiles of the visible pages and of the pages ahead of them, and starts
+    /// producing the tiles they still need.
     /// </summary>
     public void Render()
     {
@@ -246,35 +266,22 @@ public sealed class PdfPanelContext : IDisposable
         RequestPageInfo[] lookAheadPages = GetLookAheadPages(visiblePages).ToArray();
         RequestPageInfo[] contentPages = visiblePages.Concat(lookAheadPages).ToArray();
         PdfAnnotationStates annotationStates = Annotations.CreateStates(contentPages, Scale, ReferenceScale);
-        PagesDrawingRequest request = BuildRequest(visiblePages, annotationStates);
-        Annotations.UpdateBubbles(request);
-        Renderer.RedrawGraphics(_graphics.Update());
+        Annotations.UpdateBubbles(visiblePages, Scale, ReferenceScale);
 
-        if (Document.OptionalContentStates != request.OptionalContentStates)
+        // TODO: let the host draw the panel graphics (highlights, selection, bubbles) as native overlays.
+        _graphics.Update();
+
+        PdfOptionalContentStates? optionalContentStates = Layers.Configuration?.ToStates();
+
+        if (Document.OptionalContentStates != optionalContentStates)
         {
-            Document.OptionalContentStates = request.OptionalContentStates;
+            Document.OptionalContentStates = optionalContentStates;
             _scheduler.ClearExtractedContent();
+            Thumbnails.Clear();
         }
 
-        if (_presentRequested || _drawnRequest == null || !IsSameFrame(_drawnRequest, request))
-        {
-            Renderer.Submit(request);
-            _drawnRequest = request;
-            _presentRequested = false;
-        }
-
+        VisiblePages = CreateFramePages(visiblePages);
         UpdateContent(visiblePages.Length, contentPages, annotationStates);
-    }
-
-    /// <summary>
-    /// Renders the visible pages as <see cref="Render"/> does, drawing the frame again even when nothing changed, so
-    /// that <see cref="PdfPanelRenderer.OnPanelPageRendered"/> and <see cref="PdfPanelRenderer.OnPanelRendered"/> run
-    /// again; content already produced is drawn from the cache.
-    /// </summary>
-    public void Present()
-    {
-        _presentRequested = true;
-        Render();
     }
 
     /// <summary>
@@ -315,17 +322,17 @@ public sealed class PdfPanelContext : IDisposable
     }
 
     /// <summary>
-    /// Resets visual state, cleans up rendering surface.
+    /// Resets the visual state and removes every tile.
     /// </summary>
     public void Reset()
     {
         Input.Leave();
-        Renderer.Reset();
+        Tiles.Clear();
+        VisiblePages = Array.Empty<PdfPanelFramePage>();
 
         _contentUpdateTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _sentContentRequest = null;
         _pendingContentRequest = null;
-        _drawnRequest = null;
     }
 
     /// <summary>
@@ -376,49 +383,23 @@ public sealed class PdfPanelContext : IDisposable
         HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - PanelWidth));
     }
 
-    /// <summary>
-    /// Returns whether <paramref name="request"/> draws the same frame as <paramref name="drawnRequest"/>, the request
-    /// drawn last: the same view, render target, pages and drawing settings.
-    /// </summary>
-    private static bool IsSameFrame(PagesDrawingRequest drawnRequest, PagesDrawingRequest request)
+    private PdfPanelFramePage[] CreateFramePages(RequestPageInfo[] pages)
     {
-        return drawnRequest.Scale == request.Scale
-            && drawnRequest.ReferenceScale == request.ReferenceScale
-            && drawnRequest.Offset == request.Offset
-            && drawnRequest.PanelSize == request.PanelSize
-            && drawnRequest.RenderTarget == request.RenderTarget
-            && drawnRequest.Pages.SequenceEqual(request.Pages)
-            && drawnRequest.Antialias == request.Antialias
-            && drawnRequest.BackgroundColor.Equals(request.BackgroundColor)
-            && drawnRequest.PageCornerRadius == request.PageCornerRadius
-            && drawnRequest.ThumbnailPlaceholderMode == request.ThumbnailPlaceholderMode
-            && drawnRequest.OptionalContentStates == request.OptionalContentStates
-            && drawnRequest.AnnotationStates == request.AnnotationStates;
-    }
+        var framePages = new PdfPanelFramePage[pages.Length];
 
-    private PagesDrawingRequest BuildRequest(RequestPageInfo[] pages, PdfAnnotationStates annotationStates)
-    {
-        return new()
+        for (int pageIndex = 0; pageIndex < pages.Length; pageIndex++)
         {
-            Scale = Scale,
-            ReferenceScale = ReferenceScale,
-            Offset = new PdfPoint(HorizontalOffset, VerticalOffset),
-            PanelSize = new PdfSize(PanelWidth, PanelHeight),
-            RenderTarget = _renderTargetFactory.GetRenderTarget(this),
-            Pages = pages,
-            Antialias = Renderer.Antialias,
-            BackgroundColor = Renderer.BackgroundColor,
-            PageCornerRadius = Renderer.PageCornerRadius,
-            ThumbnailPlaceholderMode = Thumbnails.PlaceholderMode,
-            OptionalContentStates = Layers.Configuration?.ToStates(),
-            AnnotationStates = annotationStates
-        };
+            framePages[pageIndex] = new PdfPanelFramePage(pages[pageIndex], Scale);
+        }
+
+        return framePages;
     }
 
     /// <summary>
-    /// Sends a content update request for <paramref name="pages"/>, the first <paramref name="visiblePageCount"/> of
-    /// them visible, when something changed since the last request built: at once when it is the first, a visible page
-    /// appeared or the annotation states changed, otherwise after the zoom or the scroll delay.
+    /// Brings the tiles of <paramref name="pages"/>, the first <paramref name="visiblePageCount"/> of them visible, to
+    /// the current view and sends a content update request for the tiles they still need when it asks for more than
+    /// the last request built: at once when it is the first, a visible page appeared or the annotation states changed,
+    /// otherwise after the zoom or the scroll delay.
     /// </summary>
     private void UpdateContent(int visiblePageCount, RequestPageInfo[] pages, PdfAnnotationStates annotationStates)
     {
@@ -430,39 +411,33 @@ public sealed class PdfPanelContext : IDisposable
         }
 
         PdfOptionalContentStates optionalContentStates = GetOptionalContentStates();
+        ContentUpdatePage[] requestPages = Tiles.Update(
+            pages,
+            visiblePageCount,
+            Scale,
+            Renderer.TileSize,
+            Renderer.Antialias,
+            optionalContentStates,
+            annotationStates,
+            new PdfSize(PanelWidth, PanelHeight));
         bool settingsChanged = latestRequest == null || !HasSettings(latestRequest, optionalContentStates);
         bool annotationsChanged = latestRequest == null || !latestRequest.AnnotationStates.Equals(annotationStates);
-        bool pagesChanged = latestRequest == null || latestRequest.Pages.Length != pages.Length;
+        bool pagesChanged = latestRequest == null || latestRequest.Pages.Length != requestPages.Length;
         var visiblePageAppeared = false;
-        var requestPages = new ContentUpdatePage[pages.Length];
 
-        for (int pageIndex = 0; pageIndex < pages.Length; pageIndex++)
+        foreach (ContentUpdatePage requestPage in requestPages)
         {
-            RequestPageInfo page = pages[pageIndex];
-            bool isVisible = pageIndex < visiblePageCount;
-            ContentUpdatePage? previousPage = latestRequest?.Pages.FirstOrDefault(requestPage => requestPage.Page.PageNumber == page.PageNumber);
-            PdfRectangle visibleRegion;
-
-            if (isVisible)
-            {
-                visibleRegion = page.VisibleRegion;
-            }
-            else
-            {
-                visibleRegion = PdfRectangle.FromLocationAndSize(0, 0, page.Page.Size.Width, page.Page.Size.Height);
-            }
+            ContentUpdatePage? previousPage = latestRequest?.Pages.FirstOrDefault(page => page.Page.PageNumber == requestPage.Page.PageNumber);
 
             if (previousPage == null)
             {
                 pagesChanged = true;
-                visiblePageAppeared = visiblePageAppeared || isVisible;
+                visiblePageAppeared = visiblePageAppeared || requestPage.IsVisible;
             }
-            else if (previousPage.VisibleRegion != visibleRegion || previousPage.IsVisible != isVisible)
+            else if (previousPage.IsVisible != requestPage.IsVisible || !requestPage.GridPoints.All(previousPage.GridPoints.Contains))
             {
                 pagesChanged = true;
             }
-
-            requestPages[pageIndex] = new ContentUpdatePage(page.Page, isVisible, visibleRegion);
         }
 
         if (!settingsChanged && !pagesChanged && !annotationsChanged)
@@ -470,7 +445,7 @@ public sealed class PdfPanelContext : IDisposable
             return;
         }
 
-        ContentUpdateRequest request = new(Scale, Renderer.TileSize, GetTileCapacity(), Renderer.Antialias, optionalContentStates, annotationStates, requestPages);
+        ContentUpdateRequest request = new(Scale, Renderer.TileSize, Renderer.TileChannelOrder, Renderer.Antialias, optionalContentStates, annotationStates, requestPages);
         TimeSpan contentUpdateDelay;
 
         if (latestRequest != null && latestRequest.Scale != Scale)
@@ -494,31 +469,16 @@ public sealed class PdfPanelContext : IDisposable
     }
 
     /// <summary>
-    /// Returns whether <paramref name="request"/> was built with the current scale, tile size, tile capacity,
+    /// Returns whether <paramref name="request"/> was built with the current scale, tile size, tile channel order,
     /// antialiasing and <paramref name="optionalContentStates"/>.
     /// </summary>
     private bool HasSettings(ContentUpdateRequest request, PdfOptionalContentStates optionalContentStates)
     {
         return request.Scale == Scale
             && request.TileSize == Renderer.TileSize
-            && request.TileCapacity == GetTileCapacity()
+            && request.TileChannelOrder == Renderer.TileChannelOrder
             && request.Antialias == Renderer.Antialias
             && request.OptionalContentStates == optionalContentStates;
-    }
-
-    /// <summary>
-    /// Returns how many tiles the panel needs: for the visible pages, the tiles a panel-sized region reaches, one column
-    /// and one row more than it spans; for each look-ahead page, the tiles of the largest page looked ahead, a square
-    /// of <see cref="MaximumLookAheadPageToPanelRatio"/> times the panel's larger side.
-    /// </summary>
-    private int GetTileCapacity()
-    {
-        int tileSize = Renderer.TileSize;
-        int visibleColumns = (int)Math.Ceiling(PanelWidth / tileSize) + 1;
-        int visibleRows = (int)Math.Ceiling(PanelHeight / tileSize) + 1;
-        var lookAheadSide = (int)Math.Ceiling(Math.Max(PanelWidth, PanelHeight) * MaximumLookAheadPageToPanelRatio / tileSize);
-
-        return (visibleColumns * visibleRows) + (Renderer.LookAheadPageCount * lookAheadSide * lookAheadSide);
     }
 
     private void SendContentRequest(ContentUpdateRequest request)
@@ -674,10 +634,10 @@ public sealed class PdfPanelContext : IDisposable
     {
         Text.OnPageTextExtracted(args.PageNumber);
         Search.SearchPage(args.PageNumber);
-        Renderer.RedrawGraphics(_graphics.Update());
-    }
 
-    private void OnPageThumbnailRendered(object? sender, PageThumbnailRenderedEventArgs args) => Thumbnails.OnPageThumbnailRendered(args);
+        // TODO: let the host draw the updated panel graphics as native overlays.
+        _graphics.Update();
+    }
 
     private void OnExtractedContentCleared(object? sender, ExtractedContentClearedEventArgs args)
     {
@@ -685,12 +645,9 @@ public sealed class PdfPanelContext : IDisposable
         {
             Text.OnExtractedContentCleared();
             Search.OnExtractedContentCleared();
-            Renderer.RedrawGraphics(_graphics.Update());
-        }
 
-        if ((args.ContentTypes & CachedContentType.Thumbnail) != 0)
-        {
-            Thumbnails.OnExtractedContentCleared();
+            // TODO: let the host draw the updated panel graphics as native overlays.
+            _graphics.Update();
         }
     }
 
@@ -701,13 +658,13 @@ public sealed class PdfPanelContext : IDisposable
     public void Dispose()
     {
         Document.PageTextExtracted -= OnPageTextExtracted;
-        Document.PageThumbnailRendered -= OnPageThumbnailRendered;
         Document.ExtractedContentCleared -= OnExtractedContentCleared;
 
         _contentUpdateTimer.Dispose();
+        Tiles.Dispose();
+        Thumbnails.Dispose();
         Annotations.Dispose();
         Text.Dispose();
         Content.Dispose();
-        Renderer.Dispose();
     }
 }

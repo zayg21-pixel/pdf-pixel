@@ -38,7 +38,7 @@ internal sealed partial class PdfPanelScheduler : IDisposable
     /// <summary>
     /// Clears the extracted content of every page; <see cref="PdfPanelDocument.ExtractedContentCleared"/> is raised when done.
     /// </summary>
-    public void ClearExtractedContent() => EnqueueClear(CachedContentType.Words | CachedContentType.Thumbnail);
+    public void ClearExtractedContent() => EnqueueClear(CachedContentType.Words);
 
     private void EnqueueClear(CachedContentType contentTypes)
         => _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(_panelDocument.Pages,_panelDocument.DocumentLocker, contentTypes, OnExtractedContentCleared));
@@ -47,8 +47,6 @@ internal sealed partial class PdfPanelScheduler : IDisposable
     {
         _panelDocument.NotifyExtractedContentCleared(contentTypes);
         EnqueueNextTextExtraction();
-        RequestPinnedThumbnails();
-        EnqueueNextThumbnail();
     }
 
     /// <inheritdoc />

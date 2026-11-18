@@ -1,48 +1,51 @@
 using PdfPixel.Geometry;
 using PdfPixel.Imaging;
-using PdfPixel.Imaging.Processing.Pipeline;
-using PdfPixel.PdfPanel.Caching;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Scheduling;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Thumbnails;
 
 /// <summary>
-/// Page thumbnails of the panel: the page's embedded thumbnail image or a rendering of the page, as PNG files, opaque
-/// 8-bit RGB samples or both.
+/// Page thumbnails of the panel, the only cache of them: the page's embedded thumbnail image or a rendering of the
+/// page, kept as the host's pixels from its <see cref="IPdfPanelThumbnailResourceFactory"/>. The host requests the
+/// thumbnails it needs and cancels the ones it no longer needs; the cancelled ones are evicted beyond
+/// <see cref="MaximumCount"/>, the least recently cancelled first.
 /// </summary>
-public sealed class PdfPanelThumbnails
+public sealed class PdfPanelThumbnails : IDisposable
 {
     internal const bool DefaultUsePageThumbnails = false;
     internal const int DefaultMaximumCount = 50;
-    internal const PdfPanelThumbnailPlaceholderMode DefaultPlaceholderMode = PdfPanelThumbnailPlaceholderMode.VisiblePages;
 
     internal static readonly PdfIntegerSize DefaultRenderMaximumSize = new(400, 400);
 
     private readonly PdfPanelDocument _panelDocument;
     private readonly PdfPanelScheduler _scheduler;
+    private readonly IPdfPanelThumbnailResourceFactory _resourceFactory;
+    private readonly Dictionary<int, PdfPageThumbnailEntry> _entries = [];
+    private readonly List<int> _cancelledPageNumbers = [];
     private bool _usePageThumbnails = DefaultUsePageThumbnails;
     private PdfIntegerSize _renderMaximumSize = DefaultRenderMaximumSize;
     private int _maximumCount = DefaultMaximumCount;
-    private PdfPanelThumbnailPlaceholderMode _placeholderMode = DefaultPlaceholderMode;
 
-    internal PdfPanelThumbnails(PdfPanelDocument panelDocument, PdfPanelScheduler scheduler)
+    internal PdfPanelThumbnails(PdfPanelDocument panelDocument, PdfPanelScheduler scheduler, IPdfPanelThumbnailResourceFactory resourceFactory)
     {
         _panelDocument = panelDocument ?? throw new ArgumentNullException(nameof(panelDocument));
         _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        _resourceFactory = resourceFactory ?? throw new ArgumentNullException(nameof(resourceFactory));
         UpdateSchedulingSettings();
+        _panelDocument.ThumbnailRendered += OnThumbnailRendered;
     }
 
     /// <summary>
-    /// Raised when the thumbnail of a requested page is ready in its requested forms; it is read with
-    /// <see cref="GetPng"/> or <see cref="GetSamples"/>.
+    /// Raised on the UI thread when the thumbnail of a requested page was produced; it is read with <see cref="Get"/>.
     /// </summary>
     public event EventHandler<PdfPanelThumbnailEventArgs>? ThumbnailReady;
 
     /// <summary>
-    /// Raised when every thumbnail was dropped, after a setting or the visibility of a layer changed.
-    /// Pinned thumbnails are produced again.
+    /// Raised when every thumbnail was dropped, after a setting or the visibility of a layer changed; the requested
+    /// ones are produced again.
     /// </summary>
     public event EventHandler? Cleared;
 
@@ -59,6 +62,7 @@ public sealed class PdfPanelThumbnails
             {
                 _usePageThumbnails = value;
                 UpdateSchedulingSettings();
+                Clear();
             }
         }
     }
@@ -77,14 +81,13 @@ public sealed class PdfPanelThumbnails
             {
                 _renderMaximumSize = value;
                 UpdateSchedulingSettings();
+                Clear();
             }
         }
     }
 
     /// <summary>
-    /// Maximum number of thumbnails kept, the ones nearest to the first visible page.
-    /// Pinned thumbnails, and the thumbnails of visible pages while <see cref="PlaceholderMode"/> is not
-    /// <see cref="PdfPanelThumbnailPlaceholderMode.None"/>, are kept beyond it.
+    /// Maximum number of thumbnails kept; requested thumbnails are kept beyond it.
     /// </summary>
     public int MaximumCount
     {
@@ -95,24 +98,7 @@ public sealed class PdfPanelThumbnails
             if (_maximumCount != value)
             {
                 _maximumCount = value;
-                UpdateSchedulingSettings();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet.
-    /// </summary>
-    public PdfPanelThumbnailPlaceholderMode PlaceholderMode
-    {
-        get => _placeholderMode;
-
-        set
-        {
-            if (_placeholderMode != value)
-            {
-                _placeholderMode = value;
-                UpdateSchedulingSettings();
+                EvictCancelled();
             }
         }
     }
@@ -124,6 +110,7 @@ public sealed class PdfPanelThumbnails
     public PdfSize? GetSize(int pageNumber)
     {
         PdfImage? pageThumbnail = GetPageThumbnail(pageNumber);
+
         if (pageThumbnail != null)
         {
             return GetDecodedSize(pageThumbnail);
@@ -135,64 +122,159 @@ public sealed class PdfPanelThumbnails
     }
 
     /// <summary>
-    /// Returns the thumbnail of a page as a PNG file, or <see langword="null"/> when it is not ready in that form.
+    /// Returns the host's pixels of the thumbnail of a page, or <see langword="null"/> when it is not produced.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
-    public byte[]? GetPng(int pageNumber)
-    {
-        using LockedContent<PdfPageThumbnail> lockedThumbnail = _panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.GetContent();
+    public IPdfPanelThumbnailResource? Get(int pageNumber) => (_entries.TryGetValue(pageNumber, out PdfPageThumbnailEntry? entry)) ? entry.Resource : null;
 
-        return lockedThumbnail.Content?.Png;
+    /// <summary>
+    /// Requests the thumbnail of a page: starts producing it unless it is produced or being produced, and keeps it
+    /// until it is cancelled; <see cref="ThumbnailReady"/> is raised once it is produced.
+    /// </summary>
+    /// <param name="pageNumber">1-based page number.</param>
+    public void Request(int pageNumber)
+    {
+        if (pageNumber < 1 || pageNumber > _panelDocument.Pages.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pageNumber));
+        }
+
+        if (!_entries.TryGetValue(pageNumber, out PdfPageThumbnailEntry? entry))
+        {
+            entry = new PdfPageThumbnailEntry();
+            _entries.Add(pageNumber, entry);
+        }
+
+        entry.IsRequested = true;
+        _cancelledPageNumbers.Remove(pageNumber);
+
+        if (entry.Resource == null && !entry.IsPending)
+        {
+            entry.IsPending = true;
+            _scheduler.RequestThumbnail(pageNumber);
+        }
     }
 
     /// <summary>
-    /// Returns the thumbnail of a page as opaque 8-bit RGB samples, or <see langword="null"/> when it is not ready in
-    /// that form.
+    /// Cancels the request of the thumbnail of a page: stops producing it, and lets a produced one be evicted.
     /// </summary>
     /// <param name="pageNumber">1-based page number.</param>
-    public PdfImageSamples? GetSamples(int pageNumber)
+    public void Cancel(int pageNumber)
     {
-        using LockedContent<PdfPageThumbnail> lockedThumbnail = _panelDocument.Pages[pageNumber - 1].CacheEntry.Thumbnail.GetContent();
+        if (!_entries.TryGetValue(pageNumber, out PdfPageThumbnailEntry? entry) || !entry.IsRequested)
+        {
+            return;
+        }
 
-        return lockedThumbnail.Content?.Samples;
+        entry.IsRequested = false;
+
+        if (entry.IsPending)
+        {
+            entry.IsPending = false;
+            _scheduler.CancelThumbnail(pageNumber);
+        }
+
+        if (entry.Resource == null)
+        {
+            _entries.Remove(pageNumber);
+        }
+        else
+        {
+            _cancelledPageNumbers.Add(pageNumber);
+            EvictCancelled();
+        }
     }
 
     /// <summary>
-    /// Starts producing the thumbnail of a page in <paramref name="formats"/>, unless it is ready or pending in them.
-    /// <see cref="ThumbnailReady"/> is raised when it is produced in every requested form.
-    /// A pinned thumbnail is kept beyond <see cref="MaximumCount"/> and produced again in its requested forms after the
-    /// thumbnails are cleared, until <see cref="Release"/> is called for the page.
+    /// Drops every thumbnail and produces the requested ones again.
     /// </summary>
-    /// <param name="pageNumber">1-based page number.</param>
-    /// <param name="formats">Forms the thumbnail is produced in.</param>
-    /// <param name="pin">Whether the thumbnail is pinned.</param>
-    public void Request(int pageNumber, PdfPanelThumbnailFormats formats, bool pin) => _scheduler.RequestThumbnail(pageNumber, formats, pin);
+    internal void Clear()
+    {
+        List<int> pageNumbers = [.. _entries.Keys];
+
+        foreach (int pageNumber in pageNumbers)
+        {
+            PdfPageThumbnailEntry entry = _entries[pageNumber];
+
+            entry.Resource?.Dispose();
+            entry.Resource = null;
+
+            if (entry.IsPending)
+            {
+                _scheduler.CancelThumbnail(pageNumber);
+            }
+
+            if (entry.IsRequested)
+            {
+                entry.IsPending = true;
+                _scheduler.RequestThumbnail(pageNumber);
+            }
+            else
+            {
+                _entries.Remove(pageNumber);
+            }
+        }
+
+        _cancelledPageNumbers.Clear();
+        Cleared?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>
-    /// Cancels producing the thumbnail of a page and unpins it; a ready thumbnail is kept until it is evicted.
+    /// Disposes the cancelled thumbnails while more than <see cref="MaximumCount"/> are kept, the least recently
+    /// cancelled first.
     /// </summary>
-    /// <param name="pageNumber">1-based page number.</param>
-    public void Release(int pageNumber) => _scheduler.ReleaseThumbnail(pageNumber);
+    private void EvictCancelled()
+    {
+        while (_cancelledPageNumbers.Count > 0 && GetProducedCount() > _maximumCount)
+        {
+            int pageNumber = _cancelledPageNumbers[0];
+            _cancelledPageNumbers.RemoveAt(0);
+            _entries[pageNumber].Resource?.Dispose();
+            _entries.Remove(pageNumber);
+        }
+    }
+
+    private int GetProducedCount()
+    {
+        int producedCount = 0;
+
+        foreach (PdfPageThumbnailEntry entry in _entries.Values)
+        {
+            if (entry.Resource != null)
+            {
+                producedCount++;
+            }
+        }
+
+        return producedCount;
+    }
 
     /// <summary>
-    /// Raises <see cref="Cleared"/>.
+    /// Ends the pending state of the page of <paramref name="thumbnail"/> when it completes the page's current request,
+    /// keeping its pixels as the host's and raising <see cref="ThumbnailReady"/> when it was produced.
     /// </summary>
-    internal void OnExtractedContentCleared() => Cleared?.Invoke(this, EventArgs.Empty);
+    private void OnThumbnailRendered(PdfPageRenderedThumbnail thumbnail)
+    {
+        if (!_scheduler.CompleteThumbnail(thumbnail) || !_entries.TryGetValue(thumbnail.PageNumber, out PdfPageThumbnailEntry? entry))
+        {
+            return;
+        }
 
-    /// <summary>
-    /// Raises <see cref="ThumbnailReady"/> for the thumbnail produced by the request of a page.
-    /// </summary>
-    internal void OnPageThumbnailRendered(PageThumbnailRenderedEventArgs args)
-        => ThumbnailReady?.Invoke(this, new PdfPanelThumbnailEventArgs(args.PageNumber));
+        entry.IsPending = false;
+
+        if (thumbnail.Samples != null)
+        {
+            entry.Resource = _resourceFactory.Create(thumbnail.Samples);
+            ThumbnailReady?.Invoke(this, new PdfPanelThumbnailEventArgs(thumbnail.PageNumber));
+        }
+    }
 
     private void UpdateSchedulingSettings()
     {
         PdfPanelThumbnailSchedulingSettings settings = new()
         {
             UsePageThumbnails = _usePageThumbnails,
-            RenderMaximumSize = _renderMaximumSize,
-            MaximumCount = _maximumCount,
-            PlaceholderMode = _placeholderMode
+            RenderMaximumSize = _renderMaximumSize
         };
 
         _scheduler.SetThumbnailSettings(settings);
@@ -226,5 +308,24 @@ public sealed class PdfPanelThumbnails
         return new PdfSize(
             Math.Max(1, (int)(pageThumbnail.Width * scale)),
             Math.Max(1, (int)(pageThumbnail.Height * scale)));
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _panelDocument.ThumbnailRendered -= OnThumbnailRendered;
+
+        foreach (KeyValuePair<int, PdfPageThumbnailEntry> entry in _entries)
+        {
+            if (entry.Value.IsPending)
+            {
+                _scheduler.CancelThumbnail(entry.Key);
+            }
+
+            entry.Value.Resource?.Dispose();
+        }
+
+        _entries.Clear();
+        _cancelledPageNumbers.Clear();
     }
 }

@@ -6,9 +6,8 @@ using System;
 namespace PdfPixel.Snap.Rasterization;
 
 /// <summary>
-/// How shapes and images meet the device pixel grid (ISO 32000-2 10.7.4): an axis-aligned rectangle paints every pixel
-/// it touches, an axis-aligned image the pixels whose centers it holds (at least one per axis), and anything else is
-/// antialiased.
+/// How shapes and images meet the device pixel grid (ISO 32000-2 10.7.4): an axis-aligned image or rectangle paints the
+/// pixels whose centers it holds (at least one per axis), and anything else is antialiased.
 /// </summary>
 public static class PdfSnapGrid
 {
@@ -76,7 +75,7 @@ public static class PdfSnapGrid
     }
 
     /// <summary>
-    /// Returns every pixel a filled <paramref name="rectangle"/> touches, at least one per axis, or
+    /// Returns the pixels whose centers a filled <paramref name="rectangle"/> holds, at least one per axis, or
     /// <see langword="null"/> when the transformation turns or skews it.
     /// </summary>
     internal static PdfIntegerRectangle? GetRectanglePixels(in PdfRectangle rectangle, in PdfMatrix deviceMatrix)
@@ -85,7 +84,7 @@ public static class PdfSnapGrid
 
         if (deviceRectangle != null)
         {
-            return GetTouchedPixels(deviceRectangle.Value);
+            return GetCenteredPixels(deviceRectangle.Value);
         }
         else
         {
@@ -269,16 +268,6 @@ public static class PdfSnapGrid
         {
             return null;
         }
-    }
-
-    private static PdfIntegerRectangle GetTouchedPixels(in PdfRectangle bounds)
-    {
-        int left = ToIndex(Math.Floor(bounds.Left + CoordinateTolerance));
-        int top = ToIndex(Math.Floor(bounds.Top + CoordinateTolerance));
-        int right = Math.Max(left + 1, ToIndex(Math.Ceiling(bounds.Right - CoordinateTolerance)));
-        int bottom = Math.Max(top + 1, ToIndex(Math.Ceiling(bounds.Bottom - CoordinateTolerance)));
-
-        return new PdfIntegerRectangle(left, top, right, bottom);
     }
 
     // ISO 32000-2 10.7.4 paints only the pixels whose centers lie in an image's footprint, so an image thinner than a

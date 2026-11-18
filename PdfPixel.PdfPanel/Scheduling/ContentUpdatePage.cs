@@ -1,4 +1,5 @@
 using PdfPixel.Geometry;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Scheduling;
 
@@ -10,11 +11,11 @@ internal sealed class ContentUpdatePage
     /// <summary>
     /// Initializes the page of a request.
     /// </summary>
-    public ContentUpdatePage(PdfPanelPage page, bool isVisible, in PdfRectangle visibleRegion)
+    public ContentUpdatePage(PdfPanelPage page, bool isVisible, IReadOnlyList<PdfIntegerPoint> gridPoints)
     {
         Page = page;
         IsVisible = isVisible;
-        VisibleRegion = visibleRegion;
+        GridPoints = gridPoints;
     }
 
     /// <summary>
@@ -28,8 +29,8 @@ internal sealed class ContentUpdatePage
     public bool IsVisible { get; }
 
     /// <summary>
-    /// Part of the page whose tiles are kept, in page space snapped to the tile grid: tiles outside it are evicted and
-    /// missing tiles inside it are rasterized.
+    /// Columns and rows of the tiles of the page to rasterize, on the tile grid of the request's scale and tile size,
+    /// in the order they are rasterized.
     /// </summary>
-    public PdfRectangle VisibleRegion { get; }
+    public IReadOnlyList<PdfIntegerPoint> GridPoints { get; }
 }

@@ -1,41 +1,54 @@
 #include "emscripten.h"
-#include <emscripten/html5.h>
 #include <emscripten/console.h>
 #include <stdint.h>
 
-// Puts an RGBA image (bytes) on a canvas identified by selector (e.g. "#myCanvas").
-// pixelsPtr must point to width*height*4 bytes in RGBA order; they are read in place from the heap, and the 2D
-// context of each canvas is kept while the canvas stays in the document.
-EM_JS(void, dotnet_set_canvas_rgba_js, (const char* canvasIdPtr, const uint8_t* pixelsPtr, int width, int height), {
-	const canvasId = UTF8ToString(canvasIdPtr);
-	const contexts = Module.pdfPixelCanvasContexts || (Module.pdfPixelCanvasContexts = new Map());
-	let ctx = contexts.get(canvasId);
-
-	if (!ctx || !ctx.canvas.isConnected) {
-		const canvas = document.querySelector(canvasId);
-
-		if (!canvas) {
-			contexts.delete(canvasId);
-			return;
-		}
-
-		ctx = canvas.getContext('2d');
-
-		if (!ctx) {
-			contexts.delete(canvasId);
-			return;
-		}
-
-		contexts.set(canvasId, ctx);
-	}
-
-	const pixels = new Uint8ClampedArray(HEAPU8.buffer, pixelsPtr, width * height * 4);
-	ctx.putImageData(new ImageData(pixels, width, height), 0, 0);
+// Creates the canvas of the given id, width by height pixels, in the panel's canvas store, which the JS view reads
+// tiles and thumbnails from (globalThis.pdfPixelCanvases).
+EM_JS(void, dotnet_canvas_create_js, (int id, int width, int height), {
+	const canvases = globalThis.pdfPixelCanvases || (globalThis.pdfPixelCanvases = new Map());
+	const canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+	canvases.set(id, canvas);
 });
 
-// C wrapper for the EM_JS function. Call this from C/C# with a pointer to RGBA bytes.
-void dotnet_set_canvas_rgba(const char* canvasId, const uint8_t* pixels, int width, int height) {
-	dotnet_set_canvas_rgba_js(canvasId, pixels, width, height);
+// Puts width*height RGBA pixels, read in place from the heap at pixelsPtr, on the canvas of the given id.
+EM_JS(void, dotnet_canvas_write_rgba_js, (int id, const uint8_t* pixelsPtr, int width, int height), {
+	const canvas = globalThis.pdfPixelCanvases?.get(id);
+
+	if (!canvas) {
+		return;
+	}
+
+	const context = canvas.pdfPixelContext || (canvas.pdfPixelContext = canvas.getContext('2d'));
+	const pixels = new Uint8ClampedArray(HEAPU8.buffer, pixelsPtr, width * height * 4);
+	context.putImageData(new ImageData(pixels, width, height), 0, 0);
+});
+
+// Removes the canvas of the given id from the canvas store and releases its pixels.
+EM_JS(void, dotnet_canvas_delete_js, (int id), {
+	const canvases = globalThis.pdfPixelCanvases;
+	const canvas = canvases?.get(id);
+
+	if (!canvas) {
+		return;
+	}
+
+	canvases.delete(id);
+	canvas.width = 0;
+	canvas.height = 0;
+});
+
+void dotnet_canvas_create(int id, int width, int height) {
+	dotnet_canvas_create_js(id, width, height);
+}
+
+void dotnet_canvas_write_rgba(int id, const uint8_t* pixels, int width, int height) {
+	dotnet_canvas_write_rgba_js(id, pixels, width, height);
+}
+
+void dotnet_canvas_delete(int id) {
+	dotnet_canvas_delete_js(id);
 }
 
 // Writes a log message to the browser console using the channel that matches log_level.
@@ -51,12 +64,4 @@ void dotnet_console_log(const char* message, int log_level) {
 	} else {
 		emscripten_console_log(message);
 	}
-}
-
-// Sets the canvas size and its CSS size, scaled by the device pixel ratio.
-void dotnet_set_canvas_size(const char* canvasId, int width, int height) {
-	emscripten_set_canvas_element_size(canvasId, width, height);
-
-	double dpr = emscripten_get_device_pixel_ratio();
-	emscripten_set_element_css_size(canvasId, width / dpr, height / dpr);
 }

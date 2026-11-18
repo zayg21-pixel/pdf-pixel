@@ -11,6 +11,7 @@ using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Scheduling;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.PdfPanel.Web.Dto;
 using PdfPixel.PdfPanel.Web.Dto.Converters;
 using PdfPixel.PdfPanel.Web.Emscripten;
@@ -20,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Threading;
@@ -68,9 +70,7 @@ internal static partial class PdfPanelInterop
 
         try
         {
-            string selector = $"#{containerId} .pdf-panel-canvas";
-            CanvasRenderTarget renderTarget = new(LoggerFactory.CreateLogger<CanvasRenderTarget>(), selector, frame => OnFramePresented(containerId, frame));
-            PdfPanelResources resources = new(containerId, renderTarget);
+            PdfPanelResources resources = new(containerId);
 
             resources.YieldInterval = TimeSpan.FromMilliseconds(configuration.GetPropertyAsDouble("yieldInterval"));
             ReadConfiguration(configuration, resources.Configuration);
@@ -234,11 +234,14 @@ internal static partial class PdfPanelInterop
             Logger.LogInformation("PDF document parsed, pages={PageCount}", resources.Document.Pages.Count);
 
             DisposeContext(resources);
-            resources.Context = new PdfPanelContext(resources.Document, resources.RenderTargetFactory);
+            resources.Context = new PdfPanelContext(resources.Document, resources.TileResourceFactory, resources.ThumbnailResourceFactory);
             resources.Configuration.ApplyConfiguration(resources.Context);
             resources.Context.Actions.ActionRequested += resources.OnActionRequested;
             resources.Context.Search.MatchesChanged += resources.OnSearchMatchesChanged;
             resources.Context.Text.TextExtracted += resources.OnTextExtracted;
+            resources.Context.Tiles.TilesChanged += resources.OnTilesChanged;
+            resources.Context.Thumbnails.ThumbnailReady += resources.OnThumbnailReady;
+            resources.Context.Thumbnails.Cleared += resources.OnThumbnailsCleared;
             resources.SearchResultsChanged = true;
             resources.CurrentSearchRange = null;
 
@@ -446,24 +449,24 @@ internal static partial class PdfPanelInterop
     }
 
     /// <summary>
-    /// Returns the PNG of the thumbnail of a page, or <see langword="null"/> when it has not been produced.
+    /// Returns the id of the canvas of the thumbnail of a page in the canvas store, or <see langword="null"/> when it
+    /// has not been produced.
     /// </summary>
     [JSExport]
-    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
-    public static byte[]? GetThumbnail(string containerId, int pageNumber)
+    public static int? GetThumbnail(string containerId, int pageNumber)
     {
         if (!TryGetContext(containerId, out PdfPanelContext? context) || pageNumber < 1 || pageNumber > context.Document.Pages.Count)
         {
             return null;
         }
 
-        return context.Thumbnails.GetPng(pageNumber);
+        return (context.Thumbnails.Get(pageNumber) as WebThumbnailResource)?.Id;
     }
 
     /// <summary>
-    /// Sets whether the thumbnail of a page is shown by the view. While it is visible, the thumbnail is kept and its PNG
-    /// is passed to the thumbnail subscriber of the panel when it is ready, at once when it is already produced, and
-    /// again whenever it is produced anew. A thumbnail that is no longer visible may be evicted.
+    /// Sets whether the thumbnail of a page is shown by the view. While it is visible, the thumbnail is requested and
+    /// its canvas is passed to the thumbnail subscriber of the panel when it is produced, at once when it already is,
+    /// and again whenever it is produced anew. A thumbnail that is no longer visible may be evicted.
     /// </summary>
     [JSExport]
     public static bool SetThumbnailVisible(string containerId, int pageNumber, bool isVisible)
@@ -481,14 +484,70 @@ internal static partial class PdfPanelInterop
         }
 
         thumbnails[pageNumber - 1].IsVisible = isVisible;
+        ReportThumbnail(resources, pageNumber);
         return true;
     }
 
     /// <summary>
-    /// Passes the PNG of the thumbnail of a page to the thumbnail subscriber of the panel of <paramref name="containerId"/>.
+    /// Passes the canvas id of the thumbnail of a page to the thumbnail subscriber of the panel of
+    /// <paramref name="resources"/> when its item is visible and the thumbnail is produced.
     /// </summary>
-    internal static void ReportThumbnail(string containerId, int pageNumber, byte[] png)
-        => ThumbnailUpdated(containerId, pageNumber, png);
+    internal static void ReportThumbnail(PdfPanelResources resources, int pageNumber)
+    {
+        if (resources.Context == null || resources.Thumbnails == null || !resources.Thumbnails.Items[pageNumber - 1].IsVisible)
+        {
+            return;
+        }
+
+        if (resources.Context.Thumbnails.Get(pageNumber) is WebThumbnailResource thumbnail)
+        {
+            ThumbnailUpdated(resources.ContainerId, pageNumber, thumbnail.Id);
+        }
+    }
+
+    /// <summary>
+    /// Requests the thumbnails of the visible thumbnail items of <paramref name="resources"/> and, while placeholders are
+    /// drawn, of its visible pages, and cancels the rest.
+    /// </summary>
+    internal static void UpdateThumbnailRequests(PdfPanelResources resources)
+    {
+        if (resources.Context == null)
+        {
+            return;
+        }
+
+        HashSet<int> wantedPageNumbers = [];
+
+        if (resources.Thumbnails != null)
+        {
+            wantedPageNumbers.UnionWith(resources.Thumbnails.Items.Where(item => item.IsVisible).Select(item => item.PageNumber));
+        }
+
+        if (resources.Configuration.ThumbnailPlaceholderMode != PdfPanelThumbnailPlaceholderMode.None)
+        {
+            foreach (PdfPanelFramePage page in resources.Context.VisiblePages)
+            {
+                wantedPageNumbers.Add(page.PageNumber);
+            }
+        }
+
+        resources.ThumbnailRequests.Update(resources.Context.Thumbnails, wantedPageNumbers);
+    }
+
+    /// <summary>
+    /// Returns the JSON frame of the panel of <paramref name="containerId"/>: its visible pages with their tiles and
+    /// placeholder thumbnails, or <see langword="null"/> when the panel has no document.
+    /// </summary>
+    [JSExport]
+    public static string? GetFrame(string containerId)
+    {
+        if (!TryGetResources(containerId, out PdfPanelResources? resources) || resources.Context == null)
+        {
+            return null;
+        }
+
+        return FrameDtoConverter.CreateFrame(resources.Context, resources.Configuration.ThumbnailPlaceholderMode);
+    }
 
     /// <summary>
     /// Applies the JSON view state <paramref name="input"/> to the panel of <paramref name="containerId"/>, renders it
@@ -553,6 +612,8 @@ internal static partial class PdfPanelInterop
             output = RedrawDtoConverter.CreateResult(resources, resources.Context);
 
             resources.Context.Render();
+            UpdateThumbnailRequests(resources);
+            FramePresented(containerId, FrameDtoConverter.CreateFrame(resources.Context, resources.Configuration.ThumbnailPlaceholderMode));
         }
 #pragma warning disable CA1031
         catch (Exception ex)
@@ -602,13 +663,13 @@ internal static partial class PdfPanelInterop
         resources.Context.Actions.ActionRequested -= resources.OnActionRequested;
         resources.Context.Search.MatchesChanged -= resources.OnSearchMatchesChanged;
         resources.Context.Text.TextExtracted -= resources.OnTextExtracted;
+        resources.Context.Tiles.TilesChanged -= resources.OnTilesChanged;
+        resources.Context.Thumbnails.ThumbnailReady -= resources.OnThumbnailReady;
+        resources.Context.Thumbnails.Cleared -= resources.OnThumbnailsCleared;
 
         if (resources.Thumbnails != null)
         {
-            foreach (PdfThumbnailViewModel thumbnail in resources.Thumbnails.Items)
-            {
-                thumbnail.PropertyChanged -= resources.OnThumbnailPropertyChanged;
-            }
+            resources.Thumbnails.VisibleItemsChanged -= resources.OnVisibleThumbnailsChanged;
         }
 
         if (resources.Layers != null)
@@ -630,6 +691,7 @@ internal static partial class PdfPanelInterop
         resources.Files.Clear();
         resources.FileHandles.Clear();
         resources.LayerItems.Clear();
+        resources.ThumbnailRequests.Clear();
         resources.Context.Dispose();
     }
 
@@ -646,11 +708,7 @@ internal static partial class PdfPanelInterop
         resources.LayersChanged = true;
 
         resources.Layers.PropertyChanged += resources.OnLayersPropertyChanged;
-
-        foreach (PdfThumbnailViewModel thumbnail in resources.Thumbnails.Items)
-        {
-            thumbnail.PropertyChanged += resources.OnThumbnailPropertyChanged;
-        }
+        resources.Thumbnails.VisibleItemsChanged += resources.OnVisibleThumbnailsChanged;
     }
 
     /// <summary>
@@ -713,21 +771,15 @@ internal static partial class PdfPanelInterop
         return true;
     }
 
-    /// <summary>
-    /// Builds the JSON of <paramref name="frame"/> and passes it to the view of <paramref name="containerId"/>.
-    /// </summary>
-    private static void OnFramePresented(string containerId, PdfPanelFrame frame)
-    {
-        string frameJson = FrameDtoConverter.CreateFrame(frame);
-        FramePresented(containerId, frameJson);
-    }
-
     [JSImport("framePresented", "canvasInterop.js")]
     private static partial void FramePresented(string containerId, string frame);
 
     [JSImport("scheduleRedraw", "canvasInterop.js")]
     internal static partial void ScheduleRedraw(string containerId);
 
+    [JSImport("scheduleFrame", "canvasInterop.js")]
+    internal static partial void ScheduleFrame(string containerId);
+
     [JSImport("thumbnailUpdated", "canvasInterop.js")]
-    private static partial void ThumbnailUpdated(string containerId, int pageNumber, [JSMarshalAs<JSType.Array<JSType.Number>>] byte[] png);
+    private static partial void ThumbnailUpdated(string containerId, int pageNumber, int canvasId);
 }

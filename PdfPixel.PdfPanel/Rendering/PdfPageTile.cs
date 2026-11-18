@@ -1,44 +1,21 @@
 using PdfPixel.Annotations;
-using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
-using PdfPixel.Imaging.Decoding;
-using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.Annotations;
 using System;
 
-namespace PdfPixel.PdfPanel.Caching;
+namespace PdfPixel.PdfPanel.Rendering;
 
 /// <summary>
-/// One square tile of a page on the tile grid of a <see cref="PdfPageTiles"/>, empty until it is rasterized.
+/// One square tile of a page on the tile grid of a <see cref="PdfPageTiles"/>: the host's pixels of it and the
+/// settings it was rasterized with, empty until it is rasterized.
 /// </summary>
 internal sealed class PdfPageTile
 {
     /// <summary>
-    /// The paint tiles are drawn with: opaque DeviceRGB, the color space of the surface they are rasterized on.
+    /// Initializes an empty tile that covers <paramref name="destination"/>.
     /// </summary>
-    public static readonly PdfPaint TilePaint =new PdfPaint(PdfPaintStyle.Fill).WithColorSpace(PdfDeviceRgbColorSpaceConverter.Instance, PdfDeviceColorMapping.None);
-
-    /// <summary>
-    /// Initializes an empty tile holding <paramref name="samples"/> that covers <paramref name="destination"/>.
-    /// </summary>
-    public PdfPageTile(PdfImageSamples samples, in PdfRectangle destination)
-    {
-        Samples = samples ?? throw new ArgumentNullException(nameof(samples));
-        Decoder = new PdfImageSamplesDecoder(samples, TilePaint, interpolate: true);
-        Destination = destination;
-    }
-
-    /// <summary>
-    /// Gets the pixels of the tile.
-    /// </summary>
-    public PdfImageSamples Samples { get; }
-
-    /// <summary>
-    /// Gets the decoder of the tile's pixels.
-    /// </summary>
-    public PdfImageSamplesDecoder Decoder { get; }
+    public PdfPageTile(in PdfRectangle destination) => Destination = destination;
 
     /// <summary>
     /// Gets the part of the page the whole tile covers, in content coordinates; it reaches past the page at its edges.
@@ -46,9 +23,14 @@ internal sealed class PdfPageTile
     public PdfRectangle Destination { get; }
 
     /// <summary>
-    /// Gets whether the tile's pixels were rasterized.
+    /// Gets whether the tile was rasterized.
     /// </summary>
-    public bool IsRasterized => Antialias != null;
+    public bool IsRasterized => Resource != null;
+
+    /// <summary>
+    /// Gets the host's pixels of the tile, or <see langword="null"/> while it is empty.
+    /// </summary>
+    public IPdfPanelTileResource? Resource { get; private set; }
 
     /// <summary>
     /// Gets whether the tile was rasterized with antialiasing, or <see langword="null"/> while it is empty.
@@ -92,11 +74,12 @@ internal sealed class PdfPageTile
     }
 
     /// <summary>
-    /// Records that the tile's pixels were rasterized with <paramref name="antialias"/>,
+    /// Records that the tile was rasterized into <paramref name="resource"/> with <paramref name="antialias"/>,
     /// <paramref name="optionalContentStates"/> and <paramref name="annotationStates"/>.
     /// </summary>
-    public void SetRasterized(bool antialias, PdfOptionalContentStates optionalContentStates, PdfAnnotationStates annotationStates)
+    public void SetRasterized(IPdfPanelTileResource resource, bool antialias, PdfOptionalContentStates optionalContentStates, PdfAnnotationStates annotationStates)
     {
+        Resource = resource ?? throw new ArgumentNullException(nameof(resource));
         Antialias = antialias;
         OptionalContentStates = optionalContentStates ?? throw new ArgumentNullException(nameof(optionalContentStates));
         AnnotationStates = annotationStates ?? throw new ArgumentNullException(nameof(annotationStates));

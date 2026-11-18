@@ -13,7 +13,7 @@ public sealed class PdfPanelThumbnailEventArgs : EventArgs
     public PdfPanelThumbnailEventArgs(int pageNumber) => PageNumber = pageNumber;
 
     /// <summary>
-    /// 1-based page number whose thumbnail is ready.
+    /// 1-based page number whose thumbnail was produced.
     /// </summary>
     public int PageNumber { get; }
 }

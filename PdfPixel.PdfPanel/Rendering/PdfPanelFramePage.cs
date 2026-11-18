@@ -9,14 +9,19 @@ namespace PdfPixel.PdfPanel.Rendering;
 public readonly struct PdfPanelFramePage
 {
     private readonly PdfPanelPage _page;
-    private readonly PdfMatrix _contentToPanel;
 
     internal PdfPanelFramePage(in RequestPageInfo page, float scale)
     {
         _page = page.Page;
         Rotation = page.Rotation;
-        _contentToPanel = page.GetContentToPanelMatrix(scale);
+        ContentToPanel = page.GetContentToPanelMatrix(scale);
     }
+
+    /// <summary>
+    /// Gets the matrix that maps the page's content coordinates (top-left origin, unrotated) to panel pixels: the
+    /// rotation, the scale and the scroll offset, its translation snapped to whole pixels.
+    /// </summary>
+    public PdfMatrix ContentToPanel { get; }
 
     /// <summary>
     /// Gets the page number.
@@ -73,6 +78,6 @@ public readonly struct PdfPanelFramePage
         PdfMatrix contentToPage = PdfMatrix.CreateRotationDegrees(normalizedRotation)
             .PostConcat(PdfMatrix.CreateTranslation(rotationOffsetX, rotationOffsetY));
 
-        return _contentToPanel.Invert().PostConcat(contentToPage);
+        return ContentToPanel.Invert().PostConcat(contentToPage);
     }
 }

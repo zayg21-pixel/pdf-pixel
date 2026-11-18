@@ -5,16 +5,19 @@ using System.ComponentModel;
 namespace PdfPixel.PdfPanel.Mvvm;
 
 /// <summary>
-/// Bindable thumbnail of a page as a PNG file, produced and kept while it is visible.
+/// Bindable thumbnail of a page as the host's pixels, shown while it is visible; the host requests the thumbnails of
+/// the visible items.
 /// </summary>
 public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
 {
+    private readonly PdfThumbnailsViewModel _owner;
     private readonly PdfPanelThumbnails _thumbnails;
     private bool _isVisible;
     private int _reportedRotation;
 
-    internal PdfThumbnailViewModel(PdfPanelThumbnails thumbnails, PdfPanelPage page)
+    internal PdfThumbnailViewModel(PdfThumbnailsViewModel owner, PdfPanelThumbnails thumbnails, PdfPanelPage page)
     {
+        _owner = owner;
         _thumbnails = thumbnails;
         Page = page;
         _reportedRotation = page.Rotation;
@@ -44,12 +47,13 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
     public PdfSize? Size => _thumbnails.GetSize(PageNumber);
 
     /// <summary>
-    /// Thumbnail as a PNG file, or <see langword="null"/> when it is not visible or not ready.
+    /// Host's pixels of the thumbnail, or <see langword="null"/> when it is not visible or not ready.
     /// </summary>
-    public byte[]? Png => _isVisible ? _thumbnails.GetPng(PageNumber) : null;
+    public IPdfPanelThumbnailResource? Resource => _isVisible ? _thumbnails.Get(PageNumber) : null;
 
     /// <summary>
-    /// Whether the thumbnail is shown by the view: setting it produces the thumbnail and keeps it, clearing it lets it be evicted.
+    /// Whether the thumbnail is shown by the view; changing it raises
+    /// <see cref="PdfThumbnailsViewModel.VisibleItemsChanged"/>.
     /// </summary>
     public bool IsVisible
     {
@@ -64,28 +68,20 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
 
             _isVisible = value;
 
-            if (value)
-            {
-                _thumbnails.Request(PageNumber, PdfPanelThumbnailFormats.Png, pin: true);
-            }
-            else
-            {
-                _thumbnails.Release(PageNumber);
-            }
-
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsVisible)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Resource)));
+            _owner.OnItemVisibilityChanged();
         }
     }
 
     /// <summary>
-    /// Reports <see cref="Png"/> of the thumbnail that became ready while it is visible.
+    /// Reports <see cref="Resource"/> of the thumbnail that was produced while it is visible.
     /// </summary>
     internal void OnThumbnailReady()
     {
         if (_isVisible)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Resource)));
         }
     }
 
@@ -95,7 +91,7 @@ public sealed class PdfThumbnailViewModel : INotifyPropertyChanged
     internal void OnCleared()
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Size)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Png)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Resource)));
     }
 
     /// <summary>

@@ -36,7 +36,7 @@ public sealed class PdfThumbnailsViewModel
 
         foreach (PdfPanelPage page in document.Pages)
         {
-            _items.Add(new PdfThumbnailViewModel(thumbnails, page));
+            _items.Add(new PdfThumbnailViewModel(this, thumbnails, page));
         }
 
         thumbnails.ThumbnailReady += OnThumbnailReady;
@@ -47,6 +47,11 @@ public sealed class PdfThumbnailsViewModel
     /// Raised when a thumbnail was activated and the panel navigates to its page.
     /// </summary>
     public event EventHandler? Changed;
+
+    /// <summary>
+    /// Raised when an item became visible or hidden; the host requests the thumbnails of the visible items.
+    /// </summary>
+    public event EventHandler? VisibleItemsChanged;
 
     /// <summary>
     /// Thumbnails of the pages, one per page in page order.
@@ -78,6 +83,11 @@ public sealed class PdfThumbnailsViewModel
             item.Synchronize();
         }
     }
+
+    /// <summary>
+    /// Raises <see cref="VisibleItemsChanged"/>.
+    /// </summary>
+    internal void OnItemVisibilityChanged() => VisibleItemsChanged?.Invoke(this, EventArgs.Empty);
 
     private void OnThumbnailReady(object? sender, PdfPanelThumbnailEventArgs args) => _items[args.PageNumber - 1].OnThumbnailReady();
 

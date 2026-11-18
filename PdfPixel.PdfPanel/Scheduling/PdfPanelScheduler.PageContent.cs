@@ -20,7 +20,7 @@ internal sealed partial class PdfPanelScheduler
 
     /// <summary>
     /// Cancels and evicts the content of the pages <paramref name="request"/> no longer holds, then starts decoding its
-    /// pages in their order.
+    /// pages in their order and rasterizing the tiles it asks for, and queues the pending thumbnails after them.
     /// </summary>
     public void UpdateContent(ContentUpdateRequest request)
     {
@@ -29,14 +29,17 @@ internal sealed partial class PdfPanelScheduler
             throw new ArgumentNullException(nameof(request));
         }
 
-        if (_tilePool == null || _tiler == null || _tilePool.TileSize != request.TileSize)
+        if (_tilePool == null
+            || _tiler == null
+            || _tilePool.TileSize != request.TileSize
+            || _tilePool.ChannelOrder != request.TileChannelOrder)
         {
             _tiler?.Dispose();
-            _tilePool = new PdfPageTilePool(request.TileSize);
+            _tilePool = new PdfPageTilePool(request.TileSize, request.TileChannelOrder);
             _tiler = new PdfPageContentTiler(_panelDocument, _tilePool, _surfaceParameters);
         }
 
-        _tilePool.UpdateCapacity(request.TileCapacity);
+        _tilePool.UpdateCapacity(request.Pages.Sum(page => page.GridPoints.Count));
 
         HashSet<int> requestedPageNumbers = new(request.Pages.Select(page => page.Page.PageNumber));
         int[] visiblePageNumbers = request.Pages.Where(page => page.IsVisible).Select(page => page.Page.PageNumber).ToArray();
@@ -50,12 +53,6 @@ internal sealed partial class PdfPanelScheduler
 
         if (visiblePageNumbers.Length > 0)
         {
-            lock (_thumbnailLocker)
-            {
-                _thumbnailVisiblePageNumbers = visiblePageNumbers;
-                _thumbnailCenterPageNumber = visiblePageNumbers[0];
-            }
-
             lock (_textExtractionLocker)
             {
                 _textExtractionStartPageNumber = visiblePageNumbers[0];
@@ -70,7 +67,6 @@ internal sealed partial class PdfPanelScheduler
         }
 
         RequeueThumbnailRequests();
-        EnqueueNextThumbnail();
         EnqueueNextTextExtraction();
     }
 
@@ -89,7 +85,7 @@ internal sealed partial class PdfPanelScheduler
             _contentExtractionParameters,
             _surfaceParameters,
             request,
-            _panelDocument.NotifyPageUpdated,
+            _panelDocument.NotifyTilesRasterized,
             _panelDocument.NotifyPageTextExtracted));
     }
 

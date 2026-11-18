@@ -1,11 +1,9 @@
 using PdfPixel.Commands;
 using PdfPixel.Imaging;
-using PdfPixel.Imaging.Encoding;
 using PdfPixel.Imaging.Processing.Pipeline;
 using PdfPixel.OptionalContent;
 using PdfPixel.PdfPanel.Caching;
 using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.Png;
 using System;
 using System.Threading.Tasks;
@@ -13,9 +11,8 @@ using System.Threading.Tasks;
 namespace PdfPixel.PdfPanel.Scheduling;
 
 /// <summary>
-/// Work item that adds the requested forms a page's thumbnail is missing to its cache entry: a missing form is made
-/// from the form the thumbnail has; a thumbnail with none is produced from the page's thumbnail image when given,
-/// otherwise its content without annotations, rendered on white.
+/// Work item that produces a page's thumbnail as opaque 8-bit RGB samples: from the page's thumbnail image when given
+/// and decodable to them, otherwise its content without annotations, rendered on white.
 /// </summary>
 internal sealed class PdfPageThumbnailWorkItem : IWorkItem
 {
@@ -26,29 +23,26 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
     private static readonly PdfImageChannel[] RgbChannels = [PdfImageChannel.Component(0), PdfImageChannel.Component(1), PdfImageChannel.Component(2)];
 
     private readonly PdfPanelPage _page;
-    private readonly PdfPanelThumbnailFormats _formats;
     private readonly PdfImage? _pageThumbnail;
     private readonly PdfPageThumbnailRasterizer _rasterizer;
     private readonly PdfOptionalContentStates? _optionalContentStates;
     private readonly IPdfCancellableExecutionObserver _observer;
-    private readonly Action<BackgroundWorkItemComplete> _onCompleted;
+    private readonly Action<PdfPageRenderedThumbnail> _onCompleted;
 
     /// <summary>
-    /// Initializes the work item for the given page and the <paramref name="formats"/> requested of its thumbnail. The
-    /// work item takes ownership of <paramref name="observer"/> and invokes <paramref name="onCompleted"/> with its
-    /// completion once it finishes.
+    /// Initializes the work item for the given page. The work item takes ownership of <paramref name="observer"/> and
+    /// hands its thumbnail, or the lack of one when producing it failed, to <paramref name="onCompleted"/> once it
+    /// finishes uncancelled.
     /// </summary>
     public PdfPageThumbnailWorkItem(
         PdfPanelPage page,
-        PdfPanelThumbnailFormats formats,
         PdfImage? pageThumbnail,
         PdfPageThumbnailRasterizer rasterizer,
         PdfOptionalContentStates? optionalContentStates,
         IPdfCancellableExecutionObserver observer,
-        Action<BackgroundWorkItemComplete> onCompleted)
+        Action<PdfPageRenderedThumbnail> onCompleted)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
-        _formats = formats;
         _pageThumbnail = pageThumbnail;
         _rasterizer = rasterizer ?? throw new ArgumentNullException(nameof(rasterizer));
         _optionalContentStates = optionalContentStates;
@@ -62,97 +56,38 @@ internal sealed class PdfPageThumbnailWorkItem : IWorkItem
     /// <inheritdoc />
     public async ValueTask ProcessAsync()
     {
-        var result = BackgroundWorkItemResult.Error;
+        var isCancelled = false;
+        PdfImageSamples? samples = null;
 
         try
         {
             _observer.Notify();
 
-            byte[]? png = null;
-            PdfImageSamples? samples = null;
-
-            using (LockedContent<PdfPageThumbnail> lockedThumbnail = _page.CacheEntry.Thumbnail.GetContent())
-            {
-                if (lockedThumbnail.Content != null)
-                {
-                    png = lockedThumbnail.Content.Png;
-                    samples = lockedThumbnail.Content.Samples;
-                }
-            }
-
-            PdfPanelThumbnailFormats missingFormats = _formats;
+            byte[]? png = DecodePageThumbnail();
 
             if (png != null)
             {
-                missingFormats &= ~PdfPanelThumbnailFormats.Png;
+                samples = DecodePng(png);
             }
 
-            if (samples != null)
+            if (samples == null)
             {
-                missingFormats &= ~PdfPanelThumbnailFormats.Samples;
+                samples = await RenderPageAsync().ConfigureAwait(false);
             }
-
-            if (missingFormats != PdfPanelThumbnailFormats.None)
-            {
-                await AddFormatsAsync(png, samples, missingFormats).ConfigureAwait(false);
-            }
-
-            result = BackgroundWorkItemResult.Success;
         }
         catch (OperationCanceledException)
         {
-            result = BackgroundWorkItemResult.Cancelled;
+            isCancelled = true;
             throw;
         }
         finally
         {
             _observer.Dispose();
-            _onCompleted(new BackgroundWorkItemComplete(_page.PageNumber, result, _observer));
-        }
-    }
 
-    /// <summary>
-    /// Adds <paramref name="missingFormats"/> to the page's thumbnail, which holds <paramref name="png"/> and
-    /// <paramref name="samples"/>, making them from the form it has or producing the thumbnail when it has none.
-    /// </summary>
-    private async ValueTask AddFormatsAsync(byte[]? png, PdfImageSamples? samples, PdfPanelThumbnailFormats missingFormats)
-    {
-        if (png == null && samples == null)
-        {
-            png = DecodePageThumbnail();
-        }
-
-        if (samples == null && png != null && (missingFormats & PdfPanelThumbnailFormats.Samples) != 0)
-        {
-            samples = DecodePng(png);
-        }
-
-        if (samples == null && (png == null || (missingFormats & PdfPanelThumbnailFormats.Samples) != 0))
-        {
-            samples = await RenderPageAsync().ConfigureAwait(false);
-        }
-
-        if (png == null && samples != null && (missingFormats & PdfPanelThumbnailFormats.Png) != 0)
-        {
-            png = PdfImageSamplesPngEncoder.Encode(samples);
-        }
-
-        using WriteLockedContent<PdfPageThumbnail> lockedThumbnail = _page.CacheEntry.Thumbnail.GetContentForWriting();
-        PdfPageThumbnail? thumbnail = lockedThumbnail.Content;
-
-        if (thumbnail == null)
-        {
-            return;
-        }
-
-        if (thumbnail.Png == null && (missingFormats & PdfPanelThumbnailFormats.Png) != 0)
-        {
-            thumbnail.Png = png;
-        }
-
-        if (thumbnail.Samples == null && (missingFormats & PdfPanelThumbnailFormats.Samples) != 0)
-        {
-            thumbnail.Samples = samples;
+            if (!isCancelled)
+            {
+                _onCompleted(new PdfPageRenderedThumbnail(_page.PageNumber, _observer, samples));
+            }
         }
     }
 

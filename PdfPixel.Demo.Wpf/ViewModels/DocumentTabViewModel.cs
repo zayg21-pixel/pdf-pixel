@@ -120,7 +120,7 @@ public class DocumentTabViewModel : ObservableObject, IDisposable
 
     public PdfPanelInterface PanelInterface { get; }
 
-    public PdfPanelConfiguration PanelConfiguration { get; } = new() { PageCornerRadius = 4 };
+    public PdfPanelConfiguration PanelConfiguration { get; } = new() { PageCornerRadius = 0 };
 
     public ObservableCollection<PdfFileLocation> PdfFiles { get; } = [];
 

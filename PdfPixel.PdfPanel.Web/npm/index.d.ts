@@ -18,8 +18,8 @@ export interface PdfPixelSize {
 /** Automatic scaling mode of a panel. */
 export type PdfPixelAutoScaleMode = 'noAutoScale' | 'scaleToWidth' | 'scaleToHeight';
 
-/** Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet. */
-export type PdfPixelThumbnailPlaceholderMode = 'none' | 'visiblePages' | 'nearestPages';
+/** Pages whose thumbnails are requested and drawn in place of pages that have no content tiles yet. */
+export type PdfPixelThumbnailPlaceholderMode = 'none' | 'visiblePages';
 
 /** Fit type of a destination (ISO 32000 Table 149). */
 export type PdfPixelFitType = 'XYZ' | 'Fit' | 'FitH' | 'FitV' | 'FitR' | 'FitB' | 'FitBH' | 'FitBV';
@@ -59,7 +59,7 @@ export interface PdfPixelConfiguration {
     usePageThumbnails?: boolean;
     /** Size in pixels a rendered page thumbnail is fitted within, keeping its aspect ratio. */
     thumbnailRenderMaximumSize?: Partial<PdfPixelSize>;
-    /** Maximum number of page thumbnails kept, the ones nearest to the first visible page; visible thumbnails, and the thumbnails of visible pages while there are placeholders, are kept beyond it. */
+    /** Maximum number of page thumbnails kept; the requested ones (visible thumbnails, and the thumbnails of visible pages while there are placeholders) are kept beyond it, the others evicted in the order they stopped being requested. */
     thumbnailMaximumCount?: number;
     /** With 'none', no thumbnail is drawn in place of a page, even when it exists. */
     thumbnailPlaceholderMode?: PdfPixelThumbnailPlaceholderMode;
@@ -323,7 +323,8 @@ export interface PdfPixelDocument {
 export interface PdfPixelThumbnailUpdate {
     /** 1-based page number. */
     pageNumber: number;
-    png: Uint8Array;
+    /** The thumbnail canvas, owned by the panel, which empties it when the thumbnail is evicted. */
+    image: HTMLCanvasElement;
 }
 
 /** Thumbnail layout of a page returned by `getThumbnailLayout`. */
@@ -399,6 +400,6 @@ export function setLayerVisible(id: string, handle: number, visible: boolean): b
 export function getFileBytes(id: string, handle: number): Promise<Uint8Array | null>;
 export function setOnActionRequested(id: string, callback: (request: PdfPixelActionRequest) => void): boolean;
 export function getThumbnailLayout(id: string): PdfPixelThumbnailLayout[] | null;
-export function getThumbnail(id: string, pageNumber: number): Uint8Array | null;
+export function getThumbnail(id: string, pageNumber: number): HTMLCanvasElement | null;
 export function setThumbnailVisible(id: string, pageNumber: number, visible: boolean): boolean;
 export function setOnThumbnailUpdated(id: string, callback: (update: PdfPixelThumbnailUpdate) => void): boolean;

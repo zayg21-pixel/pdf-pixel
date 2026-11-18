@@ -229,7 +229,6 @@ internal static partial class PdfPanelInterop
         {
             "none" => PdfPanelThumbnailPlaceholderMode.None,
             "visiblePages" => PdfPanelThumbnailPlaceholderMode.VisiblePages,
-            "nearestPages" => PdfPanelThumbnailPlaceholderMode.NearestPages,
             _ => currentValue
         };
     }

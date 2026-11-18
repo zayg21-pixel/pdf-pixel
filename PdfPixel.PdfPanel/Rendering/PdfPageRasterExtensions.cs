@@ -31,13 +31,25 @@ internal static class PdfPageRasterExtensions
     private const uint ComponentSpread = 0x00010101u;
 
     private static readonly PdfImageChannel[] RgbaChannels = [PdfImageChannel.Component(0), PdfImageChannel.Component(1), PdfImageChannel.Component(2), PdfImageChannel.Alpha];
+    private static readonly PdfImageChannel[] BgraChannels = [PdfImageChannel.Component(2), PdfImageChannel.Component(1), PdfImageChannel.Component(0), PdfImageChannel.Alpha];
 
     /// <summary>
-    /// Creates premultiplied 8-bit RGBA samples of <paramref name="width"/> by <paramref name="height"/> pixels over
-    /// <paramref name="buffer"/>, at least <paramref name="width"/> × <paramref name="height"/> × 4 bytes long.
+    /// Creates premultiplied 8-bit samples of <paramref name="width"/> by <paramref name="height"/> pixels in
+    /// <paramref name="channelOrder"/> over <paramref name="buffer"/>, at least <paramref name="width"/> ×
+    /// <paramref name="height"/> × 4 bytes long.
     /// </summary>
-    public static PdfImageSamples CreateRasterSamples(byte[] buffer, int width, int height)
-        => new(buffer, width, height, PdfImageSampleFormat.Integer, BitsPerComponent, RgbaChannels, isPremultiplied: true);
+    public static PdfImageSamples CreateRasterSamples(byte[] buffer, int width, int height, PdfPanelTileChannelOrder channelOrder)
+        => new(buffer, width, height, PdfImageSampleFormat.Integer, BitsPerComponent, GetChannels(channelOrder), isPremultiplied: true);
+
+    /// <summary>
+    /// Creates premultiplied 8-bit samples of <paramref name="width"/> by <paramref name="height"/> pixels in
+    /// <paramref name="channelOrder"/>.
+    /// </summary>
+    public static PdfImageSamples CreateRasterSamples(int width, int height, PdfPanelTileChannelOrder channelOrder)
+        => new(width, height, PdfImageSampleFormat.Integer, BitsPerComponent, GetChannels(channelOrder), isPremultiplied: true);
+
+    private static PdfImageChannel[] GetChannels(PdfPanelTileChannelOrder channelOrder)
+        => (channelOrder == PdfPanelTileChannelOrder.Bgra) ? BgraChannels : RgbaChannels;
 
     /// <summary>
     /// Returns the command that draws <paramref name="pageGroup"/> onto an isolated, transparent root blending in
@@ -61,9 +73,9 @@ internal static class PdfPageRasterExtensions
     }
 
     /// <summary>
-    /// Writes <paramref name="region"/> of these premultiplied 8-bit RGBA samples into <paramref name="target"/>, the
-    /// size of the region, composited over white paper: each color becomes c + 255 − α. The target holds 8-bit red,
-    /// green and blue, followed by an alpha made opaque when it has one.
+    /// Writes <paramref name="region"/> of these premultiplied 8-bit samples, alpha last, into <paramref name="target"/>,
+    /// the size of the region, composited over white paper: each color becomes c + 255 − α. The target holds the three
+    /// 8-bit colors in the order of these samples, followed by an alpha made opaque when it has one.
     /// </summary>
     public static void CopyOverPaper(this PdfImageSamples samples, in PdfIntegerRectangle region, PdfImageSamples target)
     {

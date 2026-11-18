@@ -91,14 +91,15 @@ public sealed class PdfPanelAnnotations
     }
 
     /// <summary>
-    /// Records again the bubbles of every page of <paramref name="request"/> whose scale, rotation or active annotation
-    /// changed, and removes the bubbles of the pages no longer in it.
+    /// Records again the bubbles of every page of <paramref name="pages"/> whose scale, rotation or active annotation
+    /// changed, at <paramref name="scale"/> and <paramref name="referenceScale"/>, the scale of a zoom of 100%, and
+    /// removes the bubbles of the pages no longer among them.
     /// </summary>
-    internal void UpdateBubbles(PagesDrawingRequest request)
+    internal void UpdateBubbles(RequestPageInfo[] pages, float scale, float referenceScale)
     {
         HashSet<int> requestedPageNumbers = [];
 
-        foreach (RequestPageInfo page in request.Pages)
+        foreach (RequestPageInfo page in pages)
         {
             requestedPageNumbers.Add(page.PageNumber);
 
@@ -110,14 +111,14 @@ public sealed class PdfPanelAnnotations
                 activeAnnotationState = ActiveAnnotationState;
             }
 
-            BubblesKey key = new(request.Scale, request.ReferenceScale, page.Rotation, activeAnnotation, activeAnnotationState, activeAnnotation != null && _isOverActiveContent);
+            BubblesKey key = new(scale, referenceScale, page.Rotation, activeAnnotation, activeAnnotationState, activeAnnotation != null && _isOverActiveContent);
 
             if (_drawnBubbles.TryGetValue(page.PageNumber, out BubblesKey drawnKey) && drawnKey.Equals(key))
             {
                 continue;
             }
 
-            _graphics.Update(page.PageNumber, PdfPanelGraphicsLayer.Bubbles, CreateBubblesRecording(page, request));
+            _graphics.Update(page.PageNumber, PdfPanelGraphicsLayer.Bubbles, CreateBubblesRecording(page, scale, referenceScale));
             _drawnBubbles[page.PageNumber] = key;
         }
 
@@ -154,10 +155,11 @@ public sealed class PdfPanelAnnotations
     }
 
     /// <summary>
-    /// Records the bubbles of the visible annotations of <paramref name="page"/> that display one, screen-fixed at the
-    /// scale and rotation of <paramref name="request"/>; <see langword="null"/> when the page has none.
+    /// Records the bubbles of the visible annotations of <paramref name="page"/> that display one, screen-fixed at
+    /// <paramref name="scale"/>, <paramref name="referenceScale"/> and the page's rotation; <see langword="null"/> when
+    /// the page has none.
     /// </summary>
-    private PdfCommandRecorder? CreateBubblesRecording(in RequestPageInfo page, PagesDrawingRequest request)
+    private PdfCommandRecorder? CreateBubblesRecording(in RequestPageInfo page, float scale, float referenceScale)
     {
         IPdfPage pdfPage = page.Page.PdfPage;
         PdfCommandRecorder? recorder = null;
@@ -194,8 +196,8 @@ public sealed class PdfPanelAnnotations
             PdfPoint anchor = annotation.ContentStart;
 
             recorder.Process(SaveStateCommand.Instance);
-            recorder.Process(new ConcatMatrixCommand(annotation.GetDisplayMatrix(request.Scale, request.ReferenceScale, page.Rotation)));
-            recorder.Process(new ConcatMatrixCommand(annotation.GetBubbleMatrix(anchor, request.Scale, request.ReferenceScale, page.Rotation, pdfPage.CropBox)));
+            recorder.Process(new ConcatMatrixCommand(annotation.GetDisplayMatrix(scale, referenceScale, page.Rotation)));
+            recorder.Process(new ConcatMatrixCommand(annotation.GetBubbleMatrix(anchor, scale, referenceScale, page.Rotation, pdfPage.CropBox)));
             PdfAnnotationExtensions.RenderBubble(recorder, anchor, visualState);
             recorder.Process(RestoreStateCommand.Instance);
         }

@@ -1,28 +1,27 @@
 using PdfPixel.Imaging.Processing.Pipeline;
+using PdfPixel.PdfPanel.Rendering;
 using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Caching;
 
 /// <summary>
-/// The pixels of page tiles of one tile size, square opaque DeviceRGB samples, kept for reuse while the rented and free
-/// tiles together stay within the tile capacity of the last content request.
+/// The pixels of rasterized page tiles of one tile size and channel order, square opaque 8-bit samples on their way
+/// to the panel, kept for reuse while the rented and free tiles together stay within the tile capacity of the last
+/// content request.
 /// </summary>
 internal sealed class PdfPageTilePool
 {
-    private const int TileBitsPerComponent = 8;
-
-    private static readonly PdfImageChannel[] TileChannels = [PdfImageChannel.Component(0), PdfImageChannel.Component(1), PdfImageChannel.Component(2)];
-
     private readonly object _locker = new();
     private readonly Stack<PdfImageSamples> _freeSamples = [];
     private int _rentedCount;
     private int _capacity;
 
     /// <summary>
-    /// Initializes a pool of tiles of <paramref name="tileSize"/> by <paramref name="tileSize"/> pixels.
+    /// Initializes a pool of tiles of <paramref name="tileSize"/> by <paramref name="tileSize"/> pixels in
+    /// <paramref name="channelOrder"/>.
     /// </summary>
-    public PdfPageTilePool(int tileSize)
+    public PdfPageTilePool(int tileSize, PdfPanelTileChannelOrder channelOrder)
     {
         if (tileSize <= 0)
         {
@@ -30,12 +29,18 @@ internal sealed class PdfPageTilePool
         }
 
         TileSize = tileSize;
+        ChannelOrder = channelOrder;
     }
 
     /// <summary>
     /// Gets the edge length of a tile in device pixels.
     /// </summary>
     public int TileSize { get; }
+
+    /// <summary>
+    /// Gets the order of the channels of the tiles' pixels.
+    /// </summary>
+    public PdfPanelTileChannelOrder ChannelOrder { get; }
 
     /// <summary>
     /// Returns the samples of a tile, a free one when the pool keeps one, otherwise new ones; their pixels are
@@ -53,7 +58,7 @@ internal sealed class PdfPageTilePool
             }
         }
 
-        return new PdfImageSamples(TileSize, TileSize, PdfImageSampleFormat.Integer, TileBitsPerComponent, TileChannels, isPremultiplied: false);
+        return PdfPageRasterExtensions.CreateRasterSamples(TileSize, TileSize, ChannelOrder);
     }
 
     /// <summary>

@@ -44,9 +44,9 @@ public sealed class PdfPanelDocument : IDisposable
     }
 
     /// <summary>
-    /// Raised when a page's content or annotations have been decoded and are ready to render.
+    /// Raised when tiles of a page were rasterized together; the handler owns the tiles and disposes them.
     /// </summary>
-    internal event EventHandler<PageUpdatedArgs>? PageUpdated;
+    internal event Action<IReadOnlyList<PdfPageRasterizedTile>>? TilesRasterized;
 
     /// <summary>
     /// Raised when a page's characters have been extracted, by text extraction or by rendering.
@@ -54,9 +54,9 @@ public sealed class PdfPanelDocument : IDisposable
     internal event EventHandler<PageTextExtractedEventArgs>? PageTextExtracted;
 
     /// <summary>
-    /// Raised when a requested thumbnail finished.
+    /// Raised when a requested thumbnail was produced.
     /// </summary>
-    internal event EventHandler<PageThumbnailRenderedEventArgs>? PageThumbnailRendered;
+    internal event Action<PdfPageRenderedThumbnail>? ThumbnailRendered;
 
     /// <summary>
     /// Raised when extracted content of every page was cleared.
@@ -158,9 +158,27 @@ public sealed class PdfPanelDocument : IDisposable
     }
 
     /// <summary>
-    /// Raises <see cref="PageUpdated"/> on the synchronization context.
+    /// Raises <see cref="TilesRasterized"/> for <paramref name="tiles"/> on the synchronization context, disposing the
+    /// tiles when nothing handles them.
     /// </summary>
-    internal void NotifyPageUpdated(PageUpdatedArgs args) => Post(() => PageUpdated?.Invoke(this, args));
+    internal void NotifyTilesRasterized(IReadOnlyList<PdfPageRasterizedTile> tiles) => Post(() => RaiseTilesRasterized(tiles));
+
+    private void RaiseTilesRasterized(IReadOnlyList<PdfPageRasterizedTile> tiles)
+    {
+        Action<IReadOnlyList<PdfPageRasterizedTile>>? tilesRasterized = TilesRasterized;
+
+        if (tilesRasterized != null)
+        {
+            tilesRasterized(tiles);
+        }
+        else
+        {
+            foreach (PdfPageRasterizedTile tile in tiles)
+            {
+                tile.Dispose();
+            }
+        }
+    }
 
     /// <summary>
     /// Raises <see cref="PageTextExtracted"/> for the specified 1-based page number on the synchronization context.
@@ -168,9 +186,9 @@ public sealed class PdfPanelDocument : IDisposable
     internal void NotifyPageTextExtracted(int pageNumber) => Post(() => PageTextExtracted?.Invoke(this, new PageTextExtractedEventArgs(pageNumber)));
 
     /// <summary>
-    /// Raises <see cref="PageThumbnailRendered"/> on the synchronization context.
+    /// Raises <see cref="ThumbnailRendered"/> for <paramref name="thumbnail"/> on the synchronization context.
     /// </summary>
-    internal void NotifyPageThumbnailRendered(PageThumbnailRenderedEventArgs args) => Post(() => PageThumbnailRendered?.Invoke(this, args));
+    internal void NotifyThumbnailRendered(PdfPageRenderedThumbnail thumbnail) => Post(() => ThumbnailRendered?.Invoke(thumbnail));
 
     /// <summary>
     /// Raises <see cref="ExtractedContentCleared"/> for <paramref name="contentTypes"/> on the synchronization context.

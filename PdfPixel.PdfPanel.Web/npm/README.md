@@ -142,9 +142,9 @@ Every key is optional; keys that are not set keep their defaults. Colors are hex
 | `getFileBytes(id, handle)` | Resolves to the content of an embedded file, from `attachments` or from a requested action, as a `Uint8Array`, or `null`. An encrypted file requests its credential through `setOnCredentialRequested` with `authEvent` `embeddedFileOpen`. |
 | `setOnActionRequested(id, callback)` | Calls `callback({ source, action })` for each action the panel does not perform itself, after the render during which it was requested (see below). |
 | `getThumbnailLayout(id)` | Returns `{ pageNumber, width, height, rotation }` per page: the thumbnail size in pixels before rotation, and the page rotation. Call it again after rotating pages or changing the thumbnail configuration. |
-| `getThumbnail(id, pageNumber)` | Returns the PNG of a thumbnail that is already produced, or `null`. |
-| `setThumbnailVisible(id, pageNumber, visible)` | Sets whether the thumbnail of a page is shown. A visible thumbnail is kept and its PNG is passed to the `setOnThumbnailUpdated` callback when it is ready, at once when it is already produced, and again whenever it is produced anew. A thumbnail that is no longer visible may be evicted; drop your copy of it. |
-| `setOnThumbnailUpdated(id, callback)` | Calls `callback({ pageNumber, png })` for each visible thumbnail that is ready. |
+| `getThumbnail(id, pageNumber)` | Returns the canvas of a thumbnail that is already produced, owned by the panel, or `null`. |
+| `setThumbnailVisible(id, pageNumber, visible)` | Sets whether the thumbnail of a page is shown. A visible thumbnail is requested and its canvas is passed to the `setOnThumbnailUpdated` callback when it is produced, at once when it already is, and again whenever it is produced anew. A thumbnail that is no longer visible may be evicted, which empties its canvas; draw it into your own canvas to keep it. |
+| `setOnThumbnailUpdated(id, callback)` | Calls `callback({ pageNumber, image })` for each visible thumbnail that is produced, `image` being its canvas. |
 | `requestRedraw(id)` | Renders the panel. |
 | `setPage(id, pageNumber)` | Scrolls to a 1-based page. |
 | `setScale(id, scale)` | Zooms to a scale (`1.0` = 100%) around the panel center. |

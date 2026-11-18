@@ -8,13 +8,14 @@ using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.Snap;
 using PdfPixel.Text;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Scheduling;
 
 /// <summary>
-/// Work item that records a page's content and annotation commands and rasterizes the tiles of its visible region
-/// into the page's cache entry. Invokes the page-updated callback once, when the tiles are done.
+/// Work item that records a page's content and annotation commands into the page's cache entry and rasterizes the
+/// tiles the request asks for, handing them to the tile callback together.
 /// </summary>
 internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
 {
@@ -28,7 +29,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
     private readonly PdfSnapSurfaceParameters _surfaceParameters;
     private readonly ContentUpdateRequest _request;
     private readonly ContentUpdatePage _requestPage;
-    private readonly Action<PageUpdatedArgs>? _onPageUpdated;
+    private readonly Action<IReadOnlyList<PdfPageRasterizedTile>> _onTilesRasterized;
     private readonly Action<int> _onPageTextExtracted;
     private readonly IPdfCancellableExecutionObserver? _parseObserver;
     private readonly IPdfCancellableExecutionObserver? _contentObserver;
@@ -48,7 +49,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         PdfContentExtractionParameters contentExtractionParameters,
         PdfSnapSurfaceParameters surfaceParameters,
         ContentUpdateRequest request,
-        Action<PageUpdatedArgs>? onPageUpdated,
+        Action<IReadOnlyList<PdfPageRasterizedTile>> onTilesRasterized,
         Action<int> onPageTextExtracted)
     {
         _requestPage = requestPage ?? throw new ArgumentNullException(nameof(requestPage));
@@ -59,7 +60,7 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         _contentExtractionParameters = contentExtractionParameters;
         _surfaceParameters = surfaceParameters ?? throw new ArgumentNullException(nameof(surfaceParameters));
         _request = request ?? throw new ArgumentNullException(nameof(request));
-        _onPageUpdated = onPageUpdated;
+        _onTilesRasterized = onTilesRasterized ?? throw new ArgumentNullException(nameof(onTilesRasterized));
         _onPageTextExtracted = onPageTextExtracted ?? throw new ArgumentNullException(nameof(onPageTextExtracted));
         _parseObserver = _requestPage.Page.CacheEntry.ParseObserver;
         _contentObserver = _requestPage.Page.CacheEntry.ContentObserver;
@@ -105,11 +106,9 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
             }
         }
 
-        var tilesUpdate = TilesUpdateResult.Unchanged;
-
         if (_tiler != null)
         {
-            tilesUpdate = await _tiler.UpdateTilesAsync(_requestPage, _request, contentObserver).ConfigureAwait(false);
+            await _tiler.UpdateTilesAsync(_requestPage, _request, contentObserver, _onTilesRasterized).ConfigureAwait(false);
         }
 
         bool needsWords = !_requestPage.Page.CacheEntry.Content.Words.HasContent;
@@ -118,11 +117,6 @@ internal sealed class PdfPageUpdateCacheWorkItem : IWorkItem
         if (needsWords || needsContentItems)
         {
             await ExtractContentAsync(extractsWords: needsWords, extractsContentItems: needsContentItems, contentObserver).ConfigureAwait(false);
-        }
-
-        if (tilesUpdate == TilesUpdateResult.Updated)
-        {
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(_requestPage.Page.PageNumber, UpdatedContentType.Content));
         }
     }
 

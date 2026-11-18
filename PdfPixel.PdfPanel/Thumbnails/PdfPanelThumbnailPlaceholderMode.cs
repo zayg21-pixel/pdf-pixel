@@ -1,7 +1,7 @@
 namespace PdfPixel.PdfPanel.Thumbnails;
 
 /// <summary>
-/// Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet.
+/// Pages whose thumbnails the host requests and draws in place of pages that have no content tiles yet.
 /// </summary>
 public enum PdfPanelThumbnailPlaceholderMode
 {
@@ -13,10 +13,5 @@ public enum PdfPanelThumbnailPlaceholderMode
     /// <summary>
     /// Thumbnails of the visible pages.
     /// </summary>
-    VisiblePages,
-
-    /// <summary>
-    /// Thumbnails of the pages nearest to the first visible page, up to <see cref="PdfPanelThumbnails.MaximumCount"/>.
-    /// </summary>
-    NearestPages
+    VisiblePages
 }

@@ -16,6 +16,8 @@ namespace PdfPixel.PdfPanel.Mvvm;
 /// </summary>
 public sealed class PdfPanelConfiguration : INotifyPropertyChanged
 {
+    internal const PdfPanelThumbnailPlaceholderMode DefaultThumbnailPlaceholderMode = PdfPanelThumbnailPlaceholderMode.VisiblePages;
+
     private float _minScale = PdfPanelContext.DefaultMinScale;
     private float _maxScale = PdfPanelContext.DefaultMaxScale;
     private float _zoomStep = PdfPanelContext.DefaultZoomStep;
@@ -39,7 +41,7 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     private bool _usePageThumbnails = PdfPanelThumbnails.DefaultUsePageThumbnails;
     private PdfIntegerSize _thumbnailRenderMaximumSize = PdfPanelThumbnails.DefaultRenderMaximumSize;
     private int _thumbnailMaximumCount = PdfPanelThumbnails.DefaultMaximumCount;
-    private PdfPanelThumbnailPlaceholderMode _thumbnailPlaceholderMode = PdfPanelThumbnails.DefaultPlaceholderMode;
+    private PdfPanelThumbnailPlaceholderMode _thumbnailPlaceholderMode = DefaultThumbnailPlaceholderMode;
     private bool _antialias = PdfPanelRenderer.DefaultAntialias;
     private int _tileSize = PdfPanelRenderer.DefaultTileSize;
     private TimeSpan _scrollContentUpdateDelay = PdfPanelRenderer.DefaultScrollContentUpdateDelay;
@@ -265,7 +267,8 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Pages whose thumbnails are produced without being requested and drawn in place of pages that have no decoded content yet.
+    /// Pages whose thumbnails the host requests and draws in place of pages that have no content tiles yet; read by the
+    /// host, not applied to the context.
     /// </summary>
     public PdfPanelThumbnailPlaceholderMode ThumbnailPlaceholderMode
     {
@@ -371,7 +374,6 @@ public sealed class PdfPanelConfiguration : INotifyPropertyChanged
         context.Thumbnails.UsePageThumbnails = UsePageThumbnails;
         context.Thumbnails.RenderMaximumSize = ThumbnailRenderMaximumSize;
         context.Thumbnails.MaximumCount = ThumbnailMaximumCount;
-        context.Thumbnails.PlaceholderMode = ThumbnailPlaceholderMode;
         context.Renderer.Antialias = Antialias;
         context.Renderer.TileSize = TileSize;
         context.Renderer.ScrollContentUpdateDelay = ScrollContentUpdateDelay;

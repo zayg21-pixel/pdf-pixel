@@ -68,7 +68,6 @@ let isSearchOpen = false;
 let sidePanel = null;
 
 let thumbnailItems = [];
-let thumbnailImageUrls = [];
 let thumbnailObserver = null;
 let currentThumbnailItem = null;
 
@@ -453,15 +452,8 @@ function buildThumbnails(pages, layout) {
         thumbnailObserver.disconnect();
     }
 
-    for (const url of thumbnailImageUrls) {
-        if (url) {
-            URL.revokeObjectURL(url);
-        }
-    }
-
     thumbnailList.replaceChildren();
     thumbnailItems = [];
-    thumbnailImageUrls = pages.map(() => null);
     currentThumbnailItem = null;
 
     thumbnailObserver = new IntersectionObserver(onThumbnailsIntersected, { root: thumbnailList, rootMargin: '200px 0px' });
@@ -491,8 +483,7 @@ function createThumbnailFrame() {
     const frame = document.createElement('div');
     frame.className = 'thumbnail-frame';
 
-    const image = document.createElement('img');
-    image.alt = '';
+    const image = document.createElement('canvas');
     image.hidden = true;
 
     frame.append(image);
@@ -513,7 +504,7 @@ function layoutThumbnailFrame(frame, pageLayout) {
     frame.style.width = Math.round(isQuarterTurn ? height : width) + 'px';
     frame.style.height = Math.round(isQuarterTurn ? width : height) + 'px';
 
-    const image = frame.querySelector('img');
+    const image = frame.querySelector('canvas');
     image.style.width = Math.round(width) + 'px';
     image.style.height = Math.round(height) + 'px';
     image.style.transform = `translate(-50%, -50%) rotate(${pageLayout.rotation}deg)`;
@@ -530,38 +521,26 @@ function onThumbnailsIntersected(entries) {
     }
 }
 
-pdfPixel.setOnThumbnailUpdated(containerId, ({ pageNumber, png }) => showThumbnail(pageNumber, png));
+pdfPixel.setOnThumbnailUpdated(containerId, ({ pageNumber, image }) => showThumbnail(pageNumber, image));
 
 function hideThumbnail(pageNumber) {
-    const url = thumbnailImageUrls[pageNumber - 1];
-    if (!url) {
-        return;
-    }
-
-    URL.revokeObjectURL(url);
-    thumbnailImageUrls[pageNumber - 1] = null;
-
-    const image = thumbnailItems[pageNumber - 1].querySelector('img');
-    image.removeAttribute('src');
+    const image = thumbnailItems[pageNumber - 1].querySelector('canvas');
+    image.width = 0;
+    image.height = 0;
     image.hidden = true;
 }
 
-function showThumbnail(pageNumber, png) {
+function showThumbnail(pageNumber, thumbnail) {
     const item = thumbnailItems[pageNumber - 1];
     if (!item) {
         return;
     }
 
-    const previousUrl = thumbnailImageUrls[pageNumber - 1];
-    if (previousUrl) {
-        URL.revokeObjectURL(previousUrl);
-    }
-
-    const url = URL.createObjectURL(new Blob([png], { type: 'image/png' }));
-    thumbnailImageUrls[pageNumber - 1] = url;
-
-    const image = item.querySelector('img');
-    image.src = url;
+    // The panel owns the thumbnail canvas and empties it when the thumbnail is evicted, so it is copied.
+    const image = item.querySelector('canvas');
+    image.width = thumbnail.width;
+    image.height = thumbnail.height;
+    image.getContext('2d').drawImage(thumbnail, 0, 0);
     image.hidden = false;
 }
 

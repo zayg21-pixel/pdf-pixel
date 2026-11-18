@@ -5,11 +5,14 @@ using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Thumbnails;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.Geometry;
 using PdfPixel.Navigation;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Input;
@@ -35,9 +38,10 @@ public partial class WpfPdfPanel : FrameworkElement
         typeof(WpfPdfPanel));
 
     private readonly VisualCollection children;
+    private readonly WpfPanelPages _pages = new();
+    private readonly PdfPanelThumbnailRequests _thumbnailRequests = new();
 
     private PdfPanelContext? _context;
-    private IPdfPanelRenderTargetFactory? _renderTargetFactory;
     private bool _updatingScale;
     private bool _updatingPages;
     private PdfDestination? _pendingDestination;
@@ -50,6 +54,7 @@ public partial class WpfPdfPanel : FrameworkElement
         UseLayoutRounding = true;
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
         children = new VisualCollection(this);
+        children.Add(_pages.Visual);
         SetValue(SearchResultsPropertyKey, new ObservableCollection<PdfPanelSearchMatch>());
         Layout = new PdfPanelVerticalLayout();
         Configuration = new PdfPanelConfiguration();
@@ -70,8 +75,6 @@ public partial class WpfPdfPanel : FrameworkElement
 
     /// <inheritdoc />
     protected override int VisualChildrenCount => children.Count;
-
-    internal DrawingVisual? DrawingVisual { get; private set; }
 
     /// <summary>
     /// Size of the panel surface in device pixels.
@@ -98,11 +101,6 @@ public partial class WpfPdfPanel : FrameworkElement
         PresentationSource source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.AddHook(Hook);
 
-        DrawingVisual = new DrawingVisual();
-        children.Add(DrawingVisual);
-
-        _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
-
         InvalidateVisual();
     }
 
@@ -113,8 +111,6 @@ public partial class WpfPdfPanel : FrameworkElement
 
         DisposeContext();
         _context = null;
-
-        _renderTargetFactory = null;
     }
 
     /// <inheritdoc />
@@ -132,10 +128,60 @@ public partial class WpfPdfPanel : FrameworkElement
         }
 
         Update();
-        _context?.Render();
+        Render();
 
         return base.ArrangeOverride(finalSize);
     }
+
+    /// <summary>
+    /// Renders the context and brings the page visuals to its visible pages.
+    /// </summary>
+    private void Render()
+    {
+        if (_context == null)
+        {
+            return;
+        }
+
+        _context.Render();
+        UpdateThumbnailRequests();
+
+        Vector snapOffset = new(this.SnapPosition(HostOffset.X, HostScale.X), this.SnapPosition(HostOffset.Y, HostScale.Y));
+        _pages.Update(HostScale, snapOffset, GetPlaceholderMode());
+    }
+
+    /// <summary>
+    /// Requests the thumbnails of the visible thumbnail items and, while placeholders are drawn, of the visible pages,
+    /// and cancels the rest.
+    /// </summary>
+    private void UpdateThumbnailRequests()
+    {
+        if (_context == null)
+        {
+            return;
+        }
+
+        HashSet<int> wantedPageNumbers = [];
+
+        if (Thumbnails != null)
+        {
+            wantedPageNumbers.UnionWith(Thumbnails.Items.Where(item => item.IsVisible).Select(item => item.PageNumber));
+        }
+
+        if (GetPlaceholderMode() != PdfPanelThumbnailPlaceholderMode.None)
+        {
+            foreach (PdfPanelFramePage framePage in _context.VisiblePages)
+            {
+                wantedPageNumbers.Add(framePage.PageNumber);
+            }
+        }
+
+        _thumbnailRequests.Update(_context.Thumbnails, wantedPageNumbers);
+    }
+
+    private PdfPanelThumbnailPlaceholderMode GetPlaceholderMode() => (Configuration ?? PdfPanelConfiguration.Default).ThumbnailPlaceholderMode;
+
+    private void OnVisibleThumbnailsChanged(object? sender, EventArgs e) => UpdateThumbnailRequests();
 
     private void ResetContent()
     {
@@ -160,11 +206,6 @@ public partial class WpfPdfPanel : FrameworkElement
 
         Size size = new(ActualWidth, ActualHeight);
         drawingContext.DrawRectangle(brush, null, new Rect(size));
-
-        if (DrawingVisual != null)
-        {
-            drawingContext.DrawDrawing(DrawingVisual.Drawing);
-        }
     }
 
     /// <inheritdoc />
@@ -207,7 +248,7 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        if (Document == null || _renderTargetFactory == null)
+        if (Document == null)
         {
             return;
         }
@@ -215,7 +256,8 @@ public partial class WpfPdfPanel : FrameworkElement
         DisposeContext();
         ClearSearchResults();
 
-        _context = new PdfPanelContext(Document, _renderTargetFactory);
+        _context = new PdfPanelContext(Document, _pages.TileResourceFactory, _pages.ThumbnailResourceFactory);
+        _pages.Attach(_context);
         _context.ReferenceScale = ReferenceScale;
         _context.Scale = (float)Scale * _context.ReferenceScale;
         _context.AutoScaleMode = AutoScaleMode;
@@ -233,6 +275,7 @@ public partial class WpfPdfPanel : FrameworkElement
         SetValue(OutlinesPropertyKey, outlines);
         PdfThumbnailsViewModel thumbnails = new(_context.Thumbnails, Document, _context.Actions);
         thumbnails.Changed += OnViewModelChanged;
+        thumbnails.VisibleItemsChanged += OnVisibleThumbnailsChanged;
         SetValue(ThumbnailsPropertyKey, thumbnails);
         PdfAttachmentsViewModel attachments = new(Document);
         SetValue(AttachmentsPropertyKey, attachments);
@@ -269,6 +312,7 @@ public partial class WpfPdfPanel : FrameworkElement
         if (Thumbnails != null)
         {
             Thumbnails.Changed -= OnViewModelChanged;
+            Thumbnails.VisibleItemsChanged -= OnVisibleThumbnailsChanged;
         }
 
         SetValue(ThumbnailsPropertyKey, null);
@@ -276,6 +320,8 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.Actions.ActionRequested -= OnActionRequested;
         _context.Search.MatchesChanged -= OnSearchMatchesChanged;
         _context.Text.TextExtracted -= OnTextExtracted;
+        _pages.Detach();
+        _thumbnailRequests.Clear();
         _context.Dispose();
     }
 
@@ -312,6 +358,9 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.ReferenceScale = ReferenceScale;
         _context.Layout = Layout;
         (Configuration ?? PdfPanelConfiguration.Default).ApplyConfiguration(_context);
+        _context.Renderer.TileChannelOrder = PdfPanelTileChannelOrder.Bgra;
+
+        // TODO: draw PanelInterface.OnPanelPageRendered and OnPanelRendered as native overlays; nothing calls them now.
         _context.Renderer.OnPanelPageRendered = PanelInterface?.OnPanelPageRendered;
         _context.Renderer.OnPanelRendered = PanelInterface?.OnPanelRendered;
         _context.Search.Query = SearchQuery;
@@ -382,12 +431,15 @@ public partial class WpfPdfPanel : FrameworkElement
             case PdfPanelInterfaceAction.RequestRedraw:
                 {
                     Update();
-                    _context?.Present();
+
+                    // TODO: draw the overlays of PanelInterface again once the host draws them.
+                    Render();
                     break;
                 }
             case PdfPanelInterfaceAction.RequestPresent:
                 {
-                    _context?.Present();
+                    // TODO: draw the overlays of PanelInterface again once the host draws them.
+                    Render();
                     break;
                 }
             case PdfPanelInterfaceAction.ScrollToDestination when e.Destination != null:

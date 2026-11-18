@@ -10,7 +10,7 @@ namespace PdfPixel.PanelDiagnostics.Commands;
 
 /// <summary>
 /// Replays a script of user interactions against a <see cref="PdfPanelContext"/>, logging script commands,
-/// presented frames and the time the panel thread is blocked.
+/// tile changes and the time the panel thread is blocked.
 /// </summary>
 internal static class ReplayCommand
 {
@@ -34,8 +34,9 @@ internal static class ReplayCommand
         SynchronizationContext.SetSynchronizationContext(synchronizationContext);
 
         using PdfPanelDocument panelDocument = PdfPanelDocument.FromDocument(document, loggerFactory, synchronizationContext);
-        PanelRenderTarget renderTarget = new(clock);
-        using PdfPanelContext context = new(panelDocument, renderTarget);
+        PanelTileLog tileLog = new(clock);
+        using PdfPanelContext context = new(panelDocument, tileLog, new PanelThumbnailResourceFactory());
+        context.Tiles.TilesChanged += tileLog.OnTilesChanged;
 
         // TODO: temporary tile size override for the retained-memory investigation, remove when done.
         string? tileSize = Environment.GetEnvironmentVariable("PDFPIXEL_TILE_SIZE");

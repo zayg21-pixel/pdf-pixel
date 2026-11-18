@@ -1,6 +1,19 @@
 const views = new Map();
 let interop = null;
 
+// Blur radius, in canvas pixels, and color of the shadow around each page.
+const pageShadowBlur = 9;
+const pageShadowColor = 'rgba(128, 128, 128, 0.6)';
+
+/**
+ * Returns the canvas of the given id in the canvas store the panel writes tiles and thumbnails into, or null.
+ * @param {number} id Canvas id.
+ * @returns {HTMLCanvasElement | null}
+ */
+function getStoredCanvas(id) {
+    return globalThis.pdfPixelCanvases?.get(id) ?? null;
+}
+
 function isPlainObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -145,6 +158,7 @@ class PdfPanelView {
         };
 
         this._renderScheduled = false;
+        this._frameScheduled = false;
 
         // Tracks the scroll position we set programmatically so onScroll can
         // ignore those events and only react to genuine user-initiated scrolls.
@@ -229,6 +243,8 @@ class PdfPanelView {
             currentSearchResult: this.state.currentSearchResult
         };
 
+        // The frame is drawn during the redraw, sized by the device pixel scale of this render.
+        this.state.devicePixelScale = devicePixelScale;
         const output = interop.RequestRedraw(this.id, JSON.stringify(input));
 
         // Without a document the panel returns no state; the view keeps what it sent.
@@ -570,22 +586,108 @@ class PdfPanelView {
     }
 
     /**
-     * Sizes the overlay canvas to the presented frame and passes it to the subscriber with the view id and the frame.
-     * @param {object} frame The frame object.
+     * Requests the frame on the next animation frame, after the tiles or thumbnails of the panel changed. Several
+     * requests before that frame result in one draw.
      */
-    presentFrame(frame) {
-        const { width, height } = frame.panelSize;
-
-        if (this.overlayCanvas.width !== width || this.overlayCanvas.height !== height) {
-            this.overlayCanvas.width = width;
-            this.overlayCanvas.height = height;
+    scheduleFrame() {
+        if (this._frameScheduled) {
+            return;
         }
 
-        this.overlayCanvas.style.width = this.canvas.style.width;
-        this.overlayCanvas.style.height = this.canvas.style.height;
+        this._frameScheduled = true;
+        requestAnimationFrame(() => {
+            this._frameScheduled = false;
+            const frameJson = interop.GetFrame(this.id);
+
+            if (frameJson) {
+                this.presentFrame(JSON.parse(frameJson));
+            }
+        });
+    }
+
+    /**
+     * Draws `frame` on the panel canvas, sizes the overlay canvas to it and passes the overlay canvas to the subscriber
+     * with the view id and the frame.
+     * @param {object} frame The frame JSON object.
+     */
+    presentFrame(frame) {
+        const width = frame.panelWidth;
+        const height = frame.panelHeight;
+        const cssWidth = (width / this.state.devicePixelScale) + 'px';
+        const cssHeight = (height / this.state.devicePixelScale) + 'px';
+
+        for (const canvas of [this.canvas, this.overlayCanvas]) {
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+            }
+
+            canvas.style.width = cssWidth;
+            canvas.style.height = cssHeight;
+        }
+
+        this.drawFrame(frame);
 
         if (typeof this.onFramePresented === 'function') {
-            this.onFramePresented({ id: this.id, canvas: this.overlayCanvas, frame: frame });
+            this.onFramePresented({
+                id: this.id,
+                canvas: this.overlayCanvas,
+                frame: {
+                    panelSize: { width: width, height: height },
+                    hostToPanel: new DOMMatrix(frame.hostToPanel),
+                    pages: frame.pages.map(page => new PdfPanelFramePage(page))
+                }
+            });
+        }
+    }
+
+    /**
+     * Draws the visible pages of `frame` on the panel canvas over the container background: for each page its shadow,
+     * white paper clipped to its rounded outline, its placeholder thumbnail and its tiles, all in page content
+     * coordinates.
+     * @param {object} frame The frame JSON object.
+     */
+    drawFrame(frame) {
+        const context = this.canvas.getContext('2d');
+
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for (const page of frame.pages) {
+            const [a, b, c, d, e, f] = page.contentToPanel;
+            const bounds = page.bounds;
+            const pageWidth = bounds.right - bounds.left;
+            const pageHeight = bounds.bottom - bounds.top;
+            const radius = Math.max(0, Math.min(frame.pageCornerRadius, Math.min(pageWidth, pageHeight) / 2));
+
+            context.save();
+            context.setTransform(a, b, c, d, e, f);
+
+            context.beginPath();
+            context.roundRect(bounds.left, bounds.top, pageWidth, pageHeight, radius);
+            context.shadowColor = pageShadowColor;
+            context.shadowBlur = pageShadowBlur;
+            context.fillStyle = 'white';
+            context.fill();
+            context.shadowColor = 'transparent';
+            context.clip();
+
+            const thumbnail = (page.thumbnail != null) ? getStoredCanvas(page.thumbnail) : null;
+
+            if (thumbnail) {
+                context.drawImage(thumbnail, bounds.left, bounds.top, pageWidth, pageHeight);
+            }
+
+            for (const tile of page.tiles) {
+                const tileCanvas = getStoredCanvas(tile.id);
+
+                if (tileCanvas) {
+                    const destination = tile.destination;
+                    context.drawImage(tileCanvas, destination.left, destination.top, destination.right - destination.left, destination.bottom - destination.top);
+                }
+            }
+
+            context.restore();
         }
     }
 
@@ -609,7 +711,7 @@ class PdfPanelView {
 
     /**
      * Passes a thumbnail update to the subscriber of the view.
-     * @param {{ pageNumber: number, png: Uint8Array }} update The thumbnail update.
+     * @param {{ pageNumber: number, image: HTMLCanvasElement }} update The thumbnail update.
      */
     updateThumbnail(update) {
         if (typeof this.onThumbnailUpdated === 'function') {
@@ -869,21 +971,21 @@ export function getThumbnailLayout(id) {
  * Get the thumbnail of a page of the specified view when it is already produced.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
- * @returns {Uint8Array | null} The thumbnail PNG, or null when it has not been produced.
+ * @returns {HTMLCanvasElement | null} The thumbnail canvas, owned by the panel, or null when it has not been produced.
  */
 export function getThumbnail(id, pageNumber) {
     if (!views.has(id)) {
         console.error(`View not found for id '${id}'`);
         return null;
     }
-    const png = interop.GetThumbnail(id, pageNumber);
-    return png ? new Uint8Array(png) : null;
+    const canvasId = interop.GetThumbnail(id, pageNumber);
+    return (canvasId != null) ? getStoredCanvas(canvasId) : null;
 }
 
 /**
- * Set whether the thumbnail of a page of the specified view is shown. While it is visible, the thumbnail is kept and its
- * PNG is passed to the `setOnThumbnailUpdated` callback when it is ready, at once when it is already produced, and again
- * whenever it is produced anew. A thumbnail that is no longer visible may be evicted.
+ * Set whether the thumbnail of a page of the specified view is shown. While it is visible, the thumbnail is requested and
+ * its canvas is passed to the `setOnThumbnailUpdated` callback when it is produced, at once when it already is, and again
+ * whenever it is produced anew. A thumbnail that is no longer visible may be evicted, which empties its canvas.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
  * @param {boolean} visible Whether the thumbnail is shown.
@@ -898,10 +1000,10 @@ export function setThumbnailVisible(id, pageNumber, visible) {
 }
 
 /**
- * Subscribe to thumbnail updates of the specified view. The callback receives `{ pageNumber, png }`
- * for each visible thumbnail that is ready.
+ * Subscribe to thumbnail updates of the specified view. The callback receives `{ pageNumber, image }`
+ * for each visible thumbnail that is produced, `image` being its canvas, owned by the panel.
  * @param {string} id View id.
- * @param {(update: { pageNumber: number, png: Uint8Array }) => void} callback Called with each update.
+ * @param {(update: { pageNumber: number, image: HTMLCanvasElement }) => void} callback Called with each update.
  * @returns {boolean} True if the view was found and the callback was registered.
  */
 export function setOnThumbnailUpdated(id, callback) {
@@ -1162,25 +1264,29 @@ export function setScale(id, scale) {
 }
 
 /**
- * Passes a presented frame to the subscriber of the view.
+ * Draws a frame of the view and passes it to the subscriber of the view.
  * Called from C# via JSImport.
  * @param {string} id View id.
- * @param {string} frameJson The frame `{ panelWidth, panelHeight, hostToPanel, pages }` as JSON, the matrices as
- * `[a, b, c, d, e, f]`.
+ * @param {string} frameJson The frame `{ panelWidth, panelHeight, hostToPanel, pageCornerRadius, pages }` as JSON, the
+ * matrices as `[a, b, c, d, e, f]`.
  */
 export function framePresented(id, frameJson) {
     const view = views.get(id);
-    if (!view) {
-        return;
+    if (view) {
+        view.presentFrame(JSON.parse(frameJson));
     }
+}
 
-    const frame = JSON.parse(frameJson);
-
-    view.presentFrame({
-        panelSize: { width: frame.panelWidth, height: frame.panelHeight },
-        hostToPanel: new DOMMatrix(frame.hostToPanel),
-        pages: frame.pages.map(page => new PdfPanelFramePage(page))
-    });
+/**
+ * Requests the frame of the view on the next animation frame.
+ * Called from C# via JSImport.
+ * @param {string} id View id.
+ */
+export function scheduleFrame(id) {
+    const view = views.get(id);
+    if (view) {
+        view.scheduleFrame();
+    }
 }
 
 /**
@@ -1188,12 +1294,14 @@ export function framePresented(id, frameJson) {
  * Called from C# via JSImport.
  * @param {string} id View id.
  * @param {number} pageNumber 1-based page number.
- * @param {number[]} png The bytes of the thumbnail PNG, passed on as a `Uint8Array`.
+ * @param {number} canvasId Id of the thumbnail's canvas in the canvas store.
  */
-export function thumbnailUpdated(id, pageNumber, png) {
+export function thumbnailUpdated(id, pageNumber, canvasId) {
     const view = views.get(id);
-    if (view) {
-        view.updateThumbnail({ pageNumber: pageNumber, png: new Uint8Array(png) });
+    const image = getStoredCanvas(canvasId);
+
+    if (view && image) {
+        view.updateThumbnail({ pageNumber: pageNumber, image: image });
     }
 }
 

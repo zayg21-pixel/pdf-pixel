@@ -1,6 +1,5 @@
 using PdfPixel.Commands;
 using PdfPixel.PdfPanel.Annotations;
-using PdfPixel.PdfPanel.Thumbnails;
 using System;
 
 namespace PdfPixel.PdfPanel.Caching;
@@ -26,7 +25,6 @@ internal sealed class PdfPageCacheEntry : IDisposable
 
         Content = new PdfPageCacheEntryItem(pageNumber);
         AnnotationContent = new PdfPageCacheEntryItem(pageNumber);
-        Thumbnail.SetContent(new PdfPageThumbnail());
     }
 
     /// <summary>
@@ -38,32 +36,6 @@ internal sealed class PdfPageCacheEntry : IDisposable
     /// Page annotation content.
     /// </summary>
     public PdfPageCacheEntryItem AnnotationContent { get; }
-
-    /// <summary>
-    /// Rasterized tiles of the page's visible region, cleared with the content.
-    /// </summary>
-    public ContentLocker<PdfPageTiles> Tiles { get; } = new();
-
-    /// <summary>
-    /// Thumbnail of the page in the forms produced so far, always set; its forms are changed under the write lock.
-    /// Kept when the content is cleared.
-    /// </summary>
-    public ContentLocker<PdfPageThumbnail> Thumbnail { get; } = new();
-
-    /// <summary>
-    /// Returns the forms the page's thumbnail was produced in.
-    /// </summary>
-    public PdfPanelThumbnailFormats GetThumbnailFormats()
-    {
-        using LockedContent<PdfPageThumbnail> lockedThumbnail = Thumbnail.GetContent();
-
-        if (lockedThumbnail.Content == null)
-        {
-            return PdfPanelThumbnailFormats.None;
-        }
-
-        return lockedThumbnail.Content.Formats;
-    }
 
     /// <summary>
     /// Returns the page's annotation popups, creating them on first call.
@@ -156,23 +128,11 @@ internal sealed class PdfPageCacheEntry : IDisposable
         {
             Content.ClearContent();
             AnnotationContent.ClearContent();
-            Tiles.SetContent(null);
         }
 
         if ((contentTypes & CachedContentType.Words) != 0)
         {
             Content.Words.SetContent(null);
-        }
-
-        if ((contentTypes & CachedContentType.Thumbnail) != 0)
-        {
-            using WriteLockedContent<PdfPageThumbnail> lockedThumbnail = Thumbnail.GetContentForWriting();
-
-            if (lockedThumbnail.Content != null)
-            {
-                lockedThumbnail.Content.Png = null;
-                lockedThumbnail.Content.Samples = null;
-            }
         }
     }
 
@@ -194,8 +154,6 @@ internal sealed class PdfPageCacheEntry : IDisposable
 
         Cancel();
         Clear(CachedContentType.All);
-        Tiles.Dispose();
-        Thumbnail.Dispose();
         _disposed = true;
     }
 }

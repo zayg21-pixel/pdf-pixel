@@ -5,6 +5,8 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Mvvm;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Text;
+using PdfPixel.PdfPanel.Thumbnails;
+using PdfPixel.PdfPanel.Web.Rendering;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -21,11 +23,7 @@ internal sealed class PdfPanelResources
     /// <summary>
     /// Initializes the resources of the panel in the container with the given id.
     /// </summary>
-    public PdfPanelResources(string containerId, IPdfPanelRenderTargetFactory renderTargetFactory)
-    {
-        ContainerId = containerId;
-        RenderTargetFactory = renderTargetFactory;
-    }
+    public PdfPanelResources(string containerId) => ContainerId = containerId;
 
     /// <summary>
     /// Gets the id of the container the panel is registered for.
@@ -33,9 +31,20 @@ internal sealed class PdfPanelResources
     public string ContainerId { get; }
 
     /// <summary>
-    /// Gets the render target factory for the panel.
+    /// Gets the factory of the tiles' canvases.
     /// </summary>
-    public IPdfPanelRenderTargetFactory RenderTargetFactory { get; }
+    public IPdfPanelTileResourceFactory TileResourceFactory { get; } = new WebTileResourceFactory();
+
+    /// <summary>
+    /// Gets the factory of the thumbnails' canvases.
+    /// </summary>
+    public IPdfPanelThumbnailResourceFactory ThumbnailResourceFactory { get; } = new WebThumbnailResourceFactory();
+
+    /// <summary>
+    /// Gets the thumbnails the panel requests: the visible thumbnail items and, while placeholders are drawn, the
+    /// visible pages.
+    /// </summary>
+    public PdfPanelThumbnailRequests ThumbnailRequests { get; } = new();
 
     /// <summary>
     /// Gets or sets the PDF panel context instance, or null when no document is loaded.
@@ -176,22 +185,27 @@ internal sealed class PdfPanelResources
     public void OnLayersPropertyChanged(object? sender, PropertyChangedEventArgs args) => LayersChanged = true;
 
     /// <summary>
-    /// Passes the PNG of a visible thumbnail to JS when it is ready.
+    /// Schedules the frame of the panel to be sent to JS again after the tiles of a page changed.
     /// </summary>
-    public void OnThumbnailPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    public void OnTilesChanged(object? sender, PdfPanelTilesChangedEventArgs args) => PdfPanelInterop.ScheduleFrame(ContainerId);
+
+    /// <summary>
+    /// Passes the canvas of a thumbnail that is produced to JS when its item is visible, and schedules the frame to be
+    /// sent again for its placeholder.
+    /// </summary>
+    public void OnThumbnailReady(object? sender, PdfPanelThumbnailEventArgs args)
     {
-        if (args.PropertyName != nameof(PdfThumbnailViewModel.Png) || sender is not PdfThumbnailViewModel thumbnail)
-        {
-            return;
-        }
-
-        byte[]? png = thumbnail.Png;
-
-        if (png == null)
-        {
-            return;
-        }
-
-        PdfPanelInterop.ReportThumbnail(ContainerId, thumbnail.PageNumber, png);
+        PdfPanelInterop.ReportThumbnail(this, args.PageNumber);
+        PdfPanelInterop.ScheduleFrame(ContainerId);
     }
+
+    /// <summary>
+    /// Schedules the frame of the panel to be sent to JS again after its thumbnails were dropped.
+    /// </summary>
+    public void OnThumbnailsCleared(object? sender, EventArgs args) => PdfPanelInterop.ScheduleFrame(ContainerId);
+
+    /// <summary>
+    /// Requests the thumbnails the panel wants after a thumbnail item became visible or hidden.
+    /// </summary>
+    public void OnVisibleThumbnailsChanged(object? sender, EventArgs args) => PdfPanelInterop.UpdateThumbnailRequests(this);
 }

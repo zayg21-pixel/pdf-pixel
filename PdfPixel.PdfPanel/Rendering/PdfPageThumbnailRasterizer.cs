@@ -56,7 +56,7 @@ internal sealed class PdfPageThumbnailRasterizer : IDisposable
         int surfaceHeight = Math.Max(1, maximumSize.Height);
 
         _surfaceBuffer = new byte[surfaceWidth * surfaceHeight * PdfPageRasterExtensions.RasterBytesPerPixel];
-        _surfaceSamples = PdfPageRasterExtensions.CreateRasterSamples(_surfaceBuffer, surfaceWidth, surfaceHeight);
+        _surfaceSamples = PdfPageRasterExtensions.CreateRasterSamples(_surfaceBuffer, surfaceWidth, surfaceHeight, PdfPanelTileChannelOrder.Rgba);
         _surface = new PdfSnapSurface(_surfaceSamples, surfaceParameters, initialContext, panelDocument.Document.LoggerFactory.CreateLogger<PdfSnapSurface>());
     }
 

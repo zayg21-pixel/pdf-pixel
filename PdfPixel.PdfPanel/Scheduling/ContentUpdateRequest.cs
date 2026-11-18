@@ -1,5 +1,6 @@
 using PdfPixel.Annotations;
 using PdfPixel.OptionalContent;
+using PdfPixel.PdfPanel.Rendering;
 
 namespace PdfPixel.PdfPanel.Scheduling;
 
@@ -14,7 +15,7 @@ internal sealed class ContentUpdateRequest
     public ContentUpdateRequest(
         float scale,
         int tileSize,
-        int tileCapacity,
+        PdfPanelTileChannelOrder tileChannelOrder,
         bool antialias,
         PdfOptionalContentStates optionalContentStates,
         PdfAnnotationStates annotationStates,
@@ -22,7 +23,7 @@ internal sealed class ContentUpdateRequest
     {
         Scale = scale;
         TileSize = tileSize;
-        TileCapacity = tileCapacity;
+        TileChannelOrder = tileChannelOrder;
         Antialias = antialias;
         OptionalContentStates = optionalContentStates;
         AnnotationStates = annotationStates;
@@ -40,9 +41,9 @@ internal sealed class ContentUpdateRequest
     public int TileSize { get; }
 
     /// <summary>
-    /// Number of tiles the tile pool keeps, rented and free together.
+    /// Order of the channels of the tiles' pixels.
     /// </summary>
-    public int TileCapacity { get; }
+    public PdfPanelTileChannelOrder TileChannelOrder { get; }
 
     /// <summary>
     /// Whether the tiles are rasterized with antialiasing.
